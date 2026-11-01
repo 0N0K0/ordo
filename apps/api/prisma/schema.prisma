@@ -12,3 +12,53 @@ generator pothos {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id           String      @id @default(cuid())
+  /// Lowercase, unique login name.
+  username     String      @unique
+  /// Lowercase, unique email address.
+  email        String      @unique
+  /// New email address awaiting confirmation.
+  pendingEmail String?
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  sessions     Session[]
+  authTokens   AuthToken[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  /// SHA-256 of the token stored in the session cookie.
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([userId])
+}
+
+enum AuthTokenType {
+  PASSWORD_RESET
+  EMAIL_CHANGE
+}
+
+/// Single-use token sent by email.
+model AuthToken {
+  id        String        @id @default(cuid())
+  /// SHA-256 of the token sent in the link.
+  tokenHash String        @unique
+  type      AuthTokenType
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Target address for an EMAIL_CHANGE token.
+  email     String?
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
+}

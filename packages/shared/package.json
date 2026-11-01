@@ -4,9 +4,16 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./password-strength": "./src/password-strength.ts"
   },
   "scripts": {
     "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@zxcvbn-ts/core": "^4.2.0",
+    "@zxcvbn-ts/language-common": "^4.1.3",
+    "@zxcvbn-ts/language-fr": "^4.1.2",
+    "zod": "^4.6.7"
   }
 }

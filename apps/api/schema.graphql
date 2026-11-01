@@ -1,3 +1,35 @@
+type Mutation {
+  cancelEmailChange: User!
+
+  """Closes every other session."""
+  changePassword(currentPassword: String!, password: String!): Boolean!
+  changeUsername(currentPassword: String!, username: String!): User!
+
+  """Works without a session: the link may be opened on another device."""
+  confirmEmailChange(token: String!): Boolean!
+
+  """Opens a session with a username or email and a password."""
+  login(identifier: String!, password: String!): User!
+  logout: Boolean!
+
+  """
+  Sends a confirmation link to the new address; the email changes once confirmed.
+  """
+  requestEmailChange(currentPassword: String!, email: String!): User!
+
+  """Always returns true, whether or not the account exists."""
+  requestPasswordReset(identifier: String!): Boolean!
+  resetPassword(password: String!, token: String!): Boolean!
+}
+
 type Query {
-  health: String
+  health: String!
+  me: User
+}
+
+type User {
+  email: String!
+  id: ID!
+  pendingEmail: String
+  username: String!
 }

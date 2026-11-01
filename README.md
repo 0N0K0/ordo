@@ -5,7 +5,7 @@ Monorepo npm workspaces :
 ```text
 ordo/
 ├── apps/
-│   ├── api/       # API Node + Express + Prisma (PostgreSQL)
+│   ├── api/       # API GraphQL : Express + Yoga + Pothos + Prisma (PostgreSQL)
 │   └── web/       # Front React + Vite + Mantine + TanStack Table
 └── packages/
     └── shared/    # Types et schémas zod partagés front/back
@@ -34,19 +34,25 @@ Renseigner `apps/api/.env` :
 | -------------- | ------------------------------------------------------------------------ |
 | `DATABASE_URL` | URL PostgreSQL (la valeur par défaut correspond au `docker-compose.yml`) |
 | `PORT`         | Port de l'API (défaut `3000`)                                            |
+| `APP_URL`      | URL publique du front, utilisée dans les liens envoyés par email         |
+| `SMTP_*`       | Serveur SMTP (en dev : Mailpit, valeurs par défaut de `.env.example`)    |
+| `MAIL_FROM`    | Expéditeur des emails                                                    |
 
 ```bash
-# 3. Base de données
+# 3. Base de données et serveur mail de dev
 npm run db:up
 
-# 4. Client Prisma, migrations et utilisateur
+# 4. Client Prisma et migrations
 cd apps/api
 npx prisma generate
 npx prisma migrate dev
 cd ../..
+
+# 5. Création du compte (identifiant, email, mot de passe saisis dans le terminal)
+npm run user:create
 ```
 
-Le seed crée (ou met à jour) l'utilisateur à partir de `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Le relancer après un changement de mot de passe.
+Ordo n'a qu'un seul compte : `user:create` refuse d'en créer un second. Identifiant, email et mot de passe se modifient ensuite depuis la page **Mon compte**, et un mot de passe oublié se réinitialise depuis l'écran de connexion.
 
 ## Lancement
 
@@ -55,18 +61,31 @@ npm run dev
 ```
 
 - Front : <http://localhost:5173>
-- API : <http://localhost:3000> — appelée par le front via le proxy Vite `/api`
+- API GraphQL : <http://localhost:3000/api/graphql> — GraphiQL en dev, appelée par le front via le proxy Vite `/api`
+- Emails de dev (Mailpit) : <http://localhost:8025>
+
+## GraphQL
+
+Le schéma est écrit en TypeScript avec Pothos (`apps/api/src/graphql`). Après une modification du schéma ou des requêtes du front :
+
+```bash
+npm run codegen
+```
+
+Cette commande régénère `apps/api/schema.graphql` puis les types du front (`apps/web/src/graphql`).
 
 ## Scripts
 
-| Commande            | Effet                                           |
-| ------------------- | ----------------------------------------------- |
-| `npm run dev`       | Lance l'API et le front en parallèle (watch)    |
-| `npm run build`     | Build de tous les workspaces                    |
-| `npm run typecheck` | Vérification TypeScript de tous les workspaces  |
-| `npm run lint`      | Lint de tous les workspaces                     |
-| `npm run db:up`     | Démarre PostgreSQL                              |
-| `npm run db:down`   | Arrête PostgreSQL (les données sont conservées) |
+| Commande              | Effet                                            |
+| --------------------- | ------------------------------------------------ |
+| `npm run dev`         | Lance l'API et le front en parallèle (watch)     |
+| `npm run build`       | Build de tous les workspaces                     |
+| `npm run typecheck`   | Vérification TypeScript de tous les workspaces   |
+| `npm run lint`        | Lint de tous les workspaces                      |
+| `npm run db:up`       | Démarre PostgreSQL et Mailpit                    |
+| `npm run db:down`     | Arrête PostgreSQL (les données sont conservées)  |
+| `npm run codegen`     | Régénère le schéma GraphQL et les types du front |
+| `npm run user:create` | Crée le compte unique                            |
 
 ## Ajouter une dépendance
 
