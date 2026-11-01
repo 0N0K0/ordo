@@ -353,6 +353,17 @@ function projectKeys(node: ProjectNode, prefix: string): string[] {
 }
 
 /**
+ * Expand keys of the "Sans client" group and its projects with children.
+ * @param {TreeSection} section Section.
+ * @param {string} prefix Key prefix of the section.
+ * @returns {string[]} Keys, empty when the group is empty.
+ */
+export function noClientKeys(section: TreeSection, prefix: string): string[] {
+  if (section.orphans.length === 0) return [];
+  return [`${prefix}${NO_CLIENT}`, ...section.orphans.flatMap((child) => projectKeys(child, prefix))];
+}
+
+/**
  * Expand keys of every foldable node of a section (clients, "Sans client" and projects with children).
  * @param {TreeSection} section Section.
  * @param {string} prefix Key prefix of the section ('' for the main tree).
@@ -365,9 +376,7 @@ export function sectionKeys(section: TreeSection, prefix: string): string[] {
         ? [`${prefix}${node.client.id}`, ...node.projects.flatMap((child) => projectKeys(child, prefix))]
         : [],
     ),
-    ...(section.orphans.length > 0
-      ? [`${prefix}${NO_CLIENT}`, ...section.orphans.flatMap((child) => projectKeys(child, prefix))]
-      : []),
+    ...noClientKeys(section, prefix),
   ];
 }
 

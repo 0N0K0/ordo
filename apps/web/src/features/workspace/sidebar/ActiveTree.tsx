@@ -13,12 +13,12 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Text } from '@mantine/core';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { notifyError } from '../../../lib/notify';
 import { useMoveClient, useMoveProject, type Client, type Project } from '../api';
 import { NO_CLIENT, type ProjectNode, type TreeSection } from '../tree';
+import { NoClientRow } from './NoClientRow';
 import { TreeRow } from './TreeRow';
 import classes from './Tree.module.css';
 
@@ -223,19 +223,14 @@ function SortableRow({ item, depth, client, project, dndEnabled, expanded, onTog
 
   if (item.kind === 'none') {
     return (
-      <div
+      <NoClientRow
         ref={setNodeRef}
         style={style}
-        className={classes.groupHeader}
-        onClick={onToggle}
-        role="treeitem"
-        aria-level={1}
-        aria-expanded={item.hasChildren ? expanded : undefined}
-      >
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          Sans client
-        </Text>
-      </div>
+        expanded={expanded}
+        onToggle={onToggle}
+        hasChildren={item.hasChildren}
+        canAddProject
+      />
     );
   }
 

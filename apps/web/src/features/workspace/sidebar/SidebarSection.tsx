@@ -15,6 +15,8 @@ interface SidebarSectionProps {
   onToggle: () => void;
   /** Expands or collapses every node of the section; omitted when nothing can be folded. */
   onSetAllExpanded?: (expanded: boolean) => void;
+  /** Extra menu entries (Menu.Item), shown above the fold options. */
+  actions?: ReactNode;
   children: ReactNode;
 }
 
@@ -26,10 +28,19 @@ interface SidebarSectionProps {
  * @param {boolean} props.opened Whether the section is open.
  * @param {() => void} props.onToggle Toggles the section.
  * @param {(expanded: boolean) => void} [props.onSetAllExpanded] Folds or unfolds every node. Optional.
+ * @param {ReactNode} [props.actions] Extra menu entries. Optional.
  * @param {ReactNode} props.children Section content.
  * @returns {JSX.Element} Section.
  */
-export function SidebarSection({ title, count, opened, onToggle, onSetAllExpanded, children }: SidebarSectionProps) {
+export function SidebarSection({
+  title,
+  count,
+  opened,
+  onToggle,
+  onSetAllExpanded,
+  actions,
+  children,
+}: SidebarSectionProps) {
   return (
     <section className={classes.section}>
       <div className={classes.header}>
@@ -46,7 +57,7 @@ export function SidebarSection({ title, count, opened, onToggle, onSetAllExpande
             </Badge>
           )}
         </UnstyledButton>
-        {onSetAllExpanded && (
+        {(onSetAllExpanded || actions) && (
           <Menu position="bottom-end" withinPortal shadow="md">
             <Menu.Target>
               <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Actions sur la section ${title}`}>
@@ -54,12 +65,24 @@ export function SidebarSection({ title, count, opened, onToggle, onSetAllExpande
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item leftSection={<ArrowsOutLineVerticalIcon aria-hidden />} onClick={() => onSetAllExpanded(true)}>
-                Tout déplier
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowsInLineVerticalIcon aria-hidden />} onClick={() => onSetAllExpanded(false)}>
-                Tout replier
-              </Menu.Item>
+              {actions}
+              {actions && onSetAllExpanded && <Menu.Divider />}
+              {onSetAllExpanded && (
+                <>
+                  <Menu.Item
+                    leftSection={<ArrowsOutLineVerticalIcon aria-hidden />}
+                    onClick={() => onSetAllExpanded(true)}
+                  >
+                    Tout déplier
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<ArrowsInLineVerticalIcon aria-hidden />}
+                    onClick={() => onSetAllExpanded(false)}
+                  >
+                    Tout replier
+                  </Menu.Item>
+                </>
+              )}
             </Menu.Dropdown>
           </Menu>
         )}
