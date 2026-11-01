@@ -1,0 +1,45 @@
+@layer app {
+  .shell {
+    /* No width animation and no text selection while resizing the sidebar. */
+    &[data-resizing] {
+      /* Interaction */
+      cursor: col-resize;
+      user-select: none;
+
+      & :global(.mantine-AppShell-navbar),
+      & :global(.mantine-AppShell-main) {
+        /* Animation */
+        transition: none;
+      }
+    }
+  }
+
+  .resizeHandle {
+    --handle-width: 6px;
+
+    /* Position */
+    position: absolute;
+    top: 0;
+    right: calc(var(--handle-width) / -2);
+    bottom: 0;
+    z-index: 2;
+
+    /* Dimension */
+    width: var(--handle-width);
+
+    /* Arrière-Plan */
+    background-color: transparent;
+
+    &:hover,
+    .shell[data-resizing] & {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    /* Animation */
+    transition: background-color 120ms ease;
+
+    /* Interaction */
+    cursor: col-resize;
+    touch-action: none;
+  }
+}

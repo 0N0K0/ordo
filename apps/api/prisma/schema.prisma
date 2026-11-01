@@ -62,3 +62,84 @@ model AuthToken {
 
   @@index([userId, type])
 }
+
+/// Uploaded image, stored apart so lists never load the bytes.
+model Icon {
+  id        String    @id @default(cuid())
+  mimeType  String
+  data      Bytes
+  createdAt DateTime  @default(now())
+  clients   Client[]
+  projects  Project[]
+}
+
+model Client {
+  id         String    @id @default(cuid())
+  name       String
+  iconId     String?
+  icon       Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  /// Hex color, e.g. #228be6.
+  color      String?
+  /// Manual order among clients.
+  position   Int       @default(0)
+  favorite   Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  projects   Project[]
+}
+
+model Project {
+  id                String            @id @default(cuid())
+  title             String
+  /// Client of the project tree, inherited by sub-projects.
+  clientId          String?
+  client            Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  /// Parent project (null for a root project). Deleting a project deletes its sub-projects.
+  parentId          String?
+  parent            Project?          @relation("ProjectTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children          Project[]         @relation("ProjectTree")
+  iconId            String?
+  icon              Icon?             @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  description       String?
+  statusId          String?
+  status            ProjectStatus?    @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  startDate         DateTime?         @db.Date
+  endDate           DateTime?         @db.Date
+  /// Hex color, e.g. #228be6.
+  color             String?
+  /// Manual order among siblings (same parent, or same client for root projects).
+  position          Int               @default(0)
+  favorite          Boolean           @default(false)
+  archivedAt        DateTime?
+  /// Archived along with its client or a parent project: restoring that ancestor restores it.
+  archivedByCascade Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  categories        ProjectCategory[]
+
+  @@index([clientId])
+  @@index([parentId])
+}
+
+/// Category of projects (other kinds of categories get their own table).
+model ProjectCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  /// Hex color, e.g. #228be6.
+  color     String
+  createdAt DateTime  @default(now())
+  projects  Project[]
+}
+
+/// Configurable project status (e.g. Prospect, In progress, Done).
+model ProjectStatus {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  /// Hex color, e.g. #228be6.
+  color     String
+  /// Display order in lists and selects.
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+  projects  Project[]
+}

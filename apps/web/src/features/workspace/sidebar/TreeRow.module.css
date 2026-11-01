@@ -1,0 +1,146 @@
+@layer app {
+  .row {
+    --row-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs));
+    --row-indent: calc(var(--tree-depth, 0) * var(--mantine-spacing-lg));
+
+    /* Position */
+    position: relative;
+
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    min-height: var(--row-height);
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+    padding-inline: calc(var(--mantine-spacing-xs) + var(--row-indent)) var(--mantine-spacing-xs);
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-text);
+
+    /* Arrière-Plan */
+    background-color: transparent;
+
+    &:hover,
+    &[data-menu-open] {
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    &[data-active] {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    /* Effets */
+    &[data-muted] .name {
+      opacity: 0.6;
+    }
+
+    &[data-dragging] {
+      opacity: 0.4;
+    }
+
+    /* Animation */
+    transition: background-color 120ms ease;
+
+    /* Interaction */
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+
+    &[data-draggable] {
+      cursor: grab;
+    }
+  }
+
+  .chevron {
+    /* Agencement */
+    flex: none;
+
+    /* Effets */
+    transform: rotate(0deg);
+
+    &[data-expanded] {
+      transform: rotate(90deg);
+    }
+
+    /* Animation */
+    transition: transform 150ms ease;
+  }
+
+  .spacer {
+    /* Agencement */
+    flex: none;
+
+    /* Dimension */
+    width: var(--mantine-spacing-md);
+  }
+
+  .link {
+    /* Agencement */
+    display: flex;
+    flex: 1;
+    align-items: center;
+
+    /* Dimension */
+    min-width: 0;
+    min-height: var(--row-height);
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+
+    /* Typographie */
+    color: inherit;
+    text-decoration: none;
+
+    /* Bordures */
+    outline: none;
+  }
+
+  .name {
+    /* Agencement */
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+
+    /* Dimension */
+    min-width: 0;
+
+    & > span {
+      /* Typographie */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .subtitle {
+    /* Typographie */
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+  }
+
+  .actions {
+    /* Agencement */
+    flex: none;
+
+    /* Effets */
+    opacity: 0;
+
+    .row:hover &,
+    .row:focus-within &,
+    .row[data-menu-open] & {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+
+    /* Animation */
+    transition: opacity 120ms ease;
+  }
+}

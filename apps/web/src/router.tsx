@@ -6,6 +6,9 @@ import { ConfirmEmailPage } from './features/auth/pages/ConfirmEmailPage';
 import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
 import { LoginPage } from './features/auth/pages/LoginPage';
 import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage';
+import { ClientPage } from './features/workspace/pages/ClientPage';
+import { ProjectPage } from './features/workspace/pages/ProjectPage';
+import { SettingsPage } from './features/workspace/pages/SettingsPage';
 import { AppLayout } from './layouts/AppLayout';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -19,6 +22,9 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: 'account', element: <AccountPage /> },
+          { path: 'settings', element: <SettingsPage /> },
+          { path: 'clients/:id', element: <ClientPage /> },
+          { path: 'projects/:id', element: <ProjectPage /> },
         ],
       },
     ],
