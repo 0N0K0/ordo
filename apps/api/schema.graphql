@@ -1,3 +1,35 @@
+type Client {
+  archived: Boolean!
+  color: String
+  favorite: Boolean!
+  iconUrl: String
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+input ClientInput {
+  color: String
+  icon: File
+  name: String!
+}
+
+input ClientUpdateInput {
+  """null clears the color."""
+  color: String
+
+  """Replaces the current icon."""
+  icon: File
+  name: String
+  removeIcon: Boolean
+}
+
+"""Calendar date, YYYY-MM-DD."""
+scalar Date
+
+"""Uploaded file, sent with a GraphQL multipart request."""
+scalar File
+
 type Mutation {
   cancelEmailChange: User!
 
@@ -7,10 +39,39 @@ type Mutation {
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
+  createClient(input: ClientInput!): Client!
+  createProject(input: ProjectInput!): Project!
+  createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
+  createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
+  deleteClient(
+    """true deletes the projects, false moves them to "no client"."""
+    deleteProjects: Boolean!
+    id: ID!
+  ): Boolean!
+
+  """Deletes the project and all its sub-projects."""
+  deleteProject(id: ID!): Boolean!
+  deleteProjectCategory(id: ID!): Boolean!
+  deleteProjectStatus(id: ID!): Boolean!
 
   """Opens a session with a username or email and a password."""
   login(identifier: String!, password: String!): User!
   logout: Boolean!
+  moveClient(id: ID!, index: Int!): Boolean!
+
+  """Moves a project with its sub-projects."""
+  moveProject(
+    """
+    Client of a root project, null for "no client" (ignored with a parent).
+    """
+    clientId: ID
+    id: ID!
+    index: Int!
+
+    """Target parent project, null for a root project."""
+    parentId: ID
+  ): Boolean!
+  moveProjectStatus(id: ID!, index: Int!): Boolean!
 
   """
   Sends a confirmation link to the new address; the email changes once confirmed.
@@ -20,11 +81,121 @@ type Mutation {
   """Always returns true, whether or not the account exists."""
   requestPasswordReset(identifier: String!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+
+  """Archiving cascades to the active projects; restoring brings them back."""
+  setClientArchived(archived: Boolean!, id: ID!): Client!
+  setClientFavorite(favorite: Boolean!, id: ID!): Client!
+
+  """
+  Archiving cascades to sub-projects; restoring a project restores its archived ancestors and client.
+  """
+  setProjectArchived(archived: Boolean!, id: ID!): Project!
+  setProjectFavorite(favorite: Boolean!, id: ID!): Project!
+  updateClient(id: ID!, input: ClientUpdateInput!): Client!
+  updateProject(id: ID!, input: ProjectUpdateInput!): Project!
+  updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
+  updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
+}
+
+type Project {
+  archived: Boolean!
+  categories: [ProjectCategory!]!
+  clientId: ID
+  color: String
+  description: String
+  endDate: Date
+  favorite: Boolean!
+  iconUrl: String
+  id: ID!
+  parentId: ID
+  position: Int!
+  startDate: Date
+  statusId: ID
+  title: String!
+}
+
+type ProjectCategory {
+  color: String!
+  id: ID!
+  name: String!
+}
+
+input ProjectCategoryInput {
+  color: String!
+  name: String!
+}
+
+input ProjectCategoryUpdateInput {
+  color: String
+  name: String
+}
+
+input ProjectInput {
+  categoryIds: [ID!]
+
+  """
+  Client of a root project; a sub-project inherits the client of its parent.
+  """
+  clientId: ID
+  color: String
+  description: String
+  endDate: Date
+  icon: File
+  parentId: ID
+  startDate: Date
+  statusId: ID
+  title: String!
+}
+
+type ProjectStatus {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+input ProjectStatusInput {
+  color: String!
+  name: String!
+}
+
+input ProjectStatusUpdateInput {
+  color: String
+  name: String
+}
+
+input ProjectUpdateInput {
+  categoryIds: [ID!]
+
+  """
+  null detaches the project from its client; omitted leaves it unchanged.
+  """
+  clientId: ID
+  color: String
+  description: String
+  endDate: Date
+
+  """Replaces the current icon."""
+  icon: File
+
+  """null makes it a root project; omitted leaves it unchanged."""
+  parentId: ID
+  removeIcon: Boolean
+  startDate: Date
+  statusId: ID
+  title: String
 }
 
 type Query {
+  """Every client, archived ones included, in manual order."""
+  clients: [Client!]!
   health: String!
   me: User
+  projectCategories: [ProjectCategory!]!
+  projectStatuses: [ProjectStatus!]!
+
+  """Every project, archived ones included, in manual order."""
+  projects: [Project!]!
 }
 
 type User {

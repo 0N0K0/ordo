@@ -1,0 +1,51 @@
+@layer app {
+  .branch {
+    /* Position */
+    position: relative;
+
+    /* Effets */
+    &[data-dragging] {
+      opacity: 0.4;
+    }
+  }
+
+  .dropTarget,
+  .groupHeader {
+    /* Bordures */
+    outline: 1px dashed transparent;
+    outline-offset: -1px;
+
+    &[data-drop-target] {
+      outline-color: var(--mantine-primary-color-filled);
+    }
+  }
+
+  .groupHeader {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs));
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    margin-top: var(--mantine-spacing-xs);
+    padding-inline: var(--mantine-spacing-xs);
+
+    /* Interaction */
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .overlay {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-body);
+
+    /* Effets */
+    box-shadow: var(--mantine-shadow-md);
+
+    /* Interaction */
+    cursor: grabbing;
+  }
+}

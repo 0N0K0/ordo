@@ -7,7 +7,17 @@ export type ErrorCode =
   | 'INVALID_CREDENTIALS'
   | 'INVALID_TOKEN'
   | 'CONFLICT'
+  | 'NOT_FOUND'
   | 'TOO_MANY_REQUESTS';
+
+/**
+ * Error thrown when a requested record does not exist.
+ * @param {string} what Human-readable name of the record ("Client", "Projet"…).
+ * @returns {GraphQLError} NOT_FOUND error.
+ */
+export function notFound(what: string): GraphQLError {
+  return clientError('NOT_FOUND', `${what} introuvable.`);
+}
 
 /**
  * Creates a GraphQL error exposed to the client (not masked by Yoga).

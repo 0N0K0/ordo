@@ -1,0 +1,59 @@
+@layer app {
+  .section {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Espacement */
+    padding-bottom: var(--mantine-spacing-xs);
+  }
+
+  .header {
+    /* Position */
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs));
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+    padding-inline: var(--mantine-spacing-xs);
+
+    /* Arrière-Plan */
+    background-color: var(--app-shell-navbar-bg, var(--mantine-color-body));
+
+    &:hover {
+      background-color: var(--mantine-color-default-hover);
+    }
+  }
+
+  .toggle {
+    /* Agencement */
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: space-between;
+
+    /* Dimension */
+    min-height: inherit;
+  }
+
+  .chevron {
+    /* Effets */
+    transform: rotate(0deg);
+
+    &[data-opened] {
+      transform: rotate(90deg);
+    }
+
+    /* Animation */
+    transition: transform 150ms ease;
+  }
+}
