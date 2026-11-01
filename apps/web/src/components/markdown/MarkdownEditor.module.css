@@ -1,0 +1,142 @@
+@layer app {
+  .root {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Espacement */
+    gap: calc(var(--mantine-spacing-xs) / 2);
+  }
+
+  .frame {
+    /* Position */
+    position: relative;
+
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Dimension */
+    overflow: visible;
+
+    .root[data-error] & {
+      /* Bordures */
+      border-color: var(--mantine-color-error);
+    }
+
+    &:focus-within {
+      /* Bordures */
+      border-color: var(--mantine-primary-color-filled);
+    }
+  }
+
+  .header {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+
+    /* Bordures */
+    border-bottom: 1px solid var(--mantine-color-default-border);
+  }
+
+  .tabs {
+    /* Bordures */
+    border-bottom: 0;
+
+    &::before {
+      /* Agencement */
+      display: none;
+    }
+  }
+
+  .divider {
+    /* Dimension */
+    width: 1px;
+    height: 1em;
+
+    /* Espacement */
+    margin-inline: calc(var(--mantine-spacing-xs) / 2);
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-border);
+  }
+
+  .panel {
+    /* Position */
+    position: relative;
+
+    /* Espacement */
+    padding: var(--mantine-spacing-xs);
+  }
+
+  .input {
+    /* Typographie */
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.6;
+
+    /* Bordures */
+    border: 0;
+
+    /* Interaction */
+    resize: vertical;
+  }
+
+  .preview {
+    /* Dimension */
+    min-height: calc(6 * 1.6 * var(--mantine-font-size-sm));
+
+    /* Espacement */
+    padding: var(--mantine-spacing-xs);
+  }
+
+  .suggestions {
+    /* Position */
+    position: absolute;
+    top: 100%;
+    left: var(--mantine-spacing-xs);
+    z-index: 10;
+
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Dimension */
+    width: min(28rem, calc(100% - 2 * var(--mantine-spacing-xs)));
+    max-height: 18rem;
+    overflow-y: auto;
+
+    /* Espacement */
+    padding: calc(var(--mantine-spacing-xs) / 2);
+  }
+
+  .suggestion {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
+
+    /* Typographie */
+    text-align: left;
+
+    /* Arrière-Plan */
+    &[data-active] {
+      background-color: var(--mantine-primary-color-light);
+    }
+  }
+
+  .footer {
+    /* Espacement */
+    padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-sm);
+
+    /* Typographie */
+    color: var(--mantine-color-dimmed);
+
+    /* Bordures */
+    border-top: 1px dashed var(--mantine-color-default-border);
+  }
+}

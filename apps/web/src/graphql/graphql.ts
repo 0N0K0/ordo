@@ -214,7 +214,7 @@ export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: s
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null }>, taskStatuses: Array<{ id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   number: number;
@@ -269,6 +269,14 @@ export type CloneTaskMutationVariables = Exact<{
 
 
 export type CloneTaskMutation = { cloneTask: { id: string, number: number } };
+
+export type MoveTaskMutationVariables = Exact<{
+  id: string | number;
+  beforeId?: string | number | null | undefined;
+}>;
+
+
+export type MoveTaskMutation = { moveTask: boolean };
 
 export type AddTaskBlockMutationVariables = Exact<{
   blockerId: string | number;
@@ -816,6 +824,7 @@ export const TasksDataDocument = new TypedDocumentString(`
   }
   taskStatuses {
     ...TaskLabelFields
+    category
   }
   taskPriorities {
     id
@@ -964,6 +973,11 @@ export const CloneTaskDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<CloneTaskMutation, CloneTaskMutationVariables>;
+export const MoveTaskDocument = new TypedDocumentString(`
+    mutation MoveTask($id: ID!, $beforeId: ID) {
+  moveTask(id: $id, beforeId: $beforeId)
+}
+    `) as unknown as TypedDocumentString<MoveTaskMutation, MoveTaskMutationVariables>;
 export const AddTaskBlockDocument = new TypedDocumentString(`
     mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {
   addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)

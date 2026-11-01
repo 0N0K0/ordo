@@ -6,6 +6,7 @@ import type {
   TaskFieldsFragment,
   TaskLabelFieldsFragment,
   TasksDataQuery,
+  TaskStatusCategory,
   TypedDocumentString,
 } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -14,6 +15,8 @@ export type Task = TaskFieldsFragment;
 export type TaskComment = TaskCommentFieldsFragment;
 export type Contributor = ContributorFieldsFragment;
 export type TaskLabel = TaskLabelFieldsFragment;
+export type TaskStatus = TasksDataQuery['taskStatuses'][number];
+export type { TaskStatusCategory };
 export type TasksData = TasksDataQuery;
 
 graphql(`
@@ -78,6 +81,7 @@ const TasksDataDocument = graphql(`
     }
     taskStatuses {
       ...TaskLabelFields
+      category
     }
     taskPriorities {
       id
@@ -149,6 +153,12 @@ const CloneTaskDocument = graphql(`
       id
       number
     }
+  }
+`);
+
+const MoveTaskDocument = graphql(`
+  mutation MoveTask($id: ID!, $beforeId: ID) {
+    moveTask(id: $id, beforeId: $beforeId)
   }
 `);
 
@@ -413,6 +423,40 @@ export function useCloneTask() {
 }
 
 /**
+ * Moves a task before another one in the manual order (at the end when beforeId is null).
+ * The cached list is reordered right away.
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useMoveTask() {
+  const queryClient = useQueryClient();
+  return useMutation<boolean, Error, { id: string; beforeId: string | null }, { previous?: TasksData }>({
+    mutationFn: async (variables) => (await execute(MoveTaskDocument, variables)).moveTask,
+    onMutate: async ({ id, beforeId }) => {
+      await queryClient.cancelQueries({ queryKey: tasksQueryKey });
+      const previous = queryClient.getQueryData<TasksData>(tasksQueryKey);
+      if (previous) {
+        const ordered = [...previous.tasks].sort((a, b) => a.position - b.position);
+        const moved = ordered.find((task) => task.id === id);
+        const others = ordered.filter((task) => task.id !== id);
+        const index = beforeId ? others.findIndex((task) => task.id === beforeId) : others.length;
+        if (moved && index >= 0) {
+          const order = [...others.slice(0, index), moved, ...others.slice(index)];
+          queryClient.setQueryData<TasksData>(tasksQueryKey, {
+            ...previous,
+            tasks: order.map((task, position) => ({ ...task, position })),
+          });
+        }
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(tasksQueryKey, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
+  });
+}
+
+/**
  * Adds or removes a "blocks" link.
  * @returns {UseMutationResult} Mutation state.
  */
@@ -478,6 +522,13 @@ export function useContributorMutations() {
 
 export type TaskLabelKind = keyof typeof LabelDocuments;
 
+/** Label fields; the category only applies to statuses. */
+interface LabelInput {
+  name: string;
+  color: string;
+  category?: TaskStatusCategory;
+}
+
 /**
  * CRUD and ordering of a task label table (status, priority or type).
  * @param {TaskLabelKind} kind Label table.
@@ -486,14 +537,14 @@ export type TaskLabelKind = keyof typeof LabelDocuments;
 export function useTaskLabelMutations(kind: TaskLabelKind) {
   // The three tables share their variables; results are not read (the data is refetched).
   const documents = LabelDocuments[kind] as {
-    create: TypedDocumentString<unknown, { input: { name: string; color: string } }>;
-    update: TypedDocumentString<unknown, { id: string; input: { name?: string; color?: string } }>;
+    create: TypedDocumentString<unknown, { input: LabelInput }>;
+    update: TypedDocumentString<unknown, { id: string; input: Partial<LabelInput> }>;
     remove: TypedDocumentString<unknown, { id: string }>;
     move: TypedDocumentString<unknown, { id: string; index: number }>;
   };
   return {
-    create: useTasksMutation(async (input: { name: string; color: string }) => execute(documents.create, { input })),
-    update: useTasksMutation(async (variables: { id: string; input: { name?: string; color?: string } }) =>
+    create: useTasksMutation(async (input: LabelInput) => execute(documents.create, { input })),
+    update: useTasksMutation(async (variables: { id: string; input: Partial<LabelInput> }) =>
       execute(documents.update, variables),
     ),
     remove: useTasksMutation(async (variables: { id: string }) => execute(documents.remove, variables)),

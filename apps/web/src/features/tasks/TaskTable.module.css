@@ -1,0 +1,21 @@
+@layer app {
+  .table {
+    /* Dimension */
+    table-layout: fixed;
+  }
+
+  .row {
+    /* Arrière-Plan */
+    &[data-active] {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    /* Effets */
+    &[data-archived] {
+      opacity: 0.6;
+    }
+
+    /* Interaction */
+    cursor: pointer;
+  }
+}

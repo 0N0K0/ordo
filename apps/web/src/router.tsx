@@ -6,6 +6,8 @@ import { ConfirmEmailPage } from './features/auth/pages/ConfirmEmailPage';
 import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
 import { LoginPage } from './features/auth/pages/LoginPage';
 import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage';
+import { TaskPanel } from './features/tasks/TaskPanel';
+import { TasksPage } from './features/tasks/TasksPage';
 import { ClientPage } from './features/workspace/pages/ClientPage';
 import { ProjectPage } from './features/workspace/pages/ProjectPage';
 import { SettingsPage } from './features/workspace/pages/SettingsPage';
@@ -25,6 +27,7 @@ export const router = createBrowserRouter([
           { path: 'settings', element: <SettingsPage /> },
           { path: 'clients/:id', element: <ClientPage /> },
           { path: 'projects/:id', element: <ProjectPage /> },
+          { path: 'tasks', element: <TasksPage />, children: [{ path: ':number', element: <TaskPanel /> }] },
         ],
       },
     ],

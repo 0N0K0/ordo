@@ -17,6 +17,7 @@ import {
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
   CheckIcon,
+  CheckSquareOffsetIcon,
   FolderPlusIcon,
   GearSixIcon,
   MagnifyingGlassIcon,
@@ -329,11 +330,18 @@ export function Sidebar() {
 
       <NavLink
         component={Link}
+        to="/tasks"
+        label="Tâches"
+        leftSection={<CheckSquareOffsetIcon aria-hidden />}
+        active={pathname.startsWith('/tasks')}
+        style={{ borderTop: '1px solid var(--app-shell-border-color)' }}
+      />
+      <NavLink
+        component={Link}
         to="/settings"
         label="Paramètres"
         leftSection={<GearSixIcon aria-hidden />}
         active={pathname === '/settings'}
-        style={{ borderTop: '1px solid var(--app-shell-border-color)' }}
       />
     </Stack>
   );
