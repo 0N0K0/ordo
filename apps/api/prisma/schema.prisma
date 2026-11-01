@@ -3,14 +3,12 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-datasource db {
-  provider = "postgresql"
+generator pothos {
+  provider     = "prisma-pothos-types"
+  clientOutput = "./prisma"
+  output       = "../src/generated/pothos-types.ts"
 }
 
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+datasource db {
+  provider = "postgresql"
 }

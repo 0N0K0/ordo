@@ -30,13 +30,10 @@ cp apps/api/.env.example apps/api/.env
 
 Renseigner `apps/api/.env` :
 
-| Variable         | Description                                                              |
-| ---------------- | ------------------------------------------------------------------------ |
-| `DATABASE_URL`   | URL PostgreSQL (la valeur par défaut correspond au `docker-compose.yml`) |
-| `SESSION_SECRET` | Secret de signature des sessions — `openssl rand -base64 48`             |
-| `ADMIN_EMAIL`    | Email de l'utilisateur unique                                            |
-| `ADMIN_PASSWORD` | Mot de passe de l'utilisateur unique                                     |
-| `PORT`           | Port de l'API (défaut `3000`)                                            |
+| Variable       | Description                                                              |
+| -------------- | ------------------------------------------------------------------------ |
+| `DATABASE_URL` | URL PostgreSQL (la valeur par défaut correspond au `docker-compose.yml`) |
+| `PORT`         | Port de l'API (défaut `3000`)                                            |
 
 ```bash
 # 3. Base de données
@@ -46,7 +43,6 @@ npm run db:up
 cd apps/api
 npx prisma generate
 npx prisma migrate dev
-npx prisma db seed
 cd ../..
 ```
 
