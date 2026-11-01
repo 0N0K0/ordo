@@ -1,0 +1,2 @@
+/* Mantine styles first, app styles override them. */
+@layer mantine, app;

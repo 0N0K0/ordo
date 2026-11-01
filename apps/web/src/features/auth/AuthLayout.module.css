@@ -1,0 +1,23 @@
+@layer app {
+  .root {
+    --auth-card-width: 26rem;
+
+    /* Agencement */
+    display: grid;
+    place-items: center;
+
+    /* Dimension */
+    min-height: 100dvh;
+
+    /* Espacement */
+    padding: var(--mantine-spacing-md);
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-body);
+  }
+
+  .card {
+    /* Dimension */
+    width: min(100%, var(--auth-card-width));
+  }
+}
