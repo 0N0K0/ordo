@@ -7,6 +7,10 @@ export interface TreeExpansion {
   hasChildren: (entity: EntityRef) => boolean;
   /** Expands or collapses the node and all its descendants. */
   setSubtreeExpanded: (entity: EntityRef, expanded: boolean) => void;
+  /** Whether the "Sans client" group has projects in this tree. */
+  noClientFoldable: boolean;
+  /** Expands or collapses the "Sans client" group and all its projects. */
+  setNoClientExpanded: (expanded: boolean) => void;
 }
 
 export const TreeExpansionContext = createContext<TreeExpansion | null>(null);

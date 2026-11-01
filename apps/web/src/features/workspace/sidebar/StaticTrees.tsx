@@ -1,7 +1,6 @@
-import { Text } from '@mantine/core';
 import { NO_CLIENT, type ProjectNode, type TreeSection } from '../tree';
+import { NoClientRow } from './NoClientRow';
 import { TreeRow } from './TreeRow';
-import classes from './Tree.module.css';
 
 interface BranchProps {
   node: ProjectNode;
@@ -89,11 +88,11 @@ export function StaticTree({ section, label, keyPrefix, isExpanded, onToggle }: 
 
       {section.orphans.length > 0 && (
         <>
-          <div className={classes.groupHeader} onClick={() => onToggle(`${keyPrefix}${NO_CLIENT}`)}>
-            <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-              Sans client
-            </Text>
-          </div>
+          <NoClientRow
+            expanded={isExpanded(`${keyPrefix}${NO_CLIENT}`)}
+            onToggle={() => onToggle(`${keyPrefix}${NO_CLIENT}`)}
+            hasChildren
+          />
           {isExpanded(`${keyPrefix}${NO_CLIENT}`) &&
             section.orphans.map((node) => <ProjectBranch key={node.project.id} node={node} depth={1} {...branchProps} />)}
         </>

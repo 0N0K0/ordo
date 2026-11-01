@@ -71,12 +71,16 @@
     transition: transform 150ms ease;
   }
 
+  /* Same box as the size="sm" chevron ActionIcon, so names stay aligned with or without chevron. */
   .spacer {
     /* Agencement */
+    display: inline-flex;
     flex: none;
+    align-items: center;
+    justify-content: center;
 
     /* Dimension */
-    width: var(--mantine-spacing-md);
+    width: calc(1.375rem * var(--mantine-scale));
   }
 
   .link {

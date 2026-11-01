@@ -16,14 +16,12 @@ import {
 } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
-  ArchiveIcon,
   CheckIcon,
   FolderPlusIcon,
   GearSixIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   SortAscendingIcon,
-  StarIcon,
   UserPlusIcon,
   UsersThreeIcon,
 } from '@phosphor-icons/react';
@@ -37,6 +35,7 @@ import {
   buildFavoriteSection,
   countSectionItems,
   sectionKeys,
+  noClientKeys,
   subtreeKeys,
   type SortMode,
   type TreeSection,
@@ -136,9 +135,12 @@ export function Sidebar() {
    */
   const expansionFor = (section: TreeSection, prefix: string): TreeExpansion => {
     const keysOf = (entity: EntityRef) => subtreeKeys(section, prefix, { type: entity.type, id: entity.item.id });
+    const groupKeys = noClientKeys(section, prefix);
     return {
       hasChildren: (entity) => keysOf(entity).length > 0,
       setSubtreeExpanded: (entity, expanded) => setKeysExpanded(keysOf(entity), expanded),
+      noClientFoldable: groupKeys.length > 0,
+      setNoClientExpanded: (expanded) => setKeysExpanded(groupKeys, expanded),
     };
   };
 
@@ -225,14 +227,15 @@ export function Sidebar() {
         )}
         {data && favorites && active && archives && (
           <>
-            <SidebarSection
-              title="Favoris"
-              count={favoriteCount}
-              opened={sections.favorites}
-              onToggle={() => toggleSection('favorites')}
-              onSetAllExpanded={allExpandedHandler(favorites, 'fav:')}
-            >
-              {favoriteCount > 0 ? (
+            {/* Favorites and archives only show when they have content (or matches while searching). */}
+            {favoriteCount > 0 && (
+              <SidebarSection
+                title="Favoris"
+                count={favoriteCount}
+                opened={sections.favorites}
+                onToggle={() => toggleSection('favorites')}
+                onSetAllExpanded={allExpandedHandler(favorites, 'fav:')}
+              >
                 <TreeExpansionContext.Provider value={expansionFor(favorites, 'fav:')}>
                   <StaticTree
                     section={favorites}
@@ -242,13 +245,8 @@ export function Sidebar() {
                     onToggle={toggleNode}
                   />
                 </TreeExpansionContext.Provider>
-              ) : (
-                <SectionEmpty
-                  icon={<StarIcon aria-hidden />}
-                  message={noResult ?? 'Ajoutez des favoris depuis le menu d’un client ou d’un projet.'}
-                />
-              )}
-            </SidebarSection>
+              </SidebarSection>
+            )}
 
             <SidebarSection
               title="Clients"
@@ -256,6 +254,16 @@ export function Sidebar() {
               opened={sections.active}
               onToggle={() => toggleSection('active')}
               onSetAllExpanded={allExpandedHandler(active, '')}
+              actions={
+                <>
+                  <Menu.Item leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
+                    Nouveau client
+                  </Menu.Item>
+                  <Menu.Item leftSection={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
+                    Nouveau projet
+                  </Menu.Item>
+                </>
+              }
             >
               {activeCount > 0 ? (
                 <TreeExpansionContext.Provider value={expansionFor(active, '')}>
@@ -272,23 +280,38 @@ export function Sidebar() {
                   message={noResult ?? 'Aucun client pour le moment.'}
                   action={
                     !searching && (
-                      <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
-                        Ajouter un client
-                      </Button>
+                      <Stack gap="xs" align="stretch">
+                        <Button
+                          size="xs"
+                          variant="light"
+                          leftSection={<UserPlusIcon aria-hidden />}
+                          onClick={() => actions.openClientForm()}
+                        >
+                          Ajouter un client
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          leftSection={<FolderPlusIcon aria-hidden />}
+                          onClick={() => actions.openProjectForm()}
+                        >
+                          Ajouter un projet
+                        </Button>
+                      </Stack>
                     )
                   }
                 />
               )}
             </SidebarSection>
 
-            <SidebarSection
-              title="Archives"
-              count={archiveCount}
-              opened={sections.archives}
-              onToggle={() => toggleSection('archives')}
-              onSetAllExpanded={allExpandedHandler(archives, 'archive:')}
-            >
-              {archiveCount > 0 ? (
+            {archiveCount > 0 && (
+              <SidebarSection
+                title="Archives"
+                count={archiveCount}
+                opened={sections.archives}
+                onToggle={() => toggleSection('archives')}
+                onSetAllExpanded={allExpandedHandler(archives, 'archive:')}
+              >
                 <TreeExpansionContext.Provider value={expansionFor(archives, 'archive:')}>
                   <StaticTree
                     section={archives}
@@ -298,10 +321,8 @@ export function Sidebar() {
                     onToggle={toggleNode}
                   />
                 </TreeExpansionContext.Provider>
-              ) : (
-                <SectionEmpty icon={<ArchiveIcon aria-hidden />} message={noResult ?? 'Aucun élément archivé.'} />
-              )}
-            </SidebarSection>
+              </SidebarSection>
+            )}
           </>
         )}
       </ScrollArea>
