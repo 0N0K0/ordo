@@ -79,7 +79,7 @@ export async function storeIcon(file: File): Promise<string> {
 }
 
 /**
- * Deletes icons no longer used by any client or project.
+ * Deletes icons no longer used by any client, project or contributor.
  * @param {(string | null | undefined)[]} iconIds Candidate icon ids.
  * @returns {Promise<void>}
  */
@@ -87,7 +87,7 @@ export async function deleteOrphanIcons(iconIds: (string | null | undefined)[]):
   const ids = iconIds.filter((id): id is string => Boolean(id));
   if (ids.length === 0) return;
   await prisma.icon.deleteMany({
-    where: { id: { in: ids }, clients: { none: {} }, projects: { none: {} } },
+    where: { id: { in: ids }, clients: { none: {} }, projects: { none: {} }, contributors: { none: {} } },
   });
 }
 

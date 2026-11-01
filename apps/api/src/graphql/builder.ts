@@ -19,6 +19,10 @@ export const builder = new SchemaBuilder<{
     File: { Input: File; Output: never };
     /** Calendar date, YYYY-MM-DD. */
     Date: { Input: string; Output: Date };
+    /** Instant, ISO 8601. */
+    DateTime: { Input: Date; Output: Date };
+    /** Arbitrary JSON, validated by the resolvers. */
+    JSON: { Input: unknown; Output: unknown };
   };
 }>({
   defaultFieldNullability: false,
@@ -47,6 +51,22 @@ builder.scalarType('Date', {
   parseValue: (value) => {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new TypeError('Date must be YYYY-MM-DD.');
     return value;
+  },
+});
+
+builder.scalarType('JSON', {
+  description: 'Arbitrary JSON value, validated by the resolver that receives it.',
+  serialize: (value) => value,
+  parseValue: (value) => value,
+});
+
+builder.scalarType('DateTime', {
+  description: 'Instant, ISO 8601.',
+  serialize: (date) => date.toISOString(),
+  parseValue: (value) => {
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) throw new TypeError('Invalid DateTime.');
+    return date;
   },
 });
 

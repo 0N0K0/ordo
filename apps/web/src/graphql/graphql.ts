@@ -19,6 +19,19 @@ export type ClientUpdateInput = {
   removeIcon?: boolean | null | undefined;
 };
 
+export type ContributorInput = {
+  avatar?: File | null | undefined;
+  handle: string;
+  name: string;
+};
+
+export type ContributorUpdateInput = {
+  avatar?: File | null | undefined;
+  handle?: string | null | undefined;
+  name?: string | null | undefined;
+  removeAvatar?: boolean | null | undefined;
+};
+
 export type ProjectCategoryInput = {
   color: string;
   name: string;
@@ -68,6 +81,55 @@ export type ProjectUpdateInput = {
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   title?: string | null | undefined;
+};
+
+export type TaskInput = {
+  assigneeIds?: Array<string | number> | null | undefined;
+  description?: string | null | undefined;
+  effort?: number | null | undefined;
+  endDate?: string | null | undefined;
+  parentId?: string | number | null | undefined;
+  priorityId?: string | number | null | undefined;
+  projectId: string | number;
+  startDate?: string | null | undefined;
+  statusId?: string | number | null | undefined;
+  title: string;
+  typeId?: string | number | null | undefined;
+};
+
+export type TaskLabelInput = {
+  /** Statuses only; defaults to TODO. */
+  category?: TaskStatusCategory | null | undefined;
+  color: string;
+  name: string;
+};
+
+export type TaskLabelUpdateInput = {
+  /** Statuses only. */
+  category?: TaskStatusCategory | null | undefined;
+  color?: string | null | undefined;
+  name?: string | null | undefined;
+};
+
+/** Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED). */
+export type TaskStatusCategory =
+  | 'CANCELLED'
+  | 'DONE'
+  | 'IN_PROGRESS'
+  | 'TODO';
+
+/** Omitted fields are left unchanged; null clears a field. Use transferTask to change the project. */
+export type TaskUpdateInput = {
+  assigneeIds?: Array<string | number> | null | undefined;
+  description?: string | null | undefined;
+  effort?: number | null | undefined;
+  endDate?: string | null | undefined;
+  parentId?: string | number | null | undefined;
+  priorityId?: string | number | null | undefined;
+  startDate?: string | null | undefined;
+  statusId?: string | number | null | undefined;
+  title?: string | null | undefined;
+  typeId?: string | number | null | undefined;
 };
 
 export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null };
@@ -140,6 +202,240 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null } };
+
+export type ContributorFieldsFragment = { id: string, name: string, handle: string, avatarUrl: string | null };
+
+export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
+
+export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number };
+
+export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string };
+
+export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null }>, taskStatuses: Array<{ id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }> };
+
+export type TaskCommentsQueryVariables = Exact<{
+  number: number;
+}>;
+
+
+export type TaskCommentsQuery = { task: { id: string, comments: Array<{ id: string, body: string, createdAt: string }> } | null };
+
+export type CreateTaskMutationVariables = Exact<{
+  input: TaskInput;
+}>;
+
+
+export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number } };
+
+export type UpdateTaskMutationVariables = Exact<{
+  id: string | number;
+  input: TaskUpdateInput;
+}>;
+
+
+export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number } };
+
+export type SetTaskArchivedMutationVariables = Exact<{
+  id: string | number;
+  archived: boolean;
+}>;
+
+
+export type SetTaskArchivedMutation = { setTaskArchived: { id: string } };
+
+export type DeleteTaskMutationVariables = Exact<{
+  id: string | number;
+  deleteSubtasks: boolean;
+}>;
+
+
+export type DeleteTaskMutation = { deleteTask: boolean };
+
+export type TransferTaskMutationVariables = Exact<{
+  id: string | number;
+  projectId: string | number;
+}>;
+
+
+export type TransferTaskMutation = { transferTask: { removedLinks: number } };
+
+export type CloneTaskMutationVariables = Exact<{
+  id: string | number;
+  includeSubtasks: boolean;
+}>;
+
+
+export type CloneTaskMutation = { cloneTask: { id: string, number: number } };
+
+export type AddTaskBlockMutationVariables = Exact<{
+  blockerId: string | number;
+  blockedId: string | number;
+}>;
+
+
+export type AddTaskBlockMutation = { addTaskBlock: boolean };
+
+export type RemoveTaskBlockMutationVariables = Exact<{
+  blockerId: string | number;
+  blockedId: string | number;
+}>;
+
+
+export type RemoveTaskBlockMutation = { removeTaskBlock: boolean };
+
+export type AddTaskRelationMutationVariables = Exact<{
+  taskId: string | number;
+  otherId: string | number;
+}>;
+
+
+export type AddTaskRelationMutation = { addTaskRelation: boolean };
+
+export type RemoveTaskRelationMutationVariables = Exact<{
+  taskId: string | number;
+  otherId: string | number;
+}>;
+
+
+export type RemoveTaskRelationMutation = { removeTaskRelation: boolean };
+
+export type AddTaskCommentMutationVariables = Exact<{
+  taskId: string | number;
+  body: string;
+}>;
+
+
+export type AddTaskCommentMutation = { addTaskComment: { id: string, body: string, createdAt: string } };
+
+export type UpdateTaskCommentMutationVariables = Exact<{
+  id: string | number;
+  body: string;
+}>;
+
+
+export type UpdateTaskCommentMutation = { updateTaskComment: { id: string, body: string, createdAt: string } };
+
+export type DeleteTaskCommentMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskCommentMutation = { deleteTaskComment: boolean };
+
+export type CreateContributorMutationVariables = Exact<{
+  input: ContributorInput;
+}>;
+
+
+export type CreateContributorMutation = { createContributor: { id: string, name: string, handle: string, avatarUrl: string | null } };
+
+export type UpdateContributorMutationVariables = Exact<{
+  id: string | number;
+  input: ContributorUpdateInput;
+}>;
+
+
+export type UpdateContributorMutation = { updateContributor: { id: string, name: string, handle: string, avatarUrl: string | null } };
+
+export type DeleteContributorMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteContributorMutation = { deleteContributor: boolean };
+
+export type CreateTaskStatusMutationVariables = Exact<{
+  input: TaskLabelInput;
+}>;
+
+
+export type CreateTaskStatusMutation = { createTaskStatus: { id: string } };
+
+export type UpdateTaskStatusMutationVariables = Exact<{
+  id: string | number;
+  input: TaskLabelUpdateInput;
+}>;
+
+
+export type UpdateTaskStatusMutation = { updateTaskStatus: { id: string } };
+
+export type DeleteTaskStatusMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskStatusMutation = { deleteTaskStatus: boolean };
+
+export type MoveTaskStatusMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveTaskStatusMutation = { moveTaskStatus: boolean };
+
+export type CreateTaskPriorityMutationVariables = Exact<{
+  input: TaskLabelInput;
+}>;
+
+
+export type CreateTaskPriorityMutation = { createTaskPriority: { id: string } };
+
+export type UpdateTaskPriorityMutationVariables = Exact<{
+  id: string | number;
+  input: TaskLabelUpdateInput;
+}>;
+
+
+export type UpdateTaskPriorityMutation = { updateTaskPriority: { id: string } };
+
+export type DeleteTaskPriorityMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskPriorityMutation = { deleteTaskPriority: boolean };
+
+export type MoveTaskPriorityMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveTaskPriorityMutation = { moveTaskPriority: boolean };
+
+export type CreateTaskTypeMutationVariables = Exact<{
+  input: TaskLabelInput;
+}>;
+
+
+export type CreateTaskTypeMutation = { createTaskType: { id: string } };
+
+export type UpdateTaskTypeMutationVariables = Exact<{
+  id: string | number;
+  input: TaskLabelUpdateInput;
+}>;
+
+
+export type UpdateTaskTypeMutation = { updateTaskType: { id: string } };
+
+export type DeleteTaskTypeMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskTypeMutation = { deleteTaskType: boolean };
+
+export type MoveTaskTypeMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveTaskTypeMutation = { moveTaskType: boolean };
 
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
@@ -327,6 +623,54 @@ export const AccountUserFragmentDoc = new TypedDocumentString(`
   pendingEmail
 }
     `, {"fragmentName":"AccountUser"}) as unknown as TypedDocumentString<AccountUserFragment, unknown>;
+export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
+    fragment ContributorFields on Contributor {
+  id
+  name
+  handle
+  avatarUrl
+}
+    `, {"fragmentName":"ContributorFields"}) as unknown as TypedDocumentString<ContributorFieldsFragment, unknown>;
+export const TaskLabelFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TaskLabelFields on TaskStatus {
+  id
+  name
+  color
+  position
+}
+    `, {"fragmentName":"TaskLabelFields"}) as unknown as TypedDocumentString<TaskLabelFieldsFragment, unknown>;
+export const TaskFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TaskFields on Task {
+  id
+  number
+  title
+  description
+  projectId
+  statusId
+  priorityId
+  typeId
+  effort
+  startDate
+  endDate
+  parentId
+  position
+  archived
+  createdAt
+  updatedAt
+  assigneeIds
+  blockingIds
+  blockedByIds
+  relatedIds
+  commentCount
+}
+    `, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
+export const TaskCommentFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TaskCommentFields on TaskComment {
+  id
+  body
+  createdAt
+}
+    `, {"fragmentName":"TaskCommentFields"}) as unknown as TypedDocumentString<TaskCommentFieldsFragment, unknown>;
 export const ClientFieldsFragmentDoc = new TypedDocumentString(`
     fragment ClientFields on Client {
   id
@@ -462,6 +806,312 @@ export const CancelEmailChangeDocument = new TypedDocumentString(`
   email
   pendingEmail
 }`) as unknown as TypedDocumentString<CancelEmailChangeMutation, CancelEmailChangeMutationVariables>;
+export const TasksDataDocument = new TypedDocumentString(`
+    query TasksData {
+  tasks {
+    ...TaskFields
+  }
+  contributors {
+    ...ContributorFields
+  }
+  taskStatuses {
+    ...TaskLabelFields
+  }
+  taskPriorities {
+    id
+    name
+    color
+    position
+  }
+  taskTypes {
+    id
+    name
+    color
+    position
+  }
+}
+    fragment ContributorFields on Contributor {
+  id
+  name
+  handle
+  avatarUrl
+}
+fragment TaskLabelFields on TaskStatus {
+  id
+  name
+  color
+  position
+}
+fragment TaskFields on Task {
+  id
+  number
+  title
+  description
+  projectId
+  statusId
+  priorityId
+  typeId
+  effort
+  startDate
+  endDate
+  parentId
+  position
+  archived
+  createdAt
+  updatedAt
+  assigneeIds
+  blockingIds
+  blockedByIds
+  relatedIds
+  commentCount
+}`) as unknown as TypedDocumentString<TasksDataQuery, TasksDataQueryVariables>;
+export const TaskCommentsDocument = new TypedDocumentString(`
+    query TaskComments($number: Int!) {
+  task(number: $number) {
+    id
+    comments {
+      ...TaskCommentFields
+    }
+  }
+}
+    fragment TaskCommentFields on TaskComment {
+  id
+  body
+  createdAt
+}`) as unknown as TypedDocumentString<TaskCommentsQuery, TaskCommentsQueryVariables>;
+export const CreateTaskDocument = new TypedDocumentString(`
+    mutation CreateTask($input: TaskInput!) {
+  createTask(input: $input) {
+    ...TaskFields
+  }
+}
+    fragment TaskFields on Task {
+  id
+  number
+  title
+  description
+  projectId
+  statusId
+  priorityId
+  typeId
+  effort
+  startDate
+  endDate
+  parentId
+  position
+  archived
+  createdAt
+  updatedAt
+  assigneeIds
+  blockingIds
+  blockedByIds
+  relatedIds
+  commentCount
+}`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
+export const UpdateTaskDocument = new TypedDocumentString(`
+    mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {
+  updateTask(id: $id, input: $input) {
+    ...TaskFields
+  }
+}
+    fragment TaskFields on Task {
+  id
+  number
+  title
+  description
+  projectId
+  statusId
+  priorityId
+  typeId
+  effort
+  startDate
+  endDate
+  parentId
+  position
+  archived
+  createdAt
+  updatedAt
+  assigneeIds
+  blockingIds
+  blockedByIds
+  relatedIds
+  commentCount
+}`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
+export const SetTaskArchivedDocument = new TypedDocumentString(`
+    mutation SetTaskArchived($id: ID!, $archived: Boolean!) {
+  setTaskArchived(id: $id, archived: $archived) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<SetTaskArchivedMutation, SetTaskArchivedMutationVariables>;
+export const DeleteTaskDocument = new TypedDocumentString(`
+    mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {
+  deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskMutation, DeleteTaskMutationVariables>;
+export const TransferTaskDocument = new TypedDocumentString(`
+    mutation TransferTask($id: ID!, $projectId: ID!) {
+  transferTask(id: $id, projectId: $projectId) {
+    removedLinks
+  }
+}
+    `) as unknown as TypedDocumentString<TransferTaskMutation, TransferTaskMutationVariables>;
+export const CloneTaskDocument = new TypedDocumentString(`
+    mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
+  cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
+    id
+    number
+  }
+}
+    `) as unknown as TypedDocumentString<CloneTaskMutation, CloneTaskMutationVariables>;
+export const AddTaskBlockDocument = new TypedDocumentString(`
+    mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {
+  addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)
+}
+    `) as unknown as TypedDocumentString<AddTaskBlockMutation, AddTaskBlockMutationVariables>;
+export const RemoveTaskBlockDocument = new TypedDocumentString(`
+    mutation RemoveTaskBlock($blockerId: ID!, $blockedId: ID!) {
+  removeTaskBlock(blockerId: $blockerId, blockedId: $blockedId)
+}
+    `) as unknown as TypedDocumentString<RemoveTaskBlockMutation, RemoveTaskBlockMutationVariables>;
+export const AddTaskRelationDocument = new TypedDocumentString(`
+    mutation AddTaskRelation($taskId: ID!, $otherId: ID!) {
+  addTaskRelation(taskId: $taskId, otherId: $otherId)
+}
+    `) as unknown as TypedDocumentString<AddTaskRelationMutation, AddTaskRelationMutationVariables>;
+export const RemoveTaskRelationDocument = new TypedDocumentString(`
+    mutation RemoveTaskRelation($taskId: ID!, $otherId: ID!) {
+  removeTaskRelation(taskId: $taskId, otherId: $otherId)
+}
+    `) as unknown as TypedDocumentString<RemoveTaskRelationMutation, RemoveTaskRelationMutationVariables>;
+export const AddTaskCommentDocument = new TypedDocumentString(`
+    mutation AddTaskComment($taskId: ID!, $body: String!) {
+  addTaskComment(taskId: $taskId, body: $body) {
+    ...TaskCommentFields
+  }
+}
+    fragment TaskCommentFields on TaskComment {
+  id
+  body
+  createdAt
+}`) as unknown as TypedDocumentString<AddTaskCommentMutation, AddTaskCommentMutationVariables>;
+export const UpdateTaskCommentDocument = new TypedDocumentString(`
+    mutation UpdateTaskComment($id: ID!, $body: String!) {
+  updateTaskComment(id: $id, body: $body) {
+    ...TaskCommentFields
+  }
+}
+    fragment TaskCommentFields on TaskComment {
+  id
+  body
+  createdAt
+}`) as unknown as TypedDocumentString<UpdateTaskCommentMutation, UpdateTaskCommentMutationVariables>;
+export const DeleteTaskCommentDocument = new TypedDocumentString(`
+    mutation DeleteTaskComment($id: ID!) {
+  deleteTaskComment(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskCommentMutation, DeleteTaskCommentMutationVariables>;
+export const CreateContributorDocument = new TypedDocumentString(`
+    mutation CreateContributor($input: ContributorInput!) {
+  createContributor(input: $input) {
+    ...ContributorFields
+  }
+}
+    fragment ContributorFields on Contributor {
+  id
+  name
+  handle
+  avatarUrl
+}`) as unknown as TypedDocumentString<CreateContributorMutation, CreateContributorMutationVariables>;
+export const UpdateContributorDocument = new TypedDocumentString(`
+    mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!) {
+  updateContributor(id: $id, input: $input) {
+    ...ContributorFields
+  }
+}
+    fragment ContributorFields on Contributor {
+  id
+  name
+  handle
+  avatarUrl
+}`) as unknown as TypedDocumentString<UpdateContributorMutation, UpdateContributorMutationVariables>;
+export const DeleteContributorDocument = new TypedDocumentString(`
+    mutation DeleteContributor($id: ID!) {
+  deleteContributor(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteContributorMutation, DeleteContributorMutationVariables>;
+export const CreateTaskStatusDocument = new TypedDocumentString(`
+    mutation CreateTaskStatus($input: TaskLabelInput!) {
+  createTaskStatus(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskStatusMutation, CreateTaskStatusMutationVariables>;
+export const UpdateTaskStatusDocument = new TypedDocumentString(`
+    mutation UpdateTaskStatus($id: ID!, $input: TaskLabelUpdateInput!) {
+  updateTaskStatus(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskStatusMutation, UpdateTaskStatusMutationVariables>;
+export const DeleteTaskStatusDocument = new TypedDocumentString(`
+    mutation DeleteTaskStatus($id: ID!) {
+  deleteTaskStatus(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskStatusMutation, DeleteTaskStatusMutationVariables>;
+export const MoveTaskStatusDocument = new TypedDocumentString(`
+    mutation MoveTaskStatus($id: ID!, $index: Int!) {
+  moveTaskStatus(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveTaskStatusMutation, MoveTaskStatusMutationVariables>;
+export const CreateTaskPriorityDocument = new TypedDocumentString(`
+    mutation CreateTaskPriority($input: TaskLabelInput!) {
+  createTaskPriority(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskPriorityMutation, CreateTaskPriorityMutationVariables>;
+export const UpdateTaskPriorityDocument = new TypedDocumentString(`
+    mutation UpdateTaskPriority($id: ID!, $input: TaskLabelUpdateInput!) {
+  updateTaskPriority(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskPriorityMutation, UpdateTaskPriorityMutationVariables>;
+export const DeleteTaskPriorityDocument = new TypedDocumentString(`
+    mutation DeleteTaskPriority($id: ID!) {
+  deleteTaskPriority(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskPriorityMutation, DeleteTaskPriorityMutationVariables>;
+export const MoveTaskPriorityDocument = new TypedDocumentString(`
+    mutation MoveTaskPriority($id: ID!, $index: Int!) {
+  moveTaskPriority(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveTaskPriorityMutation, MoveTaskPriorityMutationVariables>;
+export const CreateTaskTypeDocument = new TypedDocumentString(`
+    mutation CreateTaskType($input: TaskLabelInput!) {
+  createTaskType(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskTypeMutation, CreateTaskTypeMutationVariables>;
+export const UpdateTaskTypeDocument = new TypedDocumentString(`
+    mutation UpdateTaskType($id: ID!, $input: TaskLabelUpdateInput!) {
+  updateTaskType(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskTypeMutation, UpdateTaskTypeMutationVariables>;
+export const DeleteTaskTypeDocument = new TypedDocumentString(`
+    mutation DeleteTaskType($id: ID!) {
+  deleteTaskType(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskTypeMutation, DeleteTaskTypeMutationVariables>;
+export const MoveTaskTypeDocument = new TypedDocumentString(`
+    mutation MoveTaskType($id: ID!, $index: Int!) {
+  moveTaskType(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveTaskTypeMutation, MoveTaskTypeMutationVariables>;
 export const WorkspaceDocument = new TypedDocumentString(`
     query Workspace {
   clients {

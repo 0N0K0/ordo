@@ -1,3 +1,12 @@
+"""Omitted fields are left unchanged; null clears a field."""
+input BulkTaskInput {
+  addAssigneeIds: [ID!]
+  priorityId: ID
+  removeAssigneeIds: [ID!]
+  statusId: ID
+  typeId: ID
+}
+
 type Client {
   archived: Boolean!
   color: String
@@ -24,35 +33,94 @@ input ClientUpdateInput {
   removeIcon: Boolean
 }
 
+type Contributor {
+  avatarUrl: String
+  handle: String!
+  id: ID!
+  name: String!
+}
+
+input ContributorInput {
+  avatar: File
+  handle: String!
+  name: String!
+}
+
+input ContributorUpdateInput {
+  avatar: File
+  handle: String
+  name: String
+  removeAvatar: Boolean
+}
+
 """Calendar date, YYYY-MM-DD."""
 scalar Date
+
+"""Instant, ISO 8601."""
+scalar DateTime
 
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
 
+"""Arbitrary JSON value, validated by the resolver that receives it."""
+scalar JSON
+
 type Mutation {
+  """blockerId blocks blockedId."""
+  addTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
+  addTaskComment(body: String!, taskId: ID!): TaskComment!
+  addTaskRelation(otherId: ID!, taskId: ID!): Boolean!
+  bulkDeleteTasks(
+    """false moves unselected sub-tasks up."""
+    deleteSubtasks: Boolean!
+    ids: [ID!]!
+  ): Boolean!
+  bulkSetTasksArchived(archived: Boolean!, ids: [ID!]!): Boolean!
+
+  """Moves the tasks and their sub-tasks to another project."""
+  bulkTransferTasks(ids: [ID!]!, projectId: ID!): TaskTransferResult!
+  bulkUpdateTasks(changes: BulkTaskInput!, ids: [ID!]!): Boolean!
   cancelEmailChange: User!
 
   """Closes every other session."""
   changePassword(currentPassword: String!, password: String!): Boolean!
   changeUsername(currentPassword: String!, username: String!): User!
+  cloneTask(id: ID!, includeSubtasks: Boolean!): Task!
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
   createClient(input: ClientInput!): Client!
+  createContributor(input: ContributorInput!): Contributor!
   createProject(input: ProjectInput!): Project!
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
+  createTask(input: TaskInput!): Task!
+  createTaskPriority(input: TaskLabelInput!): TaskPriority!
+  createTaskStatus(input: TaskLabelInput!): TaskStatus!
+  createTaskType(input: TaskLabelInput!): TaskType!
+  createTaskView(input: TaskViewInput!): TaskView!
   deleteClient(
     """true deletes the projects, false moves them to "no client"."""
     deleteProjects: Boolean!
     id: ID!
   ): Boolean!
+  deleteContributor(id: ID!): Boolean!
 
   """Deletes the project and all its sub-projects."""
   deleteProject(id: ID!): Boolean!
   deleteProjectCategory(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
+  deleteTask(
+    """false moves the sub-tasks up to the parent."""
+    deleteSubtasks: Boolean!
+    id: ID!
+  ): Boolean!
+  deleteTaskComment(id: ID!): Boolean!
+  deleteTaskPriority(id: ID!): Boolean!
+  deleteTaskStatus(id: ID!): Boolean!
+  deleteTaskType(id: ID!): Boolean!
+  deleteTaskView(id: ID!): Boolean!
+  duplicateTaskView(id: ID!, name: String!): TaskView!
 
   """Opens a session with a username or email and a password."""
   login(identifier: String!, password: String!): User!
@@ -74,6 +142,17 @@ type Mutation {
   moveProjectStatus(id: ID!, index: Int!): Boolean!
 
   """
+  Places a task before another one in the manual order (at the end when beforeId is null).
+  """
+  moveTask(beforeId: ID, id: ID!): Boolean!
+  moveTaskPriority(id: ID!, index: Int!): Boolean!
+  moveTaskStatus(id: ID!, index: Int!): Boolean!
+  moveTaskType(id: ID!, index: Int!): Boolean!
+  moveTaskView(id: ID!, index: Int!): Boolean!
+  removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
+  removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
+
+  """
   Sends a confirmation link to the new address; the email changes once confirmed.
   """
   requestEmailChange(currentPassword: String!, email: String!): User!
@@ -85,16 +164,32 @@ type Mutation {
   """Archiving cascades to the active projects; restoring brings them back."""
   setClientArchived(archived: Boolean!, id: ID!): Client!
   setClientFavorite(favorite: Boolean!, id: ID!): Client!
+  setDefaultTaskView(id: ID!): Boolean!
 
   """
   Archiving cascades to sub-projects; restoring a project restores its archived ancestors and client.
   """
   setProjectArchived(archived: Boolean!, id: ID!): Project!
   setProjectFavorite(favorite: Boolean!, id: ID!): Project!
+
+  """
+  Archiving cascades to sub-tasks; restoring restores them and the archived parents.
+  """
+  setTaskArchived(archived: Boolean!, id: ID!): Task!
+
+  """Moves the task and its sub-tasks to another project."""
+  transferTask(id: ID!, projectId: ID!): TaskTransferResult!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
+  updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
   updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
+  updateTask(id: ID!, input: TaskUpdateInput!): Task!
+  updateTaskComment(body: String!, id: ID!): TaskComment!
+  updateTaskPriority(id: ID!, input: TaskLabelUpdateInput!): TaskPriority!
+  updateTaskStatus(id: ID!, input: TaskLabelUpdateInput!): TaskStatus!
+  updateTaskType(id: ID!, input: TaskLabelUpdateInput!): TaskType!
+  updateTaskView(id: ID!, input: TaskViewUpdateInput!): TaskView!
 }
 
 type Project {
@@ -189,13 +284,174 @@ input ProjectUpdateInput {
 type Query {
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
+  contributors: [Contributor!]!
   health: String!
+
+  """Ids of the tasks matching a filter, in manual order."""
+  matchingTaskIds(query: TaskQueryInput!): [ID!]!
   me: User
   projectCategories: [ProjectCategory!]!
   projectStatuses: [ProjectStatus!]!
 
   """Every project, archived ones included, in manual order."""
   projects: [Project!]!
+  task(number: Int!): Task
+  taskPriorities: [TaskPriority!]!
+  taskStatuses: [TaskStatus!]!
+  taskTypes: [TaskType!]!
+  taskViews: [TaskView!]!
+
+  """Every task, archived ones included, in manual order."""
+  tasks: [Task!]!
+}
+
+type Task {
+  archived: Boolean!
+  assigneeIds: [ID!]!
+
+  """Tasks blocking this task."""
+  blockedByIds: [ID!]!
+
+  """Tasks this task blocks."""
+  blockingIds: [ID!]!
+  commentCount: Int!
+  comments: [TaskComment!]!
+  createdAt: DateTime!
+  description: String
+  effort: Float
+  endDate: Date
+  id: ID!
+  number: Int!
+  parentId: ID
+  position: Int!
+  priorityId: ID
+  projectId: ID!
+  relatedIds: [ID!]!
+  startDate: Date
+  statusId: ID
+  title: String!
+  typeId: ID
+  updatedAt: DateTime!
+}
+
+type TaskComment {
+  body: String!
+  createdAt: DateTime!
+  id: ID!
+}
+
+input TaskInput {
+  assigneeIds: [ID!]
+  description: String
+  effort: Float
+  endDate: Date
+  parentId: ID
+  priorityId: ID
+  projectId: ID!
+  startDate: Date
+  statusId: ID
+  title: String!
+  typeId: ID
+}
+
+input TaskLabelInput {
+  """Statuses only; defaults to TODO."""
+  category: TaskStatusCategory
+  color: String!
+  name: String!
+}
+
+input TaskLabelUpdateInput {
+  """Statuses only."""
+  category: TaskStatusCategory
+  color: String
+  name: String
+}
+
+type TaskPriority {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+input TaskQueryInput {
+  """Filter tree (and / or groups of conditions)."""
+  filter: JSON!
+  includeArchived: Boolean
+
+  """Quick search: number, title or description."""
+  search: String
+
+  """User's current day, for relative dates."""
+  today: Date!
+
+  """User's offset from UTC, in minutes."""
+  utcOffset: Int!
+}
+
+type TaskStatus {
+  category: TaskStatusCategory!
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+"""
+Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED).
+"""
+enum TaskStatusCategory {
+  CANCELLED
+  DONE
+  IN_PROGRESS
+  TODO
+}
+
+type TaskTransferResult {
+  """Links removed because they left the project tree."""
+  removedLinks: Int!
+}
+
+type TaskType {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+"""
+Omitted fields are left unchanged; null clears a field. Use transferTask to change the project.
+"""
+input TaskUpdateInput {
+  assigneeIds: [ID!]
+  description: String
+  effort: Float
+  endDate: Date
+  parentId: ID
+  priorityId: ID
+  startDate: Date
+  statusId: ID
+  title: String
+  typeId: ID
+}
+
+type TaskView {
+  config: JSON!
+  id: ID!
+  isDefault: Boolean!
+  name: String!
+  position: Int!
+}
+
+input TaskViewInput {
+  config: JSON!
+  name: String!
+}
+
+input TaskViewUpdateInput {
+  config: JSON
+  name: String
 }
 
 type User {
