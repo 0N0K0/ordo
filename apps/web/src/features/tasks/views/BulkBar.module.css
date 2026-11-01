@@ -1,0 +1,16 @@
+@layer app {
+  .bar {
+    /* Position */
+    position: sticky;
+    bottom: var(--mantine-spacing-md);
+    z-index: 5;
+
+    /* Dimension */
+    width: fit-content;
+    max-width: 100%;
+
+    /* Espacement */
+    margin-inline: auto;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  }
+}

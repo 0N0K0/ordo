@@ -11,7 +11,7 @@ import {
   type ComboboxItem,
   type SelectProps,
 } from '@mantine/core';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import type { Contributor, Task, TaskLabel } from './api';
 import type { TaskContext } from './use-task-context';
 
@@ -60,8 +60,15 @@ export function Assignees({ contributors, max = 3 }: { contributors: Contributor
  * @returns {JSX.Element} Link.
  */
 export function TaskRef({ task, closed }: { task: Task; closed?: boolean }) {
+  // Keeps the current view (?view=) when opening the task.
+  const { search } = useLocation();
   return (
-    <Anchor component={Link} to={`/tasks/${task.number}`} size="sm" td={closed ? 'line-through' : undefined}>
+    <Anchor
+      component={Link}
+      to={{ pathname: `/tasks/${task.number}`, search }}
+      size="sm"
+      td={closed ? 'line-through' : undefined}
+    >
       <Text span c="dimmed" size="sm">
         #{task.number}
       </Text>{' '}

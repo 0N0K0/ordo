@@ -1,0 +1,263 @@
+import { ActionIcon, Button, Group, Indicator, Menu, Stack, Tabs, Text, TextInput } from '@mantine/core';
+import { modals } from '@mantine/modals';
+import { taskViewNameSchema } from '@ordo/shared';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CaretDownIcon,
+  CopyIcon,
+  FloppyDiskIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  StarIcon,
+  TrashIcon,
+} from '@phosphor-icons/react';
+import { useState } from 'react';
+import { DestructiveActions } from '../../workspace/DeleteDialogs';
+import type { TaskView, TaskViewState } from './use-task-view';
+
+interface NameFormProps {
+  initial: string;
+  submitLabel: string;
+  onSubmit: (name: string) => void;
+  onCancel: () => void;
+}
+
+/**
+ * View name prompt (create, rename).
+ * @param {NameFormProps} props Component props.
+ * @returns {JSX.Element} Form.
+ */
+function NameForm({ initial, submitLabel, onSubmit, onCancel }: NameFormProps) {
+  const [name, setName] = useState(initial);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Validates and submits the name.
+   * @returns {void}
+   */
+  const submit = () => {
+    const result = taskViewNameSchema.safeParse(name);
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? 'Nom invalide.');
+      return;
+    }
+    onSubmit(result.data);
+  };
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+      noValidate
+    >
+      <Stack gap="md">
+        <TextInput
+          label="Nom de la vue"
+          required
+          data-autofocus
+          value={name}
+          error={error}
+          onChange={(event) => {
+            setName(event.currentTarget.value);
+            setError(null);
+          }}
+          onBlur={() => !taskViewNameSchema.safeParse(name).success && setError('Le nom est requis.')}
+        />
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={onCancel}>
+            Annuler
+          </Button>
+          <Button type="submit">{submitLabel}</Button>
+        </Group>
+      </Stack>
+    </form>
+  );
+}
+
+let modalCount = 0;
+
+/**
+ * Asks for a view name in a modal.
+ * @param {string} title Modal title.
+ * @param {string} initial Initial name.
+ * @param {string} submitLabel Submit button label.
+ * @param {(name: string) => void} onSubmit Called with the name.
+ * @returns {void}
+ */
+function promptName(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
+  const modalId = `view-name-${++modalCount}`;
+  const close = () => modals.close(modalId);
+  modals.open({
+    modalId,
+    title,
+    children: (
+      <NameForm
+        initial={initial}
+        submitLabel={submitLabel}
+        onCancel={close}
+        onSubmit={(name) => {
+          close();
+          onSubmit(name);
+        }}
+      />
+    ),
+  });
+}
+
+/**
+ * Tabs of the saved views, with the save / revert actions of the current one.
+ * @param {{ state: TaskViewState }} props Component props.
+ * @returns {JSX.Element} Tabs.
+ */
+export function ViewTabs({ state }: { state: TaskViewState }) {
+  const { views, current, dirty } = state;
+
+  /**
+   * Asks for confirmation before deleting a view.
+   * @param {TaskView} view View.
+   * @returns {void}
+   */
+  const confirmDelete = (view: TaskView) => {
+    const modalId = `delete-view-${view.id}`;
+    modals.open({
+      modalId,
+      title: 'Supprimer la vue',
+      children: (
+        <Stack gap="md">
+          <Text size="sm">
+            La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont
+            pas modifiées. Cette action est irréversible.
+          </Text>
+          <DestructiveActions
+            loading={false}
+            onCancel={() => modals.close(modalId)}
+            onConfirm={() => {
+              modals.close(modalId);
+              state.remove(view);
+            }}
+          />
+        </Stack>
+      ),
+    });
+  };
+
+  return (
+    <Group justify="space-between" wrap="nowrap" gap="sm">
+      <Group gap={0} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+        <Tabs value={current?.id ?? null} onChange={(id) => id && state.select(id)} style={{ minWidth: 0 }}>
+          <Tabs.List style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
+            {views.map((view, index) => {
+              const active = view.id === current?.id;
+              return (
+                <Tabs.Tab
+                  key={view.id}
+                  value={view.id}
+                  leftSection={view.isDefault ? <StarIcon weight="fill" aria-label="Vue par défaut" /> : undefined}
+                  rightSection={
+                    active ? (
+                      <Menu position="bottom-end" withinPortal shadow="md">
+                        <Menu.Target>
+                          <ActionIcon
+                            component="span"
+                            variant="subtle"
+                            color="gray"
+                            size="xs"
+                            aria-label={`Actions sur la vue ${view.name}`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <CaretDownIcon aria-hidden />
+                          </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          <Menu.Item
+                            leftSection={<PencilSimpleIcon aria-hidden />}
+                            onClick={() => promptName('Renommer la vue', view.name, 'Renommer', (name) => state.rename(view.id, name))}
+                          >
+                            Renommer
+                          </Menu.Item>
+                          <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => state.duplicate(view)}>
+                            Dupliquer
+                          </Menu.Item>
+                          {!view.isDefault && (
+                            <Menu.Item leftSection={<StarIcon aria-hidden />} onClick={() => state.setDefault(view)}>
+                              Définir par défaut
+                            </Menu.Item>
+                          )}
+                          <Menu.Item
+                            leftSection={<ArrowLeftIcon aria-hidden />}
+                            disabled={index === 0}
+                            onClick={() => state.move(view.id, index - 1)}
+                          >
+                            Déplacer à gauche
+                          </Menu.Item>
+                          <Menu.Item
+                            leftSection={<ArrowRightIcon aria-hidden />}
+                            disabled={index === views.length - 1}
+                            onClick={() => state.move(view.id, index + 1)}
+                          >
+                            Déplacer à droite
+                          </Menu.Item>
+                          <Menu.Divider />
+                          <Menu.Item
+                            leftSection={<TrashIcon aria-hidden />}
+                            color="red"
+                            disabled={views.length === 1}
+                            onClick={() => confirmDelete(view)}
+                          >
+                            Supprimer
+                          </Menu.Item>
+                        </Menu.Dropdown>
+                      </Menu>
+                    ) : undefined
+                  }
+                >
+                  <Indicator disabled={!(active && dirty)} size={7} offset={-4} position="top-end" color="orange">
+                    {view.name}
+                  </Indicator>
+                </Tabs.Tab>
+              );
+            })}
+          </Tabs.List>
+        </Tabs>
+        <Menu position="bottom-start" withinPortal shadow="md">
+          <Menu.Target>
+            <ActionIcon variant="subtle" color="gray" ml="xs" aria-label="Nouvelle vue" title="Nouvelle vue">
+              <PlusIcon aria-hidden />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item onClick={() => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false))}>
+              Vue vierge
+            </Menu.Item>
+            <Menu.Item
+              onClick={() =>
+                promptName('Nouvelle vue', `${current?.name ?? 'Vue'} (copie)`.slice(0, 60), 'Créer', (name) =>
+                  state.createView(name, true),
+                )
+              }
+            >
+              À partir de l’affichage actuel
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </Group>
+
+      {dirty && (
+        <Group gap="xs" wrap="nowrap">
+          <Text size="xs" c="orange" visibleFrom="sm">
+            Modifications non enregistrées
+          </Text>
+          <Button size="xs" variant="default" onClick={state.revert}>
+            Annuler les modifications
+          </Button>
+          <Button size="xs" leftSection={<FloppyDiskIcon aria-hidden />} onClick={state.save}>
+            Enregistrer
+          </Button>
+        </Group>
+      )}
+    </Group>
+  );
+}

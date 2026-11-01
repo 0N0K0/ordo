@@ -551,3 +551,206 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
     move: useTasksMutation(async (variables: { id: string; index: number }) => execute(documents.move, variables)),
   };
 }
+
+const TaskViewsDocument = graphql(`
+  query TaskViews {
+    taskViews {
+      id
+      name
+      config
+      isDefault
+      position
+    }
+  }
+`);
+
+const MatchingTaskIdsDocument = graphql(`
+  query MatchingTaskIds($query: TaskQueryInput!) {
+    matchingTaskIds(query: $query)
+  }
+`);
+
+const CreateTaskViewDocument = graphql(`
+  mutation CreateTaskView($input: TaskViewInput!) {
+    createTaskView(input: $input) {
+      id
+    }
+  }
+`);
+
+const UpdateTaskViewDocument = graphql(`
+  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {
+    updateTaskView(id: $id, input: $input) {
+      id
+    }
+  }
+`);
+
+const DuplicateTaskViewDocument = graphql(`
+  mutation DuplicateTaskView($id: ID!, $name: String!) {
+    duplicateTaskView(id: $id, name: $name) {
+      id
+    }
+  }
+`);
+
+const DeleteTaskViewDocument = graphql(`
+  mutation DeleteTaskView($id: ID!) {
+    deleteTaskView(id: $id)
+  }
+`);
+
+const SetDefaultTaskViewDocument = graphql(`
+  mutation SetDefaultTaskView($id: ID!) {
+    setDefaultTaskView(id: $id)
+  }
+`);
+
+const MoveTaskViewDocument = graphql(`
+  mutation MoveTaskView($id: ID!, $index: Int!) {
+    moveTaskView(id: $id, index: $index)
+  }
+`);
+
+const BulkUpdateTasksDocument = graphql(`
+  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!) {
+    bulkUpdateTasks(ids: $ids, changes: $changes)
+  }
+`);
+
+const BulkTransferTasksDocument = graphql(`
+  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID!) {
+    bulkTransferTasks(ids: $ids, projectId: $projectId) {
+      removedLinks
+    }
+  }
+`);
+
+const BulkSetTasksArchivedDocument = graphql(`
+  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {
+    bulkSetTasksArchived(ids: $ids, archived: $archived)
+  }
+`);
+
+const BulkDeleteTasksDocument = graphql(`
+  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {
+    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)
+  }
+`);
+
+export interface TaskViewRecord {
+  id: string;
+  name: string;
+  /** Raw configuration, parsed with taskViewConfigSchema. */
+  config: unknown;
+  isDefault: boolean;
+  position: number;
+}
+
+export const taskViewsQueryKey = ['taskViews'] as const;
+
+/**
+ * Saved task views, in tab order.
+ * @returns {UseQueryResult<TaskViewRecord[]>} Query state.
+ */
+export function useTaskViews() {
+  return useQuery({
+    queryKey: taskViewsQueryKey,
+    queryFn: async () => (await execute(TaskViewsDocument)).taskViews as TaskViewRecord[],
+  });
+}
+
+export interface TaskQuery {
+  filter: unknown;
+  search: string;
+  includeArchived: boolean;
+  today: string;
+  utcOffset: number;
+}
+
+/**
+ * Ids of the tasks matching a filter (evaluated by the API), in manual order.
+ * Refreshed with the task data.
+ * @param {TaskQuery | null} query Filter, search and user clock; null while the view is loading.
+ * @returns {UseQueryResult<string[]>} Query state; previous ids are kept while a new filter loads.
+ */
+export function useMatchingTaskIds(query: TaskQuery | null) {
+  return useQuery({
+    enabled: query !== null,
+    queryKey: [...tasksQueryKey, 'matching', query],
+    queryFn: async () => (await execute(MatchingTaskIdsDocument, { query: query! })).matchingTaskIds,
+    placeholderData: (previous) => previous,
+  });
+}
+
+/**
+ * Mutation refreshing the view list afterwards.
+ * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
+ * @returns {UseMutationResult<TResult, Error, TVariables>} Mutation state.
+ */
+function useViewMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
+  const queryClient = useQueryClient();
+  return useMutation<TResult, Error, TVariables>({
+    mutationFn,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: taskViewsQueryKey }),
+  });
+}
+
+/**
+ * Create, save, duplicate, delete, reorder views and choose the default one.
+ * @returns {object} View mutations.
+ */
+export function useTaskViewMutations() {
+  return {
+    create: useViewMutation(
+      async (input: { name: string; config: unknown }) => (await execute(CreateTaskViewDocument, { input })).createTaskView,
+    ),
+    update: useViewMutation(
+      async (variables: { id: string; input: { name?: string; config?: unknown } }) =>
+        (await execute(UpdateTaskViewDocument, variables)).updateTaskView,
+    ),
+    duplicate: useViewMutation(
+      async (variables: { id: string; name: string }) => (await execute(DuplicateTaskViewDocument, variables)).duplicateTaskView,
+    ),
+    remove: useViewMutation(async (variables: { id: string }) => (await execute(DeleteTaskViewDocument, variables)).deleteTaskView),
+    setDefault: useViewMutation(
+      async (variables: { id: string }) => (await execute(SetDefaultTaskViewDocument, variables)).setDefaultTaskView,
+    ),
+    move: useViewMutation(
+      async (variables: { id: string; index: number }) => (await execute(MoveTaskViewDocument, variables)).moveTaskView,
+    ),
+  };
+}
+
+export interface BulkChanges {
+  statusId?: string | null;
+  priorityId?: string | null;
+  typeId?: string | null;
+  addAssigneeIds?: string[];
+  removeAssigneeIds?: string[];
+}
+
+/**
+ * Bulk changes, transfer, archiving and deletion of selected tasks.
+ * @returns {object} Bulk mutations.
+ */
+export function useBulkTaskMutations() {
+  return {
+    update: useTasksMutation(
+      async (variables: { ids: string[]; changes: BulkChanges }) =>
+        (await execute(BulkUpdateTasksDocument, variables)).bulkUpdateTasks,
+    ),
+    transfer: useTasksMutation(
+      async (variables: { ids: string[]; projectId: string }) =>
+        (await execute(BulkTransferTasksDocument, variables)).bulkTransferTasks,
+    ),
+    archive: useTasksMutation(
+      async (variables: { ids: string[]; archived: boolean }) =>
+        (await execute(BulkSetTasksArchivedDocument, variables)).bulkSetTasksArchived,
+    ),
+    remove: useTasksMutation(
+      async (variables: { ids: string[]; deleteSubtasks: boolean }) =>
+        (await execute(BulkDeleteTasksDocument, variables)).bulkDeleteTasks,
+    ),
+  };
+}

@@ -4,6 +4,15 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 /** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import type { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
+/** Omitted fields are left unchanged; null clears a field. */
+export type BulkTaskInput = {
+  addAssigneeIds?: Array<string | number> | null | undefined;
+  priorityId?: string | number | null | undefined;
+  removeAssigneeIds?: Array<string | number> | null | undefined;
+  statusId?: string | number | null | undefined;
+  typeId?: string | number | null | undefined;
+};
+
 export type ClientInput = {
   color?: string | null | undefined;
   icon?: File | null | undefined;
@@ -111,6 +120,18 @@ export type TaskLabelUpdateInput = {
   name?: string | null | undefined;
 };
 
+export type TaskQueryInput = {
+  /** Filter tree (and / or groups of conditions). */
+  filter: unknown;
+  includeArchived?: boolean | null | undefined;
+  /** Quick search: number, title or description. */
+  search?: string | null | undefined;
+  /** User's current day, for relative dates. */
+  today: string;
+  /** User's offset from UTC, in minutes. */
+  utcOffset: number;
+};
+
 /** Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED). */
 export type TaskStatusCategory =
   | 'CANCELLED'
@@ -130,6 +151,16 @@ export type TaskUpdateInput = {
   statusId?: string | number | null | undefined;
   title?: string | null | undefined;
   typeId?: string | number | null | undefined;
+};
+
+export type TaskViewInput = {
+  config: unknown;
+  name: string;
+};
+
+export type TaskViewUpdateInput = {
+  config?: unknown;
+  name?: string | null | undefined;
 };
 
 export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null };
@@ -444,6 +475,95 @@ export type MoveTaskTypeMutationVariables = Exact<{
 
 
 export type MoveTaskTypeMutation = { moveTaskType: boolean };
+
+export type TaskViewsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
+
+export type MatchingTaskIdsQueryVariables = Exact<{
+  query: TaskQueryInput;
+}>;
+
+
+export type MatchingTaskIdsQuery = { matchingTaskIds: Array<string> };
+
+export type CreateTaskViewMutationVariables = Exact<{
+  input: TaskViewInput;
+}>;
+
+
+export type CreateTaskViewMutation = { createTaskView: { id: string } };
+
+export type UpdateTaskViewMutationVariables = Exact<{
+  id: string | number;
+  input: TaskViewUpdateInput;
+}>;
+
+
+export type UpdateTaskViewMutation = { updateTaskView: { id: string } };
+
+export type DuplicateTaskViewMutationVariables = Exact<{
+  id: string | number;
+  name: string;
+}>;
+
+
+export type DuplicateTaskViewMutation = { duplicateTaskView: { id: string } };
+
+export type DeleteTaskViewMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskViewMutation = { deleteTaskView: boolean };
+
+export type SetDefaultTaskViewMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type SetDefaultTaskViewMutation = { setDefaultTaskView: boolean };
+
+export type MoveTaskViewMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveTaskViewMutation = { moveTaskView: boolean };
+
+export type BulkUpdateTasksMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  changes: BulkTaskInput;
+}>;
+
+
+export type BulkUpdateTasksMutation = { bulkUpdateTasks: boolean };
+
+export type BulkTransferTasksMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  projectId: string | number;
+}>;
+
+
+export type BulkTransferTasksMutation = { bulkTransferTasks: { removedLinks: number } };
+
+export type BulkSetTasksArchivedMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  archived: boolean;
+}>;
+
+
+export type BulkSetTasksArchivedMutation = { bulkSetTasksArchived: boolean };
+
+export type BulkDeleteTasksMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  deleteSubtasks: boolean;
+}>;
+
+
+export type BulkDeleteTasksMutation = { bulkDeleteTasks: boolean };
 
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
@@ -1126,6 +1246,80 @@ export const MoveTaskTypeDocument = new TypedDocumentString(`
   moveTaskType(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveTaskTypeMutation, MoveTaskTypeMutationVariables>;
+export const TaskViewsDocument = new TypedDocumentString(`
+    query TaskViews {
+  taskViews {
+    id
+    name
+    config
+    isDefault
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<TaskViewsQuery, TaskViewsQueryVariables>;
+export const MatchingTaskIdsDocument = new TypedDocumentString(`
+    query MatchingTaskIds($query: TaskQueryInput!) {
+  matchingTaskIds(query: $query)
+}
+    `) as unknown as TypedDocumentString<MatchingTaskIdsQuery, MatchingTaskIdsQueryVariables>;
+export const CreateTaskViewDocument = new TypedDocumentString(`
+    mutation CreateTaskView($input: TaskViewInput!) {
+  createTaskView(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskViewMutation, CreateTaskViewMutationVariables>;
+export const UpdateTaskViewDocument = new TypedDocumentString(`
+    mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {
+  updateTaskView(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskViewMutation, UpdateTaskViewMutationVariables>;
+export const DuplicateTaskViewDocument = new TypedDocumentString(`
+    mutation DuplicateTaskView($id: ID!, $name: String!) {
+  duplicateTaskView(id: $id, name: $name) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<DuplicateTaskViewMutation, DuplicateTaskViewMutationVariables>;
+export const DeleteTaskViewDocument = new TypedDocumentString(`
+    mutation DeleteTaskView($id: ID!) {
+  deleteTaskView(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskViewMutation, DeleteTaskViewMutationVariables>;
+export const SetDefaultTaskViewDocument = new TypedDocumentString(`
+    mutation SetDefaultTaskView($id: ID!) {
+  setDefaultTaskView(id: $id)
+}
+    `) as unknown as TypedDocumentString<SetDefaultTaskViewMutation, SetDefaultTaskViewMutationVariables>;
+export const MoveTaskViewDocument = new TypedDocumentString(`
+    mutation MoveTaskView($id: ID!, $index: Int!) {
+  moveTaskView(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
+export const BulkUpdateTasksDocument = new TypedDocumentString(`
+    mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!) {
+  bulkUpdateTasks(ids: $ids, changes: $changes)
+}
+    `) as unknown as TypedDocumentString<BulkUpdateTasksMutation, BulkUpdateTasksMutationVariables>;
+export const BulkTransferTasksDocument = new TypedDocumentString(`
+    mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID!) {
+  bulkTransferTasks(ids: $ids, projectId: $projectId) {
+    removedLinks
+  }
+}
+    `) as unknown as TypedDocumentString<BulkTransferTasksMutation, BulkTransferTasksMutationVariables>;
+export const BulkSetTasksArchivedDocument = new TypedDocumentString(`
+    mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {
+  bulkSetTasksArchived(ids: $ids, archived: $archived)
+}
+    `) as unknown as TypedDocumentString<BulkSetTasksArchivedMutation, BulkSetTasksArchivedMutationVariables>;
+export const BulkDeleteTasksDocument = new TypedDocumentString(`
+    mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {
+  bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)
+}
+    `) as unknown as TypedDocumentString<BulkDeleteTasksMutation, BulkDeleteTasksMutationVariables>;
 export const WorkspaceDocument = new TypedDocumentString(`
     query Workspace {
   clients {

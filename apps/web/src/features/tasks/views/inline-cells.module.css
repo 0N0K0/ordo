@@ -1,0 +1,42 @@
+@layer app {
+  .trigger {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    width: 100%;
+    min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs) / 2);
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    padding-inline: calc(var(--mantine-spacing-xs) / 2);
+
+    /* Bordures */
+    outline: 1px solid transparent;
+
+    &:hover,
+    &[aria-expanded='true'] {
+      outline-color: var(--mantine-color-default-border);
+    }
+  }
+
+  .empty {
+    /* Typographie */
+    color: var(--mantine-color-dimmed);
+
+    /* Effets */
+    opacity: 0;
+
+    .trigger:hover & {
+      opacity: 1;
+    }
+  }
+
+  .clear {
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-red-filled);
+    text-align: center;
+  }
+}

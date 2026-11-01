@@ -32,7 +32,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
@@ -445,13 +445,14 @@ function TaskDetail({ task, context }: TaskDetailProps) {
 export function TaskPanel() {
   const { number } = useParams();
   const navigate = useNavigate();
+  const { search } = useLocation();
   const { context, isPending } = useTaskContext();
   const task = context?.taskByNumber.get(Number(number));
 
   return (
     <Drawer
       opened
-      onClose={() => navigate('/tasks')}
+      onClose={() => navigate({ pathname: '/tasks', search })}
       position="right"
       size="min(72rem, 100%)"
       title={

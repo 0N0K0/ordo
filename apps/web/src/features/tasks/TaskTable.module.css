@@ -4,10 +4,81 @@
     table-layout: fixed;
   }
 
+  .header {
+    /* Position */
+    position: relative;
+
+    /* Dimension */
+    overflow: hidden;
+
+    /* Typographie */
+    white-space: nowrap;
+  }
+
+  .sortButton {
+    /* Agencement */
+    display: inline-flex;
+    align-items: center;
+
+    /* Dimension */
+    max-width: 100%;
+
+    /* Espacement */
+    gap: 4px;
+    padding: 0;
+
+    /* Typographie */
+    font: inherit;
+    color: inherit;
+    text-align: left;
+
+    /* Arrière-Plan */
+    background: none;
+
+    /* Bordures */
+    border: 0;
+
+    /* Interaction */
+    cursor: pointer;
+  }
+
+  .sortMark {
+    /* Typographie */
+    color: var(--mantine-primary-color-filled);
+  }
+
+  .resizer {
+    /* Position */
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    /* Dimension */
+    width: 5px;
+
+    /* Arrière-Plan */
+    background-color: transparent;
+
+    &:hover,
+    &[data-resizing] {
+      background-color: var(--mantine-primary-color-filled);
+    }
+
+    /* Interaction */
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+  }
+
   .row {
     /* Arrière-Plan */
-    &[data-active] {
+    &[data-selected] {
       background-color: var(--mantine-primary-color-light);
+    }
+
+    &[data-active] {
+      background-color: var(--mantine-primary-color-light-hover);
     }
 
     /* Effets */
@@ -15,7 +86,74 @@
       opacity: 0.6;
     }
 
+    &[data-dragging] {
+      opacity: 0.5;
+    }
+
     /* Interaction */
     cursor: pointer;
+
+    & td {
+      /* Dimension */
+      overflow: hidden;
+    }
+  }
+
+  .groupRow {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+  }
+
+  /* The group name stays visible when the table scrolls horizontally. */
+  .groupLabel {
+    /* Position */
+    position: sticky;
+    left: var(--mantine-spacing-xs);
+
+    /* Dimension */
+    width: fit-content;
+  }
+
+  .titleCell {
+    /* Espacement */
+    padding-left: calc(var(--mantine-spacing-xs) + var(--row-depth, 0) * var(--mantine-spacing-lg));
+  }
+
+  .chevron {
+    /* Effets */
+    transform: rotate(0deg);
+
+    &[data-expanded] {
+      transform: rotate(90deg);
+    }
+
+    /* Animation */
+    transition: transform 150ms ease;
+  }
+
+  .chevronSpacer,
+  .handleSpacer {
+    /* Agencement */
+    flex: none;
+
+    /* Dimension */
+    width: calc(1.375rem * var(--mantine-scale));
+  }
+
+  .handle {
+    /* Effets */
+    opacity: 0;
+
+    .row:hover &,
+    &:focus-visible {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+
+    /* Interaction */
+    cursor: grab;
   }
 }

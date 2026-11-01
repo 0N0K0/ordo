@@ -1,7 +1,7 @@
 import { Button, Group, NumberInput, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
@@ -28,6 +28,7 @@ interface TaskCreateFormProps {
 export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProps) {
   const createTask = useCreateTask();
   const navigate = useNavigate();
+  const { search } = useLocation();
   const parent = defaults?.parentId ? context.taskById.get(defaults.parentId) : undefined;
   const firstStatus = context.statuses.find((status) => status.category === 'TODO') ?? context.statuses[0];
 
@@ -59,7 +60,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
         onSuccess: (task) => {
           notifySuccess(`Tâche #${task.number} créée.`);
           onDone();
-          navigate(`/tasks/${task.number}`);
+          navigate({ pathname: `/tasks/${task.number}`, search });
         },
         onError: (error) => showFormError(form, error),
       },

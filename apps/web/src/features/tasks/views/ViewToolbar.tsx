@@ -1,0 +1,329 @@
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Checkbox,
+  CloseButton,
+  Group,
+  Popover,
+  ScrollArea,
+  SegmentedControl,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+} from '@mantine/core';
+import { TASK_COLUMNS, TASK_GROUP_BY, type TaskColumn, type TaskGroupBy, type TaskViewConfig } from '@ordo/shared';
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ColumnsIcon,
+  DotsSixVerticalIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  SortAscendingIcon,
+  TrashIcon,
+} from '@phosphor-icons/react';
+import type { TaskContext } from '../use-task-context';
+import { COLUMN_LABELS, GROUP_BY_LABELS, LOCKED_COLUMNS } from './columns-meta';
+import { FilterBuilder } from './FilterBuilder';
+import { countConditions } from './filter-meta';
+
+type Change = (change: (config: TaskViewConfig) => TaskViewConfig) => void;
+
+interface SortPanelProps {
+  sorting: TaskViewConfig['sorting'];
+  onChange: (sorting: TaskViewConfig['sorting']) => void;
+}
+
+/**
+ * Sort levels: column, direction, priority order. Empty means manual order.
+ * @param {SortPanelProps} props Component props.
+ * @returns {JSX.Element} Panel.
+ */
+function SortPanel({ sorting, onChange }: SortPanelProps) {
+  const used = new Set(sorting.map((sort) => sort.id));
+  const available = TASK_COLUMNS.filter((column) => !used.has(column));
+  return (
+    <Stack gap="xs" w={380}>
+      {sorting.length === 0 ? (
+        <Text size="sm" c="dimmed">
+          Ordre manuel : les tâches peuvent être réordonnées par glisser-déposer.
+        </Text>
+      ) : (
+        sorting.map((sort, index) => (
+          <Group key={sort.id} gap="xs" wrap="nowrap">
+            <Text size="xs" c="dimmed" w={48}>
+              {index === 0 ? 'Trier par' : 'puis'}
+            </Text>
+            <Select
+              comboboxProps={{ withinPortal: false }}
+              size="xs"
+              aria-label="Colonne"
+              data={[sort.id, ...available].map((column) => ({ value: column, label: COLUMN_LABELS[column] }))}
+              value={sort.id}
+              allowDeselect={false}
+              onChange={(id) => id && onChange(sorting.map((item, i) => (i === index ? { ...item, id: id as TaskColumn } : item)))}
+              style={{ flex: 1 }}
+            />
+            <SegmentedControl
+              size="xs"
+              value={sort.desc ? 'desc' : 'asc'}
+              onChange={(value) => onChange(sorting.map((item, i) => (i === index ? { ...item, desc: value === 'desc' } : item)))}
+              data={[
+                { value: 'asc', label: '↑' },
+                { value: 'desc', label: '↓' },
+              ]}
+              aria-label="Sens"
+            />
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              aria-label="Monter"
+              disabled={index === 0}
+              onClick={() => onChange(arrayMove(sorting, index, index - 1))}
+            >
+              <ArrowUpIcon aria-hidden />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              aria-label="Descendre"
+              disabled={index === sorting.length - 1}
+              onClick={() => onChange(arrayMove(sorting, index, index + 1))}
+            >
+              <ArrowDownIcon aria-hidden />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              aria-label="Retirer ce tri"
+              onClick={() => onChange(sorting.filter((_, i) => i !== index))}
+            >
+              <TrashIcon aria-hidden />
+            </ActionIcon>
+          </Group>
+        ))
+      )}
+      <Group justify="space-between">
+        <Button
+          size="compact-sm"
+          variant="subtle"
+          leftSection={<PlusIcon aria-hidden />}
+          disabled={available.length === 0}
+          onClick={() => onChange([...sorting, { id: available[0], desc: false }])}
+        >
+          Ajouter un tri
+        </Button>
+        {sorting.length > 0 && (
+          <Button size="compact-sm" variant="subtle" color="gray" onClick={() => onChange([])}>
+            Revenir à l’ordre manuel
+          </Button>
+        )}
+      </Group>
+      <Text size="xs" c="dimmed">
+        Astuce : cliquez sur un en-tête de colonne pour trier, Maj + clic pour ajouter un niveau.
+      </Text>
+    </Stack>
+  );
+}
+
+/**
+ * Column of the visibility / order list, draggable.
+ * @param {object} props Component props.
+ * @param {TaskColumn} props.column Column.
+ * @param {boolean} props.visible Whether it is shown.
+ * @param {(visible: boolean) => void} props.onToggle Shows or hides it.
+ * @returns {JSX.Element} Row.
+ */
+function ColumnItem({ column, visible, onToggle }: { column: TaskColumn; visible: boolean; onToggle: (visible: boolean) => void }) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: column });
+  return (
+    <Group
+      ref={setNodeRef}
+      gap="xs"
+      wrap="nowrap"
+      style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+    >
+      <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${COLUMN_LABELS[column]}`} {...attributes} {...listeners} style={{ cursor: 'grab' }}>
+        <DotsSixVerticalIcon aria-hidden />
+      </ActionIcon>
+      <Checkbox
+        size="xs"
+        label={COLUMN_LABELS[column]}
+        checked={visible}
+        disabled={LOCKED_COLUMNS.includes(column)}
+        onChange={(event) => onToggle(event.currentTarget.checked)}
+      />
+    </Group>
+  );
+}
+
+/**
+ * Column visibility and order.
+ * @param {object} props Component props.
+ * @param {TaskViewConfig} props.config View configuration.
+ * @param {Change} props.change Configuration updater.
+ * @returns {JSX.Element} Panel.
+ */
+function ColumnsPanel({ config, change }: { config: TaskViewConfig; change: Change }) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  // Columns missing from a saved order (added later) go at the end.
+  const order = [...config.columnOrder, ...TASK_COLUMNS.filter((column) => !config.columnOrder.includes(column))];
+  const hidden = new Set(config.hiddenColumns);
+
+  /**
+   * Moves a dragged column.
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    change((current) => ({
+      ...current,
+      columnOrder: arrayMove(order, order.indexOf(active.id as TaskColumn), order.indexOf(over.id as TaskColumn)),
+    }));
+  };
+
+  return (
+    <ScrollArea.Autosize mah={420} type="auto">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={order} strategy={verticalListSortingStrategy}>
+          <Stack gap={4} w={220}>
+            {order.map((column) => (
+              <ColumnItem
+                key={column}
+                column={column}
+                visible={!hidden.has(column)}
+                onToggle={(visible) =>
+                  change((current) => ({
+                    ...current,
+                    hiddenColumns: visible
+                      ? current.hiddenColumns.filter((item) => item !== column)
+                      : [...current.hiddenColumns, column],
+                  }))
+                }
+              />
+            ))}
+          </Stack>
+        </SortableContext>
+      </DndContext>
+    </ScrollArea.Autosize>
+  );
+}
+
+interface ViewToolbarProps {
+  config: TaskViewConfig;
+  change: Change;
+  context: TaskContext;
+}
+
+/**
+ * Toolbar of the current view: search, filters, sorting, columns, grouping and display toggles.
+ * @param {ViewToolbarProps} props Component props.
+ * @returns {JSX.Element} Toolbar.
+ */
+export function ViewToolbar({ config, change, context }: ViewToolbarProps) {
+  const filterCount = countConditions(config.filter);
+  return (
+    <Group gap="sm" wrap="wrap">
+      <TextInput
+        placeholder="Rechercher (#12, titre, description)"
+        aria-label="Rechercher une tâche"
+        leftSection={<MagnifyingGlassIcon aria-hidden />}
+        rightSection={
+          config.search ? (
+            <CloseButton size="sm" aria-label="Effacer" onClick={() => change((current) => ({ ...current, search: '' }))} />
+          ) : null
+        }
+        value={config.search}
+        onChange={(event) => {
+          const search = event.currentTarget.value;
+          change((current) => ({ ...current, search }));
+        }}
+        w={{ base: '100%', sm: 280 }}
+      />
+
+      <Popover position="bottom-start" shadow="md" withinPortal trapFocus={false} closeOnClickOutside>
+        <Popover.Target>
+          <Button
+            variant={filterCount ? 'light' : 'default'}
+            leftSection={<FunnelIcon aria-hidden />}
+            rightSection={filterCount ? <Badge size="xs" circle>{filterCount}</Badge> : undefined}
+          >
+            Filtrer
+          </Button>
+        </Popover.Target>
+        <Popover.Dropdown maw="min(56rem, calc(100vw - 2rem))">
+          {/* No scroll container: it would clip the dropdowns rendered inside the popover. */}
+          <FilterBuilder
+            filter={config.filter}
+            context={context}
+            onChange={(filter) => change((current) => ({ ...current, filter }))}
+          />
+        </Popover.Dropdown>
+      </Popover>
+
+      <Popover position="bottom-start" shadow="md" withinPortal>
+        <Popover.Target>
+          <Button
+            variant={config.sorting.length ? 'light' : 'default'}
+            leftSection={<SortAscendingIcon aria-hidden />}
+            rightSection={config.sorting.length ? <Badge size="xs" circle>{config.sorting.length}</Badge> : undefined}
+          >
+            Trier
+          </Button>
+        </Popover.Target>
+        <Popover.Dropdown>
+          <SortPanel sorting={config.sorting} onChange={(sorting) => change((current) => ({ ...current, sorting }))} />
+        </Popover.Dropdown>
+      </Popover>
+
+      <Popover position="bottom-start" shadow="md" withinPortal>
+        <Popover.Target>
+          <Button variant="default" leftSection={<ColumnsIcon aria-hidden />}>
+            Colonnes
+          </Button>
+        </Popover.Target>
+        <Popover.Dropdown>
+          <ColumnsPanel config={config} change={change} />
+        </Popover.Dropdown>
+      </Popover>
+
+      <Select
+        aria-label="Grouper par"
+        placeholder="Grouper par…"
+        data={TASK_GROUP_BY.map((groupBy) => ({ value: groupBy, label: `Grouper par : ${GROUP_BY_LABELS[groupBy]}` }))}
+        value={config.groupBy}
+        onChange={(groupBy) => change((current) => ({ ...current, groupBy: (groupBy as TaskGroupBy | null) ?? null }))}
+        clearable
+        w={230}
+      />
+
+      <Switch
+        label="Sous-tâches à plat"
+        checked={config.flat}
+        onChange={(event) => {
+          const flat = event.currentTarget.checked;
+          change((current) => ({ ...current, flat }));
+        }}
+      />
+      <Switch
+        label="Archivées"
+        checked={config.includeArchived}
+        onChange={(event) => {
+          const includeArchived = event.currentTarget.checked;
+          change((current) => ({ ...current, includeArchived }));
+        }}
+      />
+    </Group>
+  );
+}
