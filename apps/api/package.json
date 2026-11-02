@@ -10,16 +10,19 @@
     "start": "node dist/index.js",
     "typecheck": "tsc",
     "schema:print": "tsx src/cli/print-schema.ts",
-    "user:create": "tsx src/cli/create-user.ts"
+    "user:create": "tsx src/cli/create-user.ts",
+    "db:seed": "prisma db seed --"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@faker-js/faker": "^10.6.0",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
+    "fishery": "^2.4.0",
     "prisma": "~7.10.1",
     "tsup": "^9.0.0",
     "tsx": "^4.23.15"

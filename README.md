@@ -64,6 +64,20 @@ npm run dev
 - API GraphQL : <http://localhost:3000/api/graphql> — GraphiQL en dev, appelée par le front via le proxy Vite `/api`
 - Emails de dev (Mailpit) : <http://localhost:8025>
 
+## Données de démonstration
+
+```bash
+npm run db:seed
+```
+
+Charge des fixtures : clients, projets et sous-projets, contributeurs, jalons, tâches avec sous-tâches, dépendances et commentaires. Les données sont générées par des factories ([fishery](https://github.com/thoughtbot/fishery) + [Faker](https://fakerjs.dev), en français) dans `apps/api/prisma/fixtures/factories.ts`. Le scénario de chargement est dans `apps/api/prisma/seed.ts`.
+
+- **Purge** : après confirmation, la commande supprime les clients, projets, tâches, libellés et contributeurs avant de charger les fixtures. Le compte et son profil « Moi » sont conservés : créez le compte avant, pour avoir des tâches qui vous sont assignées.
+- **Reproductible** : les mêmes données sont générées à chaque lancement.
+- **Sans confirmation** : `npm run db:seed -- --force`.
+- **Pas en production** : la commande refuse de s'exécuter quand `NODE_ENV=production`.
+- **Après une remise à zéro** : `npx prisma migrate reset` (dans `apps/api`) recharge aussi les fixtures.
+
 ## GraphQL
 
 Le schéma est écrit en TypeScript avec Pothos (`apps/api/src/graphql`). Après une modification du schéma ou des requêtes du front :
@@ -86,6 +100,7 @@ Cette commande régénère `apps/api/schema.graphql` puis les types du front (`a
 | `npm run db:down`     | Arrête PostgreSQL (les données sont conservées)  |
 | `npm run codegen`     | Régénère le schéma GraphQL et les types du front |
 | `npm run user:create` | Crée le compte unique                            |
+| `npm run db:seed`     | Remplace les données par des fixtures            |
 
 ## Ajouter une dépendance
 

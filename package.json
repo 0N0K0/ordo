@@ -10,6 +10,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
+    "db:seed": "npm run db:seed -w apps/api --",
     "codegen": "npm run schema:print -w apps/api && npm run codegen -w apps/web",
     "user:create": "npm run user:create -w apps/api"
   },
