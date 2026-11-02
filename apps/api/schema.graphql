@@ -1,3 +1,55 @@
+type Alarm {
+  createdAt: DateTime!
+  enabled: Boolean!
+  endDate: Date
+  frequency: AlarmFrequency!
+  id: ID!
+  interval: Int!
+  lastFiredAt: DateTime
+  minutes: Int
+  note: String
+  projectId: ID
+  startDate: Date
+  taskId: ID
+  time: String
+  title: String!
+  type: AlarmType!
+  weekdays: [Int!]!
+}
+
+enum AlarmFrequency {
+  DAILY
+  MONTHLY
+  ONCE
+  WEEKLY
+}
+
+input AlarmInput {
+  enabled: Boolean!
+  endDate: Date
+  frequency: AlarmFrequency!
+  interval: Int!
+  minutes: Int
+  note: String
+  projectId: ID
+  startDate: Date
+  taskId: ID
+
+  """HH:MM, local time."""
+  time: String
+  title: String!
+  type: AlarmType!
+
+  """1 (Monday) to 7 (Sunday)."""
+  weekdays: [Int!]!
+}
+
+enum AlarmType {
+  NOT_TRACKING
+  REMINDER
+  TRACKING_DURATION
+}
+
 type Attachment {
   id: ID!
 
@@ -140,6 +192,7 @@ type Mutation {
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
+  createAlarm(input: AlarmInput!): Alarm!
   createClient(input: ClientInput!): Client!
   createContributor(input: ContributorInput!): Contributor!
   createMilestone(input: MilestoneInput!): Milestone!
@@ -151,6 +204,8 @@ type Mutation {
   createTaskStatus(input: TaskLabelInput!): TaskStatus!
   createTaskType(input: TaskLabelInput!): TaskType!
   createTaskView(input: TaskViewInput!): TaskView!
+  createTimeEntry(input: TimeEntryInput!): TimeEntry!
+  deleteAlarm(id: ID!): Boolean!
   deleteClient(
     """true deletes the projects, false moves them to "no client"."""
     deleteProjects: Boolean!
@@ -173,11 +228,15 @@ type Mutation {
   deleteTaskStatus(id: ID!): Boolean!
   deleteTaskType(id: ID!): Boolean!
   deleteTaskView(id: ID!): Boolean!
+  deleteTimeEntry(id: ID!): Boolean!
   duplicateTaskView(id: ID!, name: String!): TaskView!
 
   """Opens a session with a username or email and a password."""
   login(identifier: String!, password: String!): User!
   logout: Boolean!
+
+  """Records that an alarm rang for the occurrence at `at`."""
+  markAlarmFired(at: DateTime!, id: ID!): Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
 
@@ -240,9 +299,15 @@ type Mutation {
   Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
   """
   setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
+  setTimerPaused(paused: Boolean!): TimeEntry!
+
+  """Starts a timer; the running one is stopped first."""
+  startTimer(input: TimerInput!): TimeEntry!
+  stopTimer: TimeEntry
 
   """Moves the task and its sub-tasks to another project."""
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
+  updateAlarm(id: ID!, input: AlarmInput!): Alarm!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
@@ -255,6 +320,7 @@ type Mutation {
   updateTaskStatus(id: ID!, input: TaskLabelUpdateInput!): TaskStatus!
   updateTaskType(id: ID!, input: TaskLabelUpdateInput!): TaskType!
   updateTaskView(id: ID!, input: TaskViewUpdateInput!): TaskView!
+  updateTimeEntry(id: ID!, input: TimeEntryUpdateInput!): TimeEntry!
 
   """Stores a file to link from a markdown text (10 MB maximum)."""
   uploadAttachment(file: File!): Attachment!
@@ -350,6 +416,8 @@ input ProjectUpdateInput {
 }
 
 type Query {
+  alarms: [Alarm!]!
+
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
   contributors: [Contributor!]!
@@ -364,6 +432,7 @@ type Query {
 
   """Every project, archived ones included, in manual order."""
   projects: [Project!]!
+  runningTimeEntry: TimeEntry
   task(number: Int!): Task
   taskPriorities: [TaskPriority!]!
   taskStatuses: [TaskStatus!]!
@@ -376,6 +445,11 @@ type Query {
 
   """Every task, archived ones included, in manual order."""
   tasks: [Task!]!
+
+  """
+  Time entries, latest first: those of a project and its sub-projects, or every entry.
+  """
+  timeEntries(projectId: ID): [TimeEntry!]!
 }
 
 type Task {
@@ -408,6 +482,11 @@ type Task {
   startDate: Date
   statusId: ID
   title: String!
+
+  """
+  Tracked time in seconds: each finished time entry is shared equally between its tasks.
+  """
+  trackedSeconds: Int!
   typeId: ID
   updatedAt: DateTime!
 }
@@ -535,6 +614,49 @@ input TaskViewInput {
 input TaskViewUpdateInput {
   config: JSON
   name: String
+}
+
+type TimeEntry {
+  description: String
+
+  """Seconds, pauses excluded; null while running."""
+  duration: Int
+  endedAt: DateTime
+  id: ID!
+  pausedAt: DateTime
+  pausedSeconds: Int!
+  projectId: ID!
+  startedAt: DateTime!
+  taskIds: [ID!]!
+}
+
+input TimeEntryInput {
+  description: String
+
+  """Seconds."""
+  duration: Int!
+  projectId: ID!
+  startedAt: DateTime!
+  taskIds: [ID!]!
+}
+
+"""
+Omitted fields are left unchanged. The duration of the running timer cannot be changed.
+"""
+input TimeEntryUpdateInput {
+  description: String
+
+  """Seconds."""
+  duration: Int
+  projectId: ID
+  startedAt: DateTime
+  taskIds: [ID!]
+}
+
+input TimerInput {
+  description: String
+  projectId: ID!
+  taskIds: [ID!]!
 }
 
 type User {

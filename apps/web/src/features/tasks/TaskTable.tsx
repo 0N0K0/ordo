@@ -20,7 +20,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Anchor, Box, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
-import { TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
+import { formatDuration, TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
 import { CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import {
   columnOrderingFeature,
@@ -216,26 +216,33 @@ interface TaskTableProps {
 }
 
 /**
- * Number of tasks without sub-tasks among some rows (their own sub-rows included) and their total effort.
- * A task listed in several groups counts once per group.
+ * Number of tasks without sub-tasks among some rows (their own sub-rows included), their total effort, and the
+ * time tracked on every listed task (parents included: their time is their own). A task listed in several
+ * groups counts once per group.
  * @param {DisplayRow[]} rows Rows.
  * @param {TaskContext} context Task context.
- * @returns {{ count: number, effort: number }} Summary.
+ * @returns {{ count: number, effort: number, tracked: number }} Summary.
  */
-function summarize(rows: DisplayRow[], context: TaskContext): { count: number; effort: number } {
-  const seen = new Set<string>();
+function summarize(rows: DisplayRow[], context: TaskContext): { count: number; effort: number; tracked: number } {
+  const leaves = new Set<string>();
+  const listed = new Set<string>();
   let effort = 0;
+  let tracked = 0;
   const walk = (items: DisplayRow[]) => {
     for (const item of items) {
-      if (item.kind === 'task' && !seen.has(item.task.id) && context.childrenOf(item.task.id).length === 0) {
-        seen.add(item.task.id);
-        effort += item.task.effort ?? 0;
+      if (item.kind === 'task' && !listed.has(item.task.id)) {
+        listed.add(item.task.id);
+        tracked += item.task.trackedSeconds;
+        if (context.childrenOf(item.task.id).length === 0) {
+          leaves.add(item.task.id);
+          effort += item.task.effort ?? 0;
+        }
       }
       walk(item.children);
     }
   };
   walk(rows);
-  return { count: seen.size, effort };
+  return { count: leaves.size, effort, tracked };
 }
 
 /**
@@ -287,6 +294,12 @@ export function TaskTable({
       type: (task) => <LabelCell task={task} column="type" labels={context.types} />,
       assignees: (task) => <AssigneesCell task={task} context={context} />,
       effort: (task) => <EffortCell task={task} />,
+      trackedTime: (task) =>
+        task.trackedSeconds > 0 ? (
+          <Text size="sm" ta="right">
+            {formatDuration(task.trackedSeconds)}
+          </Text>
+        ) : null,
       startDate: (task) => <DateCell task={task} column="startDate" />,
       endDate: (task) => (
         <DateCell
@@ -536,6 +549,7 @@ export function TaskTable({
     context,
   };
   const effortIndex = columnIds.indexOf('effort');
+  const trackedIndex = columnIds.indexOf('trackedTime');
 
   /**
    * Add row and subtotal closing a group.
@@ -553,7 +567,7 @@ export function TaskTable({
         projectId={createProjectId}
         onOpenForm={onOpenCreateForm}
       />,
-      <SummaryRow key={`${groupRowId}-sum`} {...extraProps} effortIndex={effortIndex} {...summary} />,
+      <SummaryRow key={`${groupRowId}-sum`} {...extraProps} effortIndex={effortIndex} trackedIndex={trackedIndex} {...summary} />,
     ];
   };
 
@@ -772,7 +786,13 @@ export function TaskTable({
               <Table.Tbody>{body}</Table.Tbody>
             </SortableContext>
             <Table.Tfoot>
-              <SummaryRow {...extraProps} effortIndex={effortIndex} {...summarize(rows, context)} total />
+              <SummaryRow
+                {...extraProps}
+                effortIndex={effortIndex}
+                trackedIndex={trackedIndex}
+                {...summarize(rows, context)}
+                total
+              />
             </Table.Tfoot>
           </Table>
         </Table.ScrollContainer>

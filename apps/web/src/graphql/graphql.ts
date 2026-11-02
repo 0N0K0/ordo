@@ -4,6 +4,35 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 /** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import type { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
+export type AlarmFrequency =
+  | 'DAILY'
+  | 'MONTHLY'
+  | 'ONCE'
+  | 'WEEKLY';
+
+export type AlarmInput = {
+  enabled: boolean;
+  endDate?: string | null | undefined;
+  frequency: AlarmFrequency;
+  interval: number;
+  minutes?: number | null | undefined;
+  note?: string | null | undefined;
+  projectId?: string | number | null | undefined;
+  startDate?: string | null | undefined;
+  taskId?: string | number | null | undefined;
+  /** HH:MM, local time. */
+  time?: string | null | undefined;
+  title: string;
+  type: AlarmType;
+  /** 1 (Monday) to 7 (Sunday). */
+  weekdays: Array<number>;
+};
+
+export type AlarmType =
+  | 'NOT_TRACKING'
+  | 'REMINDER'
+  | 'TRACKING_DURATION';
+
 /** Omitted fields are left unchanged; null clears a field. */
 export type BulkTaskInput = {
   addAssigneeIds?: Array<string | number> | null | undefined;
@@ -189,6 +218,68 @@ export type TaskViewUpdateInput = {
   name?: string | null | undefined;
 };
 
+export type TimeEntryInput = {
+  description?: string | null | undefined;
+  /** Seconds. */
+  duration: number;
+  projectId: string | number;
+  startedAt: string;
+  taskIds: Array<string | number>;
+};
+
+/** Omitted fields are left unchanged. The duration of the running timer cannot be changed. */
+export type TimeEntryUpdateInput = {
+  description?: string | null | undefined;
+  /** Seconds. */
+  duration?: number | null | undefined;
+  projectId?: string | number | null | undefined;
+  startedAt?: string | null | undefined;
+  taskIds?: Array<string | number> | null | undefined;
+};
+
+export type TimerInput = {
+  description?: string | null | undefined;
+  projectId: string | number;
+  taskIds: Array<string | number>;
+};
+
+export type AlarmFieldsFragment = { id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string };
+
+export type AlarmsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type AlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string }> };
+
+export type CreateAlarmMutationVariables = Exact<{
+  input: AlarmInput;
+}>;
+
+
+export type CreateAlarmMutation = { createAlarm: { id: string } };
+
+export type UpdateAlarmMutationVariables = Exact<{
+  id: string | number;
+  input: AlarmInput;
+}>;
+
+
+export type UpdateAlarmMutation = { updateAlarm: { id: string } };
+
+export type DeleteAlarmMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteAlarmMutation = { deleteAlarm: boolean };
+
+export type MarkAlarmFiredMutationVariables = Exact<{
+  id: string | number;
+  at: string;
+}>;
+
+
+export type MarkAlarmFiredMutation = { markAlarmFired: boolean };
+
 export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null };
 
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
@@ -266,14 +357,14 @@ export type MilestoneFieldsFragment = { id: string, projectId: string, title: st
 
 export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean };
+export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   number: number;
@@ -287,7 +378,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean } };
+export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -295,7 +386,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean } };
 
 export type SetTaskArchivedMutationVariables = Exact<{
   id: string | number;
@@ -642,6 +733,61 @@ export type MoveMilestoneMutationVariables = Exact<{
 
 export type MoveMilestoneMutation = { moveMilestone: boolean };
 
+export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> };
+
+export type TimeEntriesQueryVariables = Exact<{
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> }> };
+
+export type RunningTimeEntryQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> } | null };
+
+export type StartTimerMutationVariables = Exact<{
+  input: TimerInput;
+}>;
+
+
+export type StartTimerMutation = { startTimer: { id: string } };
+
+export type SetTimerPausedMutationVariables = Exact<{
+  paused: boolean;
+}>;
+
+
+export type SetTimerPausedMutation = { setTimerPaused: { id: string } };
+
+export type StopTimerMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type StopTimerMutation = { stopTimer: { id: string } | null };
+
+export type CreateTimeEntryMutationVariables = Exact<{
+  input: TimeEntryInput;
+}>;
+
+
+export type CreateTimeEntryMutation = { createTimeEntry: { id: string } };
+
+export type UpdateTimeEntryMutationVariables = Exact<{
+  id: string | number;
+  input: TimeEntryUpdateInput;
+}>;
+
+
+export type UpdateTimeEntryMutation = { updateTimeEntry: { id: string } };
+
+export type DeleteTimeEntryMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTimeEntryMutation = { deleteTimeEntry: boolean };
+
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
 export type LabelFieldsFragment = { id: string, name: string, color: string };
@@ -827,6 +973,26 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
+export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
+    fragment AlarmFields on Alarm {
+  id
+  title
+  note
+  type
+  startDate
+  time
+  frequency
+  interval
+  weekdays
+  endDate
+  minutes
+  projectId
+  taskId
+  enabled
+  lastFiredAt
+  createdAt
+}
+    `, {"fragmentName":"AlarmFields"}) as unknown as TypedDocumentString<AlarmFieldsFragment, unknown>;
 export const AccountUserFragmentDoc = new TypedDocumentString(`
     fragment AccountUser on User {
   id
@@ -888,6 +1054,7 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   blockedByIds
   relatedIds
   commentCount
+  trackedSeconds
   closed
 }
     `, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
@@ -898,6 +1065,19 @@ export const TaskCommentFieldsFragmentDoc = new TypedDocumentString(`
   createdAt
 }
     `, {"fragmentName":"TaskCommentFields"}) as unknown as TypedDocumentString<TaskCommentFieldsFragment, unknown>;
+export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TimeEntryFields on TimeEntry {
+  id
+  projectId
+  description
+  startedAt
+  endedAt
+  pausedAt
+  pausedSeconds
+  duration
+  taskIds
+}
+    `, {"fragmentName":"TimeEntryFields"}) as unknown as TypedDocumentString<TimeEntryFieldsFragment, unknown>;
 export const ClientFieldsFragmentDoc = new TypedDocumentString(`
     fragment ClientFields on Client {
   id
@@ -948,6 +1128,54 @@ export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
   name
   color
 }`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
+export const AlarmsDocument = new TypedDocumentString(`
+    query Alarms {
+  alarms {
+    ...AlarmFields
+  }
+}
+    fragment AlarmFields on Alarm {
+  id
+  title
+  note
+  type
+  startDate
+  time
+  frequency
+  interval
+  weekdays
+  endDate
+  minutes
+  projectId
+  taskId
+  enabled
+  lastFiredAt
+  createdAt
+}`) as unknown as TypedDocumentString<AlarmsQuery, AlarmsQueryVariables>;
+export const CreateAlarmDocument = new TypedDocumentString(`
+    mutation CreateAlarm($input: AlarmInput!) {
+  createAlarm(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateAlarmMutation, CreateAlarmMutationVariables>;
+export const UpdateAlarmDocument = new TypedDocumentString(`
+    mutation UpdateAlarm($id: ID!, $input: AlarmInput!) {
+  updateAlarm(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateAlarmMutation, UpdateAlarmMutationVariables>;
+export const DeleteAlarmDocument = new TypedDocumentString(`
+    mutation DeleteAlarm($id: ID!) {
+  deleteAlarm(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteAlarmMutation, DeleteAlarmMutationVariables>;
+export const MarkAlarmFiredDocument = new TypedDocumentString(`
+    mutation MarkAlarmFired($id: ID!, $at: DateTime!) {
+  markAlarmFired(id: $id, at: $at)
+}
+    `) as unknown as TypedDocumentString<MarkAlarmFiredMutation, MarkAlarmFiredMutationVariables>;
 export const MeDocument = new TypedDocumentString(`
     query Me {
   me {
@@ -1111,6 +1339,7 @@ fragment TaskFields on Task {
   blockedByIds
   relatedIds
   commentCount
+  trackedSeconds
   closed
 }`) as unknown as TypedDocumentString<TasksDataQuery, TasksDataQueryVariables>;
 export const TaskCommentsDocument = new TypedDocumentString(`
@@ -1156,6 +1385,7 @@ export const CreateTaskDocument = new TypedDocumentString(`
   blockedByIds
   relatedIds
   commentCount
+  trackedSeconds
   closed
 }`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
 export const UpdateTaskDocument = new TypedDocumentString(`
@@ -1187,6 +1417,7 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   blockedByIds
   relatedIds
   commentCount
+  trackedSeconds
   closed
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
 export const SetTaskArchivedDocument = new TypedDocumentString(`
@@ -1481,6 +1712,80 @@ export const MoveMilestoneDocument = new TypedDocumentString(`
   moveMilestone(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveMilestoneMutation, MoveMilestoneMutationVariables>;
+export const TimeEntriesDocument = new TypedDocumentString(`
+    query TimeEntries($projectId: ID) {
+  timeEntries(projectId: $projectId) {
+    ...TimeEntryFields
+  }
+}
+    fragment TimeEntryFields on TimeEntry {
+  id
+  projectId
+  description
+  startedAt
+  endedAt
+  pausedAt
+  pausedSeconds
+  duration
+  taskIds
+}`) as unknown as TypedDocumentString<TimeEntriesQuery, TimeEntriesQueryVariables>;
+export const RunningTimeEntryDocument = new TypedDocumentString(`
+    query RunningTimeEntry {
+  runningTimeEntry {
+    ...TimeEntryFields
+  }
+}
+    fragment TimeEntryFields on TimeEntry {
+  id
+  projectId
+  description
+  startedAt
+  endedAt
+  pausedAt
+  pausedSeconds
+  duration
+  taskIds
+}`) as unknown as TypedDocumentString<RunningTimeEntryQuery, RunningTimeEntryQueryVariables>;
+export const StartTimerDocument = new TypedDocumentString(`
+    mutation StartTimer($input: TimerInput!) {
+  startTimer(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<StartTimerMutation, StartTimerMutationVariables>;
+export const SetTimerPausedDocument = new TypedDocumentString(`
+    mutation SetTimerPaused($paused: Boolean!) {
+  setTimerPaused(paused: $paused) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<SetTimerPausedMutation, SetTimerPausedMutationVariables>;
+export const StopTimerDocument = new TypedDocumentString(`
+    mutation StopTimer {
+  stopTimer {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<StopTimerMutation, StopTimerMutationVariables>;
+export const CreateTimeEntryDocument = new TypedDocumentString(`
+    mutation CreateTimeEntry($input: TimeEntryInput!) {
+  createTimeEntry(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTimeEntryMutation, CreateTimeEntryMutationVariables>;
+export const UpdateTimeEntryDocument = new TypedDocumentString(`
+    mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {
+  updateTimeEntry(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTimeEntryMutation, UpdateTimeEntryMutationVariables>;
+export const DeleteTimeEntryDocument = new TypedDocumentString(`
+    mutation DeleteTimeEntry($id: ID!) {
+  deleteTimeEntry(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTimeEntryMutation, DeleteTimeEntryMutationVariables>;
 export const WorkspaceDocument = new TypedDocumentString(`
     query Workspace {
   clients {

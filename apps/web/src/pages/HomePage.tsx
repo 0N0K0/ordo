@@ -1,9 +1,10 @@
-import { SegmentedControl, Stack, Text, Title } from '@mantine/core';
+import { SegmentedControl, Stack, Title } from '@mantine/core';
 import { ME, type FilterCondition, type FilterGroup } from '@ordo/shared';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMe } from '../features/auth/api';
 import { TaskBoard } from '../features/tasks/TaskBoard';
+import { TimerCard } from '../features/time/TimerCard';
 
 type Period = 'today' | 'tomorrow' | 'week';
 
@@ -20,8 +21,18 @@ const PERIODS: { value: Period; label: string }[] = [
  * @param {FilterCondition['value']} [value] Value. Optional.
  * @returns {FilterCondition} Condition.
  */
-function condition(field: FilterCondition['field'], operator: string, value?: FilterCondition['value']): FilterCondition {
-  return { type: 'condition', id: `${field}-${operator}`, field, operator, value: value ?? null };
+function condition(
+  field: FilterCondition['field'],
+  operator: string,
+  value?: FilterCondition['value'],
+): FilterCondition {
+  return {
+    type: 'condition',
+    id: `${field}-${operator}`,
+    field,
+    operator,
+    value: value ?? null,
+  };
 }
 
 /**
@@ -30,8 +41,16 @@ function condition(field: FilterCondition['field'], operator: string, value?: Fi
  * @param {FilterGroup['children']} children Children.
  * @returns {FilterGroup} Group.
  */
-function group(combinator: 'and' | 'or', children: FilterGroup['children']): FilterGroup {
-  return { type: 'group', id: `${combinator}-${children.length}`, combinator, children };
+function group(
+  combinator: 'and' | 'or',
+  children: FilterGroup['children'],
+): FilterGroup {
+  return {
+    type: 'group',
+    id: `${combinator}-${children.length}`,
+    combinator,
+    children,
+  };
 }
 
 /**
@@ -44,17 +63,26 @@ function myTasksFilter(period: Period): FilterGroup {
   const day = period === 'tomorrow' ? 'today+1' : 'today';
   const onPeriod: FilterCondition[] =
     period === 'week'
-      ? [condition('endDate', 'within', 'thisWeek'), condition('startDate', 'within', 'thisWeek')]
+      ? [
+          condition('endDate', 'within', 'thisWeek'),
+          condition('startDate', 'within', 'thisWeek'),
+        ]
       : [condition('endDate', 'is', day), condition('startDate', 'is', day)];
   return group('and', [
-    group('or', [condition('assignees', 'anyOf', [ME]), condition('assignees', 'isEmpty')]),
+    group('or', [
+      condition('assignees', 'anyOf', [ME]),
+      condition('assignees', 'isEmpty'),
+    ]),
     condition('closed', 'isFalse'),
     group('or', [
       condition('overdue', 'isTrue'),
       condition('statusCategory', 'in', ['IN_PROGRESS']),
       ...onPeriod,
       // Running on that day: started before and ending after.
-      group('and', [condition('startDate', 'onOrBefore', day), condition('endDate', 'onOrAfter', day)]),
+      group('and', [
+        condition('startDate', 'onOrBefore', day),
+        condition('endDate', 'onOrAfter', day),
+      ]),
     ]),
   ]);
 }
@@ -66,7 +94,8 @@ function myTasksFilter(period: Period): FilterGroup {
 export function HomePage() {
   const { data: user } = useMe();
   const [params, setParams] = useSearchParams();
-  const period = (PERIODS.find((item) => item.value === params.get('period'))?.value ?? 'today') as Period;
+  const period = (PERIODS.find((item) => item.value === params.get('period'))
+    ?.value ?? 'today') as Period;
   const baseFilter = useMemo(() => myTasksFilter(period), [period]);
 
   return (
@@ -75,11 +104,8 @@ export function HomePage() {
         <Title order={1} size="h2">
           Bonjour {user?.username}
         </Title>
-        <Text size="sm" c="dimmed">
-          Tâches ouvertes qui vous sont assignées ou ne sont assignées à personne : en retard, en cours, ou prévues sur
-          la période.
-        </Text>
       </Stack>
+      <TimerCard />
       <TaskBoard
         projectId={null}
         baseFilter={baseFilter}

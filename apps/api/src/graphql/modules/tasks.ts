@@ -166,6 +166,12 @@ builder.prismaObject('Task', {
       ],
     }),
     commentCount: t.relationCount('comments'),
+    trackedSeconds: t.int({
+      description: 'Tracked time in seconds: each finished time entry is shared equally between its tasks.',
+      select: { timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { tasks: true } } } } },
+      resolve: (task) =>
+        Math.round(task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0)),
+    }),
     comments: t.relation('comments', { query: { orderBy: { createdAt: 'asc' } } }),
   }),
 });

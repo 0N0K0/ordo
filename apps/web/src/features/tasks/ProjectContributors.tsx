@@ -1,4 +1,18 @@
-import { ActionIcon, Anchor, Avatar, Badge, Button, Group, Paper, Select, Skeleton, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import {
+  ActionIcon,
+  Anchor,
+  Avatar,
+  Badge,
+  Button,
+  Group,
+  Paper,
+  Select,
+  Skeleton,
+  Stack,
+  Text,
+  ThemeIcon,
+  Tooltip,
+} from '@mantine/core';
 import { PlusIcon, UsersIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -23,14 +37,22 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
   subtree.add(projectId);
 
   const ancestors: Project[] = [];
-  for (let parentId = project?.parentId; parentId; parentId = context.projectById.get(parentId)?.parentId) {
+  for (
+    let parentId = project?.parentId;
+    parentId;
+    parentId = context.projectById.get(parentId)?.parentId
+  ) {
     const parent = context.projectById.get(parentId);
     if (parent) ancestors.push(parent);
   }
-  const direct = context.contributors.filter((contributor) => contributor.projectIds.includes(projectId));
+  const direct = context.contributors.filter((contributor) =>
+    contributor.projectIds.includes(projectId),
+  );
   const directIds = direct.map((contributor) => contributor.id);
   const members = context.assignableFor([projectId]);
-  const others = context.contributors.filter((contributor) => !members.includes(contributor));
+  const others = context.contributors.filter(
+    (contributor) => !members.includes(contributor),
+  );
 
   /**
    * Number of tasks of the project and its sub-projects assigned to a contributor.
@@ -38,7 +60,12 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
    * @returns {number} Count.
    */
   const taskCount = (contributor: Contributor) =>
-    context.tasks.filter((task) => !task.archived && subtree.has(task.projectId) && task.assigneeIds.includes(contributor.id)).length;
+    context.tasks.filter(
+      (task) =>
+        !task.archived &&
+        subtree.has(task.projectId) &&
+        task.assigneeIds.includes(contributor.id),
+    ).length;
 
   /**
    * Saves the contributors directly attached to the project.
@@ -49,31 +76,41 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
   const save = (contributorIds: string[], message: string) =>
     setProjectContributors.mutate(
       { projectId, contributorIds },
-      { onSuccess: () => notifySuccess(message), onError: (error) => notifyError(error.message) },
+      {
+        onSuccess: () => notifySuccess(message),
+        onError: (error) => notifyError(error.message),
+      },
     );
 
   return (
     <Stack gap="md">
       <Group justify="space-between" align="flex-end">
-        <Text size="sm" c="dimmed" maw={640}>
-          Seuls les contributeurs du projet sont proposés comme assignés de ses tâches et de celles de ses sous-projets. Un contributeur
-          assigné à une tâche est rattaché automatiquement à son projet.
-        </Text>
         <Group gap="sm">
           <Select
             aria-label="Ajouter un contributeur existant"
             placeholder="Ajouter un contributeur existant"
-            data={others.map((contributor) => ({ value: contributor.id, label: contributor.name }))}
+            data={others.map((contributor) => ({
+              value: contributor.id,
+              label: contributor.name,
+            }))}
             value={null}
             onChange={(id) => {
               const contributor = context.contributorById.get(id ?? '');
-              if (contributor) save([...directIds, contributor.id], `${contributor.name} ajouté au projet.`);
+              if (contributor)
+                save(
+                  [...directIds, contributor.id],
+                  `${contributor.name} ajouté au projet.`,
+                );
             }}
             searchable
             nothingFoundMessage="Aucun autre contributeur"
             disabled={others.length === 0 || project?.archived}
           />
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm(undefined, [projectId])} disabled={project?.archived}>
+          <Button
+            leftSection={<PlusIcon aria-hidden />}
+            onClick={() => openForm(undefined, [projectId])}
+            disabled={project?.archived}
+          >
             Nouveau contributeur
           </Button>
         </Group>
@@ -96,11 +133,17 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
             {members.map((contributor) => {
               const inheritedFrom = directIds.includes(contributor.id)
                 ? undefined
-                : ancestors.find((ancestor) => contributor.projectIds.includes(ancestor.id));
+                : ancestors.find((ancestor) =>
+                    contributor.projectIds.includes(ancestor.id),
+                  );
               const count = taskCount(contributor);
               return (
                 <Group key={contributor.id} gap="sm" wrap="nowrap">
-                  <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" />
+                  <Avatar
+                    src={contributor.avatarUrl}
+                    name={contributor.name}
+                    color="initials"
+                  />
                   <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
                     <Group gap={6} wrap="nowrap">
                       <Text size="sm" fw={500} truncate>
@@ -114,7 +157,12 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                       {inheritedFrom && (
                         <Badge size="xs" variant="light" color="gray">
                           Via{' '}
-                          <Anchor component={Link} to={`/projects/${inheritedFrom.id}?tab=contributors`} size="xs" inherit>
+                          <Anchor
+                            component={Link}
+                            to={`/projects/${inheritedFrom.id}?tab=contributors`}
+                            size="xs"
+                            inherit
+                          >
                             {inheritedFrom.title}
                           </Anchor>
                         </Badge>

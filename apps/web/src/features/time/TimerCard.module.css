@@ -1,0 +1,14 @@
+@layer app {
+  .clock {
+    /* Typographie */
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-h2-font-size);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+
+    &[data-paused] {
+      color: var(--mantine-color-dimmed);
+    }
+  }
+}

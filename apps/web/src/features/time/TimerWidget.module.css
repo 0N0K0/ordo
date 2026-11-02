@@ -1,0 +1,49 @@
+@layer app {
+  .running {
+    /* Dimension */
+    border-radius: var(--mantine-radius-xl);
+
+    /* Espacement */
+    padding-inline: var(--mantine-spacing-xs) 2px;
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-primary-color-light);
+  }
+
+  .summary {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Espacement */
+    gap: calc(var(--mantine-spacing-xs) / 2);
+  }
+
+  .dot {
+    /* Dimension */
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-red-6);
+
+    /* Animation */
+    animation: pulse 1.6s ease-in-out infinite;
+
+    .running[data-paused] & {
+      background-color: var(--mantine-color-dimmed);
+      animation: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  @keyframes pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+}

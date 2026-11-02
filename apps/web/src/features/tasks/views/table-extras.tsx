@@ -1,5 +1,5 @@
 import { Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
-import { taskTitleSchema } from '@ordo/shared';
+import { formatDuration, taskTitleSchema } from '@ordo/shared';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError } from '../../../lib/notify';
@@ -95,20 +95,24 @@ interface SummaryRowProps {
   titleIndex: number;
   /** Index of the effort column among the visible ones, or -1 when hidden. */
   effortIndex: number;
+  /** Index of the tracked time column among the visible ones, or -1 when hidden. */
+  trackedIndex: number;
   /** Tasks counted (without sub-tasks) and their total effort. */
   count: number;
   effort: number;
+  /** Tracked time of the listed tasks, in seconds. */
+  tracked: number;
   /** Footer of the whole table (in a tfoot) rather than of a group. */
   total?: boolean;
 }
 
 /**
  * Footer row of the table or of a group: number of tasks without sub-tasks and their total effort
- * (parents are left out so their effort is not counted twice).
+ * (parents are left out so their effort is not counted twice), and the tracked time.
  * @param {SummaryRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-export function SummaryRow({ columnCount, titleIndex, effortIndex, count, effort, total }: SummaryRowProps) {
+export function SummaryRow({ columnCount, titleIndex, effortIndex, trackedIndex, count, effort, tracked, total }: SummaryRowProps) {
   const cells = Array.from({ length: columnCount }, (_, index) => {
     if (index === titleIndex) {
       return (
@@ -127,6 +131,15 @@ export function SummaryRow({ columnCount, titleIndex, effortIndex, count, effort
         <Table.Td key={index}>
           <Text span size="xs" c="dimmed" fw={total ? 700 : 600}>
             {effortFormat.format(effort)}
+          </Text>
+        </Table.Td>
+      );
+    }
+    if (index === trackedIndex && tracked > 0) {
+      return (
+        <Table.Td key={index}>
+          <Text span size="xs" c="dimmed" fw={total ? 700 : 600} display="block" ta="right">
+            {formatDuration(tracked)}
           </Text>
         </Table.Td>
       );

@@ -6,6 +6,8 @@ import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../features/auth/api';
 import { TaskPanel } from '../features/tasks/TaskPanel';
+import { AlarmCenter } from '../features/alarms/AlarmCenter';
+import { TimerWidget } from '../features/time/TimerWidget';
 import { Sidebar } from '../features/workspace/sidebar/Sidebar';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
@@ -65,6 +67,7 @@ export function AppLayout() {
               </Anchor>
             </Group>
             <Group gap="sm" wrap="nowrap">
+              <TimerWidget />
               <Button
                 component={NavLink}
                 to="/account"
@@ -88,6 +91,7 @@ export function AppLayout() {
           </Group>
         </AppShell.Header>
 
+        <AlarmCenter />
         <AppShell.Navbar aria-label="Clients et projets">
           <Sidebar />
           {!mobile && (
