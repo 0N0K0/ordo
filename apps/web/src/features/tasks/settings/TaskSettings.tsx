@@ -1,14 +1,14 @@
-import { Select, Stack } from '@mantine/core';
-import type { TaskStatusCategory } from '@ordo/shared';
-import { notifyError } from '../../../lib/notify';
-import { LabelManager } from '../../../components/settings/LabelManager';
-import { useTaskLabelMutations, useTasksData, type Task } from '../api';
+import { Select, Stack } from "@mantine/core";
+import type { TaskStatusCategory } from "@ordo/shared";
+import { notifyError } from "../../../lib/notify";
+import { LabelManager } from "../../../components/settings/LabelManager";
+import { useTaskLabelMutations, useTasksData, type Task } from "../api";
 
 const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
-  { value: 'TODO', label: 'À faire' },
-  { value: 'IN_PROGRESS', label: 'En cours' },
-  { value: 'DONE', label: 'Terminé' },
-  { value: 'CANCELLED', label: 'Annulé' },
+  { value: "TODO", label: "À faire" },
+  { value: "IN_PROGRESS", label: "En cours" },
+  { value: "DONE", label: "Terminé" },
+  { value: "CANCELLED", label: "Annulé" },
 ];
 
 /**
@@ -17,9 +17,13 @@ const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
  * @param {(task: Task) => string[]} pick Ids used by a task.
  * @returns {Map<string, number>} Count per id.
  */
-function usageOf(tasks: Task[], pick: (task: Task) => string[]): Map<string, number> {
+function usageOf(
+  tasks: Task[],
+  pick: (task: Task) => string[],
+): Map<string, number> {
   const usage = new Map<string, number>();
-  for (const task of tasks) for (const id of pick(task)) usage.set(id, (usage.get(id) ?? 0) + 1);
+  for (const task of tasks)
+    for (const id of pick(task)) usage.set(id, (usage.get(id) ?? 0) + 1);
   return usage;
 }
 
@@ -29,18 +33,19 @@ function usageOf(tasks: Task[], pick: (task: Task) => string[]): Map<string, num
  */
 export function TaskSettings() {
   const { data } = useTasksData();
-  const statuses = useTaskLabelMutations('status');
-  const priorities = useTaskLabelMutations('priority');
-  const types = useTaskLabelMutations('type');
+  const statuses = useTaskLabelMutations("status");
+  const priorities = useTaskLabelMutations("priority");
+  const types = useTaskLabelMutations("type");
   const tasks = data?.tasks ?? [];
-  const byPosition = <T extends { position: number }>(items: T[] = []) => [...items].sort((a, b) => a.position - b.position);
+  const byPosition = <T extends { position: number }>(items: T[] = []) =>
+    [...items].sort((a, b) => a.position - b.position);
   const statusList = byPosition(data?.taskStatuses);
 
   return (
     <Stack gap="lg">
       <LabelManager
         title="Statuts de tâche"
-        description="La catégorie donne son sens au statut quel que soit son nom : une tâche « Terminé » ou « Annulé » n’est jamais en retard et compte comme faite dans l’avancement des sous-tâches."
+        description="La catégorie donne son sens au statut quel que soit son nom (filtres, tâches « en cours » de l’accueil). C’est l’état ouvert / fermé de la tâche, et non son statut, qui dit si elle est terminée."
         noun="le statut"
         usageNoun="tâches"
         labels={statusList}
@@ -53,12 +58,18 @@ export function TaskSettings() {
           <Select
             aria-label={`Catégorie du statut ${label.name}`}
             data={CATEGORY_OPTIONS}
-            value={statusList.find((status) => status.id === label.id)?.category ?? 'TODO'}
+            value={
+              statusList.find((status) => status.id === label.id)?.category ??
+              "TODO"
+            }
             allowDeselect={false}
             onChange={(category) =>
               category &&
               statuses.update.mutate(
-                { id: label.id, input: { category: category as TaskStatusCategory } },
+                {
+                  id: label.id,
+                  input: { category: category as TaskStatusCategory },
+                },
                 { onError: (error) => notifyError(error.message) },
               )
             }
@@ -72,7 +83,9 @@ export function TaskSettings() {
         noun="la priorité"
         usageNoun="tâches"
         labels={byPosition(data?.taskPriorities)}
-        usage={usageOf(tasks, (task) => (task.priorityId ? [task.priorityId] : []))}
+        usage={usageOf(tasks, (task) =>
+          task.priorityId ? [task.priorityId] : [],
+        )}
         create={priorities.create}
         update={priorities.update}
         remove={priorities.remove}

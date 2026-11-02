@@ -1,5 +1,6 @@
 import {
   Anchor,
+  Box,
   Avatar,
   Badge,
   ColorSwatch,
@@ -11,7 +12,9 @@ import {
   type ComboboxItem,
   type SelectProps,
 } from '@mantine/core';
-import { Link, useLocation } from 'react-router';
+import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
+import { Link } from 'react-router';
+import { useTaskLink } from './use-task-link';
 import type { Contributor, Task, TaskLabel } from './api';
 import type { TaskContext } from './use-task-context';
 
@@ -41,7 +44,7 @@ export function Assignees({ contributors, max = 3 }: { contributors: Contributor
   if (contributors.length === 0) return null;
   const shown = contributors.slice(0, max);
   return (
-    <Tooltip label={contributors.map((contributor) => contributor.name).join(', ')} withArrow>
+    <Tooltip label={contributors.map((contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name)).join(', ')} withArrow>
       <Avatar.Group spacing="xs">
         {shown.map((contributor) => (
           <Avatar key={contributor.id} src={contributor.avatarUrl} name={contributor.name} color="initials" size="sm" />
@@ -59,21 +62,19 @@ export function Assignees({ contributors, max = 3 }: { contributors: Contributor
  * @param {boolean} [props.closed] Shown struck through. Optional.
  * @returns {JSX.Element} Link.
  */
-export function TaskRef({ task, closed }: { task: Task; closed?: boolean }) {
-  // Keeps the current view (?view=) when opening the task.
-  const { search } = useLocation();
+export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolean; blocked?: boolean }) {
+  // Opens the task in the side panel, over the current page.
+  const link = useTaskLink();
   return (
-    <Anchor
-      component={Link}
-      to={{ pathname: `/tasks/${task.number}`, search }}
-      size="sm"
-      td={closed ? 'line-through' : undefined}
-    >
-      <Text span c="dimmed" size="sm">
-        #{task.number}
-      </Text>{' '}
-      {task.title}
-    </Anchor>
+    <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+      <TaskStateIcon closed={closed ?? task.closed} blocked={blocked} />
+      <Anchor component={Link} to={link.to(task.number)} size="sm" truncate>
+        <Text span c="dimmed" size="sm">
+          #{task.number}
+        </Text>{' '}
+        {task.title}
+      </Anchor>
+    </Group>
   );
 }
 
@@ -135,7 +136,10 @@ export function AssigneesSelect({ contributors, value, onChange, label = 'Assign
     <MultiSelect
       label={label}
       placeholder={value.length ? undefined : 'Personne'}
-      data={contributors.map((contributor) => ({ value: contributor.id, label: contributor.name }))}
+      data={contributors.map((contributor) => ({
+        value: contributor.id,
+        label: contributor.isMe ? `${contributor.name} (moi)` : contributor.name,
+      }))}
       renderOption={({ option }) => {
         const contributor = contributors.find((item) => item.id === option.value);
         return (
@@ -194,5 +198,26 @@ export function TaskSelect({ tasks, ...props }: TaskSelectProps) {
       nothingFoundMessage="Aucune tâche"
       {...props}
     />
+  );
+}
+
+/**
+ * Task state icon, shown before task titles: open (green), closed (violet), or blocked by an open task
+ * (red padlock), like issues on GitHub.
+ * @param {{ closed: boolean, blocked?: boolean }} props Component props.
+ * @returns {JSX.Element} Icon with its tooltip.
+ */
+export function TaskStateIcon({ closed, blocked = false }: { closed: boolean; blocked?: boolean }) {
+  const [label, color, icon] = closed
+    ? ['Fermée', 'violet', <CheckCircleIcon weight="fill" key="i" />]
+    : blocked
+      ? ['Bloquée : dépend d’au moins une tâche encore ouverte', 'red', <LockIcon weight="fill" key="i" />]
+      : ['Ouverte', 'green', <CircleIcon weight="bold" key="i" />];
+  return (
+    <Tooltip label={label} withArrow>
+      <Box component="span" c={`${color}.6`} aria-label={label} role="img" style={{ display: 'inline-flex', flex: 'none' }}>
+        {icon}
+      </Box>
+    </Tooltip>
   );
 }

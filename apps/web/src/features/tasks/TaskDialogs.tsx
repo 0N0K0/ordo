@@ -1,6 +1,6 @@
 import { Alert, Button, Checkbox, Group, Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useTaskLink } from './use-task-link';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
@@ -31,8 +31,7 @@ function countSubtasks(context: TaskContext, taskId: string): number {
  */
 export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
   const deleteTask = useDeleteTask();
-  const navigate = useNavigate();
-  const { search } = useLocation();
+  const link = useTaskLink();
   const [mode, setMode] = useState<'detach' | 'delete'>('detach');
   const subtasks = countSubtasks(context, task.id);
 
@@ -47,7 +46,7 @@ export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
         onSuccess: () => {
           notifySuccess(`Tâche #${task.number} supprimée.`);
           onDone();
-          navigate({ pathname: '/tasks', search }, { replace: true });
+          link.close();
         },
         onError: (error) => notifyError(error.message),
       },
@@ -152,8 +151,7 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
  */
 export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
   const cloneTask = useCloneTask();
-  const navigate = useNavigate();
-  const { search } = useLocation();
+  const link = useTaskLink();
   const subtasks = countSubtasks(context, task.id);
   const [includeSubtasks, setIncludeSubtasks] = useState(false);
 
@@ -168,7 +166,7 @@ export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
         onSuccess: (clone) => {
           notifySuccess(`Tâche #${task.number} clonée en #${clone.number}.`);
           onDone();
-          navigate({ pathname: `/tasks/${clone.number}`, search });
+          link.open(clone.number);
         },
         onError: (error) => notifyError(error.message),
       },

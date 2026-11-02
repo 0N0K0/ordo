@@ -1,5 +1,5 @@
 import {
-  CLOSED_STATUS_CATEGORIES,
+  ME,
   TASK_FILTER_FIELDS,
   type FilterCondition,
   type FilterGroup,
@@ -9,6 +9,11 @@ import { prisma } from '../db';
 import type { Prisma } from '../generated/prisma/client';
 
 /** Calendar context of the user: relative dates ("today", "this week") are computed in their day. */
+/** Who runs the query: "@me" in assignee conditions is their contributor profile. */
+export interface FilterUser {
+  contributorId: string | null;
+}
+
 export interface FilterClock {
   /** User's current day, YYYY-MM-DD. */
   today: string;
@@ -81,10 +86,8 @@ function boundary(field: DateField, day: number, clock: FilterClock): Date {
   return new Date(isInstant ? day - clock.utcOffset * 60 * 1000 : day);
 }
 
-/** Status of an open task: none, or not in a closed category. */
-const OPEN_STATUS: Prisma.TaskWhereInput = {
-  OR: [{ statusId: null }, { status: { category: { notIn: [...CLOSED_STATUS_CATEGORIES] } } }],
-};
+/** Open task: not closed (the open / closed state, not the status, says whether it is done). */
+const OPEN: Prisma.TaskWhereInput = { closedAt: null };
 
 /** Ids needed by the `inTree` operators, loaded once per query. */
 interface Trees {
@@ -137,13 +140,20 @@ async function loadTrees(filter: FilterGroup): Promise<Trees> {
  * @param {FilterCondition} condition Validated condition.
  * @param {FilterClock} clock User clock.
  * @param {Trees} trees Tree lookups.
+ * @param {FilterUser} user Querying user.
  * @returns {Prisma.TaskWhereInput} Prisma filter.
  */
-function conditionWhere(condition: FilterCondition, clock: FilterClock, trees: Trees): Prisma.TaskWhereInput {
+function conditionWhere(
+  condition: FilterCondition,
+  clock: FilterClock,
+  trees: Trees,
+  user: FilterUser,
+): Prisma.TaskWhereInput {
   const { field, operator, value } = condition;
   const text = typeof value === 'string' ? value : '';
   const number = typeof value === 'number' ? value : 0;
-  const ids = Array.isArray(value) ? value : [];
+  // "@me" stands for the user's contributor profile (matches nothing without one).
+  const ids = (Array.isArray(value) ? value : []).map((id) => (id === ME ? (user.contributorId ?? ME) : id));
 
   switch (TASK_FILTER_FIELDS[field]) {
     case 'text': {
@@ -216,9 +226,20 @@ function conditionWhere(condition: FilterCondition, clock: FilterClock, trees: T
     }
 
     case 'reference': {
-      const key = { project: 'projectId', status: 'statusId', priority: 'priorityId', type: 'typeId', parent: 'parentId' }[
-        field as 'project' | 'status' | 'priority' | 'type' | 'parent'
-      ] as 'projectId' | 'statusId' | 'priorityId' | 'typeId' | 'parentId';
+      const key = {
+        project: 'projectId',
+        status: 'statusId',
+        priority: 'priorityId',
+        type: 'typeId',
+        parent: 'parentId',
+        milestone: 'milestoneId',
+      }[field as 'project' | 'status' | 'priority' | 'type' | 'parent' | 'milestone'] as
+        | 'projectId'
+        | 'statusId'
+        | 'priorityId'
+        | 'typeId'
+        | 'parentId'
+        | 'milestoneId';
       const nullable = key !== 'projectId';
       switch (operator) {
         case 'in':
@@ -262,12 +283,13 @@ function conditionWhere(condition: FilterCondition, clock: FilterClock, trees: T
     case 'boolean': {
       const today = new Date(dayValue(clock.today));
       const truth: Prisma.TaskWhereInput = {
-        overdue: { AND: [{ endDate: { lt: today } }, OPEN_STATUS] },
+        overdue: { AND: [{ endDate: { lt: today } }, OPEN] },
         // Blocked by at least one task that is still open.
-        blocked: { blockedBy: { some: { blocker: { archivedAt: null, ...OPEN_STATUS } } } },
+        blocked: { blockedBy: { some: { blocker: { archivedAt: null, ...OPEN } } } },
         hasSubtasks: { children: { some: {} } },
+        closed: { NOT: { closedAt: null } },
         archived: { NOT: { archivedAt: null } },
-      }[field as 'overdue' | 'blocked' | 'hasSubtasks' | 'archived'];
+      }[field as 'overdue' | 'blocked' | 'hasSubtasks' | 'closed' | 'archived'];
       if (operator === 'isTrue') return truth;
       // NOT would drop tasks without end date (SQL NULL): "not overdue" is spelled out.
       if (field === 'overdue') {
@@ -275,7 +297,7 @@ function conditionWhere(condition: FilterCondition, clock: FilterClock, trees: T
           OR: [
             { endDate: null },
             { endDate: { gte: today } },
-            { status: { category: { in: [...CLOSED_STATUS_CATEGORIES] } } },
+            { NOT: { closedAt: null } },
           ],
         };
       }
@@ -289,11 +311,12 @@ function conditionWhere(condition: FilterCondition, clock: FilterClock, trees: T
  * @param {FilterGroup} group Validated group.
  * @param {FilterClock} clock User clock.
  * @param {Trees} trees Tree lookups.
+ * @param {FilterUser} user Querying user.
  * @returns {Prisma.TaskWhereInput} Prisma filter.
  */
-function groupWhere(group: FilterGroup, clock: FilterClock, trees: Trees): Prisma.TaskWhereInput {
+function groupWhere(group: FilterGroup, clock: FilterClock, trees: Trees, user: FilterUser): Prisma.TaskWhereInput {
   const parts = group.children.map((child) =>
-    child.type === 'group' ? groupWhere(child, clock, trees) : conditionWhere(child, clock, trees),
+    child.type === 'group' ? groupWhere(child, clock, trees, user) : conditionWhere(child, clock, trees, user),
   );
   if (parts.length === 0) return {};
   return group.combinator === 'and' ? { AND: parts } : { OR: parts };
@@ -324,6 +347,7 @@ function searchWhere(search: string): Prisma.TaskWhereInput {
  * @param {string} options.search Quick search.
  * @param {boolean} options.includeArchived Whether archived tasks are included.
  * @param {FilterClock} options.clock User clock.
+ * @param {FilterUser} options.user Querying user.
  * @returns {Promise<Prisma.TaskWhereInput>} Prisma filter.
  */
 export async function buildTaskWhere({
@@ -331,18 +355,20 @@ export async function buildTaskWhere({
   search,
   includeArchived,
   clock,
+  user,
 }: {
   filter: FilterGroup;
   search: string;
   includeArchived: boolean;
   clock: FilterClock;
+  user: FilterUser;
 }): Promise<Prisma.TaskWhereInput> {
   const trees = await loadTrees(filter);
   return {
     AND: [
       includeArchived ? {} : { archivedAt: null },
       searchWhere(search),
-      groupWhere(filter, clock, trees),
+      groupWhere(filter, clock, trees, user),
     ],
   };
 }

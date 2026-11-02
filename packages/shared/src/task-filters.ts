@@ -22,6 +22,7 @@ export const TASK_FILTER_FIELDS = {
   priority: 'reference',
   type: 'reference',
   parent: 'reference',
+  milestone: 'reference',
   assignees: 'multiReference',
   startDate: 'date',
   endDate: 'date',
@@ -30,6 +31,7 @@ export const TASK_FILTER_FIELDS = {
   overdue: 'boolean',
   blocked: 'boolean',
   hasSubtasks: 'boolean',
+  closed: 'boolean',
   archived: 'boolean',
 } as const satisfies Record<string, FilterFieldKind>;
 export type TaskFilterField = keyof typeof TASK_FILTER_FIELDS;
@@ -46,6 +48,9 @@ export const FILTER_OPERATORS = {
   category: ['in', 'notIn'],
 } as const satisfies Record<FilterFieldKind, readonly string[]>;
 export type FilterOperator = (typeof FILTER_OPERATORS)[FilterFieldKind][number];
+
+/** Value of an assignee condition standing for the logged-in user's contributor profile. */
+export const ME = '@me';
 
 /** Operators that take no value. */
 export const VALUELESS_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNotEmpty', 'isTrue', 'isFalse'];
@@ -154,9 +159,12 @@ export function filterDepth(group: FilterGroup): number {
   return 1 + Math.max(0, ...group.children.map((child) => (child.type === 'group' ? filterDepth(child) : 0)));
 }
 
-/** Root filter: a group, limited in depth. */
+/**
+ * Root filter: a group, limited in depth. The app may wrap a view filter in a context filter
+ * (project, home period), hence two extra levels over what the builder allows.
+ */
 export const taskFilterSchema = filterGroupSchema.refine(
-  (group) => filterDepth(group) <= MAX_FILTER_DEPTH,
+  (group) => filterDepth(group) <= MAX_FILTER_DEPTH + 2,
   `Les groupes de filtres sont limités à ${MAX_FILTER_DEPTH} niveaux.`,
 );
 
@@ -168,9 +176,8 @@ export function emptyFilter(): FilterGroup {
   return { type: 'group', id: 'root', combinator: 'and', children: [] };
 }
 
-/** Columns of the task table. */
+/** Columns of the task table (the number is shown before the title). */
 export const TASK_COLUMNS = [
-  'number',
   'title',
   'project',
   'status',
@@ -181,6 +188,7 @@ export const TASK_COLUMNS = [
   'startDate',
   'endDate',
   'parent',
+  'milestone',
   'blockedBy',
   'blocking',
   'related',
@@ -190,11 +198,25 @@ export const TASK_COLUMNS = [
 ] as const;
 export type TaskColumn = (typeof TASK_COLUMNS)[number];
 
+/** Sort keys: the columns, plus the task number. */
+export const TASK_SORT_KEYS = [...TASK_COLUMNS, 'number'] as const;
+export type TaskSortKey = (typeof TASK_SORT_KEYS)[number];
+
 /** Fields the table can be grouped by. */
-export const TASK_GROUP_BY = ['project', 'status', 'priority', 'type', 'assignees', 'parent'] as const;
+export const TASK_GROUP_BY = ['state', 'project', 'status', 'priority', 'type', 'assignees', 'parent', 'milestone'] as const;
 export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
 
 const columnSchema = z.enum(TASK_COLUMNS);
+
+/**
+ * List of columns that drops unknown ids, so views saved with a removed column stay valid.
+ * @returns {z.ZodType<TaskColumn[]>} Schema.
+ */
+const columnListSchema = () =>
+  z.preprocess(
+    (value) => (Array.isArray(value) ? value.filter((id) => (TASK_COLUMNS as readonly unknown[]).includes(id)) : value),
+    z.array(columnSchema),
+  );
 
 export const taskViewConfigSchema = z.object({
   filter: taskFilterSchema,
@@ -202,9 +224,17 @@ export const taskViewConfigSchema = z.object({
   search: z.string().max(200).default(''),
   includeArchived: z.boolean().default(false),
   /** Multi-sort, in priority order. Empty: manual order (drag and drop enabled). */
-  sorting: z.array(z.object({ id: columnSchema, desc: z.boolean() })).max(TASK_COLUMNS.length).default([]),
-  columnOrder: z.array(columnSchema).default([...TASK_COLUMNS]),
-  hiddenColumns: z.array(columnSchema).default([]),
+  sorting: z
+    .preprocess(
+      (value) =>
+        Array.isArray(value)
+          ? value.filter((sort) => (TASK_SORT_KEYS as readonly unknown[]).includes((sort as { id?: unknown })?.id))
+          : value,
+      z.array(z.object({ id: z.enum(TASK_SORT_KEYS), desc: z.boolean() })).max(TASK_SORT_KEYS.length),
+    )
+    .default([]),
+  columnOrder: columnListSchema().default([...TASK_COLUMNS]),
+  hiddenColumns: columnListSchema().default([]),
   columnSizing: z.record(z.string(), z.number().min(40).max(1200)).default({}),
   groupBy: z.enum(TASK_GROUP_BY).nullable().default(null),
   /** Show sub-tasks as a flat list instead of expandable rows. */
@@ -219,7 +249,7 @@ export type TaskViewConfig = z.infer<typeof taskViewConfigSchema>;
 export function defaultTaskViewConfig(): TaskViewConfig {
   return taskViewConfigSchema.parse({
     filter: emptyFilter(),
-    hiddenColumns: ['blocking', 'related', 'createdAt', 'updatedAt'],
+    hiddenColumns: ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt'],
   });
 }
 

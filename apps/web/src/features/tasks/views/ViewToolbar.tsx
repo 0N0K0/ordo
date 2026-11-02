@@ -17,7 +17,7 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import { TASK_COLUMNS, TASK_GROUP_BY, type TaskColumn, type TaskGroupBy, type TaskViewConfig } from '@ordo/shared';
+import { TASK_COLUMNS, TASK_GROUP_BY, TASK_SORT_KEYS, type TaskColumn, type TaskGroupBy, type TaskSortKey, type TaskViewConfig } from '@ordo/shared';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -30,7 +30,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import type { TaskContext } from '../use-task-context';
-import { COLUMN_LABELS, GROUP_BY_LABELS, LOCKED_COLUMNS } from './columns-meta';
+import { COLUMN_LABELS, GROUP_BY_LABELS, LOCKED_COLUMNS, SORT_LABELS } from './columns-meta';
 import { FilterBuilder } from './FilterBuilder';
 import { countConditions } from './filter-meta';
 
@@ -48,7 +48,7 @@ interface SortPanelProps {
  */
 function SortPanel({ sorting, onChange }: SortPanelProps) {
   const used = new Set(sorting.map((sort) => sort.id));
-  const available = TASK_COLUMNS.filter((column) => !used.has(column));
+  const available = TASK_SORT_KEYS.filter((key) => !used.has(key));
   return (
     <Stack gap="xs" w={380}>
       {sorting.length === 0 ? (
@@ -65,10 +65,10 @@ function SortPanel({ sorting, onChange }: SortPanelProps) {
               comboboxProps={{ withinPortal: false }}
               size="xs"
               aria-label="Colonne"
-              data={[sort.id, ...available].map((column) => ({ value: column, label: COLUMN_LABELS[column] }))}
+              data={[sort.id, ...available].map((key) => ({ value: key, label: SORT_LABELS[key] }))}
               value={sort.id}
               allowDeselect={false}
-              onChange={(id) => id && onChange(sorting.map((item, i) => (i === index ? { ...item, id: id as TaskColumn } : item)))}
+              onChange={(id) => id && onChange(sorting.map((item, i) => (i === index ? { ...item, id: id as TaskSortKey } : item)))}
               style={{ flex: 1 }}
             />
             <SegmentedControl
@@ -224,6 +224,9 @@ interface ViewToolbarProps {
   config: TaskViewConfig;
   change: Change;
   context: TaskContext;
+  /** Filter popover state (also opened from the column menus). */
+  filterOpened: boolean;
+  onFilterOpenedChange: (opened: boolean) => void;
 }
 
 /**
@@ -231,7 +234,7 @@ interface ViewToolbarProps {
  * @param {ViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function ViewToolbar({ config, change, context }: ViewToolbarProps) {
+export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange }: ViewToolbarProps) {
   const filterCount = countConditions(config.filter);
   return (
     <Group gap="sm" wrap="wrap">
@@ -252,9 +255,18 @@ export function ViewToolbar({ config, change, context }: ViewToolbarProps) {
         w={{ base: '100%', sm: 280 }}
       />
 
-      <Popover position="bottom-start" shadow="md" withinPortal trapFocus={false} closeOnClickOutside>
+      <Popover
+        opened={filterOpened}
+        onChange={onFilterOpenedChange}
+        position="bottom-start"
+        shadow="md"
+        withinPortal
+        trapFocus={false}
+        closeOnClickOutside
+      >
         <Popover.Target>
           <Button
+            onClick={() => onFilterOpenedChange(!filterOpened)}
             variant={filterCount ? 'light' : 'default'}
             leftSection={<FunnelIcon aria-hidden />}
             rightSection={filterCount ? <Badge size="xs" circle>{filterCount}</Badge> : undefined}

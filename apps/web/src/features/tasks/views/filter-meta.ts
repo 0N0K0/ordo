@@ -21,6 +21,7 @@ export const FIELD_LABELS: Record<TaskFilterField, string> = {
   priority: 'Priorité',
   type: 'Type',
   parent: 'Tâche parente',
+  milestone: 'Jalon',
   assignees: 'Assignés',
   startDate: 'Début',
   endDate: 'Fin',
@@ -29,15 +30,19 @@ export const FIELD_LABELS: Record<TaskFilterField, string> = {
   overdue: 'En retard',
   blocked: 'Bloquée',
   hasSubtasks: 'A des sous-tâches',
+  closed: 'Fermée',
   archived: 'Archivée',
 };
 
 /** Field order in the field picker, by theme. */
 export const FIELD_GROUPS: { group: string; fields: TaskFilterField[] }[] = [
   { group: 'Texte', fields: ['title', 'description', 'number'] },
-  { group: 'Organisation', fields: ['project', 'parent', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'effort'] },
+  {
+    group: 'Organisation',
+    fields: ['project', 'parent', 'milestone', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'effort'],
+  },
   { group: 'Dates', fields: ['startDate', 'endDate', 'createdAt', 'updatedAt'] },
-  { group: 'État', fields: ['overdue', 'blocked', 'hasSubtasks', 'archived'] },
+  { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'archived'] },
 ];
 
 export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOperator, string>>> = {

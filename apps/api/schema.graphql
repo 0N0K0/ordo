@@ -1,8 +1,12 @@
 """Omitted fields are left unchanged; null clears a field."""
 input BulkTaskInput {
   addAssigneeIds: [ID!]
+  effort: Float
+  endDate: Date
+  milestoneId: ID
   priorityId: ID
   removeAssigneeIds: [ID!]
+  startDate: Date
   statusId: ID
   typeId: ID
 }
@@ -37,19 +41,33 @@ type Contributor {
   avatarUrl: String
   handle: String!
   id: ID!
+
+  """Whether this contributor is the app user."""
+  isMe: Boolean!
   name: String!
+
+  """
+  Projects the contributor is directly attached to; their sub-projects inherit it.
+  """
+  projectIds: [ID!]!
 }
 
 input ContributorInput {
   avatar: File
   handle: String!
   name: String!
+
+  """Projects the contributor is directly attached to."""
+  projectIds: [ID!]
 }
 
 input ContributorUpdateInput {
   avatar: File
   handle: String
   name: String
+
+  """Projects the contributor is directly attached to."""
+  projectIds: [ID!]
   removeAvatar: Boolean
 }
 
@@ -64,6 +82,29 @@ scalar File
 
 """Arbitrary JSON value, validated by the resolver that receives it."""
 scalar JSON
+
+type Milestone {
+  description: String
+  dueDate: Date
+  id: ID!
+  position: Int!
+  projectId: ID!
+  title: String!
+}
+
+input MilestoneInput {
+  description: String
+  dueDate: Date
+  projectId: ID!
+  title: String!
+}
+
+"""Omitted fields are left unchanged; null clears a field."""
+input MilestoneUpdateInput {
+  description: String
+  dueDate: Date
+  title: String
+}
 
 type Mutation {
   """blockerId blocks blockedId."""
@@ -91,6 +132,7 @@ type Mutation {
   confirmEmailChange(token: String!): Boolean!
   createClient(input: ClientInput!): Client!
   createContributor(input: ContributorInput!): Contributor!
+  createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
@@ -105,6 +147,7 @@ type Mutation {
     id: ID!
   ): Boolean!
   deleteContributor(id: ID!): Boolean!
+  deleteMilestone(id: ID!): Boolean!
 
   """Deletes the project and all its sub-projects."""
   deleteProject(id: ID!): Boolean!
@@ -126,6 +169,7 @@ type Mutation {
   login(identifier: String!, password: String!): User!
   logout: Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
+  moveMilestone(id: ID!, index: Int!): Boolean!
 
   """Moves a project with its sub-projects."""
   moveProject(
@@ -142,9 +186,9 @@ type Mutation {
   moveProjectStatus(id: ID!, index: Int!): Boolean!
 
   """
-  Places a task before another one in the manual order (at the end when beforeId is null).
+  Places a task before another one in the manual order (at the end when beforeId is null), and under parentId when given (null: top-level task; omitted: parent unchanged).
   """
-  moveTask(beforeId: ID, id: ID!): Boolean!
+  moveTask(beforeId: ID, id: ID!, parentId: ID): Boolean!
   moveTaskPriority(id: ID!, index: Int!): Boolean!
   moveTaskStatus(id: ID!, index: Int!): Boolean!
   moveTaskType(id: ID!, index: Int!): Boolean!
@@ -170,6 +214,11 @@ type Mutation {
   Archiving cascades to sub-projects; restoring a project restores its archived ancestors and client.
   """
   setProjectArchived(archived: Boolean!, id: ID!): Project!
+
+  """
+  Sets the contributors directly attached to a project; tasks keep their assignees.
+  """
+  setProjectContributors(contributorIds: [ID!]!, projectId: ID!): Boolean!
   setProjectFavorite(favorite: Boolean!, id: ID!): Project!
 
   """
@@ -177,10 +226,16 @@ type Mutation {
   """
   setTaskArchived(archived: Boolean!, id: ID!): Task!
 
+  """
+  Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
+  """
+  setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
+
   """Moves the task and its sub-tasks to another project."""
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
+  updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
   updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
@@ -290,6 +345,7 @@ type Query {
   """Ids of the tasks matching a filter, in manual order."""
   matchingTaskIds(query: TaskQueryInput!): [ID!]!
   me: User
+  milestones: [Milestone!]!
   projectCategories: [ProjectCategory!]!
   projectStatuses: [ProjectStatus!]!
 
@@ -299,7 +355,11 @@ type Query {
   taskPriorities: [TaskPriority!]!
   taskStatuses: [TaskStatus!]!
   taskTypes: [TaskType!]!
-  taskViews: [TaskView!]!
+
+  """
+  Views of a project's task tab, or of the home page when projectId is omitted.
+  """
+  taskViews(projectId: ID): [TaskView!]!
 
   """Every task, archived ones included, in manual order."""
   tasks: [Task!]!
@@ -314,6 +374,10 @@ type Task {
 
   """Tasks this task blocks."""
   blockingIds: [ID!]!
+
+  """Closed (done) task."""
+  closed: Boolean!
+  closedAt: DateTime
   commentCount: Int!
   comments: [TaskComment!]!
   createdAt: DateTime!
@@ -321,6 +385,7 @@ type Task {
   effort: Float
   endDate: Date
   id: ID!
+  milestoneId: ID
   number: Int!
   parentId: ID
   position: Int!
@@ -345,6 +410,7 @@ input TaskInput {
   description: String
   effort: Float
   endDate: Date
+  milestoneId: ID
   parentId: ID
   priorityId: ID
   projectId: ID!
@@ -428,6 +494,7 @@ input TaskUpdateInput {
   description: String
   effort: Float
   endDate: Date
+  milestoneId: ID
   parentId: ID
   priorityId: ID
   startDate: Date
@@ -447,6 +514,9 @@ type TaskView {
 input TaskViewInput {
   config: JSON!
   name: String!
+
+  """Project of the view; omitted or null for the home page."""
+  projectId: ID
 }
 
 input TaskViewUpdateInput {
@@ -455,6 +525,8 @@ input TaskViewUpdateInput {
 }
 
 type User {
+  """Contributor profile ("Moi")."""
+  contributorId: ID
   email: String!
   id: ID!
   pendingEmail: String

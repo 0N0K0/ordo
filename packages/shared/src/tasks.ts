@@ -70,9 +70,23 @@ export const taskFormSchema = z
     startDate: dateSchema,
     endDate: dateSchema,
     parentId: z.string().nullable(),
+    milestoneId: z.string().nullable(),
   })
   .refine((values) => !values.startDate || !values.endDate || values.endDate >= values.startDate, {
     path: ['endDate'],
     error: 'La date de fin doit suivre la date de début.',
   });
 export type TaskFormValues = z.input<typeof taskFormSchema>;
+
+export const milestoneTitleSchema = z
+  .string()
+  .trim()
+  .min(1, 'Le titre est requis.')
+  .max(120, '120 caractères maximum.');
+
+export const milestoneFormSchema = z.object({
+  title: milestoneTitleSchema,
+  dueDate: dateSchema,
+  description: z.string(),
+});
+export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;

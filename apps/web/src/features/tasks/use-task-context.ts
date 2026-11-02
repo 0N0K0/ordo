@@ -3,7 +3,8 @@ import type { MarkdownSuggestions } from '../../components/markdown/MarkdownEdit
 import type { ReferenceTargets } from '../../components/markdown/remark-references';
 import { useWorkspace, type Project } from '../workspace/api';
 import { projectPath } from '../workspace/tree';
-import { useTasksData, type Contributor, type Task, type TaskLabel, type TaskStatus } from './api';
+import { useMe } from '../auth/api';
+import { useTasksData, type Contributor, type Milestone, type Task, type TaskLabel, type TaskStatus } from './api';
 
 export interface TaskContext {
   tasks: Task[];
@@ -12,6 +13,10 @@ export interface TaskContext {
   priorities: TaskLabel[];
   types: TaskLabel[];
   projects: Project[];
+  milestones: Milestone[];
+  milestoneById: Map<string, Milestone>;
+  /** Contributor profile of the logged-in user ("Moi"). */
+  meId: string | null;
   taskById: Map<string, Task>;
   taskByNumber: Map<number, Task>;
   statusById: Map<string, TaskStatus>;
@@ -25,7 +30,18 @@ export interface TaskContext {
   rootOf: (projectId: string) => string;
   /** Sub-tasks of a task, in manual order. */
   childrenOf: (taskId: string) => Task[];
-  /** Whether a status is closed (done or cancelled). */
+  /** Milestones usable by the tasks of a project: those of its whole project tree. */
+  milestonesFor: (projectId: string) => Milestone[];
+  /**
+   * Contributors that can be assigned to tasks of these projects: "Moi" and those attached to one of the
+   * projects or to a parent project, plus the `keep` ones (current assignees, attached or not).
+   */
+  assignableFor: (projectIds: string[], keep?: string[]) => Contributor[];
+  /** Display name of a contributor ("Moi" for the logged-in user). */
+  contributorName: (contributor: Contributor) => string;
+  /** Whether an open task is blocked by at least one open, non-archived task. */
+  isBlocked: (task: Task) => boolean;
+  /** Whether a task is closed (done). */
   isClosed: (task: Task) => boolean;
   suggestions: MarkdownSuggestions;
   targets: ReferenceTargets;
@@ -38,6 +54,8 @@ export interface TaskContext {
 export function useTaskContext() {
   const tasksQuery = useTasksData();
   const workspaceQuery = useWorkspace();
+  const { data: me } = useMe();
+  const meId = me?.contributorId ?? null;
   const data = tasksQuery.data;
   const workspace = workspaceQuery.data;
 
@@ -72,6 +90,22 @@ export function useTaskContext() {
       priorities: byPosition(data.taskPriorities),
       types: byPosition(data.taskTypes),
       projects: workspace.projects,
+      milestones: data.milestones,
+      milestoneById: new Map(data.milestones.map((milestone) => [milestone.id, milestone])),
+      meId,
+      milestonesFor: (projectId) => data.milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)),
+      assignableFor: (projectIds, keep = []) => {
+        const scope = new Set<string>();
+        for (const projectId of projectIds) {
+          for (let current: string | null | undefined = projectId; current; current = projectById.get(current)?.parentId) {
+            scope.add(current);
+          }
+        }
+        return data.contributors.filter(
+          (contributor) => contributor.isMe || keep.includes(contributor.id) || contributor.projectIds.some((id) => scope.has(id)),
+        );
+      },
+      contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
       taskById: new Map(tasks.map((task) => [task.id, task])),
       taskByNumber: new Map(tasks.map((task) => [task.number, task])),
       statusById,
@@ -85,10 +119,14 @@ export function useTaskContext() {
       },
       rootOf,
       childrenOf: (taskId) => children.get(taskId) ?? [],
-      isClosed: (task) => {
-        const category = task.statusId ? statusById.get(task.statusId)?.category : undefined;
-        return category === 'DONE' || category === 'CANCELLED';
-      },
+      // The open / closed state says whether a task is done, whatever its status.
+      isClosed: (task) => task.closed,
+      isBlocked: (task) =>
+        !task.closed &&
+        task.blockedByIds.some((id) => {
+          const blocker = tasks.find((item) => item.id === id);
+          return blocker !== undefined && !blocker.archived && !blocker.closed;
+        }),
       suggestions: {
         tasks: tasks.map((task) => ({ number: task.number, title: task.title })),
         contributors: data.contributors.map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl })),
@@ -98,7 +136,7 @@ export function useTaskContext() {
         handles: new Set(data.contributors.map((contributor) => contributor.handle)),
       },
     };
-  }, [data, workspace]);
+  }, [data, workspace, meId]);
 
   return {
     context,

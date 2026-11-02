@@ -32,12 +32,14 @@ function canonical(value: unknown): string {
 }
 
 /**
- * Saved views and the working copy of the current one. The selected view is kept in the URL (?view=);
- * each view keeps its unsaved changes while switching tabs. A first view is created when none exists.
+ * Saved views of a scope (a project's task tab or the home page) and the working copy of the current one.
+ * The selected view is kept in the URL (?view=); each view keeps its unsaved changes while switching
+ * tabs. A first view is created when the scope has none.
+ * @param {string | null} projectId Project, or null for the home page.
  * @returns {object} Views, current view, its working configuration and the view actions.
  */
-export function useTaskView() {
-  const viewsQuery = useTaskViews();
+export function useTaskView(projectId: string | null) {
+  const viewsQuery = useTaskViews(projectId);
   const mutations = useTaskViewMutations();
   const [params, setParams] = useSearchParams();
   const [drafts, setDrafts] = useState<Record<string, TaskViewConfig>>({});
@@ -62,10 +64,10 @@ export function useTaskView() {
     if (!viewsQuery.isSuccess || views.length > 0 || creating.current) return;
     creating.current = true;
     create.mutate(
-      { name: 'Toutes les tâches', config: defaultTaskViewConfig() },
+      { name: 'Toutes les tâches', config: defaultTaskViewConfig(), projectId },
       { onError: (error) => notifyError(error.message), onSettled: () => (creating.current = false) },
     );
-  }, [viewsQuery.isSuccess, views.length, create]);
+  }, [viewsQuery.isSuccess, views.length, create, projectId]);
 
   /**
    * Selects a view (kept in the URL).
@@ -131,7 +133,7 @@ export function useTaskView() {
      */
     createView: (name: string, fromCurrent: boolean) =>
       mutations.create.mutate(
-        { name, config: fromCurrent && config ? config : defaultTaskViewConfig() },
+        { name, config: fromCurrent && config ? config : defaultTaskViewConfig(), projectId },
         {
           onSuccess: (view) => {
             if (fromCurrent && current) discard(current.id);

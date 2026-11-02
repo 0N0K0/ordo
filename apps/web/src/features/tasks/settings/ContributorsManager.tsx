@@ -1,99 +1,11 @@
-import { ActionIcon, Avatar, Button, Group, Paper, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Avatar, Badge, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { contributorFormSchema, suggestHandle, type ContributorFormValues } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { showFormError, useAppForm } from '../../../lib/form';
 import { notifyError, notifySuccess } from '../../../lib/notify';
+import { useWorkspace } from '../../workspace/api';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
-import { IconField, type IconValue } from '../../workspace/IconField';
 import { useContributorMutations, type Contributor } from '../api';
-
-interface ContributorFormProps {
-  contributor?: Contributor;
-  onDone: () => void;
-}
-
-/**
- * Contributor creation / edition form (name, mention handle, avatar), displayed in a modal.
- * @param {ContributorFormProps} props Component props.
- * @param {Contributor} [props.contributor] Contributor to edit. Optional.
- * @param {() => void} props.onDone Called after saving or cancelling.
- * @returns {JSX.Element} Form.
- */
-function ContributorForm({ contributor, onDone }: ContributorFormProps) {
-  const { create, update } = useContributorMutations();
-  const [avatar, setAvatar] = useState<IconValue>({ file: null, remove: false });
-  // The handle follows the name until it is edited by hand.
-  const [handleTouched, setHandleTouched] = useState(Boolean(contributor));
-  const form = useAppForm<ContributorFormValues>({
-    initialValues: { name: contributor?.name ?? '', handle: contributor?.handle ?? '' },
-    schema: contributorFormSchema,
-  });
-
-  const handleSubmit = form.onSubmit((values) => {
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(contributor ? 'Contributeur modifié.' : 'Contributeur ajouté.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
-    if (contributor) {
-      update.mutate(
-        { id: contributor.id, input: { ...values, avatar: avatar.file, removeAvatar: avatar.remove } },
-        callbacks,
-      );
-    } else {
-      create.mutate({ ...values, avatar: avatar.file }, callbacks);
-    }
-  });
-
-  return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        <TextInput
-          label="Nom"
-          required
-          data-autofocus
-          {...form.getInputProps('name')}
-          onChange={(event) => {
-            const name = event.currentTarget.value;
-            form.setFieldValue('name', name);
-            if (!handleTouched) form.setFieldValue('handle', suggestHandle(name));
-          }}
-        />
-        <TextInput
-          label="Identifiant de mention"
-          description="Utilisé dans le markdown : @identifiant."
-          leftSection="@"
-          required
-          {...form.getInputProps('handle')}
-          onChange={(event) => {
-            setHandleTouched(true);
-            form.setFieldValue('handle', event.currentTarget.value);
-          }}
-        />
-        <IconField
-          value={avatar}
-          onChange={setAvatar}
-          currentUrl={contributor?.avatarUrl ?? null}
-          name={form.values.name}
-        />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            {contributor ? 'Enregistrer' : 'Ajouter'}
-          </Button>
-        </Group>
-      </Stack>
-    </form>
-  );
-}
-
-let modalCount = 0;
+import { useContributorForm } from './use-contributor-form';
 
 interface ContributorsManagerProps {
   contributors: Contributor[];
@@ -108,19 +20,19 @@ interface ContributorsManagerProps {
  */
 export function ContributorsManager({ contributors, usage }: ContributorsManagerProps) {
   const { remove } = useContributorMutations();
+  const openForm = useContributorForm();
+  const { data: workspace } = useWorkspace();
 
   /**
-   * Opens the contributor form.
-   * @param {Contributor} [contributor] Contributor to edit. Optional.
-   * @returns {void}
+   * Titles of the projects a contributor is attached to.
+   * @param {Contributor} contributor Contributor.
+   * @returns {string} Label.
    */
-  const openForm = (contributor?: Contributor) => {
-    const modalId = `contributor-${++modalCount}`;
-    modals.open({
-      modalId,
-      title: contributor ? 'Modifier le contributeur' : 'Nouveau contributeur',
-      children: <ContributorForm contributor={contributor} onDone={() => modals.close(modalId)} />,
-    });
+  const projectsLabel = (contributor: Contributor) => {
+    const titles = contributor.projectIds
+      .map((id) => workspace?.projects.find((project) => project.id === id)?.title)
+      .filter((title): title is string => Boolean(title));
+    return titles.length ? `Projets : ${titles.join(', ')}` : 'Aucun projet';
   };
 
   /**
@@ -169,7 +81,8 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
               Contributeurs
             </Title>
             <Text size="sm" c="dimmed">
-              Personnes à qui les tâches peuvent être assignées, sur n’importe quel projet.
+              Personnes à qui les tâches peuvent être assignées. Rattachez-les aux projets où elles interviennent : seuls les contributeurs
+              d’un projet (et de ses projets parents) sont proposés dans ses tâches.
             </Text>
           </Stack>
           <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
@@ -191,24 +104,47 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
               <Group key={contributor.id} gap="sm" wrap="nowrap">
                 <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" />
                 <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                  <Text size="sm" fw={500} truncate>
-                    {contributor.name}
-                  </Text>
+                  <Group gap={6} wrap="nowrap">
+                    <Text size="sm" fw={500} truncate>
+                      {contributor.name}
+                    </Text>
+                    {contributor.isMe && (
+                      <Badge size="xs" variant="light">
+                        Moi
+                      </Badge>
+                    )}
+                  </Group>
                   <Text size="xs" c="dimmed">
                     @{contributor.handle}
                     {(usage.get(contributor.id) ?? 0) > 0 && ` · ${usage.get(contributor.id)} tâche(s)`}
                   </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
+                  </Text>
                 </Stack>
                 <Tooltip label="Modifier">
-                  <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${contributor.name}`} onClick={() => openForm(contributor)}>
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    aria-label={`Modifier ${contributor.name}`}
+                    onClick={() => openForm(contributor)}
+                  >
                     <PencilSimpleIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>
-                <Tooltip label="Supprimer">
-                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${contributor.name}`} onClick={() => confirmDelete(contributor)}>
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
+                {/* The user's own profile cannot be deleted. */}
+                {!contributor.isMe && (
+                  <Tooltip label="Supprimer">
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      aria-label={`Supprimer ${contributor.name}`}
+                      onClick={() => confirmDelete(contributor)}
+                    >
+                      <TrashIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
               </Group>
             ))}
           </Stack>

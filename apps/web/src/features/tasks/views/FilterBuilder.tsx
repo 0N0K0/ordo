@@ -15,6 +15,7 @@ import {
 import { DatePickerInput } from '@mantine/dates';
 import {
   MAX_FILTER_DEPTH,
+  ME,
   TASK_FILTER_FIELDS,
   TASK_STATUS_CATEGORIES,
   VALUELESS_OPERATORS,
@@ -66,7 +67,16 @@ function referenceOptions(field: TaskFilterField, context: TaskContext): { value
     case 'parent':
       return context.tasks.map((task) => ({ value: task.id, label: `#${task.number} ${task.title}` }));
     case 'assignees':
-      return context.contributors.map((contributor) => ({ value: contributor.id, label: contributor.name }));
+      // "Moi" follows the logged-in user, whatever their contributor profile.
+      return [
+        { value: ME, label: 'Moi' },
+        ...context.contributors.filter((contributor) => !contributor.isMe).map((contributor) => ({ value: contributor.id, label: contributor.name })),
+      ];
+    case 'milestone':
+      return context.milestones.map((milestone) => ({
+        value: milestone.id,
+        label: `${milestone.title} — ${context.projectById.get(milestone.projectId)?.title ?? ''}`,
+      }));
     case 'statusCategory':
       return TASK_STATUS_CATEGORIES.map((category) => ({ value: category, label: CATEGORY_LABELS[category] }));
     default:

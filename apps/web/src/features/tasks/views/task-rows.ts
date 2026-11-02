@@ -1,4 +1,4 @@
-import type { TaskColumn, TaskGroupBy, TaskViewConfig } from '@ordo/shared';
+import type { TaskGroupBy, TaskSortKey, TaskViewConfig } from '@ordo/shared';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
 
@@ -27,13 +27,13 @@ const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
 type SortValue = string | number | null;
 
 /**
- * Value a task is sorted by for a column; null (empty) always goes last.
+ * Value a task is sorted by; null (empty) always goes last.
  * @param {Task} task Task.
- * @param {TaskColumn} column Column id.
+ * @param {TaskSortKey} column Sort key (column id or number).
  * @param {TaskContext} context Task context.
  * @returns {SortValue} Comparable value.
  */
-export function sortValue(task: Task, column: TaskColumn, context: TaskContext): SortValue {
+export function sortValue(task: Task, column: TaskSortKey, context: TaskContext): SortValue {
   switch (column) {
     case 'number':
       return task.number;
@@ -59,6 +59,11 @@ export function sortValue(task: Task, column: TaskColumn, context: TaskContext):
       return task.endDate;
     case 'parent':
       return task.parentId ? (context.taskById.get(task.parentId)?.number ?? null) : null;
+    case 'milestone': {
+      // By due date, milestones without date after the dated ones.
+      const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
+      return milestone ? `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` : null;
+    }
     case 'blockedBy':
       return task.blockedByIds.length || null;
     case 'blocking':
@@ -147,6 +152,10 @@ interface GroupKey {
 function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): GroupKey[] {
   const none = (label: string): GroupKey[] => [{ key: 'none', label, order: Number.MAX_SAFE_INTEGER }];
   switch (groupBy) {
+    case 'state':
+      return task.closed
+        ? [{ key: 'closed', label: 'Fermées', color: 'violet', order: 1 }]
+        : [{ key: 'open', label: 'Ouvertes', color: 'green', order: 0 }];
     case 'project':
       return [{ key: task.projectId, label: context.projectLabel(task.projectId), order: context.projectLabel(task.projectId) }];
     case 'status':
@@ -169,6 +178,11 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
       if (!parent) return none('Sans tâche parente');
       return [{ key: parent.id, label: `#${parent.number} ${parent.title}`, order: parent.number }];
+    }
+    case 'milestone': {
+      const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
+      if (!milestone) return none('Sans jalon');
+      return [{ key: milestone.id, label: milestone.title, order: `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` }];
     }
   }
 }

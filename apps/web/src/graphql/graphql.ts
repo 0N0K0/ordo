@@ -7,8 +7,12 @@ import type { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
 /** Omitted fields are left unchanged; null clears a field. */
 export type BulkTaskInput = {
   addAssigneeIds?: Array<string | number> | null | undefined;
+  effort?: number | null | undefined;
+  endDate?: string | null | undefined;
+  milestoneId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   removeAssigneeIds?: Array<string | number> | null | undefined;
+  startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   typeId?: string | number | null | undefined;
 };
@@ -32,13 +36,31 @@ export type ContributorInput = {
   avatar?: File | null | undefined;
   handle: string;
   name: string;
+  /** Projects the contributor is directly attached to. */
+  projectIds?: Array<string | number> | null | undefined;
 };
 
 export type ContributorUpdateInput = {
   avatar?: File | null | undefined;
   handle?: string | null | undefined;
   name?: string | null | undefined;
+  /** Projects the contributor is directly attached to. */
+  projectIds?: Array<string | number> | null | undefined;
   removeAvatar?: boolean | null | undefined;
+};
+
+export type MilestoneInput = {
+  description?: string | null | undefined;
+  dueDate?: string | null | undefined;
+  projectId: string | number;
+  title: string;
+};
+
+/** Omitted fields are left unchanged; null clears a field. */
+export type MilestoneUpdateInput = {
+  description?: string | null | undefined;
+  dueDate?: string | null | undefined;
+  title?: string | null | undefined;
 };
 
 export type ProjectCategoryInput = {
@@ -97,6 +119,7 @@ export type TaskInput = {
   description?: string | null | undefined;
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
+  milestoneId?: string | number | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   projectId: string | number;
@@ -145,6 +168,7 @@ export type TaskUpdateInput = {
   description?: string | null | undefined;
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
+  milestoneId?: string | number | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   startDate?: string | null | undefined;
@@ -156,6 +180,8 @@ export type TaskUpdateInput = {
 export type TaskViewInput = {
   config: unknown;
   name: string;
+  /** Project of the view; omitted or null for the home page. */
+  projectId?: string | number | null | undefined;
 };
 
 export type TaskViewUpdateInput = {
@@ -163,12 +189,12 @@ export type TaskViewUpdateInput = {
   name?: string | null | undefined;
 };
 
-export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null };
+export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null };
 
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MeQuery = { me: { id: string, username: string, email: string, pendingEmail: string | null } | null };
+export type MeQuery = { me: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } | null };
 
 export type LoginMutationVariables = Exact<{
   identifier: string;
@@ -176,7 +202,7 @@ export type LoginMutationVariables = Exact<{
 }>;
 
 
-export type LoginMutation = { login: { id: string, username: string, email: string, pendingEmail: string | null } };
+export type LoginMutation = { login: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never; }>;
 
@@ -219,7 +245,7 @@ export type ChangeUsernameMutationVariables = Exact<{
 }>;
 
 
-export type ChangeUsernameMutation = { changeUsername: { id: string, username: string, email: string, pendingEmail: string | null } };
+export type ChangeUsernameMutation = { changeUsername: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
 export type RequestEmailChangeMutationVariables = Exact<{
   currentPassword: string;
@@ -227,25 +253,27 @@ export type RequestEmailChangeMutationVariables = Exact<{
 }>;
 
 
-export type RequestEmailChangeMutation = { requestEmailChange: { id: string, username: string, email: string, pendingEmail: string | null } };
+export type RequestEmailChangeMutation = { requestEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
 export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null } };
+export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
-export type ContributorFieldsFragment = { id: string, name: string, handle: string, avatarUrl: string | null };
+export type ContributorFieldsFragment = { id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> };
+
+export type MilestoneFieldsFragment = { id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number };
 
 export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number };
+export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   number: number;
@@ -259,7 +287,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number } };
+export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -267,7 +295,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, closed: boolean } };
 
 export type SetTaskArchivedMutationVariables = Exact<{
   id: string | number;
@@ -304,6 +332,7 @@ export type CloneTaskMutation = { cloneTask: { id: string, number: number } };
 export type MoveTaskMutationVariables = Exact<{
   id: string | number;
   beforeId?: string | number | null | undefined;
+  parentId?: string | number | null | undefined;
 }>;
 
 
@@ -369,7 +398,7 @@ export type CreateContributorMutationVariables = Exact<{
 }>;
 
 
-export type CreateContributorMutation = { createContributor: { id: string, name: string, handle: string, avatarUrl: string | null } };
+export type CreateContributorMutation = { createContributor: { id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> } };
 
 export type UpdateContributorMutationVariables = Exact<{
   id: string | number;
@@ -377,7 +406,15 @@ export type UpdateContributorMutationVariables = Exact<{
 }>;
 
 
-export type UpdateContributorMutation = { updateContributor: { id: string, name: string, handle: string, avatarUrl: string | null } };
+export type UpdateContributorMutation = { updateContributor: { id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> } };
+
+export type SetProjectContributorsMutationVariables = Exact<{
+  projectId: string | number;
+  contributorIds: Array<string | number> | string | number;
+}>;
+
+
+export type SetProjectContributorsMutation = { setProjectContributors: boolean };
 
 export type DeleteContributorMutationVariables = Exact<{
   id: string | number;
@@ -476,7 +513,17 @@ export type MoveTaskTypeMutationVariables = Exact<{
 
 export type MoveTaskTypeMutation = { moveTaskType: boolean };
 
-export type TaskViewsQueryVariables = Exact<{ [key: string]: never; }>;
+export type SetTasksClosedMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  closed: boolean;
+}>;
+
+
+export type SetTasksClosedMutation = { setTasksClosed: boolean };
+
+export type TaskViewsQueryVariables = Exact<{
+  projectId?: string | number | null | undefined;
+}>;
 
 
 export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
@@ -564,6 +611,36 @@ export type BulkDeleteTasksMutationVariables = Exact<{
 
 
 export type BulkDeleteTasksMutation = { bulkDeleteTasks: boolean };
+
+export type CreateMilestoneMutationVariables = Exact<{
+  input: MilestoneInput;
+}>;
+
+
+export type CreateMilestoneMutation = { createMilestone: { id: string } };
+
+export type UpdateMilestoneMutationVariables = Exact<{
+  id: string | number;
+  input: MilestoneUpdateInput;
+}>;
+
+
+export type UpdateMilestoneMutation = { updateMilestone: { id: string } };
+
+export type DeleteMilestoneMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteMilestoneMutation = { deleteMilestone: boolean };
+
+export type MoveMilestoneMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveMilestoneMutation = { moveMilestone: boolean };
 
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
@@ -749,6 +826,7 @@ export const AccountUserFragmentDoc = new TypedDocumentString(`
   username
   email
   pendingEmail
+  contributorId
 }
     `, {"fragmentName":"AccountUser"}) as unknown as TypedDocumentString<AccountUserFragment, unknown>;
 export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
@@ -757,8 +835,20 @@ export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
   name
   handle
   avatarUrl
+  isMe
+  projectIds
 }
     `, {"fragmentName":"ContributorFields"}) as unknown as TypedDocumentString<ContributorFieldsFragment, unknown>;
+export const MilestoneFieldsFragmentDoc = new TypedDocumentString(`
+    fragment MilestoneFields on Milestone {
+  id
+  projectId
+  title
+  description
+  dueDate
+  position
+}
+    `, {"fragmentName":"MilestoneFields"}) as unknown as TypedDocumentString<MilestoneFieldsFragment, unknown>;
 export const TaskLabelFieldsFragmentDoc = new TypedDocumentString(`
     fragment TaskLabelFields on TaskStatus {
   id
@@ -781,6 +871,7 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   startDate
   endDate
   parentId
+  milestoneId
   position
   archived
   createdAt
@@ -790,6 +881,7 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   blockedByIds
   relatedIds
   commentCount
+  closed
 }
     `, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
 export const TaskCommentFieldsFragmentDoc = new TypedDocumentString(`
@@ -860,6 +952,7 @@ export const MeDocument = new TypedDocumentString(`
   username
   email
   pendingEmail
+  contributorId
 }`) as unknown as TypedDocumentString<MeQuery, MeQueryVariables>;
 export const LoginDocument = new TypedDocumentString(`
     mutation Login($identifier: String!, $password: String!) {
@@ -872,6 +965,7 @@ export const LoginDocument = new TypedDocumentString(`
   username
   email
   pendingEmail
+  contributorId
 }`) as unknown as TypedDocumentString<LoginMutation, LoginMutationVariables>;
 export const LogoutDocument = new TypedDocumentString(`
     mutation Logout {
@@ -909,6 +1003,7 @@ export const ChangeUsernameDocument = new TypedDocumentString(`
   username
   email
   pendingEmail
+  contributorId
 }`) as unknown as TypedDocumentString<ChangeUsernameMutation, ChangeUsernameMutationVariables>;
 export const RequestEmailChangeDocument = new TypedDocumentString(`
     mutation RequestEmailChange($currentPassword: String!, $email: String!) {
@@ -921,6 +1016,7 @@ export const RequestEmailChangeDocument = new TypedDocumentString(`
   username
   email
   pendingEmail
+  contributorId
 }`) as unknown as TypedDocumentString<RequestEmailChangeMutation, RequestEmailChangeMutationVariables>;
 export const CancelEmailChangeDocument = new TypedDocumentString(`
     mutation CancelEmailChange {
@@ -933,6 +1029,7 @@ export const CancelEmailChangeDocument = new TypedDocumentString(`
   username
   email
   pendingEmail
+  contributorId
 }`) as unknown as TypedDocumentString<CancelEmailChangeMutation, CancelEmailChangeMutationVariables>;
 export const TasksDataDocument = new TypedDocumentString(`
     query TasksData {
@@ -958,12 +1055,25 @@ export const TasksDataDocument = new TypedDocumentString(`
     color
     position
   }
+  milestones {
+    ...MilestoneFields
+  }
 }
     fragment ContributorFields on Contributor {
   id
   name
   handle
   avatarUrl
+  isMe
+  projectIds
+}
+fragment MilestoneFields on Milestone {
+  id
+  projectId
+  title
+  description
+  dueDate
+  position
 }
 fragment TaskLabelFields on TaskStatus {
   id
@@ -984,6 +1094,7 @@ fragment TaskFields on Task {
   startDate
   endDate
   parentId
+  milestoneId
   position
   archived
   createdAt
@@ -993,6 +1104,7 @@ fragment TaskFields on Task {
   blockedByIds
   relatedIds
   commentCount
+  closed
 }`) as unknown as TypedDocumentString<TasksDataQuery, TasksDataQueryVariables>;
 export const TaskCommentsDocument = new TypedDocumentString(`
     query TaskComments($number: Int!) {
@@ -1027,6 +1139,7 @@ export const CreateTaskDocument = new TypedDocumentString(`
   startDate
   endDate
   parentId
+  milestoneId
   position
   archived
   createdAt
@@ -1036,6 +1149,7 @@ export const CreateTaskDocument = new TypedDocumentString(`
   blockedByIds
   relatedIds
   commentCount
+  closed
 }`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
 export const UpdateTaskDocument = new TypedDocumentString(`
     mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {
@@ -1056,6 +1170,7 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   startDate
   endDate
   parentId
+  milestoneId
   position
   archived
   createdAt
@@ -1065,6 +1180,7 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   blockedByIds
   relatedIds
   commentCount
+  closed
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
 export const SetTaskArchivedDocument = new TypedDocumentString(`
     mutation SetTaskArchived($id: ID!, $archived: Boolean!) {
@@ -1094,8 +1210,8 @@ export const CloneTaskDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CloneTaskMutation, CloneTaskMutationVariables>;
 export const MoveTaskDocument = new TypedDocumentString(`
-    mutation MoveTask($id: ID!, $beforeId: ID) {
-  moveTask(id: $id, beforeId: $beforeId)
+    mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {
+  moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)
 }
     `) as unknown as TypedDocumentString<MoveTaskMutation, MoveTaskMutationVariables>;
 export const AddTaskBlockDocument = new TypedDocumentString(`
@@ -1156,6 +1272,8 @@ export const CreateContributorDocument = new TypedDocumentString(`
   name
   handle
   avatarUrl
+  isMe
+  projectIds
 }`) as unknown as TypedDocumentString<CreateContributorMutation, CreateContributorMutationVariables>;
 export const UpdateContributorDocument = new TypedDocumentString(`
     mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!) {
@@ -1168,7 +1286,14 @@ export const UpdateContributorDocument = new TypedDocumentString(`
   name
   handle
   avatarUrl
+  isMe
+  projectIds
 }`) as unknown as TypedDocumentString<UpdateContributorMutation, UpdateContributorMutationVariables>;
+export const SetProjectContributorsDocument = new TypedDocumentString(`
+    mutation SetProjectContributors($projectId: ID!, $contributorIds: [ID!]!) {
+  setProjectContributors(projectId: $projectId, contributorIds: $contributorIds)
+}
+    `) as unknown as TypedDocumentString<SetProjectContributorsMutation, SetProjectContributorsMutationVariables>;
 export const DeleteContributorDocument = new TypedDocumentString(`
     mutation DeleteContributor($id: ID!) {
   deleteContributor(id: $id)
@@ -1246,9 +1371,14 @@ export const MoveTaskTypeDocument = new TypedDocumentString(`
   moveTaskType(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveTaskTypeMutation, MoveTaskTypeMutationVariables>;
+export const SetTasksClosedDocument = new TypedDocumentString(`
+    mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {
+  setTasksClosed(ids: $ids, closed: $closed)
+}
+    `) as unknown as TypedDocumentString<SetTasksClosedMutation, SetTasksClosedMutationVariables>;
 export const TaskViewsDocument = new TypedDocumentString(`
-    query TaskViews {
-  taskViews {
+    query TaskViews($projectId: ID) {
+  taskViews(projectId: $projectId) {
     id
     name
     config
@@ -1320,6 +1450,30 @@ export const BulkDeleteTasksDocument = new TypedDocumentString(`
   bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)
 }
     `) as unknown as TypedDocumentString<BulkDeleteTasksMutation, BulkDeleteTasksMutationVariables>;
+export const CreateMilestoneDocument = new TypedDocumentString(`
+    mutation CreateMilestone($input: MilestoneInput!) {
+  createMilestone(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateMilestoneMutation, CreateMilestoneMutationVariables>;
+export const UpdateMilestoneDocument = new TypedDocumentString(`
+    mutation UpdateMilestone($id: ID!, $input: MilestoneUpdateInput!) {
+  updateMilestone(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateMilestoneMutation, UpdateMilestoneMutationVariables>;
+export const DeleteMilestoneDocument = new TypedDocumentString(`
+    mutation DeleteMilestone($id: ID!) {
+  deleteMilestone(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteMilestoneMutation, DeleteMilestoneMutationVariables>;
+export const MoveMilestoneDocument = new TypedDocumentString(`
+    mutation MoveMilestone($id: ID!, $index: Int!) {
+  moveMilestone(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveMilestoneMutation, MoveMilestoneMutationVariables>;
 export const WorkspaceDocument = new TypedDocumentString(`
     query Workspace {
   clients {

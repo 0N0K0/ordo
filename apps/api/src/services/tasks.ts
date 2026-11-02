@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import type { Prisma, Task, TaskComment } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
+import { attachAssignees } from './contributors';
 
 /**
  * Error attached to a form field.
@@ -108,6 +109,21 @@ async function assertSameTree(taskId: string, otherId: string): Promise<void> {
 }
 
 /**
+ * Checks that a milestone can be used by a task of a project: it belongs to the same project tree.
+ * @param {string} milestoneId Milestone.
+ * @param {string} projectId Project of the task.
+ * @returns {Promise<void>}
+ */
+async function assertMilestone(milestoneId: string, projectId: string): Promise<void> {
+  const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId }, select: { projectId: true } });
+  if (!milestone) throw fieldError('milestoneId', 'Jalon introuvable.');
+  const rootOf = await loadRootOf();
+  if (rootOf(milestone.projectId) !== rootOf(projectId)) {
+    throw fieldError('milestoneId', 'Le jalon doit appartenir au projet de la tâche ou à son arborescence.');
+  }
+}
+
+/**
  * Checks that every referenced label and contributor exists.
  * @param {object} refs References.
  * @returns {Promise<void>}
@@ -151,6 +167,7 @@ export interface TaskInput {
   startDate?: string | null;
   endDate?: string | null;
   parentId?: string | null;
+  milestoneId?: string | null;
 }
 
 const detailsSchema = z.object({
@@ -209,8 +226,9 @@ export async function createTask(input: TaskInput & { title: string; projectId: 
   await assertProject(input.projectId);
   await assertReferences(input);
   if (input.parentId) await assertParent(input.parentId, input.projectId, null);
+  if (input.milestoneId) await assertMilestone(input.milestoneId, input.projectId);
 
-  return prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       ...details,
       title: details.title!,
@@ -219,10 +237,13 @@ export async function createTask(input: TaskInput & { title: string; projectId: 
       priorityId: input.priorityId ?? null,
       typeId: input.typeId ?? null,
       parentId: input.parentId ?? null,
+      milestoneId: input.milestoneId ?? null,
       position: await nextPosition(),
       assignees: { connect: (input.assigneeIds ?? []).map((id) => ({ id })) },
     },
   });
+  await attachAssignees([{ projectId: input.projectId, contributorIds: input.assigneeIds ?? [] }]);
+  return task;
 }
 
 /**
@@ -236,8 +257,12 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const details = parseDetails(input, task);
   await assertReferences(input);
   if (input.parentId) await assertParent(input.parentId, task.projectId, id);
+  if (input.milestoneId) await assertMilestone(input.milestoneId, task.projectId);
+  const previous = input.assigneeIds
+    ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id)
+    : [];
 
-  return prisma.task.update({
+  const updated = await prisma.task.update({
     where: { id },
     data: {
       ...details,
@@ -245,9 +270,16 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       priorityId: input.priorityId,
       typeId: input.typeId,
       parentId: input.parentId,
+      milestoneId: input.milestoneId,
       ...(input.assigneeIds && { assignees: { set: input.assigneeIds.map((assigneeId) => ({ id: assigneeId })) } }),
     },
   });
+  // Only new assignees: a contributor detached from the project on purpose stays detached.
+  if (input.assigneeIds) {
+    const added = input.assigneeIds.filter((assigneeId) => !previous.includes(assigneeId));
+    await attachAssignees([{ projectId: task.projectId, contributorIds: added }]);
+  }
+  return updated;
 }
 
 /**
@@ -331,6 +363,14 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
   });
   const outside = others.filter((other) => rootOf(other.projectId) !== targetRoot).map((other) => other.id);
   const parentOutside = task.parentId !== null && outside.includes(task.parentId);
+  // Milestones of another tree cannot follow the moved tasks.
+  const movedTasks = await prisma.task.findMany({
+    where: { id: { in: moved }, milestoneId: { not: null } },
+    select: { id: true, milestone: { select: { projectId: true } } },
+  });
+  const losingMilestone = movedTasks
+    .filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot)
+    .map((item) => item.id);
 
   const results = await prisma.$transaction([
     prisma.taskBlock.deleteMany({
@@ -352,8 +392,12 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
     // Sub-tasks of the moved task whose parent is outside the moved set cannot exist: they all move.
     prisma.task.updateMany({ where: { id: { in: moved } }, data: { projectId } }),
     prisma.task.update({ where: { id }, data: parentOutside ? { parentId: null } : {} }),
+    prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
   ]);
-  const removedLinks = results[0].count + results[1].count + (parentOutside ? 1 : 0);
+  const removedLinks = results[0].count + results[1].count + (parentOutside ? 1 : 0) + losingMilestone.length;
+  // The assignees follow their tasks into the target project.
+  const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
+  await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
   return { task: results[3], removedLinks };
 }
 
@@ -393,6 +437,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           startDate: task.startDate,
           endDate: task.endDate,
           parentId,
+          milestoneId: task.milestoneId,
           position: position++,
           assignees: { connect: task.assignees },
         },
@@ -547,15 +592,21 @@ export async function deleteComment(id: string): Promise<void> {
 }
 
 /**
- * Moves a task in the global manual order, just before another task (or at the end).
- * Placing relative to a neighbour works the same in a filtered view.
+ * Moves a task in the global manual order, just before another task (or at the end), and optionally
+ * under another parent. Placing relative to a neighbour works the same in a filtered view.
  * @param {string} id Task id.
  * @param {string | null} beforeId Task to place it before, or null for the end.
+ * @param {string | null} [parentId] New parent, null for a top-level task; undefined keeps the parent. Optional.
  * @returns {Promise<void>}
  */
-export async function moveTask(id: string, beforeId: string | null): Promise<void> {
-  await findTask(id);
-  if (beforeId === id) return;
+export async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
+  const task = await findTask(id);
+  if (parentId) await assertParent(parentId, task.projectId, id);
+  const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId } })] : [];
+  if (beforeId === id) {
+    await prisma.$transaction(reparent);
+    return;
+  }
   const ordered = await prisma.task.findMany({
     orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     select: { id: true, position: true },
@@ -566,18 +617,38 @@ export async function moveTask(id: string, beforeId: string | null): Promise<voi
   const order = [...others.slice(0, index), id, ...others.slice(index)];
   const current = new Map(ordered.map((task) => [task.id, task.position]));
   // Only rows whose position changes are written.
-  await prisma.$transaction(
-    order
+  await prisma.$transaction([
+    ...reparent,
+    ...order
       .map((taskId, position) => ({ taskId, position }))
       .filter(({ taskId, position }) => current.get(taskId) !== position)
       .map(({ taskId, position }) => prisma.task.update({ where: { id: taskId }, data: { position } })),
-  );
+  ]);
+}
+
+/**
+ * Closes (done) or reopens tasks. A closed task no longer blocks the tasks it blocks.
+ * @param {string[]} ids Task ids.
+ * @param {boolean} closed Target state.
+ * @returns {Promise<void>}
+ */
+export async function setTasksClosed(ids: string[], closed: boolean): Promise<void> {
+  await assertTasks(ids);
+  await prisma.task.updateMany({
+    // Already closed tasks keep their closing date.
+    where: { id: { in: ids }, closedAt: closed ? null : { not: null } },
+    data: { closedAt: closed ? new Date() : null },
+  });
 }
 
 export interface BulkTaskChanges {
   statusId?: string | null;
   priorityId?: string | null;
   typeId?: string | null;
+  milestoneId?: string | null;
+  effort?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
   addAssigneeIds?: string[] | null;
   removeAssigneeIds?: string[] | null;
 }
@@ -607,11 +678,36 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
   });
   const add = (changes.addAssigneeIds ?? []).map((assigneeId) => ({ id: assigneeId }));
   const remove = (changes.removeAssigneeIds ?? []).map((assigneeId) => ({ id: assigneeId }));
+  const details = parseInput(detailsSchema.pick({ effort: true, startDate: true, endDate: true }), {
+    effort: changes.effort,
+    startDate: changes.startDate,
+    endDate: changes.endDate,
+  });
+
+  const tasks = await prisma.task.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, projectId: true, startDate: true, endDate: true },
+  });
+  for (const task of tasks) {
+    if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
+    // The date range must stay valid for every task.
+    const start = details.startDate === undefined ? task.startDate : toDate(details.startDate);
+    const end = details.endDate === undefined ? task.endDate : toDate(details.endDate);
+    if (start && end && end < start) throw fieldError('endDate', 'La date de fin doit suivre la date de début.');
+  }
 
   await prisma.$transaction([
     prisma.task.updateMany({
       where: { id: { in: ids } },
-      data: { statusId: changes.statusId, priorityId: changes.priorityId, typeId: changes.typeId },
+      data: {
+        statusId: changes.statusId,
+        priorityId: changes.priorityId,
+        typeId: changes.typeId,
+        milestoneId: changes.milestoneId,
+        effort: details.effort,
+        startDate: toDate(details.startDate),
+        endDate: toDate(details.endDate),
+      },
     }),
     ...(add.length || remove.length
       ? ids.map((taskId) =>
@@ -622,6 +718,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         )
       : []),
   ]);
+  await attachAssignees(tasks.map((task) => ({ projectId: task.projectId, contributorIds: changes.addAssigneeIds ?? [] })));
 }
 
 /**

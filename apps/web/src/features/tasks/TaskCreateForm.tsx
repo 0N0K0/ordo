@@ -1,7 +1,7 @@
-import { Button, Group, NumberInput, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Button, Group, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
-import { useLocation, useNavigate } from 'react-router';
+import { useTaskLink } from './use-task-link';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
@@ -27,8 +27,7 @@ interface TaskCreateFormProps {
  */
 export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProps) {
   const createTask = useCreateTask();
-  const navigate = useNavigate();
-  const { search } = useLocation();
+  const link = useTaskLink();
   const parent = defaults?.parentId ? context.taskById.get(defaults.parentId) : undefined;
   const firstStatus = context.statuses.find((status) => status.category === 'TODO') ?? context.statuses[0];
 
@@ -45,6 +44,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       startDate: null,
       endDate: null,
       parentId: parent?.id ?? null,
+      milestoneId: null,
     },
     schema: taskFormSchema,
   });
@@ -60,7 +60,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
         onSuccess: (task) => {
           notifySuccess(`Tâche #${task.number} créée.`);
           onDone();
-          navigate({ pathname: `/tasks/${task.number}`, search });
+          link.open(task.number);
         },
         onError: (error) => showFormError(form, error),
       },
@@ -83,6 +83,11 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
               if (currentParent && projectId && context.rootOf(currentParent.projectId) !== context.rootOf(projectId)) {
                 form.setFieldValue('parentId', null);
               }
+              // The milestone must belong to the tree of the chosen project too.
+              const milestone = form.values.milestoneId ? context.milestoneById.get(form.values.milestoneId) : undefined;
+              if (milestone && projectId && context.rootOf(milestone.projectId) !== context.rootOf(projectId)) {
+                form.setFieldValue('milestoneId', null);
+              }
             }}
           />
           <TaskSelect
@@ -93,6 +98,19 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             {...form.getInputProps('parentId')}
           />
         </SimpleGrid>
+        <Select
+          label="Jalon"
+          placeholder={form.values.projectId ? 'Aucun' : 'Choisissez d’abord un projet'}
+          disabled={!form.values.projectId}
+          data={(form.values.projectId ? context.milestonesFor(form.values.projectId) : []).map((milestone) => ({
+            value: milestone.id,
+            label: milestone.title,
+          }))}
+          clearable
+          searchable
+          nothingFoundMessage="Aucun jalon dans ce projet"
+          {...form.getInputProps('milestoneId')}
+        />
         <MarkdownEditor
           label="Description"
           value={form.values.description}
@@ -108,7 +126,9 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <LabelSelect labels={context.types} label="Type" {...form.getInputProps('typeId')} />
         </SimpleGrid>
         <AssigneesSelect
-          contributors={context.contributors}
+          contributors={
+            form.values.projectId ? context.assignableFor([form.values.projectId], form.values.assigneeIds) : context.contributors
+          }
           value={form.values.assigneeIds}
           onChange={(assigneeIds) => form.setFieldValue('assigneeIds', assigneeIds)}
           error={form.errors.assigneeIds as string | undefined}

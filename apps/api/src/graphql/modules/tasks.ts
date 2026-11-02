@@ -1,5 +1,6 @@
 import { prisma } from '../../db';
 import * as contributors from '../../services/contributors';
+import * as milestones from '../../services/milestones';
 import { iconUrl } from '../../services/icons';
 import type { Label } from '../../services/labels';
 import { taskPriorities, taskStatuses, taskTypes } from '../../services/task-labels';
@@ -19,6 +20,45 @@ builder.prismaObject('Contributor', {
     name: t.exposeString('name'),
     handle: t.exposeString('handle'),
     avatarUrl: t.string({ nullable: true, resolve: (contributor) => iconUrl(contributor.iconId) }),
+    isMe: t.boolean({
+      description: 'Whether this contributor is the app user.',
+      select: { user: { select: { id: true } } },
+      resolve: (contributor) => contributor.user !== null,
+    }),
+    projectIds: t.idList({
+      description: 'Projects the contributor is directly attached to; their sub-projects inherit it.',
+      select: { projects: { select: { id: true } } },
+      resolve: (contributor) => contributor.projects.map((project) => project.id),
+    }),
+  }),
+});
+
+builder.prismaObject('Milestone', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    projectId: t.exposeID('projectId'),
+    title: t.exposeString('title'),
+    description: t.exposeString('description', { nullable: true }),
+    dueDate: t.expose('dueDate', { type: 'Date', nullable: true }),
+    position: t.exposeInt('position'),
+  }),
+});
+
+const MilestoneInput = builder.inputType('MilestoneInput', {
+  fields: (t) => ({
+    projectId: t.id({ required: true }),
+    title: t.string({ required: true }),
+    description: t.string(),
+    dueDate: t.field({ type: 'Date' }),
+  }),
+});
+
+const MilestoneUpdateInput = builder.inputType('MilestoneUpdateInput', {
+  description: 'Omitted fields are left unchanged; null clears a field.',
+  fields: (t) => ({
+    title: t.string(),
+    description: t.string(),
+    dueDate: t.field({ type: 'Date' }),
   }),
 });
 
@@ -80,8 +120,11 @@ builder.prismaObject('Task', {
     startDate: t.expose('startDate', { type: 'Date', nullable: true }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     parentId: t.exposeID('parentId', { nullable: true }),
+    milestoneId: t.exposeID('milestoneId', { nullable: true }),
     position: t.exposeInt('position'),
     archived: t.boolean({ resolve: (task) => task.archivedAt !== null }),
+    closed: t.boolean({ description: 'Closed (done) task.', resolve: (task) => task.closedAt !== null }),
+    closedAt: t.expose('closedAt', { type: 'DateTime', nullable: true }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
     assigneeIds: t.idList({
@@ -123,6 +166,7 @@ const TaskInput = builder.inputType('TaskInput', {
     startDate: t.field({ type: 'Date' }),
     endDate: t.field({ type: 'Date' }),
     parentId: t.id(),
+    milestoneId: t.id(),
   }),
 });
 
@@ -139,12 +183,14 @@ const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
     startDate: t.field({ type: 'Date' }),
     endDate: t.field({ type: 'Date' }),
     parentId: t.id(),
+    milestoneId: t.id(),
   }),
 });
 
 const ContributorInput = builder.inputType('ContributorInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
+    projectIds: t.idList({ description: 'Projects the contributor is directly attached to.' }),
     handle: t.string({ required: true }),
     avatar: t.field({ type: 'File' }),
   }),
@@ -153,6 +199,7 @@ const ContributorInput = builder.inputType('ContributorInput', {
 const ContributorUpdateInput = builder.inputType('ContributorUpdateInput', {
   fields: (t) => ({
     name: t.string(),
+    projectIds: t.idList({ description: 'Projects the contributor is directly attached to.' }),
     handle: t.string(),
     avatar: t.field({ type: 'File' }),
     removeAvatar: t.boolean(),
@@ -191,6 +238,10 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
     statusId: t.id(),
     priorityId: t.id(),
     typeId: t.id(),
+    milestoneId: t.id(),
+    effort: t.float(),
+    startDate: t.field({ type: 'Date' }),
+    endDate: t.field({ type: 'Date' }),
     addAssigneeIds: t.idList(),
     removeAssigneeIds: t.idList(),
   }),
@@ -199,6 +250,7 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
 const TaskViewInput = builder.inputType('TaskViewInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
+    projectId: t.id({ description: 'Project of the view; omitted or null for the home page.' }),
     config: t.field({ type: 'JSON', required: true }),
   }),
 });
@@ -241,13 +293,17 @@ builder.queryFields((t) => ({
   matchingTaskIds: t.idList({
     description: 'Ids of the tasks matching a filter, in manual order.',
     args: { query: t.arg({ type: TaskQueryInput, required: true }) },
-    resolve: async (_root, { query }) => {
+    resolve: async (_root, { query }, ctx) => {
       const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
+      const user = ctx.session
+        ? await prisma.user.findUnique({ where: { id: ctx.session.userId }, select: { contributorId: true } })
+        : null;
       const where = await taskFilters.buildTaskWhere({
         filter,
         search: query.search ?? '',
         includeArchived: query.includeArchived ?? false,
         clock: { today: query.today, utcOffset: query.utcOffset },
+        user: { contributorId: user?.contributorId ?? null },
       });
       const matches = await prisma.task.findMany({ where, orderBy: [...byManualOrder], select: { id: true } });
       return matches.map((task) => task.id);
@@ -255,7 +311,14 @@ builder.queryFields((t) => ({
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],
-    resolve: (query) => prisma.taskView.findMany({ ...query, orderBy: [...byManualOrder] }),
+    description: 'Views of a project\'s task tab, or of the home page when projectId is omitted.',
+    args: { projectId: t.arg.id() },
+    resolve: (query, _root, { projectId }) =>
+      prisma.taskView.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: [...byManualOrder] }),
+  }),
+  milestones: t.prismaField({
+    type: ['Milestone'],
+    resolve: (query) => prisma.milestone.findMany({ ...query, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, ...byManualOrder] }),
   }),
   contributors: t.prismaField({
     type: ['Contributor'],
@@ -316,10 +379,20 @@ builder.mutationFields((t) => ({
       reloadTask(query, (await tasks.cloneTask(id, includeSubtasks)).id),
   }),
   moveTask: t.boolean({
-    description: 'Places a task before another one in the manual order (at the end when beforeId is null).',
-    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id() },
-    resolve: async (_root, { id, beforeId }) => {
-      await tasks.moveTask(id, beforeId ?? null);
+    description:
+      'Places a task before another one in the manual order (at the end when beforeId is null), and under ' +
+      'parentId when given (null: top-level task; omitted: parent unchanged).',
+    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id() },
+    resolve: async (_root, { id, beforeId, parentId }) => {
+      await tasks.moveTask(id, beforeId ?? null, parentId);
+      return true;
+    },
+  }),
+  setTasksClosed: t.boolean({
+    description: 'Closes (done) or reopens tasks; a closed task no longer blocks other tasks.',
+    args: { ids: t.arg.idList({ required: true }), closed: t.arg.boolean({ required: true }) },
+    resolve: async (_root, { ids, closed }) => {
+      await tasks.setTasksClosed(ids, closed);
       return true;
     },
   }),
@@ -359,7 +432,7 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { input }) =>
       prisma.taskView.findUniqueOrThrow({
         ...query,
-        where: { id: (await taskViews.createView({ name: input.name, config: input.config })).id },
+        where: { id: (await taskViews.createView({ name: input.name, config: input.config, projectId: input.projectId })).id },
       }),
   }),
   updateTaskView: t.prismaField({
@@ -392,6 +465,32 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
     resolve: async (_root, { id, index }) => {
       await taskViews.moveView(id, index);
+      return true;
+    },
+  }),
+  createMilestone: t.prismaField({
+    type: 'Milestone',
+    args: { input: t.arg({ type: MilestoneInput, required: true }) },
+    resolve: async (query, _root, { input }) =>
+      prisma.milestone.findUniqueOrThrow({ ...query, where: { id: (await milestones.createMilestone(input)).id } }),
+  }),
+  updateMilestone: t.prismaField({
+    type: 'Milestone',
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: MilestoneUpdateInput, required: true }) },
+    resolve: async (query, _root, { id, input }) =>
+      prisma.milestone.findUniqueOrThrow({ ...query, where: { id: (await milestones.updateMilestone(id, input)).id } }),
+  }),
+  deleteMilestone: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await milestones.deleteMilestone(id);
+      return true;
+    },
+  }),
+  moveMilestone: t.boolean({
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, index }) => {
+      await milestones.moveMilestone(id, index);
       return true;
     },
   }),
@@ -452,6 +551,14 @@ builder.mutationFields((t) => ({
         ...query,
         where: { id: (await contributors.createContributor(input)).id },
       }),
+  }),
+  setProjectContributors: t.boolean({
+    description: 'Sets the contributors directly attached to a project; tasks keep their assignees.',
+    args: { projectId: t.arg.id({ required: true }), contributorIds: t.arg.idList({ required: true }) },
+    resolve: async (_root, { projectId, contributorIds }) => {
+      await contributors.setProjectContributors(projectId, contributorIds);
+      return true;
+    },
   }),
   updateContributor: t.prismaField({
     type: 'Contributor',

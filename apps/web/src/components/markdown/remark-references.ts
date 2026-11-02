@@ -31,10 +31,10 @@ function splitText(text: string, targets: ReferenceTargets): MdNode[] {
     const start = match.index + before.length;
     const url = number
       ? targets.taskNumbers.has(Number(number))
-        ? `/tasks/${number}`
+        ? `?task=${number}`
         : null
       : targets.handles.has(handle.toLowerCase())
-        ? `/tasks?assignee=${handle.toLowerCase()}`
+        ? `/?assignee=${handle.toLowerCase()}`
         : null;
     if (!url) continue;
     if (start > last) nodes.push({ type: 'text', value: text.slice(last, start) });

@@ -2,9 +2,11 @@ import { Avatar, Button, CloseButton, ColorSwatch, Group, Menu, Paper, Radio, St
 import { modals } from '@mantine/modals';
 import {
   ArchiveIcon,
+  CheckCircleIcon,
   ArrowCounterClockwiseIcon,
   ArrowsLeftRightIcon,
   CaretDownIcon,
+  FlagIcon,
   TrashIcon,
   UserMinusIcon,
   UserPlusIcon,
@@ -12,7 +14,7 @@ import {
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
-import { useBulkTaskMutations, type BulkChanges, type Task, type TaskLabel } from '../api';
+import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task, type TaskLabel } from '../api';
 import { ProjectSelect } from '../task-ui';
 import type { TaskContext } from '../use-task-context';
 import classes from './BulkBar.module.css';
@@ -134,8 +136,13 @@ interface BulkBarProps {
  */
 export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
   const { update, archive } = useBulkTaskMutations();
+  const setClosed = useSetTasksClosed();
+  const allClosed = tasks.every((task) => task.closed);
   const ids = tasks.map((task) => task.id);
   const allArchived = tasks.every((task) => task.archived);
+  // Milestones usable by every selected task (same project tree).
+  const roots = new Set(tasks.map((task) => context.rootOf(task.projectId)));
+  const commonMilestones = roots.size === 1 ? context.milestonesFor(tasks[0].projectId) : [];
 
   /**
    * Applies field changes to the selection.
@@ -205,36 +212,43 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
    * @param {boolean} add Whether to add (or remove).
    * @returns {JSX.Element} Menu.
    */
-  const assigneeMenu = (add: boolean) => (
-    <Menu position="top-start" withinPortal shadow="md">
-      <Menu.Target>
-        <Button
-          size="xs"
-          variant="default"
-          leftSection={add ? <UserPlusIcon aria-hidden /> : <UserMinusIcon aria-hidden />}
-          disabled={context.contributors.length === 0}
-        >
-          {add ? 'Assigner' : 'Désassigner'}
-        </Button>
-      </Menu.Target>
-      <Menu.Dropdown>
-        {context.contributors.map((contributor) => (
-          <Menu.Item
-            key={contributor.id}
-            leftSection={<Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={20} />}
-            onClick={() =>
-              apply(
-                add ? { addAssigneeIds: [contributor.id] } : { removeAssigneeIds: [contributor.id] },
-                `${contributor.name} ${add ? 'assigné à' : 'retiré de'} ${tasksLabel(ids.length)}.`,
-              )
-            }
+  const assigneeMenu = (add: boolean) => {
+    // Adding: contributors of the selected tasks' projects. Removing: current assignees.
+    const assigned = new Set(tasks.flatMap((task) => task.assigneeIds));
+    const choices = add
+      ? context.assignableFor(tasks.map((task) => task.projectId))
+      : context.contributors.filter((contributor) => assigned.has(contributor.id));
+    return (
+      <Menu position="top-start" withinPortal shadow="md">
+        <Menu.Target>
+          <Button
+            size="xs"
+            variant="default"
+            leftSection={add ? <UserPlusIcon aria-hidden /> : <UserMinusIcon aria-hidden />}
+            disabled={choices.length === 0}
           >
-            {contributor.name}
-          </Menu.Item>
-        ))}
-      </Menu.Dropdown>
-    </Menu>
-  );
+            {add ? 'Assigner' : 'Désassigner'}
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          {choices.map((contributor) => (
+            <Menu.Item
+              key={contributor.id}
+              leftSection={<Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={20} />}
+              onClick={() =>
+                apply(
+                  add ? { addAssigneeIds: [contributor.id] } : { removeAssigneeIds: [contributor.id] },
+                  `${contributor.name} ${add ? 'assigné à' : 'retiré de'} ${tasksLabel(ids.length)}.`,
+                )
+              }
+            >
+              {context.contributorName(contributor)}
+            </Menu.Item>
+          ))}
+        </Menu.Dropdown>
+      </Menu>
+    );
+  };
 
   return (
     <Paper shadow="md" withBorder radius="md" className={classes.bar} role="region" aria-label="Actions sur la sélection">
@@ -245,10 +259,48 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
         {labelMenu('Statut', context.statuses, 'statusId')}
         {labelMenu('Priorité', context.priorities, 'priorityId')}
         {labelMenu('Type', context.types, 'typeId')}
+        <Menu position="top-start" withinPortal shadow="md">
+          <Menu.Target>
+            <Button size="xs" variant="default" leftSection={<FlagIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
+              Jalon
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {commonMilestones.length === 0 && <Menu.Label>Aucun jalon commun aux tâches sélectionnées</Menu.Label>}
+            {commonMilestones.map((milestone) => (
+              <Menu.Item
+                key={milestone.id}
+                onClick={() => apply({ milestoneId: milestone.id }, `Jalon « ${milestone.title} » appliqué à ${tasksLabel(ids.length)}.`)}
+              >
+                {milestone.title}
+              </Menu.Item>
+            ))}
+            <Menu.Divider />
+            <Menu.Item onClick={() => apply({ milestoneId: null }, `Jalon retiré de ${tasksLabel(ids.length)}.`)}>Aucun</Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
         {assigneeMenu(true)}
         {assigneeMenu(false)}
         <Button size="xs" variant="default" leftSection={<ArrowsLeftRightIcon aria-hidden />} onClick={() => openDialog('Transférer les tâches', BulkTransferDialog)}>
           Transférer
+        </Button>
+        <Button
+          size="xs"
+          variant="default"
+          leftSection={allClosed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
+          loading={setClosed.isPending}
+          onClick={() =>
+            setClosed.mutate(
+              { ids, closed: !allClosed },
+              {
+                onSuccess: () =>
+                  notifySuccess(`${tasksLabel(ids.length)} ${allClosed ? 'rouverte' : 'fermée'}${ids.length > 1 ? 's' : ''}.`),
+                onError: (error) => notifyError(error.message),
+              },
+            )
+          }
+        >
+          {allClosed ? 'Rouvrir' : 'Fermer'}
         </Button>
         <Button
           size="xs"

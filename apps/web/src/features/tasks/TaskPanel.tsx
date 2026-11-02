@@ -12,6 +12,7 @@ import {
   Menu,
   NumberInput,
   Progress,
+  Select,
   Skeleton,
   Stack,
   Text,
@@ -25,6 +26,7 @@ import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
   ArrowsLeftRightIcon,
+  CheckCircleIcon,
   CopyIcon,
   DotsThreeIcon,
   PencilSimpleIcon,
@@ -32,17 +34,18 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { notifyError } from '../../lib/notify';
-import { useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
+import { useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskComments } from './TaskComments';
 import { linkableTasks, subtreeIds } from './task-links';
-import { AssigneesSelect, LabelSelect, TaskRef, TaskSelect } from './task-ui';
+import { AssigneesSelect, LabelSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from './use-task-actions';
 import { useTaskContext, type TaskContext } from './use-task-context';
+import { TASK_PARAM, useTaskLink } from './use-task-link';
 
 /**
  * Property block of the side column.
@@ -72,7 +75,7 @@ interface LinkListProps {
 }
 
 /**
- * Linked tasks ("bloque", "bloquée par", "relative à") with add and remove.
+ * Linked tasks ("bloque", "dépend de", "relative à") with add and remove.
  * @param {LinkListProps} props Component props.
  * @returns {JSX.Element} List.
  */
@@ -88,7 +91,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
       )}
       {tasks.map((task) => (
         <Group key={task.id} gap={4} wrap="nowrap" justify="space-between">
-          <TaskRef task={task} closed={context.isClosed(task)} />
+          <TaskRef task={task} blocked={context.isBlocked(task)} />
           <CloseButton size="xs" aria-label={`Retirer #${task.number}`} onClick={() => onRemove(task.id)} />
         </Group>
       ))}
@@ -132,6 +135,7 @@ interface TaskDetailProps {
  */
 function TaskDetail({ task, context }: TaskDetailProps) {
   const updateTask = useUpdateTask();
+  const setClosed = useSetTasksClosed();
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
@@ -182,6 +186,21 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               </Text>
             </Title>
             <Group gap="xs" wrap="nowrap">
+              <Button
+                variant="default"
+                size="xs"
+                color={task.closed ? 'green' : 'violet'}
+                leftSection={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
+                loading={setClosed.isPending}
+                onClick={() =>
+                  setClosed.mutate(
+                    { ids: [task.id], closed: !task.closed },
+                    { onError: (error) => notifyError(error.message) },
+                  )
+                }
+              >
+                {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
+              </Button>
               <Button variant="default" size="xs" onClick={() => setTitleDraft(task.title)}>
                 Modifier
               </Button>
@@ -241,6 +260,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           </Group>
         )}
         <Group gap="xs">
+          <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
           {task.archived && (
             <Badge color="gray" variant="light" leftSection={<ArchiveIcon aria-hidden />}>
               Archivée
@@ -328,7 +348,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <>
                   <Progress value={(doneSubtasks / subtasks.length) * 100} size="sm" aria-label="Avancement des sous-tâches" />
                   {subtasks.map((subtask) => (
-                    <TaskRef key={subtask.id} task={subtask} closed={context.isClosed(subtask)} />
+                    <TaskRef key={subtask.id} task={subtask} blocked={context.isBlocked(subtask)} />
                   ))}
                 </>
               ) : (
@@ -364,7 +384,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             />
             <LabelSelect label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
             <AssigneesSelect
-              contributors={context.contributors}
+              contributors={context.assignableFor([task.projectId], task.assigneeIds)}
               value={task.assigneeIds}
               onChange={(assigneeIds) => save({ assigneeIds })}
             />
@@ -406,6 +426,16 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               value={task.parentId}
               onChange={(parentId) => save({ parentId })}
             />
+            <Select
+              label="Jalon"
+              placeholder="Aucun"
+              data={context.milestonesFor(task.projectId).map((milestone) => ({ value: milestone.id, label: milestone.title }))}
+              value={task.milestoneId}
+              onChange={(milestoneId) => save({ milestoneId })}
+              clearable
+              searchable
+              nothingFoundMessage="Aucun jalon dans ce projet"
+            />
             <Divider />
             <LinkList
               label="Bloque"
@@ -416,7 +446,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, onLinkError)}
             />
             <LinkList
-              label="Bloquée par"
+              label="Dépend de"
               tasks={resolve(task.blockedByIds)}
               candidates={candidates}
               context={context}
@@ -439,20 +469,21 @@ function TaskDetail({ task, context }: TaskDetailProps) {
 }
 
 /**
- * Side panel showing the task of the URL (/tasks/:number) over the task list.
- * @returns {JSX.Element} Drawer.
+ * Side panel showing the task of the URL (?task=12) over the current page.
+ * @returns {JSX.Element | null} Drawer, when a task is requested.
  */
 export function TaskPanel() {
-  const { number } = useParams();
-  const navigate = useNavigate();
-  const { search } = useLocation();
+  const [params] = useSearchParams();
+  const link = useTaskLink();
+  const number = params.get(TASK_PARAM);
   const { context, isPending } = useTaskContext();
+  if (!number) return null;
   const task = context?.taskByNumber.get(Number(number));
 
   return (
     <Drawer
       opened
-      onClose={() => navigate({ pathname: '/tasks', search })}
+      onClose={link.close}
       position="right"
       size="min(72rem, 100%)"
       title={
@@ -471,10 +502,7 @@ export function TaskPanel() {
         <TaskDetail key={task.id} task={task} context={context} />
       ) : (
         <Alert color="red" icon={<ErrorIcon />} title="Tâche introuvable">
-          La tâche #{number} n’existe pas ou a été supprimée.{' '}
-          <Anchor component={Link} to="/tasks">
-            Revenir à la liste
-          </Anchor>
+          La tâche #{number} n’existe pas ou a été supprimée.
         </Alert>
       )}
     </Drawer>

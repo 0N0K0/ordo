@@ -1,28 +1,45 @@
 import { Anchor, Text, Typography } from '@mantine/core';
 import { useMemo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { remarkReferences, type ReferenceTargets } from './remark-references';
 
-const components: Components = {
-  /**
-   * Internal links (task and mention references) use the router; external ones open in a new tab.
-   * @param {object} props Anchor props.
-   * @returns {JSX.Element} Link.
-   */
-  a: ({ href = '', children }) =>
-    href.startsWith('/') ? (
+/**
+ * Markdown link: task references ("?task=12") open the task over the current page, internal paths use
+ * the router, external links open in a new tab.
+ * @param {object} props Anchor props.
+ * @param {string} [props.href] Target. Optional.
+ * @param {React.ReactNode} props.children Content.
+ * @returns {JSX.Element} Link.
+ */
+function MarkdownLink({ href = '', children }: { href?: string; children?: React.ReactNode }) {
+  const { pathname, search } = useLocation();
+  if (href.startsWith('?')) {
+    const params = new URLSearchParams(search);
+    new URLSearchParams(href).forEach((value, key) => params.set(key, value));
+    return (
+      <Anchor component={Link} to={{ pathname, search: `?${params}` }} fw={600}>
+        {children}
+      </Anchor>
+    );
+  }
+  if (href.startsWith('/')) {
+    return (
       <Anchor component={Link} to={href} fw={600}>
         {children}
       </Anchor>
-    ) : (
-      <Anchor href={href} target="_blank" rel="noopener noreferrer">
-        {children}
-      </Anchor>
-    ),
-};
+    );
+  }
+  return (
+    <Anchor href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </Anchor>
+  );
+}
+
+const components: Components = { a: MarkdownLink };
 
 interface MarkdownViewProps {
   children: string | null | undefined;

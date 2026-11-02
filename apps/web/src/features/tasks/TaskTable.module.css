@@ -8,6 +8,21 @@
     /* Position */
     position: relative;
 
+    /* Bordures */
+    border-right: 1px solid var(--mantine-color-default-border);
+
+    &:last-child {
+      border-right: 0;
+    }
+
+    /* Effets */
+    &[data-dragging] {
+      opacity: 0.6;
+    }
+
+    /* Interaction */
+    cursor: grab;
+
     /* Dimension */
     overflow: hidden;
 
@@ -15,12 +30,42 @@
     white-space: nowrap;
   }
 
+  /* Title (and sort mark) on the left, column menu on the right. */
+  .headerContent {
+    /* Agencement */
+    justify-content: space-between;
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  .headerMenu {
+    /* Agencement */
+    display: inline-flex;
+    flex: none;
+
+    /* Effets */
+    opacity: 0;
+
+    .header:hover &,
+    &:focus-within,
+    .header[data-dragging] & {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+  }
+
   .sortButton {
     /* Agencement */
     display: inline-flex;
+    flex: 1;
     align-items: center;
 
     /* Dimension */
+    min-width: 0;
     max-width: 100%;
 
     /* Espacement */
@@ -90,12 +135,29 @@
       opacity: 0.5;
     }
 
-    /* Interaction */
-    cursor: pointer;
+    /* Future parent of the dragged task. */
+    &[data-drop-target] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      outline: 1px solid var(--mantine-primary-color-filled);
+      outline-offset: -1px;
+    }
 
     & td {
       /* Dimension */
       overflow: hidden;
+    }
+
+    /* Cells of the column selection (edited together). */
+    & td[data-cell-selected] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      outline: 1px solid var(--mantine-primary-color-filled);
+      outline-offset: -1px;
     }
   }
 
@@ -117,6 +179,9 @@
   .titleCell {
     /* Espacement */
     padding-left: calc(var(--mantine-spacing-xs) + var(--row-depth, 0) * var(--mantine-spacing-lg));
+
+    /* Animation */
+    transition: padding-left 120ms ease;
   }
 
   .chevron {

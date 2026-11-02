@@ -17,9 +17,9 @@ import {
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
   CheckIcon,
-  CheckSquareOffsetIcon,
   FolderPlusIcon,
   GearSixIcon,
+  HouseIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   SortAscendingIcon,
@@ -57,7 +57,15 @@ type SectionKey = 'favorites' | 'active' | 'archives';
  * @param {ReactNode} [props.action] Optional call to action.
  * @returns {JSX.Element} Empty state.
  */
-function SectionEmpty({ icon, message, action }: { icon: ReactNode; message: string; action?: ReactNode }) {
+function SectionEmpty({
+  icon,
+  message,
+  action,
+}: {
+  icon: ReactNode;
+  message: string;
+  action?: ReactNode;
+}) {
   return (
     <Stack align="center" gap="xs" py="md" px="sm">
       <ThemeIcon variant="light" color="gray" radius="xl" size="lg">
@@ -98,24 +106,44 @@ export function Sidebar() {
   const { pathname } = useLocation();
   const touch = useMediaQuery('(hover: none), (max-width: 48em)');
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useLocalStorage<SortMode>({ key: 'ordo.sidebar.sort', defaultValue: 'manual' });
+  const [sort, setSort] = useLocalStorage<SortMode>({
+    key: 'ordo.sidebar.sort',
+    defaultValue: 'manual',
+  });
   const [sections, setSections] = useLocalStorage<Record<SectionKey, boolean>>({
     key: 'ordo.sidebar.sections',
     defaultValue: { favorites: true, active: true, archives: false },
   });
-  const [collapsed, setCollapsed] = useLocalStorage<string[]>({ key: 'ordo.sidebar.collapsed', defaultValue: [] });
+  const [collapsed, setCollapsed] = useLocalStorage<string[]>({
+    key: 'ordo.sidebar.collapsed',
+    defaultValue: [],
+  });
 
   const searching = search.trim().length > 0;
   const data = workspace.data;
-  const favorites = useMemo(() => (data ? buildFavoriteSection(data, sort, search) : null), [data, sort, search]);
-  const active = useMemo(() => (data ? buildActiveSection(data, sort, search) : null), [data, sort, search]);
-  const archives = useMemo(() => (data ? buildArchiveSection(data, sort, search) : null), [data, sort, search]);
+  const favorites = useMemo(
+    () => (data ? buildFavoriteSection(data, sort, search) : null),
+    [data, sort, search],
+  );
+  const active = useMemo(
+    () => (data ? buildActiveSection(data, sort, search) : null),
+    [data, sort, search],
+  );
+  const archives = useMemo(
+    () => (data ? buildArchiveSection(data, sort, search) : null),
+    [data, sort, search],
+  );
 
   // While searching, every branch is open so matches are visible.
   const isExpanded = (key: string) => searching || !collapsed.includes(key);
   const toggleNode = (key: string) =>
-    setCollapsed((current) => (current.includes(key) ? current.filter((id) => id !== key) : [...current, key]));
-  const toggleSection = (key: SectionKey) => setSections((current) => ({ ...current, [key]: !current[key] }));
+    setCollapsed((current) =>
+      current.includes(key)
+        ? current.filter((id) => id !== key)
+        : [...current, key],
+    );
+  const toggleSection = (key: SectionKey) =>
+    setSections((current) => ({ ...current, [key]: !current[key] }));
 
   /**
    * Expands or collapses a set of nodes.
@@ -125,7 +153,9 @@ export function Sidebar() {
    */
   const setKeysExpanded = (keys: string[], expanded: boolean) =>
     setCollapsed((current) =>
-      expanded ? current.filter((key) => !keys.includes(key)) : [...new Set([...current, ...keys])],
+      expanded
+        ? current.filter((key) => !keys.includes(key))
+        : [...new Set([...current, ...keys])],
     );
 
   /**
@@ -134,12 +164,17 @@ export function Sidebar() {
    * @param {string} prefix Expand key prefix of the tree.
    * @returns {TreeExpansion} Actions.
    */
-  const expansionFor = (section: TreeSection, prefix: string): TreeExpansion => {
-    const keysOf = (entity: EntityRef) => subtreeKeys(section, prefix, { type: entity.type, id: entity.item.id });
+  const expansionFor = (
+    section: TreeSection,
+    prefix: string,
+  ): TreeExpansion => {
+    const keysOf = (entity: EntityRef) =>
+      subtreeKeys(section, prefix, { type: entity.type, id: entity.item.id });
     const groupKeys = noClientKeys(section, prefix);
     return {
       hasChildren: (entity) => keysOf(entity).length > 0,
-      setSubtreeExpanded: (entity, expanded) => setKeysExpanded(keysOf(entity), expanded),
+      setSubtreeExpanded: (entity, expanded) =>
+        setKeysExpanded(keysOf(entity), expanded),
       noClientFoldable: groupKeys.length > 0,
       setNoClientExpanded: (expanded) => setKeysExpanded(groupKeys, expanded),
     };
@@ -153,16 +188,28 @@ export function Sidebar() {
    */
   const allExpandedHandler = (section: TreeSection, prefix: string) => {
     const keys = sectionKeys(section, prefix);
-    return keys.length > 0 ? (expanded: boolean) => setKeysExpanded(keys, expanded) : undefined;
+    return keys.length > 0
+      ? (expanded: boolean) => setKeysExpanded(keys, expanded)
+      : undefined;
   };
 
-  const activeCount = active ? active.clients.length + active.orphans.length : 0;
+  const activeCount = active
+    ? active.clients.length + active.orphans.length
+    : 0;
   const favoriteCount = favorites ? countSectionItems(favorites) : 0;
   const archiveCount = archives ? countSectionItems(archives) : 0;
   const noResult = searching ? 'Aucun résultat.' : null;
 
   return (
     <Stack h="100%" gap={0}>
+      <NavLink
+        component={Link}
+        to="/"
+        label="Accueil"
+        leftSection={<HouseIcon aria-hidden />}
+        active={pathname === '/'}
+        style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}
+      />
       <Group gap="xs" p="sm" wrap="nowrap">
         <TextInput
           size="xs"
@@ -170,7 +217,13 @@ export function Sidebar() {
           aria-label="Rechercher un client ou un projet"
           leftSection={<MagnifyingGlassIcon aria-hidden />}
           rightSection={
-            searching ? <CloseButton size="xs" aria-label="Effacer la recherche" onClick={() => setSearch('')} /> : null
+            searching ? (
+              <CloseButton
+                size="xs"
+                aria-label="Effacer la recherche"
+                onClick={() => setSearch('')}
+              />
+            ) : null
           }
           value={search}
           onChange={(event) => setSearch(event.currentTarget.value)}
@@ -187,13 +240,25 @@ export function Sidebar() {
           <Menu.Dropdown>
             <Menu.Label>Trier</Menu.Label>
             <Menu.Item
-              leftSection={sort === 'manual' ? <CheckIcon aria-hidden /> : <span style={{ width: '1.25em' }} />}
+              leftSection={
+                sort === 'manual' ? (
+                  <CheckIcon aria-hidden />
+                ) : (
+                  <span style={{ width: '1.25em' }} />
+                )
+              }
               onClick={() => setSort('manual')}
             >
               Ordre manuel
             </Menu.Item>
             <Menu.Item
-              leftSection={sort === 'name' ? <CheckIcon aria-hidden /> : <span style={{ width: '1.25em' }} />}
+              leftSection={
+                sort === 'name' ? (
+                  <CheckIcon aria-hidden />
+                ) : (
+                  <span style={{ width: '1.25em' }} />
+                )
+              }
               onClick={() => setSort('name')}
             >
               Alphabétique
@@ -203,16 +268,25 @@ export function Sidebar() {
         <Menu position="bottom-end" withinPortal>
           <Menu.Target>
             <Tooltip label="Créer">
-              <ActionIcon size="input-xs" aria-label="Créer un client ou un projet">
+              <ActionIcon
+                size="input-xs"
+                aria-label="Créer un client ou un projet"
+              >
                 <PlusIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
+            <Menu.Item
+              leftSection={<UserPlusIcon aria-hidden />}
+              onClick={() => actions.openClientForm()}
+            >
               Nouveau client
             </Menu.Item>
-            <Menu.Item leftSection={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
+            <Menu.Item
+              leftSection={<FolderPlusIcon aria-hidden />}
+              onClick={() => actions.openProjectForm()}
+            >
               Nouveau projet
             </Menu.Item>
           </Menu.Dropdown>
@@ -237,7 +311,9 @@ export function Sidebar() {
                 onToggle={() => toggleSection('favorites')}
                 onSetAllExpanded={allExpandedHandler(favorites, 'fav:')}
               >
-                <TreeExpansionContext.Provider value={expansionFor(favorites, 'fav:')}>
+                <TreeExpansionContext.Provider
+                  value={expansionFor(favorites, 'fav:')}
+                >
                   <StaticTree
                     section={favorites}
                     label="Favoris"
@@ -257,10 +333,16 @@ export function Sidebar() {
               onSetAllExpanded={allExpandedHandler(active, '')}
               actions={
                 <>
-                  <Menu.Item leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
+                  <Menu.Item
+                    leftSection={<UserPlusIcon aria-hidden />}
+                    onClick={() => actions.openClientForm()}
+                  >
                     Nouveau client
                   </Menu.Item>
-                  <Menu.Item leftSection={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
+                  <Menu.Item
+                    leftSection={<FolderPlusIcon aria-hidden />}
+                    onClick={() => actions.openProjectForm()}
+                  >
                     Nouveau projet
                   </Menu.Item>
                 </>
@@ -313,7 +395,9 @@ export function Sidebar() {
                 onToggle={() => toggleSection('archives')}
                 onSetAllExpanded={allExpandedHandler(archives, 'archive:')}
               >
-                <TreeExpansionContext.Provider value={expansionFor(archives, 'archive:')}>
+                <TreeExpansionContext.Provider
+                  value={expansionFor(archives, 'archive:')}
+                >
                   <StaticTree
                     section={archives}
                     label="Archives"
@@ -330,18 +414,11 @@ export function Sidebar() {
 
       <NavLink
         component={Link}
-        to="/tasks"
-        label="Tâches"
-        leftSection={<CheckSquareOffsetIcon aria-hidden />}
-        active={pathname.startsWith('/tasks')}
-        style={{ borderTop: '1px solid var(--app-shell-border-color)' }}
-      />
-      <NavLink
-        component={Link}
         to="/settings"
         label="Paramètres"
         leftSection={<GearSixIcon aria-hidden />}
         active={pathname === '/settings'}
+        style={{ borderTop: '1px solid var(--app-shell-border-color)' }}
       />
     </Stack>
   );

@@ -1,10 +1,11 @@
-import { Anchor, AppShell, Burger, Button, Container, Group, Stack } from '@mantine/core';
+import { Anchor, AppShell, Burger, Button, Group, Stack } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { SignOutIcon, UserIcon } from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../features/auth/api';
+import { TaskPanel } from '../features/tasks/TaskPanel';
 import { Sidebar } from '../features/workspace/sidebar/Sidebar';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
@@ -100,12 +101,13 @@ export function AppLayout() {
           )}
         </AppShell.Navbar>
 
+        {/* Pages use the full available width. */}
         <AppShell.Main>
-          <Container size="lg">
-            <Stack gap="md">
-              <Outlet />
-            </Stack>
-          </Container>
+          <Stack gap="md">
+            <Outlet />
+          </Stack>
+          {/* Task of ?task=12, over any page. */}
+          <TaskPanel />
         </AppShell.Main>
       </AppShell>
     </ModalsProvider>
