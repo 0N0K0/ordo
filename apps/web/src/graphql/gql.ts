@@ -32,6 +32,29 @@ type Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": typeof types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": typeof types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": typeof types.CancelEmailChangeDocument,
+    "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": typeof types.MailAccountFieldsFragmentDoc,
+    "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": typeof types.MailViewFieldsFragmentDoc,
+    "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": typeof types.LinkedMailFieldsFragmentDoc,
+    "\n  query MailAccounts {\n    mailAccounts {\n      ...MailAccountFields\n    }\n  }\n": typeof types.MailAccountsDocument,
+    "\n  query MailFolders($accountId: ID!) {\n    mailFolders(accountId: $accountId) {\n      path\n      name\n      specialUse\n      unseen\n      depth\n    }\n  }\n": typeof types.MailFoldersDocument,
+    "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n": typeof types.MailMessagesDocument,
+    "\n  query MailMessage($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailMessage(accountId: $accountId, folder: $folder, uid: $uid) {\n      ...MailViewFields\n    }\n  }\n": typeof types.MailMessageDocument,
+    "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n": typeof types.UnreadMailCountDocument,
+    "\n  query ProjectMails($projectId: ID!) {\n    projectMails(projectId: $projectId) {\n      ...LinkedMailFields\n    }\n  }\n": typeof types.ProjectMailsDocument,
+    "\n  mutation TestMailAccount($input: MailAccountInput!, $id: ID) {\n    testMailAccount(input: $input, id: $id)\n  }\n": typeof types.TestMailAccountDocument,
+    "\n  mutation CreateMailAccount($input: MailAccountInput!) {\n    createMailAccount(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateMailAccountDocument,
+    "\n  mutation UpdateMailAccount($id: ID!, $input: MailAccountInput!) {\n    updateMailAccount(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateMailAccountDocument,
+    "\n  mutation SetMailSignature($id: ID!, $signature: String!) {\n    setMailSignature(id: $id, signature: $signature) {\n      id\n    }\n  }\n": typeof types.SetMailSignatureDocument,
+    "\n  mutation DeleteMailAccount($id: ID!) {\n    deleteMailAccount(id: $id)\n  }\n": typeof types.DeleteMailAccountDocument,
+    "\n  mutation MoveMailAccount($id: ID!, $index: Int!) {\n    moveMailAccount(id: $id, index: $index)\n  }\n": typeof types.MoveMailAccountDocument,
+    "\n  mutation SetMailSeen($accountId: ID!, $folder: String!, $uids: [Int!]!, $seen: Boolean!) {\n    setMailSeen(accountId: $accountId, folder: $folder, uids: $uids, seen: $seen)\n  }\n": typeof types.SetMailSeenDocument,
+    "\n  mutation DeleteMails($accountId: ID!, $folder: String!, $uids: [Int!]!) {\n    deleteMails(accountId: $accountId, folder: $folder, uids: $uids)\n  }\n": typeof types.DeleteMailsDocument,
+    "\n  mutation LinkMail($accountId: ID!, $folder: String!, $uid: Int!, $projectId: ID!) {\n    linkMail(accountId: $accountId, folder: $folder, uid: $uid, projectId: $projectId) {\n      id\n    }\n  }\n": typeof types.LinkMailDocument,
+    "\n  mutation UnlinkMail($id: ID!) {\n    unlinkMail(id: $id)\n  }\n": typeof types.UnlinkMailDocument,
+    "\n  query MailDraft($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailDraft(accountId: $accountId, folder: $folder, uid: $uid) {\n      accountId\n      folder\n      uid\n      to {\n        address\n      }\n      cc {\n        address\n      }\n      bcc {\n        address\n      }\n      subject\n      html\n      text\n      inReplyTo\n      references\n      projectId\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n": typeof types.MailDraftDocument,
+    "\n  mutation SaveMailDraft($input: SaveMailDraftInput!) {\n    saveMailDraft(input: $input) {\n      accountId\n      folder\n      uid\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n": typeof types.SaveMailDraftDocument,
+    "\n  mutation DeleteMailDraft($location: MailLocationInput!) {\n    deleteMailDraft(location: $location)\n  }\n": typeof types.DeleteMailDraftDocument,
+    "\n  mutation SendMail($input: SendMailInput!) {\n    sendMail(input: $input)\n  }\n": typeof types.SendMailDocument,
     "\n  fragment ContributorFields on Contributor {\n    id\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n  }\n": typeof types.ContributorFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
@@ -139,6 +162,29 @@ const documents: Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": types.CancelEmailChangeDocument,
+    "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": types.MailAccountFieldsFragmentDoc,
+    "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": types.MailViewFieldsFragmentDoc,
+    "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": types.LinkedMailFieldsFragmentDoc,
+    "\n  query MailAccounts {\n    mailAccounts {\n      ...MailAccountFields\n    }\n  }\n": types.MailAccountsDocument,
+    "\n  query MailFolders($accountId: ID!) {\n    mailFolders(accountId: $accountId) {\n      path\n      name\n      specialUse\n      unseen\n      depth\n    }\n  }\n": types.MailFoldersDocument,
+    "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n": types.MailMessagesDocument,
+    "\n  query MailMessage($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailMessage(accountId: $accountId, folder: $folder, uid: $uid) {\n      ...MailViewFields\n    }\n  }\n": types.MailMessageDocument,
+    "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n": types.UnreadMailCountDocument,
+    "\n  query ProjectMails($projectId: ID!) {\n    projectMails(projectId: $projectId) {\n      ...LinkedMailFields\n    }\n  }\n": types.ProjectMailsDocument,
+    "\n  mutation TestMailAccount($input: MailAccountInput!, $id: ID) {\n    testMailAccount(input: $input, id: $id)\n  }\n": types.TestMailAccountDocument,
+    "\n  mutation CreateMailAccount($input: MailAccountInput!) {\n    createMailAccount(input: $input) {\n      id\n    }\n  }\n": types.CreateMailAccountDocument,
+    "\n  mutation UpdateMailAccount($id: ID!, $input: MailAccountInput!) {\n    updateMailAccount(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateMailAccountDocument,
+    "\n  mutation SetMailSignature($id: ID!, $signature: String!) {\n    setMailSignature(id: $id, signature: $signature) {\n      id\n    }\n  }\n": types.SetMailSignatureDocument,
+    "\n  mutation DeleteMailAccount($id: ID!) {\n    deleteMailAccount(id: $id)\n  }\n": types.DeleteMailAccountDocument,
+    "\n  mutation MoveMailAccount($id: ID!, $index: Int!) {\n    moveMailAccount(id: $id, index: $index)\n  }\n": types.MoveMailAccountDocument,
+    "\n  mutation SetMailSeen($accountId: ID!, $folder: String!, $uids: [Int!]!, $seen: Boolean!) {\n    setMailSeen(accountId: $accountId, folder: $folder, uids: $uids, seen: $seen)\n  }\n": types.SetMailSeenDocument,
+    "\n  mutation DeleteMails($accountId: ID!, $folder: String!, $uids: [Int!]!) {\n    deleteMails(accountId: $accountId, folder: $folder, uids: $uids)\n  }\n": types.DeleteMailsDocument,
+    "\n  mutation LinkMail($accountId: ID!, $folder: String!, $uid: Int!, $projectId: ID!) {\n    linkMail(accountId: $accountId, folder: $folder, uid: $uid, projectId: $projectId) {\n      id\n    }\n  }\n": types.LinkMailDocument,
+    "\n  mutation UnlinkMail($id: ID!) {\n    unlinkMail(id: $id)\n  }\n": types.UnlinkMailDocument,
+    "\n  query MailDraft($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailDraft(accountId: $accountId, folder: $folder, uid: $uid) {\n      accountId\n      folder\n      uid\n      to {\n        address\n      }\n      cc {\n        address\n      }\n      bcc {\n        address\n      }\n      subject\n      html\n      text\n      inReplyTo\n      references\n      projectId\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n": types.MailDraftDocument,
+    "\n  mutation SaveMailDraft($input: SaveMailDraftInput!) {\n    saveMailDraft(input: $input) {\n      accountId\n      folder\n      uid\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n": types.SaveMailDraftDocument,
+    "\n  mutation DeleteMailDraft($location: MailLocationInput!) {\n    deleteMailDraft(location: $location)\n  }\n": types.DeleteMailDraftDocument,
+    "\n  mutation SendMail($input: SendMailInput!) {\n    sendMail(input: $input)\n  }\n": types.SendMailDocument,
     "\n  fragment ContributorFields on Contributor {\n    id\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n  }\n": types.ContributorFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
@@ -297,6 +343,98 @@ export function graphql(source: "\n  mutation RequestEmailChange($currentPasswor
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n"): typeof import('./graphql').CancelEmailChangeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n"): typeof import('./graphql').MailAccountFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n"): typeof import('./graphql').MailViewFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n"): typeof import('./graphql').LinkedMailFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MailAccounts {\n    mailAccounts {\n      ...MailAccountFields\n    }\n  }\n"): typeof import('./graphql').MailAccountsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MailFolders($accountId: ID!) {\n    mailFolders(accountId: $accountId) {\n      path\n      name\n      specialUse\n      unseen\n      depth\n    }\n  }\n"): typeof import('./graphql').MailFoldersDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n"): typeof import('./graphql').MailMessagesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MailMessage($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailMessage(accountId: $accountId, folder: $folder, uid: $uid) {\n      ...MailViewFields\n    }\n  }\n"): typeof import('./graphql').MailMessageDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n"): typeof import('./graphql').UnreadMailCountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ProjectMails($projectId: ID!) {\n    projectMails(projectId: $projectId) {\n      ...LinkedMailFields\n    }\n  }\n"): typeof import('./graphql').ProjectMailsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation TestMailAccount($input: MailAccountInput!, $id: ID) {\n    testMailAccount(input: $input, id: $id)\n  }\n"): typeof import('./graphql').TestMailAccountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateMailAccount($input: MailAccountInput!) {\n    createMailAccount(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateMailAccountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateMailAccount($id: ID!, $input: MailAccountInput!) {\n    updateMailAccount(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateMailAccountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetMailSignature($id: ID!, $signature: String!) {\n    setMailSignature(id: $id, signature: $signature) {\n      id\n    }\n  }\n"): typeof import('./graphql').SetMailSignatureDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteMailAccount($id: ID!) {\n    deleteMailAccount(id: $id)\n  }\n"): typeof import('./graphql').DeleteMailAccountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveMailAccount($id: ID!, $index: Int!) {\n    moveMailAccount(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveMailAccountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetMailSeen($accountId: ID!, $folder: String!, $uids: [Int!]!, $seen: Boolean!) {\n    setMailSeen(accountId: $accountId, folder: $folder, uids: $uids, seen: $seen)\n  }\n"): typeof import('./graphql').SetMailSeenDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteMails($accountId: ID!, $folder: String!, $uids: [Int!]!) {\n    deleteMails(accountId: $accountId, folder: $folder, uids: $uids)\n  }\n"): typeof import('./graphql').DeleteMailsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LinkMail($accountId: ID!, $folder: String!, $uid: Int!, $projectId: ID!) {\n    linkMail(accountId: $accountId, folder: $folder, uid: $uid, projectId: $projectId) {\n      id\n    }\n  }\n"): typeof import('./graphql').LinkMailDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UnlinkMail($id: ID!) {\n    unlinkMail(id: $id)\n  }\n"): typeof import('./graphql').UnlinkMailDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MailDraft($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailDraft(accountId: $accountId, folder: $folder, uid: $uid) {\n      accountId\n      folder\n      uid\n      to {\n        address\n      }\n      cc {\n        address\n      }\n      bcc {\n        address\n      }\n      subject\n      html\n      text\n      inReplyTo\n      references\n      projectId\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n"): typeof import('./graphql').MailDraftDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveMailDraft($input: SaveMailDraftInput!) {\n    saveMailDraft(input: $input) {\n      accountId\n      folder\n      uid\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n"): typeof import('./graphql').SaveMailDraftDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteMailDraft($location: MailLocationInput!) {\n    deleteMailDraft(location: $location)\n  }\n"): typeof import('./graphql').DeleteMailDraftDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SendMail($input: SendMailInput!) {\n    sendMail(input: $input)\n  }\n"): typeof import('./graphql').SendMailDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

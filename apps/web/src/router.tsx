@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { AccountPage } from './features/account/AccountPage';
 import { AlarmsPage } from './features/alarms/AlarmsPage';
+import { MailPage } from './features/mail/MailPage';
 import { AuthLayout } from './features/auth/AuthLayout';
 import { RequireAuth, RequireGuest } from './features/auth/guards';
 import { ConfirmEmailPage } from './features/auth/pages/ConfirmEmailPage';
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
           { index: true, element: <HomePage /> },
           { path: 'account', element: <AccountPage /> },
           { path: 'alarms', element: <AlarmsPage /> },
+          { path: 'mail', element: <MailPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'clients/:id', element: <ClientPage /> },
           { path: 'projects/:id', element: <ProjectPage /> },

@@ -1,7 +1,8 @@
 import { Stack, Tabs, Title } from "@mantine/core";
-import { FoldersIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
+import { EnvelopeSimpleIcon, FoldersIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
 import { useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
+import { MailAccountsManager } from "../../mail/settings/MailAccountsManager";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
 import { TaskSettings } from "../../tasks/settings/TaskSettings";
@@ -17,7 +18,8 @@ import {
 } from "../api";
 
 /**
- * Settings, in tabs: projects (statuses, categories), tasks (statuses, priorities, types) and contributors.
+ * Settings, in tabs: projects (statuses, categories), tasks (statuses, priorities, types), contributors and
+ * mail accounts.
  * The tab is kept in the URL (?tab=).
  * @returns {JSX.Element} Page.
  */
@@ -78,6 +80,9 @@ export function SettingsPage() {
           >
             Contributeurs
           </Tabs.Tab>
+          <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
+            Mails
+          </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="projects">
           <Stack gap="lg">
@@ -114,6 +119,9 @@ export function SettingsPage() {
             contributors={taskData?.contributors ?? []}
             usage={assigneeUsage}
           />
+        </Tabs.Panel>
+        <Tabs.Panel value="mail">
+          <MailAccountsManager />
         </Tabs.Panel>
       </Tabs>
     </Stack>

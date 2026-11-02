@@ -20,6 +20,21 @@ function sniffImage(buffer: Buffer): string | null {
 }
 
 /**
+ * Stored form of a file: recognized images keep their type, the rest is served as a plain download.
+ * @param {string} name File name.
+ * @param {Buffer} buffer Content.
+ * @returns {{ name: string, mimeType: string, size: number, data: Uint8Array<ArrayBuffer> }} Attachment data.
+ */
+export function attachmentData(name: string, buffer: Buffer) {
+  return {
+    name: name.replace(/[\\/\0]/g, '_').slice(0, 200) || 'fichier',
+    mimeType: sniffImage(buffer) ?? 'application/octet-stream',
+    size: buffer.length,
+    data: new Uint8Array(buffer),
+  };
+}
+
+/**
  * Stores a file attached to a markdown text.
  * @param {File} file Uploaded file.
  * @returns {Promise<Attachment>} Stored attachment.
@@ -27,9 +42,5 @@ function sniffImage(buffer: Buffer): string | null {
 export async function storeAttachment(file: File): Promise<Attachment> {
   if (file.size === 0) throw clientError('BAD_USER_INPUT', 'Ce fichier est vide.');
   if (file.size > MAX_ATTACHMENT_BYTES) throw clientError('BAD_USER_INPUT', `« ${file.name} » est trop lourd (10 Mo maximum).`);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  // Only recognized images keep an image type; the rest is served as a plain download.
-  const mimeType = sniffImage(buffer) ?? 'application/octet-stream';
-  const name = file.name.replace(/[\\/\0]/g, '_').slice(0, 200) || 'fichier';
-  return prisma.attachment.create({ data: { name, mimeType, size: buffer.length, data: new Uint8Array(buffer) } });
+  return prisma.attachment.create({ data: attachmentData(file.name, Buffer.from(await file.arrayBuffer())) });
 }

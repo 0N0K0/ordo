@@ -5,5 +5,6 @@ import './modules/auth';
 import './modules/workspace';
 import './modules/tasks';
 import './modules/time';
+import './modules/mail';
 
 export const schema = builder.toSchema();

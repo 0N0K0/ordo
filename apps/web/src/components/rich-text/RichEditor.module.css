@@ -1,0 +1,10 @@
+@layer app {
+  .root {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Espacement */
+    gap: calc(var(--mantine-spacing-xs) / 2);
+  }
+}

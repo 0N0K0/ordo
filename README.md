@@ -37,6 +37,7 @@ Renseigner `apps/api/.env` :
 | `APP_URL`      | URL publique du front, utilisée dans les liens envoyés par email         |
 | `SMTP_*`       | Serveur SMTP (en dev : Mailpit, valeurs par défaut de `.env.example`)    |
 | `MAIL_FROM`    | Expéditeur des emails                                                    |
+| `MAIL_ENCRYPTION_KEY` | Chiffre les mots de passe des boîtes mail : `openssl rand -base64 32` (requise pour configurer une boîte) |
 
 ```bash
 # 3. Base de données et serveur mail de dev
