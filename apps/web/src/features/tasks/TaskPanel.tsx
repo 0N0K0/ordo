@@ -40,6 +40,7 @@ import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { notifyError } from '../../lib/notify';
 import { useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
+import { TaskTime } from '../time/TaskTime';
 import { TaskComments } from './TaskComments';
 import { linkableTasks, subtreeIds } from './task-links';
 import { AssigneesSelect, LabelSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
@@ -401,6 +402,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 if (effort !== task.effort && (effort === null || Number.isFinite(effort))) save({ effort });
               }}
             />
+            <TaskTime task={task} />
             <Group grow gap="xs">
               <DatePickerInput
                 label="Début"

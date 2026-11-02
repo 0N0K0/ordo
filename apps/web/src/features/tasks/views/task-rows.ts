@@ -51,6 +51,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     }
     case 'effort':
       return task.effort;
+    case 'trackedTime':
+      return task.trackedSeconds || null;
     case 'startDate':
       return task.startDate;
     case 'endDate':

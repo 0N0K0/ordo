@@ -185,6 +185,7 @@ export const TASK_COLUMNS = [
   'type',
   'assignees',
   'effort',
+  'trackedTime',
   'startDate',
   'endDate',
   'parent',

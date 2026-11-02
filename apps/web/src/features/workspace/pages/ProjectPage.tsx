@@ -1,9 +1,10 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { CheckSquareOffsetIcon, FlagIcon, FolderPlusIcon, InfoIcon, UsersIcon } from '@phosphor-icons/react';
+import { CheckSquareOffsetIcon, ClockIcon, FlagIcon, FolderPlusIcon, InfoIcon, UsersIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { MilestonesPanel } from '../../tasks/MilestonesPanel';
 import { ProjectContributors } from '../../tasks/ProjectContributors';
+import { ProjectTimePanel } from '../../time/ProjectTimePanel';
 import { TaskBoard } from '../../tasks/TaskBoard';
 import { descendantIds, useWorkspace } from '../api';
 import { canHaveChildren } from '../tree';
@@ -131,6 +132,9 @@ export function ProjectPage() {
           <Tabs.Tab value="tasks" leftSection={<CheckSquareOffsetIcon aria-hidden />}>
             Tâches
           </Tabs.Tab>
+          <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
+            Temps
+          </Tabs.Tab>
           <Tabs.Tab value="milestones" leftSection={<FlagIcon aria-hidden />}>
             Jalons
           </Tabs.Tab>
@@ -200,6 +204,9 @@ export function ProjectPage() {
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />
+        </Tabs.Panel>
+        <Tabs.Panel value="time">
+          <ProjectTimePanel projectId={project.id} />
         </Tabs.Panel>
         <Tabs.Panel value="milestones">
           <MilestonesPanel projectId={project.id} />

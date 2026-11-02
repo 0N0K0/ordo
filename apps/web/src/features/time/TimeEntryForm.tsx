@@ -1,0 +1,110 @@
+import { Button, Group, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
+import { localToday } from '../../lib/dates';
+import { showFormError, useAppForm } from '../../lib/form';
+import { notifySuccess } from '../../lib/notify';
+import { ProjectSelect } from '../tasks/task-ui';
+import type { TaskContext } from '../tasks/use-task-context';
+import { useTimeMutations, type TimeEntry } from './api';
+import { TimeTasksSelect } from './TimeTasksSelect';
+
+/**
+ * Local "YYYY-MM-DD" and "HH:MM" of an instant.
+ * @param {Date} date Instant.
+ * @returns {{ date: string, start: string }} Local day and time.
+ */
+function localParts(date: Date): { date: string; start: string } {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString();
+  return { date: local.slice(0, 10), start: local.slice(11, 16) };
+}
+
+interface TimeEntryFormProps {
+  context: TaskContext;
+  /** Entry to edit (finished entries only). */
+  entry?: TimeEntry;
+  /** Project of a new entry. */
+  defaultProjectId?: string;
+  onDone: () => void;
+}
+
+/**
+ * Time added by hand, or edited: project, tasks, description, day, start time and duration.
+ * @param {TimeEntryFormProps} props Component props.
+ * @returns {JSX.Element} Form.
+ */
+export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: TimeEntryFormProps) {
+  const { create, update } = useTimeMutations();
+  const initial = entry ? localParts(new Date(entry.startedAt)) : { date: localToday(), start: '09:00' };
+  const minutes = entry?.duration ? Math.round(entry.duration / 60) : 60;
+  const form = useAppForm<TimeEntryFormValues>({
+    initialValues: {
+      projectId: entry?.projectId ?? defaultProjectId ?? '',
+      taskIds: entry?.taskIds ?? [],
+      description: entry?.description ?? '',
+      date: initial.date,
+      start: initial.start,
+      duration: `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`,
+    },
+    schema: timeEntryFormSchema,
+  });
+
+  const handleSubmit = form.onSubmit((values) => {
+    const input = {
+      projectId: values.projectId,
+      taskIds: values.taskIds,
+      description: values.description,
+      // Local day and time.
+      startedAt: new Date(`${values.date}T${values.start}`).toISOString(),
+      duration: parseDuration(values.duration)!,
+    };
+    const callbacks = {
+      onSuccess: () => {
+        notifySuccess(entry ? 'Temps modifié.' : 'Temps ajouté.');
+        onDone();
+      },
+      onError: (error: Error) => showFormError(form, error),
+    };
+    if (entry) update.mutate({ id: entry.id, input }, callbacks);
+    else create.mutate(input, callbacks);
+  });
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <Stack gap="md">
+        <ProjectSelect
+          context={context}
+          label="Projet"
+          required
+          data-autofocus
+          {...form.getInputProps('projectId')}
+          onChange={(projectId) => {
+            form.setFieldValue('projectId', projectId ?? '');
+            form.setFieldValue('taskIds', []);
+          }}
+        />
+        <TimeTasksSelect
+          context={context}
+          projectId={form.values.projectId || null}
+          value={form.values.taskIds}
+          onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
+          error={form.errors.taskIds}
+        />
+        <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
+          <DatePickerInput label="Jour" required valueFormat="D MMM YYYY" {...form.getInputProps('date')} />
+          <TimeInput label="Début" required {...form.getInputProps('start')} />
+          <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
+        </SimpleGrid>
+        <Textarea label="Description" placeholder="Ce que vous avez fait…" autosize minRows={3} maxRows={12} {...form.getInputProps('description')} />
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={onDone}>
+            Annuler
+          </Button>
+          <Button type="submit" loading={create.isPending || update.isPending}>
+            {entry ? 'Enregistrer' : 'Ajouter'}
+          </Button>
+        </Group>
+      </Stack>
+    </form>
+  );
+}

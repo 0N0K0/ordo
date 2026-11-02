@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
+  AlarmIcon,
   CheckIcon,
   FolderPlusIcon,
   GearSixIcon,
@@ -208,6 +209,13 @@ export function Sidebar() {
         label="Accueil"
         leftSection={<HouseIcon aria-hidden />}
         active={pathname === '/'}
+      />
+      <NavLink
+        component={Link}
+        to="/alarms"
+        label="Alarmes"
+        leftSection={<AlarmIcon aria-hidden />}
+        active={pathname === '/alarms'}
         style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}
       />
       <Group gap="xs" p="sm" wrap="nowrap">

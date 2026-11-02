@@ -1,7 +1,7 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
-import type { Client, Contributor, Milestone, Prisma, Project, Task, TaskComment } from '../../src/generated/prisma/client';
+import type { Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */
 export const COLORS = [
@@ -148,4 +148,46 @@ export const taskFactory = Factory.define<Prisma.TaskUncheckedCreateInput, objec
 export const commentFactory = Factory.define<Prisma.TaskCommentUncheckedCreateInput, object, TaskComment>(({ onCreate }) => {
   onCreate((data) => prisma.taskComment.create({ data }));
   return { taskId: '', body: faker.lorem.sentences({ min: 1, max: 3 }), createdAt: faker.date.recent({ days: 20 }) };
+});
+
+const WORK_LOG = [
+  'Réunion de suivi avec le client',
+  'Développement de la fonctionnalité',
+  'Corrections suite à la recette',
+  'Intégration des maquettes',
+  'Rédaction de la documentation',
+  'Revue de code et mise en production',
+  'Analyse du besoin',
+  'Échanges par email et préparation du devis',
+];
+const WORK_DETAILS = [
+  'Points ouverts notés pour la prochaine réunion.',
+  'Reste à valider avec le client.',
+  'Tests manuels sur mobile et ordinateur.',
+  'Quelques ajustements de dernière minute.',
+  'Bloqué un moment par un accès manquant.',
+];
+
+/**
+ * Finished time entry on a working day of the last six weeks, between 8:00 and 18:00 (local time),
+ * from 15 minutes to 3 h 30. Entries tracked with the timer sometimes include pauses.
+ */
+export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateInput, object, TimeEntry>(({ onCreate }) => {
+  onCreate((data) => prisma.timeEntry.create({ data }));
+  let day = faker.date.recent({ days: 42 });
+  // Working days only.
+  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() - 86_400_000);
+  const startedAt = new Date(day.getFullYear(), day.getMonth(), day.getDate(), faker.number.int({ min: 8, max: 16 }), faker.helpers.arrayElement([0, 15, 30, 45]));
+  const duration = faker.number.int({ min: 1, max: 14 }) * 15 * 60;
+  const pausedSeconds = faker.datatype.boolean(0.25) ? faker.number.int({ min: 2, max: 30 }) * 60 : 0;
+  const lines = [faker.helpers.arrayElement(WORK_LOG)];
+  if (faker.datatype.boolean(0.4)) lines.push(faker.helpers.arrayElement(WORK_DETAILS));
+  return {
+    projectId: '',
+    description: maybe(0.85, () => lines.join('\n')),
+    startedAt,
+    endedAt: new Date(startedAt.getTime() + (duration + pausedSeconds) * 1000),
+    pausedSeconds,
+    duration,
+  };
 });

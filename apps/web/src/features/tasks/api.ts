@@ -76,6 +76,7 @@ graphql(`
     blockedByIds
     relatedIds
     commentCount
+    trackedSeconds
     closed
   }
 `);

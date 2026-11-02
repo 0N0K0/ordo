@@ -1,0 +1,34 @@
+@layer app {
+  .dayHeader {
+    /* Espacement */
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+
+    /* Bordures */
+    border-bottom: 1px solid var(--mantine-color-default-border);
+  }
+
+  .entry {
+    /* Espacement */
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+
+    /* Bordures */
+    &:not(:last-child) {
+      border-bottom: 1px solid var(--mantine-color-default-border);
+    }
+  }
+
+  .hours {
+    /* Dimension */
+    width: 6.5rem;
+    flex: none;
+  }
+
+  .description {
+    /* Typographie */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}

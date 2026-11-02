@@ -12,10 +12,11 @@ import {
   PHASES,
   projectFactory,
   taskFactory,
+  timeEntryFactory,
 } from './fixtures/factories';
 
-// Fake data for development: purges the business data (clients, projects, tasks, labels, contributors),
-// keeps the user account, then fills the database. `npm run db:seed -- --force` skips the confirmation.
+// Fake data for development: purges the business data (clients, projects, tasks, labels, contributors, tracked
+// time), keeps the user account and the alarms, then fills the database. `npm run db:seed -- --force` skips the confirmation.
 
 if (process.env.NODE_ENV === 'production') {
   console.error('Les fixtures ne se chargent pas en production.');
@@ -25,7 +26,7 @@ if (process.env.NODE_ENV === 'production') {
 const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
-    message: 'Les clients, projets, tâches, libellés et contributeurs vont être supprimés (le compte est conservé). Continuer ?',
+    message: 'Les clients, projets, tâches, libellés, contributeurs et temps vont être supprimés (le compte et les alarmes sont conservés). Continuer ?',
     default: false,
   });
   if (!ok) process.exit(0);
@@ -39,11 +40,14 @@ if (!user) console.warn('Aucun compte : créez-le avec `npm run user:create` pou
 const meId = user?.contributorId ?? null;
 
 // --- Purge ----------------------------------------------------------------------------------------
+// Alarms are not fixtures: they are kept, without their project or task (purged below).
+const alarms = await prisma.alarm.findMany();
 await prisma.$executeRawUnsafe(`
   TRUNCATE "TaskComment", "TaskBlock", "TaskRelation", "Task", "Milestone", "TaskView", "Project", "Client",
-    "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "Attachment"
+    "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "Attachment", "TimeEntry"
   RESTART IDENTITY CASCADE
 `);
+await prisma.alarm.createMany({ data: alarms.map((alarm) => ({ ...alarm, projectId: null, taskId: null })) });
 await prisma.contributor.deleteMany({ where: { user: { is: null } } });
 await prisma.icon.deleteMany({ where: { contributors: { none: {} } } });
 
@@ -227,6 +231,7 @@ async function createTask(projectId: string, parentId: string | null): Promise<s
 }
 
 const tasksByRoot = new Map<string, string[]>();
+const tasksByProject = new Map<string, string[]>();
 for (const project of projects) {
   const count = faker.number.int({ min: 3, max: project.parentId ? 6 : 10 });
   const created: string[] = [];
@@ -244,6 +249,7 @@ for (const project of projects) {
   }
   const root = rootOf(project.id);
   tasksByRoot.set(root, [...(tasksByRoot.get(root) ?? []), ...created]);
+  tasksByProject.set(project.id, created);
 }
 
 // Dependencies and relations stay inside a project tree. A task only depends on an older one: no cycle.
@@ -261,6 +267,25 @@ for (const taskIds of tasksByRoot.values()) {
   }
 }
 
+// --- Tracked time -----------------------------------------------------------------------------------
+// Finished entries only (no running timer). Some are spent on one task, a few on several (shared equally).
+for (const project of projects) {
+  const taskIds = tasksByProject.get(project.id) ?? [];
+  const count = faker.number.int({ min: project.parentId ? 0 : 2, max: project.parentId ? 5 : 10 });
+  for (let index = 0; index < count; index += 1) {
+    const linked = faker.helpers.weightedArrayElement([
+      { value: 0, weight: 3 },
+      { value: 1, weight: 5 },
+      { value: 2, weight: 1 },
+      { value: 3, weight: 1 },
+    ]);
+    await timeEntryFactory.create({
+      projectId: project.id,
+      tasks: { connect: faker.helpers.arrayElements(taskIds, Math.min(linked, taskIds.length)).map((id) => ({ id })) },
+    });
+  }
+}
+
 const counts = {
   clients: await prisma.client.count(),
   projets: await prisma.project.count(),
@@ -268,6 +293,7 @@ const counts = {
   jalons: await prisma.milestone.count(),
   tâches: await prisma.task.count(),
   commentaires: await prisma.taskComment.count(),
+  temps: await prisma.timeEntry.count(),
 };
 console.log('Fixtures chargées :', counts);
 await prisma.$disconnect();
