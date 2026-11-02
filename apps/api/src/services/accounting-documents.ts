@@ -11,7 +11,7 @@ import {
   type AccountingLineInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
-import { Prisma, type AccountingDocument, type AccountingLine } from '../generated/prisma/client';
+import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachmentData } from './attachments';
 import { getCompanyProfile, usedCounter } from './company';
@@ -227,11 +227,14 @@ export async function deleteDocument(id: string): Promise<void> {
   await prisma.accountingDocument.delete({ where: { id } });
 }
 
+export type Seller = Omit<CompanyProfile, 'id' | 'updatedAt'>;
+export type Buyer = Awaited<ReturnType<typeof buyerSnapshot>>;
+
 /**
  * Seller as printed: the company profile at the time the document becomes final.
- * @returns {Promise<object>} Seller.
+ * @returns {Promise<Seller>} Seller.
  */
-async function sellerSnapshot() {
+export async function sellerSnapshot(): Promise<Seller> {
   const company = await getCompanyProfile();
   const { id: _id, updatedAt: _updatedAt, ...fields } = company;
   return fields;
@@ -240,9 +243,9 @@ async function sellerSnapshot() {
 /**
  * Buyer as printed: client details, service and contact at the time the document becomes final.
  * @param {AccountingDocument} document Document.
- * @returns {Promise<object>} Buyer.
+ * @returns {Promise<object>} Buyer (address of the service if it has one).
  */
-async function buyerSnapshot(document: AccountingDocument) {
+export async function buyerSnapshot(document: AccountingDocument) {
   const client = await prisma.client.findUniqueOrThrow({ where: { id: document.clientId } });
   const service = document.serviceId ? await prisma.clientService.findUnique({ where: { id: document.serviceId } }) : null;
   const contact = document.contactId ? await prisma.clientContact.findUnique({ where: { id: document.contactId } }) : null;

@@ -58,7 +58,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
   const [subject, setSubject] = useState(options.subject ?? '');
   const [body, setBody] = useState(options.body ?? '');
   const [withSignature, setWithSignature] = useState(options.withSignature ?? true);
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<File[]>(options.files ?? []);
   const [sourceFiles, setSourceFiles] = useState<SourceFiles | null>(options.sourceFiles ?? null);
   const [showQuote, setShowQuote] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>(options.draft ? { status: 'saved', at: new Date() } : { status: 'idle' });

@@ -26,15 +26,17 @@ import {
 import { DatePickerInput } from '@mantine/dates';
 import { modals } from '@mantine/modals';
 import { accountingDocumentInputSchema, computeTotals, formatMoney, type AccountingDocumentInput } from '@ordo/shared';
-import { ArrowsClockwiseIcon, CheckCircleIcon, CopyIcon, FileArrowDownIcon, PaperclipIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
-import { useEffect, type ReactNode } from 'react';
+import { ArrowsClockwiseIcon, CheckCircleIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
+import { useMailComposer } from '../mail/use-mail-composer';
 import { useWorkspace } from '../workspace/api';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useClientBilling } from './api';
+import { useClientBilling, useCompanyProfile } from './api';
+import { documentMailOptions, openPdfPreview, pdfUrl } from './document-pdf';
 import { useAccountingDocument, useDocumentMutations, type AccountingDocument } from './documents-api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { LinesEditor } from './LinesEditor';
@@ -117,6 +119,9 @@ function Editor({ document }: { document: AccountingDocument }) {
   const form = useAppForm<FormValues>({ initialValues: toValues(document), schema: accountingDocumentInputSchema });
   const values = form.values;
   const { data: client } = useClientBilling(values.clientId);
+  const { data: company } = useCompanyProfile();
+  const openComposer = useMailComposer();
+  const [preparingMail, setPreparingMail] = useState(false);
   const readOnly = document.status === 'FINAL';
   const isTemplate = document.status === 'TEMPLATE';
   const isQuote = document.type === 'QUOTE';
@@ -229,6 +234,43 @@ function Editor({ document }: { document: AccountingDocument }) {
   };
 
   /**
+   * Shows the PDF; a draft with changes is saved first, so that the preview shows them.
+   * @returns {void}
+   */
+  const preview = () => {
+    const title = `${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? '(brouillon)'}`;
+    if (dirty && !readOnly) save(() => openPdfPreview(document.id, title));
+    else openPdfPreview(document.id, title);
+  };
+
+  /**
+   * Opens a mail to the client (contact, else service, else client address) with the PDF and the
+   * attachments of the document.
+   * @returns {void}
+   */
+  const sendByMail = () => {
+    if (!document.number) return;
+    const contact = client?.contacts.find((item) => item.id === document.contactId) ?? null;
+    const service = client?.services.find((item) => item.id === document.serviceId) ?? null;
+    setPreparingMail(true);
+    documentMailOptions({
+      id: document.id,
+      type: document.type,
+      number: document.number,
+      totalGross: Math.round(document.totalGross * 100),
+      currency: document.currency,
+      dueDate: document.dueDate ?? null,
+      projectId: document.projectId ?? null,
+      attachments: document.attachments,
+      companyName: company?.name ?? '',
+      recipient: { email: contact?.email || service?.email || client?.email || null, firstName: contact?.firstName ?? null },
+    })
+      .then(openComposer)
+      .catch((error: Error) => notifyError(error.message))
+      .finally(() => setPreparingMail(false));
+  };
+
+  /**
    * Creates a document from this one and opens it.
    * @param {'INVOICE' | 'DEPOSIT_INVOICE' | 'CREDIT_NOTE'} type Type.
    * @param {number | null} [depositPercent] Deposit percentage. Optional.
@@ -300,6 +342,19 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
         </Stack>
         <Group gap="xs">
+          <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
+            Aperçu
+          </Button>
+          <Tooltip label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'}>
+            <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="default" size="lg" aria-label="Télécharger le PDF">
+              <DownloadSimpleIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          {readOnly && (
+            <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={sendByMail} loading={preparingMail}>
+              Envoyer
+            </Button>
+          )}
           {!readOnly && (
             <Button variant="default" onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
               Enregistrer
