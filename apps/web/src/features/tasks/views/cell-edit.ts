@@ -1,7 +1,8 @@
 import type { TaskColumn } from '@ordo/shared';
 import { createContext, useContext } from 'react';
-import { notifyError, notifySuccess } from '../../../lib/notify';
-import { useBulkTaskMutations, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
+import { notifyError, notifyWithUndo } from '../../../lib/notify';
+import { useBulkTaskMutations, useTasksData, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
+import { useBulkUndo } from './bulk-undo';
 
 /** Cells selected in one column, by row id (only rows shown by the view can be selected). */
 export interface CellSelection {
@@ -25,6 +26,8 @@ export function useCellEdit(task: Task, column: TaskColumn) {
   const selection = useContext(CellSelectionContext);
   const updateTask = useUpdateTask();
   const { update } = useBulkTaskMutations();
+  const undo = useBulkUndo();
+  const { data } = useTasksData();
   const targets =
     selection && selection.column === column && selection.taskIds.includes(task.id) ? selection.taskIds : [task.id];
 
@@ -41,10 +44,12 @@ export function useCellEdit(task: Task, column: TaskColumn) {
      */
     apply: (single: Omit<TaskInputValues, 'projectId'>, bulk?: BulkChanges) => {
       if (bulk && targets.length > 1) {
+        // Snapshot taken before the change, for the undo.
+        const before = (data?.tasks ?? []).filter((item) => targets.includes(item.id));
         update.mutate(
           { ids: targets, changes: bulk },
           {
-            onSuccess: () => notifySuccess(`Modification appliquée à ${targets.length} tâches.`),
+            onSuccess: () => notifyWithUndo(`Modification appliquée à ${targets.length} tâches.`, undo.changes(before, bulk)),
             onError: (error) => notifyError(error.message),
           },
         );

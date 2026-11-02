@@ -1,3 +1,13 @@
+type Attachment {
+  id: ID!
+
+  """Shown in place in markdown."""
+  isImage: Boolean!
+  name: String!
+  size: Int!
+  url: String!
+}
+
 """Omitted fields are left unchanged; null clears a field."""
 input BulkTaskInput {
   addAssigneeIds: [ID!]
@@ -245,6 +255,9 @@ type Mutation {
   updateTaskStatus(id: ID!, input: TaskLabelUpdateInput!): TaskStatus!
   updateTaskType(id: ID!, input: TaskLabelUpdateInput!): TaskType!
   updateTaskView(id: ID!, input: TaskViewUpdateInput!): TaskView!
+
+  """Stores a file to link from a markdown text (10 MB maximum)."""
+  uploadAttachment(file: File!): Attachment!
 }
 
 type Project {

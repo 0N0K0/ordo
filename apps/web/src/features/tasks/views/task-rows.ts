@@ -15,8 +15,6 @@ export interface GroupRow {
   id: string;
   label: string;
   color?: string;
-  /** Tasks in the group, sub-tasks included. */
-  count: number;
   children: DisplayRow[];
 }
 
@@ -188,15 +186,6 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
 }
 
 /**
- * Number of task rows in a tree.
- * @param {DisplayRow[]} rows Rows.
- * @returns {number} Count.
- */
-function countTasks(rows: DisplayRow[]): number {
-  return rows.reduce((sum, row) => sum + (row.kind === 'task' ? 1 : 0) + countTasks(row.children), 0);
-}
-
-/**
  * Builds the rows of the table: sorted tasks, as a tree or flat, optionally grouped.
  * @param {Task[]} tasks Matching tasks, in manual order.
  * @param {TaskViewConfig} config View configuration.
@@ -226,7 +215,7 @@ export function buildRows(tasks: Task[], config: TaskViewConfig, context: TaskCo
     )
     .map((group) => {
       const children = taskRows(group.tasks, config, context, `g:${group.key}:`);
-      return { kind: 'group', id: `g:${group.key}`, label: group.label, color: group.color, count: countTasks(children), children };
+      return { kind: 'group', id: `g:${group.key}`, label: group.label, color: group.color, children };
     });
 }
 

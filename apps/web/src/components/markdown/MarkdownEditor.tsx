@@ -1,4 +1,5 @@
-import { ActionIcon, Avatar, Group, Paper, Tabs, Text, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Avatar, Group, Loader, Paper, Tabs, Text, Textarea, Tooltip, UnstyledButton } from '@mantine/core';
+import { MAX_ATTACHMENT_BYTES } from '@ordo/shared';
 import {
   AtIcon,
   CheckSquareIcon,
@@ -8,12 +9,24 @@ import {
   ListBulletsIcon,
   ListNumbersIcon,
   MarkdownLogoIcon,
+  PaperclipIcon,
   QuotesIcon,
   TextBIcon,
   TextHIcon,
   TextItalicIcon,
 } from '@phosphor-icons/react';
-import { useId, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
+import { attachmentMarkdown, uploadAttachment } from '../../lib/attachments';
+import { notifyError } from '../../lib/notify';
 import {
   completeReference,
   insertLink,
@@ -126,6 +139,9 @@ export function MarkdownEditor({
   const [tab, setTab] = useState<string | null>('write');
   const [token, setToken] = useState<ReferenceToken | null>(null);
   const [active, setActive] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
 
   const targets: ReferenceTargets = useMemo(
     () => ({
@@ -284,11 +300,56 @@ export function MarkdownEditor({
   };
 
   /**
-   * Pasting a URL over a selection makes a link, like on GitHub.
+   * Uploads files and inserts them at the caret, one per line: images are shown in place, other files
+   * become download links.
+   * @param {File[]} files Files.
+   * @returns {Promise<void>}
+   */
+  const attach = async (files: File[]) => {
+    const accepted = files.filter((file) => {
+      if (file.size <= MAX_ATTACHMENT_BYTES) return true;
+      notifyError(`« ${file.name} » est trop lourd (10 Mo maximum).`);
+      return false;
+    });
+    if (accepted.length === 0) return;
+    setUploading((count) => count + accepted.length);
+    const results = await Promise.allSettled(accepted.map((file) => uploadAttachment(file)));
+    setUploading((count) => count - accepted.length);
+    for (const result of results) if (result.status === 'rejected') notifyError(result.reason?.message ?? 'Envoi impossible.');
+    const lines = results.flatMap((result) => (result.status === 'fulfilled' ? [attachmentMarkdown(result.value)] : []));
+    if (lines.length === 0) return;
+    run((text, start, end) => {
+      const before = start > 0 && text[start - 1] !== '\n' ? '\n' : '';
+      const after = end < text.length && text[end] !== '\n' ? '\n' : '';
+      const inserted = before + lines.join('\n') + after;
+      const caret = start + inserted.length;
+      return { value: text.slice(0, start) + inserted + text.slice(end), selectionStart: caret, selectionEnd: caret };
+    });
+  };
+
+  /**
+   * Drops files on the field to attach them.
+   * @param {DragEvent<HTMLTextAreaElement>} event Drop event.
+   * @returns {void}
+   */
+  const handleDrop = (event: DragEvent<HTMLTextAreaElement>) => {
+    setDragOver(false);
+    if (event.dataTransfer.files.length === 0) return;
+    event.preventDefault();
+    void attach([...event.dataTransfer.files]);
+  };
+
+  /**
+   * Pasting files attaches them; pasting a URL over a selection makes a link, like on GitHub.
    * @param {ClipboardEvent<HTMLTextAreaElement>} event Paste event.
    * @returns {void}
    */
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (event.clipboardData.files.length > 0) {
+      event.preventDefault();
+      void attach([...event.clipboardData.files]);
+      return;
+    }
     const text = event.clipboardData.getData('text/plain');
     const { selectionStart, selectionEnd } = event.currentTarget;
     if (selectionStart === selectionEnd || !isUrl(text)) return;
@@ -353,6 +414,31 @@ export function MarkdownEditor({
                     </Tooltip>
                   </Group>
                 ))}
+                <span className={classes.divider} />
+                <Tooltip label="Joindre des fichiers (images affichées, autres fichiers en lien)">
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    size="sm"
+                    aria-label="Joindre des fichiers"
+                    loading={uploading > 0}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <PaperclipIcon />
+                  </ActionIcon>
+                </Tooltip>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  hidden
+                  onChange={(event) => {
+                    const files = [...(event.currentTarget.files ?? [])];
+                    event.currentTarget.value = '';
+                    void attach(files);
+                  }}
+                />
               </Group>
             )}
           </Group>
@@ -371,6 +457,14 @@ export function MarkdownEditor({
               onClick={(event) => refreshToken(event.currentTarget)}
               onBlur={() => setToken(null)}
               onPaste={handlePaste}
+              onDragOver={(event) => {
+                if (!event.dataTransfer.types.includes('Files')) return;
+                event.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              data-drag-over={dragOver || undefined}
               placeholder={placeholder}
               autosize
               minRows={minRows}
@@ -411,10 +505,12 @@ export function MarkdownEditor({
             </div>
           </Tabs.Panel>
         </Tabs>
-        <Group gap={6} className={classes.footer}>
-          <MarkdownLogoIcon aria-hidden />
+        <Group gap={6} className={classes.footer} aria-live="polite">
+          {uploading > 0 ? <Loader size={12} /> : <MarkdownLogoIcon aria-hidden />}
           <Text size="xs" c="dimmed">
-            Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur.
+            {uploading > 0
+              ? `Envoi de ${uploading} fichier${uploading > 1 ? 's' : ''}…`
+              : 'Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur. Glissez, collez ou joignez des fichiers.'}
           </Text>
         </Group>
       </Paper>

@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Anchor, Badge, Box, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Box, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
 import { TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
 import { CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import {
@@ -579,9 +579,6 @@ export function TaskTable({
               <Text size="sm" fw={600}>
                 {original.label}
               </Text>
-              <Badge size="sm" variant="light" color="gray" circle>
-                {original.count}
-              </Badge>
             </Group>
           </Table.Td>
         </Table.Tr>

@@ -323,3 +323,14 @@ model Milestone {
 
   @@index([projectId])
 }
+
+/// File attached to a markdown text (description, comment…) and linked from it.
+model Attachment {
+  id        String   @id @default(cuid())
+  /// Original file name, used for the download.
+  name      String
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+}

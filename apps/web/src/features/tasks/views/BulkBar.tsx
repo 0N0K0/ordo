@@ -12,12 +12,13 @@ import {
   UserPlusIcon,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task, type TaskLabel } from '../api';
 import { ProjectSelect } from '../task-ui';
 import type { TaskContext } from '../use-task-context';
 import classes from './BulkBar.module.css';
+import { useBulkUndo } from './bulk-undo';
 
 /**
  * "3 tâches" / "1 tâche".
@@ -41,6 +42,26 @@ interface DialogProps {
  */
 function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
   const { transfer } = useBulkTaskMutations();
+  const undo = useBulkUndo();
+
+  /**
+   * Moved tasks (the topmost of the selection), then their sub-tasks level by level, as they are now.
+   * @returns {Task[][]} Levels.
+   */
+  const movedLevels = () => {
+    const selected = new Set(tasks.map((task) => task.id));
+    const hasSelectedAncestor = (task: Task) => {
+      for (let parentId = task.parentId; parentId; parentId = context.taskById.get(parentId)?.parentId ?? null) {
+        if (selected.has(parentId)) return true;
+      }
+      return false;
+    };
+    const levels = [tasks.filter((task) => !hasSelectedAncestor(task))];
+    while (levels[levels.length - 1].length > 0) {
+      levels.push(levels[levels.length - 1].flatMap((task) => context.childrenOf(task.id)));
+    }
+    return levels.slice(0, -1);
+  };
   const [projectId, setProjectId] = useState<string | null>(null);
   return (
     <Stack gap="md">
@@ -53,22 +74,23 @@ function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
         <Button
           disabled={!projectId}
           loading={transfer.isPending}
-          onClick={() =>
-            projectId &&
+          onClick={() => {
+            if (!projectId) return;
+            const levels = movedLevels();
             transfer.mutate(
               { ids: tasks.map((task) => task.id), projectId },
               {
                 onSuccess: ({ removedLinks }) => {
-                  notifySuccess(
-                    `${tasksLabel(tasks.length)} transférée${tasks.length > 1 ? 's' : ''}.` +
-                      (removedLinks > 0 ? ` ${removedLinks} lien(s) retiré(s).` : ''),
-                  );
+                  const message = `${tasksLabel(tasks.length)} transférée${tasks.length > 1 ? 's' : ''}.`;
+                  // Removed links and milestones cannot come back: no undo then.
+                  if (removedLinks > 0) notifySuccess(`${message} ${removedLinks} lien(s) retiré(s).`);
+                  else notifyWithUndo(message, undo.transfer(levels));
                   onDone(true);
                 },
                 onError: (error) => notifyError(error.message),
               },
-            )
-          }
+            );
+          }}
         >
           Transférer
         </Button>
@@ -137,6 +159,7 @@ interface BulkBarProps {
 export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
   const { update, archive } = useBulkTaskMutations();
   const setClosed = useSetTasksClosed();
+  const undo = useBulkUndo();
   const allClosed = tasks.every((task) => task.closed);
   const ids = tasks.map((task) => task.id);
   const allArchived = tasks.every((task) => task.archived);
@@ -151,7 +174,10 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
    * @returns {void}
    */
   const apply = (changes: BulkChanges, message: string) =>
-    update.mutate({ ids, changes }, { onSuccess: () => notifySuccess(message), onError: (error) => notifyError(error.message) });
+    update.mutate(
+      { ids, changes },
+      { onSuccess: () => notifyWithUndo(message, undo.changes(tasks, changes)), onError: (error) => notifyError(error.message) },
+    );
 
   /**
    * Opens a dialog on the selection; clears the selection when the action succeeds.
@@ -294,7 +320,10 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
               { ids, closed: !allClosed },
               {
                 onSuccess: () =>
-                  notifySuccess(`${tasksLabel(ids.length)} ${allClosed ? 'rouverte' : 'fermée'}${ids.length > 1 ? 's' : ''}.`),
+                  notifyWithUndo(
+                    `${tasksLabel(ids.length)} ${allClosed ? 'rouverte' : 'fermée'}${ids.length > 1 ? 's' : ''}.`,
+                    undo.closed(tasks, !allClosed),
+                  ),
                 onError: (error) => notifyError(error.message),
               },
             )
@@ -312,7 +341,10 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
               { ids, archived: !allArchived },
               {
                 onSuccess: () => {
-                  notifySuccess(`${tasksLabel(ids.length)} ${allArchived ? 'désarchivée' : 'archivée'}${ids.length > 1 ? 's' : ''}.`);
+                  notifyWithUndo(
+                    `${tasksLabel(ids.length)} ${allArchived ? 'désarchivée' : 'archivée'}${ids.length > 1 ? 's' : ''}.`,
+                    undo.archived(tasks, !allArchived),
+                  );
                   onClear();
                 },
                 onError: (error) => notifyError(error.message),

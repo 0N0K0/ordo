@@ -1,4 +1,5 @@
 import { prisma } from '../../db';
+import { storeAttachment } from '../../services/attachments';
 import * as contributors from '../../services/contributors';
 import * as milestones from '../../services/milestones';
 import { iconUrl } from '../../services/icons';
@@ -29,6 +30,22 @@ builder.prismaObject('Contributor', {
       description: 'Projects the contributor is directly attached to; their sub-projects inherit it.',
       select: { projects: { select: { id: true } } },
       resolve: (contributor) => contributor.projects.map((project) => project.id),
+    }),
+  }),
+});
+
+builder.prismaObject('Attachment', {
+  // Never loads the file content.
+  select: { id: true, name: true, size: true, mimeType: true },
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    size: t.exposeInt('size'),
+    isImage: t.boolean({ description: 'Shown in place in markdown.', resolve: (attachment) => attachment.mimeType.startsWith('image/') }),
+    url: t.string({
+      // Parentheses are escaped too: the URL goes inside a markdown link.
+      resolve: (attachment) =>
+        `/api/attachments/${attachment.id}/${encodeURIComponent(attachment.name).replace(/\(/g, '%28').replace(/\)/g, '%29')}`,
     }),
   }),
 });
@@ -551,6 +568,13 @@ builder.mutationFields((t) => ({
         ...query,
         where: { id: (await contributors.createContributor(input)).id },
       }),
+  }),
+  uploadAttachment: t.prismaField({
+    type: 'Attachment',
+    description: 'Stores a file to link from a markdown text (10 MB maximum).',
+    args: { file: t.arg({ type: 'File', required: true }) },
+    resolve: async (query, _root, { file }) =>
+      prisma.attachment.findUniqueOrThrow({ ...query, where: { id: (await storeAttachment(file)).id } }),
   }),
   setProjectContributors: t.boolean({
     description: 'Sets the contributors directly attached to a project; tasks keep their assignees.',

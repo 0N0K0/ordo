@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const MAX_ICON_BYTES = 1024 * 1024;
+/** Maximum size of a file attached to a markdown text. */
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 /** Maximum nesting of projects: a root project is level 1. */
 export const MAX_PROJECT_DEPTH = 5;
 export const ICON_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;

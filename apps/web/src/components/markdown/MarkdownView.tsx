@@ -25,6 +25,14 @@ function MarkdownLink({ href = '', children }: { href?: string; children?: React
       </Anchor>
     );
   }
+  // Attachments: downloaded, or opened in a new tab for images.
+  if (href.startsWith('/api/attachments/')) {
+    return (
+      <Anchor href={href} target="_blank" rel="noopener">
+        {children}
+      </Anchor>
+    );
+  }
   if (href.startsWith('/')) {
     return (
       <Anchor component={Link} to={href} fw={600}>
@@ -39,7 +47,23 @@ function MarkdownLink({ href = '', children }: { href?: string; children?: React
   );
 }
 
-const components: Components = { a: MarkdownLink };
+/**
+ * Markdown image (attached images): fits the text width, opens full size on click.
+ * @param {object} props Image props.
+ * @param {string} [props.src] Source. Optional.
+ * @param {string} [props.alt] Alternative text. Optional.
+ * @returns {JSX.Element} Image.
+ */
+function MarkdownImage({ src, alt }: { src?: string | Blob; alt?: string }) {
+  if (typeof src !== 'string') return null;
+  return (
+    <a href={src} target="_blank" rel="noopener">
+      <img src={src} alt={alt ?? ''} loading="lazy" style={{ maxWidth: '100%', height: 'auto' }} />
+    </a>
+  );
+}
+
+const components: Components = { a: MarkdownLink, img: MarkdownImage };
 
 interface MarkdownViewProps {
   children: string | null | undefined;

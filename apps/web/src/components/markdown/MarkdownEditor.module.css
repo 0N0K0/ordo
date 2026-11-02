@@ -129,6 +129,16 @@
     }
   }
 
+  /* Files dragged over the field. */
+  .input[data-drag-over] {
+    /* Arrière-Plan */
+    background-color: var(--mantine-primary-color-light);
+
+    /* Bordures */
+    outline: 2px dashed var(--mantine-primary-color-filled);
+    outline-offset: -4px;
+  }
+
   .footer {
     /* Espacement */
     padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-sm);

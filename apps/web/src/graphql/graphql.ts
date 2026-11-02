@@ -802,6 +802,13 @@ export type MoveProjectStatusMutationVariables = Exact<{
 
 export type MoveProjectStatusMutation = { moveProjectStatus: boolean };
 
+export type UploadAttachmentMutationVariables = Exact<{
+  file: File;
+}>;
+
+
+export type UploadAttachmentMutation = { uploadAttachment: { id: string, name: string, url: string, isImage: boolean } };
+
 export class TypedDocumentString<TResult, TVariables>
   extends String
   implements DocumentTypeDecoration<TResult, TVariables>
@@ -1784,3 +1791,13 @@ export const MoveProjectStatusDocument = new TypedDocumentString(`
   moveProjectStatus(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveProjectStatusMutation, MoveProjectStatusMutationVariables>;
+export const UploadAttachmentDocument = new TypedDocumentString(`
+    mutation UploadAttachment($file: File!) {
+  uploadAttachment(file: $file) {
+    id
+    name
+    url
+    isImage
+  }
+}
+    `) as unknown as TypedDocumentString<UploadAttachmentMutation, UploadAttachmentMutationVariables>;
