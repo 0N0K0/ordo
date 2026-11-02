@@ -1,7 +1,8 @@
 import { Stack, Tabs, Title } from "@mantine/core";
-import { EnvelopeSimpleIcon, FoldersIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
+import { CalendarBlankIcon, EnvelopeSimpleIcon, FoldersIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
 import { useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
+import { CalendarCategoriesManager } from "../../calendar/CalendarCategoriesManager";
 import { MailAccountsManager } from "../../mail/settings/MailAccountsManager";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
@@ -80,6 +81,9 @@ export function SettingsPage() {
           >
             Contributeurs
           </Tabs.Tab>
+          <Tabs.Tab value="calendar" leftSection={<CalendarBlankIcon aria-hidden />}>
+            Agenda
+          </Tabs.Tab>
           <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
             Mails
           </Tabs.Tab>
@@ -119,6 +123,9 @@ export function SettingsPage() {
             contributors={taskData?.contributors ?? []}
             usage={assigneeUsage}
           />
+        </Tabs.Panel>
+        <Tabs.Panel value="calendar">
+          <CalendarCategoriesManager />
         </Tabs.Panel>
         <Tabs.Panel value="mail">
           <MailAccountsManager />

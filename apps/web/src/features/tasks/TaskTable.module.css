@@ -221,4 +221,12 @@
     /* Interaction */
     cursor: grab;
   }
+
+  .recurring {
+    /* Agencement */
+    flex: none;
+
+    /* Typographie */
+    color: var(--mantine-color-dimmed);
+  }
 }

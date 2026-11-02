@@ -1,9 +1,11 @@
 import { Anchor, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { entrySeconds, previousOccurrence } from '@ordo/shared';
-import { AlarmIcon } from '@phosphor-icons/react';
+import { addDays, entrySeconds, previousOccurrence } from '@ordo/shared';
+import { AlarmIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
+import { localToday } from '../../lib/dates';
+import { fetchCalendarEvents, type EventOccurrence } from '../calendar/api';
 import { useTasksData } from '../tasks/api';
 import { useRunningTimer } from '../time/api';
 import { useWorkspace } from '../workspace/api';
@@ -15,21 +17,38 @@ const MAX_DELAY_MS = 6 * 3600_000;
 const TICK_MS = 15_000;
 
 /**
- * Claims an occurrence for this tab: another open tab that already rang it wins.
+ * Claims an occurrence for this tab: another open tab, or this one before a reload, that already rang it
+ * wins. Claims expire after `ttlMs`.
  * @param {string} key Occurrence key.
+ * @param {number} [ttlMs] Lifetime of the claim. Optional. Default = 10 minutes.
  * @returns {boolean} True when this tab rings it.
  */
-function claim(key: string): boolean {
+function claim(key: string, ttlMs = 10 * 60_000): boolean {
   try {
-    if (localStorage.getItem(key)) return false;
-    localStorage.setItem(key, '1');
-    // Old claims are not needed once recorded by the API; keep the storage small.
-    window.setTimeout(() => localStorage.removeItem(key), 10 * 60_000);
+    const expiry = Number(localStorage.getItem(key) ?? 0);
+    if (expiry > Date.now()) return false;
+    localStorage.setItem(key, String(Date.now() + ttlMs));
+    // Expired claims are removed as they are met.
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const stored = localStorage.key(index);
+      if (stored?.startsWith('ordo.alarm.') && Number(localStorage.getItem(stored)) < Date.now()) localStorage.removeItem(stored);
+    }
   } catch {
     // Storage unavailable: ring anyway.
   }
   return true;
 }
+
+/**
+ * Start of an event occurrence: its instant, or local midnight of its first day when all day.
+ * @param {EventOccurrence} occurrence Occurrence.
+ * @returns {Date} Start.
+ */
+function occurrenceStart(occurrence: EventOccurrence): Date {
+  return occurrence.allDay ? new Date(`${occurrence.startDate}T00:00:00`) : new Date(occurrence.start);
+}
+
+const timeFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
 /**
  * Rings alarms while the app is open: chime, system notification (when allowed) and a toast that stays
@@ -45,6 +64,25 @@ export function AlarmCenter() {
   const { markFired } = useAlarmMutations();
   // Tracking alarms: last rung step per alarm and timer, so a reload does not ring past steps again.
   const trackingSteps = useRef(new Map<string, number>());
+  // Event occurrences of the next days, for their reminders.
+  const upcoming = useRef<EventOccurrence[]>([]);
+  useEffect(() => {
+    /**
+     * Loads the event occurrences from yesterday to the day after tomorrow.
+     * @returns {void}
+     */
+    const load = () => {
+      const today = localToday();
+      fetchCalendarEvents({ from: addDays(today, -1), to: addDays(today, 8) })
+        .then((occurrences) => {
+          upcoming.current = occurrences;
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const timer = window.setInterval(load, 5 * 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const latest = useRef({ alarms, running, tasksData, workspace, markFired });
 
   useEffect(() => {
@@ -98,13 +136,49 @@ export function AlarmCenter() {
     };
 
     /**
-     * Checks every alarm against the current time and the running timer.
+     * Rings the reminders of event occurrences that are due (missed by less than a few hours).
+     * @param {Date} now Current time.
+     * @returns {void}
+     */
+    const ringReminders = (now: Date) => {
+      for (const occurrence of upcoming.current) {
+        const start = occurrenceStart(occurrence);
+        for (const minutes of occurrence.reminders) {
+          const at = start.getTime() - minutes * 60_000;
+          if (now.getTime() < at || now.getTime() - at > MAX_DELAY_MS) continue;
+          const key = `ordo.alarm.event:${occurrence.key}:${minutes}`;
+          if (!claim(key, MAX_DELAY_MS + 3600_000)) continue;
+          playChime();
+          const when = occurrence.allDay ? 'Journée entière' : timeFormat.format(start);
+          const body = [when, occurrence.location].filter(Boolean).join(' · ');
+          if ('Notification' in window && Notification.permission === 'granted') new Notification(occurrence.title, { body, tag: key });
+          notifications.show({
+            color: 'blue',
+            icon: <CalendarBlankIcon />,
+            title: occurrence.title,
+            autoClose: false,
+            message: (
+              <Stack gap={4}>
+                <Text size="sm">{body}</Text>
+                <Anchor component={Link} to="/calendar" size="sm">
+                  Voir l’agenda
+                </Anchor>
+              </Stack>
+            ),
+          });
+        }
+      }
+    };
+
+    /**
+     * Checks every alarm against the current time and the running timer, and the event reminders.
      * @returns {void}
      */
     const tick = () => {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
-      if (!list) return;
       const now = new Date();
+      ringReminders(now);
+      if (!list) return;
       for (const alarm of list) {
         if (!alarm.enabled) continue;
 

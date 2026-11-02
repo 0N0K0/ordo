@@ -42,6 +42,7 @@ import { notifyError } from '../../lib/notify';
 import { useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskTime } from '../time/TaskTime';
 import { TaskComments } from './TaskComments';
+import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks, subtreeIds } from './task-links';
 import { AssigneesSelect, LabelSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from './use-task-actions';
@@ -403,6 +404,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               }}
             />
             <TaskTime task={task} />
+            <TaskRecurrence task={task} context={context} />
             <Group grow gap="xs">
               <DatePickerInput
                 label="Début"

@@ -13,10 +13,15 @@ import {
   projectFactory,
   taskFactory,
   timeEntryFactory,
+  calendarEventFactory,
+  clock,
+  localDate,
+  TIME_ZONE,
 } from './fixtures/factories';
+import { addDays, DEFAULT_RECURRENCE, type Recurrence } from '@ordo/shared';
 
 // Fake data for development: purges the business data (clients, projects, tasks, labels, contributors, tracked
-// time), keeps the user account and the alarms, then fills the database. `npm run db:seed -- --force` skips the confirmation.
+// time, calendar), keeps the user account and the alarms, then fills the database. `npm run db:seed -- --force` skips the confirmation.
 
 if (process.env.NODE_ENV === 'production') {
   console.error('Les fixtures ne se chargent pas en production.');
@@ -26,7 +31,7 @@ if (process.env.NODE_ENV === 'production') {
 const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
-    message: 'Les clients, projets, tâches, libellés, contributeurs et temps vont être supprimés (le compte et les alarmes sont conservés). Continuer ?',
+    message: 'Les clients, projets, tâches, libellés, contributeurs, temps et évènements d’agenda vont être supprimés (le compte et les alarmes sont conservés). Continuer ?',
     default: false,
   });
   if (!ok) process.exit(0);
@@ -44,7 +49,8 @@ const meId = user?.contributorId ?? null;
 const alarms = await prisma.alarm.findMany();
 await prisma.$executeRawUnsafe(`
   TRUNCATE "TaskComment", "TaskBlock", "TaskRelation", "Task", "Milestone", "TaskView", "Project", "Client",
-    "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "Attachment", "TimeEntry"
+    "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "Attachment", "TimeEntry",
+    "CalendarEventException", "CalendarEvent", "CalendarCategory"
   RESTART IDENTITY CASCADE
 `);
 await prisma.alarm.createMany({ data: alarms.map((alarm) => ({ ...alarm, projectId: null, taskId: null })) });
@@ -286,6 +292,189 @@ for (const project of projects) {
   }
 }
 
+// --- Calendar -----------------------------------------------------------------------------------------
+/**
+ * Creates a calendar category.
+ * @param {string} name Name.
+ * @param {string} color Color.
+ * @param {string | null} parentId Parent.
+ * @param {number} position Position among its siblings.
+ * @returns {Promise<string>} Category id.
+ */
+const category = async (name: string, color: string, parentId: string | null, position: number) =>
+  (await prisma.calendarCategory.create({ data: { name, color, parentId, position } })).id;
+const pro = await category('Pro', '#228be6', null, 0);
+const meetings = await category('Réunions', '#4c6ef5', pro, 0);
+const clientsCategory = await category('Clients', '#15aabf', pro, 1);
+const appointments = await category('Rendez-vous', '#12b886', clientsCategory, 0);
+const training = await category('Formation', '#82c91e', pro, 2);
+const personal = await category('Perso', '#e64980', null, 1);
+const sport = await category('Sport', '#fd7e14', personal, 0);
+const health = await category('Santé', '#fa5252', personal, 1);
+const admin = await category('Administratif', '#fab005', null, 2);
+
+const today = localDate(new Date());
+// Monday of the current week.
+const monday = addDays(today, -((new Date(`${today}T12:00:00`).getDay() + 6) % 7));
+const activeRoots = projects.filter((project) => project.parentId === null && !project.archivedAt);
+/**
+ * Rule from the default one.
+ * @param {Partial<Recurrence>} changes Changes.
+ * @returns {Recurrence} Rule.
+ */
+const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
+
+/**
+ * Creates a recurring event.
+ * @param {object} event Event fields.
+ * @returns {Promise<string>} Event id.
+ */
+const recurring = async (event: {
+  title: string;
+  start: string;
+  from: number;
+  to: number;
+  recurrence: Recurrence;
+  categoryIds: string[];
+  location?: string;
+  projectId?: string | null;
+  allDay?: boolean;
+  reminders?: number[];
+}) =>
+  (
+    await prisma.calendarEvent.create({
+      data: {
+        title: event.title,
+        location: event.location ?? null,
+        links: [],
+        allDay: event.allDay ?? false,
+        startDate: new Date(`${event.start}T00:00:00.000Z`),
+        startTime: event.allDay ? null : clock(event.from),
+        endDate: new Date(`${event.start}T00:00:00.000Z`),
+        endTime: event.allDay ? null : clock(event.to),
+        timeZone: TIME_ZONE,
+        recurrence: event.recurrence,
+        reminders: event.reminders ?? [10],
+        projectId: event.projectId ?? null,
+        categories: { connect: event.categoryIds.map((id) => ({ id })) },
+        contributors: { connect: faker.helpers.arrayElements(contributors, { min: 0, max: 3 }).map(({ id }) => ({ id })) },
+      },
+    })
+  ).id;
+
+// Weekly team meeting, paused two weeks for the holidays, one occurrence moved and one cancelled.
+const teamMeeting = await recurring({
+  title: 'Point équipe',
+  start: addDays(monday, -28),
+  from: 9 * 60 + 30,
+  to: 10 * 60,
+  recurrence: rule({ weekdays: [1], pauses: [{ from: addDays(monday, 42), to: addDays(monday, 55) }] }),
+  categoryIds: [meetings],
+  location: 'Salle Ada',
+});
+await prisma.calendarEventException.create({
+  data: {
+    eventId: teamMeeting,
+    date: new Date(`${addDays(monday, 7)}T00:00:00.000Z`),
+    title: 'Point équipe (décalé au mardi)',
+    startDate: new Date(`${addDays(monday, 8)}T00:00:00.000Z`),
+    startTime: '11:00',
+    endDate: new Date(`${addDays(monday, 8)}T00:00:00.000Z`),
+    endTime: '11:30',
+    location: 'Salle Ada',
+    links: [],
+  },
+});
+await prisma.calendarEventException.create({ data: { eventId: teamMeeting, date: new Date(`${addDays(monday, 21)}T00:00:00.000Z`), cancelled: true } });
+
+await recurring({
+  title: 'Stand-up',
+  start: addDays(monday, -14),
+  from: 9 * 60,
+  to: 9 * 60 + 15,
+  recurrence: rule({ weekdays: [1, 2, 3, 4, 5], count: 60 }),
+  categoryIds: [meetings],
+  location: 'Visio',
+  projectId: activeRoots[0]?.id ?? null,
+  reminders: [],
+});
+await recurring({
+  title: 'Revue mensuelle',
+  start: addDays(monday, 1),
+  from: 14 * 60,
+  to: 15 * 60 + 30,
+  recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY' }),
+  categoryIds: [meetings],
+  location: 'Salle Turing',
+  reminders: [30, 1440],
+});
+await recurring({
+  title: 'Sport',
+  start: addDays(monday, -21),
+  from: 18 * 60 + 30,
+  to: 19 * 60 + 30,
+  recurrence: rule({ weekdays: [2, 4] }),
+  categoryIds: [sport],
+  location: 'Salle de sport',
+  reminders: [60],
+});
+await recurring({
+  title: 'Déclaration de TVA',
+  start: addDays(monday, 4),
+  from: 0,
+  to: 0,
+  allDay: true,
+  recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY', until: addDays(monday, 365) }),
+  categoryIds: [admin],
+  reminders: [1440],
+});
+await recurring({
+  title: 'Cours d’anglais',
+  start: addDays(monday, 2),
+  from: 12 * 60 + 15,
+  to: 13 * 60 + 15,
+  recurrence: rule({ interval: 2, weekdays: [3], count: 10 }),
+  categoryIds: [training],
+  location: 'Visio',
+});
+
+// One-off events, some for clients and projects.
+for (let index = 0; index < 30; index += 1) {
+  const project = faker.datatype.boolean(0.6) ? faker.helpers.arrayElement(activeRoots) : null;
+  const categoryId = faker.helpers.weightedArrayElement([
+    { value: appointments, weight: 4 },
+    { value: meetings, weight: 3 },
+    { value: training, weight: 1 },
+    { value: health, weight: 1 },
+    { value: admin, weight: 1 },
+  ]);
+  await calendarEventFactory.create({
+    projectId: categoryId === health ? null : (project?.id ?? null),
+    categories: { connect: [{ id: categoryId }] },
+    contributors: { connect: faker.helpers.arrayElements(contributors, { min: 0, max: 2 }).map(({ id }) => ({ id })) },
+  });
+}
+// All-day events over several days.
+for (const [title, offset, days, categoryId] of [
+  ['Salon professionnel', 10, 3, pro],
+  ['Congés', 38, 5, personal],
+  ['Séminaire d’équipe', -9, 2, meetings],
+] as const) {
+  const start = addDays(monday, offset);
+  await prisma.calendarEvent.create({
+    data: {
+      title,
+      links: [],
+      allDay: true,
+      startDate: new Date(`${start}T00:00:00.000Z`),
+      endDate: new Date(`${addDays(start, days - 1)}T00:00:00.000Z`),
+      timeZone: TIME_ZONE,
+      reminders: [1440],
+      categories: { connect: [{ id: categoryId }] },
+    },
+  });
+}
+
 const counts = {
   clients: await prisma.client.count(),
   projets: await prisma.project.count(),
@@ -294,6 +483,8 @@ const counts = {
   tâches: await prisma.task.count(),
   commentaires: await prisma.taskComment.count(),
   temps: await prisma.timeEntry.count(),
+  'catégories d’agenda': await prisma.calendarCategory.count(),
+  'évènements': await prisma.calendarEvent.count(),
 };
 console.log('Fixtures chargées :', counts);
 await prisma.$disconnect();

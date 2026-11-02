@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { AccountPage } from './features/account/AccountPage';
 import { AlarmsPage } from './features/alarms/AlarmsPage';
+import { CalendarPage } from './features/calendar/CalendarPage';
 import { MailPage } from './features/mail/MailPage';
 import { AuthLayout } from './features/auth/AuthLayout';
 import { RequireAuth, RequireGuest } from './features/auth/guards';
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
           { path: 'account', element: <AccountPage /> },
           { path: 'alarms', element: <AlarmsPage /> },
           { path: 'mail', element: <MailPage /> },
+          { path: 'calendar', element: <CalendarPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'clients/:id', element: <ClientPage /> },
           { path: 'projects/:id', element: <ProjectPage /> },
