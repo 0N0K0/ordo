@@ -13,6 +13,14 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().min(1),
+  /** Key encrypting the passwords of the mail accounts: 32 random bytes in base64 (openssl rand -base64 32). */
+  MAIL_ENCRYPTION_KEY: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z
+      .string()
+      .refine((value) => Buffer.from(value, 'base64').length === 32, 'Doit faire 32 octets encodés en base64.')
+      .optional(),
+  ),
 });
 
 const parsed = envSchema.safeParse(process.env);

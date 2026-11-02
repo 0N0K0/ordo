@@ -129,6 +129,7 @@ model Project {
   contributors Contributor[] @relation("ProjectContributors")
   timeEntries  TimeEntry[]
   alarms       Alarm[]
+  mails        MailMessage[]
 
   @@index([clientId])
   @@index([parentId])
@@ -330,13 +331,20 @@ model Milestone {
 
 /// File attached to a markdown text (description, comment…) and linked from it.
 model Attachment {
-  id        String   @id @default(cuid())
+  id            String       @id @default(cuid())
   /// Original file name, used for the download.
-  name      String
-  mimeType  String
-  size      Int
-  data      Bytes
-  createdAt DateTime @default(now())
+  name          String
+  mimeType      String
+  size          Int
+  data          Bytes
+  createdAt     DateTime     @default(now())
+  /// Set for a file of a mail copied into a project.
+  mailMessageId String?
+  mailMessage   MailMessage? @relation(fields: [mailMessageId], references: [id], onDelete: Cascade)
+  /// Content-ID of an inline image of that mail.
+  contentId     String?
+
+  @@index([mailMessageId])
 }
 
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
@@ -409,4 +417,74 @@ model Alarm {
   lastFiredAt DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+}
+
+/// Mailbox read over IMAP and sent from over SMTP. Passwords are encrypted (MAIL_ENCRYPTION_KEY).
+model MailAccount {
+  id           String             @id @default(cuid())
+  /// Name shown in the app ("Pro", "Perso"…).
+  name         String
+  email        String
+  /// Sender name.
+  displayName  String?
+  imapHost     String
+  imapPort     Int
+  imapSecure   Boolean            @default(true)
+  imapUser     String
+  imapPassword String
+  smtpHost     String
+  smtpPort     Int
+  smtpSecure   Boolean            @default(true)
+  smtpUser     String
+  smtpPassword String
+  /// Saves sent mails in the Sent folder (off for servers doing it themselves, like Gmail).
+  saveSent     Boolean            @default(true)
+  /// HTML signature added to new mails.
+  signature    String?
+  position     Int                @default(0)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  messages     MailMessage[]
+  cursors      MailFolderCursor[]
+}
+
+/// Copy of a mail linked to a project (mails are otherwise read live from the server).
+model MailMessage {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  accountId   String?
+  account     MailAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// Message-ID header, without angle brackets.
+  messageId   String
+  inReplyTo   String?
+  references  String[]
+  subject     String
+  fromName    String?
+  fromAddress String
+  /// [{ name, address }]
+  to          Json
+  cc          Json
+  date        DateTime
+  /// Sanitized HTML body.
+  html        String?
+  text        String?
+  /// Sent from Ordo (rather than received).
+  sent        Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  attachments Attachment[]
+
+  @@unique([projectId, messageId])
+  @@index([messageId])
+}
+
+/// Last mail checked in a folder, to link the new messages of conversations already linked to a project.
+model MailFolderCursor {
+  accountId   String
+  account     MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  folder      String
+  uidValidity BigInt
+  lastUid     Int
+
+  @@id([accountId, folder])
 }

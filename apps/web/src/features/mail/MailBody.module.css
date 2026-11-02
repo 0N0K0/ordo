@@ -1,0 +1,17 @@
+@layer app {
+  .frame {
+    /* Dimension */
+    width: 100%;
+    border: 0;
+
+    /* Arrière-Plan */
+    background-color: #fff;
+    border-radius: var(--mantine-radius-sm);
+  }
+
+  .text {
+    /* Typographie */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}

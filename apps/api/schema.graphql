@@ -145,6 +145,163 @@ scalar File
 """Arbitrary JSON value, validated by the resolver that receives it."""
 scalar JSON
 
+"""Copy of a mail linked to a project."""
+type LinkedMail {
+  accountId: ID
+  attachments: [LinkedMailAttachment!]!
+  cc: [MailAddress!]!
+  date: DateTime!
+  from: [MailAddress!]!
+  html: String
+  id: ID!
+  inReplyTo: String
+  messageId: String!
+  projectId: ID!
+  references: [String!]!
+  sent: Boolean!
+  subject: String!
+  text: String
+  to: [MailAddress!]!
+}
+
+type LinkedMailAttachment {
+  id: ID!
+  inline: Boolean!
+  name: String!
+  size: Int!
+  url: String!
+}
+
+"""Mailbox settings (passwords are never returned)."""
+type MailAccount {
+  displayName: String
+  email: String!
+  id: ID!
+  imapHost: String!
+  imapPort: Int!
+  imapSecure: Boolean!
+  imapUser: String!
+  name: String!
+  saveSent: Boolean!
+  signature: String
+  smtpHost: String!
+  smtpPort: Int!
+  smtpSecure: Boolean!
+  smtpUser: String!
+}
+
+"""Empty passwords keep the saved ones on edition."""
+input MailAccountInput {
+  displayName: String!
+  email: String!
+  imapHost: String!
+  imapPassword: String!
+  imapPort: Int!
+  imapSecure: Boolean!
+  imapUser: String!
+  name: String!
+  saveSent: Boolean!
+  smtpHost: String!
+  smtpPassword: String!
+  smtpPort: Int!
+  smtpSecure: Boolean!
+  smtpUser: String!
+}
+
+type MailAddress {
+  address: String!
+  name: String
+}
+
+type MailAttachmentInfo {
+  contentType: String!
+  filename: String!
+  index: Int!
+  inline: Boolean!
+  size: Int!
+}
+
+"""
+Files of another message to attach again (forward, or files kept from a draft).
+"""
+input MailAttachmentsFromInput {
+  accountId: ID!
+  folder: String!
+
+  """Attachment numbers; omitted: every file that is not an inline image."""
+  indexes: [Int!]
+  uid: Int!
+}
+
+type MailDraft {
+  accountId: ID!
+  attachments: [MailAttachmentInfo!]!
+  bcc: [MailAddress!]!
+  cc: [MailAddress!]!
+  folder: String!
+  html: String
+  inReplyTo: String
+  projectId: ID
+  references: [String!]!
+  subject: String!
+  text: String
+  to: [MailAddress!]!
+  uid: Int!
+}
+
+type MailFolder {
+  depth: Int!
+  name: String!
+  path: String!
+  specialUse: String
+  unseen: Int!
+}
+
+input MailLocationInput {
+  accountId: ID!
+  folder: String!
+  uid: Int!
+}
+
+type MailPage {
+  messages: [MailSummary!]!
+  pageSize: Int!
+  total: Int!
+}
+
+type MailSummary {
+  date: DateTime!
+  flagged: Boolean!
+  from: [MailAddress!]!
+  hasAttachments: Boolean!
+  seen: Boolean!
+  subject: String!
+  to: [MailAddress!]!
+  uid: Int!
+}
+
+"""Message read from the server."""
+type MailView {
+  accountId: ID!
+  attachments: [MailAttachmentInfo!]!
+  cc: [MailAddress!]!
+  date: DateTime!
+  folder: String!
+  from: [MailAddress!]!
+  html: String
+  inReplyTo: String
+
+  """Projects this message is linked to."""
+  linkedProjectIds: [ID!]!
+  messageId: String
+  references: [String!]!
+  replyTo: [MailAddress!]!
+  subject: String!
+  text: String
+  to: [MailAddress!]!
+  uid: Int!
+}
+
 type Milestone {
   description: String
   dueDate: Date
@@ -195,6 +352,7 @@ type Mutation {
   createAlarm(input: AlarmInput!): Alarm!
   createClient(input: ClientInput!): Client!
   createContributor(input: ContributorInput!): Contributor!
+  createMailAccount(input: MailAccountInput!): MailAccount!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
@@ -212,6 +370,13 @@ type Mutation {
     id: ID!
   ): Boolean!
   deleteContributor(id: ID!): Boolean!
+  deleteMailAccount(id: ID!): Boolean!
+
+  """Deletes a draft for good."""
+  deleteMailDraft(location: MailLocationInput!): Boolean!
+
+  """Moves mails to the trash (deletes them for good from the trash)."""
+  deleteMails(accountId: ID!, folder: String!, uids: [Int!]!): Boolean!
   deleteMilestone(id: ID!): Boolean!
 
   """Deletes the project and all its sub-projects."""
@@ -231,6 +396,9 @@ type Mutation {
   deleteTimeEntry(id: ID!): Boolean!
   duplicateTaskView(id: ID!, name: String!): TaskView!
 
+  """Links a mail to a project (a copy is kept in Ordo)."""
+  linkMail(accountId: ID!, folder: String!, projectId: ID!, uid: Int!): LinkedMail!
+
   """Opens a session with a username or email and a password."""
   login(identifier: String!, password: String!): User!
   logout: Boolean!
@@ -238,6 +406,7 @@ type Mutation {
   """Records that an alarm rang for the occurrence at `at`."""
   markAlarmFired(at: DateTime!, id: ID!): Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
+  moveMailAccount(id: ID!, index: Int!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
 
   """Moves a project with its sub-projects."""
@@ -274,10 +443,20 @@ type Mutation {
   requestPasswordReset(identifier: String!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
 
+  """
+  Saves a draft in the drafts folder of its account, replacing its previous version.
+  """
+  saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
+
+  """Sends a mail; returns the projects it was linked to."""
+  sendMail(input: SendMailInput!): [ID!]!
+
   """Archiving cascades to the active projects; restoring brings them back."""
   setClientArchived(archived: Boolean!, id: ID!): Client!
   setClientFavorite(favorite: Boolean!, id: ID!): Client!
   setDefaultTaskView(id: ID!): Boolean!
+  setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
+  setMailSignature(id: ID!, signature: String!): MailAccount!
 
   """
   Archiving cascades to sub-projects; restoring a project restores its archived ancestors and client.
@@ -305,11 +484,18 @@ type Mutation {
   startTimer(input: TimerInput!): TimeEntry!
   stopTimer: TimeEntry
 
+  """
+  Connects to the IMAP and SMTP servers; empty passwords use those saved for `id`.
+  """
+  testMailAccount(id: ID, input: MailAccountInput!): Boolean!
+
   """Moves the task and its sub-tasks to another project."""
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
+  unlinkMail(id: ID!): Boolean!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
+  updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
@@ -422,12 +608,26 @@ type Query {
   clients: [Client!]!
   contributors: [Contributor!]!
   health: String!
+  mailAccounts: [MailAccount!]!
+
+  """Opens a draft to go on writing it."""
+  mailDraft(accountId: ID!, folder: String!, uid: Int!): MailDraft!
+  mailFolders(accountId: ID!): [MailFolder!]!
+
+  """Opens a message (and marks it as read)."""
+  mailMessage(accountId: ID!, folder: String!, uid: Int!): MailView!
+
+  """A page of a folder, latest first."""
+  mailMessages(accountId: ID!, folder: String!, page: Int!, search: String): MailPage!
 
   """Ids of the tasks matching a filter, in manual order."""
   matchingTaskIds(query: TaskQueryInput!): [ID!]!
   me: User
   milestones: [Milestone!]!
   projectCategories: [ProjectCategory!]!
+
+  """Mails linked to a project, latest first."""
+  projectMails(projectId: ID!): [LinkedMail!]!
   projectStatuses: [ProjectStatus!]!
 
   """Every project, archived ones included, in manual order."""
@@ -450,6 +650,54 @@ type Query {
   Time entries, latest first: those of a project and its sub-projects, or every entry.
   """
   timeEntries(projectId: ID): [TimeEntry!]!
+
+  """Unread mails in the inbox of every account."""
+  unreadMailCount: Int!
+}
+
+input SaveMailDraftInput {
+  accountId: ID!
+  attachments: [File!]
+  attachmentsFrom: MailAttachmentsFromInput
+  bcc: [String!]
+  cc: [String!]
+  html: String!
+  inReplyTo: String
+  projectId: ID
+  references: [String!]
+
+  """Previous version of the draft, replaced."""
+  replace: MailLocationInput
+  subject: String!
+  to: [String!]!
+}
+
+type SavedMailDraft {
+  accountId: ID!
+  attachments: [MailAttachmentInfo!]!
+  folder: String!
+  uid: Int!
+}
+
+input SendMailInput {
+  accountId: ID!
+  attachments: [File!]
+  attachmentsFrom: MailAttachmentsFromInput
+  bcc: [String!]
+  cc: [String!]
+
+  """Draft the mail comes from, deleted once sent."""
+  draft: MailLocationInput
+
+  """Body, signature and quote included."""
+  html: String!
+  inReplyTo: String
+
+  """Project the mail is written from: the sent mail is linked to it."""
+  projectId: ID
+  references: [String!]
+  subject: String!
+  to: [String!]!
 }
 
 type Task {

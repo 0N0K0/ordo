@@ -43,6 +43,7 @@ import {
   type TreeSection,
 } from '../tree';
 import { useEntityActions, type EntityRef } from '../use-entity-actions';
+import { MailNavLink } from '../../mail/MailNavLink';
 import { ActiveTree } from './ActiveTree';
 import { SidebarSection } from './SidebarSection';
 import { StaticTree } from './StaticTrees';
@@ -210,6 +211,7 @@ export function Sidebar() {
         leftSection={<HouseIcon aria-hidden />}
         active={pathname === '/'}
       />
+      <MailNavLink active={pathname === '/mail'} />
       <NavLink
         component={Link}
         to="/alarms"
