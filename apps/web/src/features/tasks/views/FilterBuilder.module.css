@@ -1,0 +1,34 @@
+@layer app {
+  .group {
+    /* Arrière-Plan */
+    &[data-depth='2'],
+    &[data-depth='4'] {
+      background-color: var(--mantine-color-default-hover);
+    }
+  }
+
+  .child {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Espacement */
+    gap: calc(var(--mantine-spacing-xs) / 2);
+  }
+
+  .joiner {
+    /* Espacement */
+    padding-left: var(--mantine-spacing-xs);
+  }
+
+  .condition {
+    /* Dimension */
+    border-radius: var(--mantine-radius-sm);
+
+    /* Bordures */
+    &[data-incomplete] {
+      outline: 1px dashed var(--mantine-color-orange-5);
+      outline-offset: 2px;
+    }
+  }
+}

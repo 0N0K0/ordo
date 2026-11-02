@@ -1,0 +1,224 @@
+@layer app {
+  .table {
+    /* Dimension */
+    table-layout: fixed;
+  }
+
+  .header {
+    /* Position */
+    position: relative;
+
+    /* Bordures */
+    border-right: 1px solid var(--mantine-color-default-border);
+
+    &:last-child {
+      border-right: 0;
+    }
+
+    /* Effets */
+    &[data-dragging] {
+      opacity: 0.6;
+    }
+
+    /* Interaction */
+    cursor: grab;
+
+    /* Dimension */
+    overflow: hidden;
+
+    /* Typographie */
+    white-space: nowrap;
+  }
+
+  /* Title (and sort mark) on the left, column menu on the right. */
+  .headerContent {
+    /* Agencement */
+    justify-content: space-between;
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  .headerMenu {
+    /* Agencement */
+    display: inline-flex;
+    flex: none;
+
+    /* Effets */
+    opacity: 0;
+
+    .header:hover &,
+    &:focus-within,
+    .header[data-dragging] & {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+  }
+
+  .sortButton {
+    /* Agencement */
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+
+    /* Dimension */
+    min-width: 0;
+    max-width: 100%;
+
+    /* Espacement */
+    gap: 4px;
+    padding: 0;
+
+    /* Typographie */
+    font: inherit;
+    color: inherit;
+    text-align: left;
+
+    /* Arrière-Plan */
+    background: none;
+
+    /* Bordures */
+    border: 0;
+
+    /* Interaction */
+    cursor: pointer;
+  }
+
+  .sortMark {
+    /* Typographie */
+    color: var(--mantine-primary-color-filled);
+  }
+
+  .resizer {
+    /* Position */
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    /* Dimension */
+    width: 5px;
+
+    /* Arrière-Plan */
+    background-color: transparent;
+
+    &:hover,
+    &[data-resizing] {
+      background-color: var(--mantine-primary-color-filled);
+    }
+
+    /* Interaction */
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .row {
+    /* Arrière-Plan */
+    &[data-selected] {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    &[data-active] {
+      background-color: var(--mantine-primary-color-light-hover);
+    }
+
+    /* Effets */
+    &[data-archived] {
+      opacity: 0.6;
+    }
+
+    &[data-dragging] {
+      opacity: 0.5;
+    }
+
+    /* Future parent of the dragged task. */
+    &[data-drop-target] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      outline: 1px solid var(--mantine-primary-color-filled);
+      outline-offset: -1px;
+    }
+
+    & td {
+      /* Dimension */
+      overflow: hidden;
+    }
+
+    /* Cells of the column selection (edited together). */
+    & td[data-cell-selected] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      outline: 1px solid var(--mantine-primary-color-filled);
+      outline-offset: -1px;
+    }
+  }
+
+  .groupRow {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+  }
+
+  /* The group name stays visible when the table scrolls horizontally. */
+  .groupLabel {
+    /* Position */
+    position: sticky;
+    left: var(--mantine-spacing-xs);
+
+    /* Dimension */
+    width: fit-content;
+  }
+
+  .titleCell {
+    /* Espacement */
+    padding-left: calc(var(--mantine-spacing-xs) + var(--row-depth, 0) * var(--mantine-spacing-lg));
+
+    /* Animation */
+    transition: padding-left 120ms ease;
+  }
+
+  .chevron {
+    /* Effets */
+    transform: rotate(0deg);
+
+    &[data-expanded] {
+      transform: rotate(90deg);
+    }
+
+    /* Animation */
+    transition: transform 150ms ease;
+  }
+
+  .chevronSpacer,
+  .handleSpacer {
+    /* Agencement */
+    flex: none;
+
+    /* Dimension */
+    width: calc(1.375rem * var(--mantine-scale));
+  }
+
+  .handle {
+    /* Effets */
+    opacity: 0;
+
+    .row:hover &,
+    &:focus-visible {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+
+    /* Interaction */
+    cursor: grab;
+  }
+}

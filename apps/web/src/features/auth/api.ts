@@ -11,6 +11,7 @@ graphql(`
     username
     email
     pendingEmail
+    contributorId
   }
 `);
 

@@ -1,0 +1,118 @@
+@layer app {
+  /* Cell fields: borderless, filling the cell; a border shows on hover and focus. */
+  .root {
+    /* Dimension */
+    width: 100%;
+  }
+
+  .input {
+    /* Dimension */
+    min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs) / 2);
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    padding-inline: calc(var(--mantine-spacing-xs) / 2);
+
+    /* Room for the color swatch: the unstyled variant does not reserve it. */
+    .root:has(.section[data-position='left']) & {
+      padding-inline-start: calc(var(--mantine-spacing-xs) * 2.25);
+    }
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    color: inherit;
+
+    /* Bordures */
+    outline: 1px solid transparent;
+
+    &:hover,
+    &:focus,
+    &:focus-within,
+    &[data-expanded] {
+      outline-color: var(--mantine-color-default-border);
+    }
+
+    &::placeholder {
+      color: var(--mantine-color-dimmed);
+    }
+
+    /* Interaction */
+    cursor: pointer;
+  }
+
+  /* Chevrons and clear buttons only on hover, to keep the table readable. */
+  .section[data-position='right'] {
+    /* Effets */
+    opacity: 0;
+
+    .root:hover &,
+    .root:focus-within & {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+  }
+
+  /* Pills stay on one line; extra ones are cut. */
+  .pills {
+    /* Agencement */
+    flex-wrap: nowrap;
+
+    /* Dimension */
+    overflow: hidden;
+  }
+
+  /* Chip cells (status, priority, type): the chip is the value, the whole cell opens the list. */
+  .chipTrigger {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    width: 100%;
+    min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs) / 2);
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    padding-inline: calc(var(--mantine-spacing-xs) / 2);
+
+    /* Bordures */
+    outline: 1px solid transparent;
+
+    &:hover,
+    &:focus-visible,
+    &[data-expanded] {
+      outline-color: var(--mantine-color-default-border);
+    }
+  }
+
+  .placeholder {
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+  }
+
+  /* Title cell: the links keep their width, the rest of the cell is the double-click area. */
+  .titleArea {
+    /* Agencement */
+    flex: 1;
+
+    /* Dimension */
+    min-width: 0;
+    min-height: calc(var(--mantine-spacing-xl) + var(--mantine-spacing-xs) / 2);
+
+    /* Interaction */
+    cursor: text;
+    user-select: none;
+  }
+
+  .titleLink {
+    /* Agencement */
+    flex: 0 1 auto;
+
+    /* Interaction */
+    cursor: pointer;
+  }
+}

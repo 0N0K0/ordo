@@ -14,18 +14,21 @@ datasource db {
 }
 
 model User {
-  id           String      @id @default(cuid())
+  id            String       @id @default(cuid())
   /// Lowercase, unique login name.
-  username     String      @unique
+  username      String       @unique
   /// Lowercase, unique email address.
-  email        String      @unique
+  email         String       @unique
   /// New email address awaiting confirmation.
-  pendingEmail String?
-  passwordHash String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  sessions     Session[]
-  authTokens   AuthToken[]
+  pendingEmail  String?
+  passwordHash  String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  sessions      Session[]
+  authTokens    AuthToken[]
+  /// Contributor profile of the user: tasks can be assigned to them like to anyone else.
+  contributorId String?      @unique
+  contributor   Contributor? @relation(fields: [contributorId], references: [id], onDelete: SetNull)
 }
 
 model Session {
@@ -65,12 +68,13 @@ model AuthToken {
 
 /// Uploaded image, stored apart so lists never load the bytes.
 model Icon {
-  id        String    @id @default(cuid())
-  mimeType  String
-  data      Bytes
-  createdAt DateTime  @default(now())
-  clients   Client[]
-  projects  Project[]
+  id           String        @id @default(cuid())
+  mimeType     String
+  data         Bytes
+  createdAt    DateTime      @default(now())
+  clients      Client[]
+  projects     Project[]
+  contributors Contributor[]
 }
 
 model Client {
@@ -117,6 +121,12 @@ model Project {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   categories        ProjectCategory[]
+  tasks             Task[]
+
+  milestones   Milestone[]
+  taskViews    TaskView[]
+  /// Contributors attached to the project (and, through it, to its sub-projects).
+  contributors Contributor[] @relation("ProjectContributors")
 
   @@index([clientId])
   @@index([parentId])
@@ -142,4 +152,185 @@ model ProjectStatus {
   position  Int       @default(0)
   createdAt DateTime  @default(now())
   projects  Project[]
+}
+
+/// Person who can be assigned to tasks.
+model Contributor {
+  id        String    @id @default(cuid())
+  name      String
+  /// Unique identifier used in @mentions.
+  handle    String    @unique
+  iconId    String?
+  icon      Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  tasks     Task[]
+  /// Projects the contributor is attached to; sub-projects inherit them.
+  projects  Project[] @relation("ProjectContributors")
+  /// Set when this contributor is the app user ("Moi").
+  user      User?
+}
+
+/// Fixed meaning of a task status, whatever its name: drives "open", "overdue" and progress.
+enum TaskStatusCategory {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model TaskStatus {
+  id        String             @id @default(cuid())
+  name      String             @unique
+  /// Hex color, e.g. #228be6.
+  color     String
+  category  TaskStatusCategory @default(TODO)
+  position  Int                @default(0)
+  createdAt DateTime           @default(now())
+  tasks     Task[]
+}
+
+model TaskPriority {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  /// Hex color, e.g. #228be6.
+  color     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  tasks     Task[]
+}
+
+model TaskType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  /// Hex color, e.g. #228be6.
+  color     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  tasks     Task[]
+}
+
+model Task {
+  id                String         @id @default(cuid())
+  /// Human-readable number (#12), global and stable across transfers.
+  number            Int            @unique @default(autoincrement())
+  title             String
+  /// Markdown.
+  description       String?
+  projectId         String
+  project           Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  statusId          String?
+  status            TaskStatus?    @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  priorityId        String?
+  priority          TaskPriority?  @relation(fields: [priorityId], references: [id], onDelete: SetNull)
+  typeId            String?
+  type              TaskType?      @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  milestoneId       String?
+  milestone         Milestone?     @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  effort            Float?
+  startDate         DateTime?      @db.Date
+  endDate           DateTime?      @db.Date
+  /// Parent task, possibly in another project of the same tree.
+  parentId          String?
+  parent            Task?          @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children          Task[]         @relation("TaskTree")
+  /// Global manual order.
+  position          Int            @default(0)
+  /// Closed (done) task: it no longer blocks, is never overdue and counts as done. Independent of the status.
+  closedAt          DateTime?
+  archivedAt        DateTime?
+  /// Archived along with its parent task: restoring the parent restores it.
+  archivedByCascade Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  assignees         Contributor[]
+  /// Tasks this task blocks.
+  blocking          TaskBlock[]    @relation("Blocker")
+  /// Tasks blocking this task.
+  blockedBy         TaskBlock[]    @relation("Blocked")
+  /// Symmetric relations, stored once with taskAId < taskBId.
+  relationsA        TaskRelation[] @relation("RelationA")
+  relationsB        TaskRelation[] @relation("RelationB")
+  comments          TaskComment[]
+
+  @@index([projectId])
+  @@index([parentId])
+  @@index([milestoneId])
+  @@index([closedAt])
+}
+
+/// "blocker blocks blocked".
+model TaskBlock {
+  blockerId String
+  blocker   Task   @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   Task   @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+/// "related to", symmetric.
+model TaskRelation {
+  taskAId String
+  taskA   Task   @relation("RelationA", fields: [taskAId], references: [id], onDelete: Cascade)
+  taskBId String
+  taskB   Task   @relation("RelationB", fields: [taskBId], references: [id], onDelete: Cascade)
+
+  @@id([taskAId, taskBId])
+  @@index([taskBId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /// Markdown.
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+}
+
+/// Saved task table view: filters, sorting, columns and grouping (JSON validated by @ordo/shared).
+model TaskView {
+  id        String   @id @default(cuid())
+  name      String
+  config    Json
+  /// Project whose task tab shows the view; null for the home page.
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Opened first in its project (or on the home page); at most one per scope.
+  isDefault Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Project milestone, usable by the tasks of the project and its sub-projects.
+model Milestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  /// Markdown.
+  description String?
+  dueDate     DateTime? @db.Date
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tasks       Task[]
+
+  @@index([projectId])
+}
+
+/// File attached to a markdown text (description, comment…) and linked from it.
+model Attachment {
+  id        String   @id @default(cuid())
+  /// Original file name, used for the download.
+  name      String
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
 }

@@ -12,7 +12,7 @@ const config: CodegenConfig = {
         documentMode: 'string',
         enumsAsTypes: true,
         useTypeImports: true,
-        scalars: { File: 'File', Date: 'string' },
+        scalars: { File: 'File', Date: 'string', DateTime: 'string' },
       },
     },
   },

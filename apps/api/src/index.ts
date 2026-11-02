@@ -6,6 +6,7 @@ import { env, isProd } from './env';
 import { createContext, type ServerContext } from './graphql/context';
 import { writeSchemaFile } from './graphql/print-schema';
 import { schema } from './graphql/schema';
+import { attachmentsRouter } from './routes/attachments';
 import { iconsRouter } from './routes/icons';
 
 const disableIntrospection: Plugin = {
@@ -35,6 +36,7 @@ app.set('trust proxy', 'loopback');
 // GraphiQL loads its assets from a CDN: CSP only in production.
 app.use(helmet({ contentSecurityPolicy: isProd ? undefined : false }));
 app.use('/api/icons', iconsRouter);
+app.use('/api/attachments', attachmentsRouter);
 app.use(yoga.graphqlEndpoint, async (req, res) => {
   await yoga(req, res);
 });

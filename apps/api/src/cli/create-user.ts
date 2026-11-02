@@ -35,6 +35,16 @@ await passwordPrompt({
   validate: (value) => value === password || 'Les mots de passe ne correspondent pas.',
 });
 
-await prisma.user.create({ data: { username, email, passwordHash: await hashPassword(password) } });
+// The user gets a contributor profile ("Moi") so tasks can be assigned to them.
+const baseHandle = username.replace(/[^a-z0-9_-]/g, '-');
+const taken = await prisma.contributor.findUnique({ where: { handle: baseHandle } });
+await prisma.user.create({
+  data: {
+    username,
+    email,
+    passwordHash: await hashPassword(password),
+    contributor: { create: { name: username, handle: taken ? `${baseHandle}-moi` : baseHandle } },
+  },
+});
 await prisma.$disconnect();
 console.log(`Compte « ${username} » créé.`);
