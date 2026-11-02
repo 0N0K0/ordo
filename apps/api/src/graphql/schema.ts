@@ -8,5 +8,6 @@ import './modules/time';
 import './modules/mail';
 import './modules/calendar';
 import './modules/accounting';
+import './modules/accounting-documents';
 
 export const schema = builder.toSchema();

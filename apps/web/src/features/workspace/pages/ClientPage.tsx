@@ -2,6 +2,7 @@ import { Button, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { FolderPlusIcon, FoldersIcon } from '@phosphor-icons/react';
 import { useParams } from 'react-router';
 import { ClientBillingSection } from '../../accounting/ClientBillingSection';
+import { ProjectBillingPanel } from '../../accounting/ProjectBillingPanel';
 import { useWorkspace } from '../api';
 import { useEntityActions } from '../use-entity-actions';
 import { EntityHeader } from './EntityHeader';
@@ -46,6 +47,8 @@ export function ClientPage() {
       />
 
       <ClientBillingSection clientId={client.id} />
+
+      <ProjectBillingPanel clientId={client.id} />
 
       <Stack gap="sm">
         <Title order={2} size="h4">

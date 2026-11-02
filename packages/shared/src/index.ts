@@ -8,3 +8,4 @@ export * from './mail';
 export * from './recurrence';
 export * from './calendar';
 export * from './accounting';
+export * from './accounting-documents';

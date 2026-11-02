@@ -1,4 +1,4 @@
-import { ACCOUNTING_DOCUMENT_TYPES, companyProfileSchema, type AccountingDocumentType, type CompanyProfileInput } from '@ordo/shared';
+import { ACCOUNTING_DOCUMENT_TYPES, companyProfileSchema, documentNumber, type AccountingDocumentType, type CompanyProfileInput } from '@ordo/shared';
 import { prisma } from '../db';
 import type { CompanyProfile } from '../generated/prisma/client';
 import { clientError, parseInput } from '../graphql/errors';
@@ -53,7 +53,7 @@ export interface SequenceInfo {
 }
 
 /**
- * Highest counter already given to a final document of a type in a year.
+ * Highest counter already given to a final document of a type in a year (imported documents included).
  * @param {AccountingDocumentType} type Type.
  * @param {number} year Year.
  * @returns {Promise<number>} Counter, 0 when none.
@@ -61,7 +61,11 @@ export interface SequenceInfo {
 export async function usedCounter(type: AccountingDocumentType, year: number): Promise<number> {
   const rows = await prisma.$queryRaw<{ max: number | null }[]>`
     SELECT MAX("counter") AS max FROM "AccountingDocument" WHERE "type"::text = ${type} AND "year" = ${year} AND "counter" IS NOT NULL`;
-  return Number(rows[0]?.max ?? 0);
+  // Imported documents numbered in the same format count too: Ordo goes on after them.
+  const prefix = documentNumber(type, year, 0).slice(0, -5);
+  const imported = await prisma.importedDocument.findMany({ where: { type, number: { startsWith: prefix } }, select: { number: true } });
+  const importedMax = Math.max(0, ...imported.map((item) => item.number.slice(prefix.length)).filter((digits) => /^\d{5}$/.test(digits)).map(Number));
+  return Math.max(Number(rows[0]?.max ?? 0), importedMax);
 }
 
 /**

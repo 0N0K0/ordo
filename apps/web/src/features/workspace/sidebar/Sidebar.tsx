@@ -24,6 +24,7 @@ import {
   HouseIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  ReceiptIcon,
   SortAscendingIcon,
   UserPlusIcon,
   UsersThreeIcon,
@@ -220,6 +221,13 @@ export function Sidebar() {
         active={pathname === '/calendar'}
       />
       <MailNavLink active={pathname === '/mail'} />
+      <NavLink
+        component={Link}
+        to="/accounting"
+        label="Facturation"
+        leftSection={<ReceiptIcon aria-hidden />}
+        active={pathname.startsWith('/accounting')}
+      />
       <NavLink
         component={Link}
         to="/alarms"

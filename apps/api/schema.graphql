@@ -1,8 +1,137 @@
+type AccountingAttachment {
+  id: ID!
+  name: String!
+  size: Int!
+  url: String!
+}
+
+type AccountingDocument {
+  attachments: [AccountingAttachment!]!
+  buyer: JSON
+  clientId: ID!
+  clientName: String!
+  conclusion: String
+  contactId: ID
+  currency: String!
+  derived: [AccountingDocument!]!
+  dueDate: Date
+  finalizedAt: DateTime
+  globalDiscountType: DiscountType
+  globalDiscountValue: Float
+  id: ID!
+  introduction: String
+
+  """
+  Quotes: amount excluding VAT already invoiced on it (final invoices minus credit notes).
+  """
+  invoicedNet: Float
+  issueDate: Date!
+  lateInterest: String
+  lines: [AccountingLine!]!
+  number: String
+  otherMentions: String
+  paymentMethods: String
+  paymentTerms: String
+  projectId: ID
+  recurringId: ID
+  referenceLabel: String
+  referenceValue: String
+  seller: JSON
+  serviceEnd: Date
+  serviceId: ID
+  serviceStart: Date
+  showBankDetails: Boolean!
+  sourceId: ID
+  sourceNumber: String
+  status: AccountingDocumentStatus!
+  title: String
+  totalGross: Float!
+  totalNet: Float!
+  totalVat: Float!
+  type: AccountingDocumentType!
+  updatedAt: DateTime!
+  vatApplicable: Boolean!
+  vatExemptionText: String
+}
+
+input AccountingDocumentInput {
+  clientId: ID!
+  conclusion: String
+  contactId: ID
+  dueDate: Date
+  globalDiscountType: DiscountType
+  globalDiscountValue: Float
+  introduction: String
+  issueDate: Date!
+  lateInterest: String
+  lines: [AccountingLineInput!]!
+  otherMentions: String
+  paymentMethods: String
+  paymentTerms: String
+  projectId: ID
+  referenceLabel: String
+  referenceValue: String
+  serviceEnd: Date
+  serviceId: ID
+  serviceStart: Date
+  showBankDetails: Boolean!
+  title: String
+  vatApplicable: Boolean!
+}
+
+enum AccountingDocumentStatus {
+  DRAFT
+  FINAL
+  TEMPLATE
+}
+
 enum AccountingDocumentType {
   CREDIT_NOTE
   DEPOSIT_INVOICE
   INVOICE
   QUOTE
+}
+
+type AccountingLine {
+  description: String
+  discountType: DiscountType
+  discountValue: Float
+  id: ID!
+  kind: AccountingLineKind!
+  position: Int!
+  quantity: Float!
+  title: String!
+  unit: AccountingUnit!
+  unitPrice: Float!
+  vatRate: Float!
+}
+
+input AccountingLineInput {
+  description: String
+  discountType: DiscountType
+  discountValue: Float
+  kind: AccountingLineKind!
+  quantity: Float!
+  title: String!
+  unit: AccountingUnit!
+  unitPrice: Float!
+  vatRate: Float!
+}
+
+enum AccountingLineKind {
+  DEDUCTION
+  DISBURSEMENT
+  ITEM
+  TEXT
+}
+
+enum AccountingUnit {
+  DAY
+  DEPOSIT
+  FLAT
+  HOUR
+  MONTH
+  UNIT
 }
 
 type Alarm {
@@ -353,6 +482,11 @@ scalar Date
 """Instant, ISO 8601."""
 scalar DateTime
 
+enum DiscountType {
+  AMOUNT
+  PERCENT
+}
+
 type DocumentSequence {
   """Lowest allowed next number."""
   minimum: Int!
@@ -363,6 +497,42 @@ type DocumentSequence {
 
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
+
+"""Quote or invoice issued before Ordo: main information and file."""
+type ImportedDocument {
+  clientId: ID
+  clientName: String!
+  currency: String!
+  dueDate: Date
+  fileName: String
+  fileUrl: String
+  id: ID!
+  issueDate: Date!
+  note: String
+  number: String!
+  projectId: ID
+  title: String
+  totalGross: Float!
+  totalNet: Float!
+  totalVat: Float!
+  type: AccountingDocumentType!
+}
+
+input ImportedDocumentInput {
+  clientId: ID
+  clientName: String
+  currency: String!
+  dueDate: Date
+  issueDate: Date!
+  note: String
+  number: String!
+  projectId: ID
+  title: String
+  totalGross: Float!
+  totalNet: Float!
+  totalVat: Float!
+  type: AccountingDocumentType!
+}
 
 """Arbitrary JSON value, validated by the resolver that receives it."""
 scalar JSON
@@ -548,6 +718,10 @@ input MilestoneUpdateInput {
 }
 
 type Mutation {
+  addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
+  addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
+  addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
+
   """blockerId blocks blockedId."""
   addTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   addTaskComment(body: String!, taskId: ID!): TaskComment!
@@ -571,6 +745,7 @@ type Mutation {
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
+  createAccountingDocument(input: AccountingDocumentInput!, type: AccountingDocumentType!): ID!
   createAlarm(input: AlarmInput!): Alarm!
   createCalendarCategory(input: CalendarCategoryInput!): CalendarCategory!
   createCalendarEvent(input: CalendarEventInput!): ID!
@@ -578,17 +753,22 @@ type Mutation {
   createClientContact(clientId: ID!, input: ClientContactInput!): ClientContact!
   createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
   createContributor(input: ContributorInput!): Contributor!
+
+  """Invoice or deposit invoice from a quote, credit note from an invoice."""
+  createDocumentFrom(depositPercent: Float, issueDate: Date!, sourceId: ID!, type: AccountingDocumentType!): ID!
   createMailAccount(input: MailAccountInput!): MailAccount!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
+  createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
   createTask(input: TaskInput!): Task!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
   createTaskStatus(input: TaskLabelInput!): TaskStatus!
   createTaskType(input: TaskLabelInput!): TaskType!
   createTaskView(input: TaskViewInput!): TaskView!
   createTimeEntry(input: TimeEntryInput!): TimeEntry!
+  deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
   deleteCalendarCategory(id: ID!): Boolean!
   deleteCalendarEvent(id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
@@ -600,6 +780,7 @@ type Mutation {
   deleteClientContact(id: ID!): Boolean!
   deleteClientService(id: ID!): Boolean!
   deleteContributor(id: ID!): Boolean!
+  deleteImportedDocument(id: ID!): Boolean!
   deleteMailAccount(id: ID!): Boolean!
 
   """Deletes a draft for good."""
@@ -612,7 +793,9 @@ type Mutation {
   """Deletes the project and all its sub-projects."""
   deleteProject(id: ID!): Boolean!
   deleteProjectCategory(id: ID!): Boolean!
+  deleteProjectResource(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
+  deleteRecurringInvoice(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
     deleteSubtasks: Boolean!
@@ -624,7 +807,15 @@ type Mutation {
   deleteTaskType(id: ID!): Boolean!
   deleteTaskView(id: ID!): Boolean!
   deleteTimeEntry(id: ID!): Boolean!
+  duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
+
+  """Makes a draft final; returns its number."""
+  finalizeAccountingDocument(id: ID!): String!
+  importDocument(file: File, input: ImportedDocumentInput!): ID!
+
+  """Issues the recurring invoices due today (also done every hour)."""
+  issueDueRecurringInvoices(today: Date!): Int!
 
   """Links a mail to a project (a copy is kept in Ordo)."""
   linkMail(accountId: ID!, folder: String!, projectId: ID!, uid: Int!): LinkedMail!
@@ -657,6 +848,7 @@ type Mutation {
     """Target parent project, null for a root project."""
     parentId: ID
   ): Boolean!
+  moveProjectResource(id: ID!, index: Int!): Boolean!
   moveProjectStatus(id: ID!, index: Int!): Boolean!
 
   """
@@ -667,6 +859,7 @@ type Mutation {
   moveTaskStatus(id: ID!, index: Int!): Boolean!
   moveTaskType(id: ID!, index: Int!): Boolean!
   moveTaskView(id: ID!, index: Int!): Boolean!
+  removeAccountingAttachment(attachmentId: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
 
@@ -739,6 +932,7 @@ type Mutation {
   """Moves the task and its sub-tasks to another project."""
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
   unlinkMail(id: ID!): Boolean!
+  updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
   updateCalendarCategory(id: ID!, input: CalendarCategoryInput!): CalendarCategory!
 
@@ -752,11 +946,14 @@ type Mutation {
   updateClientService(id: ID!, input: ClientServiceInput!): ClientService!
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
+  updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
+  updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
   updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
+  updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
   updateTaskComment(body: String!, id: ID!): TaskComment!
   updateTaskPriority(id: ID!, input: TaskLabelUpdateInput!): TaskPriority!
@@ -819,6 +1016,22 @@ input ProjectInput {
   title: String!
 }
 
+type ProjectResource {
+  createdAt: DateTime!
+  id: ID!
+  kind: ProjectResourceKind!
+  note: String
+  projectId: ID!
+  size: Int
+  title: String!
+  url: String!
+}
+
+enum ProjectResourceKind {
+  FILE
+  LINK
+}
+
 type ProjectStatus {
   color: String!
   id: ID!
@@ -859,6 +1072,12 @@ input ProjectUpdateInput {
 }
 
 type Query {
+  accountingDocument(id: ID!): AccountingDocument
+
+  """
+  Documents (recurring models excluded), latest first, optionally of a client or a project.
+  """
+  accountingDocuments(clientId: ID, projectId: ID): [AccountingDocument!]!
   alarms: [Alarm!]!
   calendarCategories: [CalendarCategory!]!
 
@@ -872,6 +1091,11 @@ type Query {
   contributors: [Contributor!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   health: String!
+
+  """
+  Imported quotes and invoices, latest first, optionally of a client or a project.
+  """
+  importedDocuments(clientId: ID, projectId: ID): [ImportedDocument!]!
   mailAccounts: [MailAccount!]!
 
   """Opens a draft to go on writing it."""
@@ -888,14 +1112,21 @@ type Query {
   matchingTaskIds(query: TaskQueryInput!): [ID!]!
   me: User
   milestones: [Milestone!]!
+
+  """
+  Fields of a new document of a client (company terms and mentions, dates).
+  """
+  newDocumentDefaults(clientId: ID!, issueDate: Date!, type: AccountingDocumentType!): JSON!
   projectCategories: [ProjectCategory!]!
 
   """Mails linked to a project, latest first."""
   projectMails(projectId: ID!): [LinkedMail!]!
+  projectResources(projectId: ID!): [ProjectResource!]!
   projectStatuses: [ProjectStatus!]!
 
   """Every project, archived ones included, in manual order."""
   projects: [Project!]!
+  recurringInvoices: [RecurringInvoice!]!
   runningTimeEntry: TimeEntry
   task(number: Int!): Task
   taskPriorities: [TaskPriority!]!
@@ -917,6 +1148,27 @@ type Query {
 
   """Unread mails in the inbox of every account."""
   unreadMailCount: Int!
+}
+
+type RecurringInvoice {
+  active: Boolean!
+  autoFinalize: Boolean!
+  id: ID!
+  issuedCount: Int!
+  name: String!
+  nextDate: Date
+  recurrence: JSON!
+  startDate: Date!
+  template: AccountingDocument!
+  templateId: ID!
+}
+
+input RecurringInvoiceInput {
+  active: Boolean!
+  autoFinalize: Boolean!
+  name: String!
+  recurrence: JSON!
+  startDate: Date!
 }
 
 input SaveMailDraftInput {

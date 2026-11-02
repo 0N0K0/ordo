@@ -28,6 +28,13 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
+// Final accounting documents are legal records: the purge would delete them with their clients.
+const finalDocuments = await prisma.accountingDocument.count({ where: { status: 'FINAL' } });
+if (finalDocuments > 0) {
+  console.error(`La base contient ${finalDocuments} document(s) comptable(s) définitif(s) : les fixtures ne sont pas chargées.`);
+  process.exit(1);
+}
+
 const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({

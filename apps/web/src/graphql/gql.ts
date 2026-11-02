@@ -29,6 +29,33 @@ type Documents = {
     "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": typeof types.CreateClientContactDocument,
     "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientContactDocument,
     "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n": typeof types.DeleteClientContactDocument,
+    "\n  fragment AccountingDocumentListFields on AccountingDocument {\n    id\n    type\n    status\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalGross\n    currency\n    invoicedNet\n    sourceNumber\n    recurringId\n  }\n": typeof types.AccountingDocumentListFieldsFragmentDoc,
+    "\n  fragment AccountingDocumentFields on AccountingDocument {\n    ...AccountingDocumentListFields\n    serviceStart\n    serviceEnd\n    serviceId\n    contactId\n    sourceId\n    derived {\n      id\n      type\n      status\n      number\n      totalGross\n    }\n    seller\n    buyer\n    introduction\n    referenceLabel\n    referenceValue\n    conclusion\n    paymentTerms\n    paymentMethods\n    lateInterest\n    otherMentions\n    showBankDetails\n    vatApplicable\n    vatExemptionText\n    globalDiscountType\n    globalDiscountValue\n    totalVat\n    finalizedAt\n    updatedAt\n    lines {\n      id\n      kind\n      title\n      description\n      quantity\n      unit\n      unitPrice\n      vatRate\n      discountType\n      discountValue\n    }\n    attachments {\n      id\n      name\n      size\n      url\n    }\n  }\n": typeof types.AccountingDocumentFieldsFragmentDoc,
+    "\n  query AccountingDocuments($clientId: ID, $projectId: ID) {\n    accountingDocuments(clientId: $clientId, projectId: $projectId) {\n      ...AccountingDocumentListFields\n    }\n  }\n": typeof types.AccountingDocumentsDocument,
+    "\n  query AccountingDocument($id: ID!) {\n    accountingDocument(id: $id) {\n      ...AccountingDocumentFields\n    }\n  }\n": typeof types.AccountingDocumentDocument,
+    "\n  query NewDocumentDefaults($type: AccountingDocumentType!, $clientId: ID!, $issueDate: Date!) {\n    newDocumentDefaults(type: $type, clientId: $clientId, issueDate: $issueDate)\n  }\n": typeof types.NewDocumentDefaultsDocument,
+    "\n  query RecurringInvoices {\n    recurringInvoices {\n      id\n      name\n      templateId\n      recurrence\n      startDate\n      nextDate\n      autoFinalize\n      active\n      issuedCount\n      template {\n        clientName\n        totalGross\n        currency\n      }\n    }\n  }\n": typeof types.RecurringInvoicesDocument,
+    "\n  query ProjectResources($projectId: ID!) {\n    projectResources(projectId: $projectId) {\n      id\n      kind\n      title\n      note\n      url\n      size\n      createdAt\n    }\n  }\n": typeof types.ProjectResourcesDocument,
+    "\n  mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {\n    createAccountingDocument(type: $type, input: $input)\n  }\n": typeof types.CreateAccountingDocumentDocument,
+    "\n  mutation UpdateAccountingDocument($id: ID!, $input: AccountingDocumentInput!) {\n    updateAccountingDocument(id: $id, input: $input)\n  }\n": typeof types.UpdateAccountingDocumentDocument,
+    "\n  mutation DeleteAccountingDocument($id: ID!) {\n    deleteAccountingDocument(id: $id)\n  }\n": typeof types.DeleteAccountingDocumentDocument,
+    "\n  mutation FinalizeAccountingDocument($id: ID!) {\n    finalizeAccountingDocument(id: $id)\n  }\n": typeof types.FinalizeAccountingDocumentDocument,
+    "\n  mutation CreateDocumentFrom($sourceId: ID!, $type: AccountingDocumentType!, $depositPercent: Float, $issueDate: Date!) {\n    createDocumentFrom(sourceId: $sourceId, type: $type, depositPercent: $depositPercent, issueDate: $issueDate)\n  }\n": typeof types.CreateDocumentFromDocument,
+    "\n  mutation DuplicateAccountingDocument($id: ID!, $issueDate: Date!) {\n    duplicateAccountingDocument(id: $id, issueDate: $issueDate)\n  }\n": typeof types.DuplicateAccountingDocumentDocument,
+    "\n  mutation AddAccountingAttachments($id: ID!, $files: [File!]!) {\n    addAccountingAttachments(id: $id, files: $files)\n  }\n": typeof types.AddAccountingAttachmentsDocument,
+    "\n  mutation RemoveAccountingAttachment($attachmentId: ID!) {\n    removeAccountingAttachment(attachmentId: $attachmentId)\n  }\n": typeof types.RemoveAccountingAttachmentDocument,
+    "\n  mutation CreateRecurringInvoice($documentId: ID!, $input: RecurringInvoiceInput!) {\n    createRecurringInvoice(documentId: $documentId, input: $input)\n  }\n": typeof types.CreateRecurringInvoiceDocument,
+    "\n  mutation UpdateRecurringInvoice($id: ID!, $input: RecurringInvoiceInput!) {\n    updateRecurringInvoice(id: $id, input: $input)\n  }\n": typeof types.UpdateRecurringInvoiceDocument,
+    "\n  mutation DeleteRecurringInvoice($id: ID!) {\n    deleteRecurringInvoice(id: $id)\n  }\n": typeof types.DeleteRecurringInvoiceDocument,
+    "\n  mutation AddProjectLink($projectId: ID!, $title: String!, $url: String!, $note: String) {\n    addProjectLink(projectId: $projectId, title: $title, url: $url, note: $note)\n  }\n": typeof types.AddProjectLinkDocument,
+    "\n  mutation AddProjectFiles($projectId: ID!, $files: [File!]!) {\n    addProjectFiles(projectId: $projectId, files: $files)\n  }\n": typeof types.AddProjectFilesDocument,
+    "\n  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {\n    updateProjectResource(id: $id, title: $title, url: $url, note: $note)\n  }\n": typeof types.UpdateProjectResourceDocument,
+    "\n  mutation DeleteProjectResource($id: ID!) {\n    deleteProjectResource(id: $id)\n  }\n": typeof types.DeleteProjectResourceDocument,
+    "\n  mutation MoveProjectResource($id: ID!, $index: Int!) {\n    moveProjectResource(id: $id, index: $index)\n  }\n": typeof types.MoveProjectResourceDocument,
+    "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n    }\n  }\n": typeof types.ImportedDocumentsDocument,
+    "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": typeof types.ImportDocumentDocument,
+    "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": typeof types.UpdateImportedDocumentDocument,
+    "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": typeof types.DeleteImportedDocumentDocument,
     "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": typeof types.AlarmFieldsFragmentDoc,
     "\n  query Alarms {\n    alarms {\n      ...AlarmFields\n    }\n  }\n": typeof types.AlarmsDocument,
     "\n  mutation CreateAlarm($input: AlarmInput!) {\n    createAlarm(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateAlarmDocument,
@@ -185,6 +212,33 @@ const documents: Documents = {
     "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": types.CreateClientContactDocument,
     "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientContactDocument,
     "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n": types.DeleteClientContactDocument,
+    "\n  fragment AccountingDocumentListFields on AccountingDocument {\n    id\n    type\n    status\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalGross\n    currency\n    invoicedNet\n    sourceNumber\n    recurringId\n  }\n": types.AccountingDocumentListFieldsFragmentDoc,
+    "\n  fragment AccountingDocumentFields on AccountingDocument {\n    ...AccountingDocumentListFields\n    serviceStart\n    serviceEnd\n    serviceId\n    contactId\n    sourceId\n    derived {\n      id\n      type\n      status\n      number\n      totalGross\n    }\n    seller\n    buyer\n    introduction\n    referenceLabel\n    referenceValue\n    conclusion\n    paymentTerms\n    paymentMethods\n    lateInterest\n    otherMentions\n    showBankDetails\n    vatApplicable\n    vatExemptionText\n    globalDiscountType\n    globalDiscountValue\n    totalVat\n    finalizedAt\n    updatedAt\n    lines {\n      id\n      kind\n      title\n      description\n      quantity\n      unit\n      unitPrice\n      vatRate\n      discountType\n      discountValue\n    }\n    attachments {\n      id\n      name\n      size\n      url\n    }\n  }\n": types.AccountingDocumentFieldsFragmentDoc,
+    "\n  query AccountingDocuments($clientId: ID, $projectId: ID) {\n    accountingDocuments(clientId: $clientId, projectId: $projectId) {\n      ...AccountingDocumentListFields\n    }\n  }\n": types.AccountingDocumentsDocument,
+    "\n  query AccountingDocument($id: ID!) {\n    accountingDocument(id: $id) {\n      ...AccountingDocumentFields\n    }\n  }\n": types.AccountingDocumentDocument,
+    "\n  query NewDocumentDefaults($type: AccountingDocumentType!, $clientId: ID!, $issueDate: Date!) {\n    newDocumentDefaults(type: $type, clientId: $clientId, issueDate: $issueDate)\n  }\n": types.NewDocumentDefaultsDocument,
+    "\n  query RecurringInvoices {\n    recurringInvoices {\n      id\n      name\n      templateId\n      recurrence\n      startDate\n      nextDate\n      autoFinalize\n      active\n      issuedCount\n      template {\n        clientName\n        totalGross\n        currency\n      }\n    }\n  }\n": types.RecurringInvoicesDocument,
+    "\n  query ProjectResources($projectId: ID!) {\n    projectResources(projectId: $projectId) {\n      id\n      kind\n      title\n      note\n      url\n      size\n      createdAt\n    }\n  }\n": types.ProjectResourcesDocument,
+    "\n  mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {\n    createAccountingDocument(type: $type, input: $input)\n  }\n": types.CreateAccountingDocumentDocument,
+    "\n  mutation UpdateAccountingDocument($id: ID!, $input: AccountingDocumentInput!) {\n    updateAccountingDocument(id: $id, input: $input)\n  }\n": types.UpdateAccountingDocumentDocument,
+    "\n  mutation DeleteAccountingDocument($id: ID!) {\n    deleteAccountingDocument(id: $id)\n  }\n": types.DeleteAccountingDocumentDocument,
+    "\n  mutation FinalizeAccountingDocument($id: ID!) {\n    finalizeAccountingDocument(id: $id)\n  }\n": types.FinalizeAccountingDocumentDocument,
+    "\n  mutation CreateDocumentFrom($sourceId: ID!, $type: AccountingDocumentType!, $depositPercent: Float, $issueDate: Date!) {\n    createDocumentFrom(sourceId: $sourceId, type: $type, depositPercent: $depositPercent, issueDate: $issueDate)\n  }\n": types.CreateDocumentFromDocument,
+    "\n  mutation DuplicateAccountingDocument($id: ID!, $issueDate: Date!) {\n    duplicateAccountingDocument(id: $id, issueDate: $issueDate)\n  }\n": types.DuplicateAccountingDocumentDocument,
+    "\n  mutation AddAccountingAttachments($id: ID!, $files: [File!]!) {\n    addAccountingAttachments(id: $id, files: $files)\n  }\n": types.AddAccountingAttachmentsDocument,
+    "\n  mutation RemoveAccountingAttachment($attachmentId: ID!) {\n    removeAccountingAttachment(attachmentId: $attachmentId)\n  }\n": types.RemoveAccountingAttachmentDocument,
+    "\n  mutation CreateRecurringInvoice($documentId: ID!, $input: RecurringInvoiceInput!) {\n    createRecurringInvoice(documentId: $documentId, input: $input)\n  }\n": types.CreateRecurringInvoiceDocument,
+    "\n  mutation UpdateRecurringInvoice($id: ID!, $input: RecurringInvoiceInput!) {\n    updateRecurringInvoice(id: $id, input: $input)\n  }\n": types.UpdateRecurringInvoiceDocument,
+    "\n  mutation DeleteRecurringInvoice($id: ID!) {\n    deleteRecurringInvoice(id: $id)\n  }\n": types.DeleteRecurringInvoiceDocument,
+    "\n  mutation AddProjectLink($projectId: ID!, $title: String!, $url: String!, $note: String) {\n    addProjectLink(projectId: $projectId, title: $title, url: $url, note: $note)\n  }\n": types.AddProjectLinkDocument,
+    "\n  mutation AddProjectFiles($projectId: ID!, $files: [File!]!) {\n    addProjectFiles(projectId: $projectId, files: $files)\n  }\n": types.AddProjectFilesDocument,
+    "\n  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {\n    updateProjectResource(id: $id, title: $title, url: $url, note: $note)\n  }\n": types.UpdateProjectResourceDocument,
+    "\n  mutation DeleteProjectResource($id: ID!) {\n    deleteProjectResource(id: $id)\n  }\n": types.DeleteProjectResourceDocument,
+    "\n  mutation MoveProjectResource($id: ID!, $index: Int!) {\n    moveProjectResource(id: $id, index: $index)\n  }\n": types.MoveProjectResourceDocument,
+    "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n    }\n  }\n": types.ImportedDocumentsDocument,
+    "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": types.ImportDocumentDocument,
+    "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": types.UpdateImportedDocumentDocument,
+    "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": types.DeleteImportedDocumentDocument,
     "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": types.AlarmFieldsFragmentDoc,
     "\n  query Alarms {\n    alarms {\n      ...AlarmFields\n    }\n  }\n": types.AlarmsDocument,
     "\n  mutation CreateAlarm($input: AlarmInput!) {\n    createAlarm(input: $input) {\n      id\n    }\n  }\n": types.CreateAlarmDocument,
@@ -383,6 +437,114 @@ export function graphql(source: "\n  mutation UpdateClientContact($id: ID!, $inp
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n"): typeof import('./graphql').DeleteClientContactDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment AccountingDocumentListFields on AccountingDocument {\n    id\n    type\n    status\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalGross\n    currency\n    invoicedNet\n    sourceNumber\n    recurringId\n  }\n"): typeof import('./graphql').AccountingDocumentListFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment AccountingDocumentFields on AccountingDocument {\n    ...AccountingDocumentListFields\n    serviceStart\n    serviceEnd\n    serviceId\n    contactId\n    sourceId\n    derived {\n      id\n      type\n      status\n      number\n      totalGross\n    }\n    seller\n    buyer\n    introduction\n    referenceLabel\n    referenceValue\n    conclusion\n    paymentTerms\n    paymentMethods\n    lateInterest\n    otherMentions\n    showBankDetails\n    vatApplicable\n    vatExemptionText\n    globalDiscountType\n    globalDiscountValue\n    totalVat\n    finalizedAt\n    updatedAt\n    lines {\n      id\n      kind\n      title\n      description\n      quantity\n      unit\n      unitPrice\n      vatRate\n      discountType\n      discountValue\n    }\n    attachments {\n      id\n      name\n      size\n      url\n    }\n  }\n"): typeof import('./graphql').AccountingDocumentFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query AccountingDocuments($clientId: ID, $projectId: ID) {\n    accountingDocuments(clientId: $clientId, projectId: $projectId) {\n      ...AccountingDocumentListFields\n    }\n  }\n"): typeof import('./graphql').AccountingDocumentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query AccountingDocument($id: ID!) {\n    accountingDocument(id: $id) {\n      ...AccountingDocumentFields\n    }\n  }\n"): typeof import('./graphql').AccountingDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query NewDocumentDefaults($type: AccountingDocumentType!, $clientId: ID!, $issueDate: Date!) {\n    newDocumentDefaults(type: $type, clientId: $clientId, issueDate: $issueDate)\n  }\n"): typeof import('./graphql').NewDocumentDefaultsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query RecurringInvoices {\n    recurringInvoices {\n      id\n      name\n      templateId\n      recurrence\n      startDate\n      nextDate\n      autoFinalize\n      active\n      issuedCount\n      template {\n        clientName\n        totalGross\n        currency\n      }\n    }\n  }\n"): typeof import('./graphql').RecurringInvoicesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ProjectResources($projectId: ID!) {\n    projectResources(projectId: $projectId) {\n      id\n      kind\n      title\n      note\n      url\n      size\n      createdAt\n    }\n  }\n"): typeof import('./graphql').ProjectResourcesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {\n    createAccountingDocument(type: $type, input: $input)\n  }\n"): typeof import('./graphql').CreateAccountingDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateAccountingDocument($id: ID!, $input: AccountingDocumentInput!) {\n    updateAccountingDocument(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateAccountingDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteAccountingDocument($id: ID!) {\n    deleteAccountingDocument(id: $id)\n  }\n"): typeof import('./graphql').DeleteAccountingDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation FinalizeAccountingDocument($id: ID!) {\n    finalizeAccountingDocument(id: $id)\n  }\n"): typeof import('./graphql').FinalizeAccountingDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateDocumentFrom($sourceId: ID!, $type: AccountingDocumentType!, $depositPercent: Float, $issueDate: Date!) {\n    createDocumentFrom(sourceId: $sourceId, type: $type, depositPercent: $depositPercent, issueDate: $issueDate)\n  }\n"): typeof import('./graphql').CreateDocumentFromDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DuplicateAccountingDocument($id: ID!, $issueDate: Date!) {\n    duplicateAccountingDocument(id: $id, issueDate: $issueDate)\n  }\n"): typeof import('./graphql').DuplicateAccountingDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddAccountingAttachments($id: ID!, $files: [File!]!) {\n    addAccountingAttachments(id: $id, files: $files)\n  }\n"): typeof import('./graphql').AddAccountingAttachmentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RemoveAccountingAttachment($attachmentId: ID!) {\n    removeAccountingAttachment(attachmentId: $attachmentId)\n  }\n"): typeof import('./graphql').RemoveAccountingAttachmentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateRecurringInvoice($documentId: ID!, $input: RecurringInvoiceInput!) {\n    createRecurringInvoice(documentId: $documentId, input: $input)\n  }\n"): typeof import('./graphql').CreateRecurringInvoiceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateRecurringInvoice($id: ID!, $input: RecurringInvoiceInput!) {\n    updateRecurringInvoice(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateRecurringInvoiceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteRecurringInvoice($id: ID!) {\n    deleteRecurringInvoice(id: $id)\n  }\n"): typeof import('./graphql').DeleteRecurringInvoiceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddProjectLink($projectId: ID!, $title: String!, $url: String!, $note: String) {\n    addProjectLink(projectId: $projectId, title: $title, url: $url, note: $note)\n  }\n"): typeof import('./graphql').AddProjectLinkDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddProjectFiles($projectId: ID!, $files: [File!]!) {\n    addProjectFiles(projectId: $projectId, files: $files)\n  }\n"): typeof import('./graphql').AddProjectFilesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {\n    updateProjectResource(id: $id, title: $title, url: $url, note: $note)\n  }\n"): typeof import('./graphql').UpdateProjectResourceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteProjectResource($id: ID!) {\n    deleteProjectResource(id: $id)\n  }\n"): typeof import('./graphql').DeleteProjectResourceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveProjectResource($id: ID!, $index: Int!) {\n    moveProjectResource(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveProjectResourceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n    }\n  }\n"): typeof import('./graphql').ImportedDocumentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n"): typeof import('./graphql').ImportDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n"): typeof import('./graphql').UpdateImportedDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n"): typeof import('./graphql').DeleteImportedDocumentDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
