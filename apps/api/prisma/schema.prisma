@@ -91,6 +91,66 @@ model Client {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   projects   Project[]
+
+  /// Professional (company, association…) or individual.
+  kind         ClientKind           @default(COMPANY)
+  /// Individual: first and last name (the client name stays the displayed one).
+  firstName    String?
+  lastName     String?
+  /// Postal address: { lines, postalCode, city, region, country (ISO 3166-1 alpha-2) }.
+  address      Json?
+  email        String?
+  /// [{ label, number }]
+  phones       Json                 @default("[]")
+  website      String?
+  vatNumber    String?
+  siren        String?
+  siret        String?
+  /// Activity code (NAF in France, NACE in the EU, NOGA in Switzerland…).
+  activityCode String?
+  services     ClientService[]
+  contacts     ClientContact[]
+  documents    AccountingDocument[]
+}
+
+enum ClientKind {
+  COMPANY
+  INDIVIDUAL
+}
+
+/// Department or branch of a client, with its own address and contacts.
+model ClientService {
+  id        String               @id @default(cuid())
+  clientId  String
+  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  address   Json?
+  email     String?
+  phones    Json                 @default("[]")
+  position  Int                  @default(0)
+  createdAt DateTime             @default(now())
+  contacts  ClientContact[]
+  documents AccountingDocument[]
+
+  @@index([clientId])
+}
+
+/// Person at a client, possibly in one of its services.
+model ClientContact {
+  id        String               @id @default(cuid())
+  clientId  String
+  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceId String?
+  service   ClientService?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  firstName String
+  lastName  String
+  email     String?
+  jobTitle  String?
+  phones    Json                 @default("[]")
+  createdAt DateTime             @default(now())
+  documents AccountingDocument[]
+
+  @@index([clientId])
 }
 
 model Project {
@@ -126,11 +186,12 @@ model Project {
   milestones   Milestone[]
   taskViews    TaskView[]
   /// Contributors attached to the project (and, through it, to its sub-projects).
-  contributors Contributor[]   @relation("ProjectContributors")
+  contributors Contributor[]        @relation("ProjectContributors")
   timeEntries  TimeEntry[]
   alarms       Alarm[]
   mails        MailMessage[]
   events       CalendarEvent[]
+  documents    AccountingDocument[]
 
   @@index([clientId])
   @@index([parentId])
@@ -342,18 +403,21 @@ model Milestone {
 
 /// File attached to a markdown text (description, comment…) and linked from it.
 model Attachment {
-  id            String       @id @default(cuid())
+  id                   String              @id @default(cuid())
   /// Original file name, used for the download.
-  name          String
-  mimeType      String
-  size          Int
-  data          Bytes
-  createdAt     DateTime     @default(now())
+  name                 String
+  mimeType             String
+  size                 Int
+  data                 Bytes
+  createdAt            DateTime            @default(now())
   /// Set for a file of a mail copied into a project.
-  mailMessageId String?
-  mailMessage   MailMessage? @relation(fields: [mailMessageId], references: [id], onDelete: Cascade)
+  mailMessageId        String?
+  mailMessage          MailMessage?        @relation(fields: [mailMessageId], references: [id], onDelete: Cascade)
   /// Content-ID of an inline image of that mail.
-  contentId     String?
+  contentId            String?
+  /// Set for a file attached to an accounting document.
+  accountingDocumentId String?
+  accountingDocument   AccountingDocument? @relation(fields: [accountingDocumentId], references: [id], onDelete: Cascade)
 
   @@index([mailMessageId])
 }
@@ -569,4 +633,174 @@ model CalendarEventException {
   endTime     String?
 
   @@unique([eventId, date])
+}
+
+/// The user's business, shown on the accounting documents (a single row).
+model CompanyProfile {
+  id                String   @id @default("company")
+  name              String   @default("")
+  /// Legal form (SASU, EURL, EI, micro-entreprise…).
+  legalForm         String?
+  /// Share capital, as written ("1 000 €").
+  capital           String?
+  /// Registration (RCS Paris 123 456 789, RM…).
+  registration      String?
+  siren             String?
+  siret             String?
+  activityCode      String?
+  vatNumber         String?
+  /// Off: "TVA non applicable" (franchise), no VAT on the documents.
+  vatApplicable     Boolean  @default(true)
+  /// Mention printed when VAT does not apply.
+  vatExemptionText  String   @default("TVA non applicable, art. 293 B du CGI")
+  address           Json?
+  email             String?
+  phone             String?
+  website           String?
+  logoId            String?
+  bankName          String?
+  accountHolder     String?
+  iban              String?
+  bic               String?
+  /// Defaults of new documents.
+  paymentTerms      String   @default("Paiement à 30 jours à compter de la date de facture.")
+  paymentDays       Int      @default(30)
+  paymentMethods    String   @default("Virement bancaire")
+  lateInterest      String   @default("En cas de retard de paiement, pénalités au taux de trois fois le taux d’intérêt légal, et indemnité forfaitaire pour frais de recouvrement de 40 € (clients professionnels).")
+  /// Other mentions printed on every document.
+  otherMentions     String   @default("Pas d’escompte pour paiement anticipé.")
+  /// Label of the client's internal reference ("Référence dossier", "Bon de commande"…).
+  referenceLabel    String   @default("Référence dossier")
+  quoteValidityDays Int      @default(30)
+  updatedAt         DateTime @updatedAt
+}
+
+enum AccountingDocumentType {
+  QUOTE
+  INVOICE
+  DEPOSIT_INVOICE
+  CREDIT_NOTE
+}
+
+/// Next number of a document type for a year (D/F/FA/A + YY + 5 digits).
+model DocumentSequence {
+  type       AccountingDocumentType
+  year       Int
+  nextNumber Int                    @default(1)
+
+  @@id([type, year])
+}
+
+enum AccountingDocumentStatus {
+  /// Editable, without number.
+  DRAFT
+  /// Numbered and final: it cannot be changed any more (corrected by a credit note).
+  FINAL
+}
+
+enum DiscountType {
+  PERCENT
+  AMOUNT
+}
+
+/// Quote, invoice, deposit invoice or credit note.
+model AccountingDocument {
+  id                  String                   @id @default(cuid())
+  type                AccountingDocumentType
+  status              AccountingDocumentStatus @default(DRAFT)
+  /// Given when the document becomes final.
+  year                Int?
+  counter             Int?
+  number              String?                  @unique
+  /// Date printed on the document (it may be set in the past or the future).
+  issueDate           DateTime                 @db.Date
+  /// Payment due date (invoices) or end of validity (quotes).
+  dueDate             DateTime?                @db.Date
+  /// Date or period of the service or delivery.
+  serviceStart        DateTime?                @db.Date
+  serviceEnd          DateTime?                @db.Date
+  clientId            String
+  client              Client                   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  serviceId           String?
+  service             ClientService?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  contactId           String?
+  contact             ClientContact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  projectId           String?
+  project             Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Quote an invoice comes from, or invoice a credit note cancels.
+  sourceId            String?
+  source              AccountingDocument?      @relation("DocumentSource", fields: [sourceId], references: [id], onDelete: Restrict)
+  derived             AccountingDocument[]     @relation("DocumentSource")
+  /// Seller and buyer as printed, frozen when the document becomes final.
+  seller              Json?
+  buyer               Json?
+  title               String?
+  introduction        String?
+  referenceLabel      String?
+  referenceValue      String?
+  conclusion          String?
+  paymentTerms        String?
+  paymentMethods      String?
+  lateInterest        String?
+  otherMentions       String?
+  showBankDetails     Boolean                  @default(true)
+  vatApplicable       Boolean                  @default(true)
+  vatExemptionText    String?
+  globalDiscountType  DiscountType?
+  globalDiscountValue Decimal?                 @db.Decimal(14, 2)
+  currency            String                   @default("EUR")
+  /// Totals, computed on each save.
+  totalNet            Decimal                  @default(0) @db.Decimal(14, 2)
+  totalVat            Decimal                  @default(0) @db.Decimal(14, 2)
+  totalGross          Decimal                  @default(0) @db.Decimal(14, 2)
+  finalizedAt         DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  lines               AccountingLine[]
+  attachments         Attachment[]
+
+  @@index([clientId])
+  @@index([projectId])
+  @@index([sourceId])
+  @@index([type, year])
+}
+
+enum AccountingLineKind {
+  /// Product or service.
+  ITEM
+  /// Expense paid on behalf of the client, re-invoiced without VAT or margin.
+  DISBURSEMENT
+  /// Free text (section title, note).
+  TEXT
+  /// Amount already invoiced on the same quote, deducted.
+  DEDUCTION
+}
+
+enum AccountingUnit {
+  UNIT
+  HOUR
+  DAY
+  MONTH
+  FLAT
+  DEPOSIT
+}
+
+model AccountingLine {
+  id            String             @id @default(cuid())
+  documentId    String
+  document      AccountingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  position      Int
+  kind          AccountingLineKind @default(ITEM)
+  title         String
+  /// Markdown.
+  description   String?
+  quantity      Decimal            @default(1) @db.Decimal(14, 3)
+  unit          AccountingUnit     @default(UNIT)
+  unitPrice     Decimal            @default(0) @db.Decimal(14, 2)
+  /// Percent (20, 10, 5.5…).
+  vatRate       Decimal            @default(0) @db.Decimal(5, 2)
+  discountType  DiscountType?
+  discountValue Decimal?           @db.Decimal(14, 2)
+
+  @@index([documentId])
 }

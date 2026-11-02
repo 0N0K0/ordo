@@ -1,3 +1,10 @@
+enum AccountingDocumentType {
+  CREDIT_NOTE
+  DEPOSIT_INVOICE
+  INVOICE
+  QUOTE
+}
+
 type Alarm {
   createdAt: DateTime!
   enabled: Boolean!
@@ -152,19 +159,91 @@ input CalendarLinkInput {
 }
 
 type Client {
+  activityCode: String
+
+  """Postal address { lines, postalCode, city, region, country }."""
+  address: JSON
   archived: Boolean!
   color: String
+  contacts: [ClientContact!]!
+  email: String
   favorite: Boolean!
+  firstName: String
   iconUrl: String
   id: ID!
+  kind: ClientKind!
+  lastName: String
   name: String!
+
+  """[{ label, number }]"""
+  phones: JSON!
   position: Int!
+  services: [ClientService!]!
+  siren: String
+  siret: String
+  vatNumber: String
+  website: String
+}
+
+type ClientContact {
+  clientId: ID!
+  email: String
+  firstName: String!
+  id: ID!
+  jobTitle: String
+  lastName: String!
+  phones: JSON!
+  serviceId: ID
+}
+
+input ClientContactInput {
+  email: String!
+  firstName: String!
+  jobTitle: String!
+  lastName: String!
+  phones: JSON!
+  serviceId: ID
+}
+
+input ClientDetailsInput {
+  activityCode: String!
+  address: JSON
+  email: String!
+  firstName: String!
+  kind: ClientKind!
+  lastName: String!
+  phones: JSON!
+  siren: String!
+  siret: String!
+  vatNumber: String!
+  website: String!
 }
 
 input ClientInput {
   color: String
   icon: File
   name: String!
+}
+
+enum ClientKind {
+  COMPANY
+  INDIVIDUAL
+}
+
+type ClientService {
+  address: JSON
+  clientId: ID!
+  email: String
+  id: ID!
+  name: String!
+  phones: JSON!
+}
+
+input ClientServiceInput {
+  address: JSON
+  email: String!
+  name: String!
+  phones: JSON!
 }
 
 input ClientUpdateInput {
@@ -175,6 +254,63 @@ input ClientUpdateInput {
   icon: File
   name: String
   removeIcon: Boolean
+}
+
+type CompanyProfile {
+  accountHolder: String
+  activityCode: String
+  address: JSON
+  bankName: String
+  bic: String
+  capital: String
+  email: String
+  iban: String
+  lateInterest: String!
+  legalForm: String
+  logoUrl: String
+  name: String!
+  otherMentions: String!
+  paymentDays: Int!
+  paymentMethods: String!
+  paymentTerms: String!
+  phone: String
+  quoteValidityDays: Int!
+  referenceLabel: String!
+  registration: String
+  siren: String
+  siret: String
+  vatApplicable: Boolean!
+  vatExemptionText: String!
+  vatNumber: String
+  website: String
+}
+
+input CompanyProfileInput {
+  accountHolder: String!
+  activityCode: String!
+  address: JSON
+  bankName: String!
+  bic: String!
+  capital: String!
+  email: String!
+  iban: String!
+  lateInterest: String!
+  legalForm: String!
+  name: String!
+  otherMentions: String!
+  paymentDays: Int!
+  paymentMethods: String!
+  paymentTerms: String!
+  phone: String!
+  quoteValidityDays: Int!
+  referenceLabel: String!
+  registration: String!
+  siren: String!
+  siret: String!
+  vatApplicable: Boolean!
+  vatExemptionText: String!
+  vatNumber: String!
+  website: String!
 }
 
 type Contributor {
@@ -216,6 +352,14 @@ scalar Date
 
 """Instant, ISO 8601."""
 scalar DateTime
+
+type DocumentSequence {
+  """Lowest allowed next number."""
+  minimum: Int!
+  nextNumber: Int!
+  type: AccountingDocumentType!
+  year: Int!
+}
 
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
@@ -431,6 +575,8 @@ type Mutation {
   createCalendarCategory(input: CalendarCategoryInput!): CalendarCategory!
   createCalendarEvent(input: CalendarEventInput!): ID!
   createClient(input: ClientInput!): Client!
+  createClientContact(clientId: ID!, input: ClientContactInput!): ClientContact!
+  createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
   createContributor(input: ContributorInput!): Contributor!
   createMailAccount(input: MailAccountInput!): MailAccount!
   createMilestone(input: MilestoneInput!): Milestone!
@@ -451,6 +597,8 @@ type Mutation {
     deleteProjects: Boolean!
     id: ID!
   ): Boolean!
+  deleteClientContact(id: ID!): Boolean!
+  deleteClientService(id: ID!): Boolean!
   deleteContributor(id: ID!): Boolean!
   deleteMailAccount(id: ID!): Boolean!
 
@@ -542,7 +690,13 @@ type Mutation {
   """Archiving cascades to the active projects; restoring brings them back."""
   setClientArchived(archived: Boolean!, id: ID!): Client!
   setClientFavorite(favorite: Boolean!, id: ID!): Client!
+
+  """Sets (PNG or JPEG) or removes (null) the logo."""
+  setCompanyLogo(file: File): CompanyProfile!
   setDefaultTaskView(id: ID!): Boolean!
+
+  """Sets the number the next final document of a type gets in a year."""
+  setDocumentSequence(nextNumber: Int!, type: AccountingDocumentType!, year: Int!): Boolean!
   setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
   setMailSignature(id: ID!, signature: String!): MailAccount!
 
@@ -593,6 +747,10 @@ type Mutation {
   """
   updateCalendarEvent(id: ID!, input: CalendarEventInput!, occurrenceDate: Date, scope: CalendarEventScope!): ID!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
+  updateClientContact(id: ID!, input: ClientContactInput!): ClientContact!
+  updateClientDetails(id: ID!, input: ClientDetailsInput!): Client!
+  updateClientService(id: ID!, input: ClientServiceInput!): ClientService!
+  updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
@@ -706,10 +864,13 @@ type Query {
 
   """Occurrences of the events overlapping a period (dates included)."""
   calendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
+  client(id: ID!): Client
 
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
+  companyProfile: CompanyProfile!
   contributors: [Contributor!]!
+  documentSequences(year: Int!): [DocumentSequence!]!
   health: String!
   mailAccounts: [MailAccount!]!
 

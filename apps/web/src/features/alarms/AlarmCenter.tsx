@@ -3,7 +3,7 @@ import { notifications } from '@mantine/notifications';
 import { addDays, entrySeconds, previousOccurrence } from '@ordo/shared';
 import { AlarmIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useEffect, useRef } from 'react';
-import { Link } from 'react-router';
+import { useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { fetchCalendarEvents, type EventOccurrence } from '../calendar/api';
 import { useTasksData } from '../tasks/api';
@@ -83,15 +83,23 @@ export function AlarmCenter() {
     const timer = window.setInterval(load, 5 * 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  const latest = useRef({ alarms, running, tasksData, workspace, markFired });
+  const navigate = useNavigate();
+  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate });
 
   useEffect(() => {
-    latest.current = { alarms, running, tasksData, workspace, markFired };
+    latest.current = { alarms, running, tasksData, workspace, markFired, navigate };
   });
 
   useEffect(() => unlockAudioOnGesture(), []);
 
   useEffect(() => {
+    /**
+     * Opens a page of the app from a toast (toasts are outside the router: no Link in them).
+     * @param {string} path Path.
+     * @returns {void}
+     */
+    const go = (path: string) => latest.current.navigate(path);
+
     /**
      * Shows an alarm.
      * @param {Alarm} alarm Alarm.
@@ -120,12 +128,12 @@ export function AlarmCenter() {
               </Text>
             )}
             {task ? (
-              <Anchor component={Link} to={`/projects/${task.projectId}?tab=tasks&task=${task.number}`} size="sm">
+              <Anchor component="button" type="button" size="sm" onClick={() => go(`/projects/${task.projectId}?tab=tasks&task=${task.number}`)}>
                 #{task.number} {task.title}
               </Anchor>
             ) : (
               project && (
-                <Anchor component={Link} to={`/projects/${project.id}`} size="sm">
+                <Anchor component="button" type="button" size="sm" onClick={() => go(`/projects/${project.id}`)}>
                   {project.title}
                 </Anchor>
               )
@@ -160,7 +168,7 @@ export function AlarmCenter() {
             message: (
               <Stack gap={4}>
                 <Text size="sm">{body}</Text>
-                <Anchor component={Link} to="/calendar" size="sm">
+                <Anchor component="button" type="button" size="sm" onClick={() => go('/calendar')}>
                   Voir l’agenda
                 </Anchor>
               </Stack>
