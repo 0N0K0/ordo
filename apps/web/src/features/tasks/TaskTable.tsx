@@ -21,7 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Anchor, Box, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
 import { formatDuration, TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
-import { CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import {
   columnOrderingFeature,
   columnResizingFeature,
@@ -281,7 +281,16 @@ export function TaskTable({
         <TitleCell
           task={task}
           context={context}
-          prefix={<TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />}
+          prefix={
+            <>
+              <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
+              {(task.recurrence || task.seriesId) && (
+                <Tooltip label={task.seriesId ? 'Occurrence d’une tâche récurrente' : 'Tâche récurrente'}>
+                  <ArrowsClockwiseIcon aria-label="Récurrente" className={classes.recurring} />
+                </Tooltip>
+              )}
+            </>
+          }
         />
       ),
       project: (task) => (

@@ -73,6 +73,84 @@ input BulkTaskInput {
   typeId: ID
 }
 
+type CalendarCategory {
+  color: String!
+  id: ID!
+  name: String!
+  parentId: ID
+  position: Int!
+}
+
+input CalendarCategoryInput {
+  color: String!
+  name: String!
+  parentId: ID
+}
+
+"""Times are local to timeZone; all-day events have none."""
+input CalendarEventInput {
+  allDay: Boolean!
+  categoryIds: [ID!]!
+  contributorIds: [ID!]!
+  description: String
+  endDate: Date!
+  endTime: String
+  links: [CalendarLinkInput!]!
+  location: String
+  projectId: ID
+  recurrence: JSON
+
+  """Minutes before the start."""
+  reminders: [Int!]!
+  startDate: Date!
+  startTime: String
+  timeZone: String!
+  title: String!
+}
+
+"""One occurrence of an event in a period."""
+type CalendarEventOccurrence {
+  allDay: Boolean!
+  categoryIds: [ID!]!
+  contributorIds: [ID!]!
+  description: String
+  end: DateTime!
+  endDate: String!
+  endTime: String
+  eventId: ID!
+  key: String!
+  links: [CalendarLink!]!
+  location: String
+  modified: Boolean!
+  occurrenceDate: String
+  projectId: ID
+  recurrence: JSON
+  reminders: [Int!]!
+  seriesStartDate: String!
+  start: DateTime!
+  startDate: String!
+  startTime: String
+  timeZone: String!
+  title: String!
+}
+
+"""Scope of a change to a recurring event."""
+enum CalendarEventScope {
+  ALL
+  FOLLOWING
+  THIS
+}
+
+type CalendarLink {
+  label: String!
+  url: String!
+}
+
+input CalendarLinkInput {
+  label: String!
+  url: String!
+}
+
 type Client {
   archived: Boolean!
   color: String
@@ -350,6 +428,8 @@ type Mutation {
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
   createAlarm(input: AlarmInput!): Alarm!
+  createCalendarCategory(input: CalendarCategoryInput!): CalendarCategory!
+  createCalendarEvent(input: CalendarEventInput!): ID!
   createClient(input: ClientInput!): Client!
   createContributor(input: ContributorInput!): Contributor!
   createMailAccount(input: MailAccountInput!): MailAccount!
@@ -364,6 +444,8 @@ type Mutation {
   createTaskView(input: TaskViewInput!): TaskView!
   createTimeEntry(input: TimeEntryInput!): TimeEntry!
   deleteAlarm(id: ID!): Boolean!
+  deleteCalendarCategory(id: ID!): Boolean!
+  deleteCalendarEvent(id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
   deleteClient(
     """true deletes the projects, false moves them to "no client"."""
     deleteProjects: Boolean!
@@ -405,6 +487,12 @@ type Mutation {
 
   """Records that an alarm rang for the occurrence at `at`."""
   markAlarmFired(at: DateTime!, id: ID!): Boolean!
+
+  """
+  Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.
+  """
+  materializeTaskOccurrences(from: Date!, to: Date!): Int!
+  moveCalendarCategory(id: ID!, index: Int!): Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
   moveMailAccount(id: ID!, index: Int!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
@@ -475,6 +563,11 @@ type Mutation {
   setTaskArchived(archived: Boolean!, id: ID!): Task!
 
   """
+  Makes a task recurring, changes its repetition, or stops it (null). On an occurrence, its series is changed.
+  """
+  setTaskRecurrence(id: ID!, recurrence: JSON): Task!
+
+  """
   Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
   """
   setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
@@ -493,6 +586,12 @@ type Mutation {
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
   unlinkMail(id: ID!): Boolean!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
+  updateCalendarCategory(id: ID!, input: CalendarCategoryInput!): CalendarCategory!
+
+  """
+  Changes an event; for a recurring one, the occurrence, it and the following ones, or the whole series.
+  """
+  updateCalendarEvent(id: ID!, input: CalendarEventInput!, occurrenceDate: Date, scope: CalendarEventScope!): ID!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
@@ -603,6 +702,10 @@ input ProjectUpdateInput {
 
 type Query {
   alarms: [Alarm!]!
+  calendarCategories: [CalendarCategory!]!
+
+  """Occurrences of the events overlapping a period (dates included)."""
+  calendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
 
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
@@ -722,11 +825,18 @@ type Task {
   id: ID!
   milestoneId: ID
   number: Int!
+  occurrenceDate: Date
   parentId: ID
   position: Int!
   priorityId: ID
   projectId: ID!
+
+  """Repetition, on the first task of a recurring series."""
+  recurrence: JSON
   relatedIds: [ID!]!
+
+  """First task of the series this task is an occurrence of."""
+  seriesId: ID
   startDate: Date
   statusId: ID
   title: String!

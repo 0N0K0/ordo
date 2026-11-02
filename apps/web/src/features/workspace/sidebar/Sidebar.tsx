@@ -17,6 +17,7 @@ import {
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
   AlarmIcon,
+  CalendarBlankIcon,
   CheckIcon,
   FolderPlusIcon,
   GearSixIcon,
@@ -210,6 +211,13 @@ export function Sidebar() {
         label="Accueil"
         leftSection={<HouseIcon aria-hidden />}
         active={pathname === '/'}
+      />
+      <NavLink
+        component={Link}
+        to="/calendar"
+        label="Agenda"
+        leftSection={<CalendarBlankIcon aria-hidden />}
+        active={pathname === '/calendar'}
       />
       <MailNavLink active={pathname === '/mail'} />
       <NavLink

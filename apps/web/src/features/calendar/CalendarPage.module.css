@@ -1,0 +1,79 @@
+@layer app {
+  /* FullCalendar in the app's colors (light and dark). */
+  .calendar {
+    :global(.fc) {
+      --fc-border-color: var(--mantine-color-default-border);
+      --fc-page-bg-color: var(--mantine-color-body);
+      --fc-neutral-bg-color: var(--mantine-color-default-hover);
+      --fc-today-bg-color: var(--mantine-primary-color-light);
+      --fc-now-indicator-color: var(--mantine-color-red-6);
+      --fc-highlight-color: var(--mantine-primary-color-light);
+      --fc-event-text-color: #fff;
+
+      /* Typographie */
+      font-size: var(--mantine-font-size-sm);
+    }
+
+    :global(.fc .fc-col-header-cell-cushion),
+    :global(.fc .fc-daygrid-day-number) {
+      /* Typographie */
+      color: var(--mantine-color-text);
+      text-decoration: none;
+    }
+
+    :global(.fc .fc-event) {
+      /* Interaction */
+      cursor: pointer;
+    }
+
+    /* Expanded all-day row: limited height, it scrolls so the hours stay visible. */
+    :global(.fc-timegrid .fc-scrollgrid-section:has(.fc-daygrid-body) .fc-scroller-harness),
+    :global(.fc-timegrid .fc-scrollgrid-section:has(.fc-daygrid-body) .fc-scroller) {
+      /* Dimension: 40 % of the calendar at most (see its height in CalendarPage). */
+      max-height: calc((100dvh - 250px) * 0.4);
+      overflow-y: auto !important;
+    }
+
+    /* All-day row button: at the top, kept in view while the expanded row scrolls. FullCalendar's styles
+       are outside the cascade layers: overriding them needs !important. */
+    :global(.fc-timegrid .fc-daygrid-body .fc-timegrid-axis-frame) {
+      /* Agencement */
+      align-items: flex-start !important;
+      justify-content: center !important;
+
+      /* Dimension */
+      overflow: visible !important;
+    }
+
+    :global(.fc-timegrid .fc-daygrid-body .fc-timegrid-axis-cushion) {
+      /* Position */
+      position: sticky;
+      top: 2px;
+
+      /* Espacement */
+      padding: 2px 0;
+    }
+  }
+
+  /* Tasks: outlined, to tell them from events. */
+  .task {
+    /* Bordures */
+    border-width: 0 0 0 3px !important;
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover) !important;
+  }
+
+  .closed {
+    /* Effets */
+    opacity: 0.55;
+
+    /* Typographie */
+    text-decoration: line-through;
+  }
+
+  .recurring {
+    /* Bordures */
+    border-style: dashed !important;
+  }
+}

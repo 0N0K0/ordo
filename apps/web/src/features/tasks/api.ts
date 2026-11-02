@@ -77,6 +77,9 @@ graphql(`
     relatedIds
     commentCount
     trackedSeconds
+    recurrence
+    seriesId
+    occurrenceDate
     closed
   }
 `);
@@ -176,6 +179,24 @@ const CloneTaskDocument = graphql(`
     }
   }
 `);
+
+const SetTaskRecurrenceDocument = graphql(`
+  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {
+    setTaskRecurrence(id: $id, recurrence: $recurrence) {
+      id
+    }
+  }
+`);
+
+/**
+ * Makes a task recurring, changes its repetition, or stops it (null).
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useSetTaskRecurrence() {
+  return useTasksMutation(
+    async (variables: { id: string; recurrence: unknown }) => (await execute(SetTaskRecurrenceDocument, variables)).setTaskRecurrence,
+  );
+}
 
 const MoveTaskDocument = graphql(`
   mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {

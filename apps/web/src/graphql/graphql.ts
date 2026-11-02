@@ -46,6 +46,43 @@ export type BulkTaskInput = {
   typeId?: string | number | null | undefined;
 };
 
+export type CalendarCategoryInput = {
+  color: string;
+  name: string;
+  parentId?: string | number | null | undefined;
+};
+
+/** Times are local to timeZone; all-day events have none. */
+export type CalendarEventInput = {
+  allDay: boolean;
+  categoryIds: Array<string | number>;
+  contributorIds: Array<string | number>;
+  description?: string | null | undefined;
+  endDate: string;
+  endTime?: string | null | undefined;
+  links: Array<CalendarLinkInput>;
+  location?: string | null | undefined;
+  projectId?: string | number | null | undefined;
+  recurrence?: unknown;
+  /** Minutes before the start. */
+  reminders: Array<number>;
+  startDate: string;
+  startTime?: string | null | undefined;
+  timeZone: string;
+  title: string;
+};
+
+/** Scope of a change to a recurring event. */
+export type CalendarEventScope =
+  | 'ALL'
+  | 'FOLLOWING'
+  | 'THIS';
+
+export type CalendarLinkInput = {
+  label: string;
+  url: string;
+};
+
 export type ClientInput = {
   color?: string | null | undefined;
   icon?: File | null | undefined;
@@ -418,6 +455,85 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, links: Array<{ url: string, label: string }> };
+
+export type CalendarCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CalendarCategoriesQuery = { calendarCategories: Array<{ id: string, name: string, color: string, parentId: string | null, position: number }> };
+
+export type CalendarEventsQueryVariables = Exact<{
+  from: string;
+  to: string;
+}>;
+
+
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, links: Array<{ url: string, label: string }> }> };
+
+export type CreateCalendarCategoryMutationVariables = Exact<{
+  input: CalendarCategoryInput;
+}>;
+
+
+export type CreateCalendarCategoryMutation = { createCalendarCategory: { id: string } };
+
+export type UpdateCalendarCategoryMutationVariables = Exact<{
+  id: string | number;
+  input: CalendarCategoryInput;
+}>;
+
+
+export type UpdateCalendarCategoryMutation = { updateCalendarCategory: { id: string } };
+
+export type DeleteCalendarCategoryMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteCalendarCategoryMutation = { deleteCalendarCategory: boolean };
+
+export type MoveCalendarCategoryMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveCalendarCategoryMutation = { moveCalendarCategory: boolean };
+
+export type CreateCalendarEventMutationVariables = Exact<{
+  input: CalendarEventInput;
+}>;
+
+
+export type CreateCalendarEventMutation = { createCalendarEvent: string };
+
+export type UpdateCalendarEventMutationVariables = Exact<{
+  id: string | number;
+  input: CalendarEventInput;
+  scope: CalendarEventScope;
+  occurrenceDate?: string | null | undefined;
+}>;
+
+
+export type UpdateCalendarEventMutation = { updateCalendarEvent: string };
+
+export type DeleteCalendarEventMutationVariables = Exact<{
+  id: string | number;
+  scope: CalendarEventScope;
+  occurrenceDate?: string | null | undefined;
+}>;
+
+
+export type DeleteCalendarEventMutation = { deleteCalendarEvent: boolean };
+
+export type MaterializeTaskOccurrencesMutationVariables = Exact<{
+  from: string;
+  to: string;
+}>;
+
+
+export type MaterializeTaskOccurrencesMutation = { materializeTaskOccurrences: number };
+
 export type MailAccountFieldsFragment = { id: string, name: string, email: string, displayName: string | null, imapHost: string, imapPort: number, imapSecure: boolean, imapUser: string, smtpHost: string, smtpPort: number, smtpSecure: boolean, smtpUser: string, saveSent: boolean, signature: string | null };
 
 export type MailViewFieldsFragment = { accountId: string, folder: string, uid: number, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> };
@@ -585,14 +701,14 @@ export type MilestoneFieldsFragment = { id: string, projectId: string, title: st
 
 export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean };
+export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   number: number;
@@ -606,7 +722,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean } };
+export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -614,7 +730,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean } };
 
 export type SetTaskArchivedMutationVariables = Exact<{
   id: string | number;
@@ -647,6 +763,14 @@ export type CloneTaskMutationVariables = Exact<{
 
 
 export type CloneTaskMutation = { cloneTask: { id: string, number: number } };
+
+export type SetTaskRecurrenceMutationVariables = Exact<{
+  id: string | number;
+  recurrence?: unknown;
+}>;
+
+
+export type SetTaskRecurrenceMutation = { setTaskRecurrence: { id: string } };
 
 export type MoveTaskMutationVariables = Exact<{
   id: string | number;
@@ -1230,6 +1354,35 @@ export const AccountUserFragmentDoc = new TypedDocumentString(`
   contributorId
 }
     `, {"fragmentName":"AccountUser"}) as unknown as TypedDocumentString<AccountUserFragment, unknown>;
+export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(`
+    fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
+  key
+  eventId
+  occurrenceDate
+  modified
+  title
+  description
+  location
+  links {
+    url
+    label
+  }
+  allDay
+  startDate
+  startTime
+  endDate
+  endTime
+  timeZone
+  start
+  end
+  recurrence
+  seriesStartDate
+  reminders
+  projectId
+  contributorIds
+  categoryIds
+}
+    `, {"fragmentName":"CalendarEventOccurrenceFields"}) as unknown as TypedDocumentString<CalendarEventOccurrenceFieldsFragment, unknown>;
 export const MailAccountFieldsFragmentDoc = new TypedDocumentString(`
     fragment MailAccountFields on MailAccount {
   id
@@ -1373,6 +1526,9 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   relatedIds
   commentCount
   trackedSeconds
+  recurrence
+  seriesId
+  occurrenceDate
   closed
 }
     `, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
@@ -1584,6 +1740,99 @@ export const CancelEmailChangeDocument = new TypedDocumentString(`
   pendingEmail
   contributorId
 }`) as unknown as TypedDocumentString<CancelEmailChangeMutation, CancelEmailChangeMutationVariables>;
+export const CalendarCategoriesDocument = new TypedDocumentString(`
+    query CalendarCategories {
+  calendarCategories {
+    id
+    name
+    color
+    parentId
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<CalendarCategoriesQuery, CalendarCategoriesQueryVariables>;
+export const CalendarEventsDocument = new TypedDocumentString(`
+    query CalendarEvents($from: Date!, $to: Date!) {
+  calendarEvents(from: $from, to: $to) {
+    ...CalendarEventOccurrenceFields
+  }
+}
+    fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
+  key
+  eventId
+  occurrenceDate
+  modified
+  title
+  description
+  location
+  links {
+    url
+    label
+  }
+  allDay
+  startDate
+  startTime
+  endDate
+  endTime
+  timeZone
+  start
+  end
+  recurrence
+  seriesStartDate
+  reminders
+  projectId
+  contributorIds
+  categoryIds
+}`) as unknown as TypedDocumentString<CalendarEventsQuery, CalendarEventsQueryVariables>;
+export const CreateCalendarCategoryDocument = new TypedDocumentString(`
+    mutation CreateCalendarCategory($input: CalendarCategoryInput!) {
+  createCalendarCategory(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateCalendarCategoryMutation, CreateCalendarCategoryMutationVariables>;
+export const UpdateCalendarCategoryDocument = new TypedDocumentString(`
+    mutation UpdateCalendarCategory($id: ID!, $input: CalendarCategoryInput!) {
+  updateCalendarCategory(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateCalendarCategoryMutation, UpdateCalendarCategoryMutationVariables>;
+export const DeleteCalendarCategoryDocument = new TypedDocumentString(`
+    mutation DeleteCalendarCategory($id: ID!) {
+  deleteCalendarCategory(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteCalendarCategoryMutation, DeleteCalendarCategoryMutationVariables>;
+export const MoveCalendarCategoryDocument = new TypedDocumentString(`
+    mutation MoveCalendarCategory($id: ID!, $index: Int!) {
+  moveCalendarCategory(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveCalendarCategoryMutation, MoveCalendarCategoryMutationVariables>;
+export const CreateCalendarEventDocument = new TypedDocumentString(`
+    mutation CreateCalendarEvent($input: CalendarEventInput!) {
+  createCalendarEvent(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateCalendarEventMutation, CreateCalendarEventMutationVariables>;
+export const UpdateCalendarEventDocument = new TypedDocumentString(`
+    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {
+  updateCalendarEvent(
+    id: $id
+    input: $input
+    scope: $scope
+    occurrenceDate: $occurrenceDate
+  )
+}
+    `) as unknown as TypedDocumentString<UpdateCalendarEventMutation, UpdateCalendarEventMutationVariables>;
+export const DeleteCalendarEventDocument = new TypedDocumentString(`
+    mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {
+  deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)
+}
+    `) as unknown as TypedDocumentString<DeleteCalendarEventMutation, DeleteCalendarEventMutationVariables>;
+export const MaterializeTaskOccurrencesDocument = new TypedDocumentString(`
+    mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {
+  materializeTaskOccurrences(from: $from, to: $to)
+}
+    `) as unknown as TypedDocumentString<MaterializeTaskOccurrencesMutation, MaterializeTaskOccurrencesMutationVariables>;
 export const MailAccountsDocument = new TypedDocumentString(`
     query MailAccounts {
   mailAccounts {
@@ -1923,6 +2172,9 @@ fragment TaskFields on Task {
   relatedIds
   commentCount
   trackedSeconds
+  recurrence
+  seriesId
+  occurrenceDate
   closed
 }`) as unknown as TypedDocumentString<TasksDataQuery, TasksDataQueryVariables>;
 export const TaskCommentsDocument = new TypedDocumentString(`
@@ -1969,6 +2221,9 @@ export const CreateTaskDocument = new TypedDocumentString(`
   relatedIds
   commentCount
   trackedSeconds
+  recurrence
+  seriesId
+  occurrenceDate
   closed
 }`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
 export const UpdateTaskDocument = new TypedDocumentString(`
@@ -2001,6 +2256,9 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   relatedIds
   commentCount
   trackedSeconds
+  recurrence
+  seriesId
+  occurrenceDate
   closed
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
 export const SetTaskArchivedDocument = new TypedDocumentString(`
@@ -2030,6 +2288,13 @@ export const CloneTaskDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<CloneTaskMutation, CloneTaskMutationVariables>;
+export const SetTaskRecurrenceDocument = new TypedDocumentString(`
+    mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {
+  setTaskRecurrence(id: $id, recurrence: $recurrence) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<SetTaskRecurrenceMutation, SetTaskRecurrenceMutationVariables>;
 export const MoveTaskDocument = new TypedDocumentString(`
     mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {
   moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)

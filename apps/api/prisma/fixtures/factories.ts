@@ -1,7 +1,7 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
-import type { Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
+import type { CalendarEvent, Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */
 export const COLORS = [
@@ -191,3 +191,74 @@ export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateIn
     duration,
   };
 });
+
+/** Time zone of the fixtures' events (the machine's). */
+export const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+const EVENT_TITLES = [
+  'Rendez-vous client',
+  'Atelier de cadrage',
+  'Démo du sprint',
+  'Appel fournisseur',
+  'Revue des maquettes',
+  'Déjeuner d’affaires',
+  'Point d’avancement',
+  'Formation interne',
+  'Entretien partenaire',
+  'Rétrospective',
+];
+const PLACES = ['Bureau', 'Salle Ada', 'Salle Turing', 'Chez le client', 'Café du coin', 'Visio'];
+
+/**
+ * Local YYYY-MM-DD of a date.
+ * @param {Date} date Date.
+ * @returns {string} Calendar date.
+ */
+export function localDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+/**
+ * HH:MM of minutes since midnight.
+ * @param {number} minutes Minutes.
+ * @returns {string} Time.
+ */
+export function clock(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+/**
+ * One-off event on a working day from three weeks ago to five weeks ahead, between 8:00 and 18:00, lasting
+ * 30 minutes to 3 hours; sometimes with a place, a video link and reminders.
+ */
+export const calendarEventFactory = Factory.define<Prisma.CalendarEventUncheckedCreateInput, object, CalendarEvent>(({ onCreate }) => {
+  onCreate((data) => prisma.calendarEvent.create({ data }));
+  let day = faker.date.between({ from: new Date(Date.now() - 21 * 86_400_000), to: new Date(Date.now() + 35 * 86_400_000) });
+  while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() + 86_400_000);
+  const start = faker.number.int({ min: 16, max: 34 }) * 30;
+  const end = Math.min(start + faker.helpers.arrayElement([30, 60, 60, 90, 120, 180]), 20 * 60);
+  const date = parseDay(localDate(day));
+  const place = faker.helpers.arrayElement(PLACES);
+  return {
+    title: faker.helpers.arrayElement(EVENT_TITLES),
+    description: maybe(0.4, () => faker.lorem.sentences({ min: 1, max: 2 })),
+    location: maybe(0.7, () => (place === 'Chez le client' ? faker.location.streetAddress({ useFullAddress: true }) : place)),
+    links: place === 'Visio' || faker.datatype.boolean(0.2) ? [{ url: `https://meet.example.com/${faker.string.alphanumeric(10).toLowerCase()}`, label: 'Visio' }] : [],
+    allDay: false,
+    startDate: date,
+    startTime: clock(start),
+    endDate: date,
+    endTime: clock(end),
+    timeZone: TIME_ZONE,
+    reminders: faker.helpers.arrayElement([[], [15], [10], [30, 1440]]),
+  };
+});
+
+/**
+ * Midnight UTC of a YYYY-MM-DD date (@db.Date columns).
+ * @param {string} date Calendar date.
+ * @returns {Date} Date.
+ */
+function parseDay(date: string): Date {
+  return new Date(`${date}T00:00:00.000Z`);
+}

@@ -5,3 +5,5 @@ export * from './tasks';
 export * from './task-filters';
 export * from './time';
 export * from './mail';
+export * from './recurrence';
+export * from './calendar';

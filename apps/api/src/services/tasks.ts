@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import type { Prisma, Task, TaskComment } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachAssignees } from './contributors';
+import { forgetDeletedOccurrences } from './task-recurrence';
 
 /**
  * Error attached to a form field.
@@ -334,9 +335,11 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
   const task = await findTask(id);
   if (deleteSubtasks) {
     const descendants = await descendantIds(id);
+    await forgetDeletedOccurrences([id, ...descendants]);
     await prisma.task.deleteMany({ where: { id: { in: [id, ...descendants] } } });
     return;
   }
+  await forgetDeletedOccurrences([id]);
   await prisma.$transaction([
     prisma.task.updateMany({ where: { parentId: id }, data: { parentId: task.parentId } }),
     prisma.task.delete({ where: { id } }),
@@ -774,5 +777,8 @@ export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): P
     if (await prisma.task.findUnique({ where: { id }, select: { id: true } })) await deleteTask(id, deleteSubtasks);
   }
   // Selected sub-tasks moved up by a deletion are still selected: delete them as well.
-  if (!deleteSubtasks) await prisma.task.deleteMany({ where: { id: { in: ids } } });
+  if (!deleteSubtasks) {
+    await forgetDeletedOccurrences(ids);
+    await prisma.task.deleteMany({ where: { id: { in: ids } } });
+  }
 }

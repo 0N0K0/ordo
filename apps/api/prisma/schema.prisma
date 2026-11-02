@@ -126,10 +126,11 @@ model Project {
   milestones   Milestone[]
   taskViews    TaskView[]
   /// Contributors attached to the project (and, through it, to its sub-projects).
-  contributors Contributor[] @relation("ProjectContributors")
+  contributors Contributor[]   @relation("ProjectContributors")
   timeEntries  TimeEntry[]
   alarms       Alarm[]
   mails        MailMessage[]
+  events       CalendarEvent[]
 
   @@index([clientId])
   @@index([parentId])
@@ -159,16 +160,17 @@ model ProjectStatus {
 
 /// Person who can be assigned to tasks.
 model Contributor {
-  id        String    @id @default(cuid())
+  id        String          @id @default(cuid())
   name      String
   /// Unique identifier used in @mentions.
-  handle    String    @unique
+  handle    String          @unique
   iconId    String?
-  icon      Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  createdAt DateTime  @default(now())
+  icon      Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  createdAt DateTime        @default(now())
   tasks     Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
-  projects  Project[] @relation("ProjectContributors")
+  projects  Project[]       @relation("ProjectContributors")
+  events    CalendarEvent[]
   /// Set when this contributor is the app user ("Moi").
   user      User?
 }
@@ -256,11 +258,20 @@ model Task {
   comments          TaskComment[]
   timeEntries       TimeEntry[]
   alarms            Alarm[]
+  /// Repetition of a recurring task (set on the first task of the series).
+  recurrence        Json?
+  /// First task of the series this task is an occurrence of.
+  seriesId          String?
+  series            Task?          @relation("TaskSeries", fields: [seriesId], references: [id], onDelete: SetNull)
+  occurrences       Task[]         @relation("TaskSeries")
+  /// Date of the occurrence in its series (the first task: its own date).
+  occurrenceDate    DateTime?      @db.Date
 
   @@index([projectId])
   @@index([parentId])
   @@index([milestoneId])
   @@index([closedAt])
+  @@index([seriesId])
 }
 
 /// "blocker blocks blocked".
@@ -487,4 +498,75 @@ model MailFolderCursor {
   lastUid     Int
 
   @@id([accountId, folder])
+}
+
+/// Category of calendar events, in a tree.
+model CalendarCategory {
+  id        String             @id @default(cuid())
+  name      String
+  color     String
+  parentId  String?
+  parent    CalendarCategory?  @relation("CalendarCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  CalendarCategory[] @relation("CalendarCategoryTree")
+  position  Int                @default(0)
+  createdAt DateTime           @default(now())
+  events    CalendarEvent[]
+
+  @@index([parentId])
+}
+
+/// Calendar event, possibly recurring. Times are local to `timeZone`; all-day events have no times.
+model CalendarEvent {
+  id           String                   @id @default(cuid())
+  title        String
+  /// Markdown.
+  description  String?
+  location     String?
+  /// [{ url, label }]
+  links        Json                     @default("[]")
+  allDay       Boolean                  @default(false)
+  /// First day (of the first occurrence for a recurring event).
+  startDate    DateTime                 @db.Date
+  /// HH:MM, null for an all-day event.
+  startTime    String?
+  /// Last day, included.
+  endDate      DateTime                 @db.Date
+  endTime      String?
+  /// IANA time zone of the times.
+  timeZone     String
+  /// Repetition (see the shared recurrence rule), null for a one-off event.
+  recurrence   Json?
+  /// Reminders, in minutes before the start.
+  reminders    Int[]
+  projectId    String?
+  project      Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  contributors Contributor[]
+  categories   CalendarCategory[]
+  exceptions   CalendarEventException[]
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([startDate])
+  @@index([projectId])
+}
+
+/// One occurrence of a recurring event changed or cancelled on its own.
+model CalendarEventException {
+  id          String        @id @default(cuid())
+  eventId     String
+  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Date of the occurrence in the series.
+  date        DateTime      @db.Date
+  cancelled   Boolean       @default(false)
+  title       String?
+  description String?
+  location    String?
+  links       Json?
+  allDay      Boolean?
+  startDate   DateTime?     @db.Date
+  startTime   String?
+  endDate     DateTime?     @db.Date
+  endTime     String?
+
+  @@unique([eventId, date])
 }
