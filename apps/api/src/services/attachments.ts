@@ -20,7 +20,7 @@ function sniffImage(buffer: Buffer): string | null {
 }
 
 /**
- * Stored form of a file: recognized images keep their type, the rest is served as a plain download.
+ * Stored form of a file: recognized images and PDFs keep their type, the rest is served as a plain download.
  * @param {string} name File name.
  * @param {Buffer} buffer Content.
  * @returns {{ name: string, mimeType: string, size: number, data: Uint8Array<ArrayBuffer> }} Attachment data.
@@ -28,7 +28,7 @@ function sniffImage(buffer: Buffer): string | null {
 export function attachmentData(name: string, buffer: Buffer) {
   return {
     name: name.replace(/[\\/\0]/g, '_').slice(0, 200) || 'fichier',
-    mimeType: sniffImage(buffer) ?? 'application/octet-stream',
+    mimeType: sniffImage(buffer) ?? (buffer.toString('ascii', 0, 5) === '%PDF-' ? 'application/pdf' : 'application/octet-stream'),
     size: buffer.length,
     data: new Uint8Array(buffer),
   };

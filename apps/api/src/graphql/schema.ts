@@ -13,5 +13,6 @@ import './modules/treasury';
 import './modules/catalog';
 import './modules/dashboards';
 import './modules/github';
+import './modules/library';
 
 export const schema = builder.toSchema();

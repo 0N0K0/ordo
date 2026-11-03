@@ -122,6 +122,16 @@ type Documents = {
     "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": typeof types.UnlinkGithubProjectDocument,
     "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      comments\n    }\n  }\n": typeof types.SyncGithubProjectDocument,
     "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": typeof types.SetContributorGithubLoginDocument,
+    "\n  query Library {\n    documentFolders {\n      id\n      name\n      parentId\n    }\n    libraryDocuments {\n      id\n      folderId\n      kind\n      title\n      note\n      url\n      fileName\n      mimeType\n      size\n      updatedAt\n    }\n  }\n": typeof types.LibraryDocument,
+    "\n  mutation CreateDocumentFolder($name: String!, $parentId: ID) {\n    createDocumentFolder(name: $name, parentId: $parentId)\n  }\n": typeof types.CreateDocumentFolderDocument,
+    "\n  mutation RenameDocumentFolder($id: ID!, $name: String!) {\n    renameDocumentFolder(id: $id, name: $name)\n  }\n": typeof types.RenameDocumentFolderDocument,
+    "\n  mutation MoveDocumentFolder($id: ID!, $parentId: ID) {\n    moveDocumentFolder(id: $id, parentId: $parentId)\n  }\n": typeof types.MoveDocumentFolderDocument,
+    "\n  mutation DeleteDocumentFolder($id: ID!) {\n    deleteDocumentFolder(id: $id)\n  }\n": typeof types.DeleteDocumentFolderDocument,
+    "\n  mutation AddLibraryFiles($folderId: ID, $files: [File!]!) {\n    addLibraryFiles(folderId: $folderId, files: $files)\n  }\n": typeof types.AddLibraryFilesDocument,
+    "\n  mutation AddLibraryLink($folderId: ID, $title: String!, $url: String!, $note: String) {\n    addLibraryLink(folderId: $folderId, title: $title, url: $url, note: $note)\n  }\n": typeof types.AddLibraryLinkDocument,
+    "\n  mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {\n    updateLibraryDocument(id: $id, title: $title, url: $url, note: $note, file: $file)\n  }\n": typeof types.UpdateLibraryDocumentDocument,
+    "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n": typeof types.MoveLibraryDocumentsDocument,
+    "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": typeof types.DeleteLibraryDocumentsDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": typeof types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": typeof types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": typeof types.LinkedMailFieldsFragmentDoc,
@@ -363,6 +373,16 @@ const documents: Documents = {
     "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": types.UnlinkGithubProjectDocument,
     "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      comments\n    }\n  }\n": types.SyncGithubProjectDocument,
     "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": types.SetContributorGithubLoginDocument,
+    "\n  query Library {\n    documentFolders {\n      id\n      name\n      parentId\n    }\n    libraryDocuments {\n      id\n      folderId\n      kind\n      title\n      note\n      url\n      fileName\n      mimeType\n      size\n      updatedAt\n    }\n  }\n": types.LibraryDocument,
+    "\n  mutation CreateDocumentFolder($name: String!, $parentId: ID) {\n    createDocumentFolder(name: $name, parentId: $parentId)\n  }\n": types.CreateDocumentFolderDocument,
+    "\n  mutation RenameDocumentFolder($id: ID!, $name: String!) {\n    renameDocumentFolder(id: $id, name: $name)\n  }\n": types.RenameDocumentFolderDocument,
+    "\n  mutation MoveDocumentFolder($id: ID!, $parentId: ID) {\n    moveDocumentFolder(id: $id, parentId: $parentId)\n  }\n": types.MoveDocumentFolderDocument,
+    "\n  mutation DeleteDocumentFolder($id: ID!) {\n    deleteDocumentFolder(id: $id)\n  }\n": types.DeleteDocumentFolderDocument,
+    "\n  mutation AddLibraryFiles($folderId: ID, $files: [File!]!) {\n    addLibraryFiles(folderId: $folderId, files: $files)\n  }\n": types.AddLibraryFilesDocument,
+    "\n  mutation AddLibraryLink($folderId: ID, $title: String!, $url: String!, $note: String) {\n    addLibraryLink(folderId: $folderId, title: $title, url: $url, note: $note)\n  }\n": types.AddLibraryLinkDocument,
+    "\n  mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {\n    updateLibraryDocument(id: $id, title: $title, url: $url, note: $note, file: $file)\n  }\n": types.UpdateLibraryDocumentDocument,
+    "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n": types.MoveLibraryDocumentsDocument,
+    "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": types.DeleteLibraryDocumentsDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": types.LinkedMailFieldsFragmentDoc,
@@ -925,6 +945,46 @@ export function graphql(source: "\n  mutation SyncGithubProject($projectId: ID!)
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n"): typeof import('./graphql').SetContributorGithubLoginDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Library {\n    documentFolders {\n      id\n      name\n      parentId\n    }\n    libraryDocuments {\n      id\n      folderId\n      kind\n      title\n      note\n      url\n      fileName\n      mimeType\n      size\n      updatedAt\n    }\n  }\n"): typeof import('./graphql').LibraryDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateDocumentFolder($name: String!, $parentId: ID) {\n    createDocumentFolder(name: $name, parentId: $parentId)\n  }\n"): typeof import('./graphql').CreateDocumentFolderDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RenameDocumentFolder($id: ID!, $name: String!) {\n    renameDocumentFolder(id: $id, name: $name)\n  }\n"): typeof import('./graphql').RenameDocumentFolderDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveDocumentFolder($id: ID!, $parentId: ID) {\n    moveDocumentFolder(id: $id, parentId: $parentId)\n  }\n"): typeof import('./graphql').MoveDocumentFolderDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteDocumentFolder($id: ID!) {\n    deleteDocumentFolder(id: $id)\n  }\n"): typeof import('./graphql').DeleteDocumentFolderDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddLibraryFiles($folderId: ID, $files: [File!]!) {\n    addLibraryFiles(folderId: $folderId, files: $files)\n  }\n"): typeof import('./graphql').AddLibraryFilesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddLibraryLink($folderId: ID, $title: String!, $url: String!, $note: String) {\n    addLibraryLink(folderId: $folderId, title: $title, url: $url, note: $note)\n  }\n"): typeof import('./graphql').AddLibraryLinkDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {\n    updateLibraryDocument(id: $id, title: $title, url: $url, note: $note, file: $file)\n  }\n"): typeof import('./graphql').UpdateLibraryDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n"): typeof import('./graphql').MoveLibraryDocumentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n"): typeof import('./graphql').DeleteLibraryDocumentsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

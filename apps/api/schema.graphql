@@ -585,6 +585,14 @@ enum DiscountType {
   PERCENT
 }
 
+"""Folder of the document library."""
+type DocumentFolder {
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+  parentId: ID
+}
+
 input DocumentPaymentInput {
   accountId: ID!
   amount: Float!
@@ -757,6 +765,25 @@ input ImportedDocumentInput {
 
 """Arbitrary JSON value, validated by the resolver that receives it."""
 scalar JSON
+
+"""Document of the library: a file, or a link."""
+type LibraryDocument {
+  createdAt: DateTime!
+  fileName: String
+  folderId: ID
+  id: ID!
+
+  """FILE or LINK."""
+  kind: String!
+  mimeType: String
+  note: String
+  size: Int
+  title: String!
+  updatedAt: DateTime!
+
+  """Link address, or URL of the file."""
+  url: String!
+}
 
 """Copy of a mail linked to a project."""
 type LinkedMail {
@@ -942,6 +969,8 @@ type Mutation {
   acceptQuote(date: Date!, file: File, id: ID!): Boolean!
   addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
   addDocumentReminder(id: ID!, note: String): Boolean!
+  addLibraryFiles(files: [File!]!, folderId: ID): [ID!]!
+  addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
   addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
   addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
 
@@ -979,6 +1008,7 @@ type Mutation {
   createContributor(input: ContributorInput!): Contributor!
   createDashboard(name: String!, projectId: ID): ID!
   createDashboardChart(dashboardId: ID!, input: DashboardChartInput!): ID!
+  createDocumentFolder(name: String!, parentId: ID): ID!
 
   """Invoice or deposit invoice from a quote, credit note from an invoice."""
   createDocumentFrom(depositPercent: Float, issueDate: Date!, sourceId: ID!, type: AccountingDocumentType!): ID!
@@ -1014,9 +1044,13 @@ type Mutation {
   deleteContributor(id: ID!): Boolean!
   deleteDashboard(id: ID!): Boolean!
   deleteDashboardChart(id: ID!): Boolean!
+
+  """Deletes a folder with its sub-folders and documents."""
+  deleteDocumentFolder(id: ID!): Boolean!
   deleteDocumentReminder(id: ID!): Boolean!
   deleteDocumentStatus(id: ID!): Boolean!
   deleteImportedDocument(id: ID!): Boolean!
+  deleteLibraryDocuments(ids: [ID!]!): Boolean!
   deleteMailAccount(id: ID!): Boolean!
 
   """Deletes a draft for good."""
@@ -1077,7 +1111,9 @@ type Mutation {
   moveClient(id: ID!, index: Int!): Boolean!
   moveDashboard(id: ID!, index: Int!): Boolean!
   moveDashboardChart(id: ID!, index: Int!): Boolean!
+  moveDocumentFolder(id: ID!, parentId: ID): Boolean!
   moveDocumentStatus(id: ID!, index: Int!): Boolean!
+  moveLibraryDocuments(folderId: ID, ids: [ID!]!): Boolean!
   moveMailAccount(id: ID!, index: Int!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
 
@@ -1115,6 +1151,7 @@ type Mutation {
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
   renameDashboard(id: ID!, name: String!): Boolean!
+  renameDocumentFolder(id: ID!, name: String!): Boolean!
 
   """
   Sends a confirmation link to the new address; the email changes once confirmed.
@@ -1218,6 +1255,7 @@ type Mutation {
   updateDashboardChart(id: ID!, input: DashboardChartInput!): Boolean!
   updateDocumentStatus(category: DocumentStatusCategory, color: String, id: ID!, name: String): Boolean!
   updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
+  updateLibraryDocument(file: File, id: ID!, note: String, title: String!, url: String): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
@@ -1370,6 +1408,7 @@ type Query {
 
   """Dashboards of a project, or the global ones."""
   dashboards(projectId: ID): [Dashboard!]!
+  documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
   forecastEntries: [TreasuryEntry!]!
@@ -1387,6 +1426,9 @@ type Query {
   Imported quotes and invoices, latest first, optionally of a client or a project.
   """
   importedDocuments(clientId: ID, projectId: ID): [ImportedDocument!]!
+
+  """Every document of the library (content of the files left out)."""
+  libraryDocuments: [LibraryDocument!]!
   mailAccounts: [MailAccount!]!
 
   """Opens a draft to go on writing it."""

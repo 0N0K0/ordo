@@ -9,6 +9,7 @@ import { schema } from './graphql/schema';
 import { accountingRouter } from './routes/accounting';
 import { attachmentsRouter } from './routes/attachments';
 import { exportsRouter } from './routes/exports';
+import { libraryRouter } from './routes/library';
 import { iconsRouter } from './routes/icons';
 import { mailRouter } from './routes/mail';
 import { scheduleConversationFollowUp } from './services/mail/linked';
@@ -46,6 +47,7 @@ app.use('/api/attachments', attachmentsRouter);
 app.use('/api/accounting', accountingRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/exports', exportsRouter);
+app.use('/api/library', libraryRouter);
 app.use(yoga.graphqlEndpoint, async (req, res) => {
   await yoga(req, res);
 });

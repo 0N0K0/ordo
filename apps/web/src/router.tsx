@@ -4,6 +4,7 @@ import { AccountingPage } from './features/accounting/AccountingPage';
 import { DocumentPage } from './features/accounting/DocumentPage';
 import { TreasuryPage } from './features/treasury/TreasuryPage';
 import { DashboardsPage } from './pages/DashboardsPage';
+import { LibraryPage } from './features/library/LibraryPage';
 import { AlarmsPage } from './features/alarms/AlarmsPage';
 import { CalendarPage } from './features/calendar/CalendarPage';
 import { MailPage } from './features/mail/MailPage';
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: 'accounting/:id', element: <DocumentPage /> },
           { path: 'treasury', element: <TreasuryPage /> },
           { path: 'dashboards', element: <DashboardsPage /> },
+          { path: 'documents', element: <LibraryPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'clients/:id', element: <ClientPage /> },
           { path: 'projects/:id', element: <ProjectPage /> },

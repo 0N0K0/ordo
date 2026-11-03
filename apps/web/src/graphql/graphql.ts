@@ -1371,6 +1371,86 @@ export type SetContributorGithubLoginMutationVariables = Exact<{
 
 export type SetContributorGithubLoginMutation = { setContributorGithubLogin: boolean };
 
+export type LibraryQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type LibraryQuery = { documentFolders: Array<{ id: string, name: string, parentId: string | null }>, libraryDocuments: Array<{ id: string, folderId: string | null, kind: string, title: string, note: string | null, url: string, fileName: string | null, mimeType: string | null, size: number | null, updatedAt: string }> };
+
+export type CreateDocumentFolderMutationVariables = Exact<{
+  name: string;
+  parentId?: string | number | null | undefined;
+}>;
+
+
+export type CreateDocumentFolderMutation = { createDocumentFolder: string };
+
+export type RenameDocumentFolderMutationVariables = Exact<{
+  id: string | number;
+  name: string;
+}>;
+
+
+export type RenameDocumentFolderMutation = { renameDocumentFolder: boolean };
+
+export type MoveDocumentFolderMutationVariables = Exact<{
+  id: string | number;
+  parentId?: string | number | null | undefined;
+}>;
+
+
+export type MoveDocumentFolderMutation = { moveDocumentFolder: boolean };
+
+export type DeleteDocumentFolderMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteDocumentFolderMutation = { deleteDocumentFolder: boolean };
+
+export type AddLibraryFilesMutationVariables = Exact<{
+  folderId?: string | number | null | undefined;
+  files: Array<File> | File;
+}>;
+
+
+export type AddLibraryFilesMutation = { addLibraryFiles: Array<string> };
+
+export type AddLibraryLinkMutationVariables = Exact<{
+  folderId?: string | number | null | undefined;
+  title: string;
+  url: string;
+  note?: string | null | undefined;
+}>;
+
+
+export type AddLibraryLinkMutation = { addLibraryLink: string };
+
+export type UpdateLibraryDocumentMutationVariables = Exact<{
+  id: string | number;
+  title: string;
+  url?: string | null | undefined;
+  note?: string | null | undefined;
+  file?: File | null | undefined;
+}>;
+
+
+export type UpdateLibraryDocumentMutation = { updateLibraryDocument: boolean };
+
+export type MoveLibraryDocumentsMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  folderId?: string | number | null | undefined;
+}>;
+
+
+export type MoveLibraryDocumentsMutation = { moveLibraryDocuments: boolean };
+
+export type DeleteLibraryDocumentsMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+}>;
+
+
+export type DeleteLibraryDocumentsMutation = { deleteLibraryDocuments: boolean };
+
 export type MailAccountFieldsFragment = { id: string, name: string, email: string, displayName: string | null, imapHost: string, imapPort: number, imapSecure: boolean, imapUser: string, smtpHost: string, smtpPort: number, smtpSecure: boolean, smtpUser: string, saveSent: boolean, signature: string | null };
 
 export type MailViewFieldsFragment = { accountId: string, folder: string, uid: number, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> };
@@ -3762,6 +3842,78 @@ export const SetContributorGithubLoginDocument = new TypedDocumentString(`
   setContributorGithubLogin(id: $id, login: $login)
 }
     `) as unknown as TypedDocumentString<SetContributorGithubLoginMutation, SetContributorGithubLoginMutationVariables>;
+export const LibraryDocument = new TypedDocumentString(`
+    query Library {
+  documentFolders {
+    id
+    name
+    parentId
+  }
+  libraryDocuments {
+    id
+    folderId
+    kind
+    title
+    note
+    url
+    fileName
+    mimeType
+    size
+    updatedAt
+  }
+}
+    `) as unknown as TypedDocumentString<LibraryQuery, LibraryQueryVariables>;
+export const CreateDocumentFolderDocument = new TypedDocumentString(`
+    mutation CreateDocumentFolder($name: String!, $parentId: ID) {
+  createDocumentFolder(name: $name, parentId: $parentId)
+}
+    `) as unknown as TypedDocumentString<CreateDocumentFolderMutation, CreateDocumentFolderMutationVariables>;
+export const RenameDocumentFolderDocument = new TypedDocumentString(`
+    mutation RenameDocumentFolder($id: ID!, $name: String!) {
+  renameDocumentFolder(id: $id, name: $name)
+}
+    `) as unknown as TypedDocumentString<RenameDocumentFolderMutation, RenameDocumentFolderMutationVariables>;
+export const MoveDocumentFolderDocument = new TypedDocumentString(`
+    mutation MoveDocumentFolder($id: ID!, $parentId: ID) {
+  moveDocumentFolder(id: $id, parentId: $parentId)
+}
+    `) as unknown as TypedDocumentString<MoveDocumentFolderMutation, MoveDocumentFolderMutationVariables>;
+export const DeleteDocumentFolderDocument = new TypedDocumentString(`
+    mutation DeleteDocumentFolder($id: ID!) {
+  deleteDocumentFolder(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteDocumentFolderMutation, DeleteDocumentFolderMutationVariables>;
+export const AddLibraryFilesDocument = new TypedDocumentString(`
+    mutation AddLibraryFiles($folderId: ID, $files: [File!]!) {
+  addLibraryFiles(folderId: $folderId, files: $files)
+}
+    `) as unknown as TypedDocumentString<AddLibraryFilesMutation, AddLibraryFilesMutationVariables>;
+export const AddLibraryLinkDocument = new TypedDocumentString(`
+    mutation AddLibraryLink($folderId: ID, $title: String!, $url: String!, $note: String) {
+  addLibraryLink(folderId: $folderId, title: $title, url: $url, note: $note)
+}
+    `) as unknown as TypedDocumentString<AddLibraryLinkMutation, AddLibraryLinkMutationVariables>;
+export const UpdateLibraryDocumentDocument = new TypedDocumentString(`
+    mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {
+  updateLibraryDocument(
+    id: $id
+    title: $title
+    url: $url
+    note: $note
+    file: $file
+  )
+}
+    `) as unknown as TypedDocumentString<UpdateLibraryDocumentMutation, UpdateLibraryDocumentMutationVariables>;
+export const MoveLibraryDocumentsDocument = new TypedDocumentString(`
+    mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {
+  moveLibraryDocuments(ids: $ids, folderId: $folderId)
+}
+    `) as unknown as TypedDocumentString<MoveLibraryDocumentsMutation, MoveLibraryDocumentsMutationVariables>;
+export const DeleteLibraryDocumentsDocument = new TypedDocumentString(`
+    mutation DeleteLibraryDocuments($ids: [ID!]!) {
+  deleteLibraryDocuments(ids: $ids)
+}
+    `) as unknown as TypedDocumentString<DeleteLibraryDocumentsMutation, DeleteLibraryDocumentsMutationVariables>;
 export const MailAccountsDocument = new TypedDocumentString(`
     query MailAccounts {
   mailAccounts {

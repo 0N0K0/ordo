@@ -6,6 +6,7 @@ import { INLINE_TYPES } from '../services/attachments';
 export const attachmentsRouter: Router = Router();
 
 // The file name in the URL is only for readability: the id identifies the file. Attachments never change.
+// The disposition changes with ?download: it is part of the URL, so the immutable cache stays right.
 attachmentsRouter.get('/:id{/:name}', async (req, res) => {
   if (!(await getSession(req, res))) {
     res.sendStatus(401);
@@ -18,7 +19,8 @@ attachmentsRouter.get('/:id{/:name}', async (req, res) => {
     return;
   }
 
-  const inline = INLINE_TYPES.includes(attachment.mimeType);
+  // ?download=1 always downloads (an image too).
+  const inline = INLINE_TYPES.includes(attachment.mimeType) && !req.query.download;
   res.set({
     'Content-Type': attachment.mimeType,
     'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(attachment.name)}`,
