@@ -530,6 +530,37 @@ model DashboardChart {
   @@index([dashboardId])
 }
 
+/// Folder of the document library (folders nest).
+model DocumentFolder {
+  id        String            @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    DocumentFolder?   @relation("DocumentFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  DocumentFolder[]  @relation("DocumentFolderTree")
+  documents LibraryDocument[]
+  createdAt DateTime          @default(now())
+
+  @@index([parentId])
+}
+
+/// Document of the library (Kbis, logo, statutes, certificates…): a file, or a link to a cloud or a site.
+model LibraryDocument {
+  id           String              @id @default(cuid())
+  /// Folder, or null at the root of the library.
+  folderId     String?
+  folder       DocumentFolder?     @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  kind         ProjectResourceKind
+  title        String
+  url          String?
+  attachmentId String?             @unique
+  attachment   Attachment?         @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  note         String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([folderId])
+}
+
 /// File attached to a markdown text (description, comment…) and linked from it.
 model Attachment {
   id                   String              @id @default(cuid())
@@ -553,6 +584,8 @@ model Attachment {
   accountingDocument   AccountingDocument? @relation("DocumentAttachments", fields: [accountingDocumentId], references: [id], onDelete: Cascade)
   /// Set for the signed copy of a quote.
   signedQuote          AccountingDocument? @relation("SignedQuote")
+  /// Set for a document of the library.
+  libraryDocument      LibraryDocument?
 
   @@index([mailMessageId])
 }
