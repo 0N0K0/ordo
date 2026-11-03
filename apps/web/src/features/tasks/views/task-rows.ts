@@ -1,4 +1,5 @@
 import type { TaskGroupBy, TaskSortKey, TaskViewConfig } from '@ordo/shared';
+import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
 
@@ -18,7 +19,15 @@ export interface GroupRow {
   children: DisplayRow[];
 }
 
-export type DisplayRow = TaskRow | GroupRow;
+export interface EventRow {
+  kind: 'event';
+  /** Unique row id: an event can appear in several groups. */
+  id: string;
+  event: EventOccurrence;
+  children: DisplayRow[];
+}
+
+export type DisplayRow = TaskRow | GroupRow | EventRow;
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -64,6 +73,10 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
       return milestone ? `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` : null;
     }
+    case 'sprint': {
+      const sprint = task.sprintId ? context.sprintById.get(task.sprintId) : undefined;
+      return sprint ? `${sprint.startDate} ${sprint.name}` : null;
+    }
     case 'blockedBy':
       return task.blockedByIds.length || null;
     case 'blocking':
@@ -80,18 +93,44 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
 }
 
 /**
- * Sorts tasks by the sorting levels of the view; without sorting, keeps the manual order.
- * @param {Task[]} tasks Tasks in manual order.
- * @param {TaskViewConfig['sorting']} sorting Sort levels, in priority order.
+ * Value an event is sorted by: its title, project, people and dates; null for what only tasks have.
+ * @param {EventOccurrence} event Occurrence.
+ * @param {TaskSortKey} column Sort key.
  * @param {TaskContext} context Task context.
- * @returns {Task[]} Sorted copy.
+ * @returns {SortValue} Comparable value.
  */
-function sortTasks(tasks: Task[], sorting: TaskViewConfig['sorting'], context: TaskContext): Task[] {
-  if (sorting.length === 0) return tasks;
-  const keyed = tasks.map((task, index) => ({
-    task,
+export function eventSortValue(event: EventOccurrence, column: TaskSortKey, context: TaskContext): SortValue {
+  switch (column) {
+    case 'title':
+      return event.title;
+    case 'project':
+      return event.projectId ? context.projectLabel(event.projectId) : null;
+    case 'assignees': {
+      const names = event.contributorIds.map((id) => context.contributorById.get(id)?.name ?? '').sort(collator.compare);
+      return names[0] ?? null;
+    }
+    case 'startDate':
+      return `${event.startDate} ${event.startTime ?? ''}`.trim();
+    case 'endDate':
+      return `${event.endDate} ${event.endTime ?? ''}`.trim();
+    default:
+      return null;
+  }
+}
+
+/**
+ * Sorts items by the sorting levels of the view; without sorting, keeps their order.
+ * @param {T[]} items Items, in their default order.
+ * @param {TaskViewConfig['sorting']} sorting Sort levels, in priority order.
+ * @param {(item: T, column: TaskSortKey) => SortValue} valueOf Sort value of an item.
+ * @returns {T[]} Sorted copy.
+ */
+function sortItems<T>(items: T[], sorting: TaskViewConfig['sorting'], valueOf: (item: T, column: TaskSortKey) => SortValue): T[] {
+  if (sorting.length === 0) return items;
+  const keyed = items.map((item, index) => ({
+    item,
     index,
-    values: sorting.map((sort) => sortValue(task, sort.id, context)),
+    values: sorting.map((sort) => valueOf(item, sort.id)),
   }));
   keyed.sort((a, b) => {
     for (let level = 0; level < sorting.length; level++) {
@@ -105,7 +144,27 @@ function sortTasks(tasks: Task[], sorting: TaskViewConfig['sorting'], context: T
     }
     return a.index - b.index;
   });
-  return keyed.map((item) => item.task);
+  return keyed.map((entry) => entry.item);
+}
+
+/**
+ * Task rows and event rows of a list (or group). Without sorting, the events come first by date, then the
+ * tasks in manual order; with sorting, the events take their place among the top-level tasks.
+ * @param {Task[]} tasks Tasks, in manual order.
+ * @param {EventOccurrence[]} events Events, by date.
+ * @param {TaskViewConfig} config View configuration.
+ * @param {TaskContext} context Task context.
+ * @param {string} prefix Row id prefix (group key).
+ * @returns {DisplayRow[]} Rows.
+ */
+function listRows(tasks: Task[], events: EventOccurrence[], config: TaskViewConfig, context: TaskContext, prefix: string): DisplayRow[] {
+  const rows = taskRows(tasks, config, context, prefix);
+  if (events.length === 0) return rows;
+  const eventRows: EventRow[] = events.map((event) => ({ kind: 'event', id: `${prefix}e:${event.key}`, event, children: [] }));
+  if (config.sorting.length === 0) return [...eventRows, ...rows];
+  return sortItems<DisplayRow>([...rows, ...eventRows], config.sorting, (row, column) =>
+    row.kind === 'event' ? eventSortValue(row.event, column, context) : row.kind === 'task' ? sortValue(row.task, column, context) : null,
+  );
 }
 
 /**
@@ -117,7 +176,7 @@ function sortTasks(tasks: Task[], sorting: TaskViewConfig['sorting'], context: T
  * @returns {TaskRow[]} Rows.
  */
 function taskRows(tasks: Task[], config: TaskViewConfig, context: TaskContext, prefix: string): TaskRow[] {
-  const sorted = sortTasks(tasks, config.sorting, context);
+  const sorted = sortItems(tasks, config.sorting, (task, column) => sortValue(task, column, context));
   const toRow = (task: Task, children: TaskRow[]): TaskRow => ({ kind: 'task', id: `${prefix}t:${task.id}`, task, children });
   if (config.flat) return sorted.map((task) => toRow(task, []));
 
@@ -184,39 +243,74 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
       if (!milestone) return none('Sans jalon');
       return [{ key: milestone.id, label: milestone.title, order: `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` }];
     }
+    case 'sprint': {
+      const sprint = task.sprintId ? context.sprintById.get(task.sprintId) : undefined;
+      if (!sprint) return none('Sans sprint');
+      return [{ key: sprint.id, label: sprint.name, order: `${sprint.startDate} ${sprint.name}` }];
+    }
   }
 }
 
+/** Group of the events when the grouping field is one only tasks have. */
+const EVENTS_GROUP = 'events';
+
 /**
- * Builds the rows of the table: sorted tasks, as a tree or flat, optionally grouped.
+ * Groups an event belongs to: its project or people, else the events group.
+ * @param {EventOccurrence} event Occurrence.
+ * @param {TaskGroupBy} groupBy Grouping field.
+ * @param {TaskContext} context Task context.
+ * @returns {GroupKey[]} Groups.
+ */
+function eventGroupsOf(event: EventOccurrence, groupBy: TaskGroupBy, context: TaskContext): GroupKey[] {
+  if (groupBy === 'project') {
+    if (!event.projectId) return [{ key: 'none', label: 'Sans projet', order: Number.MAX_SAFE_INTEGER }];
+    const label = context.projectLabel(event.projectId);
+    return [{ key: event.projectId, label, order: label }];
+  }
+  if (groupBy === 'assignees') {
+    const people = event.contributorIds.map((id) => context.contributorById.get(id)).filter((contributor) => contributor !== undefined);
+    if (people.length === 0) return [{ key: 'none', label: 'Non assignées', order: Number.MAX_SAFE_INTEGER }];
+    return people.map((contributor) => ({ key: contributor.id, label: contributor.name, order: contributor.name }));
+  }
+  return [{ key: EVENTS_GROUP, label: 'Évènements', color: 'blue', order: -1 }];
+}
+
+/**
+ * Builds the rows of the table: sorted tasks, as a tree or flat, and the events, optionally grouped.
  * @param {Task[]} tasks Matching tasks, in manual order.
+ * @param {EventOccurrence[]} events Matching events, by date.
  * @param {TaskViewConfig} config View configuration.
  * @param {TaskContext} context Task context.
  * @returns {DisplayRow[]} Rows.
  */
-export function buildRows(tasks: Task[], config: TaskViewConfig, context: TaskContext): DisplayRow[] {
-  if (!config.groupBy) return taskRows(tasks, config, context, '');
+export function buildRows(tasks: Task[], events: EventOccurrence[], config: TaskViewConfig, context: TaskContext): DisplayRow[] {
+  if (!config.groupBy) return listRows(tasks, events, config, context, '');
 
-  const groups = new Map<string, GroupKey & { tasks: Task[] }>();
-  for (const task of tasks) {
-    for (const group of groupsOf(task, config.groupBy, context)) {
-      const entry = groups.get(group.key) ?? { ...group, tasks: [] };
-      entry.tasks.push(task);
-      groups.set(group.key, entry);
-    }
-  }
+  const groups = new Map<string, GroupKey & { tasks: Task[]; events: EventOccurrence[] }>();
+  const entry = (group: GroupKey) => {
+    const found = groups.get(group.key) ?? { ...group, tasks: [], events: [] };
+    groups.set(group.key, found);
+    return found;
+  };
+  for (const task of tasks) for (const group of groupsOf(task, config.groupBy, context)) entry(group).tasks.push(task);
+  for (const event of events) for (const group of eventGroupsOf(event, config.groupBy, context)) entry(group).events.push(event);
   return [...groups.values()]
     .sort((a, b) =>
-      typeof a.order === 'number' && typeof b.order === 'number'
-        ? a.order - b.order
-        : a.key === 'none'
+      // The events group first, the "none" group last.
+      a.key === EVENTS_GROUP
+        ? -1
+        : b.key === EVENTS_GROUP
           ? 1
-          : b.key === 'none'
-            ? -1
-            : collator.compare(String(a.order), String(b.order)),
+          : typeof a.order === 'number' && typeof b.order === 'number'
+            ? a.order - b.order
+            : a.key === 'none'
+              ? 1
+              : b.key === 'none'
+                ? -1
+                : collator.compare(String(a.order), String(b.order)),
     )
     .map((group) => {
-      const children = taskRows(group.tasks, config, context, `g:${group.key}:`);
+      const children = listRows(group.tasks, group.events, config, context, `g:${group.key}:`);
       return { kind: 'group', id: `g:${group.key}`, label: group.label, color: group.color, children };
     });
 }

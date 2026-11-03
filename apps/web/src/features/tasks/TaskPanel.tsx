@@ -440,6 +440,16 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               searchable
               nothingFoundMessage="Aucun jalon dans ce projet"
             />
+            <Select
+              label="Sprint"
+              placeholder="Aucun"
+              data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
+              value={task.sprintId}
+              onChange={(sprintId) => save({ sprintId })}
+              clearable
+              searchable
+              nothingFoundMessage="Aucun sprint dans ce projet"
+            />
             <Divider />
             <LinkList
               label="Bloque"

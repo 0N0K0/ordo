@@ -11,7 +11,7 @@ export interface NewTaskDefaults extends Partial<TaskInputValues> {
 }
 
 /**
- * Values of a new task created in a group: the group's status, priority, type, assignee, milestone,
+ * Values of a new task created in a group: the group's status, priority, type, assignee, milestone, sprint,
  * parent, project or state. The "none" group sets nothing.
  * @param {TaskGroupBy} groupBy Grouping field.
  * @param {string} key Group key (value id, or "none").
@@ -36,6 +36,10 @@ export function groupDefaults(groupBy: TaskGroupBy, key: string, context: TaskCo
     case 'milestone': {
       const milestone = context.milestoneById.get(key);
       return milestone ? { milestoneId: key, projectId: milestone.projectId } : {};
+    }
+    case 'sprint': {
+      const sprint = context.sprintById.get(key);
+      return sprint ? { sprintId: key, projectId: sprint.projectId } : {};
     }
     case 'parent': {
       const parent = context.taskById.get(key);

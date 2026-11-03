@@ -13,6 +13,7 @@ export const COLUMN_LABELS: Record<TaskColumn, string> = {
   endDate: 'Fin',
   parent: 'Tâche parente',
   milestone: 'Jalon',
+  sprint: 'Sprint',
   blockedBy: 'Dépend de',
   blocking: 'Bloque',
   related: 'Relative à',
@@ -36,6 +37,7 @@ export const GROUP_BY_LABELS: Record<TaskGroupBy, string> = {
   assignees: 'Assigné',
   parent: 'Tâche parente',
   milestone: 'Jalon',
+  sprint: 'Sprint',
 };
 
 /** Default width of each column, in px. */
@@ -52,6 +54,7 @@ export const COLUMN_SIZES: Record<TaskColumn, number> = {
   endDate: 130,
   parent: 220,
   milestone: 160,
+  sprint: 160,
   blockedBy: 160,
   blocking: 160,
   related: 160,
@@ -73,6 +76,7 @@ export const COLUMN_FILTER_FIELDS: Partial<Record<TaskColumn, TaskFilterField>> 
   endDate: 'endDate',
   parent: 'parent',
   milestone: 'milestone',
+  sprint: 'sprint',
   blockedBy: 'blocked',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -87,6 +91,7 @@ export const COLUMN_GROUP_BY: Partial<Record<TaskColumn, TaskGroupBy>> = {
   assignees: 'assignees',
   parent: 'parent',
   milestone: 'milestone',
+  sprint: 'sprint',
 };
 
 /** Columns whose cells can be selected and edited together. */
@@ -99,4 +104,5 @@ export const BULK_EDITABLE_COLUMNS: readonly TaskColumn[] = [
   'startDate',
   'endDate',
   'milestone',
+  'sprint',
 ];

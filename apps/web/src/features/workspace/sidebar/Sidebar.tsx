@@ -19,6 +19,7 @@ import {
   AlarmIcon,
   BankIcon,
   CalendarBlankIcon,
+  ChartBarIcon,
   CheckIcon,
   FolderPlusIcon,
   GearSixIcon,
@@ -235,6 +236,13 @@ export function Sidebar() {
         label="Trésorerie"
         leftSection={<BankIcon aria-hidden />}
         active={pathname === '/treasury'}
+      />
+      <NavLink
+        component={Link}
+        to="/dashboards"
+        label="Tableaux de bord"
+        leftSection={<ChartBarIcon aria-hidden />}
+        active={pathname === '/dashboards'}
       />
       <NavLink
         component={Link}

@@ -45,6 +45,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       endDate: null,
       parentId: parent?.id ?? null,
       milestoneId: null,
+      sprintId: null,
     },
     schema: taskFormSchema,
   });
@@ -88,6 +89,10 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
               if (milestone && projectId && context.rootOf(milestone.projectId) !== context.rootOf(projectId)) {
                 form.setFieldValue('milestoneId', null);
               }
+              const sprint = form.values.sprintId ? context.sprintById.get(form.values.sprintId) : undefined;
+              if (sprint && projectId && context.rootOf(sprint.projectId) !== context.rootOf(projectId)) {
+                form.setFieldValue('sprintId', null);
+              }
             }}
           />
           <TaskSelect
@@ -110,6 +115,16 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           searchable
           nothingFoundMessage="Aucun jalon dans ce projet"
           {...form.getInputProps('milestoneId')}
+        />
+        <Select
+          label="Sprint"
+          placeholder={form.values.projectId ? 'Aucun' : 'Choisissez d’abord un projet'}
+          disabled={!form.values.projectId}
+          data={(form.values.projectId ? context.sprintsFor(form.values.projectId) : []).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
+          clearable
+          searchable
+          nothingFoundMessage="Aucun sprint dans ce projet"
+          {...form.getInputProps('sprintId')}
         />
         <MarkdownEditor
           label="Description"

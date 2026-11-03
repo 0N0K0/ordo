@@ -3,6 +3,7 @@ import { graphql } from '../../graphql';
 import type {
   ContributorFieldsFragment,
   MilestoneFieldsFragment,
+  SprintFieldsFragment,
   TaskCommentFieldsFragment,
   TaskFieldsFragment,
   TaskLabelFieldsFragment,
@@ -18,6 +19,7 @@ export type Contributor = ContributorFieldsFragment;
 export type TaskLabel = TaskLabelFieldsFragment;
 export type TaskStatus = TasksDataQuery['taskStatuses'][number];
 export type Milestone = MilestoneFieldsFragment;
+export type Sprint = SprintFieldsFragment;
 export type { TaskStatusCategory };
 export type TasksData = TasksDataQuery;
 
@@ -29,6 +31,17 @@ graphql(`
     avatarUrl
     isMe
     projectIds
+  }
+`);
+
+graphql(`
+  fragment SprintFields on Sprint {
+    id
+    projectId
+    name
+    goal
+    startDate
+    endDate
   }
 `);
 
@@ -67,6 +80,7 @@ graphql(`
     endDate
     parentId
     milestoneId
+    sprintId
     position
     archived
     createdAt
@@ -81,6 +95,7 @@ graphql(`
     seriesId
     occurrenceDate
     closed
+    closedAt
   }
 `);
 
@@ -118,6 +133,9 @@ const TasksDataDocument = graphql(`
     }
     milestones {
       ...MilestoneFields
+    }
+    sprints {
+      ...SprintFields
     }
   }
 `);
@@ -407,6 +425,7 @@ export interface TaskInputValues {
   endDate?: string | null;
   parentId?: string | null;
   milestoneId?: string | null;
+  sprintId?: string | null;
 }
 
 /**
@@ -820,6 +839,7 @@ export interface BulkChanges {
   priorityId?: string | null;
   typeId?: string | null;
   milestoneId?: string | null;
+  sprintId?: string | null;
   effort?: number | null;
   startDate?: string | null;
   endDate?: string | null;
@@ -904,5 +924,44 @@ export function useMilestoneMutations() {
     move: useTasksMutation(
       async (variables: { id: string; index: number }) => (await execute(MoveMilestoneDocument, variables)).moveMilestone,
     ),
+  };
+}
+
+const CreateSprintDocument = graphql(`
+  mutation CreateSprint($projectId: ID!, $input: SprintInput!) {
+    createSprint(projectId: $projectId, input: $input)
+  }
+`);
+
+const UpdateSprintDocument = graphql(`
+  mutation UpdateSprint($id: ID!, $input: SprintInput!) {
+    updateSprint(id: $id, input: $input)
+  }
+`);
+
+const DeleteSprintDocument = graphql(`
+  mutation DeleteSprint($id: ID!) {
+    deleteSprint(id: $id)
+  }
+`);
+
+export interface SprintInputValues {
+  name: string;
+  goal: string | null;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Create, update and delete project sprints.
+ * @returns {object} Sprint mutations.
+ */
+export function useSprintMutations() {
+  return {
+    create: useTasksMutation(
+      async (variables: { projectId: string; input: SprintInputValues }) => (await execute(CreateSprintDocument, variables)).createSprint,
+    ),
+    update: useTasksMutation(async (variables: { id: string; input: SprintInputValues }) => (await execute(UpdateSprintDocument, variables)).updateSprint),
+    remove: useTasksMutation(async (variables: { id: string }) => (await execute(DeleteSprintDocument, variables)).deleteSprint),
   };
 }

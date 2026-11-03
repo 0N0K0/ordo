@@ -1,12 +1,14 @@
 import { Alert, Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
-import { ME, type FilterGroup } from '@ordo/shared';
+import { addDays, filterPeriod, ME, type FilterGroup } from '@ordo/shared';
 import { CheckSquareOffsetIcon, PlusIcon } from '@phosphor-icons/react';
 import type { RowSelectionState } from '@tanstack/react-table';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { localToday } from '../../lib/dates';
+import { notifyError } from '../../lib/notify';
+import { useCalendarEvents } from '../calendar/api';
 import { useMatchingTaskIds, type Task } from './api';
 import { TaskTable } from './TaskTable';
 import type { CellSelection } from './views/cell-edit';
@@ -15,10 +17,21 @@ import { useTaskActions } from './use-task-actions';
 import { useTaskContext } from './use-task-context';
 import { BulkBar } from './views/BulkBar';
 import { newCondition, nodeId, pruneFilter } from './views/filter-meta';
+import { eventMatches, eventMatchesSearch } from './views/event-rows';
+import { downloadCsv, downloadPdf, exportTable } from './views/export';
 import { buildRows, taskIdOfRow } from './views/task-rows';
 import { useTaskView } from './views/use-task-view';
 import { ViewTabs } from './views/ViewTabs';
 import { ViewToolbar } from './views/ViewToolbar';
+
+const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/**
+ * Short day: "3 nov.".
+ * @param {string} day YYYY-MM-DD.
+ * @returns {string} Day.
+ */
+const dayLabel = (day: string) => shortDay.format(new Date(`${day}T00:00:00Z`));
 
 interface TaskBoardProps {
   /** Project whose tasks (sub-projects included) are listed, or null for the home page. */
@@ -30,14 +43,19 @@ interface TaskBoardProps {
   /** Controls shown before the view tabs (e.g. the home period). */
   header?: ReactNode;
   emptyMessage: string;
+  /** What the list is, for the title of exports ("Accueil — Aujourd’hui", project title). */
+  title: string;
+  /** Days of the events listed (home period), instead of the period chosen in the view. Dates included. */
+  eventRange?: { from: string; to: string };
 }
 
 /**
- * Task list of a scope: saved view tabs, view toolbar, table with inline and column edits, bulk actions.
+ * Task list of a scope: saved view tabs, view toolbar, table with inline and column edits, bulk actions, the
+ * calendar events of a period when the view shows them, and exports (CSV, PDF) of what the view lists.
  * @param {TaskBoardProps} props Component props.
  * @returns {JSX.Element} Board.
  */
-export function TaskBoard({ projectId, baseFilter, createProjectId, header, emptyMessage }: TaskBoardProps) {
+export function TaskBoard({ projectId, baseFilter, createProjectId, header, emptyMessage, title, eventRange }: TaskBoardProps) {
   const { context, isPending, error } = useTaskContext();
   const actions = useTaskActions(context);
   const view = useTaskView(projectId);
@@ -119,7 +137,51 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
         : [],
     [context, matching.data],
   );
-  const rows = useMemo(() => (context && config ? buildRows(tasks, config, context) : []), [tasks, config, context]);
+
+  // Events of the period, filtered by the view as far as their fields allow (task-only conditions leave them in).
+  const showEvents = config?.events.show ?? false;
+  const eventPeriod = config?.events.period ?? 'next:30';
+  const range = useMemo(() => {
+    if (!showEvents) return null;
+    if (eventRange) return eventRange;
+    const [from, end] = filterPeriod(eventPeriod, today);
+    return { from, to: addDays(end, -1) };
+  }, [showEvents, eventRange, eventPeriod, today]);
+  const eventsQuery = useCalendarEvents(range);
+  const events = useMemo(() => {
+    if (!context || !query || !range || !eventsQuery.data) return [];
+    return eventsQuery.data
+      .filter((event) => eventMatches(event, query.filter, context, today) && eventMatchesSearch(event, query.search))
+      .sort((a, b) => String(a.start).localeCompare(String(b.start)));
+  }, [context, query, range, eventsQuery.data, today]);
+
+  const rows = useMemo(() => (context && config ? buildRows(tasks, events, config, context) : []), [tasks, events, config, context]);
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * Exports what the view lists (every row, collapsed ones included) with its visible columns.
+   * @param {'csv' | 'pdf'} format Format.
+   * @returns {void}
+   */
+  const exportRows = (format: 'csv' | 'pdf') => {
+    if (!context || !config || !current) return;
+    const taskCount = new Set(tasks.map((task) => task.id)).size;
+    const parts = [
+      `${taskCount} tâche${taskCount > 1 ? 's' : ''}`,
+      ...(showEvents ? [`${events.length} évènement${events.length > 1 ? 's' : ''} du ${dayLabel(range!.from)} au ${dayLabel(range!.to)}`] : []),
+      ...(search.trim() ? [`recherche « ${search.trim()} »`] : []),
+      `exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+    ];
+    const table = exportTable({ rows, config, context, title: `${title} — ${current.name}`, subtitle: parts.join(' · ') });
+    if (format === 'csv') {
+      downloadCsv(table);
+      return;
+    }
+    setExporting(true);
+    downloadPdf(table)
+      .catch((exportError: Error) => notifyError(exportError.message))
+      .finally(() => setExporting(false));
+  };
 
   // Only tasks still shown by the view count as selected (an edit can make a task leave the view).
   const selectedTasks = useMemo(() => {
@@ -144,6 +206,10 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
           context={context}
           filterOpened={filterOpened}
           onFilterOpenedChange={setFilterOpened}
+          eventPeriodLocked={Boolean(eventRange)}
+          onExport={exportRows}
+          exporting={exporting}
+          canExport={rows.length > 0}
         />
       )}
 
@@ -200,7 +266,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
                 {!canCreate
                   ? 'Créez d’abord un projet : chaque tâche appartient à un projet.'
                   : filtered
-                    ? 'Aucune tâche ne correspond aux filtres de cette vue.'
+                    ? `Aucune tâche${showEvents ? ' ni aucun évènement' : ''} ne correspond aux filtres de cette vue.`
                     : emptyMessage}
               </Text>
               {canCreate && (

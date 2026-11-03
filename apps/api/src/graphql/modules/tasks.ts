@@ -2,6 +2,7 @@ import { prisma } from '../../db';
 import { storeAttachment } from '../../services/attachments';
 import * as contributors from '../../services/contributors';
 import * as milestones from '../../services/milestones';
+import * as sprints from '../../services/sprints';
 import { iconUrl } from '../../services/icons';
 import type { Label } from '../../services/labels';
 import { taskPriorities, taskStatuses, taskTypes } from '../../services/task-labels';
@@ -80,6 +81,27 @@ const MilestoneUpdateInput = builder.inputType('MilestoneUpdateInput', {
   }),
 });
 
+builder.prismaObject('Sprint', {
+  description: 'Period of a project the tasks of its project tree are planned in.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    projectId: t.exposeID('projectId'),
+    name: t.exposeString('name'),
+    goal: t.exposeString('goal', { nullable: true }),
+    startDate: t.expose('startDate', { type: 'Date' }),
+    endDate: t.expose('endDate', { type: 'Date' }),
+  }),
+});
+
+const SprintInput = builder.inputType('SprintInput', {
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    goal: t.string(),
+    startDate: t.field({ type: 'Date', required: true }),
+    endDate: t.field({ type: 'Date', required: true }),
+  }),
+});
+
 const TaskStatusCategory = builder.enumType('TaskStatusCategory', {
   description: 'Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED).',
   values: TASK_STATUS_CATEGORIES,
@@ -139,6 +161,7 @@ builder.prismaObject('Task', {
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
+    sprintId: t.exposeID('sprintId', { nullable: true }),
     position: t.exposeInt('position'),
     archived: t.boolean({ resolve: (task) => task.archivedAt !== null }),
     closed: t.boolean({ description: 'Closed (done) task.', resolve: (task) => task.closedAt !== null }),
@@ -199,6 +222,7 @@ const TaskInput = builder.inputType('TaskInput', {
     endDate: t.field({ type: 'Date' }),
     parentId: t.id(),
     milestoneId: t.id(),
+    sprintId: t.id(),
   }),
 });
 
@@ -216,6 +240,7 @@ const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
     endDate: t.field({ type: 'Date' }),
     parentId: t.id(),
     milestoneId: t.id(),
+    sprintId: t.id(),
   }),
 });
 
@@ -271,6 +296,7 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
     priorityId: t.id(),
     typeId: t.id(),
     milestoneId: t.id(),
+    sprintId: t.id(),
     effort: t.float(),
     startDate: t.field({ type: 'Date' }),
     endDate: t.field({ type: 'Date' }),
@@ -347,6 +373,11 @@ builder.queryFields((t) => ({
     args: { projectId: t.arg.id() },
     resolve: (query, _root, { projectId }) =>
       prisma.taskView.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: [...byManualOrder] }),
+  }),
+  sprints: t.prismaField({
+    type: ['Sprint'],
+    description: 'Sprints, by start date.',
+    resolve: (query) => prisma.sprint.findMany({ ...query, orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }] }),
   }),
   milestones: t.prismaField({
     type: ['Milestone'],
@@ -508,6 +539,24 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
     resolve: async (_root, { id, index }) => {
       await taskViews.moveView(id, index);
+      return true;
+    },
+  }),
+  createSprint: t.id({
+    args: { projectId: t.arg.id({ required: true }), input: t.arg({ type: SprintInput, required: true }) },
+    resolve: async (_root, { projectId, input }) => (await sprints.createSprint(projectId, input)).id,
+  }),
+  updateSprint: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: SprintInput, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await sprints.updateSprint(id, input);
+      return true;
+    },
+  }),
+  deleteSprint: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await sprints.deleteSprint(id);
       return true;
     },
   }),

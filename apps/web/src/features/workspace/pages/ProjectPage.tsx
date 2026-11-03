@@ -1,8 +1,10 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { CheckSquareOffsetIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, UsersIcon } from '@phosphor-icons/react';
+import { ChartBarIcon, CheckSquareOffsetIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
+import { DashboardBoard } from '../../dashboards/DashboardBoard';
 import { MilestonesPanel } from '../../tasks/MilestonesPanel';
+import { SprintsPanel } from '../../tasks/SprintsPanel';
 import { ProjectContributors } from '../../tasks/ProjectContributors';
 import { ProjectBillingPanel } from '../../accounting/ProjectBillingPanel';
 import { ProjectResourcesPanel } from '../../accounting/ProjectResourcesPanel';
@@ -135,6 +137,12 @@ export function ProjectPage() {
           <Tabs.Tab value="tasks" leftSection={<CheckSquareOffsetIcon aria-hidden />}>
             Tâches
           </Tabs.Tab>
+          <Tabs.Tab value="sprints" leftSection={<TimerIcon aria-hidden />}>
+            Sprints
+          </Tabs.Tab>
+          <Tabs.Tab value="dashboards" leftSection={<ChartBarIcon aria-hidden />}>
+            Tableaux de bord
+          </Tabs.Tab>
           <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
           </Tabs.Tab>
@@ -213,9 +221,16 @@ export function ProjectPage() {
             key={project.id}
             projectId={project.id}
             baseFilter={baseFilter}
+            title={project.title}
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />
+        </Tabs.Panel>
+        <Tabs.Panel value="sprints">
+          <SprintsPanel projectId={project.id} />
+        </Tabs.Panel>
+        <Tabs.Panel value="dashboards">
+          <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
         </Tabs.Panel>
         <Tabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />

@@ -20,10 +20,11 @@ import {
 } from './fixtures/factories';
 import { addDays, DEFAULT_RECURRENCE, type Recurrence } from '@ordo/shared';
 import { DEMO_COMPANY, seedAccounting } from './fixtures/accounting';
+import { seedSprintsAndDashboards } from './fixtures/dashboards';
 import { seedMailbox } from './fixtures/mail';
 
 // Fake data for development: purges the business data (clients, projects, tasks, labels, contributors, tracked
-// time, calendar, accounting, treasury), keeps the user account, the mail accounts and the alarms, then fills the
+// time, calendar, sprints, dashboards, accounting, treasury), keeps the user account, the mail accounts and the alarms, then fills the
 // database, with a demo mailbox on GreenMail (recreated on each run). `npm run db:seed -- --force` skips the confirmation.
 
 if (process.env.NODE_ENV === 'production') {
@@ -45,7 +46,7 @@ const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
     message:
-      'Les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, documents comptables, catalogue et trésorerie vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail et les alarmes sont conservés). Continuer ?',
+      'Les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, sprints, tableaux de bord, documents comptables, catalogue et trésorerie vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail et les alarmes sont conservés). Continuer ?',
     default: false,
   });
   if (!ok) process.exit(0);
@@ -66,7 +67,7 @@ await prisma.$executeRawUnsafe(`
     "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "Attachment", "TimeEntry",
     "CalendarEventException", "CalendarEvent", "CalendarCategory", "TreasuryAllocation", "TreasuryEntry",
     "TreasuryAccount", "DocumentReminder", "RecurringInvoice", "AccountingLine", "AccountingDocument", "DocumentSequence",
-    "ImportedDocument", "CatalogItem", "ClientContact", "ClientService", "ProjectResource"
+    "ImportedDocument", "CatalogItem", "ClientContact", "ClientService", "ProjectResource", "Sprint", "DashboardChart", "Dashboard"
   RESTART IDENTITY CASCADE
 `);
 await prisma.alarm.createMany({ data: alarms.map((alarm) => ({ ...alarm, projectId: null, taskId: null })) });
@@ -491,6 +492,9 @@ for (const [title, offset, days, categoryId] of [
   });
 }
 
+// --- Sprints and dashboards --------------------------------------------------------------------------------
+await seedSprintsAndDashboards({ projects, today });
+
 // --- Accounting -------------------------------------------------------------------------------------------
 await seedAccounting({ clients, projects, today });
 
@@ -512,6 +516,8 @@ const counts = {
   'articles du catalogue': await prisma.catalogItem.count(),
   'mouvements de trésorerie': await prisma.treasuryEntry.count(),
   'mails liés aux projets': await prisma.mailMessage.count(),
+  sprints: await prisma.sprint.count(),
+  'diagrammes': await prisma.dashboardChart.count(),
 };
 console.log('Fixtures chargées :', counts);
 await prisma.$disconnect();

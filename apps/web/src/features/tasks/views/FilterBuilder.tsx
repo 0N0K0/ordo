@@ -77,6 +77,11 @@ function referenceOptions(field: TaskFilterField, context: TaskContext): { value
         value: milestone.id,
         label: `${milestone.title} — ${context.projectById.get(milestone.projectId)?.title ?? ''}`,
       }));
+    case 'sprint':
+      return context.sprints.map((sprint) => ({
+        value: sprint.id,
+        label: `${sprint.name} — ${context.projectById.get(sprint.projectId)?.title ?? ''}`,
+      }));
     case 'statusCategory':
       return TASK_STATUS_CATEGORIES.map((category) => ({ value: category, label: CATEGORY_LABELS[category] }));
     default:

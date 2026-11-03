@@ -22,6 +22,7 @@ export const FIELD_LABELS: Record<TaskFilterField, string> = {
   type: 'Type',
   parent: 'Tâche parente',
   milestone: 'Jalon',
+  sprint: 'Sprint',
   assignees: 'Assignés',
   startDate: 'Début',
   endDate: 'Fin',
@@ -39,7 +40,7 @@ export const FIELD_GROUPS: { group: string; fields: TaskFilterField[] }[] = [
   { group: 'Texte', fields: ['title', 'description', 'number'] },
   {
     group: 'Organisation',
-    fields: ['project', 'parent', 'milestone', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'effort'],
+    fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'effort'],
   },
   { group: 'Dates', fields: ['startDate', 'endDate', 'createdAt', 'updatedAt'] },
   { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'archived'] },
@@ -98,7 +99,9 @@ export const PERIOD_LABELS: Record<string, string> = {
  * @returns {readonly FilterOperator[]} Operators.
  */
 export function operatorsOf(field: TaskFilterField): readonly FilterOperator[] {
-  return FILTER_OPERATORS[TASK_FILTER_FIELDS[field]];
+  const operators = FILTER_OPERATORS[TASK_FILTER_FIELDS[field]];
+  // Sprints have no sub-items.
+  return field === 'sprint' ? operators.filter((operator) => operator !== 'inTree') : operators;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task } from '../api';
 
-const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'effort', 'startDate', 'endDate'] as const;
+const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'sprintId', 'effort', 'startDate', 'endDate'] as const;
 
 /**
  * Changes restoring tasks as they were before a bulk change, grouped by identical restoring changes.

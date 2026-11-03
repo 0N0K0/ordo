@@ -7,6 +7,7 @@ import {
   ArrowsLeftRightIcon,
   CaretDownIcon,
   FlagIcon,
+  TimerIcon,
   TrashIcon,
   UserMinusIcon,
   UserPlusIcon,
@@ -82,7 +83,7 @@ function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
               {
                 onSuccess: ({ removedLinks }) => {
                   const message = `${tasksLabel(tasks.length)} transférée${tasks.length > 1 ? 's' : ''}.`;
-                  // Removed links and milestones cannot come back: no undo then.
+                  // Removed links, milestones and sprints cannot come back: no undo then.
                   if (removedLinks > 0) notifySuccess(`${message} ${removedLinks} lien(s) retiré(s).`);
                   else notifyWithUndo(message, undo.transfer(levels));
                   onDone(true);
@@ -166,6 +167,7 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
   // Milestones usable by every selected task (same project tree).
   const roots = new Set(tasks.map((task) => context.rootOf(task.projectId)));
   const commonMilestones = roots.size === 1 ? context.milestonesFor(tasks[0].projectId) : [];
+  const commonSprints = roots.size === 1 ? context.sprintsFor(tasks[0].projectId) : [];
 
   /**
    * Applies field changes to the selection.
@@ -303,6 +305,23 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
             ))}
             <Menu.Divider />
             <Menu.Item onClick={() => apply({ milestoneId: null }, `Jalon retiré de ${tasksLabel(ids.length)}.`)}>Aucun</Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+        <Menu position="top-start" withinPortal shadow="md">
+          <Menu.Target>
+            <Button size="xs" variant="default" leftSection={<TimerIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
+              Sprint
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {commonSprints.length === 0 && <Menu.Label>Aucun sprint commun aux tâches sélectionnées</Menu.Label>}
+            {commonSprints.map((sprint) => (
+              <Menu.Item key={sprint.id} onClick={() => apply({ sprintId: sprint.id }, `Sprint « ${sprint.name} » appliqué à ${tasksLabel(ids.length)}.`)}>
+                {sprint.name}
+              </Menu.Item>
+            ))}
+            <Menu.Divider />
+            <Menu.Item onClick={() => apply({ sprintId: null }, `Sprint retiré de ${tasksLabel(ids.length)}.`)}>Aucun</Menu.Item>
           </Menu.Dropdown>
         </Menu>
         {assigneeMenu(true)}

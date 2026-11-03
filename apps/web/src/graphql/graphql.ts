@@ -108,6 +108,7 @@ export type BulkTaskInput = {
   milestoneId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   removeAssigneeIds?: Array<string | number> | null | undefined;
+  sprintId?: string | number | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   typeId?: string | number | null | undefined;
@@ -253,6 +254,12 @@ export type ContributorUpdateInput = {
   /** Projects the contributor is directly attached to. */
   projectIds?: Array<string | number> | null | undefined;
   removeAvatar?: boolean | null | undefined;
+};
+
+export type DashboardChartInput = {
+  config: unknown;
+  title: string;
+  wide: boolean;
 };
 
 export type DiscountType =
@@ -438,6 +445,13 @@ export type SendMailInput = {
   to: Array<string>;
 };
 
+export type SprintInput = {
+  endDate: string;
+  goal?: string | null | undefined;
+  name: string;
+  startDate: string;
+};
+
 export type TaskInput = {
   assigneeIds?: Array<string | number> | null | undefined;
   description?: string | null | undefined;
@@ -447,6 +461,7 @@ export type TaskInput = {
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   projectId: string | number;
+  sprintId?: string | number | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   title: string;
@@ -495,6 +510,7 @@ export type TaskUpdateInput = {
   milestoneId?: string | number | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
+  sprintId?: string | number | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   title?: string | null | undefined;
@@ -1191,6 +1207,82 @@ export type MaterializeTaskOccurrencesMutationVariables = Exact<{
 
 export type MaterializeTaskOccurrencesMutation = { materializeTaskOccurrences: number };
 
+export type DashboardsQueryVariables = Exact<{
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type DashboardsQuery = { dashboards: Array<{ id: string, projectId: string | null, name: string, position: number, charts: Array<{ id: string, dashboardId: string, title: string, config: unknown, wide: boolean, position: number }> }> };
+
+export type CreateDashboardMutationVariables = Exact<{
+  name: string;
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type CreateDashboardMutation = { createDashboard: string };
+
+export type RenameDashboardMutationVariables = Exact<{
+  id: string | number;
+  name: string;
+}>;
+
+
+export type RenameDashboardMutation = { renameDashboard: boolean };
+
+export type DeleteDashboardMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteDashboardMutation = { deleteDashboard: boolean };
+
+export type MoveDashboardMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveDashboardMutation = { moveDashboard: boolean };
+
+export type CreateDashboardChartMutationVariables = Exact<{
+  dashboardId: string | number;
+  input: DashboardChartInput;
+}>;
+
+
+export type CreateDashboardChartMutation = { createDashboardChart: string };
+
+export type UpdateDashboardChartMutationVariables = Exact<{
+  id: string | number;
+  input: DashboardChartInput;
+}>;
+
+
+export type UpdateDashboardChartMutation = { updateDashboardChart: boolean };
+
+export type DuplicateDashboardChartMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DuplicateDashboardChartMutation = { duplicateDashboardChart: string };
+
+export type DeleteDashboardChartMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteDashboardChartMutation = { deleteDashboardChart: boolean };
+
+export type MoveDashboardChartMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveDashboardChartMutation = { moveDashboardChart: boolean };
+
 export type MailAccountFieldsFragment = { id: string, name: string, email: string, displayName: string | null, imapHost: string, imapPort: number, imapSecure: boolean, imapUser: string, smtpHost: string, smtpPort: number, smtpSecure: boolean, smtpUser: string, saveSent: boolean, signature: string | null };
 
 export type MailViewFieldsFragment = { accountId: string, folder: string, uid: number, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> };
@@ -1354,18 +1446,20 @@ export type SendMailMutation = { sendMail: Array<string> };
 
 export type ContributorFieldsFragment = { id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> };
 
+export type SprintFieldsFragment = { id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string };
+
 export type MilestoneFieldsFragment = { id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number };
 
 export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean };
+export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   number: number;
@@ -1379,7 +1473,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean } };
+export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -1387,7 +1481,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null } };
 
 export type SetTaskArchivedMutationVariables = Exact<{
   id: string | number;
@@ -1741,6 +1835,29 @@ export type MoveMilestoneMutationVariables = Exact<{
 
 
 export type MoveMilestoneMutation = { moveMilestone: boolean };
+
+export type CreateSprintMutationVariables = Exact<{
+  projectId: string | number;
+  input: SprintInput;
+}>;
+
+
+export type CreateSprintMutation = { createSprint: string };
+
+export type UpdateSprintMutationVariables = Exact<{
+  id: string | number;
+  input: SprintInput;
+}>;
+
+
+export type UpdateSprintMutation = { updateSprint: boolean };
+
+export type DeleteSprintMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteSprintMutation = { deleteSprint: boolean };
 
 export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null };
 
@@ -2391,6 +2508,16 @@ export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
   projectIds
 }
     `, {"fragmentName":"ContributorFields"}) as unknown as TypedDocumentString<ContributorFieldsFragment, unknown>;
+export const SprintFieldsFragmentDoc = new TypedDocumentString(`
+    fragment SprintFields on Sprint {
+  id
+  projectId
+  name
+  goal
+  startDate
+  endDate
+}
+    `, {"fragmentName":"SprintFields"}) as unknown as TypedDocumentString<SprintFieldsFragment, unknown>;
 export const MilestoneFieldsFragmentDoc = new TypedDocumentString(`
     fragment MilestoneFields on Milestone {
   id
@@ -2424,6 +2551,7 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   endDate
   parentId
   milestoneId
+  sprintId
   position
   archived
   createdAt
@@ -2438,6 +2566,7 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   seriesId
   occurrenceDate
   closed
+  closedAt
 }
     `, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
 export const TaskCommentFieldsFragmentDoc = new TypedDocumentString(`
@@ -3351,6 +3480,69 @@ export const MaterializeTaskOccurrencesDocument = new TypedDocumentString(`
   materializeTaskOccurrences(from: $from, to: $to)
 }
     `) as unknown as TypedDocumentString<MaterializeTaskOccurrencesMutation, MaterializeTaskOccurrencesMutationVariables>;
+export const DashboardsDocument = new TypedDocumentString(`
+    query Dashboards($projectId: ID) {
+  dashboards(projectId: $projectId) {
+    id
+    projectId
+    name
+    position
+    charts {
+      id
+      dashboardId
+      title
+      config
+      wide
+      position
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<DashboardsQuery, DashboardsQueryVariables>;
+export const CreateDashboardDocument = new TypedDocumentString(`
+    mutation CreateDashboard($name: String!, $projectId: ID) {
+  createDashboard(name: $name, projectId: $projectId)
+}
+    `) as unknown as TypedDocumentString<CreateDashboardMutation, CreateDashboardMutationVariables>;
+export const RenameDashboardDocument = new TypedDocumentString(`
+    mutation RenameDashboard($id: ID!, $name: String!) {
+  renameDashboard(id: $id, name: $name)
+}
+    `) as unknown as TypedDocumentString<RenameDashboardMutation, RenameDashboardMutationVariables>;
+export const DeleteDashboardDocument = new TypedDocumentString(`
+    mutation DeleteDashboard($id: ID!) {
+  deleteDashboard(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteDashboardMutation, DeleteDashboardMutationVariables>;
+export const MoveDashboardDocument = new TypedDocumentString(`
+    mutation MoveDashboard($id: ID!, $index: Int!) {
+  moveDashboard(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveDashboardMutation, MoveDashboardMutationVariables>;
+export const CreateDashboardChartDocument = new TypedDocumentString(`
+    mutation CreateDashboardChart($dashboardId: ID!, $input: DashboardChartInput!) {
+  createDashboardChart(dashboardId: $dashboardId, input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateDashboardChartMutation, CreateDashboardChartMutationVariables>;
+export const UpdateDashboardChartDocument = new TypedDocumentString(`
+    mutation UpdateDashboardChart($id: ID!, $input: DashboardChartInput!) {
+  updateDashboardChart(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateDashboardChartMutation, UpdateDashboardChartMutationVariables>;
+export const DuplicateDashboardChartDocument = new TypedDocumentString(`
+    mutation DuplicateDashboardChart($id: ID!) {
+  duplicateDashboardChart(id: $id)
+}
+    `) as unknown as TypedDocumentString<DuplicateDashboardChartMutation, DuplicateDashboardChartMutationVariables>;
+export const DeleteDashboardChartDocument = new TypedDocumentString(`
+    mutation DeleteDashboardChart($id: ID!) {
+  deleteDashboardChart(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteDashboardChartMutation, DeleteDashboardChartMutationVariables>;
+export const MoveDashboardChartDocument = new TypedDocumentString(`
+    mutation MoveDashboardChart($id: ID!, $index: Int!) {
+  moveDashboardChart(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveDashboardChartMutation, MoveDashboardChartMutationVariables>;
 export const MailAccountsDocument = new TypedDocumentString(`
     query MailAccounts {
   mailAccounts {
@@ -3643,6 +3835,9 @@ export const TasksDataDocument = new TypedDocumentString(`
   milestones {
     ...MilestoneFields
   }
+  sprints {
+    ...SprintFields
+  }
 }
     fragment ContributorFields on Contributor {
   id
@@ -3651,6 +3846,14 @@ export const TasksDataDocument = new TypedDocumentString(`
   avatarUrl
   isMe
   projectIds
+}
+fragment SprintFields on Sprint {
+  id
+  projectId
+  name
+  goal
+  startDate
+  endDate
 }
 fragment MilestoneFields on Milestone {
   id
@@ -3680,6 +3883,7 @@ fragment TaskFields on Task {
   endDate
   parentId
   milestoneId
+  sprintId
   position
   archived
   createdAt
@@ -3694,6 +3898,7 @@ fragment TaskFields on Task {
   seriesId
   occurrenceDate
   closed
+  closedAt
 }`) as unknown as TypedDocumentString<TasksDataQuery, TasksDataQueryVariables>;
 export const TaskCommentsDocument = new TypedDocumentString(`
     query TaskComments($number: Int!) {
@@ -3729,6 +3934,7 @@ export const CreateTaskDocument = new TypedDocumentString(`
   endDate
   parentId
   milestoneId
+  sprintId
   position
   archived
   createdAt
@@ -3743,6 +3949,7 @@ export const CreateTaskDocument = new TypedDocumentString(`
   seriesId
   occurrenceDate
   closed
+  closedAt
 }`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
 export const UpdateTaskDocument = new TypedDocumentString(`
     mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {
@@ -3764,6 +3971,7 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   endDate
   parentId
   milestoneId
+  sprintId
   position
   archived
   createdAt
@@ -3778,6 +3986,7 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   seriesId
   occurrenceDate
   closed
+  closedAt
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
 export const SetTaskArchivedDocument = new TypedDocumentString(`
     mutation SetTaskArchived($id: ID!, $archived: Boolean!) {
@@ -4078,6 +4287,21 @@ export const MoveMilestoneDocument = new TypedDocumentString(`
   moveMilestone(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveMilestoneMutation, MoveMilestoneMutationVariables>;
+export const CreateSprintDocument = new TypedDocumentString(`
+    mutation CreateSprint($projectId: ID!, $input: SprintInput!) {
+  createSprint(projectId: $projectId, input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateSprintMutation, CreateSprintMutationVariables>;
+export const UpdateSprintDocument = new TypedDocumentString(`
+    mutation UpdateSprint($id: ID!, $input: SprintInput!) {
+  updateSprint(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateSprintMutation, UpdateSprintMutationVariables>;
+export const DeleteSprintDocument = new TypedDocumentString(`
+    mutation DeleteSprint($id: ID!) {
+  deleteSprint(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteSprintMutation, DeleteSprintMutationVariables>;
 export const TimeEntriesDocument = new TypedDocumentString(`
     query TimeEntries($projectId: ID) {
   timeEntries(projectId: $projectId) {

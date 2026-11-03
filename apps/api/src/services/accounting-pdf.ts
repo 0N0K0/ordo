@@ -16,7 +16,7 @@ import { FACTUR_X_FILENAME, facturXml, facturXmp, hasFacturX } from './factur-x'
 
 const require = createRequire(import.meta.url);
 // Embedded fonts: PDF/A does not allow the standard (non-embedded) ones.
-const FONTS = {
+export const FONTS = {
   regular: require.resolve('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
   bold: require.resolve('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
 };

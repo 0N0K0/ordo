@@ -222,6 +222,26 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
 }
 
 /**
+ * Sprint cell: select among the sprints of the task's project tree.
+ * @param {{ task: Task, context: TaskContext }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function SprintCell({ task, context }: { task: Task; context: TaskContext }) {
+  const { apply, count } = useCellEdit(task, 'sprint');
+  return (
+    <Select
+      {...cellCombobox}
+      aria-label={fieldLabel('Sprint', task, count)}
+      data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
+      value={task.sprintId}
+      onChange={(sprintId) => apply({ sprintId }, { sprintId })}
+      placeholder="—"
+      nothingFoundMessage="Aucun sprint dans ce projet"
+    />
+  );
+}
+
+/**
  * Assignees cell: multi-select. On a column selection, adding a contributor adds them to every selected
  * task and removing one removes them.
  * @param {{ task: Task, context: TaskContext }} props Component props.
