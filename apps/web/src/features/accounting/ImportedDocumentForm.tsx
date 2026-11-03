@@ -1,4 +1,4 @@
-import { Button, FileInput, Group, NumberInput, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, Checkbox, FileInput, Group, NumberInput, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { ACCOUNTING_DOCUMENT_TYPES, importedDocumentSchema, type AccountingDocumentType } from '@ordo/shared';
 import { FilePdfIcon } from '@phosphor-icons/react';
@@ -24,6 +24,7 @@ interface FormValues extends Record<string, unknown> {
   totalGross: number;
   currency: string;
   note: string;
+  settled: boolean;
 }
 
 /**
@@ -51,6 +52,8 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
       totalGross: document?.totalGross ?? 0,
       currency: document?.currency ?? 'EUR',
       note: document?.note ?? '',
+      // Documents issued before Ordo are mostly settled already.
+      settled: document?.settled ?? true,
     },
     schema: importedDocumentSchema,
   });
@@ -142,6 +145,13 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
           onChange={setFile}
         />
         <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
+        {values.type !== 'QUOTE' && (
+          <Checkbox
+            label="Déjà réglé hors trésorerie"
+            description="Décochez pour l’attendre dans le prévisionnel et le rattacher aux mouvements de trésorerie qui le règlent."
+            {...form.getInputProps('settled', { type: 'checkbox' })}
+          />
+        )}
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
             Annuler

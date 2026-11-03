@@ -64,6 +64,10 @@ export interface DocumentMail {
   attachments: { name: string; url: string }[];
   companyName: string;
   recipient: { email: string | null; firstName: string | null };
+  /** Reminder of an unpaid invoice: what is still due, in cents. */
+  reminder?: { balance: number } | null;
+  /** Called once the mail is sent. */
+  onSent?: () => void;
 }
 
 const PHRASES: Record<AccountingDocumentType, { label: string; article: string }> = {
@@ -88,6 +92,23 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
       : document.type === 'CREDIT_NOTE'
         ? `d’un montant de ${amount}`
         : `d’un montant de ${amount}${date ? `, à régler avant le ${date}` : ''}`;
+  if (document.reminder) {
+    const due = formatMoney(document.reminder.balance, document.currency);
+    return {
+      to: document.recipient.email ? [document.recipient.email] : [],
+      subject: `Relance — ${phrase.label} ${document.number}${document.companyName ? ` — ${document.companyName}` : ''}`,
+      body: [
+        `<p>Bonjour${document.recipient.firstName ? ` ${escapeHtml(document.recipient.firstName)}` : ''},</p>`,
+        `<p>Sauf erreur de notre part, ${phrase.article} n° ${escapeHtml(document.number)} d’un montant de ${escapeHtml(amount)}${date ? `, échue le ${date},` : ''} n’a pas encore été réglée : il reste ${escapeHtml(due)} à payer.</p>`,
+        '<p>Merci de bien vouloir procéder à son règlement dans les meilleurs délais. Vous la trouverez de nouveau ci-jointe.</p>',
+        '<p>Si votre paiement a été effectué entre-temps, merci de ne pas tenir compte de ce message.</p>',
+        '<p>Cordialement,</p>',
+      ].join(''),
+      files: [await fetchFile(pdfUrl(document.id, true), `${phrase.label} ${document.number}.pdf`)],
+      projectId: document.projectId,
+      onSent: document.onSent,
+    };
+  }
   const files = await Promise.all([
     fetchFile(pdfUrl(document.id, true), `${phrase.label} ${document.number}.pdf`),
     ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.name)),
@@ -105,5 +126,6 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
     ].join(''),
     files,
     projectId: document.projectId,
+    onSent: document.onSent,
   };
 }

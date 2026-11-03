@@ -169,6 +169,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
         onSuccess: (projectIds) => {
           setSavedSnapshot(snapshot);
           notifySuccess(projectIds.length ? 'Mail envoyé et rattaché au projet.' : 'Mail envoyé.');
+          options.onSent?.();
           onDone();
         },
         onError: (error) => notifyError(error.message),

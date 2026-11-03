@@ -6,12 +6,21 @@ type AccountingAttachment {
 }
 
 type AccountingDocument {
+  acceptedAt: Date
   attachments: [AccountingAttachment!]!
+
+  """
+  Final invoices: still due by the client; credit notes: still owed to the client.
+  """
+  balance: Float
   buyer: JSON
   clientId: ID!
   clientName: String!
   conclusion: String
   contactId: ID
+
+  """Final invoices: deducted by credit notes."""
+  credited: Float
   currency: String!
   derived: [AccountingDocument!]!
   dueDate: Date
@@ -30,17 +39,30 @@ type AccountingDocument {
   lines: [AccountingLine!]!
   number: String
   otherMentions: String
+
+  """
+  Final invoice still due after its due date, or quote waiting after its validity.
+  """
+  overdue: Boolean!
+
+  """Final invoices: paid by the client; credit notes: refunded."""
+  paid: Float
   paymentMethods: String
   paymentTerms: String
+  payments: [TreasuryAllocation!]!
   projectId: ID
   recurringId: ID
   referenceLabel: String
   referenceValue: String
+  reminders: [DocumentReminder!]!
   seller: JSON
+  sentAt: DateTime
   serviceEnd: Date
   serviceId: ID
   serviceStart: Date
   showBankDetails: Boolean!
+  signedFileName: String
+  signedFileUrl: String
   sourceId: ID
   sourceNumber: String
   status: AccountingDocumentStatus!
@@ -48,6 +70,7 @@ type AccountingDocument {
   totalGross: Float!
   totalNet: Float!
   totalVat: Float!
+  trackingStatus: DocumentStatus
   type: AccountingDocumentType!
   updatedAt: DateTime!
   vatApplicable: Boolean!
@@ -487,6 +510,19 @@ enum DiscountType {
   PERCENT
 }
 
+input DocumentPaymentInput {
+  accountId: ID!
+  amount: Float!
+  date: Date!
+  method: String
+}
+
+type DocumentReminder {
+  date: DateTime!
+  id: ID!
+  note: String
+}
+
 type DocumentSequence {
   """Lowest allowed next number."""
   minimum: Int!
@@ -495,11 +531,36 @@ type DocumentSequence {
   year: Int!
 }
 
+type DocumentStatus {
+  category: DocumentStatusCategory!
+  color: String!
+  documentCount: Int!
+  id: ID!
+  name: String!
+  position: Int!
+  scope: DocumentStatusScope!
+}
+
+enum DocumentStatusCategory {
+  ACCEPTED
+  PAID
+  REFUSED
+  SENT
+  TO_SEND
+}
+
+enum DocumentStatusScope {
+  INVOICE
+  QUOTE
+}
+
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
 
 """Quote or invoice issued before Ordo: main information and file."""
 type ImportedDocument {
+  """Still due (by or to the client); 0 once settled."""
+  balance: Float
   clientId: ID
   clientName: String!
   currency: String!
@@ -510,7 +571,10 @@ type ImportedDocument {
   issueDate: Date!
   note: String
   number: String!
+  paid: Float
+  payments: [TreasuryAllocation!]!
   projectId: ID
+  settled: Boolean!
   title: String
   totalGross: Float!
   totalNet: Float!
@@ -527,6 +591,7 @@ input ImportedDocumentInput {
   note: String
   number: String!
   projectId: ID
+  settled: Boolean!
   title: String
   totalGross: Float!
   totalNet: Float!
@@ -718,7 +783,9 @@ input MilestoneUpdateInput {
 }
 
 type Mutation {
+  acceptQuote(date: Date!, file: File, id: ID!): Boolean!
   addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
+  addDocumentReminder(id: ID!, note: String): Boolean!
   addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
   addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
 
@@ -756,6 +823,7 @@ type Mutation {
 
   """Invoice or deposit invoice from a quote, credit note from an invoice."""
   createDocumentFrom(depositPercent: Float, issueDate: Date!, sourceId: ID!, type: AccountingDocumentType!): ID!
+  createDocumentStatus(category: DocumentStatusCategory!, color: String!, name: String!, scope: DocumentStatusScope!): ID!
   createMailAccount(input: MailAccountInput!): MailAccount!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
@@ -768,6 +836,8 @@ type Mutation {
   createTaskType(input: TaskLabelInput!): TaskType!
   createTaskView(input: TaskViewInput!): TaskView!
   createTimeEntry(input: TimeEntryInput!): TimeEntry!
+  createTreasuryAccount(input: TreasuryAccountInput!): ID!
+  createTreasuryEntry(input: TreasuryEntryInput!): ID!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
   deleteCalendarCategory(id: ID!): Boolean!
@@ -780,6 +850,8 @@ type Mutation {
   deleteClientContact(id: ID!): Boolean!
   deleteClientService(id: ID!): Boolean!
   deleteContributor(id: ID!): Boolean!
+  deleteDocumentReminder(id: ID!): Boolean!
+  deleteDocumentStatus(id: ID!): Boolean!
   deleteImportedDocument(id: ID!): Boolean!
   deleteMailAccount(id: ID!): Boolean!
 
@@ -807,6 +879,8 @@ type Mutation {
   deleteTaskType(id: ID!): Boolean!
   deleteTaskView(id: ID!): Boolean!
   deleteTimeEntry(id: ID!): Boolean!
+  deleteTreasuryAccount(id: ID!): Boolean!
+  deleteTreasuryEntry(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
 
@@ -826,6 +900,7 @@ type Mutation {
 
   """Records that an alarm rang for the occurrence at `at`."""
   markAlarmFired(at: DateTime!, id: ID!): Boolean!
+  markDocumentSent(id: ID!): Boolean!
 
   """
   Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.
@@ -833,6 +908,7 @@ type Mutation {
   materializeTaskOccurrences(from: Date!, to: Date!): Int!
   moveCalendarCategory(id: ID!, index: Int!): Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
+  moveDocumentStatus(id: ID!, index: Int!): Boolean!
   moveMailAccount(id: ID!, index: Int!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
 
@@ -859,7 +935,12 @@ type Mutation {
   moveTaskStatus(id: ID!, index: Int!): Boolean!
   moveTaskType(id: ID!, index: Int!): Boolean!
   moveTaskView(id: ID!, index: Int!): Boolean!
+
+  """Records a forecast (one date of a repeated one) as an actual entry."""
+  realizeTreasuryForecast(amount: Float!, date: Date!, id: ID!, occurrence: Date!): ID!
+  recordDocumentPayment(id: ID!, input: DocumentPaymentInput!): Boolean!
   removeAccountingAttachment(attachmentId: ID!): Boolean!
+  removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
 
@@ -890,6 +971,7 @@ type Mutation {
 
   """Sets the number the next final document of a type gets in a year."""
   setDocumentSequence(nextNumber: Int!, type: AccountingDocumentType!, year: Int!): Boolean!
+  setDocumentTrackingStatus(id: ID!, statusId: ID!): Boolean!
   setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
   setMailSignature(id: ID!, signature: String!): MailAccount!
 
@@ -946,6 +1028,7 @@ type Mutation {
   updateClientService(id: ID!, input: ClientServiceInput!): ClientService!
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
+  updateDocumentStatus(category: DocumentStatusCategory, color: String, id: ID!, name: String): Boolean!
   updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
@@ -961,6 +1044,8 @@ type Mutation {
   updateTaskType(id: ID!, input: TaskLabelUpdateInput!): TaskType!
   updateTaskView(id: ID!, input: TaskViewUpdateInput!): TaskView!
   updateTimeEntry(id: ID!, input: TimeEntryUpdateInput!): TimeEntry!
+  updateTreasuryAccount(id: ID!, input: TreasuryAccountInput!): Boolean!
+  updateTreasuryEntry(id: ID!, input: TreasuryEntryInput!): Boolean!
 
   """Stores a file to link from a markdown text (10 MB maximum)."""
   uploadAttachment(file: File!): Attachment!
@@ -1090,6 +1175,8 @@ type Query {
   companyProfile: CompanyProfile!
   contributors: [Contributor!]!
   documentSequences(year: Int!): [DocumentSequence!]!
+  documentStatuses: [DocumentStatus!]!
+  forecastEntries: [TreasuryEntry!]!
   health: String!
 
   """
@@ -1145,6 +1232,11 @@ type Query {
   Time entries, latest first: those of a project and its sub-projects, or every entry.
   """
   timeEntries(projectId: ID): [TimeEntry!]!
+  treasuryAccounts: [TreasuryAccount!]!
+
+  """Entries between two dates (included), latest first."""
+  treasuryEntries(accountId: ID, from: Date!, to: Date!): [TreasuryEntry!]!
+  treasuryProjection(from: Date!, today: Date!, until: Date!): TreasuryProjection!
 
   """Unread mails in the inbox of every account."""
   unreadMailCount: Int!
@@ -1428,6 +1520,103 @@ input TimerInput {
   description: String
   projectId: ID!
   taskIds: [ID!]!
+}
+
+type TreasuryAccount {
+  archived: Boolean!
+
+  """Balance today."""
+  balance: Float!
+  entryCount: Int!
+  id: ID!
+  name: String!
+  openingBalance: Float!
+  openingDate: Date!
+}
+
+input TreasuryAccountInput {
+  archived: Boolean!
+  name: String!
+  openingBalance: Float!
+  openingDate: Date!
+}
+
+type TreasuryAllocation {
+  amount: Float!
+  documentId: ID
+  documentLabel: String!
+  entry: TreasuryEntry!
+  id: ID!
+  importedDocumentId: ID
+}
+
+input TreasuryAllocationInput {
+  amount: Float!
+  documentId: ID
+  importedDocumentId: ID
+}
+
+type TreasuryBalancePoint {
+  balance: Float!
+  date: String!
+  forecast: Boolean!
+}
+
+type TreasuryEntry {
+  accountId: ID!
+  accountName: String!
+  allocations: [TreasuryAllocation!]!
+  amount: Float!
+  category: String
+  date: Date!
+  id: ID!
+  label: String!
+  method: String
+  note: String
+  projectId: ID
+  recurrence: JSON
+  status: TreasuryEntryStatus!
+}
+
+input TreasuryEntryInput {
+  accountId: ID!
+  allocations: [TreasuryAllocationInput!]!
+  amount: Float!
+  category: String
+  date: Date!
+  label: String!
+  method: String
+  note: String
+  projectId: ID
+  recurrence: JSON
+  status: TreasuryEntryStatus!
+}
+
+enum TreasuryEntryStatus {
+  ACTUAL
+  FORECAST
+}
+
+type TreasuryProjection {
+  balance: Float!
+  items: [TreasuryProjectionItem!]!
+  series: [TreasuryBalancePoint!]!
+}
+
+type TreasuryProjectionItem {
+  accountId: ID
+  amount: Float!
+
+  """Expected date, YYYY-MM-DD (overdue items: today)."""
+  date: String!
+  documentId: ID
+  dueDate: String!
+  entryId: ID
+  importedDocumentId: ID
+  kind: String!
+  label: String!
+  overdue: Boolean!
+  recurringInvoiceId: ID
 }
 
 type User {

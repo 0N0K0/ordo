@@ -4,6 +4,7 @@ import { ArrowsClockwiseIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
 import type { AccountingDocumentSummary } from './documents-api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { TrackingBadge } from './TrackingBadge';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -38,6 +39,7 @@ export function DocumentsTable({ documents, showType, showClient = true, empty }
             <Table.Th>Date</Table.Th>
             {showClient && <Table.Th>Client</Table.Th>}
             <Table.Th>Objet</Table.Th>
+            <Table.Th>Suivi</Table.Th>
             <Table.Th ta="right">Total HT</Table.Th>
             <Table.Th ta="right">Total</Table.Th>
           </Table.Tr>
@@ -81,11 +83,19 @@ export function DocumentsTable({ documents, showType, showClient = true, empty }
                   )}
                 </Stack>
               </Table.Td>
+              <Table.Td>
+                <TrackingBadge document={document} />
+              </Table.Td>
               <Table.Td ta="right" ff="monospace">
                 {formatMoney(Math.round(document.totalNet * 100), document.currency)}
               </Table.Td>
               <Table.Td ta="right" ff="monospace" fw={600}>
                 {formatMoney(Math.round(document.totalGross * 100), document.currency)}
+                {document.balance != null && document.balance > 0 && document.balance < document.totalGross && (
+                  <Text size="xs" c="dimmed" fw={400}>
+                    {document.type === 'CREDIT_NOTE' ? 'À rembourser' : 'Reste'} {formatMoney(Math.round(document.balance * 100), document.currency)}
+                  </Text>
+                )}
               </Table.Td>
             </Table.Tr>
           ))}

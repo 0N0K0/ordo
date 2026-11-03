@@ -17,6 +17,7 @@ import {
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
   AlarmIcon,
+  BankIcon,
   CalendarBlankIcon,
   CheckIcon,
   FolderPlusIcon,
@@ -227,6 +228,13 @@ export function Sidebar() {
         label="Facturation"
         leftSection={<ReceiptIcon aria-hidden />}
         active={pathname.startsWith('/accounting')}
+      />
+      <NavLink
+        component={Link}
+        to="/treasury"
+        label="Trésorerie"
+        leftSection={<BankIcon aria-hidden />}
+        active={pathname === '/treasury'}
       />
       <NavLink
         component={Link}

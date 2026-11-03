@@ -9,5 +9,6 @@ import './modules/mail';
 import './modules/calendar';
 import './modules/accounting';
 import './modules/accounting-documents';
+import './modules/treasury';
 
 export const schema = builder.toSchema();

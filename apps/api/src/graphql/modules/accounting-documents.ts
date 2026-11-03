@@ -153,6 +153,7 @@ const ImportedDocumentInput = builder.inputType('ImportedDocumentInput', {
     totalGross: t.float({ required: true }),
     currency: t.string({ required: true }),
     note: t.string(),
+    settled: t.boolean({ required: true }),
   }),
 });
 

@@ -9,7 +9,6 @@ import {
   Grid,
   Group,
   NumberInput,
-  Paper,
   SegmentedControl,
   Select,
   SimpleGrid,
@@ -27,7 +26,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { modals } from '@mantine/modals';
 import { accountingDocumentInputSchema, computeTotals, formatMoney, type AccountingDocumentInput } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CheckCircleIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -38,8 +37,11 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useCompanyProfile } from './api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from './document-pdf';
 import { useAccountingDocument, useDocumentMutations, type AccountingDocument } from './documents-api';
+import { Section } from './EditorSection';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { LinesEditor } from './LinesEditor';
+import { useTrackingMutations } from './tracking-api';
+import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from './recurring-form';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
@@ -87,27 +89,6 @@ function toValues(document: AccountingDocument): FormValues {
 }
 
 /**
- * Titled section of the editor.
- * @param {{ title: string, children: ReactNode, actions?: ReactNode }} props Component props.
- * @returns {JSX.Element} Section.
- */
-function Section({ title, children, actions }: { title: string; children: ReactNode; actions?: ReactNode }) {
-  return (
-    <Paper withBorder radius="md" p="md" component="section">
-      <Stack gap="sm">
-        <Group justify="space-between">
-          <Title order={2} size="h5">
-            {title}
-          </Title>
-          {actions}
-        </Group>
-        {children}
-      </Stack>
-    </Paper>
-  );
-}
-
-/**
  * Editor of a loaded document.
  * @param {{ document: AccountingDocument }} props Component props.
  * @returns {JSX.Element} Editor.
@@ -122,6 +103,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   const { data: company } = useCompanyProfile();
   const openComposer = useMailComposer();
   const [preparingMail, setPreparingMail] = useState(false);
+  const tracking = useTrackingMutations();
   const readOnly = document.status === 'FINAL';
   const isTemplate = document.status === 'TEMPLATE';
   const isQuote = document.type === 'QUOTE';
@@ -244,11 +226,12 @@ function Editor({ document }: { document: AccountingDocument }) {
   };
 
   /**
-   * Opens a mail to the client (contact, else service, else client address) with the PDF and the
-   * attachments of the document.
+   * Opens a mail to the client (contact, else service, else client address) with the PDF: the document and
+   * its attachments (then marked sent), or a reminder of what is still due (then noted).
+   * @param {boolean} [reminder] Reminder of an unpaid invoice. Optional.
    * @returns {void}
    */
-  const sendByMail = () => {
+  const openDocumentMail = (reminder = false) => {
     if (!document.number) return;
     const contact = client?.contacts.find((item) => item.id === document.contactId) ?? null;
     const service = client?.services.find((item) => item.id === document.serviceId) ?? null;
@@ -264,6 +247,11 @@ function Editor({ document }: { document: AccountingDocument }) {
       attachments: document.attachments,
       companyName: company?.name ?? '',
       recipient: { email: contact?.email || service?.email || client?.email || null, firstName: contact?.firstName ?? null },
+      reminder: reminder ? { balance: Math.round((document.balance ?? 0) * 100) } : null,
+      onSent: () =>
+        reminder
+          ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, { onError: (error) => notifyError(error.message) })
+          : tracking.markSent.mutate(document.id, { onError: (error) => notifyError(error.message) }),
     })
       .then(openComposer)
       .catch((error: Error) => notifyError(error.message))
@@ -351,7 +339,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             </ActionIcon>
           </Tooltip>
           {readOnly && (
-            <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={sendByMail} loading={preparingMail}>
+            <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
               Envoyer
             </Button>
           )}
@@ -519,6 +507,7 @@ function Editor({ document }: { document: AccountingDocument }) {
 
         <Grid.Col span={{ base: 12, lg: 4 }}>
           <Stack gap="md">
+            {readOnly && <TrackingPanel document={document} onRemind={() => openDocumentMail(true)} remindPending={preparingMail} />}
             <Section title="Totaux">
               {!readOnly && (
                 <Group gap={4} align="flex-end" wrap="nowrap">

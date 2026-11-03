@@ -15,6 +15,8 @@ import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfi
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachmentData } from './attachments';
 import { getCompanyProfile, usedCounter } from './company';
+import { scopeOf, statusOf } from './document-statuses';
+import { syncPaymentStatus } from './document-tracking';
 
 export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] };
 
@@ -283,8 +285,9 @@ export async function finalizeDocument(id: string): Promise<AccountingDocument> 
   const year = document.issueDate.getUTCFullYear();
   const seller = await sellerSnapshot();
   const buyer = await buyerSnapshot(document);
+  const toSend = await statusOf(scopeOf(document.type), 'TO_SEND');
 
-  return prisma.$transaction(async (tx) => {
+  const final = await prisma.$transaction(async (tx) => {
     // The sequence row is locked until the end of the transaction: two validations never get the same number.
     await tx.$executeRaw`INSERT INTO "DocumentSequence" ("type", "year", "nextNumber") VALUES (${document.type}::"AccountingDocumentType", ${year}, 1) ON CONFLICT DO NOTHING`;
     const [sequence] = await tx.$queryRaw<{ nextNumber: number }[]>`
@@ -302,9 +305,13 @@ export async function finalizeDocument(id: string): Promise<AccountingDocument> 
         seller: seller as Prisma.InputJsonValue,
         buyer: buyer as Prisma.InputJsonValue,
         finalizedAt: new Date(),
+        trackingStatusId: toSend.id,
       },
     });
   });
+  // A credit note settles its invoice (and is itself settled when it only lowers what was due).
+  if (document.type === 'CREDIT_NOTE') await syncPaymentStatus([id, document.sourceId]);
+  return final;
 }
 
 /**

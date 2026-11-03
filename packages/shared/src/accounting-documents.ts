@@ -261,6 +261,8 @@ export const importedDocumentSchema = z
       .max(2000)
       .transform((value) => value || null)
       .nullable(),
+    /** Paid or refunded outside the treasury of Ordo: not expected any more. */
+    settled: z.boolean(),
   })
   .superRefine((document, context) => {
     if (!document.clientId && !document.clientName) context.addIssue({ code: 'custom', path: ['clientId'], message: 'Choisissez un client ou saisissez son nom.' });

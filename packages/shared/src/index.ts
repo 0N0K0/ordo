@@ -9,3 +9,4 @@ export * from './recurrence';
 export * from './calendar';
 export * from './accounting';
 export * from './accounting-documents';
+export * from './treasury';

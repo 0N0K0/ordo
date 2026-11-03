@@ -1,8 +1,9 @@
 import { Stack, Tabs, Title } from "@mantine/core";
-import { BuildingsIcon, CalendarBlankIcon, EnvelopeSimpleIcon, FoldersIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
+import { BuildingsIcon, CalendarBlankIcon, EnvelopeSimpleIcon, FlagIcon, FoldersIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
 import { useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { CompanySettings } from "../../accounting/CompanySettings";
+import { DocumentStatusSettings } from "../../accounting/DocumentStatusSettings";
 import { CalendarCategoriesManager } from "../../calendar/CalendarCategoriesManager";
 import { MailAccountsManager } from "../../mail/settings/MailAccountsManager";
 import { useTasksData } from "../../tasks/api";
@@ -85,6 +86,9 @@ export function SettingsPage() {
           <Tabs.Tab value="company" leftSection={<BuildingsIcon aria-hidden />}>
             Société
           </Tabs.Tab>
+          <Tabs.Tab value="tracking" leftSection={<FlagIcon aria-hidden />}>
+            Suivi des documents
+          </Tabs.Tab>
           <Tabs.Tab value="calendar" leftSection={<CalendarBlankIcon aria-hidden />}>
             Agenda
           </Tabs.Tab>
@@ -130,6 +134,9 @@ export function SettingsPage() {
         </Tabs.Panel>
         <Tabs.Panel value="company">
           <CompanySettings />
+        </Tabs.Panel>
+        <Tabs.Panel value="tracking">
+          <DocumentStatusSettings />
         </Tabs.Panel>
         <Tabs.Panel value="calendar">
           <CalendarCategoriesManager />

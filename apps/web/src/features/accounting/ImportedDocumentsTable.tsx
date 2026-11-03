@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney } from '@ordo/shared';
 import { FilePdfIcon, FileArrowUpIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
@@ -68,6 +68,7 @@ export function ImportedDocumentsTable({ documents, showClient = true }: { docum
             <Table.Th>Date</Table.Th>
             {showClient && <Table.Th>Client</Table.Th>}
             <Table.Th>Objet</Table.Th>
+            <Table.Th>Suivi</Table.Th>
             <Table.Th ta="right">Total HT</Table.Th>
             <Table.Th ta="right">Total</Table.Th>
             <Table.Th />
@@ -83,6 +84,13 @@ export function ImportedDocumentsTable({ documents, showClient = true }: { docum
               <Table.Td>{dateFormat.format(new Date(`${document.issueDate}T00:00:00Z`))}</Table.Td>
               {showClient && <Table.Td>{document.clientName}</Table.Td>}
               <Table.Td>{document.title ?? '—'}</Table.Td>
+              <Table.Td>
+                {document.type !== 'QUOTE' && (
+                  <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
+                    {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglé'}
+                  </Badge>
+                )}
+              </Table.Td>
               <Table.Td ta="right" ff="monospace">
                 {formatMoney(Math.round(document.totalNet * 100), document.currency)}
               </Table.Td>

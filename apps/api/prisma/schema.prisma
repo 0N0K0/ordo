@@ -195,6 +195,7 @@ model Project {
   documents    AccountingDocument[]
   resources    ProjectResource[]
   imported     ImportedDocument[]
+  treasury     TreasuryEntry[]
 
   @@index([clientId])
   @@index([parentId])
@@ -424,7 +425,9 @@ model Attachment {
   importedDocument     ImportedDocument?
   /// Set for a file attached to an accounting document.
   accountingDocumentId String?
-  accountingDocument   AccountingDocument? @relation(fields: [accountingDocumentId], references: [id], onDelete: Cascade)
+  accountingDocument   AccountingDocument? @relation("DocumentAttachments", fields: [accountingDocumentId], references: [id], onDelete: Cascade)
+  /// Set for the signed copy of a quote.
+  signedQuote          AccountingDocument? @relation("SignedQuote")
 
   @@index([mailMessageId])
 }
@@ -766,7 +769,18 @@ model AccountingDocument {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   lines               AccountingLine[]
-  attachments         Attachment[]
+  attachments         Attachment[]             @relation("DocumentAttachments")
+  /// Tracking (configurable status, sending, acceptance, payments, reminders); final documents only.
+  trackingStatusId    String?
+  trackingStatus      DocumentStatus?          @relation(fields: [trackingStatusId], references: [id], onDelete: SetNull)
+  /// Last time it was sent to the client (by mail from Ordo, or marked by hand).
+  sentAt              DateTime?
+  /// Quotes: date of acceptance, and signed copy.
+  acceptedAt          DateTime?                @db.Date
+  signedAttachmentId  String?                  @unique
+  signedAttachment    Attachment?              @relation("SignedQuote", fields: [signedAttachmentId], references: [id], onDelete: SetNull)
+  allocations         TreasuryAllocation[]
+  reminders           DocumentReminder[]
   /// Recurring invoice this document is the model of, or was created by.
   recurring           RecurringInvoice?        @relation("RecurringTemplate")
   recurringId         String?
@@ -880,9 +894,122 @@ model ImportedDocument {
   attachmentId String?                @unique
   attachment   Attachment?            @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
   note         String?
+  /// Paid (or refunded) outside the treasury of Ordo: not expected any more.
+  settled      Boolean                @default(true)
   createdAt    DateTime               @default(now())
+  allocations  TreasuryAllocation[]
 
   @@unique([type, number])
   @@index([clientId])
   @@index([projectId])
+}
+
+/// Which documents a tracking status applies to.
+enum DocumentStatusScope {
+  QUOTE
+  /// Invoices, deposit invoices and credit notes.
+  INVOICE
+}
+
+/// Meaning of a tracking status, whatever its name: it drives the automatic changes.
+enum DocumentStatusCategory {
+  /// Final, not sent yet.
+  TO_SEND
+  /// Sent, waiting for an answer or a payment.
+  SENT
+  ACCEPTED
+  REFUSED
+  /// Paid (invoices), refunded or deducted (credit notes).
+  PAID
+}
+
+/// Configurable tracking status of the final documents ("Envoyé", "En négociation", "Payée"…).
+model DocumentStatus {
+  id        String                 @id @default(cuid())
+  scope     DocumentStatusScope
+  name      String
+  /// Hex color, e.g. #228be6.
+  color     String
+  category  DocumentStatusCategory
+  position  Int                    @default(0)
+  createdAt DateTime               @default(now())
+  documents AccountingDocument[]
+
+  @@unique([scope, name])
+}
+
+/// Reminder of an unpaid invoice (mail sent from Ordo, call…).
+model DocumentReminder {
+  id         String             @id @default(cuid())
+  documentId String
+  document   AccountingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  date       DateTime           @default(now())
+  /// "Mail", "Téléphone"… with an optional note.
+  note       String?
+  createdAt  DateTime           @default(now())
+
+  @@index([documentId])
+}
+
+/// Bank account (or cash box) of the treasury.
+model TreasuryAccount {
+  id             String          @id @default(cuid())
+  name           String
+  /// Balance at the opening date (entries before it are not counted).
+  openingBalance Decimal         @default(0) @db.Decimal(14, 2)
+  openingDate    DateTime        @db.Date
+  position       Int             @default(0)
+  archived       Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  entries        TreasuryEntry[]
+}
+
+enum TreasuryEntryStatus {
+  /// On the bank statement.
+  ACTUAL
+  /// Expected (possibly repeated).
+  FORECAST
+}
+
+/// Money in (positive) or out (negative) of an account, actual or expected.
+model TreasuryEntry {
+  id          String               @id @default(cuid())
+  accountId   String
+  account     TreasuryAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  status      TreasuryEntryStatus  @default(ACTUAL)
+  date        DateTime             @db.Date
+  label       String
+  /// Signed amount: positive for money in.
+  amount      Decimal              @db.Decimal(14, 2)
+  category    String?
+  /// Transfer, card, cheque…
+  method      String?
+  projectId   String?
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  note        String?
+  /// Forecast only: repetition from `date` (shared recurrence rule); realized dates become exceptions.
+  recurrence  Json?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  allocations TreasuryAllocation[]
+
+  @@index([accountId, date])
+  @@index([status, date])
+}
+
+/// Part of an actual entry settling a document: payment of an invoice, refund of a credit note.
+model TreasuryAllocation {
+  id                 String              @id @default(cuid())
+  entryId            String
+  entry              TreasuryEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  documentId         String?
+  document           AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  importedDocumentId String?
+  importedDocument   ImportedDocument?   @relation(fields: [importedDocumentId], references: [id], onDelete: Cascade)
+  /// Positive amount settled on the document.
+  amount             Decimal             @db.Decimal(14, 2)
+
+  @@index([entryId])
+  @@index([documentId])
+  @@index([importedDocumentId])
 }

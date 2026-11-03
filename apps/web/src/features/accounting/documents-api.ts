@@ -36,6 +36,14 @@ graphql(`
     invoicedNet
     sourceNumber
     recurringId
+    trackingStatus {
+      id
+      name
+      color
+      category
+    }
+    balance
+    overdue
   }
 `);
 
@@ -72,6 +80,27 @@ graphql(`
     totalVat
     finalizedAt
     updatedAt
+    sentAt
+    acceptedAt
+    signedFileUrl
+    signedFileName
+    paid
+    credited
+    reminders {
+      id
+      date
+      note
+    }
+    payments {
+      id
+      amount
+      entry {
+        id
+        date
+        accountName
+        method
+      }
+    }
     lines {
       id
       kind
@@ -374,6 +403,9 @@ const ImportedDocumentsDocument = graphql(`
       note
       fileUrl
       fileName
+      settled
+      paid
+      balance
     }
   }
 `);
