@@ -6,10 +6,12 @@ import { env, isProd } from './env';
 import { createContext, type ServerContext } from './graphql/context';
 import { writeSchemaFile } from './graphql/print-schema';
 import { schema } from './graphql/schema';
+import { accountingRouter } from './routes/accounting';
 import { attachmentsRouter } from './routes/attachments';
 import { iconsRouter } from './routes/icons';
 import { mailRouter } from './routes/mail';
 import { scheduleConversationFollowUp } from './services/mail/linked';
+import { scheduleRecurringInvoices } from './services/recurring-invoices';
 
 const disableIntrospection: Plugin = {
   /**
@@ -39,6 +41,7 @@ app.set('trust proxy', 'loopback');
 app.use(helmet({ contentSecurityPolicy: isProd ? undefined : false }));
 app.use('/api/icons', iconsRouter);
 app.use('/api/attachments', attachmentsRouter);
+app.use('/api/accounting', accountingRouter);
 app.use('/api/mail', mailRouter);
 app.use(yoga.graphqlEndpoint, async (req, res) => {
   await yoga(req, res);
@@ -48,6 +51,8 @@ if (!isProd) await writeSchemaFile();
 
 // Mails replying to conversations linked to projects join them.
 scheduleConversationFollowUp();
+// Recurring invoices are issued on their dates.
+scheduleRecurringInvoices();
 
 app.listen(env.PORT, () => {
   console.log(`API ready on http://localhost:${env.PORT}${yoga.graphqlEndpoint}`);

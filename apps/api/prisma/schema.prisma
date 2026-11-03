@@ -91,6 +91,67 @@ model Client {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   projects   Project[]
+
+  /// Professional (company, association…) or individual.
+  kind         ClientKind           @default(COMPANY)
+  /// Individual: first and last name (the client name stays the displayed one).
+  firstName    String?
+  lastName     String?
+  /// Postal address: { lines, postalCode, city, region, country (ISO 3166-1 alpha-2) }.
+  address      Json?
+  email        String?
+  /// [{ label, number }]
+  phones       Json                 @default("[]")
+  website      String?
+  vatNumber    String?
+  siren        String?
+  siret        String?
+  /// Activity code (NAF in France, NACE in the EU, NOGA in Switzerland…).
+  activityCode String?
+  services     ClientService[]
+  contacts     ClientContact[]
+  documents    AccountingDocument[]
+  imported     ImportedDocument[]
+}
+
+enum ClientKind {
+  COMPANY
+  INDIVIDUAL
+}
+
+/// Department or branch of a client, with its own address and contacts.
+model ClientService {
+  id        String               @id @default(cuid())
+  clientId  String
+  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  address   Json?
+  email     String?
+  phones    Json                 @default("[]")
+  position  Int                  @default(0)
+  createdAt DateTime             @default(now())
+  contacts  ClientContact[]
+  documents AccountingDocument[]
+
+  @@index([clientId])
+}
+
+/// Person at a client, possibly in one of its services.
+model ClientContact {
+  id        String               @id @default(cuid())
+  clientId  String
+  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceId String?
+  service   ClientService?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  firstName String
+  lastName  String
+  email     String?
+  jobTitle  String?
+  phones    Json                 @default("[]")
+  createdAt DateTime             @default(now())
+  documents AccountingDocument[]
+
+  @@index([clientId])
 }
 
 model Project {
@@ -126,11 +187,15 @@ model Project {
   milestones   Milestone[]
   taskViews    TaskView[]
   /// Contributors attached to the project (and, through it, to its sub-projects).
-  contributors Contributor[]   @relation("ProjectContributors")
+  contributors Contributor[]        @relation("ProjectContributors")
   timeEntries  TimeEntry[]
   alarms       Alarm[]
   mails        MailMessage[]
   events       CalendarEvent[]
+  documents    AccountingDocument[]
+  resources    ProjectResource[]
+  imported     ImportedDocument[]
+  treasury     TreasuryEntry[]
 
   @@index([clientId])
   @@index([parentId])
@@ -342,27 +407,36 @@ model Milestone {
 
 /// File attached to a markdown text (description, comment…) and linked from it.
 model Attachment {
-  id            String       @id @default(cuid())
+  id                   String              @id @default(cuid())
   /// Original file name, used for the download.
-  name          String
-  mimeType      String
-  size          Int
-  data          Bytes
-  createdAt     DateTime     @default(now())
+  name                 String
+  mimeType             String
+  size                 Int
+  data                 Bytes
+  createdAt            DateTime            @default(now())
   /// Set for a file of a mail copied into a project.
-  mailMessageId String?
-  mailMessage   MailMessage? @relation(fields: [mailMessageId], references: [id], onDelete: Cascade)
+  mailMessageId        String?
+  mailMessage          MailMessage?        @relation(fields: [mailMessageId], references: [id], onDelete: Cascade)
   /// Content-ID of an inline image of that mail.
-  contentId     String?
+  contentId            String?
+  /// Set for a file of a project.
+  projectResource      ProjectResource?
+  /// Set for the file of an imported document.
+  importedDocument     ImportedDocument?
+  /// Set for a file attached to an accounting document.
+  accountingDocumentId String?
+  accountingDocument   AccountingDocument? @relation("DocumentAttachments", fields: [accountingDocumentId], references: [id], onDelete: Cascade)
+  /// Set for the signed copy of a quote.
+  signedQuote          AccountingDocument? @relation("SignedQuote")
 
   @@index([mailMessageId])
 }
 
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
-  id            String    @id @default(cuid())
+  id            String              @id @default(cuid())
   projectId     String
-  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// What was done (plain text, several lines).
   description   String?
   startedAt     DateTime
@@ -371,16 +445,20 @@ model TimeEntry {
   /// Start of the current pause, while paused.
   pausedAt      DateTime?
   /// Paused time before the current pause, in seconds.
-  pausedSeconds Int       @default(0)
+  pausedSeconds Int                 @default(0)
   /// Effective duration in seconds (pauses excluded), set once stopped.
   duration      Int?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  /// Invoice (draft or final) the time is billed on.
+  documentId    String?
+  document      AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   tasks         Task[]
 
   @@index([projectId])
   @@index([startedAt])
   @@index([endedAt])
+  @@index([documentId])
 }
 
 /// What triggers an alarm.
@@ -569,4 +647,398 @@ model CalendarEventException {
   endTime     String?
 
   @@unique([eventId, date])
+}
+
+/// The user's business, shown on the accounting documents (a single row).
+model CompanyProfile {
+  id                String   @id @default("company")
+  name              String   @default("")
+  /// Legal form (SASU, EURL, EI, micro-entreprise…).
+  legalForm         String?
+  /// Share capital, as written ("1 000 €").
+  capital           String?
+  /// Registration (RCS Paris 123 456 789, RM…).
+  registration      String?
+  siren             String?
+  siret             String?
+  activityCode      String?
+  vatNumber         String?
+  /// Off: "TVA non applicable" (franchise), no VAT on the documents.
+  vatApplicable     Boolean  @default(true)
+  /// Mention printed when VAT does not apply.
+  vatExemptionText  String   @default("TVA non applicable, art. 293 B du CGI")
+  address           Json?
+  email             String?
+  phone             String?
+  website           String?
+  logoId            String?
+  bankName          String?
+  accountHolder     String?
+  iban              String?
+  bic               String?
+  /// Defaults of new documents.
+  paymentTerms      String   @default("À 30 jours")
+  paymentDays       Int      @default(30)
+  paymentMethods    String   @default("Virement bancaire")
+  lateInterest      String   @default("Trois fois le taux d’intérêt légal")
+  /// Other mentions printed on every document.
+  otherMentions     String   @default("Pas d’escompte pour paiement anticipé.")
+  /// Label of the client's internal reference ("Référence dossier", "Bon de commande"…).
+  referenceLabel    String   @default("Référence dossier")
+  quoteValidityDays Int      @default(30)
+  updatedAt         DateTime @updatedAt
+}
+
+enum AccountingDocumentType {
+  QUOTE
+  INVOICE
+  DEPOSIT_INVOICE
+  CREDIT_NOTE
+}
+
+/// Next number of a document type for a year (D/F/FA/A + YY + 5 digits).
+model DocumentSequence {
+  type       AccountingDocumentType
+  year       Int
+  nextNumber Int                    @default(1)
+
+  @@id([type, year])
+}
+
+enum AccountingDocumentStatus {
+  /// Editable, without number.
+  DRAFT
+  /// Numbered and final: it cannot be changed any more (corrected by a credit note).
+  FINAL
+  /// Model of a recurring invoice, never numbered.
+  TEMPLATE
+}
+
+enum DiscountType {
+  PERCENT
+  AMOUNT
+}
+
+/// Quote, invoice, deposit invoice or credit note.
+model AccountingDocument {
+  id                  String                   @id @default(cuid())
+  type                AccountingDocumentType
+  status              AccountingDocumentStatus @default(DRAFT)
+  /// Given when the document becomes final.
+  year                Int?
+  counter             Int?
+  number              String?                  @unique
+  /// Date printed on the document (it may be set in the past or the future).
+  issueDate           DateTime                 @db.Date
+  /// Payment due date (invoices) or end of validity (quotes).
+  dueDate             DateTime?                @db.Date
+  /// Date or period of the service or delivery.
+  serviceStart        DateTime?                @db.Date
+  serviceEnd          DateTime?                @db.Date
+  clientId            String
+  client              Client                   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  serviceId           String?
+  service             ClientService?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  contactId           String?
+  contact             ClientContact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  projectId           String?
+  project             Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Quote an invoice comes from, or invoice a credit note cancels.
+  sourceId            String?
+  source              AccountingDocument?      @relation("DocumentSource", fields: [sourceId], references: [id], onDelete: Restrict)
+  derived             AccountingDocument[]     @relation("DocumentSource")
+  /// Seller and buyer as printed, frozen when the document becomes final.
+  seller              Json?
+  buyer               Json?
+  title               String?
+  introduction        String?
+  referenceLabel      String?
+  referenceValue      String?
+  conclusion          String?
+  paymentTerms        String?
+  paymentMethods      String?
+  /// Quotes: deposit asked at order, percent of the total or amount.
+  depositType         DiscountType?
+  depositValue        Decimal?                 @db.Decimal(14, 2)
+  lateInterest        String?
+  /// Quotes: how the work will be invoiced ("Au mois, en fin de mois", "Tous les 5 du mois"…).
+  billingSchedule     String?
+  otherMentions       String?
+  showBankDetails     Boolean                  @default(true)
+  vatApplicable       Boolean                  @default(true)
+  vatExemptionText    String?
+  globalDiscountType  DiscountType?
+  globalDiscountValue Decimal?                 @db.Decimal(14, 2)
+  currency            String                   @default("EUR")
+  /// Totals, computed on each save.
+  totalNet            Decimal                  @default(0) @db.Decimal(14, 2)
+  totalVat            Decimal                  @default(0) @db.Decimal(14, 2)
+  totalGross          Decimal                  @default(0) @db.Decimal(14, 2)
+  finalizedAt         DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  lines               AccountingLine[]
+  attachments         Attachment[]             @relation("DocumentAttachments")
+  /// Tracking (configurable status, sending, acceptance, payments, reminders); final documents only.
+  trackingStatusId    String?
+  trackingStatus      DocumentStatus?          @relation(fields: [trackingStatusId], references: [id], onDelete: SetNull)
+  /// Last time it was sent to the client (by mail from Ordo, or marked by hand).
+  sentAt              DateTime?
+  /// Quotes: date of acceptance, and signed copy.
+  acceptedAt          DateTime?                @db.Date
+  signedAttachmentId  String?                  @unique
+  signedAttachment    Attachment?              @relation("SignedQuote", fields: [signedAttachmentId], references: [id], onDelete: SetNull)
+  allocations         TreasuryAllocation[]
+  reminders           DocumentReminder[]
+  /// Tracked time billed on it.
+  timeEntries         TimeEntry[]
+  /// Recurring invoice this document is the model of, or was created by.
+  recurring           RecurringInvoice?        @relation("RecurringTemplate")
+  recurringId         String?
+  generatedBy         RecurringInvoice?        @relation("RecurringGenerated", fields: [recurringId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([projectId])
+  @@index([sourceId])
+  @@index([type, year])
+}
+
+enum AccountingLineKind {
+  /// Product or service.
+  ITEM
+  /// Expense paid on behalf of the client, re-invoiced without VAT or margin.
+  DISBURSEMENT
+  /// Free text (section title, note).
+  TEXT
+  /// Amount already invoiced on the same quote, deducted.
+  DEDUCTION
+}
+
+enum AccountingUnit {
+  UNIT
+  HOUR
+  DAY
+  MONTH
+  FLAT
+  DEPOSIT
+}
+
+model AccountingLine {
+  id            String             @id @default(cuid())
+  documentId    String
+  document      AccountingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  position      Int
+  kind          AccountingLineKind @default(ITEM)
+  title         String
+  /// Markdown.
+  description   String?
+  quantity      Decimal            @default(1) @db.Decimal(14, 3)
+  unit          AccountingUnit     @default(UNIT)
+  unitPrice     Decimal            @default(0) @db.Decimal(14, 2)
+  /// Percent (20, 10, 5.5…).
+  vatRate       Decimal            @default(0) @db.Decimal(5, 2)
+  discountType  DiscountType?
+  discountValue Decimal?           @db.Decimal(14, 2)
+
+  @@index([documentId])
+}
+
+/// Invoice issued on a schedule from a model document.
+model RecurringInvoice {
+  id           String               @id @default(cuid())
+  name         String
+  templateId   String               @unique
+  template     AccountingDocument   @relation("RecurringTemplate", fields: [templateId], references: [id], onDelete: Cascade)
+  /// Repetition (shared recurrence rule), from `startDate`.
+  recurrence   Json
+  startDate    DateTime             @db.Date
+  /// Next issue date, null when the schedule is over.
+  nextDate     DateTime?            @db.Date
+  /// Final invoices (numbered at once) rather than drafts to check.
+  autoFinalize Boolean              @default(false)
+  active       Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  generated    AccountingDocument[] @relation("RecurringGenerated")
+}
+
+/// Product or service of the catalogue: default title, description, unit, price and VAT of a line.
+model CatalogItem {
+  id          String             @id @default(cuid())
+  /// Item or disbursement.
+  kind        AccountingLineKind @default(ITEM)
+  title       String
+  /// Markdown.
+  description String?
+  unit        AccountingUnit     @default(UNIT)
+  unitPrice   Decimal            @default(0) @db.Decimal(14, 2)
+  /// Percent (20, 10, 5.5…).
+  vatRate     Decimal            @default(20) @db.Decimal(5, 2)
+  /// Archived: kept on past documents, not offered any more.
+  archived    Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+enum ProjectResourceKind {
+  FILE
+  LINK
+}
+
+/// File or link of a project (mock-ups, repository, specifications…).
+model ProjectResource {
+  id           String              @id @default(cuid())
+  projectId    String
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind         ProjectResourceKind
+  title        String
+  url          String?
+  attachmentId String?             @unique
+  attachment   Attachment?         @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  note         String?
+  position     Int                 @default(0)
+  createdAt    DateTime            @default(now())
+
+  @@index([projectId])
+}
+
+/// Quote or invoice issued before Ordo (or elsewhere): its main information and its PDF, not its lines.
+model ImportedDocument {
+  id           String                 @id @default(cuid())
+  type         AccountingDocumentType
+  /// Number as issued.
+  number       String
+  issueDate    DateTime               @db.Date
+  dueDate      DateTime?              @db.Date
+  clientId     String?
+  client       Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  /// Client name when it is not (or no longer) a client in Ordo.
+  clientName   String?
+  projectId    String?
+  project      Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title        String?
+  totalNet     Decimal                @db.Decimal(14, 2)
+  totalVat     Decimal                @default(0) @db.Decimal(14, 2)
+  totalGross   Decimal                @db.Decimal(14, 2)
+  currency     String                 @default("EUR")
+  attachmentId String?                @unique
+  attachment   Attachment?            @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  note         String?
+  /// Paid (or refunded) outside the treasury of Ordo: not expected any more.
+  settled      Boolean                @default(true)
+  createdAt    DateTime               @default(now())
+  allocations  TreasuryAllocation[]
+
+  @@unique([type, number])
+  @@index([clientId])
+  @@index([projectId])
+}
+
+/// Which documents a tracking status applies to.
+enum DocumentStatusScope {
+  QUOTE
+  /// Invoices, deposit invoices and credit notes.
+  INVOICE
+}
+
+/// Meaning of a tracking status, whatever its name: it drives the automatic changes.
+enum DocumentStatusCategory {
+  /// Final, not sent yet.
+  TO_SEND
+  /// Sent, waiting for an answer or a payment.
+  SENT
+  ACCEPTED
+  REFUSED
+  /// Paid (invoices), refunded or deducted (credit notes).
+  PAID
+}
+
+/// Configurable tracking status of the final documents ("Envoyé", "En négociation", "Payée"…).
+model DocumentStatus {
+  id        String                 @id @default(cuid())
+  scope     DocumentStatusScope
+  name      String
+  /// Hex color, e.g. #228be6.
+  color     String
+  category  DocumentStatusCategory
+  position  Int                    @default(0)
+  createdAt DateTime               @default(now())
+  documents AccountingDocument[]
+
+  @@unique([scope, name])
+}
+
+/// Reminder of an unpaid invoice (mail sent from Ordo, call…).
+model DocumentReminder {
+  id         String             @id @default(cuid())
+  documentId String
+  document   AccountingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  date       DateTime           @default(now())
+  /// "Mail", "Téléphone"… with an optional note.
+  note       String?
+  createdAt  DateTime           @default(now())
+
+  @@index([documentId])
+}
+
+/// Bank account (or cash box) of the treasury.
+model TreasuryAccount {
+  id             String          @id @default(cuid())
+  name           String
+  /// Balance at the opening date (entries before it are not counted).
+  openingBalance Decimal         @default(0) @db.Decimal(14, 2)
+  openingDate    DateTime        @db.Date
+  position       Int             @default(0)
+  archived       Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  entries        TreasuryEntry[]
+}
+
+enum TreasuryEntryStatus {
+  /// On the bank statement.
+  ACTUAL
+  /// Expected (possibly repeated).
+  FORECAST
+}
+
+/// Money in (positive) or out (negative) of an account, actual or expected.
+model TreasuryEntry {
+  id          String               @id @default(cuid())
+  accountId   String
+  account     TreasuryAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  status      TreasuryEntryStatus  @default(ACTUAL)
+  date        DateTime             @db.Date
+  label       String
+  /// Signed amount: positive for money in.
+  amount      Decimal              @db.Decimal(14, 2)
+  category    String?
+  /// Transfer, card, cheque…
+  method      String?
+  projectId   String?
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  note        String?
+  /// Forecast only: repetition from `date` (shared recurrence rule); realized dates become exceptions.
+  recurrence  Json?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  allocations TreasuryAllocation[]
+
+  @@index([accountId, date])
+  @@index([status, date])
+}
+
+/// Part of an actual entry settling a document: payment of an invoice, refund of a credit note.
+model TreasuryAllocation {
+  id                 String              @id @default(cuid())
+  entryId            String
+  entry              TreasuryEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  documentId         String?
+  document           AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  importedDocumentId String?
+  importedDocument   ImportedDocument?   @relation(fields: [importedDocumentId], references: [id], onDelete: Cascade)
+  /// Positive amount settled on the document.
+  amount             Decimal             @db.Decimal(14, 2)
+
+  @@index([entryId])
+  @@index([documentId])
+  @@index([importedDocumentId])
 }

@@ -7,5 +7,9 @@ import './modules/tasks';
 import './modules/time';
 import './modules/mail';
 import './modules/calendar';
+import './modules/accounting';
+import './modules/accounting-documents';
+import './modules/treasury';
+import './modules/catalog';
 
 export const schema = builder.toSchema();

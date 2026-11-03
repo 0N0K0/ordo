@@ -4,6 +4,73 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 /** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import type { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
+export type AccountingDocumentInput = {
+  billingSchedule?: string | null | undefined;
+  clientId: string | number;
+  conclusion?: string | null | undefined;
+  contactId?: string | number | null | undefined;
+  depositType?: DiscountType | null | undefined;
+  depositValue?: number | null | undefined;
+  dueDate?: string | null | undefined;
+  globalDiscountType?: DiscountType | null | undefined;
+  globalDiscountValue?: number | null | undefined;
+  introduction?: string | null | undefined;
+  issueDate: string;
+  lateInterest?: string | null | undefined;
+  lines: Array<AccountingLineInput>;
+  otherMentions?: string | null | undefined;
+  paymentMethods?: string | null | undefined;
+  paymentTerms?: string | null | undefined;
+  projectId?: string | number | null | undefined;
+  referenceLabel?: string | null | undefined;
+  referenceValue?: string | null | undefined;
+  serviceEnd?: string | null | undefined;
+  serviceId?: string | number | null | undefined;
+  serviceStart?: string | null | undefined;
+  showBankDetails: boolean;
+  /** Tracked time billed on the document (replaces the previous ones); unchanged when omitted. */
+  timeEntryIds?: Array<string | number> | null | undefined;
+  title?: string | null | undefined;
+  vatApplicable: boolean;
+};
+
+export type AccountingDocumentStatus =
+  | 'DRAFT'
+  | 'FINAL'
+  | 'TEMPLATE';
+
+export type AccountingDocumentType =
+  | 'CREDIT_NOTE'
+  | 'DEPOSIT_INVOICE'
+  | 'INVOICE'
+  | 'QUOTE';
+
+export type AccountingLineInput = {
+  description?: string | null | undefined;
+  discountType?: DiscountType | null | undefined;
+  discountValue?: number | null | undefined;
+  kind: AccountingLineKind;
+  quantity: number;
+  title: string;
+  unit: AccountingUnit;
+  unitPrice: number;
+  vatRate: number;
+};
+
+export type AccountingLineKind =
+  | 'DEDUCTION'
+  | 'DISBURSEMENT'
+  | 'ITEM'
+  | 'TEXT';
+
+export type AccountingUnit =
+  | 'DAY'
+  | 'DEPOSIT'
+  | 'FLAT'
+  | 'HOUR'
+  | 'MONTH'
+  | 'UNIT';
+
 export type AlarmFrequency =
   | 'DAILY'
   | 'MONTHLY'
@@ -83,10 +150,55 @@ export type CalendarLinkInput = {
   url: string;
 };
 
+export type CatalogItemInput = {
+  archived: boolean;
+  description?: string | null | undefined;
+  /** ITEM or DISBURSEMENT. */
+  kind: AccountingLineKind;
+  title: string;
+  unit: AccountingUnit;
+  unitPrice: number;
+  vatRate: number;
+};
+
+export type ClientContactInput = {
+  email: string;
+  firstName: string;
+  jobTitle: string;
+  lastName: string;
+  phones: unknown;
+  serviceId?: string | number | null | undefined;
+};
+
+export type ClientDetailsInput = {
+  activityCode: string;
+  address?: unknown;
+  email: string;
+  firstName: string;
+  kind: ClientKind;
+  lastName: string;
+  phones: unknown;
+  siren: string;
+  siret: string;
+  vatNumber: string;
+  website: string;
+};
+
 export type ClientInput = {
   color?: string | null | undefined;
   icon?: File | null | undefined;
   name: string;
+};
+
+export type ClientKind =
+  | 'COMPANY'
+  | 'INDIVIDUAL';
+
+export type ClientServiceInput = {
+  address?: unknown;
+  email: string;
+  name: string;
+  phones: unknown;
 };
 
 export type ClientUpdateInput = {
@@ -96,6 +208,34 @@ export type ClientUpdateInput = {
   icon?: File | null | undefined;
   name?: string | null | undefined;
   removeIcon?: boolean | null | undefined;
+};
+
+export type CompanyProfileInput = {
+  accountHolder: string;
+  activityCode: string;
+  address?: unknown;
+  bankName: string;
+  bic: string;
+  capital: string;
+  email: string;
+  iban: string;
+  lateInterest: string;
+  legalForm: string;
+  name: string;
+  otherMentions: string;
+  paymentDays: number;
+  paymentMethods: string;
+  paymentTerms: string;
+  phone: string;
+  quoteValidityDays: number;
+  referenceLabel: string;
+  registration: string;
+  siren: string;
+  siret: string;
+  vatApplicable: boolean;
+  vatExemptionText: string;
+  vatNumber: string;
+  website: string;
 };
 
 export type ContributorInput = {
@@ -113,6 +253,45 @@ export type ContributorUpdateInput = {
   /** Projects the contributor is directly attached to. */
   projectIds?: Array<string | number> | null | undefined;
   removeAvatar?: boolean | null | undefined;
+};
+
+export type DiscountType =
+  | 'AMOUNT'
+  | 'PERCENT';
+
+export type DocumentPaymentInput = {
+  accountId: string | number;
+  amount: number;
+  date: string;
+  method?: string | null | undefined;
+};
+
+export type DocumentStatusCategory =
+  | 'ACCEPTED'
+  | 'PAID'
+  | 'REFUSED'
+  | 'SENT'
+  | 'TO_SEND';
+
+export type DocumentStatusScope =
+  | 'INVOICE'
+  | 'QUOTE';
+
+export type ImportedDocumentInput = {
+  clientId?: string | number | null | undefined;
+  clientName?: string | null | undefined;
+  currency: string;
+  dueDate?: string | null | undefined;
+  issueDate: string;
+  note?: string | null | undefined;
+  number: string;
+  projectId?: string | number | null | undefined;
+  settled: boolean;
+  title?: string | null | undefined;
+  totalGross: number;
+  totalNet: number;
+  totalVat: number;
+  type: AccountingDocumentType;
 };
 
 /** Empty passwords keep the saved ones on edition. */
@@ -186,6 +365,10 @@ export type ProjectInput = {
   title: string;
 };
 
+export type ProjectResourceKind =
+  | 'FILE'
+  | 'LINK';
+
 export type ProjectStatusInput = {
   color: string;
   name: string;
@@ -211,6 +394,14 @@ export type ProjectUpdateInput = {
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   title?: string | null | undefined;
+};
+
+export type RecurringInvoiceInput = {
+  active: boolean;
+  autoFinalize: boolean;
+  name: string;
+  recurrence: unknown;
+  startDate: string;
 };
 
 export type SaveMailDraftInput = {
@@ -346,6 +537,472 @@ export type TimerInput = {
   projectId: string | number;
   taskIds: Array<string | number>;
 };
+
+export type TreasuryAccountInput = {
+  archived: boolean;
+  name: string;
+  openingBalance: number;
+  openingDate: string;
+};
+
+export type TreasuryAllocationInput = {
+  amount: number;
+  documentId?: string | number | null | undefined;
+  importedDocumentId?: string | number | null | undefined;
+};
+
+export type TreasuryEntryInput = {
+  accountId: string | number;
+  allocations: Array<TreasuryAllocationInput>;
+  amount: number;
+  category?: string | null | undefined;
+  date: string;
+  label: string;
+  method?: string | null | undefined;
+  note?: string | null | undefined;
+  projectId?: string | number | null | undefined;
+  recurrence?: unknown;
+  status: TreasuryEntryStatus;
+};
+
+export type TreasuryEntryStatus =
+  | 'ACTUAL'
+  | 'FORECAST';
+
+export type CompanyProfileFieldsFragment = { name: string, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
+
+export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CompanyProfileQuery = { companyProfile: { name: string, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number } };
+
+export type DocumentSequencesQueryVariables = Exact<{
+  year: number;
+}>;
+
+
+export type DocumentSequencesQuery = { documentSequences: Array<{ type: AccountingDocumentType, year: number, nextNumber: number, minimum: number }> };
+
+export type ClientBillingQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type ClientBillingQuery = { client: { id: string, name: string, kind: ClientKind, firstName: string | null, lastName: string | null, address: unknown, email: string | null, phones: unknown, website: string | null, vatNumber: string | null, siren: string | null, siret: string | null, activityCode: string | null, services: Array<{ id: string, name: string, address: unknown, email: string | null, phones: unknown }>, contacts: Array<{ id: string, serviceId: string | null, firstName: string, lastName: string, email: string | null, jobTitle: string | null, phones: unknown }> } | null };
+
+export type UpdateCompanyProfileMutationVariables = Exact<{
+  input: CompanyProfileInput;
+}>;
+
+
+export type UpdateCompanyProfileMutation = { updateCompanyProfile: { name: string } };
+
+export type SetCompanyLogoMutationVariables = Exact<{
+  file?: File | null | undefined;
+}>;
+
+
+export type SetCompanyLogoMutation = { setCompanyLogo: { logoUrl: string | null } };
+
+export type SetDocumentSequenceMutationVariables = Exact<{
+  type: AccountingDocumentType;
+  year: number;
+  nextNumber: number;
+}>;
+
+
+export type SetDocumentSequenceMutation = { setDocumentSequence: boolean };
+
+export type UpdateClientDetailsMutationVariables = Exact<{
+  id: string | number;
+  input: ClientDetailsInput;
+}>;
+
+
+export type UpdateClientDetailsMutation = { updateClientDetails: { id: string } };
+
+export type CreateClientServiceMutationVariables = Exact<{
+  clientId: string | number;
+  input: ClientServiceInput;
+}>;
+
+
+export type CreateClientServiceMutation = { createClientService: { id: string } };
+
+export type UpdateClientServiceMutationVariables = Exact<{
+  id: string | number;
+  input: ClientServiceInput;
+}>;
+
+
+export type UpdateClientServiceMutation = { updateClientService: { id: string } };
+
+export type DeleteClientServiceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteClientServiceMutation = { deleteClientService: boolean };
+
+export type CreateClientContactMutationVariables = Exact<{
+  clientId: string | number;
+  input: ClientContactInput;
+}>;
+
+
+export type CreateClientContactMutation = { createClientContact: { id: string } };
+
+export type UpdateClientContactMutationVariables = Exact<{
+  id: string | number;
+  input: ClientContactInput;
+}>;
+
+
+export type UpdateClientContactMutation = { updateClientContact: { id: string } };
+
+export type DeleteClientContactMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteClientContactMutation = { deleteClientContact: boolean };
+
+export type CatalogItemsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CatalogItemsQuery = { catalogItems: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, unit: AccountingUnit, unitPrice: number, vatRate: number, archived: boolean }> };
+
+export type CreateCatalogItemMutationVariables = Exact<{
+  input: CatalogItemInput;
+}>;
+
+
+export type CreateCatalogItemMutation = { createCatalogItem: string };
+
+export type UpdateCatalogItemMutationVariables = Exact<{
+  id: string | number;
+  input: CatalogItemInput;
+}>;
+
+
+export type UpdateCatalogItemMutation = { updateCatalogItem: boolean };
+
+export type DeleteCatalogItemMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteCatalogItemMutation = { deleteCatalogItem: boolean };
+
+export type AccountingDocumentListFieldsFragment = { id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
+
+export type AccountingDocumentFieldsFragment = { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, method: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
+
+export type AccountingDocumentsQueryVariables = Exact<{
+  clientId?: string | number | null | undefined;
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type AccountingDocumentsQuery = { accountingDocuments: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null }> };
+
+export type AccountingDocumentQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type AccountingDocumentQuery = { accountingDocument: { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, method: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null } | null };
+
+export type NewDocumentDefaultsQueryVariables = Exact<{
+  type: AccountingDocumentType;
+  clientId: string | number;
+  issueDate: string;
+}>;
+
+
+export type NewDocumentDefaultsQuery = { newDocumentDefaults: unknown };
+
+export type RecurringInvoicesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type RecurringInvoicesQuery = { recurringInvoices: Array<{ id: string, name: string, templateId: string, recurrence: unknown, startDate: string, nextDate: string | null, autoFinalize: boolean, active: boolean, issuedCount: number, template: { clientName: string, totalGross: number, currency: string } }> };
+
+export type ProjectResourcesQueryVariables = Exact<{
+  projectId: string | number;
+}>;
+
+
+export type ProjectResourcesQuery = { projectResources: Array<{ id: string, kind: ProjectResourceKind, title: string, note: string | null, url: string, size: number | null, createdAt: string }> };
+
+export type CreateAccountingDocumentMutationVariables = Exact<{
+  type: AccountingDocumentType;
+  input: AccountingDocumentInput;
+}>;
+
+
+export type CreateAccountingDocumentMutation = { createAccountingDocument: string };
+
+export type UpdateAccountingDocumentMutationVariables = Exact<{
+  id: string | number;
+  input: AccountingDocumentInput;
+}>;
+
+
+export type UpdateAccountingDocumentMutation = { updateAccountingDocument: string };
+
+export type DeleteAccountingDocumentMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteAccountingDocumentMutation = { deleteAccountingDocument: boolean };
+
+export type FinalizeAccountingDocumentMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type FinalizeAccountingDocumentMutation = { finalizeAccountingDocument: string };
+
+export type CreateDocumentFromMutationVariables = Exact<{
+  sourceId: string | number;
+  type: AccountingDocumentType;
+  depositPercent?: number | null | undefined;
+  issueDate: string;
+}>;
+
+
+export type CreateDocumentFromMutation = { createDocumentFrom: string };
+
+export type DuplicateAccountingDocumentMutationVariables = Exact<{
+  id: string | number;
+  issueDate: string;
+}>;
+
+
+export type DuplicateAccountingDocumentMutation = { duplicateAccountingDocument: string };
+
+export type AddAccountingAttachmentsMutationVariables = Exact<{
+  id: string | number;
+  files: Array<File> | File;
+}>;
+
+
+export type AddAccountingAttachmentsMutation = { addAccountingAttachments: boolean };
+
+export type RemoveAccountingAttachmentMutationVariables = Exact<{
+  attachmentId: string | number;
+}>;
+
+
+export type RemoveAccountingAttachmentMutation = { removeAccountingAttachment: boolean };
+
+export type CreateRecurringInvoiceMutationVariables = Exact<{
+  documentId: string | number;
+  input: RecurringInvoiceInput;
+}>;
+
+
+export type CreateRecurringInvoiceMutation = { createRecurringInvoice: string };
+
+export type UpdateRecurringInvoiceMutationVariables = Exact<{
+  id: string | number;
+  input: RecurringInvoiceInput;
+}>;
+
+
+export type UpdateRecurringInvoiceMutation = { updateRecurringInvoice: boolean };
+
+export type DeleteRecurringInvoiceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteRecurringInvoiceMutation = { deleteRecurringInvoice: boolean };
+
+export type AddProjectLinkMutationVariables = Exact<{
+  projectId: string | number;
+  title: string;
+  url: string;
+  note?: string | null | undefined;
+}>;
+
+
+export type AddProjectLinkMutation = { addProjectLink: boolean };
+
+export type AddProjectFilesMutationVariables = Exact<{
+  projectId: string | number;
+  files: Array<File> | File;
+}>;
+
+
+export type AddProjectFilesMutation = { addProjectFiles: boolean };
+
+export type UpdateProjectResourceMutationVariables = Exact<{
+  id: string | number;
+  title: string;
+  url?: string | null | undefined;
+  note?: string | null | undefined;
+}>;
+
+
+export type UpdateProjectResourceMutation = { updateProjectResource: boolean };
+
+export type DeleteProjectResourceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteProjectResourceMutation = { deleteProjectResource: boolean };
+
+export type MoveProjectResourceMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveProjectResourceMutation = { moveProjectResource: boolean };
+
+export type ImportedDocumentsQueryVariables = Exact<{
+  clientId?: string | number | null | undefined;
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type ImportedDocumentsQuery = { importedDocuments: Array<{ id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null }> };
+
+export type ImportDocumentMutationVariables = Exact<{
+  input: ImportedDocumentInput;
+  file?: File | null | undefined;
+}>;
+
+
+export type ImportDocumentMutation = { importDocument: string };
+
+export type UpdateImportedDocumentMutationVariables = Exact<{
+  id: string | number;
+  input: ImportedDocumentInput;
+  file?: File | null | undefined;
+}>;
+
+
+export type UpdateImportedDocumentMutation = { updateImportedDocument: boolean };
+
+export type DeleteImportedDocumentMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteImportedDocumentMutation = { deleteImportedDocument: boolean };
+
+export type DocumentStatusesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type DocumentStatusesQuery = { documentStatuses: Array<{ id: string, scope: DocumentStatusScope, name: string, color: string, category: DocumentStatusCategory, position: number, documentCount: number }> };
+
+export type OverdueInvoicesQueryVariables = Exact<{
+  today: string;
+}>;
+
+
+export type OverdueInvoicesQuery = { overdueInvoices: Array<{ id: string, type: AccountingDocumentType, number: string | null, clientId: string, clientName: string, projectId: string | null, contactId: string | null, serviceId: string | null, issueDate: string, dueDate: string | null, totalGross: number, currency: string, balance: number | null, billingEmail: string | null, reminderCount: number, lastReminderAt: string | null }> };
+
+export type SendDocumentRemindersMutationVariables = Exact<{
+  accountId: string | number;
+  documentIds: Array<string | number> | string | number;
+}>;
+
+
+export type SendDocumentRemindersMutation = { sendDocumentReminders: Array<{ documentId: string, number: string, error: string | null }> };
+
+export type CreateDocumentStatusMutationVariables = Exact<{
+  scope: DocumentStatusScope;
+  name: string;
+  color: string;
+  category: DocumentStatusCategory;
+}>;
+
+
+export type CreateDocumentStatusMutation = { createDocumentStatus: string };
+
+export type UpdateDocumentStatusMutationVariables = Exact<{
+  id: string | number;
+  name?: string | null | undefined;
+  color?: string | null | undefined;
+  category?: DocumentStatusCategory | null | undefined;
+}>;
+
+
+export type UpdateDocumentStatusMutation = { updateDocumentStatus: boolean };
+
+export type DeleteDocumentStatusMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteDocumentStatusMutation = { deleteDocumentStatus: boolean };
+
+export type MoveDocumentStatusMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveDocumentStatusMutation = { moveDocumentStatus: boolean };
+
+export type SetDocumentTrackingStatusMutationVariables = Exact<{
+  id: string | number;
+  statusId: string | number;
+}>;
+
+
+export type SetDocumentTrackingStatusMutation = { setDocumentTrackingStatus: boolean };
+
+export type MarkDocumentSentMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type MarkDocumentSentMutation = { markDocumentSent: boolean };
+
+export type AcceptQuoteMutationVariables = Exact<{
+  id: string | number;
+  date: string;
+  file?: File | null | undefined;
+}>;
+
+
+export type AcceptQuoteMutation = { acceptQuote: boolean };
+
+export type RemoveSignedQuoteMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type RemoveSignedQuoteMutation = { removeSignedQuote: boolean };
+
+export type AddDocumentReminderMutationVariables = Exact<{
+  id: string | number;
+  note?: string | null | undefined;
+}>;
+
+
+export type AddDocumentReminderMutation = { addDocumentReminder: boolean };
+
+export type DeleteDocumentReminderMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteDocumentReminderMutation = { deleteDocumentReminder: boolean };
+
+export type RecordDocumentPaymentMutationVariables = Exact<{
+  id: string | number;
+  input: DocumentPaymentInput;
+}>;
+
+
+export type RecordDocumentPaymentMutation = { recordDocumentPayment: boolean };
 
 export type AlarmFieldsFragment = { id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string };
 
@@ -1085,19 +1742,19 @@ export type MoveMilestoneMutationVariables = Exact<{
 
 export type MoveMilestoneMutation = { moveMilestone: boolean };
 
-export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> };
+export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null };
 
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
 }>;
 
 
-export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> }> };
+export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null }> };
 
 export type RunningTimeEntryQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> } | null };
+export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null } | null };
 
 export type StartTimerMutationVariables = Exact<{
   input: TimerInput;
@@ -1139,6 +1796,90 @@ export type DeleteTimeEntryMutationVariables = Exact<{
 
 
 export type DeleteTimeEntryMutation = { deleteTimeEntry: boolean };
+
+export type TreasuryEntryFieldsFragment = { id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, label: string, amount: number, category: string | null, method: string | null, projectId: string | null, note: string | null, recurrence: unknown, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }> };
+
+export type TreasuryAccountsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TreasuryAccountsQuery = { treasuryAccounts: Array<{ id: string, name: string, openingBalance: number, openingDate: string, archived: boolean, entryCount: number, balance: number }> };
+
+export type TreasuryEntriesQueryVariables = Exact<{
+  from: string;
+  to: string;
+  accountId?: string | number | null | undefined;
+}>;
+
+
+export type TreasuryEntriesQuery = { treasuryEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, label: string, amount: number, category: string | null, method: string | null, projectId: string | null, note: string | null, recurrence: unknown, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }> }> };
+
+export type ForecastEntriesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ForecastEntriesQuery = { forecastEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, label: string, amount: number, category: string | null, method: string | null, projectId: string | null, note: string | null, recurrence: unknown, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }> }> };
+
+export type TreasuryProjectionQueryVariables = Exact<{
+  today: string;
+  from: string;
+  until: string;
+}>;
+
+
+export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, series: Array<{ date: string, balance: number, forecast: boolean }>, items: Array<{ date: string, dueDate: string, label: string, amount: number, kind: string, overdue: boolean, entryId: string | null, documentId: string | null, importedDocumentId: string | null, recurringInvoiceId: string | null, accountId: string | null }> } };
+
+export type CreateTreasuryAccountMutationVariables = Exact<{
+  input: TreasuryAccountInput;
+}>;
+
+
+export type CreateTreasuryAccountMutation = { createTreasuryAccount: string };
+
+export type UpdateTreasuryAccountMutationVariables = Exact<{
+  id: string | number;
+  input: TreasuryAccountInput;
+}>;
+
+
+export type UpdateTreasuryAccountMutation = { updateTreasuryAccount: boolean };
+
+export type DeleteTreasuryAccountMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTreasuryAccountMutation = { deleteTreasuryAccount: boolean };
+
+export type CreateTreasuryEntryMutationVariables = Exact<{
+  input: TreasuryEntryInput;
+}>;
+
+
+export type CreateTreasuryEntryMutation = { createTreasuryEntry: string };
+
+export type UpdateTreasuryEntryMutationVariables = Exact<{
+  id: string | number;
+  input: TreasuryEntryInput;
+}>;
+
+
+export type UpdateTreasuryEntryMutation = { updateTreasuryEntry: boolean };
+
+export type DeleteTreasuryEntryMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTreasuryEntryMutation = { deleteTreasuryEntry: boolean };
+
+export type RealizeTreasuryForecastMutationVariables = Exact<{
+  id: string | number;
+  occurrence: string;
+  date: string;
+  amount: number;
+}>;
+
+
+export type RealizeTreasuryForecastMutation = { realizeTreasuryForecast: string };
 
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
@@ -1325,6 +2066,173 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
+export const CompanyProfileFieldsFragmentDoc = new TypedDocumentString(`
+    fragment CompanyProfileFields on CompanyProfile {
+  name
+  legalForm
+  capital
+  registration
+  siren
+  siret
+  activityCode
+  vatNumber
+  vatApplicable
+  vatExemptionText
+  address
+  email
+  phone
+  website
+  logoUrl
+  bankName
+  accountHolder
+  iban
+  bic
+  paymentTerms
+  paymentDays
+  paymentMethods
+  lateInterest
+  otherMentions
+  referenceLabel
+  quoteValidityDays
+}
+    `, {"fragmentName":"CompanyProfileFields"}) as unknown as TypedDocumentString<CompanyProfileFieldsFragment, unknown>;
+export const AccountingDocumentListFieldsFragmentDoc = new TypedDocumentString(`
+    fragment AccountingDocumentListFields on AccountingDocument {
+  id
+  type
+  status
+  number
+  issueDate
+  dueDate
+  clientId
+  clientName
+  projectId
+  title
+  totalNet
+  totalGross
+  currency
+  invoicedNet
+  sourceNumber
+  recurringId
+  trackingStatus {
+    id
+    name
+    color
+    category
+  }
+  balance
+  overdue
+}
+    `, {"fragmentName":"AccountingDocumentListFields"}) as unknown as TypedDocumentString<AccountingDocumentListFieldsFragment, unknown>;
+export const AccountingDocumentFieldsFragmentDoc = new TypedDocumentString(`
+    fragment AccountingDocumentFields on AccountingDocument {
+  ...AccountingDocumentListFields
+  serviceStart
+  serviceEnd
+  serviceId
+  contactId
+  sourceId
+  derived {
+    id
+    type
+    status
+    number
+    totalGross
+  }
+  seller
+  buyer
+  introduction
+  referenceLabel
+  referenceValue
+  conclusion
+  paymentTerms
+  paymentMethods
+  lateInterest
+  depositType
+  depositValue
+  billingSchedule
+  otherMentions
+  timeEntries {
+    id
+    projectId
+    description
+    startedAt
+    duration
+  }
+  showBankDetails
+  vatApplicable
+  vatExemptionText
+  globalDiscountType
+  globalDiscountValue
+  totalVat
+  finalizedAt
+  updatedAt
+  sentAt
+  acceptedAt
+  signedFileUrl
+  signedFileName
+  paid
+  credited
+  reminders {
+    id
+    date
+    note
+  }
+  payments {
+    id
+    amount
+    entry {
+      id
+      date
+      accountName
+      method
+    }
+  }
+  lines {
+    id
+    kind
+    title
+    description
+    quantity
+    unit
+    unitPrice
+    vatRate
+    discountType
+    discountValue
+  }
+  attachments {
+    id
+    name
+    size
+    url
+  }
+}
+    fragment AccountingDocumentListFields on AccountingDocument {
+  id
+  type
+  status
+  number
+  issueDate
+  dueDate
+  clientId
+  clientName
+  projectId
+  title
+  totalNet
+  totalGross
+  currency
+  invoicedNet
+  sourceNumber
+  recurringId
+  trackingStatus {
+    id
+    name
+    color
+    category
+  }
+  balance
+  overdue
+}`, {"fragmentName":"AccountingDocumentFields"}) as unknown as TypedDocumentString<AccountingDocumentFieldsFragment, unknown>;
 export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
     fragment AlarmFields on Alarm {
   id
@@ -1550,8 +2458,33 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
   pausedSeconds
   duration
   taskIds
+  documentId
+  documentNumber
 }
     `, {"fragmentName":"TimeEntryFields"}) as unknown as TypedDocumentString<TimeEntryFieldsFragment, unknown>;
+export const TreasuryEntryFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TreasuryEntryFields on TreasuryEntry {
+  id
+  accountId
+  accountName
+  status
+  date
+  label
+  amount
+  category
+  method
+  projectId
+  note
+  recurrence
+  allocations {
+    id
+    amount
+    documentId
+    importedDocumentId
+    documentLabel
+  }
+}
+    `, {"fragmentName":"TreasuryEntryFields"}) as unknown as TypedDocumentString<TreasuryEntryFieldsFragment, unknown>;
 export const ClientFieldsFragmentDoc = new TypedDocumentString(`
     fragment ClientFields on Client {
   id
@@ -1602,6 +2535,591 @@ export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
   name
   color
 }`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
+export const CompanyProfileDocument = new TypedDocumentString(`
+    query CompanyProfile {
+  companyProfile {
+    ...CompanyProfileFields
+  }
+}
+    fragment CompanyProfileFields on CompanyProfile {
+  name
+  legalForm
+  capital
+  registration
+  siren
+  siret
+  activityCode
+  vatNumber
+  vatApplicable
+  vatExemptionText
+  address
+  email
+  phone
+  website
+  logoUrl
+  bankName
+  accountHolder
+  iban
+  bic
+  paymentTerms
+  paymentDays
+  paymentMethods
+  lateInterest
+  otherMentions
+  referenceLabel
+  quoteValidityDays
+}`) as unknown as TypedDocumentString<CompanyProfileQuery, CompanyProfileQueryVariables>;
+export const DocumentSequencesDocument = new TypedDocumentString(`
+    query DocumentSequences($year: Int!) {
+  documentSequences(year: $year) {
+    type
+    year
+    nextNumber
+    minimum
+  }
+}
+    `) as unknown as TypedDocumentString<DocumentSequencesQuery, DocumentSequencesQueryVariables>;
+export const ClientBillingDocument = new TypedDocumentString(`
+    query ClientBilling($id: ID!) {
+  client(id: $id) {
+    id
+    name
+    kind
+    firstName
+    lastName
+    address
+    email
+    phones
+    website
+    vatNumber
+    siren
+    siret
+    activityCode
+    services {
+      id
+      name
+      address
+      email
+      phones
+    }
+    contacts {
+      id
+      serviceId
+      firstName
+      lastName
+      email
+      jobTitle
+      phones
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ClientBillingQuery, ClientBillingQueryVariables>;
+export const UpdateCompanyProfileDocument = new TypedDocumentString(`
+    mutation UpdateCompanyProfile($input: CompanyProfileInput!) {
+  updateCompanyProfile(input: $input) {
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateCompanyProfileMutation, UpdateCompanyProfileMutationVariables>;
+export const SetCompanyLogoDocument = new TypedDocumentString(`
+    mutation SetCompanyLogo($file: File) {
+  setCompanyLogo(file: $file) {
+    logoUrl
+  }
+}
+    `) as unknown as TypedDocumentString<SetCompanyLogoMutation, SetCompanyLogoMutationVariables>;
+export const SetDocumentSequenceDocument = new TypedDocumentString(`
+    mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {
+  setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)
+}
+    `) as unknown as TypedDocumentString<SetDocumentSequenceMutation, SetDocumentSequenceMutationVariables>;
+export const UpdateClientDetailsDocument = new TypedDocumentString(`
+    mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {
+  updateClientDetails(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientDetailsMutation, UpdateClientDetailsMutationVariables>;
+export const CreateClientServiceDocument = new TypedDocumentString(`
+    mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {
+  createClientService(clientId: $clientId, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateClientServiceMutation, CreateClientServiceMutationVariables>;
+export const UpdateClientServiceDocument = new TypedDocumentString(`
+    mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {
+  updateClientService(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientServiceMutation, UpdateClientServiceMutationVariables>;
+export const DeleteClientServiceDocument = new TypedDocumentString(`
+    mutation DeleteClientService($id: ID!) {
+  deleteClientService(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteClientServiceMutation, DeleteClientServiceMutationVariables>;
+export const CreateClientContactDocument = new TypedDocumentString(`
+    mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {
+  createClientContact(clientId: $clientId, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateClientContactMutation, CreateClientContactMutationVariables>;
+export const UpdateClientContactDocument = new TypedDocumentString(`
+    mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {
+  updateClientContact(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientContactMutation, UpdateClientContactMutationVariables>;
+export const DeleteClientContactDocument = new TypedDocumentString(`
+    mutation DeleteClientContact($id: ID!) {
+  deleteClientContact(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteClientContactMutation, DeleteClientContactMutationVariables>;
+export const CatalogItemsDocument = new TypedDocumentString(`
+    query CatalogItems {
+  catalogItems {
+    id
+    kind
+    title
+    description
+    unit
+    unitPrice
+    vatRate
+    archived
+  }
+}
+    `) as unknown as TypedDocumentString<CatalogItemsQuery, CatalogItemsQueryVariables>;
+export const CreateCatalogItemDocument = new TypedDocumentString(`
+    mutation CreateCatalogItem($input: CatalogItemInput!) {
+  createCatalogItem(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateCatalogItemMutation, CreateCatalogItemMutationVariables>;
+export const UpdateCatalogItemDocument = new TypedDocumentString(`
+    mutation UpdateCatalogItem($id: ID!, $input: CatalogItemInput!) {
+  updateCatalogItem(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateCatalogItemMutation, UpdateCatalogItemMutationVariables>;
+export const DeleteCatalogItemDocument = new TypedDocumentString(`
+    mutation DeleteCatalogItem($id: ID!) {
+  deleteCatalogItem(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteCatalogItemMutation, DeleteCatalogItemMutationVariables>;
+export const AccountingDocumentsDocument = new TypedDocumentString(`
+    query AccountingDocuments($clientId: ID, $projectId: ID) {
+  accountingDocuments(clientId: $clientId, projectId: $projectId) {
+    ...AccountingDocumentListFields
+  }
+}
+    fragment AccountingDocumentListFields on AccountingDocument {
+  id
+  type
+  status
+  number
+  issueDate
+  dueDate
+  clientId
+  clientName
+  projectId
+  title
+  totalNet
+  totalGross
+  currency
+  invoicedNet
+  sourceNumber
+  recurringId
+  trackingStatus {
+    id
+    name
+    color
+    category
+  }
+  balance
+  overdue
+}`) as unknown as TypedDocumentString<AccountingDocumentsQuery, AccountingDocumentsQueryVariables>;
+export const AccountingDocumentDocument = new TypedDocumentString(`
+    query AccountingDocument($id: ID!) {
+  accountingDocument(id: $id) {
+    ...AccountingDocumentFields
+  }
+}
+    fragment AccountingDocumentListFields on AccountingDocument {
+  id
+  type
+  status
+  number
+  issueDate
+  dueDate
+  clientId
+  clientName
+  projectId
+  title
+  totalNet
+  totalGross
+  currency
+  invoicedNet
+  sourceNumber
+  recurringId
+  trackingStatus {
+    id
+    name
+    color
+    category
+  }
+  balance
+  overdue
+}
+fragment AccountingDocumentFields on AccountingDocument {
+  ...AccountingDocumentListFields
+  serviceStart
+  serviceEnd
+  serviceId
+  contactId
+  sourceId
+  derived {
+    id
+    type
+    status
+    number
+    totalGross
+  }
+  seller
+  buyer
+  introduction
+  referenceLabel
+  referenceValue
+  conclusion
+  paymentTerms
+  paymentMethods
+  lateInterest
+  depositType
+  depositValue
+  billingSchedule
+  otherMentions
+  timeEntries {
+    id
+    projectId
+    description
+    startedAt
+    duration
+  }
+  showBankDetails
+  vatApplicable
+  vatExemptionText
+  globalDiscountType
+  globalDiscountValue
+  totalVat
+  finalizedAt
+  updatedAt
+  sentAt
+  acceptedAt
+  signedFileUrl
+  signedFileName
+  paid
+  credited
+  reminders {
+    id
+    date
+    note
+  }
+  payments {
+    id
+    amount
+    entry {
+      id
+      date
+      accountName
+      method
+    }
+  }
+  lines {
+    id
+    kind
+    title
+    description
+    quantity
+    unit
+    unitPrice
+    vatRate
+    discountType
+    discountValue
+  }
+  attachments {
+    id
+    name
+    size
+    url
+  }
+}`) as unknown as TypedDocumentString<AccountingDocumentQuery, AccountingDocumentQueryVariables>;
+export const NewDocumentDefaultsDocument = new TypedDocumentString(`
+    query NewDocumentDefaults($type: AccountingDocumentType!, $clientId: ID!, $issueDate: Date!) {
+  newDocumentDefaults(type: $type, clientId: $clientId, issueDate: $issueDate)
+}
+    `) as unknown as TypedDocumentString<NewDocumentDefaultsQuery, NewDocumentDefaultsQueryVariables>;
+export const RecurringInvoicesDocument = new TypedDocumentString(`
+    query RecurringInvoices {
+  recurringInvoices {
+    id
+    name
+    templateId
+    recurrence
+    startDate
+    nextDate
+    autoFinalize
+    active
+    issuedCount
+    template {
+      clientName
+      totalGross
+      currency
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<RecurringInvoicesQuery, RecurringInvoicesQueryVariables>;
+export const ProjectResourcesDocument = new TypedDocumentString(`
+    query ProjectResources($projectId: ID!) {
+  projectResources(projectId: $projectId) {
+    id
+    kind
+    title
+    note
+    url
+    size
+    createdAt
+  }
+}
+    `) as unknown as TypedDocumentString<ProjectResourcesQuery, ProjectResourcesQueryVariables>;
+export const CreateAccountingDocumentDocument = new TypedDocumentString(`
+    mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {
+  createAccountingDocument(type: $type, input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateAccountingDocumentMutation, CreateAccountingDocumentMutationVariables>;
+export const UpdateAccountingDocumentDocument = new TypedDocumentString(`
+    mutation UpdateAccountingDocument($id: ID!, $input: AccountingDocumentInput!) {
+  updateAccountingDocument(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateAccountingDocumentMutation, UpdateAccountingDocumentMutationVariables>;
+export const DeleteAccountingDocumentDocument = new TypedDocumentString(`
+    mutation DeleteAccountingDocument($id: ID!) {
+  deleteAccountingDocument(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteAccountingDocumentMutation, DeleteAccountingDocumentMutationVariables>;
+export const FinalizeAccountingDocumentDocument = new TypedDocumentString(`
+    mutation FinalizeAccountingDocument($id: ID!) {
+  finalizeAccountingDocument(id: $id)
+}
+    `) as unknown as TypedDocumentString<FinalizeAccountingDocumentMutation, FinalizeAccountingDocumentMutationVariables>;
+export const CreateDocumentFromDocument = new TypedDocumentString(`
+    mutation CreateDocumentFrom($sourceId: ID!, $type: AccountingDocumentType!, $depositPercent: Float, $issueDate: Date!) {
+  createDocumentFrom(
+    sourceId: $sourceId
+    type: $type
+    depositPercent: $depositPercent
+    issueDate: $issueDate
+  )
+}
+    `) as unknown as TypedDocumentString<CreateDocumentFromMutation, CreateDocumentFromMutationVariables>;
+export const DuplicateAccountingDocumentDocument = new TypedDocumentString(`
+    mutation DuplicateAccountingDocument($id: ID!, $issueDate: Date!) {
+  duplicateAccountingDocument(id: $id, issueDate: $issueDate)
+}
+    `) as unknown as TypedDocumentString<DuplicateAccountingDocumentMutation, DuplicateAccountingDocumentMutationVariables>;
+export const AddAccountingAttachmentsDocument = new TypedDocumentString(`
+    mutation AddAccountingAttachments($id: ID!, $files: [File!]!) {
+  addAccountingAttachments(id: $id, files: $files)
+}
+    `) as unknown as TypedDocumentString<AddAccountingAttachmentsMutation, AddAccountingAttachmentsMutationVariables>;
+export const RemoveAccountingAttachmentDocument = new TypedDocumentString(`
+    mutation RemoveAccountingAttachment($attachmentId: ID!) {
+  removeAccountingAttachment(attachmentId: $attachmentId)
+}
+    `) as unknown as TypedDocumentString<RemoveAccountingAttachmentMutation, RemoveAccountingAttachmentMutationVariables>;
+export const CreateRecurringInvoiceDocument = new TypedDocumentString(`
+    mutation CreateRecurringInvoice($documentId: ID!, $input: RecurringInvoiceInput!) {
+  createRecurringInvoice(documentId: $documentId, input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateRecurringInvoiceMutation, CreateRecurringInvoiceMutationVariables>;
+export const UpdateRecurringInvoiceDocument = new TypedDocumentString(`
+    mutation UpdateRecurringInvoice($id: ID!, $input: RecurringInvoiceInput!) {
+  updateRecurringInvoice(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateRecurringInvoiceMutation, UpdateRecurringInvoiceMutationVariables>;
+export const DeleteRecurringInvoiceDocument = new TypedDocumentString(`
+    mutation DeleteRecurringInvoice($id: ID!) {
+  deleteRecurringInvoice(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteRecurringInvoiceMutation, DeleteRecurringInvoiceMutationVariables>;
+export const AddProjectLinkDocument = new TypedDocumentString(`
+    mutation AddProjectLink($projectId: ID!, $title: String!, $url: String!, $note: String) {
+  addProjectLink(projectId: $projectId, title: $title, url: $url, note: $note)
+}
+    `) as unknown as TypedDocumentString<AddProjectLinkMutation, AddProjectLinkMutationVariables>;
+export const AddProjectFilesDocument = new TypedDocumentString(`
+    mutation AddProjectFiles($projectId: ID!, $files: [File!]!) {
+  addProjectFiles(projectId: $projectId, files: $files)
+}
+    `) as unknown as TypedDocumentString<AddProjectFilesMutation, AddProjectFilesMutationVariables>;
+export const UpdateProjectResourceDocument = new TypedDocumentString(`
+    mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {
+  updateProjectResource(id: $id, title: $title, url: $url, note: $note)
+}
+    `) as unknown as TypedDocumentString<UpdateProjectResourceMutation, UpdateProjectResourceMutationVariables>;
+export const DeleteProjectResourceDocument = new TypedDocumentString(`
+    mutation DeleteProjectResource($id: ID!) {
+  deleteProjectResource(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteProjectResourceMutation, DeleteProjectResourceMutationVariables>;
+export const MoveProjectResourceDocument = new TypedDocumentString(`
+    mutation MoveProjectResource($id: ID!, $index: Int!) {
+  moveProjectResource(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveProjectResourceMutation, MoveProjectResourceMutationVariables>;
+export const ImportedDocumentsDocument = new TypedDocumentString(`
+    query ImportedDocuments($clientId: ID, $projectId: ID) {
+  importedDocuments(clientId: $clientId, projectId: $projectId) {
+    id
+    type
+    number
+    issueDate
+    dueDate
+    clientId
+    clientName
+    projectId
+    title
+    totalNet
+    totalVat
+    totalGross
+    currency
+    note
+    fileUrl
+    fileName
+    settled
+    paid
+    balance
+  }
+}
+    `) as unknown as TypedDocumentString<ImportedDocumentsQuery, ImportedDocumentsQueryVariables>;
+export const ImportDocumentDocument = new TypedDocumentString(`
+    mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {
+  importDocument(input: $input, file: $file)
+}
+    `) as unknown as TypedDocumentString<ImportDocumentMutation, ImportDocumentMutationVariables>;
+export const UpdateImportedDocumentDocument = new TypedDocumentString(`
+    mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {
+  updateImportedDocument(id: $id, input: $input, file: $file)
+}
+    `) as unknown as TypedDocumentString<UpdateImportedDocumentMutation, UpdateImportedDocumentMutationVariables>;
+export const DeleteImportedDocumentDocument = new TypedDocumentString(`
+    mutation DeleteImportedDocument($id: ID!) {
+  deleteImportedDocument(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteImportedDocumentMutation, DeleteImportedDocumentMutationVariables>;
+export const DocumentStatusesDocument = new TypedDocumentString(`
+    query DocumentStatuses {
+  documentStatuses {
+    id
+    scope
+    name
+    color
+    category
+    position
+    documentCount
+  }
+}
+    `) as unknown as TypedDocumentString<DocumentStatusesQuery, DocumentStatusesQueryVariables>;
+export const OverdueInvoicesDocument = new TypedDocumentString(`
+    query OverdueInvoices($today: Date!) {
+  overdueInvoices(today: $today) {
+    id
+    type
+    number
+    clientId
+    clientName
+    projectId
+    contactId
+    serviceId
+    issueDate
+    dueDate
+    totalGross
+    currency
+    balance
+    billingEmail
+    reminderCount
+    lastReminderAt
+  }
+}
+    `) as unknown as TypedDocumentString<OverdueInvoicesQuery, OverdueInvoicesQueryVariables>;
+export const SendDocumentRemindersDocument = new TypedDocumentString(`
+    mutation SendDocumentReminders($accountId: ID!, $documentIds: [ID!]!) {
+  sendDocumentReminders(accountId: $accountId, documentIds: $documentIds) {
+    documentId
+    number
+    error
+  }
+}
+    `) as unknown as TypedDocumentString<SendDocumentRemindersMutation, SendDocumentRemindersMutationVariables>;
+export const CreateDocumentStatusDocument = new TypedDocumentString(`
+    mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {
+  createDocumentStatus(
+    scope: $scope
+    name: $name
+    color: $color
+    category: $category
+  )
+}
+    `) as unknown as TypedDocumentString<CreateDocumentStatusMutation, CreateDocumentStatusMutationVariables>;
+export const UpdateDocumentStatusDocument = new TypedDocumentString(`
+    mutation UpdateDocumentStatus($id: ID!, $name: String, $color: String, $category: DocumentStatusCategory) {
+  updateDocumentStatus(id: $id, name: $name, color: $color, category: $category)
+}
+    `) as unknown as TypedDocumentString<UpdateDocumentStatusMutation, UpdateDocumentStatusMutationVariables>;
+export const DeleteDocumentStatusDocument = new TypedDocumentString(`
+    mutation DeleteDocumentStatus($id: ID!) {
+  deleteDocumentStatus(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteDocumentStatusMutation, DeleteDocumentStatusMutationVariables>;
+export const MoveDocumentStatusDocument = new TypedDocumentString(`
+    mutation MoveDocumentStatus($id: ID!, $index: Int!) {
+  moveDocumentStatus(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveDocumentStatusMutation, MoveDocumentStatusMutationVariables>;
+export const SetDocumentTrackingStatusDocument = new TypedDocumentString(`
+    mutation SetDocumentTrackingStatus($id: ID!, $statusId: ID!) {
+  setDocumentTrackingStatus(id: $id, statusId: $statusId)
+}
+    `) as unknown as TypedDocumentString<SetDocumentTrackingStatusMutation, SetDocumentTrackingStatusMutationVariables>;
+export const MarkDocumentSentDocument = new TypedDocumentString(`
+    mutation MarkDocumentSent($id: ID!) {
+  markDocumentSent(id: $id)
+}
+    `) as unknown as TypedDocumentString<MarkDocumentSentMutation, MarkDocumentSentMutationVariables>;
+export const AcceptQuoteDocument = new TypedDocumentString(`
+    mutation AcceptQuote($id: ID!, $date: Date!, $file: File) {
+  acceptQuote(id: $id, date: $date, file: $file)
+}
+    `) as unknown as TypedDocumentString<AcceptQuoteMutation, AcceptQuoteMutationVariables>;
+export const RemoveSignedQuoteDocument = new TypedDocumentString(`
+    mutation RemoveSignedQuote($id: ID!) {
+  removeSignedQuote(id: $id)
+}
+    `) as unknown as TypedDocumentString<RemoveSignedQuoteMutation, RemoveSignedQuoteMutationVariables>;
+export const AddDocumentReminderDocument = new TypedDocumentString(`
+    mutation AddDocumentReminder($id: ID!, $note: String) {
+  addDocumentReminder(id: $id, note: $note)
+}
+    `) as unknown as TypedDocumentString<AddDocumentReminderMutation, AddDocumentReminderMutationVariables>;
+export const DeleteDocumentReminderDocument = new TypedDocumentString(`
+    mutation DeleteDocumentReminder($id: ID!) {
+  deleteDocumentReminder(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteDocumentReminderMutation, DeleteDocumentReminderMutationVariables>;
+export const RecordDocumentPaymentDocument = new TypedDocumentString(`
+    mutation RecordDocumentPayment($id: ID!, $input: DocumentPaymentInput!) {
+  recordDocumentPayment(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<RecordDocumentPaymentMutation, RecordDocumentPaymentMutationVariables>;
 export const AlarmsDocument = new TypedDocumentString(`
     query Alarms {
   alarms {
@@ -2576,6 +4094,8 @@ export const TimeEntriesDocument = new TypedDocumentString(`
   pausedSeconds
   duration
   taskIds
+  documentId
+  documentNumber
 }`) as unknown as TypedDocumentString<TimeEntriesQuery, TimeEntriesQueryVariables>;
 export const RunningTimeEntryDocument = new TypedDocumentString(`
     query RunningTimeEntry {
@@ -2593,6 +4113,8 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
   pausedSeconds
   duration
   taskIds
+  documentId
+  documentNumber
 }`) as unknown as TypedDocumentString<RunningTimeEntryQuery, RunningTimeEntryQueryVariables>;
 export const StartTimerDocument = new TypedDocumentString(`
     mutation StartTimer($input: TimerInput!) {
@@ -2634,6 +4156,138 @@ export const DeleteTimeEntryDocument = new TypedDocumentString(`
   deleteTimeEntry(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTimeEntryMutation, DeleteTimeEntryMutationVariables>;
+export const TreasuryAccountsDocument = new TypedDocumentString(`
+    query TreasuryAccounts {
+  treasuryAccounts {
+    id
+    name
+    openingBalance
+    openingDate
+    archived
+    entryCount
+    balance
+  }
+}
+    `) as unknown as TypedDocumentString<TreasuryAccountsQuery, TreasuryAccountsQueryVariables>;
+export const TreasuryEntriesDocument = new TypedDocumentString(`
+    query TreasuryEntries($from: Date!, $to: Date!, $accountId: ID) {
+  treasuryEntries(from: $from, to: $to, accountId: $accountId) {
+    ...TreasuryEntryFields
+  }
+}
+    fragment TreasuryEntryFields on TreasuryEntry {
+  id
+  accountId
+  accountName
+  status
+  date
+  label
+  amount
+  category
+  method
+  projectId
+  note
+  recurrence
+  allocations {
+    id
+    amount
+    documentId
+    importedDocumentId
+    documentLabel
+  }
+}`) as unknown as TypedDocumentString<TreasuryEntriesQuery, TreasuryEntriesQueryVariables>;
+export const ForecastEntriesDocument = new TypedDocumentString(`
+    query ForecastEntries {
+  forecastEntries {
+    ...TreasuryEntryFields
+  }
+}
+    fragment TreasuryEntryFields on TreasuryEntry {
+  id
+  accountId
+  accountName
+  status
+  date
+  label
+  amount
+  category
+  method
+  projectId
+  note
+  recurrence
+  allocations {
+    id
+    amount
+    documentId
+    importedDocumentId
+    documentLabel
+  }
+}`) as unknown as TypedDocumentString<ForecastEntriesQuery, ForecastEntriesQueryVariables>;
+export const TreasuryProjectionDocument = new TypedDocumentString(`
+    query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {
+  treasuryProjection(today: $today, from: $from, until: $until) {
+    balance
+    series {
+      date
+      balance
+      forecast
+    }
+    items {
+      date
+      dueDate
+      label
+      amount
+      kind
+      overdue
+      entryId
+      documentId
+      importedDocumentId
+      recurringInvoiceId
+      accountId
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<TreasuryProjectionQuery, TreasuryProjectionQueryVariables>;
+export const CreateTreasuryAccountDocument = new TypedDocumentString(`
+    mutation CreateTreasuryAccount($input: TreasuryAccountInput!) {
+  createTreasuryAccount(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateTreasuryAccountMutation, CreateTreasuryAccountMutationVariables>;
+export const UpdateTreasuryAccountDocument = new TypedDocumentString(`
+    mutation UpdateTreasuryAccount($id: ID!, $input: TreasuryAccountInput!) {
+  updateTreasuryAccount(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateTreasuryAccountMutation, UpdateTreasuryAccountMutationVariables>;
+export const DeleteTreasuryAccountDocument = new TypedDocumentString(`
+    mutation DeleteTreasuryAccount($id: ID!) {
+  deleteTreasuryAccount(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTreasuryAccountMutation, DeleteTreasuryAccountMutationVariables>;
+export const CreateTreasuryEntryDocument = new TypedDocumentString(`
+    mutation CreateTreasuryEntry($input: TreasuryEntryInput!) {
+  createTreasuryEntry(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateTreasuryEntryMutation, CreateTreasuryEntryMutationVariables>;
+export const UpdateTreasuryEntryDocument = new TypedDocumentString(`
+    mutation UpdateTreasuryEntry($id: ID!, $input: TreasuryEntryInput!) {
+  updateTreasuryEntry(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateTreasuryEntryMutation, UpdateTreasuryEntryMutationVariables>;
+export const DeleteTreasuryEntryDocument = new TypedDocumentString(`
+    mutation DeleteTreasuryEntry($id: ID!) {
+  deleteTreasuryEntry(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTreasuryEntryMutation, DeleteTreasuryEntryMutationVariables>;
+export const RealizeTreasuryForecastDocument = new TypedDocumentString(`
+    mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {
+  realizeTreasuryForecast(
+    id: $id
+    occurrence: $occurrence
+    date: $date
+    amount: $amount
+  )
+}
+    `) as unknown as TypedDocumentString<RealizeTreasuryForecastMutation, RealizeTreasuryForecastMutationVariables>;
 export const WorkspaceDocument = new TypedDocumentString(`
     query Workspace {
   clients {

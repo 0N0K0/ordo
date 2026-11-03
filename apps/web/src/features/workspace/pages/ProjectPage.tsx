@@ -1,9 +1,11 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { CheckSquareOffsetIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, UsersIcon } from '@phosphor-icons/react';
+import { CheckSquareOffsetIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, UsersIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { MilestonesPanel } from '../../tasks/MilestonesPanel';
 import { ProjectContributors } from '../../tasks/ProjectContributors';
+import { ProjectBillingPanel } from '../../accounting/ProjectBillingPanel';
+import { ProjectResourcesPanel } from '../../accounting/ProjectResourcesPanel';
 import { ProjectMailsPanel } from '../../mail/ProjectMailsPanel';
 import { ProjectTimePanel } from '../../time/ProjectTimePanel';
 import { TaskBoard } from '../../tasks/TaskBoard';
@@ -136,6 +138,12 @@ export function ProjectPage() {
           <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
           </Tabs.Tab>
+          <Tabs.Tab value="billing" leftSection={<ReceiptIcon aria-hidden />}>
+            Facturation
+          </Tabs.Tab>
+          <Tabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
+            Ressources
+          </Tabs.Tab>
           <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
             Mails
           </Tabs.Tab>
@@ -211,6 +219,12 @@ export function ProjectPage() {
         </Tabs.Panel>
         <Tabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />
+        </Tabs.Panel>
+        <Tabs.Panel value="billing">
+          <ProjectBillingPanel projectId={project.id} clientId={project.clientId} />
+        </Tabs.Panel>
+        <Tabs.Panel value="resources">
+          <ProjectResourcesPanel projectId={project.id} />
         </Tabs.Panel>
         <Tabs.Panel value="mail">
           <ProjectMailsPanel projectId={project.id} />

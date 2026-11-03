@@ -1,5 +1,8 @@
 import { createBrowserRouter } from 'react-router';
 import { AccountPage } from './features/account/AccountPage';
+import { AccountingPage } from './features/accounting/AccountingPage';
+import { DocumentPage } from './features/accounting/DocumentPage';
+import { TreasuryPage } from './features/treasury/TreasuryPage';
 import { AlarmsPage } from './features/alarms/AlarmsPage';
 import { CalendarPage } from './features/calendar/CalendarPage';
 import { MailPage } from './features/mail/MailPage';
@@ -28,6 +31,9 @@ export const router = createBrowserRouter([
           { path: 'alarms', element: <AlarmsPage /> },
           { path: 'mail', element: <MailPage /> },
           { path: 'calendar', element: <CalendarPage /> },
+          { path: 'accounting', element: <AccountingPage /> },
+          { path: 'accounting/:id', element: <DocumentPage /> },
+          { path: 'treasury', element: <TreasuryPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'clients/:id', element: <ClientPage /> },
           { path: 'projects/:id', element: <ProjectPage /> },

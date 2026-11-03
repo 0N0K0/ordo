@@ -2,6 +2,7 @@ import { ActionIcon, Badge, Button, Group, Paper, Skeleton, Stack, Text, ThemeIc
 import { modals } from '@mantine/modals';
 import { entrySeconds, formatDuration } from '@ordo/shared';
 import { ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { TaskRef } from '../tasks/task-ui';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
@@ -60,6 +61,11 @@ function EntryRow({ entry, context, projectId, onEdit, onDelete }: EntryRowProps
               En cours
             </Badge>
           )}
+          {entry.documentId && (
+            <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
+              {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Sur un brouillon de facture'}
+            </Badge>
+          )}
           {entry.projectId !== projectId && (
             <Badge size="sm" variant="light" color="gray">
               {context.projectById.get(entry.projectId)?.title}
@@ -84,8 +90,8 @@ function EntryRow({ entry, context, projectId, onEdit, onDelete }: EntryRowProps
           </Text>
         )}
       </Stack>
-      {/* The running timer is edited from the timer card. */}
-      {!running && (
+      {/* The running timer is edited from the timer card; time on a final invoice is part of it. */}
+      {!running && !entry.documentNumber && (
         <Group gap={2} wrap="nowrap">
           <Tooltip label="Modifier">
             <ActionIcon variant="subtle" color="gray" aria-label="Modifier ce temps" onClick={onEdit}>
@@ -105,7 +111,7 @@ function EntryRow({ entry, context, projectId, onEdit, onDelete }: EntryRowProps
 
 /**
  * Time tab of a project: the timer, time added by hand, and the tracked times of the project and its
- * sub-projects by day, with day and overall totals.
+ * sub-projects by day, with day and overall totals and what is billed.
  * @param {{ projectId: string }} props Component props.
  * @returns {JSX.Element} Panel.
  */
@@ -167,6 +173,7 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
   for (const entry of entries.data ?? []) days.set(dayKey(entry.startedAt), [...(days.get(dayKey(entry.startedAt)) ?? []), entry]);
   const finished = (entries.data ?? []).filter((entry) => entry.endedAt !== null);
   const total = finished.reduce((sum, entry) => sum + entrySeconds(entry), 0);
+  const unbilled = finished.filter((entry) => !entry.documentId).reduce((sum, entry) => sum + entrySeconds(entry), 0);
 
   return (
     <Stack gap="lg">
@@ -177,7 +184,8 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
             Temps passé
           </Title>
           <Text size="sm" c="dimmed">
-            Projet et sous-projets : {formatDuration(total)} au total.
+            Projet et sous-projets : {formatDuration(total)} au total
+            {total > 0 && (unbilled > 0 ? `, dont ${formatDuration(unbilled)} à facturer (depuis une facture, « Temps passé »)` : ', tout est facturé')}.
           </Text>
         </Stack>
         <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>

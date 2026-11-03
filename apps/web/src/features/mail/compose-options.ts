@@ -48,6 +48,10 @@ export interface ComposeOptions {
   /** Forward: its files are attached again. */
   forwarding?: boolean;
   sourceFiles?: SourceFiles | null;
+  /** Files attached from the start (a document sent from Ordo). */
+  files?: File[];
+  /** Called once the mail is sent (a document marked sent, a reminder noted). */
+  onSent?: () => void;
   /** Resumed draft, replaced by the next save and deleted once sent. */
   draft?: MailLocation | null;
 }

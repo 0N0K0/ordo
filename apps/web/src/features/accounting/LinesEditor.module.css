@@ -1,0 +1,18 @@
+@layer app {
+  .line {
+    &[data-kind='TEXT'] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    &[data-kind='DEDUCTION'] {
+      /* Bordures */
+      border-left: 3px solid var(--mantine-color-orange-6);
+    }
+  }
+
+  .kind {
+    /* Agencement */
+    flex: none;
+  }
+}

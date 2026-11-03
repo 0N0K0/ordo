@@ -19,19 +19,33 @@ import {
   TIME_ZONE,
 } from './fixtures/factories';
 import { addDays, DEFAULT_RECURRENCE, type Recurrence } from '@ordo/shared';
+import { DEMO_COMPANY, seedAccounting } from './fixtures/accounting';
+import { seedMailbox } from './fixtures/mail';
 
 // Fake data for development: purges the business data (clients, projects, tasks, labels, contributors, tracked
-// time, calendar), keeps the user account and the alarms, then fills the database. `npm run db:seed -- --force` skips the confirmation.
+// time, calendar, accounting, treasury), keeps the user account, the mail accounts and the alarms, then fills the
+// database, with a demo mailbox on GreenMail (recreated on each run). `npm run db:seed -- --force` skips the confirmation.
 
 if (process.env.NODE_ENV === 'production') {
   console.error('Les fixtures ne se chargent pas en production.');
   process.exit(1);
 }
 
+// Final accounting documents are legal records: the purge would delete them with their clients. Only those
+// issued by the demo company of the fixtures can be reloaded.
+const [{ finalDocuments }] = await prisma.$queryRaw<{ finalDocuments: number }[]>`
+  SELECT count(*)::int AS "finalDocuments" FROM "AccountingDocument"
+  WHERE "status" = 'FINAL' AND coalesce("seller"->>'name', '') <> ${DEMO_COMPANY}`;
+if (finalDocuments > 0) {
+  console.error(`La base contient ${finalDocuments} document(s) comptable(s) définitif(s) : les fixtures ne sont pas chargées.`);
+  process.exit(1);
+}
+
 const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
-    message: 'Les clients, projets, tâches, libellés, contributeurs, temps et évènements d’agenda vont être supprimés (le compte et les alarmes sont conservés). Continuer ?',
+    message:
+      'Les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, documents comptables, catalogue et trésorerie vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail et les alarmes sont conservés). Continuer ?',
     default: false,
   });
   if (!ok) process.exit(0);
@@ -50,7 +64,9 @@ const alarms = await prisma.alarm.findMany();
 await prisma.$executeRawUnsafe(`
   TRUNCATE "TaskComment", "TaskBlock", "TaskRelation", "Task", "Milestone", "TaskView", "Project", "Client",
     "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "Attachment", "TimeEntry",
-    "CalendarEventException", "CalendarEvent", "CalendarCategory"
+    "CalendarEventException", "CalendarEvent", "CalendarCategory", "TreasuryAllocation", "TreasuryEntry",
+    "TreasuryAccount", "DocumentReminder", "RecurringInvoice", "AccountingLine", "AccountingDocument", "DocumentSequence",
+    "ImportedDocument", "CatalogItem", "ClientContact", "ClientService", "ProjectResource"
   RESTART IDENTITY CASCADE
 `);
 await prisma.alarm.createMany({ data: alarms.map((alarm) => ({ ...alarm, projectId: null, taskId: null })) });
@@ -475,6 +491,12 @@ for (const [title, offset, days, categoryId] of [
   });
 }
 
+// --- Accounting -------------------------------------------------------------------------------------------
+await seedAccounting({ clients, projects, today });
+
+// --- Mailbox ----------------------------------------------------------------------------------------------
+await seedMailbox({ projects, today });
+
 const counts = {
   clients: await prisma.client.count(),
   projets: await prisma.project.count(),
@@ -485,6 +507,11 @@ const counts = {
   temps: await prisma.timeEntry.count(),
   'catégories d’agenda': await prisma.calendarCategory.count(),
   'évènements': await prisma.calendarEvent.count(),
+  'documents comptables': await prisma.accountingDocument.count({ where: { status: { not: 'TEMPLATE' } } }),
+  'documents importés': await prisma.importedDocument.count(),
+  'articles du catalogue': await prisma.catalogItem.count(),
+  'mouvements de trésorerie': await prisma.treasuryEntry.count(),
+  'mails liés aux projets': await prisma.mailMessage.count(),
 };
 console.log('Fixtures chargées :', counts);
 await prisma.$disconnect();

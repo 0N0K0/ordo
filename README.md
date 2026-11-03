@@ -74,6 +74,7 @@ npm run db:seed
 Charge des fixtures : clients, projets et sous-projets, contributeurs, jalons, tâches avec sous-tâches, dépendances et commentaires, temps passés (chronos terminés des six dernières semaines, liés à 0 à 3 tâches), catégories d’agenda hiérarchiques et évènements autour de la semaine en cours (ponctuels, sur plusieurs jours, récurrents avec pause, occurrence déplacée et occurrence annulée). Les données sont générées par des factories ([fishery](https://github.com/thoughtbot/fishery) + [Faker](https://fakerjs.dev), en français) dans `apps/api/prisma/fixtures/factories.ts`. Le scénario de chargement est dans `apps/api/prisma/seed.ts`.
 
 - **Purge** : après confirmation, la commande supprime les clients, projets, tâches, libellés, contributeurs, temps et évènements d’agenda avant de charger les fixtures. Le compte et son profil « Moi » sont conservés : créez le compte avant, pour avoir des tâches qui vous sont assignées.
+- **Documents comptables** : la commande refuse de s’exécuter dès qu’un document comptable définitif existe (ce sont des pièces à conserver).
 - **Alarmes** : il n'y a pas de fixtures d'alarmes. Les alarmes existantes sont conservées, mais perdent leur lien vers un projet ou une tâche, puisque ceux-ci sont supprimés.
 - **Reproductible** : les mêmes données sont générées à chaque lancement.
 - **Sans confirmation** : `npm run db:seed -- --force`.

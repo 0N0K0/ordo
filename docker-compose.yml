@@ -17,5 +17,16 @@ services:
       - '1025:1025'
       - '8025:8025'
 
+  # Dev IMAP server for the mailbox of the fixtures (Mailpit has no IMAP): messages in memory, lost on restart.
+  # Login moi@atelier-demo.fr / ordo-dev. Sending goes through Mailpit.
+  greenmail:
+    image: greenmail/standalone:2.1.3
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.imap -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=moi:ordo-dev@atelier-demo.fr -Dgreenmail.users.login=email
+    ports:
+      - '3143:3143'
+
 volumes:
   pgdata:

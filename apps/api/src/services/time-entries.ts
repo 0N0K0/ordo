@@ -51,9 +51,20 @@ async function assertProjectAndTasks(projectId: string, taskIds: string[], activ
  * @returns {Promise<TimeEntry & { tasks: { id: string }[] }>} Time entry with its task ids.
  */
 async function findEntry(id: string) {
-  const entry = await prisma.timeEntry.findUnique({ where: { id }, include: { tasks: { select: { id: true } } } });
+  const entry = await prisma.timeEntry.findUnique({ where: { id }, include: { tasks: { select: { id: true } }, document: { select: { number: true, status: true } } } });
   if (!entry) throw notFound('Temps');
   return entry;
+}
+
+/**
+ * Checks that a time entry is not billed on a final invoice (it is part of what the invoice states).
+ * @param {{ document: { number: string | null, status: string } | null }} entry Entry with its invoice.
+ * @returns {void}
+ */
+function assertNotInvoiced(entry: { document: { number: string | null; status: string } | null }): void {
+  if (entry.document?.status === 'FINAL') {
+    throw clientError('BAD_USER_INPUT', `Ce temps est facturé sur ${entry.document.number} : il ne peut plus être modifié ni supprimé.`);
+  }
 }
 
 /**
@@ -158,6 +169,7 @@ export async function createTimeEntry(
  */
 export async function updateTimeEntry(id: string, input: TimeEntryInput): Promise<TimeEntry> {
   const entry = await findEntry(id);
+  assertNotInvoiced(entry);
   const running = entry.endedAt === null;
   const { description, duration } = parseInput(
     z.object({ description: timeDescriptionSchema.optional(), duration: durationSchema.optional() }),
@@ -191,6 +203,6 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
  * @returns {Promise<void>}
  */
 export async function deleteTimeEntry(id: string): Promise<void> {
-  await findEntry(id);
+  assertNotInvoiced(await findEntry(id));
   await prisma.timeEntry.delete({ where: { id } });
 }
