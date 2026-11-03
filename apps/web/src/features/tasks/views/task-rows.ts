@@ -58,6 +58,10 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       const names = task.assigneeIds.map((id) => context.contributorById.get(id)?.name ?? '').sort(collator.compare);
       return names[0] ?? null;
     }
+    case 'tags': {
+      const names = task.tagIds.map((id) => context.tagById.get(id)?.name ?? '').sort(collator.compare);
+      return names[0] ?? null;
+    }
     case 'effort':
       return task.effort;
     case 'trackedTime':
@@ -232,6 +236,11 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
         .filter((contributor) => contributor !== undefined);
       if (assignees.length === 0) return none('Non assignées');
       return assignees.map((contributor) => ({ key: contributor.id, label: contributor.name, order: contributor.name }));
+    }
+    case 'tags': {
+      const tags = task.tagIds.map((id) => context.tagById.get(id)).filter((tag) => tag !== undefined);
+      if (tags.length === 0) return none('Sans étiquette');
+      return tags.map((tag) => ({ key: tag.id, label: tag.name, color: tag.color, order: tag.position }));
     }
     case 'parent': {
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;

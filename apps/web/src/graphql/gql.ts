@@ -120,7 +120,7 @@ type Documents = {
     "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": typeof types.RemoveGithubTokenDocument,
     "\n  mutation SaveGithubLink($projectId: ID!, $input: GithubLinkInput!) {\n    saveGithubLink(projectId: $projectId, input: $input)\n  }\n": typeof types.SaveGithubLinkDocument,
     "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": typeof types.UnlinkGithubProjectDocument,
-    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n    }\n  }\n": typeof types.SyncGithubProjectDocument,
+    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      comments\n    }\n  }\n": typeof types.SyncGithubProjectDocument,
     "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": typeof types.SetContributorGithubLoginDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": typeof types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": typeof types.MailViewFieldsFragmentDoc,
@@ -149,9 +149,9 @@ type Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": typeof types.TaskFieldsFragmentDoc,
-    "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n  }\n": typeof types.TaskCommentFieldsFragmentDoc,
-    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": typeof types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": typeof types.TaskCommentFieldsFragmentDoc,
+    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
     "\n  query TaskComments($number: Int!) {\n    task(number: $number) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
@@ -184,6 +184,10 @@ type Documents = {
     "\n      mutation UpdateTaskType($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskType(id: $id, input: $input) {\n          id\n        }\n      }\n    ": typeof types.UpdateTaskTypeDocument,
     "\n      mutation DeleteTaskType($id: ID!) {\n        deleteTaskType(id: $id)\n      }\n    ": typeof types.DeleteTaskTypeDocument,
     "\n      mutation MoveTaskType($id: ID!, $index: Int!) {\n        moveTaskType(id: $id, index: $index)\n      }\n    ": typeof types.MoveTaskTypeDocument,
+    "\n      mutation CreateTaskTag($input: TaskLabelInput!) {\n        createTaskTag(input: $input) {\n          id\n        }\n      }\n    ": typeof types.CreateTaskTagDocument,
+    "\n      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskTag(id: $id, input: $input) {\n          id\n        }\n      }\n    ": typeof types.UpdateTaskTagDocument,
+    "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    ": typeof types.DeleteTaskTagDocument,
+    "\n      mutation MoveTaskTag($id: ID!, $index: Int!) {\n        moveTaskTag(id: $id, index: $index)\n      }\n    ": typeof types.MoveTaskTagDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": typeof types.SetTasksClosedDocument,
     "\n  query TaskViews($projectId: ID) {\n    taskViews(projectId: $projectId) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": typeof types.MatchingTaskIdsDocument,
@@ -357,7 +361,7 @@ const documents: Documents = {
     "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": types.RemoveGithubTokenDocument,
     "\n  mutation SaveGithubLink($projectId: ID!, $input: GithubLinkInput!) {\n    saveGithubLink(projectId: $projectId, input: $input)\n  }\n": types.SaveGithubLinkDocument,
     "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": types.UnlinkGithubProjectDocument,
-    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n    }\n  }\n": types.SyncGithubProjectDocument,
+    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      comments\n    }\n  }\n": types.SyncGithubProjectDocument,
     "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": types.SetContributorGithubLoginDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": types.MailViewFieldsFragmentDoc,
@@ -386,9 +390,9 @@ const documents: Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": types.TaskFieldsFragmentDoc,
-    "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n  }\n": types.TaskCommentFieldsFragmentDoc,
-    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": types.TaskCommentFieldsFragmentDoc,
+    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
     "\n  query TaskComments($number: Int!) {\n    task(number: $number) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
@@ -421,6 +425,10 @@ const documents: Documents = {
     "\n      mutation UpdateTaskType($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskType(id: $id, input: $input) {\n          id\n        }\n      }\n    ": types.UpdateTaskTypeDocument,
     "\n      mutation DeleteTaskType($id: ID!) {\n        deleteTaskType(id: $id)\n      }\n    ": types.DeleteTaskTypeDocument,
     "\n      mutation MoveTaskType($id: ID!, $index: Int!) {\n        moveTaskType(id: $id, index: $index)\n      }\n    ": types.MoveTaskTypeDocument,
+    "\n      mutation CreateTaskTag($input: TaskLabelInput!) {\n        createTaskTag(input: $input) {\n          id\n        }\n      }\n    ": types.CreateTaskTagDocument,
+    "\n      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskTag(id: $id, input: $input) {\n          id\n        }\n      }\n    ": types.UpdateTaskTagDocument,
+    "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    ": types.DeleteTaskTagDocument,
+    "\n      mutation MoveTaskTag($id: ID!, $index: Int!) {\n        moveTaskTag(id: $id, index: $index)\n      }\n    ": types.MoveTaskTagDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": types.SetTasksClosedDocument,
     "\n  query TaskViews($projectId: ID) {\n    taskViews(projectId: $projectId) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": types.MatchingTaskIdsDocument,
@@ -912,7 +920,7 @@ export function graphql(source: "\n  mutation UnlinkGithubProject($projectId: ID
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n    }\n  }\n"): typeof import('./graphql').SyncGithubProjectDocument;
+export function graphql(source: "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      comments\n    }\n  }\n"): typeof import('./graphql').SyncGithubProjectDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1028,15 +1036,15 @@ export function graphql(source: "\n  fragment TaskLabelFields on TaskStatus {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n  }\n"): typeof import('./graphql').TaskCommentFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n"): typeof import('./graphql').TaskCommentFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n"): typeof import('./graphql').TasksDataDocument;
+export function graphql(source: "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n"): typeof import('./graphql').TasksDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1165,6 +1173,22 @@ export function graphql(source: "\n      mutation DeleteTaskType($id: ID!) {\n  
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n      mutation MoveTaskType($id: ID!, $index: Int!) {\n        moveTaskType(id: $id, index: $index)\n      }\n    "): typeof import('./graphql').MoveTaskTypeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n      mutation CreateTaskTag($input: TaskLabelInput!) {\n        createTaskTag(input: $input) {\n          id\n        }\n      }\n    "): typeof import('./graphql').CreateTaskTagDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskTag(id: $id, input: $input) {\n          id\n        }\n      }\n    "): typeof import('./graphql').UpdateTaskTagDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    "): typeof import('./graphql').DeleteTaskTagDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n      mutation MoveTaskTag($id: ID!, $index: Int!) {\n        moveTaskTag(id: $id, index: $index)\n      }\n    "): typeof import('./graphql').MoveTaskTagDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

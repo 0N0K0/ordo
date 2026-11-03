@@ -26,6 +26,14 @@ export interface FieldValue {
   number?: number;
 }
 
+export interface RemoteComment {
+  id: string;
+  body: string;
+  author: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RemoteItem {
   itemId: string;
   contentId: string;
@@ -37,6 +45,11 @@ export interface RemoteItem {
   /** Issues only (a draft has no state). */
   closed: boolean | null;
   assignees: string[];
+  /** Issues only: labels, repository, parent issue and comments. */
+  labels: { id: string; name: string }[];
+  repositoryId: string | null;
+  parentId: string | null;
+  comments: RemoteComment[];
   /** Latest change of the item or its content. */
   updatedAt: string;
   fields: Record<string, FieldValue>;
@@ -149,6 +162,10 @@ interface RawItem {
     url?: string;
     updatedAt?: string;
     assignees?: { nodes: { login: string }[] };
+    labels?: { nodes: { id: string; name: string }[] };
+    repository?: { id: string };
+    parent?: { id: string } | null;
+    comments?: { nodes: { id: string; body: string; createdAt: string; updatedAt: string; author: { login: string } | null }[] };
   } | null;
   fieldValues: { nodes: (FieldValue & { field?: { id?: string } })[] };
 }
@@ -174,7 +191,14 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
                 id updatedAt isArchived
                 content {
                   __typename
-                  ... on Issue { id number title body state url updatedAt assignees(first: 20) { nodes { login } } }
+                  ... on Issue {
+                    id number title body state url updatedAt
+                    assignees(first: 20) { nodes { login } }
+                    labels(first: 50) { nodes { id name } }
+                    repository { id }
+                    parent { id }
+                    comments(first: 100) { nodes { id body createdAt updatedAt author { login } } }
+                  }
                   ... on DraftIssue { id title body updatedAt assignees(first: 20) { nodes { login } } }
                 }
                 fieldValues(first: 30) {
@@ -214,6 +238,10 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
         body: content.body ?? '',
         closed: content.__typename === 'Issue' ? content.state === 'CLOSED' : null,
         assignees: (content.assignees?.nodes ?? []).map((user) => user.login),
+        labels: content.labels?.nodes ?? [],
+        repositoryId: content.repository?.id ?? null,
+        parentId: content.parent?.id ?? null,
+        comments: (content.comments?.nodes ?? []).map((comment) => ({ ...comment, author: comment.author?.login ?? null })),
         updatedAt: updates[updates.length - 1],
         fields,
       });
@@ -400,4 +428,120 @@ export async function deleteItem(token: string, projectId: string, itemId: strin
     'mutation OrdoDeleteItem($projectId: ID!, $itemId: ID!) { deleteProjectV2Item(input: { projectId: $projectId, itemId: $itemId }) { deletedItemId } }',
     { projectId, itemId },
   );
+}
+
+/**
+ * Labels of a repository.
+ * @param {string} token Token.
+ * @param {string} repositoryId Repository node id.
+ * @returns {Promise<{ id: string, name: string }[]>} Labels.
+ */
+export async function repositoryLabels(token: string, repositoryId: string): Promise<{ id: string; name: string }[]> {
+  const data = await githubRequest<{ node: { labels: { nodes: { id: string; name: string }[] } } | null }>(
+    token,
+    'query OrdoLabels($id: ID!) { node(id: $id) { ... on Repository { labels(first: 100) { nodes { id name } } } } }',
+    { id: repositoryId },
+  );
+  return data.node?.labels.nodes ?? [];
+}
+
+/**
+ * Creates a label in a repository.
+ * @param {string} token Token.
+ * @param {string} repositoryId Repository node id.
+ * @param {string} name Name.
+ * @param {string} color Hex color, without #.
+ * @returns {Promise<{ id: string, name: string }>} Label.
+ */
+export async function createLabel(token: string, repositoryId: string, name: string, color: string): Promise<{ id: string; name: string }> {
+  return (
+    await githubRequest<{ createLabel: { label: { id: string; name: string } } }>(
+      token,
+      'mutation OrdoCreateLabel($repositoryId: ID!, $name: String!, $color: String!) { createLabel(input: { repositoryId: $repositoryId, name: $name, color: $color }) { label { id name } } }',
+      { repositoryId, name, color },
+    )
+  ).createLabel.label;
+}
+
+/**
+ * Adds and removes labels of an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string[]} add Label ids to add.
+ * @param {string[]} remove Label ids to remove.
+ * @returns {Promise<void>}
+ */
+export async function setIssueLabels(token: string, issueId: string, add: string[], remove: string[]): Promise<void> {
+  if (add.length) {
+    await githubRequest(token, 'mutation OrdoAddLabels($id: ID!, $ids: [ID!]!) { addLabelsToLabelable(input: { labelableId: $id, labelIds: $ids }) { clientMutationId } }', { id: issueId, ids: add });
+  }
+  if (remove.length) {
+    await githubRequest(
+      token,
+      'mutation OrdoRemoveLabels($id: ID!, $ids: [ID!]!) { removeLabelsFromLabelable(input: { labelableId: $id, labelIds: $ids }) { clientMutationId } }',
+      { id: issueId, ids: remove },
+    );
+  }
+}
+
+/**
+ * Makes an issue a sub-issue of another (replacing its parent), or detaches it from its parent.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string | null} parentId New parent issue, or null.
+ * @param {string | null} previousId Current parent issue, or null.
+ * @returns {Promise<void>}
+ */
+export async function setIssueParent(token: string, issueId: string, parentId: string | null, previousId: string | null): Promise<void> {
+  if (parentId) {
+    await githubRequest(
+      token,
+      'mutation OrdoAddSubIssue($parentId: ID!, $issueId: ID!) { addSubIssue(input: { issueId: $parentId, subIssueId: $issueId, replaceParent: true }) { clientMutationId } }',
+      { parentId, issueId },
+    );
+  } else if (previousId) {
+    await githubRequest(
+      token,
+      'mutation OrdoRemoveSubIssue($parentId: ID!, $issueId: ID!) { removeSubIssue(input: { issueId: $parentId, subIssueId: $issueId }) { clientMutationId } }',
+      { parentId: previousId, issueId },
+    );
+  }
+}
+
+/**
+ * Adds a comment to an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string} body Markdown.
+ * @returns {Promise<string>} Comment node id.
+ */
+export async function addIssueComment(token: string, issueId: string, body: string): Promise<string> {
+  return (
+    await githubRequest<{ addComment: { commentEdge: { node: { id: string } } } }>(
+      token,
+      'mutation OrdoAddComment($id: ID!, $body: String!) { addComment(input: { subjectId: $id, body: $body }) { commentEdge { node { id } } } }',
+      { id: issueId, body },
+    )
+  ).addComment.commentEdge.node.id;
+}
+
+/**
+ * Changes the body of an issue comment.
+ * @param {string} token Token.
+ * @param {string} id Comment node id.
+ * @param {string} body Markdown.
+ * @returns {Promise<void>}
+ */
+export async function updateIssueComment(token: string, id: string, body: string): Promise<void> {
+  await githubRequest(token, 'mutation OrdoUpdateComment($id: ID!, $body: String!) { updateIssueComment(input: { id: $id, body: $body }) { clientMutationId } }', { id, body });
+}
+
+/**
+ * Deletes an issue comment.
+ * @param {string} token Token.
+ * @param {string} id Comment node id.
+ * @returns {Promise<void>}
+ */
+export async function deleteIssueComment(token: string, id: string): Promise<void> {
+  await githubRequest(token, 'mutation OrdoDeleteComment($id: ID!) { deleteIssueComment(input: { id: $id }) { clientMutationId } }', { id });
 }

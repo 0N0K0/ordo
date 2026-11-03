@@ -12,6 +12,8 @@ export interface TaskContext {
   statuses: TaskStatus[];
   priorities: TaskLabel[];
   types: TaskLabel[];
+  /** Tags, several per task. */
+  tags: TaskLabel[];
   projects: Project[];
   milestones: Milestone[];
   milestoneById: Map<string, Milestone>;
@@ -25,6 +27,7 @@ export interface TaskContext {
   statusById: Map<string, TaskStatus>;
   priorityById: Map<string, TaskLabel>;
   typeById: Map<string, TaskLabel>;
+  tagById: Map<string, TaskLabel>;
   contributorById: Map<string, Contributor>;
   projectById: Map<string, Project>;
   /** "Client › Parent › Projet". */
@@ -119,6 +122,8 @@ export function useTaskContext() {
       statusById,
       priorityById: new Map(data.taskPriorities.map((priority) => [priority.id, priority])),
       typeById: new Map(data.taskTypes.map((type) => [type.id, type])),
+      tags: [...data.taskTags].sort((a, b) => a.position - b.position),
+      tagById: new Map(data.taskTags.map((tag) => [tag.id, tag])),
       contributorById: new Map(data.contributors.map((contributor) => [contributor.id, contributor])),
       projectById,
       projectLabel: (projectId) => {

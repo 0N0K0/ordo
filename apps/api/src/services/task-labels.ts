@@ -29,3 +29,8 @@ export const taskTypes = createLabelService(() => prisma.taskType as unknown as 
   notFound: 'Type',
   conflict: 'Un type porte déjà ce nom.',
 });
+
+export const taskTags = createLabelService(() => prisma.taskTag as unknown as ReturnType<Delegate>, transaction, {
+  notFound: 'Étiquette',
+  conflict: 'Une étiquette porte déjà ce nom.',
+});

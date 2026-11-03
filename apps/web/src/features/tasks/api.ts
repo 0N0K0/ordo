@@ -86,6 +86,7 @@ graphql(`
     createdAt
     updatedAt
     assigneeIds
+    tagIds
     blockingIds
     blockedByIds
     relatedIds
@@ -107,6 +108,7 @@ graphql(`
     id
     body
     createdAt
+    githubAuthor
   }
 `);
 
@@ -129,6 +131,12 @@ const TasksDataDocument = graphql(`
       position
     }
     taskTypes {
+      id
+      name
+      color
+      position
+    }
+    taskTags {
       id
       name
       color
@@ -378,6 +386,32 @@ const LabelDocuments = {
       }
     `),
   },
+  tag: {
+    create: graphql(`
+      mutation CreateTaskTag($input: TaskLabelInput!) {
+        createTaskTag(input: $input) {
+          id
+        }
+      }
+    `),
+    update: graphql(`
+      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {
+        updateTaskTag(id: $id, input: $input) {
+          id
+        }
+      }
+    `),
+    remove: graphql(`
+      mutation DeleteTaskTag($id: ID!) {
+        deleteTaskTag(id: $id)
+      }
+    `),
+    move: graphql(`
+      mutation MoveTaskTag($id: ID!, $index: Int!) {
+        moveTaskTag(id: $id, index: $index)
+      }
+    `),
+  },
 };
 
 export const tasksQueryKey = ['tasks'] as const;
@@ -423,6 +457,7 @@ export interface TaskInputValues {
   priorityId?: string | null;
   typeId?: string | null;
   assigneeIds?: string[];
+  tagIds?: string[];
   effort?: number | null;
   startDate?: string | null;
   endDate?: string | null;
@@ -643,7 +678,7 @@ interface LabelInput {
 }
 
 /**
- * CRUD and ordering of a task label table (status, priority or type).
+ * CRUD and ordering of a task label table (status, priority, type or tag).
  * @param {TaskLabelKind} kind Label table.
  * @returns {object} Label mutations, shaped for the settings label manager.
  */
@@ -848,6 +883,8 @@ export interface BulkChanges {
   endDate?: string | null;
   addAssigneeIds?: string[];
   removeAssigneeIds?: string[];
+  addTagIds?: string[];
+  removeTagIds?: string[];
 }
 
 /**

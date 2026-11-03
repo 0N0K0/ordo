@@ -96,6 +96,7 @@ const Sync = graphql(`
       pushed
       unlinked
       sprints
+      comments
     }
   }
 `);

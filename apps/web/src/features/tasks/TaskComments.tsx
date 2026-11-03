@@ -84,11 +84,18 @@ function Comment({ comment, context }: CommentProps) {
   return (
     <Paper withBorder radius="md">
       <Group justify="space-between" px="sm" py={6} bg="var(--mantine-color-default-hover)" style={{ borderRadius: 'var(--mantine-radius-md) var(--mantine-radius-md) 0 0' }}>
-        <Tooltip label={absolute.format(new Date(comment.createdAt))}>
-          <Text size="xs" c="dimmed" component="time" dateTime={comment.createdAt}>
-            {fromNow(comment.createdAt)}
-          </Text>
-        </Tooltip>
+        <Group gap={6}>
+          {comment.githubAuthor && (
+            <Text size="xs" fw={600}>
+              @{comment.githubAuthor} sur GitHub
+            </Text>
+          )}
+          <Tooltip label={absolute.format(new Date(comment.createdAt))}>
+            <Text size="xs" c="dimmed" component="time" dateTime={comment.createdAt}>
+              {fromNow(comment.createdAt)}
+            </Text>
+          </Tooltip>
+        </Group>
         {draft === null && (
           <Menu position="bottom-end" withinPortal>
             <Menu.Target>

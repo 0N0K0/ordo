@@ -1,6 +1,6 @@
 import { prisma } from '../../db';
 import type { GithubProjectLink } from '../../generated/prisma/client';
-import { deleteItem } from './board';
+import { deleteIssueComment, deleteItem } from './board';
 import { githubToken } from './client';
 
 /**
@@ -33,4 +33,17 @@ export async function forgetGithubItems(ids: string[]): Promise<void> {
       if (link) await deleteItem(token, link.githubProjectId, task.githubItemId!);
     }
   })().catch((error: unknown) => console.warn('Items GitHub non retirés.', error));
+}
+
+/**
+ * Deletes on GitHub the comment of an Ordo comment about to be deleted, in the background.
+ * @param {string} id Comment id.
+ * @returns {Promise<void>}
+ */
+export async function forgetGithubComment(id: string): Promise<void> {
+  const comment = await prisma.taskComment.findUnique({ where: { id }, select: { githubCommentId: true } });
+  if (!comment?.githubCommentId) return;
+  void (async () => deleteIssueComment(await githubToken(), comment.githubCommentId!))().catch((error: unknown) =>
+    console.warn('Commentaire GitHub non supprimé.', error),
+  );
 }

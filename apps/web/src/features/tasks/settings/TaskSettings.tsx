@@ -36,6 +36,7 @@ export function TaskSettings() {
   const statuses = useTaskLabelMutations("status");
   const priorities = useTaskLabelMutations("priority");
   const types = useTaskLabelMutations("type");
+  const tags = useTaskLabelMutations("tag");
   const tasks = data?.tasks ?? [];
   const byPosition = <T extends { position: number }>(items: T[] = []) =>
     [...items].sort((a, b) => a.position - b.position);
@@ -102,6 +103,18 @@ export function TaskSettings() {
         update={types.update}
         remove={types.remove}
         move={types.move}
+      />
+      <LabelManager
+        title="Étiquettes"
+        description="Une tâche peut en avoir plusieurs. Synchronisées avec les labels GitHub."
+        noun="l’étiquette"
+        usageNoun="tâches"
+        labels={byPosition(data?.taskTags)}
+        usage={usageOf(tasks, (task) => task.tagIds)}
+        create={tags.create}
+        update={tags.update}
+        remove={tags.remove}
+        move={tags.move}
       />
     </Stack>
   );

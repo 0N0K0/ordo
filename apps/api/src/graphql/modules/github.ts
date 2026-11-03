@@ -84,6 +84,7 @@ const SummaryRef = builder.objectRef<Awaited<ReturnType<typeof syncGithubProject
     pushed: t.exposeInt('pushed'),
     unlinked: t.exposeInt('unlinked'),
     sprints: t.exposeInt('sprints'),
+    comments: t.exposeInt('comments'),
   }),
 });
 

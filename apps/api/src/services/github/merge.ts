@@ -1,5 +1,5 @@
 /** Fields synchronized between a task and an item of a GitHub board. */
-export const SYNC_FIELDS = ['title', 'body', 'closed', 'status', 'priority', 'iteration', 'start', 'end', 'effort', 'assignees'] as const;
+export const SYNC_FIELDS = ['title', 'body', 'closed', 'status', 'priority', 'iteration', 'start', 'end', 'effort', 'assignees', 'labels', 'parent'] as const;
 export type SyncField = (typeof SYNC_FIELDS)[number];
 export type SyncValue = string | number | boolean | string[] | null;
 /** Values of the synchronized fields, in a shape common to both sides (absent: not synchronized). */

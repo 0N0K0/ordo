@@ -45,7 +45,7 @@ import { TaskTime } from '../time/TaskTime';
 import { TaskComments } from './TaskComments';
 import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks, subtreeIds } from './task-links';
-import { AssigneesSelect, LabelSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
+import { AssigneesSelect, LabelSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from './use-task-actions';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
@@ -403,6 +403,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               value={task.assigneeIds}
               onChange={(assigneeIds) => save({ assigneeIds })}
             />
+            <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
             <NumberInput
               key={`effort-${task.effort}`}
               label="Effort"

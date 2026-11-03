@@ -5,7 +5,7 @@ import * as milestones from '../../services/milestones';
 import * as sprints from '../../services/sprints';
 import { iconUrl } from '../../services/icons';
 import type { Label } from '../../services/labels';
-import { taskPriorities, taskStatuses, taskTypes } from '../../services/task-labels';
+import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/task-labels';
 import * as taskFilters from '../../services/task-filters';
 import * as taskViews from '../../services/task-views';
 import * as taskRecurrence from '../../services/task-recurrence';
@@ -117,7 +117,7 @@ builder.prismaObject('TaskStatus', {
   }),
 });
 
-for (const name of ['TaskPriority', 'TaskType'] as const) {
+for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) {
   builder.prismaObject(name as 'TaskPriority', {
     fields: (t) => ({
       id: t.exposeID('id'),
@@ -143,6 +143,7 @@ builder.prismaObject('TaskComment', {
     id: t.exposeID('id'),
     body: t.exposeString('body'),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
+    githubAuthor: t.exposeString('githubAuthor', { nullable: true, description: 'Author on GitHub, when someone else than the connected account.' }),
   }),
 });
 
@@ -171,6 +172,10 @@ builder.prismaObject('Task', {
     closedAt: t.expose('closedAt', { type: 'DateTime', nullable: true }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
+    tagIds: t.idList({
+      select: { tags: { select: { id: true } } },
+      resolve: (task) => task.tags.map((tag) => tag.id),
+    }),
     assigneeIds: t.idList({
       select: { assignees: { select: { id: true } } },
       resolve: (task) => task.assignees.map((assignee) => assignee.id),
@@ -220,6 +225,7 @@ const TaskInput = builder.inputType('TaskInput', {
     priorityId: t.id(),
     typeId: t.id(),
     assigneeIds: t.idList(),
+    tagIds: t.idList(),
     effort: t.float(),
     startDate: t.field({ type: 'Date' }),
     endDate: t.field({ type: 'Date' }),
@@ -238,6 +244,7 @@ const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
     priorityId: t.id(),
     typeId: t.id(),
     assigneeIds: t.idList(),
+    tagIds: t.idList(),
     effort: t.float(),
     startDate: t.field({ type: 'Date' }),
     endDate: t.field({ type: 'Date' }),
@@ -305,6 +312,8 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
     endDate: t.field({ type: 'Date' }),
     addAssigneeIds: t.idList(),
     removeAssigneeIds: t.idList(),
+    addTagIds: t.idList(),
+    removeTagIds: t.idList(),
   }),
 });
 
@@ -401,6 +410,10 @@ builder.queryFields((t) => ({
   taskTypes: t.prismaField({
     type: ['TaskType'],
     resolve: (query) => prisma.taskType.findMany({ ...query, orderBy: [...byManualOrder] }),
+  }),
+  taskTags: t.prismaField({
+    type: ['TaskTag'],
+    resolve: (query) => prisma.taskTag.findMany({ ...query, orderBy: [...byManualOrder] }),
   }),
 }));
 
@@ -685,6 +698,7 @@ const labelKinds = [
   { type: 'TaskStatus', suffix: 'TaskStatus', service: taskStatuses, model: () => prisma.taskStatus },
   { type: 'TaskPriority', suffix: 'TaskPriority', service: taskPriorities, model: () => prisma.taskPriority },
   { type: 'TaskType', suffix: 'TaskType', service: taskTypes, model: () => prisma.taskType },
+  { type: 'TaskTag', suffix: 'TaskTag', service: taskTags, model: () => prisma.taskTag },
 ] as const;
 
 for (const kind of labelKinds) {

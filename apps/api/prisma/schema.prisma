@@ -284,6 +284,17 @@ model TaskType {
   tasks     Task[]
 }
 
+/// Tag of tasks (several per task), synchronized with the GitHub labels.
+model TaskTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  /// Hex color, e.g. #228be6.
+  color     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  tasks     Task[]   @relation("TaskTags")
+}
+
 model Task {
   id                String         @id @default(cuid())
   /// Human-readable number (#12), global and stable across transfers.
@@ -331,6 +342,7 @@ model Task {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   assignees         Contributor[]
+  tags              TaskTag[]      @relation("TaskTags")
   /// Tasks this task blocks.
   blocking          TaskBlock[]    @relation("Blocker")
   /// Tasks blocking this task.
@@ -381,13 +393,19 @@ model TaskRelation {
 }
 
 model TaskComment {
-  id        String   @id @default(cuid())
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   /// Markdown.
-  body      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  body            String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  /// Comment of the GitHub issue it is synchronized with.
+  githubCommentId String?  @unique
+  /// Body at the last sync, for the three-way merge.
+  githubBody      String?
+  /// Author on GitHub, when someone else than the connected account wrote it there.
+  githubAuthor    String?
 
   @@index([taskId])
 }

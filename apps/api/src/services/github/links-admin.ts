@@ -137,6 +137,7 @@ async function forgetLinks(projectId: string): Promise<void> {
     data: { githubItemId: null, githubContentId: null, githubContentType: null, githubUrl: null, githubNumber: null, githubSnapshot: Prisma.DbNull },
   });
   await prisma.sprint.updateMany({ where: { projectId: { in: tree } }, data: { githubIterationId: null } });
+  await prisma.taskComment.updateMany({ where: { task: { projectId: { in: tree } } }, data: { githubCommentId: null, githubBody: null, githubAuthor: null } });
 }
 
 /**

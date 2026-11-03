@@ -145,7 +145,8 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         <Anchor href={board.url} target="_blank" rel="noopener" size="sm" fw={600}>
           {board.title}
         </Anchor>
-        . Titre, description, ouverture / fermeture des issues et assignés sont toujours synchronisés ; choisissez les autres champs.
+        . Titre, description et assignés sont toujours synchronisés, ainsi que, pour les issues, l’ouverture / fermeture, les labels (étiquettes), les sous-issues
+        (sous-tâches) et les commentaires ; choisissez les autres champs.
       </Text>
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
         <Select label="Statut" placeholder="Non synchronisé" clearable data={fieldsOf('SINGLE_SELECT')} value={values.statusFieldId} onChange={(statusFieldId) => change({ statusFieldId, statusOptions: {} })} />
@@ -391,7 +392,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                   sync.mutate(projectId, {
                     onSuccess: (result) =>
                       notifySuccess(
-                        `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour.`,
+                        `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour, ${result.comments} commentaire(s) échangé(s).`,
                       ),
                     onError: (error) => notifyError(error.message),
                   })
@@ -415,7 +416,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">
               Dernier échange : {summary.pulledNew} tâche(s) créée(s) depuis GitHub, {summary.pushedNew} item(s) créé(s) sur GitHub, {summary.pulled} tâche(s) et{' '}
-              {summary.pushed} item(s) mis à jour, {summary.unlinked} tâche(s) déliée(s), {summary.sprints} sprint(s) créé(s) ou mis à jour.
+              {summary.pushed} item(s) mis à jour, {summary.unlinked} tâche(s) déliée(s), {summary.sprints} sprint(s) créé(s) ou mis à jour, {summary.comments ?? 0} commentaire(s) échangé(s).
             </Text>
           )}
         </Stack>

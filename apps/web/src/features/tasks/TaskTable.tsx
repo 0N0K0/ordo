@@ -60,6 +60,7 @@ import {
   LabelCell,
   MilestoneCell,
   SprintCell,
+  TagsCell,
   TitleCell,
 } from './views/inline-cells';
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
@@ -310,6 +311,7 @@ export function TaskTable({
       priority: (task) => <LabelCell task={task} column="priority" labels={context.priorities} />,
       type: (task) => <LabelCell task={task} column="type" labels={context.types} />,
       assignees: (task) => <AssigneesCell task={task} context={context} />,
+      tags: (task) => <TagsCell task={task} context={context} />,
       effort: (task) => <EffortCell task={task} />,
       trackedTime: (task) =>
         task.trackedSeconds > 0 ? (

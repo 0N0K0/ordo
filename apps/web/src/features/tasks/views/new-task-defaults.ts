@@ -33,6 +33,8 @@ export function groupDefaults(groupBy: TaskGroupBy, key: string, context: TaskCo
       return { typeId: key };
     case 'assignees':
       return { assigneeIds: [key] };
+    case 'tags':
+      return { tagIds: [key] };
     case 'milestone': {
       const milestone = context.milestoneById.get(key);
       return milestone ? { milestoneId: key, projectId: milestone.projectId } : {};

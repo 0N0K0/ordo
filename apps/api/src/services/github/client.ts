@@ -20,7 +20,7 @@ export async function githubRequest<T>(token: string, query: string, variables: 
   try {
     response = await fetch(env.GITHUB_GRAPHQL_URL, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'Ordo', 'GraphQL-Features': 'project_v2_draft_issues' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'Ordo', 'GraphQL-Features': 'project_v2_draft_issues,sub_issues' },
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(30_000),
     });

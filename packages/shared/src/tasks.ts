@@ -66,6 +66,7 @@ export const taskFormSchema = z
     priorityId: z.string().nullable(),
     typeId: z.string().nullable(),
     assigneeIds: z.array(z.string()),
+    tagIds: z.array(z.string()),
     effort: z.union([z.number(), z.literal('')]).transform((value) => (value === '' ? null : value)).pipe(effortSchema),
     startDate: dateSchema,
     endDate: dateSchema,

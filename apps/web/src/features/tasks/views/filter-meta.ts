@@ -24,6 +24,7 @@ export const FIELD_LABELS: Record<TaskFilterField, string> = {
   milestone: 'Jalon',
   sprint: 'Sprint',
   assignees: 'Assignés',
+  tags: 'Étiquettes',
   startDate: 'Début',
   endDate: 'Fin',
   createdAt: 'Créée le',
@@ -40,7 +41,7 @@ export const FIELD_GROUPS: { group: string; fields: TaskFilterField[] }[] = [
   { group: 'Texte', fields: ['title', 'description', 'number'] },
   {
     group: 'Organisation',
-    fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'effort'],
+    fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'tags', 'effort'],
   },
   { group: 'Dates', fields: ['startDate', 'endDate', 'createdAt', 'updatedAt'] },
   { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'archived'] },
