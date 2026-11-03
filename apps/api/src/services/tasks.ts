@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import type { Prisma, Task, TaskComment } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachAssignees } from './contributors';
+import { forgetGithubComment, forgetGithubItems } from './github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
 
 /**
@@ -149,6 +150,7 @@ async function assertReferences(refs: {
   priorityId?: string | null;
   typeId?: string | null;
   assigneeIds?: string[] | null;
+  tagIds?: string[] | null;
 }): Promise<void> {
   if (refs.statusId && !(await prisma.taskStatus.findUnique({ where: { id: refs.statusId } }))) throw notFound('Statut');
   if (refs.priorityId && !(await prisma.taskPriority.findUnique({ where: { id: refs.priorityId } }))) {
@@ -158,6 +160,10 @@ async function assertReferences(refs: {
   if (refs.assigneeIds?.length) {
     const count = await prisma.contributor.count({ where: { id: { in: refs.assigneeIds } } });
     if (count !== new Set(refs.assigneeIds).size) throw notFound('Contributeur');
+  }
+  if (refs.tagIds?.length) {
+    const count = await prisma.taskTag.count({ where: { id: { in: refs.tagIds } } });
+    if (count !== new Set(refs.tagIds).size) throw notFound('Étiquette');
   }
 }
 
@@ -179,6 +185,7 @@ export interface TaskInput {
   priorityId?: string | null;
   typeId?: string | null;
   assigneeIds?: string[] | null;
+  tagIds?: string[] | null;
   effort?: number | null;
   startDate?: string | null;
   endDate?: string | null;
@@ -259,6 +266,7 @@ export async function createTask(input: TaskInput & { title: string; projectId: 
       sprintId: input.sprintId ?? null,
       position: await nextPosition(),
       assignees: { connect: (input.assigneeIds ?? []).map((id) => ({ id })) },
+      tags: { connect: (input.tagIds ?? []).map((id) => ({ id })) },
     },
   });
   await attachAssignees([{ projectId: input.projectId, contributorIds: input.assigneeIds ?? [] }]);
@@ -293,6 +301,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       milestoneId: input.milestoneId,
       sprintId: input.sprintId,
       ...(input.assigneeIds && { assignees: { set: input.assigneeIds.map((assigneeId) => ({ id: assigneeId })) } }),
+      ...(input.tagIds && { tags: { set: input.tagIds.map((tagId) => ({ id: tagId })) } }),
     },
   });
   // Only new assignees: a contributor detached from the project on purpose stays detached.
@@ -355,10 +364,12 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
   const task = await findTask(id);
   if (deleteSubtasks) {
     const descendants = await descendantIds(id);
+    await forgetGithubItems([id, ...descendants]);
     await forgetDeletedOccurrences([id, ...descendants]);
     await prisma.task.deleteMany({ where: { id: { in: [id, ...descendants] } } });
     return;
   }
+  await forgetGithubItems([id]);
   await forgetDeletedOccurrences([id]);
   await prisma.$transaction([
     prisma.task.updateMany({ where: { parentId: id }, data: { parentId: task.parentId } }),
@@ -438,7 +449,7 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
  * @returns {Promise<Task>} Clone of the task.
  */
 export async function cloneTask(id: string, includeSubtasks: boolean): Promise<Task> {
-  const include = { assignees: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
+  const include = { assignees: { select: { id: true } }, tags: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
   const source = await prisma.task.findUnique({ where: { id }, include });
   if (!source) throw notFound('Tâche');
 
@@ -452,7 +463,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
      * @returns {Promise<Task>} Copy.
      */
     const copy = (
-      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } } } }>,
+      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } }; tags: { select: { id: true } } } }>,
       parentId: string | null,
     ) =>
       tx.task.create({
@@ -471,6 +482,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           sprintId: task.sprintId,
           position: position++,
           assignees: { connect: task.assignees },
+          tags: { connect: task.tags },
         },
       });
 
@@ -496,7 +508,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
         const children = await tx.task.findMany({
           where: { parentId: sourceId },
           orderBy: { position: 'asc' },
-          include: { assignees: { select: { id: true } } },
+          include: { assignees: { select: { id: true } }, tags: { select: { id: true } } },
         });
         for (const child of children) {
           const childClone = await copy(child, cloneId);
@@ -618,6 +630,7 @@ export async function updateComment(id: string, body: string): Promise<TaskComme
  * @returns {Promise<void>}
  */
 export async function deleteComment(id: string): Promise<void> {
+  await forgetGithubComment(id);
   const { count } = await prisma.taskComment.deleteMany({ where: { id } });
   if (count === 0) throw notFound('Commentaire');
 }
@@ -683,6 +696,8 @@ export interface BulkTaskChanges {
   endDate?: string | null;
   addAssigneeIds?: string[] | null;
   removeAssigneeIds?: string[] | null;
+  addTagIds?: string[] | null;
+  removeTagIds?: string[] | null;
 }
 
 /**
@@ -707,9 +722,12 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
   await assertReferences({
     ...changes,
     assigneeIds: [...(changes.addAssigneeIds ?? []), ...(changes.removeAssigneeIds ?? [])],
+    tagIds: [...(changes.addTagIds ?? []), ...(changes.removeTagIds ?? [])],
   });
   const add = (changes.addAssigneeIds ?? []).map((assigneeId) => ({ id: assigneeId }));
   const remove = (changes.removeAssigneeIds ?? []).map((assigneeId) => ({ id: assigneeId }));
+  const addTags = (changes.addTagIds ?? []).map((tagId) => ({ id: tagId }));
+  const removeTags = (changes.removeTagIds ?? []).map((tagId) => ({ id: tagId }));
   const details = parseInput(detailsSchema.pick({ effort: true, startDate: true, endDate: true }), {
     effort: changes.effort,
     startDate: changes.startDate,
@@ -743,11 +761,14 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         endDate: toDate(details.endDate),
       },
     }),
-    ...(add.length || remove.length
+    ...(add.length || remove.length || addTags.length || removeTags.length
       ? ids.map((taskId) =>
           prisma.task.update({
             where: { id: taskId },
-            data: { assignees: { ...(add.length && { connect: add }), ...(remove.length && { disconnect: remove }) } },
+            data: {
+              ...((add.length || remove.length) && { assignees: { ...(add.length && { connect: add }), ...(remove.length && { disconnect: remove }) } }),
+              ...((addTags.length || removeTags.length) && { tags: { ...(addTags.length && { connect: addTags }), ...(removeTags.length && { disconnect: removeTags }) } }),
+            },
           }),
         )
       : []),
@@ -809,6 +830,7 @@ export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): P
   }
   // Selected sub-tasks moved up by a deletion are still selected: delete them as well.
   if (!deleteSubtasks) {
+    await forgetGithubItems(ids);
     await forgetDeletedOccurrences(ids);
     await prisma.task.deleteMany({ where: { id: { in: ids } } });
   }

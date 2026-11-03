@@ -1,5 +1,6 @@
 import {
   Avatar,
+  ColorSwatch,
   Combobox,
   Group,
   MultiSelect,
@@ -217,6 +218,39 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
       onChange={(milestoneId) => apply({ milestoneId }, { milestoneId })}
       placeholder="—"
       nothingFoundMessage="Aucun jalon dans ce projet"
+    />
+  );
+}
+
+/**
+ * Tags cell: multi-select. On a column selection, adding a tag adds it to every selected task and removing
+ * one removes it.
+ * @param {{ task: Task, context: TaskContext }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TagsCell({ task, context }: { task: Task; context: TaskContext }) {
+  const { apply, count } = useCellEdit(task, 'tags');
+  return (
+    <MultiSelect
+      {...cellCombobox}
+      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+      aria-label={fieldLabel('Étiquettes', task, count)}
+      data={context.tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+      renderOption={({ option }) => (
+        <Group gap="xs" wrap="nowrap">
+          <ColorSwatch color={context.tagById.get(option.value)?.color ?? 'gray'} size={10} />
+          {option.label}
+        </Group>
+      )}
+      value={task.tagIds}
+      onChange={(tagIds) => {
+        const added = tagIds.filter((id) => !task.tagIds.includes(id));
+        const removed = task.tagIds.filter((id) => !tagIds.includes(id));
+        apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
+      }}
+      placeholder={task.tagIds.length ? undefined : '—'}
+      searchable
+      nothingFoundMessage="Aucune étiquette (Paramètres › Tâches)"
     />
   );
 }

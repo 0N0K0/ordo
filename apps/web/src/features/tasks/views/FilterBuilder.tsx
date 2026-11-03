@@ -77,6 +77,8 @@ function referenceOptions(field: TaskFilterField, context: TaskContext): { value
         value: milestone.id,
         label: `${milestone.title} — ${context.projectById.get(milestone.projectId)?.title ?? ''}`,
       }));
+    case 'tags':
+      return context.tags.map((tag) => ({ value: tag.id, label: tag.name }));
     case 'sprint':
       return context.sprints.map((sprint) => ({
         value: sprint.id,

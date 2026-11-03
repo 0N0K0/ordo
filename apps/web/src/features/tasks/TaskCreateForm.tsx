@@ -7,7 +7,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useCreateTask } from './api';
 import { linkableTasks } from './task-links';
-import { AssigneesSelect, LabelSelect, ProjectSelect, TaskSelect } from './task-ui';
+import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskSelect } from './task-ui';
 import type { TaskContext } from './use-task-context';
 
 interface TaskCreateFormProps {
@@ -40,6 +40,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       priorityId: null,
       typeId: null,
       assigneeIds: [],
+      tagIds: [],
       effort: '',
       startDate: null,
       endDate: null,
@@ -148,6 +149,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           onChange={(assigneeIds) => form.setFieldValue('assigneeIds', assigneeIds)}
           error={form.errors.assigneeIds as string | undefined}
         />
+        <TagsSelect tags={context.tags} value={form.values.tagIds} onChange={(tagIds) => form.setFieldValue('tagIds', tagIds)} />
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <NumberInput label="Effort" min={0} decimalScale={2} decimalSeparator="," {...form.getInputProps('effort')} />
           <DatePickerInput label="Début" clearable placeholder="—" {...form.getInputProps('startDate')} />

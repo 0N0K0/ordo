@@ -21,6 +21,10 @@ export function revertChanges(tasks: Task[], changes: BulkChanges): { ids: strin
     const removed = (changes.removeAssigneeIds ?? []).filter((id) => task.assigneeIds.includes(id));
     if (added.length) previous.removeAssigneeIds = added;
     if (removed.length) previous.addAssigneeIds = removed;
+    const addedTags = (changes.addTagIds ?? []).filter((id) => !task.tagIds.includes(id));
+    const removedTags = (changes.removeTagIds ?? []).filter((id) => task.tagIds.includes(id));
+    if (addedTags.length) previous.removeTagIds = addedTags;
+    if (removedTags.length) previous.addTagIds = removedTags;
     if (Object.keys(previous).length === 0) continue;
     const key = JSON.stringify(previous);
     const group = groups.get(key) ?? { ids: [], changes: previous };

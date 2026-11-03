@@ -8,6 +8,7 @@ import {
   CaretDownIcon,
   FlagIcon,
   TimerIcon,
+  TagIcon,
   TrashIcon,
   UserMinusIcon,
   UserPlusIcon,
@@ -278,6 +279,39 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
     );
   };
 
+  /**
+   * Menu adding or removing a tag on the selected tasks.
+   * @param {boolean} add Adding (else removing).
+   * @returns {JSX.Element} Menu.
+   */
+  const tagMenu = (add: boolean) => {
+    // Adding: every tag. Removing: tags of the selected tasks.
+    const used = new Set(tasks.flatMap((task) => task.tagIds));
+    const choices = add ? context.tags : context.tags.filter((tag) => used.has(tag.id));
+    return (
+      <Menu position="top-start" withinPortal shadow="md">
+        <Menu.Target>
+          <Button size="xs" variant="default" leftSection={<TagIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />} disabled={choices.length === 0}>
+            {add ? 'Étiqueter' : 'Retirer une étiquette'}
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          {choices.map((tag) => (
+            <Menu.Item
+              key={tag.id}
+              leftSection={<ColorSwatch color={tag.color} size={10} />}
+              onClick={() =>
+                apply(add ? { addTagIds: [tag.id] } : { removeTagIds: [tag.id] }, `Étiquette « ${tag.name} » ${add ? 'ajoutée à' : 'retirée de'} ${tasksLabel(ids.length)}.`)
+              }
+            >
+              {tag.name}
+            </Menu.Item>
+          ))}
+        </Menu.Dropdown>
+      </Menu>
+    );
+  };
+
   return (
     <Paper shadow="md" withBorder radius="md" className={classes.bar} role="region" aria-label="Actions sur la sélection">
       <Group gap="xs" wrap="wrap">
@@ -326,6 +360,8 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
         </Menu>
         {assigneeMenu(true)}
         {assigneeMenu(false)}
+        {tagMenu(true)}
+        {tagMenu(false)}
         <Button size="xs" variant="default" leftSection={<ArrowsLeftRightIcon aria-hidden />} onClick={() => openDialog('Transférer les tâches', BulkTransferDialog)}>
           Transférer
         </Button>

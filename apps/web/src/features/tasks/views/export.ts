@@ -65,6 +65,11 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
         .filter((contributor) => contributor !== undefined)
         .map((contributor) => contributor.name)
         .join(', ');
+    case 'tags':
+      return task.tagIds
+        .map((id) => context.tagById.get(id)?.name)
+        .filter(Boolean)
+        .join(', ');
     case 'effort':
       return task.effort === null ? '' : numberFormat.format(task.effort);
     case 'trackedTime':

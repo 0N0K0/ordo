@@ -16,6 +16,7 @@ export const DIMENSION_LABELS: Record<ChartDimension, string> = {
   priority: 'Priorité',
   type: 'Type',
   assignees: 'Assigné',
+  tags: 'Étiquette',
   state: 'État (ouverte / fermée)',
 };
 export const MEASURE_LABELS: Record<ChartMeasure, string> = { count: 'Nombre de tâches', effort: 'Effort', trackedTime: 'Temps passé (h)' };
@@ -164,6 +165,10 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
     case 'assignees': {
       const people = task.assigneeIds.map((id) => context.contributorById.get(id)).filter((contributor) => contributor !== undefined);
       return people.length ? people.map((person) => ({ key: person.id, label: person.name, order: person.name })) : none('Non assignées');
+    }
+    case 'tags': {
+      const tags = task.tagIds.map((id) => context.tagById.get(id)).filter((tag) => tag !== undefined);
+      return tags.length ? tags.map((tag) => ({ key: tag.id, label: tag.name, order: tag.position, color: tag.color })) : none('Sans étiquette');
     }
     case 'state':
       return context.isClosed(task)

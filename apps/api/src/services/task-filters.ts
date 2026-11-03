@@ -244,19 +244,21 @@ function conditionWhere(
       }
     }
 
-    case 'multiReference':
+    case 'multiReference': {
+      const key = field === 'tags' ? 'tags' : 'assignees';
       switch (operator) {
         case 'anyOf':
-          return { assignees: { some: { id: { in: ids } } } };
+          return { [key]: { some: { id: { in: ids } } } };
         case 'allOf':
-          return { AND: ids.map((id) => ({ assignees: { some: { id } } })) };
+          return { AND: ids.map((id) => ({ [key]: { some: { id } } })) };
         case 'noneOf':
-          return { assignees: { none: { id: { in: ids } } } };
+          return { [key]: { none: { id: { in: ids } } } };
         case 'isEmpty':
-          return { assignees: { none: {} } };
+          return { [key]: { none: {} } };
         default:
-          return { assignees: { some: {} } };
+          return { [key]: { some: {} } };
       }
+    }
 
     case 'category': {
       const categories = ids as TaskStatusCategory[];

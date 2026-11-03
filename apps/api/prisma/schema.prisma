@@ -186,6 +186,7 @@ model Project {
 
   milestones   Milestone[]
   sprints      Sprint[]
+  githubLink   GithubProjectLink?
   dashboards   Dashboard[]
   taskViews    TaskView[]
   /// Contributors attached to the project (and, through it, to its sub-projects).
@@ -227,19 +228,21 @@ model ProjectStatus {
 
 /// Person who can be assigned to tasks.
 model Contributor {
-  id        String          @id @default(cuid())
-  name      String
+  id          String          @id @default(cuid())
+  name        String
   /// Unique identifier used in @mentions.
-  handle    String          @unique
-  iconId    String?
-  icon      Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  createdAt DateTime        @default(now())
-  tasks     Task[]
+  handle      String          @unique
+  iconId      String?
+  icon        Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  tasks       Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
-  projects  Project[]       @relation("ProjectContributors")
-  events    CalendarEvent[]
+  projects    Project[]       @relation("ProjectContributors")
+  events      CalendarEvent[]
   /// Set when this contributor is the app user ("Moi").
-  user      User?
+  user        User?
+  /// GitHub login: assignees are synchronized with the GitHub boards through it.
+  githubLogin String?         @unique
 }
 
 /// Fixed meaning of a task status, whatever its name: drives "open", "overdue" and progress.
@@ -281,6 +284,17 @@ model TaskType {
   tasks     Task[]
 }
 
+/// Tag of tasks (several per task), synchronized with the GitHub labels.
+model TaskTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  /// Hex color, e.g. #228be6.
+  color     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  tasks     Task[]   @relation("TaskTags")
+}
+
 model Task {
   id                String         @id @default(cuid())
   /// Human-readable number (#12), global and stable across transfers.
@@ -301,6 +315,16 @@ model Task {
   /// Sprint of the project tree the task is planned in.
   sprintId          String?
   sprint            Sprint?        @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  /// Item of the GitHub board the task is synchronized with (ProjectV2Item node id).
+  githubItemId      String?        @unique
+  /// Content of the item: issue or draft issue node id.
+  githubContentId   String?
+  /// ISSUE or DRAFT_ISSUE.
+  githubContentType String?
+  githubUrl         String?
+  githubNumber      Int?
+  /// Synchronized values at the last sync, for the three-way merge.
+  githubSnapshot    Json?
   effort            Float?
   startDate         DateTime?      @db.Date
   endDate           DateTime?      @db.Date
@@ -318,6 +342,7 @@ model Task {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   assignees         Contributor[]
+  tags              TaskTag[]      @relation("TaskTags")
   /// Tasks this task blocks.
   blocking          TaskBlock[]    @relation("Blocker")
   /// Tasks blocking this task.
@@ -368,13 +393,19 @@ model TaskRelation {
 }
 
 model TaskComment {
-  id        String   @id @default(cuid())
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   /// Markdown.
-  body      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  body            String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  /// Comment of the GitHub issue it is synchronized with.
+  githubCommentId String?  @unique
+  /// Body at the last sync, for the three-way merge.
+  githubBody      String?
+  /// Author on GitHub, when someone else than the connected account wrote it there.
+  githubAuthor    String?
 
   @@index([taskId])
 }
@@ -413,19 +444,61 @@ model Milestone {
 
 /// Sprint of a project: a period the tasks of its project tree are planned in.
 model Sprint {
-  id        String   @id @default(cuid())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name      String
+  id                String   @id @default(cuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String
   /// Markdown.
-  goal      String?
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tasks     Task[]
+  goal              String?
+  startDate         DateTime @db.Date
+  endDate           DateTime @db.Date
+  /// Iteration of a GitHub board the sprint mirrors.
+  githubIterationId String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  tasks             Task[]
 
   @@index([projectId])
+}
+
+/// GitHub access of the app: a personal access token (encrypted), single row.
+model GithubConnection {
+  id        String   @id @default("github")
+  token     String
+  login     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Project synchronized with a GitHub Projects (v2) board, both ways.
+model GithubProjectLink {
+  id               String    @id @default(cuid())
+  projectId        String    @unique
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Node id, URL and title of the board.
+  githubProjectId  String
+  url              String
+  title            String
+  /// Fields of the board synchronized (null: not synchronized).
+  statusFieldId    String?
+  priorityFieldId  String?
+  iterationFieldId String?
+  startFieldId     String?
+  endFieldId       String?
+  effortFieldId    String?
+  /// Option of the board for each Ordo status / priority: { [ordoId]: optionId }.
+  statusOptions    Json      @default("{}")
+  priorityOptions  Json      @default("{}")
+  /// New Ordo tasks become issues of this repository, or draft issues without one.
+  repositoryId     String?
+  repositoryName   String?
+  /// Ordo tasks created before the link are sent too.
+  pushExisting     Boolean   @default(false)
+  enabled          Boolean   @default(true)
+  lastSyncAt       DateTime?
+  lastSyncError    String?
+  /// Counts of the last sync (created, updated… on each side).
+  lastSyncSummary  Json?
+  createdAt        DateTime  @default(now())
 }
 
 /// Dashboard of charts on the tasks: global (no project) or of a project tree.

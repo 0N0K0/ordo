@@ -8,7 +8,7 @@ export type ChartType = (typeof CHART_TYPES)[number];
 /** Dates the tasks can be spread over. */
 export const CHART_TIME_DIMENSIONS = ['createdAt', 'closedAt', 'startDate', 'endDate'] as const;
 /** Fields the tasks can be grouped by, on the axis or as series. */
-export const CHART_GROUP_DIMENSIONS = ['sprint', 'milestone', 'project', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'state'] as const;
+export const CHART_GROUP_DIMENSIONS = ['sprint', 'milestone', 'project', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'tags', 'state'] as const;
 export const CHART_DIMENSIONS = [...CHART_TIME_DIMENSIONS, ...CHART_GROUP_DIMENSIONS] as const;
 export type ChartDimension = (typeof CHART_DIMENSIONS)[number];
 export type ChartGroupDimension = (typeof CHART_GROUP_DIMENSIONS)[number];

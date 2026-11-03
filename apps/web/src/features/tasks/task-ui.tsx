@@ -118,6 +118,38 @@ export function LabelSelect({ labels, value, onChange, ...props }: LabelSelectPr
   );
 }
 
+interface TagsSelectProps {
+  tags: TaskLabel[];
+  value: string[];
+  onChange: (value: string[]) => void;
+}
+
+/**
+ * Multi-select of tags, with their color.
+ * @param {TagsSelectProps} props Component props.
+ * @returns {JSX.Element} Select.
+ */
+export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
+  return (
+    <MultiSelect
+      label="Étiquettes"
+      placeholder={value.length ? undefined : 'Aucune'}
+      data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+      renderOption={({ option }) => (
+        <Group gap="xs" wrap="nowrap">
+          <ColorSwatch color={tags.find((tag) => tag.id === option.value)?.color ?? 'gray'} size={10} />
+          <Text size="sm">{option.label}</Text>
+        </Group>
+      )}
+      value={value}
+      onChange={onChange}
+      searchable
+      clearable
+      nothingFoundMessage="Aucune étiquette : créez-en dans Paramètres › Tâches"
+    />
+  );
+}
+
 interface AssigneesSelectProps {
   contributors: Contributor[];
   value: string[];

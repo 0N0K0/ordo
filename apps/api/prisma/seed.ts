@@ -64,7 +64,7 @@ const meId = user?.contributorId ?? null;
 const alarms = await prisma.alarm.findMany();
 await prisma.$executeRawUnsafe(`
   TRUNCATE "TaskComment", "TaskBlock", "TaskRelation", "Task", "Milestone", "TaskView", "Project", "Client",
-    "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "Attachment", "TimeEntry",
+    "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "TaskTag", "Attachment", "TimeEntry",
     "CalendarEventException", "CalendarEvent", "CalendarCategory", "TreasuryAllocation", "TreasuryEntry",
     "TreasuryAccount", "DocumentReminder", "RecurringInvoice", "AccountingLine", "AccountingDocument", "DocumentSequence",
     "ImportedDocument", "CatalogItem", "ClientContact", "ClientService", "ProjectResource", "Sprint", "DashboardChart", "Dashboard"
@@ -93,6 +93,15 @@ const priorities = await Promise.all(
     ['Haute', '#fd7e14'],
     ['Urgente', '#fa5252'],
   ].map(([name, color], position) => prisma.taskPriority.create({ data: { name, color, position } })),
+);
+const tags = await Promise.all(
+  [
+    ['frontend', '#228be6'],
+    ['backend', '#7950f2'],
+    ['design', '#e64980'],
+    ['client', '#fd7e14'],
+    ['dette technique', '#868e96'],
+  ].map(([name, color], position) => prisma.taskTag.create({ data: { name, color, position } })),
 );
 const types = await Promise.all(
   [
@@ -244,6 +253,7 @@ async function createTask(projectId: string, parentId: string | null): Promise<s
     closedAt: done ? faker.date.recent({ days: 30 }) : null,
     archivedAt: done ? maybe(0.15, () => faker.date.recent({ days: 10 })) : null,
     assignees: { connect: assignees.map((id) => ({ id })) },
+    tags: { connect: faker.helpers.arrayElements(tags, { min: 0, max: 2 }).map(({ id }) => ({ id })) },
   });
   await commentFactory.createList(faker.helpers.weightedArrayElement([
     { value: 0, weight: 6 },
