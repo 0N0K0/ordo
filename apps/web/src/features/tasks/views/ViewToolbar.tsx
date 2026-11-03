@@ -8,6 +8,7 @@ import {
   Checkbox,
   CloseButton,
   Group,
+  Menu,
   Popover,
   ScrollArea,
   SegmentedControl,
@@ -17,11 +18,25 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import { TASK_COLUMNS, TASK_GROUP_BY, TASK_SORT_KEYS, type TaskColumn, type TaskGroupBy, type TaskSortKey, type TaskViewConfig } from '@ordo/shared';
+import {
+  EVENT_PERIODS,
+  TASK_COLUMNS,
+  TASK_GROUP_BY,
+  TASK_SORT_KEYS,
+  type EventPeriod,
+  type TaskColumn,
+  type TaskGroupBy,
+  type TaskSortKey,
+  type TaskViewConfig,
+} from '@ordo/shared';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CaretDownIcon,
   ColumnsIcon,
+  DownloadSimpleIcon,
+  FileCsvIcon,
+  FilePdfIcon,
   DotsSixVerticalIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
@@ -35,6 +50,17 @@ import { FilterBuilder } from './FilterBuilder';
 import { countConditions } from './filter-meta';
 
 type Change = (change: (config: TaskViewConfig) => TaskViewConfig) => void;
+
+const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
+  thisWeek: 'Cette semaine',
+  nextWeek: 'La semaine prochaine',
+  thisMonth: 'Ce mois-ci',
+  nextMonth: 'Le mois prochain',
+  'next:7': '7 prochains jours',
+  'next:30': '30 prochains jours',
+  'next:90': '90 prochains jours',
+  'past:30': '30 derniers jours',
+};
 
 interface SortPanelProps {
   sorting: TaskViewConfig['sorting'];
@@ -227,14 +253,21 @@ interface ViewToolbarProps {
   /** Filter popover state (also opened from the column menus). */
   filterOpened: boolean;
   onFilterOpenedChange: (opened: boolean) => void;
+  /** The page sets the period of the events (home): no period choice. */
+  eventPeriodLocked: boolean;
+  onExport: (format: 'csv' | 'pdf') => void;
+  exporting: boolean;
+  /** Something is listed. */
+  canExport: boolean;
 }
 
 /**
- * Toolbar of the current view: search, filters, sorting, columns, grouping and display toggles.
+ * Toolbar of the current view: search, filters, sorting, columns, grouping, display toggles, the events listed
+ * with the tasks and their period, and the exports.
  * @param {ViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange }: ViewToolbarProps) {
+export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, onExport, exporting, canExport }: ViewToolbarProps) {
   const filterCount = countConditions(config.filter);
   return (
     <Group gap="sm" wrap="wrap">
@@ -336,6 +369,48 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
           change((current) => ({ ...current, includeArchived }));
         }}
       />
+      <Switch
+        label="Évènements"
+        checked={config.events.show}
+        onChange={(event) => {
+          const show = event.currentTarget.checked;
+          change((current) => ({ ...current, events: { ...current.events, show } }));
+        }}
+      />
+      {config.events.show && !eventPeriodLocked && (
+        <Select
+          aria-label="Période des évènements"
+          data={EVENT_PERIODS.map((period) => ({ value: period, label: EVENT_PERIOD_LABELS[period] }))}
+          value={config.events.period}
+          allowDeselect={false}
+          onChange={(period) => period && change((current) => ({ ...current, events: { ...current.events, period: period as EventPeriod } }))}
+          w={190}
+        />
+      )}
+
+      <Menu position="bottom-end" shadow="md">
+        <Menu.Target>
+          <Button
+            variant="default"
+            ml="auto"
+            leftSection={<DownloadSimpleIcon aria-hidden />}
+            rightSection={<CaretDownIcon aria-hidden />}
+            loading={exporting}
+            disabled={!canExport}
+          >
+            Exporter
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Label>Ce que la vue liste, colonnes visibles</Menu.Label>
+          <Menu.Item leftSection={<FileCsvIcon aria-hidden />} onClick={() => onExport('csv')}>
+            CSV (tableur)
+          </Menu.Item>
+          <Menu.Item leftSection={<FilePdfIcon aria-hidden />} onClick={() => onExport('pdf')}>
+            PDF
+          </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
     </Group>
   );
 }

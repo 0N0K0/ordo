@@ -1,8 +1,9 @@
 import { SegmentedControl, Stack, Title } from '@mantine/core';
-import { ME, type FilterCondition, type FilterGroup } from '@ordo/shared';
+import { addDays, filterPeriod, ME, type FilterCondition, type FilterGroup } from '@ordo/shared';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMe } from '../features/auth/api';
+import { localToday } from '../lib/dates';
 import { TaskBoard } from '../features/tasks/TaskBoard';
 import { TimerCard } from '../features/time/TimerCard';
 
@@ -97,6 +98,16 @@ export function HomePage() {
   const period = (PERIODS.find((item) => item.value === params.get('period'))
     ?.value ?? 'today') as Period;
   const baseFilter = useMemo(() => myTasksFilter(period), [period]);
+  // Events of the same days as the tasks.
+  const today = localToday();
+  const eventRange = useMemo(() => {
+    if (period === 'week') {
+      const [from, end] = filterPeriod('thisWeek', today);
+      return { from, to: addDays(end, -1) };
+    }
+    const day = period === 'tomorrow' ? addDays(today, 1) : today;
+    return { from: day, to: day };
+  }, [period, today]);
 
   return (
     <Stack gap="md">
@@ -110,6 +121,8 @@ export function HomePage() {
         projectId={null}
         baseFilter={baseFilter}
         emptyMessage="Rien de prévu sur cette période."
+        title={`Accueil — ${PERIODS.find((item) => item.value === period)?.label}`}
+        eventRange={eventRange}
         header={
           <SegmentedControl
             aria-label="Période"

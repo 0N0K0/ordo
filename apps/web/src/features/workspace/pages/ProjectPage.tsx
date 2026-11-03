@@ -213,6 +213,7 @@ export function ProjectPage() {
             key={project.id}
             projectId={project.id}
             baseFilter={baseFilter}
+            title={project.title}
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />

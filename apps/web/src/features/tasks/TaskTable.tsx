@@ -43,6 +43,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { notifyError } from '../../lib/notify';
+import type { EventOccurrence } from '../calendar/api';
 import { useMoveTask, type Task } from './api';
 import classes from './TaskTable.module.css';
 import { TaskRef, TaskStateIcon } from './task-ui';
@@ -61,6 +62,7 @@ import {
   TitleCell,
 } from './views/inline-cells';
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
+import { EventPeopleCell, EventTitleCell, EventWhenCell } from './views/event-cells';
 import { AddTaskRow, SummaryRow } from './views/table-extras';
 import type { DisplayRow, TaskRow } from './views/task-rows';
 
@@ -248,7 +250,7 @@ function summarize(rows: DisplayRow[], context: TaskContext): { count: number; e
 /**
  * Task table of a view: column menus, drag-and-drop column order, resizable and hideable columns,
  * multi-sort, expandable sub-tasks and groups, row selection, spreadsheet-like inline and column edits,
- * drag-and-drop task reordering.
+ * drag-and-drop task reordering; calendar events listed with the tasks (read only, opened in their form).
  * @param {TaskTableProps} props Component props.
  * @returns {JSX.Element} Table.
  */
@@ -340,6 +342,20 @@ export function TaskTable({
       updatedAt: (task) => <Text size="sm">{dateTimeFormat.format(new Date(task.updatedAt))}</Text>,
     };
 
+    // Events only have a title, a project, people and dates.
+    const eventCells: Partial<Record<TaskColumn, (event: EventOccurrence) => ReactNode>> = {
+      title: (event) => <EventTitleCell event={event} context={context} />,
+      project: (event) =>
+        event.projectId ? (
+          <Text size="sm" truncate title={context.projectLabel(event.projectId)}>
+            {context.projectById.get(event.projectId)?.title}
+          </Text>
+        ) : null,
+      assignees: (event) => <EventPeopleCell event={event} context={context} />,
+      startDate: (event) => <EventWhenCell event={event} side="start" />,
+      endDate: (event) => <EventWhenCell event={event} side="end" />,
+    };
+
     return column.columns([
       column.display({
         id: SELECT_COLUMN,
@@ -378,7 +394,12 @@ export function TaskTable({
           size: COLUMN_SIZES[id],
           minSize: 60,
           enableHiding: !LOCKED_COLUMNS.includes(id),
-          cell: ({ row }) => (row.original.kind === 'task' ? cells[id](row.original.task) : null),
+          cell: ({ row }) =>
+            row.original.kind === 'task'
+              ? cells[id](row.original.task)
+              : row.original.kind === 'event'
+                ? (eventCells[id]?.(row.original.event) ?? null)
+                : null,
         }),
       ),
     ]);
@@ -604,6 +625,38 @@ export function TaskTable({
               </Text>
             </Group>
           </Table.Td>
+        </Table.Tr>
+      );
+    }
+    if (original.kind === 'event') {
+      return (
+        <Table.Tr key={row.id} className={classes.row}>
+          {row.getVisibleCells().map((cell) => {
+            const id = cell.column.id;
+            if (id === SELECT_COLUMN) {
+              return (
+                <Table.Td key={cell.id}>
+                  <span className={classes.handleSpacer} />
+                </Table.Td>
+              );
+            }
+            return (
+              <Table.Td
+                key={cell.id}
+                style={id === 'title' ? ({ '--row-depth': row.depth - (grouped ? 1 : 0) } as CSSProperties) : undefined}
+                className={id === 'title' ? classes.titleCell : undefined}
+              >
+                {id === 'title' ? (
+                  <Group gap={4} wrap="nowrap" style={{ minWidth: 0, width: '100%' }}>
+                    <span className={classes.chevronSpacer} />
+                    <table.FlexRender cell={cell} />
+                  </Group>
+                ) : (
+                  <table.FlexRender cell={cell} />
+                )}
+              </Table.Td>
+            );
+          })}
         </Table.Tr>
       );
     }

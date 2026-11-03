@@ -79,6 +79,53 @@ export const filterPeriodSchema = z
     'Période invalide.',
   );
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Calendar date of a timestamp at UTC midnight.
+ * @param {number} value Timestamp.
+ * @returns {string} YYYY-MM-DD.
+ */
+const isoDay = (value: number): string => new Date(value).toISOString().slice(0, 10);
+
+/**
+ * Day of a day token (`YYYY-MM-DD`, `today`, `today+3`, `today-7`).
+ * @param {string} token Day token.
+ * @param {string} today User's current day (YYYY-MM-DD).
+ * @returns {string} YYYY-MM-DD.
+ */
+export function filterDay(token: string, today: string): string {
+  const relative = /^today([+-]\d+)?$/.exec(token);
+  if (!relative) return token;
+  return isoDay(Date.parse(`${today}T00:00:00.000Z`) + Number(relative[1] ?? 0) * DAY_MS);
+}
+
+/**
+ * First day and the day after the last one of a period token (`thisWeek`, `lastMonth`, `past:7`, `next:30`…).
+ * Weeks start on Monday.
+ * @param {string} token Period token.
+ * @param {string} today User's current day (YYYY-MM-DD).
+ * @returns {[string, string]} [first day, day after the last one], YYYY-MM-DD.
+ */
+export function filterPeriod(token: string, today: string): [string, string] {
+  const day = Date.parse(`${today}T00:00:00.000Z`);
+  const rolling = /^(past|next):(\d+)$/.exec(token);
+  if (rolling) {
+    const days = Number(rolling[2]);
+    return rolling[1] === 'past' ? [isoDay(day - (days - 1) * DAY_MS), isoDay(day + DAY_MS)] : [isoDay(day), isoDay(day + days * DAY_MS)];
+  }
+  const date = new Date(day);
+  if (token.endsWith('Week')) {
+    const monday = day - ((date.getUTCDay() + 6) % 7) * DAY_MS;
+    const shift = token === 'lastWeek' ? -7 : token === 'nextWeek' ? 7 : 0;
+    return [isoDay(monday + shift * DAY_MS), isoDay(monday + (shift + 7) * DAY_MS)];
+  }
+  const shift = token === 'lastMonth' ? -1 : token === 'nextMonth' ? 1 : 0;
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + shift;
+  return [isoDay(Date.UTC(year, month, 1)), isoDay(Date.UTC(year, month + 1, 1))];
+}
+
 export const filterConditionSchema = z
   .object({
     type: z.literal('condition'),
@@ -203,6 +250,10 @@ export type TaskColumn = (typeof TASK_COLUMNS)[number];
 export const TASK_SORT_KEYS = [...TASK_COLUMNS, 'number'] as const;
 export type TaskSortKey = (typeof TASK_SORT_KEYS)[number];
 
+/** Periods of the events listed with the tasks. */
+export const EVENT_PERIODS = ['thisWeek', 'nextWeek', 'thisMonth', 'nextMonth', 'next:7', 'next:30', 'next:90', 'past:30'] as const;
+export type EventPeriod = (typeof EVENT_PERIODS)[number];
+
 /** Fields the table can be grouped by. */
 export const TASK_GROUP_BY = ['state', 'project', 'status', 'priority', 'type', 'assignees', 'parent', 'milestone'] as const;
 export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
@@ -240,6 +291,10 @@ export const taskViewConfigSchema = z.object({
   groupBy: z.enum(TASK_GROUP_BY).nullable().default(null),
   /** Show sub-tasks as a flat list instead of expandable rows. */
   flat: z.boolean().default(false),
+  /** Calendar events listed with the tasks, over a period (a `within` period token). */
+  events: z
+    .object({ show: z.boolean().default(false), period: z.enum(EVENT_PERIODS).catch('next:30').default('next:30') })
+    .default({ show: false, period: 'next:30' }),
 });
 export type TaskViewConfig = z.infer<typeof taskViewConfigSchema>;
 

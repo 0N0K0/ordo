@@ -1,4 +1,6 @@
 import {
+  filterDay,
+  filterPeriod,
   ME,
   TASK_FILTER_FIELDS,
   type FilterCondition,
@@ -40,35 +42,18 @@ function dayValue(day: string): number {
  * @returns {number} UTC midnight timestamp.
  */
 function resolveDay(token: string, clock: FilterClock): number {
-  const relative = /^today([+-]\d+)?$/.exec(token);
-  if (!relative) return dayValue(token);
-  return dayValue(clock.today) + Number(relative[1] ?? 0) * DAY;
+  return dayValue(filterDay(token, clock.today));
 }
 
 /**
  * Resolves a period token to its first day and the day after its last one.
- * Weeks start on Monday.
  * @param {string} token Period token (thisWeek, lastMonth, past:7…).
  * @param {FilterClock} clock User clock.
  * @returns {[number, number]} [start, end) as UTC midnight timestamps.
  */
 function resolvePeriod(token: string, clock: FilterClock): [number, number] {
-  const today = dayValue(clock.today);
-  const rolling = /^(past|next):(\d+)$/.exec(token);
-  if (rolling) {
-    const days = Number(rolling[2]);
-    return rolling[1] === 'past' ? [today - (days - 1) * DAY, today + DAY] : [today, today + days * DAY];
-  }
-  const date = new Date(today);
-  if (token.endsWith('Week')) {
-    const monday = today - ((date.getUTCDay() + 6) % 7) * DAY;
-    const shift = token === 'lastWeek' ? -7 : token === 'nextWeek' ? 7 : 0;
-    return [monday + shift * DAY, monday + (shift + 7) * DAY];
-  }
-  const shift = token === 'lastMonth' ? -1 : token === 'nextMonth' ? 1 : 0;
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + shift;
-  return [Date.UTC(year, month, 1), Date.UTC(year, month + 1, 1)];
+  const [start, end] = filterPeriod(token, clock.today);
+  return [dayValue(start), dayValue(end)];
 }
 
 type DateField = 'startDate' | 'endDate' | 'createdAt' | 'updatedAt';
