@@ -3,6 +3,7 @@ import {
   addDays,
   computeTotals,
   documentNumber,
+  dueDateForTerms,
   fromCents,
   formatDay,
   parseDay,
@@ -97,6 +98,26 @@ async function assertParties({ clientId, serviceId, contactId, projectId }: { cl
 }
 
 /**
+ * Checks that tracked time can be billed on a document: invoices only, finished time, not billed elsewhere.
+ * @param {AccountingDocumentType} type Type of the document.
+ * @param {string | null} documentId Document (null when created).
+ * @param {string[]} ids Time entries.
+ * @returns {Promise<void>}
+ */
+async function assertBillableTime(type: AccountingDocumentType, documentId: string | null, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  if (type !== 'INVOICE') throw clientError('BAD_USER_INPUT', 'Seule une facture peut facturer du temps.');
+  const entries = await prisma.timeEntry.findMany({
+    where: { id: { in: ids } },
+    select: { duration: true, documentId: true, document: { select: { number: true } } },
+  });
+  if (entries.length !== new Set(ids).size) throw notFound('Temps');
+  if (entries.some((entry) => entry.duration === null)) throw clientError('BAD_USER_INPUT', 'Arrêtez le chrono avant de facturer son temps.');
+  const billed = entries.find((entry) => entry.documentId && entry.documentId !== documentId);
+  if (billed) throw clientError('BAD_USER_INPUT', `Une partie de ce temps est déjà facturée (${billed.document?.number ?? 'brouillon'}).`);
+}
+
+/**
  * Prisma data of the lines of a document.
  * @param {AccountingLineInput[]} lines Lines.
  * @returns {Prisma.AccountingLineCreateWithoutDocumentInput[]} Lines data.
@@ -118,7 +139,7 @@ function linesData(lines: AccountingLineInput[]): Prisma.AccountingLineCreateWit
  * @returns {object} Prisma data.
  */
 function documentData(input: ReturnType<typeof accountingDocumentInputSchema.parse>) {
-  const { lines, issueDate, dueDate, serviceStart, serviceEnd, globalDiscountValue, ...rest } = input;
+  const { lines, issueDate, dueDate, serviceStart, serviceEnd, globalDiscountValue, depositValue, timeEntryIds: _timeEntryIds, ...rest } = input;
   const totals = computeTotals({ lines, globalDiscountType: input.globalDiscountType, globalDiscountValue, vatApplicable: input.vatApplicable });
   const day = (value: string | null) => (value ? parseDay(value) : null);
   return {
@@ -128,6 +149,8 @@ function documentData(input: ReturnType<typeof accountingDocumentInputSchema.par
     serviceStart: day(serviceStart),
     serviceEnd: day(serviceEnd),
     globalDiscountValue: globalDiscountValue === null ? null : new Prisma.Decimal(globalDiscountValue),
+    depositType: depositValue ? input.depositType : null,
+    depositValue: depositValue && input.depositType ? new Prisma.Decimal(depositValue) : null,
     totalNet: new Prisma.Decimal(fromCents(totals.totalNet)),
     totalVat: new Prisma.Decimal(fromCents(totals.totalVat)),
     totalGross: new Prisma.Decimal(fromCents(totals.totalGross)),
@@ -144,13 +167,18 @@ function documentData(input: ReturnType<typeof accountingDocumentInputSchema.par
 export async function defaultFields(type: AccountingDocumentType, clientId: string, issueDate: string): Promise<AccountingDocumentInput> {
   const company = await getCompanyProfile();
   const isQuote = type === 'QUOTE';
+  const isCreditNote = type === 'CREDIT_NOTE';
   return {
     clientId,
     serviceId: null,
     contactId: null,
     projectId: null,
     issueDate,
-    dueDate: type === 'CREDIT_NOTE' ? null : addDays(issueDate, isQuote ? company.quoteValidityDays : company.paymentDays),
+    dueDate: isCreditNote
+      ? null
+      : isQuote
+        ? addDays(issueDate, company.quoteValidityDays)
+        : (dueDateForTerms(company.paymentTerms, issueDate) ?? addDays(issueDate, company.paymentDays)),
     serviceStart: null,
     serviceEnd: null,
     title: null,
@@ -158,9 +186,12 @@ export async function defaultFields(type: AccountingDocumentType, clientId: stri
     referenceLabel: company.referenceLabel,
     referenceValue: null,
     conclusion: null,
-    paymentTerms: isQuote ? null : company.paymentTerms,
+    paymentTerms: isCreditNote ? null : company.paymentTerms,
     paymentMethods: company.paymentMethods,
-    lateInterest: isQuote ? null : company.lateInterest,
+    depositType: null,
+    depositValue: null,
+    lateInterest: isCreditNote ? null : company.lateInterest,
+    billingSchedule: null,
     otherMentions: company.otherMentions,
     showBankDetails: !isQuote,
     vatApplicable: company.vatApplicable,
@@ -185,7 +216,9 @@ export async function createDocument(
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
   const company = await getCompanyProfile();
-  return prisma.accountingDocument.create({
+  if (fields.timeEntryIds?.length && extra.status === 'TEMPLATE') throw clientError('BAD_USER_INPUT', 'Un modèle de facture récurrente ne facture pas de temps.');
+  if (fields.timeEntryIds?.length) await assertBillableTime(type, null, fields.timeEntryIds);
+  const created = await prisma.accountingDocument.create({
     data: {
       ...documentData(fields),
       type,
@@ -196,6 +229,8 @@ export async function createDocument(
       lines: { create: linesData(fields.lines) },
     },
   });
+  if (fields.timeEntryIds?.length) await prisma.timeEntry.updateMany({ where: { id: { in: fields.timeEntryIds } }, data: { documentId: created.id } });
+  return created;
 }
 
 /**
@@ -209,7 +244,14 @@ export async function updateDocument(id: string, input: AccountingDocumentInput)
   assertEditable(document);
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
+  const timeEntryIds = fields.timeEntryIds;
+  if (timeEntryIds?.length && document.status !== 'DRAFT') throw clientError('BAD_USER_INPUT', 'Un modèle de facture récurrente ne facture pas de temps.');
+  if (timeEntryIds) await assertBillableTime(document.type, id, timeEntryIds);
   return prisma.$transaction(async (tx) => {
+    if (timeEntryIds) {
+      await tx.timeEntry.updateMany({ where: { documentId: id, id: { notIn: timeEntryIds } }, data: { documentId: null } });
+      await tx.timeEntry.updateMany({ where: { id: { in: timeEntryIds } }, data: { documentId: id } });
+    }
     await tx.accountingLine.deleteMany({ where: { documentId: id } });
     return tx.accountingDocument.update({ where: { id }, data: { ...documentData(fields), lines: { create: linesData(fields.lines) } } });
   });
@@ -411,10 +453,19 @@ export async function createFromDocument(
     title = `Avoir sur la facture ${source.number}`;
   }
 
+  // An invoice keeps the terms agreed on its quote.
+  const fromQuote = source.type === 'QUOTE';
+  const paymentTerms = fromQuote ? (source.paymentTerms ?? defaults.paymentTerms) : defaults.paymentTerms;
   return createDocument(
     type,
     {
       ...defaults,
+      ...(fromQuote && {
+        paymentTerms,
+        paymentMethods: source.paymentMethods ?? defaults.paymentMethods,
+        lateInterest: source.lateInterest ?? defaults.lateInterest,
+        dueDate: dueDateForTerms(paymentTerms ?? null, options.issueDate) ?? defaults.dueDate,
+      }),
       serviceId: source.serviceId,
       contactId: source.contactId,
       projectId: source.projectId,
@@ -466,7 +517,10 @@ export async function editableFields(document: DocumentWithLines): Promise<Accou
     conclusion: document.conclusion,
     paymentTerms: document.paymentTerms,
     paymentMethods: document.paymentMethods,
+    depositType: document.depositType,
+    depositValue: document.depositValue === null ? null : Number(document.depositValue),
     lateInterest: document.lateInterest,
+    billingSchedule: document.billingSchedule,
     otherMentions: document.otherMentions,
     showBankDetails: document.showBankDetails,
     vatApplicable: document.vatApplicable,

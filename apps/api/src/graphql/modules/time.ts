@@ -18,6 +18,13 @@ builder.prismaObject('TimeEntry', {
       select: { tasks: { select: { id: true } } },
       resolve: (entry) => entry.tasks.map((task) => task.id),
     }),
+    documentId: t.exposeID('documentId', { nullable: true, description: 'Invoice the time is billed on.' }),
+    documentNumber: t.string({
+      nullable: true,
+      description: 'Number of that invoice, null while it is a draft.',
+      select: { document: { select: { number: true } } },
+      resolve: (entry) => entry.document?.number ?? null,
+    }),
   }),
 });
 

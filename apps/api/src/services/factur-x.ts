@@ -235,7 +235,9 @@ export function facturXml(
   const lineTotal = totals.itemsNet - totals.deductions + totals.disbursements;
   const taxBasis = lineTotal - totals.globalDiscount;
   const notes = [
-    [document.lateInterest, 'PMD'],
+    [document.lateInterest?.trim() ? `Intérêts de retard : ${document.lateInterest.trim()}` : null, 'PMD'],
+    // Due by law to a professional client paying late.
+    [buyer.kind === 'COMPANY' && document.type !== 'CREDIT_NOTE' ? 'Indemnité forfaitaire pour frais de recouvrement en cas de retard : 40 €' : null, 'PMT'],
     [document.otherMentions, 'AAB'],
   ]
     .filter(([content]) => content?.trim())

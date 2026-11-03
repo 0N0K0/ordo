@@ -1,9 +1,10 @@
 import { ActionIcon, Badge, Button, Collapse, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { ACCOUNTING_UNITS, formatMoney, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
-import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PlusIcon, TextAaIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, PlusIcon, TextAaIcon, TrashIcon } from '@phosphor-icons/react';
+import { useState, type ReactNode } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
+import { useCatalogItems } from './catalog-api';
 import classes from './LinesEditor.module.css';
 
 const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: 'Débours', TEXT: 'Texte', DEDUCTION: 'Déjà facturé' };
@@ -208,16 +209,20 @@ interface LinesEditorProps {
   currency: string;
   /** Errors by path ("lines.2.title"). */
   errors: Record<string, unknown>;
+  /** Other ways to add lines (tracked time…). Optional. */
+  extraActions?: ReactNode;
 }
 
 /**
  * Lines of a document: items, disbursements (outside VAT), text lines and deductions of what was already
- * invoiced; added, reordered and removed.
+ * invoiced; added (blank or from the catalogue), reordered and removed.
  * @param {LinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, currency, errors }: LinesEditorProps) {
+export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, currency, errors, extraActions }: LinesEditorProps) {
   const defaultRate = vatApplicable ? 20 : 0;
+  const { data: catalog } = useCatalogItems();
+  const offered = (catalog ?? []).filter((item) => !item.archived);
   return (
     <Stack gap="xs">
       {lines.length === 0 && (
@@ -257,6 +262,25 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
           <Button size="xs" variant="light" color="gray" leftSection={<TextAaIcon aria-hidden />} onClick={() => onChange([...lines, newLine('TEXT', 0)])}>
             Texte
           </Button>
+          {offered.length > 0 && (
+            <Select
+              size="xs"
+              w={220}
+              aria-label="Ajouter un article du catalogue"
+              placeholder="Depuis le catalogue…"
+              searchable
+              leftSection={<PackageIcon aria-hidden />}
+              data={offered.map((item) => ({ value: item.id, label: item.title }))}
+              value={null}
+              onChange={(id) => {
+                const item = offered.find((entry) => entry.id === id);
+                if (!item) return;
+                const kind = item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM';
+                onChange([...lines, { ...newLine(kind, item.vatRate), title: item.title, description: item.description ?? null, unit: item.unit, unitPrice: item.unitPrice }]);
+              }}
+            />
+          )}
+          {extraActions}
         </Group>
       )}
     </Stack>

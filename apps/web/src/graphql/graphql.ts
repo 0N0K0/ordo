@@ -5,9 +5,12 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import type { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
 export type AccountingDocumentInput = {
+  billingSchedule?: string | null | undefined;
   clientId: string | number;
   conclusion?: string | null | undefined;
   contactId?: string | number | null | undefined;
+  depositType?: DiscountType | null | undefined;
+  depositValue?: number | null | undefined;
   dueDate?: string | null | undefined;
   globalDiscountType?: DiscountType | null | undefined;
   globalDiscountValue?: number | null | undefined;
@@ -25,6 +28,8 @@ export type AccountingDocumentInput = {
   serviceId?: string | number | null | undefined;
   serviceStart?: string | null | undefined;
   showBankDetails: boolean;
+  /** Tracked time billed on the document (replaces the previous ones); unchanged when omitted. */
+  timeEntryIds?: Array<string | number> | null | undefined;
   title?: string | null | undefined;
   vatApplicable: boolean;
 };
@@ -143,6 +148,17 @@ export type CalendarEventScope =
 export type CalendarLinkInput = {
   label: string;
   url: string;
+};
+
+export type CatalogItemInput = {
+  archived: boolean;
+  description?: string | null | undefined;
+  /** ITEM or DISBURSEMENT. */
+  kind: AccountingLineKind;
+  title: string;
+  unit: AccountingUnit;
+  unitPrice: number;
+  vatRate: number;
 };
 
 export type ClientContactInput = {
@@ -651,9 +667,36 @@ export type DeleteClientContactMutationVariables = Exact<{
 
 export type DeleteClientContactMutation = { deleteClientContact: boolean };
 
+export type CatalogItemsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CatalogItemsQuery = { catalogItems: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, unit: AccountingUnit, unitPrice: number, vatRate: number, archived: boolean }> };
+
+export type CreateCatalogItemMutationVariables = Exact<{
+  input: CatalogItemInput;
+}>;
+
+
+export type CreateCatalogItemMutation = { createCatalogItem: string };
+
+export type UpdateCatalogItemMutationVariables = Exact<{
+  id: string | number;
+  input: CatalogItemInput;
+}>;
+
+
+export type UpdateCatalogItemMutation = { updateCatalogItem: boolean };
+
+export type DeleteCatalogItemMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteCatalogItemMutation = { deleteCatalogItem: boolean };
+
 export type AccountingDocumentListFieldsFragment = { id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
 
-export type AccountingDocumentFieldsFragment = { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, method: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
+export type AccountingDocumentFieldsFragment = { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, method: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
 
 export type AccountingDocumentsQueryVariables = Exact<{
   clientId?: string | number | null | undefined;
@@ -668,7 +711,7 @@ export type AccountingDocumentQueryVariables = Exact<{
 }>;
 
 
-export type AccountingDocumentQuery = { accountingDocument: { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, method: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null } | null };
+export type AccountingDocumentQuery = { accountingDocument: { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, method: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null } | null };
 
 export type NewDocumentDefaultsQueryVariables = Exact<{
   type: AccountingDocumentType;
@@ -1684,19 +1727,19 @@ export type MoveMilestoneMutationVariables = Exact<{
 
 export type MoveMilestoneMutation = { moveMilestone: boolean };
 
-export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> };
+export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null };
 
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
 }>;
 
 
-export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> }> };
+export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null }> };
 
 export type RunningTimeEntryQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string> } | null };
+export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null } | null };
 
 export type StartTimerMutationVariables = Exact<{
   input: TimerInput;
@@ -2090,7 +2133,17 @@ export const AccountingDocumentFieldsFragmentDoc = new TypedDocumentString(`
   paymentTerms
   paymentMethods
   lateInterest
+  depositType
+  depositValue
+  billingSchedule
   otherMentions
+  timeEntries {
+    id
+    projectId
+    description
+    startedAt
+    duration
+  }
   showBankDetails
   vatApplicable
   vatExemptionText
@@ -2390,6 +2443,8 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
   pausedSeconds
   duration
   taskIds
+  documentId
+  documentNumber
 }
     `, {"fragmentName":"TimeEntryFields"}) as unknown as TypedDocumentString<TimeEntryFieldsFragment, unknown>;
 export const TreasuryEntryFieldsFragmentDoc = new TypedDocumentString(`
@@ -2608,6 +2663,35 @@ export const DeleteClientContactDocument = new TypedDocumentString(`
   deleteClientContact(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteClientContactMutation, DeleteClientContactMutationVariables>;
+export const CatalogItemsDocument = new TypedDocumentString(`
+    query CatalogItems {
+  catalogItems {
+    id
+    kind
+    title
+    description
+    unit
+    unitPrice
+    vatRate
+    archived
+  }
+}
+    `) as unknown as TypedDocumentString<CatalogItemsQuery, CatalogItemsQueryVariables>;
+export const CreateCatalogItemDocument = new TypedDocumentString(`
+    mutation CreateCatalogItem($input: CatalogItemInput!) {
+  createCatalogItem(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateCatalogItemMutation, CreateCatalogItemMutationVariables>;
+export const UpdateCatalogItemDocument = new TypedDocumentString(`
+    mutation UpdateCatalogItem($id: ID!, $input: CatalogItemInput!) {
+  updateCatalogItem(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateCatalogItemMutation, UpdateCatalogItemMutationVariables>;
+export const DeleteCatalogItemDocument = new TypedDocumentString(`
+    mutation DeleteCatalogItem($id: ID!) {
+  deleteCatalogItem(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteCatalogItemMutation, DeleteCatalogItemMutationVariables>;
 export const AccountingDocumentsDocument = new TypedDocumentString(`
     query AccountingDocuments($clientId: ID, $projectId: ID) {
   accountingDocuments(clientId: $clientId, projectId: $projectId) {
@@ -2695,7 +2779,17 @@ fragment AccountingDocumentFields on AccountingDocument {
   paymentTerms
   paymentMethods
   lateInterest
+  depositType
+  depositValue
+  billingSchedule
   otherMentions
+  timeEntries {
+    id
+    projectId
+    description
+    startedAt
+    duration
+  }
   showBankDetails
   vatApplicable
   vatExemptionText
@@ -3954,6 +4048,8 @@ export const TimeEntriesDocument = new TypedDocumentString(`
   pausedSeconds
   duration
   taskIds
+  documentId
+  documentNumber
 }`) as unknown as TypedDocumentString<TimeEntriesQuery, TimeEntriesQueryVariables>;
 export const RunningTimeEntryDocument = new TypedDocumentString(`
     query RunningTimeEntry {
@@ -3971,6 +4067,8 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
   pausedSeconds
   duration
   taskIds
+  documentId
+  documentNumber
 }`) as unknown as TypedDocumentString<RunningTimeEntryQuery, RunningTimeEntryQueryVariables>;
 export const StartTimerDocument = new TypedDocumentString(`
     mutation StartTimer($input: TimerInput!) {

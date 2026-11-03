@@ -17,6 +17,8 @@ graphql(`
     pausedSeconds
     duration
     taskIds
+    documentId
+    documentNumber
   }
 `);
 
@@ -86,11 +88,12 @@ export const timeQueryKey = ['time'] as const;
 
 /**
  * Time entries of a project and its sub-projects, latest first.
- * @param {string} projectId Project.
+ * @param {string} projectId Project (empty: nothing loaded).
  * @returns {UseQueryResult} Query state.
  */
 export function useTimeEntries(projectId: string) {
   return useQuery({
+    enabled: Boolean(projectId),
     queryKey: [...timeQueryKey, 'entries', projectId],
     queryFn: async () => (await execute(TimeEntriesDocument, { projectId })).timeEntries,
   });

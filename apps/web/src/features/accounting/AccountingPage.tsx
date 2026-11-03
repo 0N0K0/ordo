@@ -1,11 +1,12 @@
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Table, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
-import { ArrowsClockwiseIcon, CaretDownIcon, FileArrowUpIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CaretDownIcon, FileArrowUpIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { CatalogPanel } from './CatalogPanel';
 import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice } from './documents-api';
 import { ImportedDocumentsTable } from './ImportedDocumentsTable';
 import { openImportForm } from './imported-form';
@@ -138,7 +139,7 @@ function RecurringList() {
 }
 
 /**
- * Accounting: quotes, invoices, deposit invoices, credit notes and recurring invoices.
+ * Accounting: quotes, invoices, deposit invoices, credit notes, recurring invoices, imported documents and catalogue.
  * @returns {JSX.Element} Page.
  */
 export function AccountingPage() {
@@ -181,6 +182,9 @@ export function AccountingPage() {
           <Tabs.Tab value="imported" leftSection={<FileArrowUpIcon aria-hidden />}>
             Importés
           </Tabs.Tab>
+          <Tabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
+            Catalogue
+          </Tabs.Tab>
         </Tabs.List>
         {TABS.map((item) => (
           <Tabs.Panel key={item.value} value={item.value}>
@@ -203,6 +207,9 @@ export function AccountingPage() {
             </Group>
             {imported.isPending ? <Skeleton height={120} /> : <ImportedDocumentsTable documents={imported.data ?? []} />}
           </Stack>
+        </Tabs.Panel>
+        <Tabs.Panel value="catalog">
+          <CatalogPanel />
         </Tabs.Panel>
       </Tabs>
     </Stack>

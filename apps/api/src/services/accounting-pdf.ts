@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { addressLines, formatMoney, UNIT_LABELS, type AccountingDocumentType, type Address, type DocumentTotals } from '@ordo/shared';
+import { addressLines, depositAmount, formatMoney, UNIT_LABELS, type AccountingDocumentType, type Address, type DocumentTotals } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../db';
 import {
@@ -669,10 +669,21 @@ export async function documentPdf(id: string): Promise<DocumentPdf> {
     flow.markdown(document.conclusion);
     flow.space(8);
   }
+  const isQuote = document.type === 'QUOTE';
+  const deposit = isQuote ? depositAmount(document.depositType, document.depositValue === null ? null : Number(document.depositValue), totals.totalGross) : 0;
+  const labelled = (label: string, value: string | null) => (value?.trim() ? `${label} : ${value.trim()}` : null);
   const conditions = [
-    document.paymentTerms,
-    document.paymentMethods ? `Moyens de paiement : ${document.paymentMethods}` : null,
-    document.lateInterest,
+    isQuote ? labelled('Mode de facturation', document.billingSchedule) : null,
+    labelled('Conditions de règlement', document.paymentTerms),
+    labelled('Mode de règlement', document.paymentMethods),
+    deposit
+      ? `Acompte à la commande : ${
+          document.depositType === 'PERCENT' ? `${Number(document.depositValue).toLocaleString('fr-FR')} %, soit ${formatMoney(deposit, document.currency)}` : formatMoney(deposit, document.currency)
+        }`
+      : null,
+    labelled('Intérêts de retard', document.lateInterest),
+    // Due by law to a professional client paying late (art. L441-10 du Code de commerce).
+    document.type !== 'CREDIT_NOTE' && buyer.kind === 'COMPANY' ? 'Indemnité forfaitaire pour frais de recouvrement en cas de retard : 40 €' : null,
     document.otherMentions,
   ].filter((line): line is string => Boolean(line?.trim()));
   if (conditions.length) writeSection(doc, flow, 'Conditions', conditions);

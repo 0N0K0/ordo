@@ -13,6 +13,7 @@ type AccountingDocument {
   Final invoices: still due by the client; credit notes: still owed to the client.
   """
   balance: Float
+  billingSchedule: String
   buyer: JSON
   clientId: ID!
   clientName: String!
@@ -22,6 +23,8 @@ type AccountingDocument {
   """Final invoices: deducted by credit notes."""
   credited: Float
   currency: String!
+  depositType: DiscountType
+  depositValue: Float
   derived: [AccountingDocument!]!
   dueDate: Date
   finalizedAt: DateTime
@@ -66,6 +69,9 @@ type AccountingDocument {
   sourceId: ID
   sourceNumber: String
   status: AccountingDocumentStatus!
+
+  """Tracked time billed on the document."""
+  timeEntries: [TimeEntry!]!
   title: String
   totalGross: Float!
   totalNet: Float!
@@ -78,9 +84,12 @@ type AccountingDocument {
 }
 
 input AccountingDocumentInput {
+  billingSchedule: String
   clientId: ID!
   conclusion: String
   contactId: ID
+  depositType: DiscountType
+  depositValue: Float
   dueDate: Date
   globalDiscountType: DiscountType
   globalDiscountValue: Float
@@ -98,6 +107,11 @@ input AccountingDocumentInput {
   serviceId: ID
   serviceStart: Date
   showBankDetails: Boolean!
+
+  """
+  Tracked time billed on the document (replaces the previous ones); unchanged when omitted.
+  """
+  timeEntryIds: [ID!]
   title: String
   vatApplicable: Boolean!
 }
@@ -308,6 +322,32 @@ type CalendarLink {
 input CalendarLinkInput {
   label: String!
   url: String!
+}
+
+"""
+Product or service of the catalogue: default fields of a document line.
+"""
+type CatalogItem {
+  archived: Boolean!
+  description: String
+  id: ID!
+  kind: AccountingLineKind!
+  title: String!
+  unit: AccountingUnit!
+  unitPrice: Float!
+  vatRate: Float!
+}
+
+input CatalogItemInput {
+  archived: Boolean!
+  description: String
+
+  """ITEM or DISBURSEMENT."""
+  kind: AccountingLineKind!
+  title: String!
+  unit: AccountingUnit!
+  unitPrice: Float!
+  vatRate: Float!
 }
 
 type Client {
@@ -816,6 +856,7 @@ type Mutation {
   createAlarm(input: AlarmInput!): Alarm!
   createCalendarCategory(input: CalendarCategoryInput!): CalendarCategory!
   createCalendarEvent(input: CalendarEventInput!): ID!
+  createCatalogItem(input: CatalogItemInput!): ID!
   createClient(input: ClientInput!): Client!
   createClientContact(clientId: ID!, input: ClientContactInput!): ClientContact!
   createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
@@ -842,6 +883,7 @@ type Mutation {
   deleteAlarm(id: ID!): Boolean!
   deleteCalendarCategory(id: ID!): Boolean!
   deleteCalendarEvent(id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
+  deleteCatalogItem(id: ID!): Boolean!
   deleteClient(
     """true deletes the projects, false moves them to "no client"."""
     deleteProjects: Boolean!
@@ -1022,6 +1064,7 @@ type Mutation {
   Changes an event; for a recurring one, the occurrence, it and the following ones, or the whole series.
   """
   updateCalendarEvent(id: ID!, input: CalendarEventInput!, occurrenceDate: Date, scope: CalendarEventScope!): ID!
+  updateCatalogItem(id: ID!, input: CatalogItemInput!): Boolean!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
   updateClientContact(id: ID!, input: ClientContactInput!): ClientContact!
   updateClientDetails(id: ID!, input: ClientDetailsInput!): Client!
@@ -1168,6 +1211,9 @@ type Query {
 
   """Occurrences of the events overlapping a period (dates included)."""
   calendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
+
+  """Catalogue, by title."""
+  catalogItems: [CatalogItem!]!
   client(id: ID!): Client
 
   """Every client, archived ones included, in manual order."""
@@ -1481,6 +1527,12 @@ input TaskViewUpdateInput {
 
 type TimeEntry {
   description: String
+
+  """Invoice the time is billed on."""
+  documentId: ID
+
+  """Number of that invoice, null while it is a draft."""
+  documentNumber: String
 
   """Seconds, pauses excluded; null while running."""
   duration: Int

@@ -71,7 +71,17 @@ graphql(`
     paymentTerms
     paymentMethods
     lateInterest
+    depositType
+    depositValue
+    billingSchedule
     otherMentions
+    timeEntries {
+      id
+      projectId
+      description
+      startedAt
+      duration
+    }
     showBankDetails
     vatApplicable
     vatExemptionText

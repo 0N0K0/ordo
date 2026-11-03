@@ -2,6 +2,7 @@ import {
   ActionIcon,
   Alert,
   Anchor,
+  Autocomplete,
   Badge,
   Button,
   Divider,
@@ -24,14 +25,29 @@ import {
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { modals } from '@mantine/modals';
-import { accountingDocumentInputSchema, computeTotals, formatMoney, type AccountingDocumentInput } from '@ordo/shared';
-import { ArrowsClockwiseIcon, CheckCircleIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
+import {
+  accountingDocumentInputSchema,
+  BILLING_SCHEDULE_PRESETS,
+  computeTotals,
+  depositAmount,
+  dueDateForTerms,
+  formatDuration,
+  formatMoney,
+  LATE_INTEREST_PRESETS,
+  PAYMENT_METHOD_PRESETS,
+  PAYMENT_TERMS_PRESETS,
+  type AccountingDocumentInput,
+  type AccountingLineInput,
+} from '@ordo/shared';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailComposer } from '../mail/use-mail-composer';
+import { timeQueryKey } from '../time/api';
 import { useWorkspace } from '../workspace/api';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useCompanyProfile } from './api';
@@ -41,6 +57,7 @@ import { Section } from './EditorSection';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { LinesEditor } from './LinesEditor';
 import { useTrackingMutations } from './tracking-api';
+import { TimeBillingForm } from './TimeBillingForm';
 import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from './recurring-form';
 
@@ -68,7 +85,10 @@ function toValues(document: AccountingDocument): FormValues {
     conclusion: document.conclusion ?? '',
     paymentTerms: document.paymentTerms ?? '',
     paymentMethods: document.paymentMethods ?? '',
+    depositType: document.depositType ?? null,
+    depositValue: document.depositValue ?? null,
     lateInterest: document.lateInterest ?? '',
+    billingSchedule: document.billingSchedule ?? '',
     otherMentions: document.otherMentions ?? '',
     showBankDetails: document.showBankDetails,
     vatApplicable: document.vatApplicable,
@@ -85,6 +105,7 @@ function toValues(document: AccountingDocument): FormValues {
       discountType: line.discountType ?? null,
       discountValue: line.discountValue ?? null,
     })),
+    timeEntryIds: document.timeEntries.map((entry) => entry.id),
   };
 }
 
@@ -104,6 +125,9 @@ function Editor({ document }: { document: AccountingDocument }) {
   const openComposer = useMailComposer();
   const [preparingMail, setPreparingMail] = useState(false);
   const tracking = useTrackingMutations();
+  const queryClient = useQueryClient();
+  // Duration of the time billed on the invoice, saved or just added.
+  const [timeSeconds, setTimeSeconds] = useState(() => new Map(document.timeEntries.map((entry) => [entry.id, entry.duration ?? 0])));
   const readOnly = document.status === 'FINAL';
   const isTemplate = document.status === 'TEMPLATE';
   const isQuote = document.type === 'QUOTE';
@@ -138,6 +162,8 @@ function Editor({ document }: { document: AccountingDocument }) {
       .mutateAsync({ id: document.id, input: values })
       .then(() => {
         form.resetDirty();
+        // The time billed changed with the draft.
+        void queryClient.invalidateQueries({ queryKey: timeQueryKey });
         if (then) then();
         else notifySuccess(isTemplate ? 'Modèle enregistré.' : 'Brouillon enregistré.');
       })
@@ -276,7 +302,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    */
   const askDeposit = () => {
     const modalId = `deposit-${document.id}`;
-    let percent = 30;
+    let percent = document.depositType === 'PERCENT' && document.depositValue ? document.depositValue : 30;
     modals.open({
       modalId,
       title: 'Facture d’acompte',
@@ -297,6 +323,44 @@ function Editor({ document }: { document: AccountingDocument }) {
             </Button>
           </Group>
         </Stack>
+      ),
+    });
+  };
+
+  const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT';
+  const billedIds = values.timeEntryIds ?? [];
+
+  /**
+   * Opens the tracked time of the project, to bill it as lines.
+   * @returns {void}
+   */
+  const openTimeBilling = () => {
+    const modalId = `time-billing-${document.id}`;
+    modals.open({
+      modalId,
+      title: 'Facturer le temps passé',
+      size: 'xl',
+      children: (
+        <TimeBillingForm
+          projectId={values.projectId}
+          projects={(workspace?.projects ?? []).filter((project) => project.clientId === values.clientId || project.id === values.projectId).map((project) => ({ value: project.id, label: project.title }))}
+          excludeIds={billedIds}
+          start={values.serviceStart}
+          end={values.serviceEnd}
+          vatApplicable={values.vatApplicable}
+          onCancel={() => modals.close(modalId)}
+          onAdd={(lines: AccountingLineInput[], time, period) => {
+            modals.close(modalId);
+            setTimeSeconds((current) => new Map([...current, ...time.map((entry) => [entry.id, entry.seconds] as const)]));
+            form.setValues({
+              lines: [...values.lines, ...lines],
+              timeEntryIds: [...billedIds, ...time.map((entry) => entry.id)],
+              serviceStart: values.serviceStart ?? period.start,
+              serviceEnd: values.serviceEnd ?? period.end,
+            });
+            notifySuccess(`${lines.length} ligne${lines.length > 1 ? 's' : ''} ajoutée${lines.length > 1 ? 's' : ''} : enregistrez le brouillon.`);
+          }}
+        />
       ),
     });
   };
@@ -483,14 +547,101 @@ function Editor({ document }: { document: AccountingDocument }) {
                 vatApplicable={values.vatApplicable}
                 currency={currency}
                 errors={form.errors}
+                extraActions={
+                  canBillTime && (
+                    <Button size="xs" variant="light" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
+                      Temps passé
+                    </Button>
+                  )
+                }
               />
+              {billedIds.length > 0 && (
+                <Group gap="xs" justify="space-between">
+                  <Text size="xs" c="dimmed">
+                    <ClockIcon aria-hidden /> {billedIds.length} temps facturé{billedIds.length > 1 ? 's' : ''} ({formatDuration(billedIds.reduce((sum, id) => sum + (timeSeconds.get(id) ?? 0), 0))}
+                    ) : ils sont marqués facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
+                  </Text>
+                  {canBillTime && (
+                    <Button size="compact-xs" variant="subtle" color="gray" onClick={() => form.setFieldValue('timeEntryIds', [])}>
+                      Détacher le temps
+                    </Button>
+                  )}
+                </Group>
+              )}
               <Textarea label="Conclusion" autosize minRows={2} readOnly={readOnly} {...form.getInputProps('conclusion')} />
             </Section>
 
             <Section title="Conditions et mentions">
-              {!isQuote && <Textarea label="Conditions de règlement" autosize minRows={2} readOnly={readOnly} {...form.getInputProps('paymentTerms')} />}
-              <TextInput label="Modes de règlement" readOnly={readOnly} {...form.getInputProps('paymentMethods')} />
-              {!isQuote && <Textarea label="Pénalités et intérêts de retard" autosize minRows={2} readOnly={readOnly} {...form.getInputProps('lateInterest')} />}
+              {isQuote && (
+                <Autocomplete
+                  label="Mode de facturation"
+                  placeholder="Au mois, tous les 5 du mois…"
+                  description="Choisissez ou complétez."
+                  readOnly={readOnly}
+                  data={BILLING_SCHEDULE_PRESETS}
+                  {...form.getInputProps('billingSchedule')}
+                />
+              )}
+              {document.type !== 'CREDIT_NOTE' && (
+                <Autocomplete
+                  label="Conditions de règlement"
+                  placeholder="À réception"
+                  readOnly={readOnly}
+                  data={PAYMENT_TERMS_PRESETS}
+                  {...form.getInputProps('paymentTerms')}
+                  onChange={(paymentTerms) => {
+                    // The terms give the due date of an invoice.
+                    const dueDate = isQuote ? null : dueDateForTerms(paymentTerms, values.issueDate);
+                    form.setValues({ paymentTerms, ...(dueDate && { dueDate }) });
+                  }}
+                />
+              )}
+              <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={readOnly} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
+              {isQuote && (
+                <Group gap={4} align="flex-end" wrap="nowrap">
+                  <NumberInput
+                    label="Acompte à la commande"
+                    placeholder="Aucun"
+                    min={0}
+                    decimalScale={2}
+                    decimalSeparator=","
+                    thousandSeparator=" "
+                    readOnly={readOnly}
+                    style={{ flex: 1 }}
+                    error={form.errors.depositValue}
+                    description={
+                      values.depositType && values.depositValue
+                        ? `Soit ${formatMoney(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
+                        : undefined
+                    }
+                    value={values.depositValue ?? ''}
+                    onChange={(value) =>
+                      form.setValues({
+                        depositValue: typeof value === 'number' && value > 0 ? value : null,
+                        depositType: typeof value === 'number' && value > 0 ? (values.depositType ?? 'PERCENT') : null,
+                      })
+                    }
+                  />
+                  <SegmentedControl
+                    aria-label="Type d’acompte"
+                    readOnly={readOnly}
+                    data={[
+                      { value: 'PERCENT', label: '%' },
+                      { value: 'AMOUNT', label: currency === 'EUR' ? '€' : currency },
+                    ]}
+                    value={values.depositType ?? 'PERCENT'}
+                    onChange={(type) => form.setFieldValue('depositType', type as FormValues['depositType'])}
+                  />
+                </Group>
+              )}
+              {document.type !== 'CREDIT_NOTE' && (
+                <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" readOnly={readOnly} data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
+              )}
+              {document.type !== 'CREDIT_NOTE' && client?.kind === 'COMPANY' && (
+                <Text size="xs" c="dimmed">
+                  Client professionnel : l’indemnité forfaitaire de 40 € pour frais de recouvrement est ajoutée au document.
+                </Text>
+              )}
               <Textarea label="Autres mentions" autosize minRows={2} readOnly={readOnly} {...form.getInputProps('otherMentions')} />
               <Group gap="lg">
                 <Switch label="Afficher le RIB" disabled={readOnly} {...form.getInputProps('showBankDetails', { type: 'checkbox' })} />

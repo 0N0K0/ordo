@@ -1,5 +1,5 @@
-import { Alert, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Paper, Select, SimpleGrid, Skeleton, Stack, Switch, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
-import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, type CompanyProfileInput } from '@ordo/shared';
+import { Alert, Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Paper, Select, SimpleGrid, Skeleton, Stack, Switch, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
 import { InfoIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { AddressFields } from '../../components/address/AddressFields';
@@ -146,13 +146,25 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
               Reprises dans chaque nouveau document, où elles restent modifiables.
             </Text>
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-              <NumberInput label="Échéance des factures" suffix=" jours" min={0} max={365} {...form.getInputProps('paymentDays')} />
+              <NumberInput
+                label="Échéance des factures"
+                description="Si les conditions ne la donnent pas."
+                suffix=" jours"
+                min={0}
+                max={365}
+                {...form.getInputProps('paymentDays')}
+              />
               <NumberInput label="Validité des devis" suffix=" jours" min={1} max={365} {...form.getInputProps('quoteValidityDays')} />
               <TextInput label="Libellé de la référence client" placeholder="Référence dossier, bon de commande…" {...form.getInputProps('referenceLabel')} />
             </SimpleGrid>
-            <Textarea label="Conditions de règlement" autosize minRows={2} {...form.getInputProps('paymentTerms')} />
-            <TextInput label="Modes de règlement" {...form.getInputProps('paymentMethods')} />
-            <Textarea label="Pénalités et intérêts de retard" autosize minRows={2} {...form.getInputProps('lateInterest')} />
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+              <Autocomplete label="Conditions de règlement" placeholder="À réception" data={PAYMENT_TERMS_PRESETS} {...form.getInputProps('paymentTerms')} />
+              <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
+              <Autocomplete label="Intérêts de retard" placeholder="Taux d’intérêt légal en vigueur" data={LATE_INTEREST_PRESETS} {...form.getInputProps('lateInterest')} />
+            </SimpleGrid>
+            <Text size="xs" c="dimmed">
+              Choisissez ou complétez. « À réception », « À 30 jours », « À 45 jours fin de mois »… donnent aussi l’échéance des factures. L’indemnité forfaitaire de 40 € est ajoutée d’office pour les clients professionnels.
+            </Text>
             <Textarea label="Autres mentions" autosize minRows={2} {...form.getInputProps('otherMentions')} />
           </Stack>
         </Fieldset>

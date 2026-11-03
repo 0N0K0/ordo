@@ -8,8 +8,8 @@ import { builder } from '../builder';
 import { AccountingDocumentTypeEnum } from './accounting';
 
 const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
-const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
-const UnitEnum = builder.enumType('AccountingUnit', { values: ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const });
+export const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
+export const UnitEnum = builder.enumType('AccountingUnit', { values: ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const });
 const DiscountTypeEnum = builder.enumType('DiscountType', { values: ['PERCENT', 'AMOUNT'] as const });
 
 builder.prismaObject('AccountingLine', {
@@ -67,6 +67,10 @@ builder.prismaObject('AccountingDocument', {
     paymentTerms: t.exposeString('paymentTerms', { nullable: true }),
     paymentMethods: t.exposeString('paymentMethods', { nullable: true }),
     lateInterest: t.exposeString('lateInterest', { nullable: true }),
+    depositType: t.field({ type: DiscountTypeEnum, nullable: true, resolve: (document) => document.depositType }),
+    depositValue: t.float({ nullable: true, resolve: (document) => (document.depositValue === null ? null : Number(document.depositValue)) }),
+    billingSchedule: t.exposeString('billingSchedule', { nullable: true }),
+    timeEntries: t.relation('timeEntries', { description: 'Tracked time billed on the document.', query: { orderBy: { startedAt: 'asc' } } }),
     otherMentions: t.exposeString('otherMentions', { nullable: true }),
     showBankDetails: t.exposeBoolean('showBankDetails'),
     vatApplicable: t.exposeBoolean('vatApplicable'),
@@ -223,12 +227,16 @@ const DocumentInput = builder.inputType('AccountingDocumentInput', {
     paymentTerms: t.string(),
     paymentMethods: t.string(),
     lateInterest: t.string(),
+    depositType: t.field({ type: DiscountTypeEnum }),
+    depositValue: t.float(),
+    billingSchedule: t.string(),
     otherMentions: t.string(),
     showBankDetails: t.boolean({ required: true }),
     vatApplicable: t.boolean({ required: true }),
     globalDiscountType: t.field({ type: DiscountTypeEnum }),
     globalDiscountValue: t.float(),
     lines: t.field({ type: [LineInput], required: true }),
+    timeEntryIds: t.idList({ description: 'Tracked time billed on the document (replaces the previous ones); unchanged when omitted.' }),
   }),
 });
 
@@ -263,6 +271,10 @@ const documentInput = (input: typeof DocumentInput.$inferInput) => ({
   paymentTerms: input.paymentTerms ?? null,
   paymentMethods: input.paymentMethods ?? null,
   lateInterest: input.lateInterest ?? null,
+  depositType: input.depositType ?? null,
+  depositValue: input.depositValue ?? null,
+  billingSchedule: input.billingSchedule ?? null,
+  timeEntryIds: input.timeEntryIds ?? undefined,
   otherMentions: input.otherMentions ?? null,
   globalDiscountType: input.globalDiscountType ?? null,
   globalDiscountValue: input.globalDiscountValue ?? null,

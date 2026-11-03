@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { addDays, formatDay, parseDay } from './recurrence';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
 export type AccountingUnit = (typeof ACCOUNTING_UNITS)[number];
@@ -54,13 +55,18 @@ export const accountingDocumentInputSchema = z
     conclusion: optionalText(20_000),
     paymentTerms: optionalText(1000),
     paymentMethods: optionalText(500),
+    depositType: z.enum(DISCOUNT_TYPES).nullable(),
+    depositValue: z.number().min(0, 'L’acompte ne peut pas être négatif.').max(99_999_999).nullable(),
     lateInterest: optionalText(1000),
+    billingSchedule: optionalText(300),
     otherMentions: optionalText(2000),
     showBankDetails: z.boolean(),
     vatApplicable: z.boolean(),
     globalDiscountType: z.enum(DISCOUNT_TYPES).nullable(),
     globalDiscountValue: z.number().min(0).max(99_999_999).nullable(),
     lines: z.array(accountingLineSchema).max(500, '500 lignes maximum.'),
+    /** Tracked time billed on the document (replaces the previous ones); left unchanged when omitted. */
+    timeEntryIds: z.array(z.string()).max(5000).optional(),
   })
   .superRefine((document, context) => {
     if (document.dueDate && document.dueDate < document.issueDate) {
@@ -68,6 +74,9 @@ export const accountingDocumentInputSchema = z
     }
     if (document.serviceStart && document.serviceEnd && document.serviceEnd < document.serviceStart) {
       context.addIssue({ code: 'custom', path: ['serviceEnd'], message: 'La fin de la prestation doit suivre son début.' });
+    }
+    if (document.depositType === 'PERCENT' && (document.depositValue ?? 0) > 100) {
+      context.addIssue({ code: 'custom', path: ['depositValue'], message: '100 % maximum.' });
     }
     if (document.globalDiscountType === 'PERCENT' && (document.globalDiscountValue ?? 0) > 100) {
       context.addIssue({ code: 'custom', path: ['globalDiscountValue'], message: '100 % maximum.' });
@@ -230,6 +239,52 @@ export const UNIT_LABELS: Record<AccountingUnit, { label: string; short: string 
   DEPOSIT: { label: 'Acompte', short: 'acompte' },
 };
 
+/** Usual payment terms, offered in the forms (any other text can be typed). */
+export const PAYMENT_TERMS_PRESETS = ['À réception', 'À 15 jours', 'À 30 jours', 'À 30 jours fin de mois', 'À 45 jours fin de mois', 'À 60 jours'];
+/** Usual payment methods. */
+export const PAYMENT_METHOD_PRESETS = ['Virement bancaire', 'Chèque', 'Carte bancaire', 'Prélèvement', 'Espèces', 'Virement bancaire ou chèque'];
+/** Usual late payment interests. */
+export const LATE_INTEREST_PRESETS = ['Taux d’intérêt légal en vigueur', 'Trois fois le taux d’intérêt légal', 'Taux de la BCE majoré de 10 points'];
+/** Usual billing schedules of a quote. */
+export const BILLING_SCHEDULE_PRESETS = [
+  'En une fois, à la livraison',
+  'À la commande',
+  'Au mois, en fin de mois',
+  'Tous les 1er du mois',
+  'Tous les 15 du mois',
+  'À l’avancement',
+  'Par jalon',
+];
+
+/**
+ * Due date given by payment terms written like the presets ("À réception", "À 30 jours", "À 45 jours fin de mois").
+ * @param {string | null} terms Payment terms.
+ * @param {string} issueDate Date of the document (YYYY-MM-DD).
+ * @returns {string | null} Due date, or null when the terms do not give one.
+ */
+export function dueDateForTerms(terms: string | null, issueDate: string): string | null {
+  const text = terms?.trim().toLowerCase() ?? '';
+  if (/^(à|a) réception$/.test(text) || text === 'comptant') return issueDate;
+  const match = /^(?:à|a) (\d{1,3}) jours( fin de mois)?$/.exec(text);
+  if (!match) return null;
+  const due = addDays(issueDate, Number(match[1]));
+  if (!match[2]) return due;
+  const date = parseDay(due);
+  return formatDay(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)));
+}
+
+/**
+ * Deposit asked by a quote, in cents.
+ * @param {DiscountType | null} type Percent of the total, or amount.
+ * @param {number | null} value Percent, or amount in currency units.
+ * @param {number} totalGross Total of the document, in cents.
+ * @returns {number} Deposit, in cents (0 when none).
+ */
+export function depositAmount(type: DiscountType | null, value: number | null, totalGross: number): number {
+  if (!type || !value) return 0;
+  return type === 'PERCENT' ? Math.round((totalGross * value) / 100) : toCents(value);
+}
+
 /** Quote or invoice issued before Ordo: main information (its file is sent apart). */
 export const importedDocumentSchema = z
   .object({
@@ -271,3 +326,19 @@ export const importedDocumentSchema = z
     }
   });
 export type ImportedDocumentInput = z.input<typeof importedDocumentSchema>;
+
+/** Product or service of the catalogue: default fields of a line. */
+export const catalogItemSchema = z.object({
+  kind: z.enum(['ITEM', 'DISBURSEMENT']),
+  title: z.string().trim().min(1, 'Le libellé est requis.').max(300, '300 caractères maximum.'),
+  description: z
+    .string()
+    .max(20_000, 'Texte trop long.')
+    .transform((value) => (value.trim() ? value : null))
+    .nullable(),
+  unit: z.enum(ACCOUNTING_UNITS),
+  unitPrice: amount,
+  vatRate: z.number().min(0, 'Taux invalide.').max(100, 'Taux invalide.'),
+  archived: z.boolean(),
+});
+export type CatalogItemInput = z.input<typeof catalogItemSchema>;

@@ -434,9 +434,9 @@ model Attachment {
 
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
-  id            String    @id @default(cuid())
+  id            String              @id @default(cuid())
   projectId     String
-  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// What was done (plain text, several lines).
   description   String?
   startedAt     DateTime
@@ -445,16 +445,20 @@ model TimeEntry {
   /// Start of the current pause, while paused.
   pausedAt      DateTime?
   /// Paused time before the current pause, in seconds.
-  pausedSeconds Int       @default(0)
+  pausedSeconds Int                 @default(0)
   /// Effective duration in seconds (pauses excluded), set once stopped.
   duration      Int?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  /// Invoice (draft or final) the time is billed on.
+  documentId    String?
+  document      AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   tasks         Task[]
 
   @@index([projectId])
   @@index([startedAt])
   @@index([endedAt])
+  @@index([documentId])
 }
 
 /// What triggers an alarm.
@@ -673,10 +677,10 @@ model CompanyProfile {
   iban              String?
   bic               String?
   /// Defaults of new documents.
-  paymentTerms      String   @default("Paiement à 30 jours à compter de la date de facture.")
+  paymentTerms      String   @default("À 30 jours")
   paymentDays       Int      @default(30)
   paymentMethods    String   @default("Virement bancaire")
-  lateInterest      String   @default("En cas de retard de paiement, pénalités au taux de trois fois le taux d’intérêt légal, et indemnité forfaitaire pour frais de recouvrement de 40 € (clients professionnels).")
+  lateInterest      String   @default("Trois fois le taux d’intérêt légal")
   /// Other mentions printed on every document.
   otherMentions     String   @default("Pas d’escompte pour paiement anticipé.")
   /// Label of the client's internal reference ("Référence dossier", "Bon de commande"…).
@@ -753,7 +757,12 @@ model AccountingDocument {
   conclusion          String?
   paymentTerms        String?
   paymentMethods      String?
+  /// Quotes: deposit asked at order, percent of the total or amount.
+  depositType         DiscountType?
+  depositValue        Decimal?                 @db.Decimal(14, 2)
   lateInterest        String?
+  /// Quotes: how the work will be invoiced ("Au mois, en fin de mois", "Tous les 5 du mois"…).
+  billingSchedule     String?
   otherMentions       String?
   showBankDetails     Boolean                  @default(true)
   vatApplicable       Boolean                  @default(true)
@@ -781,6 +790,8 @@ model AccountingDocument {
   signedAttachment    Attachment?              @relation("SignedQuote", fields: [signedAttachmentId], references: [id], onDelete: SetNull)
   allocations         TreasuryAllocation[]
   reminders           DocumentReminder[]
+  /// Tracked time billed on it.
+  timeEntries         TimeEntry[]
   /// Recurring invoice this document is the model of, or was created by.
   recurring           RecurringInvoice?        @relation("RecurringTemplate")
   recurringId         String?
@@ -848,6 +859,24 @@ model RecurringInvoice {
   active       Boolean              @default(true)
   createdAt    DateTime             @default(now())
   generated    AccountingDocument[] @relation("RecurringGenerated")
+}
+
+/// Product or service of the catalogue: default title, description, unit, price and VAT of a line.
+model CatalogItem {
+  id          String             @id @default(cuid())
+  /// Item or disbursement.
+  kind        AccountingLineKind @default(ITEM)
+  title       String
+  /// Markdown.
+  description String?
+  unit        AccountingUnit     @default(UNIT)
+  unitPrice   Decimal            @default(0) @db.Decimal(14, 2)
+  /// Percent (20, 10, 5.5…).
+  vatRate     Decimal            @default(20) @db.Decimal(5, 2)
+  /// Archived: kept on past documents, not offered any more.
+  archived    Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 }
 
 enum ProjectResourceKind {
