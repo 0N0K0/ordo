@@ -12,6 +12,7 @@ import { exportsRouter } from './routes/exports';
 import { iconsRouter } from './routes/icons';
 import { mailRouter } from './routes/mail';
 import { scheduleConversationFollowUp } from './services/mail/linked';
+import { scheduleGithubSync } from './services/github/sync';
 import { scheduleRecurringInvoices } from './services/recurring-invoices';
 
 const disableIntrospection: Plugin = {
@@ -55,6 +56,7 @@ if (!isProd) await writeSchemaFile();
 scheduleConversationFollowUp();
 // Recurring invoices are issued on their dates.
 scheduleRecurringInvoices();
+scheduleGithubSync();
 
 app.listen(env.PORT, () => {
   console.log(`API ready on http://localhost:${env.PORT}${yoga.graphqlEndpoint}`);

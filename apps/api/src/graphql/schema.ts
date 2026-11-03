@@ -12,5 +12,6 @@ import './modules/accounting-documents';
 import './modules/treasury';
 import './modules/catalog';
 import './modules/dashboards';
+import './modules/github';
 
 export const schema = builder.toSchema();

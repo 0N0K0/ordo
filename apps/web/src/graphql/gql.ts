@@ -112,6 +112,16 @@ type Documents = {
     "\n  mutation DuplicateDashboardChart($id: ID!) {\n    duplicateDashboardChart(id: $id)\n  }\n": typeof types.DuplicateDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": typeof types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": typeof types.MoveDashboardChartDocument,
+    "\n  query GithubLogin {\n    githubLogin\n  }\n": typeof types.GithubLoginDocument,
+    "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": typeof types.GithubContributorsDocument,
+    "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.GithubBoardDocument,
+    "\n  query GithubProjectLink($projectId: ID!) {\n    githubProjectLink(projectId: $projectId) {\n      id\n      projectId\n      url\n      title\n      statusFieldId\n      priorityFieldId\n      iterationFieldId\n      startFieldId\n      endFieldId\n      effortFieldId\n      statusOptions\n      priorityOptions\n      repositoryName\n      pushExisting\n      enabled\n      lastSyncAt\n      lastSyncError\n      lastSyncSummary\n      linkedTaskCount\n    }\n  }\n": typeof types.GithubProjectLinkDocument,
+    "\n  mutation SetGithubToken($token: String!) {\n    setGithubToken(token: $token)\n  }\n": typeof types.SetGithubTokenDocument,
+    "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": typeof types.RemoveGithubTokenDocument,
+    "\n  mutation SaveGithubLink($projectId: ID!, $input: GithubLinkInput!) {\n    saveGithubLink(projectId: $projectId, input: $input)\n  }\n": typeof types.SaveGithubLinkDocument,
+    "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": typeof types.UnlinkGithubProjectDocument,
+    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n    }\n  }\n": typeof types.SyncGithubProjectDocument,
+    "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": typeof types.SetContributorGithubLoginDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": typeof types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": typeof types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": typeof types.LinkedMailFieldsFragmentDoc,
@@ -139,7 +149,7 @@ type Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n  }\n": typeof types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": typeof types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n  }\n": typeof types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
     "\n  query TaskComments($number: Int!) {\n    task(number: $number) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
@@ -339,6 +349,16 @@ const documents: Documents = {
     "\n  mutation DuplicateDashboardChart($id: ID!) {\n    duplicateDashboardChart(id: $id)\n  }\n": types.DuplicateDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": types.MoveDashboardChartDocument,
+    "\n  query GithubLogin {\n    githubLogin\n  }\n": types.GithubLoginDocument,
+    "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": types.GithubContributorsDocument,
+    "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.GithubBoardDocument,
+    "\n  query GithubProjectLink($projectId: ID!) {\n    githubProjectLink(projectId: $projectId) {\n      id\n      projectId\n      url\n      title\n      statusFieldId\n      priorityFieldId\n      iterationFieldId\n      startFieldId\n      endFieldId\n      effortFieldId\n      statusOptions\n      priorityOptions\n      repositoryName\n      pushExisting\n      enabled\n      lastSyncAt\n      lastSyncError\n      lastSyncSummary\n      linkedTaskCount\n    }\n  }\n": types.GithubProjectLinkDocument,
+    "\n  mutation SetGithubToken($token: String!) {\n    setGithubToken(token: $token)\n  }\n": types.SetGithubTokenDocument,
+    "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": types.RemoveGithubTokenDocument,
+    "\n  mutation SaveGithubLink($projectId: ID!, $input: GithubLinkInput!) {\n    saveGithubLink(projectId: $projectId, input: $input)\n  }\n": types.SaveGithubLinkDocument,
+    "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": types.UnlinkGithubProjectDocument,
+    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n    }\n  }\n": types.SyncGithubProjectDocument,
+    "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": types.SetContributorGithubLoginDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": types.LinkedMailFieldsFragmentDoc,
@@ -366,7 +386,7 @@ const documents: Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n  }\n": types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n  }\n": types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
     "\n  query TaskComments($number: Int!) {\n    task(number: $number) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
@@ -860,6 +880,46 @@ export function graphql(source: "\n  mutation MoveDashboardChart($id: ID!, $inde
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query GithubLogin {\n    githubLogin\n  }\n"): typeof import('./graphql').GithubLoginDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n"): typeof import('./graphql').GithubContributorsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n    }\n  }\n"): typeof import('./graphql').GithubBoardDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GithubProjectLink($projectId: ID!) {\n    githubProjectLink(projectId: $projectId) {\n      id\n      projectId\n      url\n      title\n      statusFieldId\n      priorityFieldId\n      iterationFieldId\n      startFieldId\n      endFieldId\n      effortFieldId\n      statusOptions\n      priorityOptions\n      repositoryName\n      pushExisting\n      enabled\n      lastSyncAt\n      lastSyncError\n      lastSyncSummary\n      linkedTaskCount\n    }\n  }\n"): typeof import('./graphql').GithubProjectLinkDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetGithubToken($token: String!) {\n    setGithubToken(token: $token)\n  }\n"): typeof import('./graphql').SetGithubTokenDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n"): typeof import('./graphql').RemoveGithubTokenDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveGithubLink($projectId: ID!, $input: GithubLinkInput!) {\n    saveGithubLink(projectId: $projectId, input: $input)\n  }\n"): typeof import('./graphql').SaveGithubLinkDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n"): typeof import('./graphql').UnlinkGithubProjectDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n    }\n  }\n"): typeof import('./graphql').SyncGithubProjectDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n"): typeof import('./graphql').SetContributorGithubLoginDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n"): typeof import('./graphql').MailAccountFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -968,7 +1028,7 @@ export function graphql(source: "\n  fragment TaskLabelFields on TaskStatus {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintId\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

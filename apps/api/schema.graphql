@@ -630,6 +630,86 @@ enum DocumentStatusScope {
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
 
+"""GitHub Projects (v2) board."""
+type GithubBoard {
+  fields: [GithubBoardField!]!
+  id: ID!
+  title: String!
+  url: String!
+}
+
+type GithubBoardField {
+  """SINGLE_SELECT, ITERATION, DATE, NUMBER, TEXT…"""
+  dataType: String!
+  id: ID!
+  iterationCount: Int!
+  name: String!
+  options: [GithubBoardOption!]!
+}
+
+type GithubBoardOption {
+  id: ID!
+  name: String!
+}
+
+type GithubContributor {
+  githubLogin: String
+  id: ID!
+  name: String!
+}
+
+input GithubLinkInput {
+  effortFieldId: String
+  enabled: Boolean!
+  endFieldId: String
+  iterationFieldId: String
+  priorityFieldId: String
+
+  """{ [ordoPriorityId]: optionId }"""
+  priorityOptions: JSON!
+  pushExisting: Boolean!
+
+  """owner/name: new tasks become issues of it; drafts without it."""
+  repositoryName: String
+  startFieldId: String
+  statusFieldId: String
+
+  """{ [ordoStatusId]: optionId }"""
+  statusOptions: JSON!
+  url: String!
+}
+
+type GithubProjectLink {
+  effortFieldId: String
+  enabled: Boolean!
+  endFieldId: String
+  id: ID!
+  iterationFieldId: String
+  lastSyncAt: DateTime
+  lastSyncError: String
+  lastSyncSummary: JSON
+  linkedTaskCount: Int!
+  priorityFieldId: String
+  priorityOptions: JSON!
+  projectId: ID!
+  pushExisting: Boolean!
+  repositoryName: String
+  startFieldId: String
+  statusFieldId: String
+  statusOptions: JSON!
+  title: String!
+  url: String!
+}
+
+type GithubSyncSummary {
+  pulled: Int!
+  pulledNew: Int!
+  pushed: Int!
+  pushedNew: Int!
+  sprints: Int!
+  unlinked: Int!
+}
+
 """Quote or invoice issued before Ordo: main information and file."""
 type ImportedDocument {
   """Still due (by or to the client); 0 once settled."""
@@ -1024,6 +1104,7 @@ type Mutation {
   realizeTreasuryForecast(amount: Float!, date: Date!, id: ID!, occurrence: Date!): ID!
   recordDocumentPayment(id: ID!, input: DocumentPaymentInput!): Boolean!
   removeAccountingAttachment(attachmentId: ID!): Boolean!
+  removeGithubToken: Boolean!
   removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
@@ -1037,6 +1118,9 @@ type Mutation {
   """Always returns true, whether or not the account exists."""
   requestPasswordReset(identifier: String!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+
+  """Links a project to a board, or changes the settings of its link."""
+  saveGithubLink(input: GithubLinkInput!, projectId: ID!): Boolean!
 
   """
   Saves a draft in the drafts folder of its account, replacing its previous version.
@@ -1057,11 +1141,15 @@ type Mutation {
 
   """Sets (PNG or JPEG) or removes (null) the logo."""
   setCompanyLogo(file: File): CompanyProfile!
+  setContributorGithubLogin(id: ID!, login: String): Boolean!
   setDefaultTaskView(id: ID!): Boolean!
 
   """Sets the number the next final document of a type gets in a year."""
   setDocumentSequence(nextNumber: Int!, type: AccountingDocumentType!, year: Int!): Boolean!
   setDocumentTrackingStatus(id: ID!, statusId: ID!): Boolean!
+
+  """Saves the personal access token once checked; returns the login."""
+  setGithubToken(token: String!): String!
   setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
   setMailSignature(id: ID!, signature: String!): MailAccount!
 
@@ -1095,6 +1183,7 @@ type Mutation {
   """Starts a timer; the running one is stopped first."""
   startTimer(input: TimerInput!): TimeEntry!
   stopTimer: TimeEntry
+  syncGithubProject(projectId: ID!): GithubSyncSummary!
 
   """
   Connects to the IMAP and SMTP servers; empty passwords use those saved for `id`.
@@ -1103,6 +1192,7 @@ type Mutation {
 
   """Moves the task and its sub-tasks to another project."""
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
+  unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
   updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
@@ -1276,6 +1366,14 @@ type Query {
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
   forecastEntries: [TreasuryEntry!]!
+
+  """Board of a URL with its fields, to configure a link."""
+  githubBoard(url: String!): GithubBoard!
+  githubContributors: [GithubContributor!]!
+
+  """Login of the connected GitHub account, or null."""
+  githubLogin: String
+  githubProjectLink(projectId: ID!): GithubProjectLink
   health: String!
 
   """
@@ -1457,6 +1555,13 @@ type Task {
   description: String
   effort: Float
   endDate: Date
+
+  """Synchronized with an item of a GitHub board."""
+  githubLinked: Boolean!
+  githubNumber: Int
+
+  """Issue on GitHub (null for a draft issue or an unlinked task)."""
+  githubUrl: String
   id: ID!
   milestoneId: ID
   number: Int!

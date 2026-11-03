@@ -21,6 +21,8 @@ const envSchema = z.object({
       .refine((value) => Buffer.from(value, 'base64').length === 32, 'Doit faire 32 octets encodés en base64.')
       .optional(),
   ),
+  /** GitHub GraphQL endpoint (tests point it to a fake server). */
+  GITHUB_GRAPHQL_URL: z.url().default('https://api.github.com/graphql'),
 });
 
 const parsed = envSchema.safeParse(process.env);

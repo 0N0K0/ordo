@@ -29,6 +29,7 @@ import {
   CheckCircleIcon,
   CopyIcon,
   DotsThreeIcon,
+  GithubLogoIcon,
   PencilSimpleIcon,
   PlusIcon,
   TrashIcon,
@@ -186,6 +187,18 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <Text span c="dimmed" inherit fw={400}>
                 #{task.number}
               </Text>
+              {task.githubLinked && (
+                <Badge
+                  ml="xs"
+                  variant="light"
+                  color="dark"
+                  leftSection={<GithubLogoIcon aria-hidden />}
+                  style={{ verticalAlign: 'middle' }}
+                  {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, target: '_blank', rel: 'noopener' } : {})}
+                >
+                  {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
+                </Badge>
+              )}
             </Title>
             <Group gap="xs" wrap="nowrap">
               <Button

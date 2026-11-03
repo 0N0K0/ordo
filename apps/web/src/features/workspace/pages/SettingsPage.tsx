@@ -1,10 +1,11 @@
 import { Stack, Tabs, Title } from "@mantine/core";
-import { BuildingsIcon, CalendarBlankIcon, EnvelopeSimpleIcon, FlagIcon, FoldersIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
+import { BuildingsIcon, CalendarBlankIcon, EnvelopeSimpleIcon, FlagIcon, FoldersIcon, GithubLogoIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
 import { useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { CompanySettings } from "../../accounting/CompanySettings";
 import { DocumentStatusSettings } from "../../accounting/DocumentStatusSettings";
 import { CalendarCategoriesManager } from "../../calendar/CalendarCategoriesManager";
+import { GithubSettings } from "../../github/GithubSettings";
 import { MailAccountsManager } from "../../mail/settings/MailAccountsManager";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
@@ -95,6 +96,9 @@ export function SettingsPage() {
           <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
             Mails
           </Tabs.Tab>
+          <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
+            GitHub
+          </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="projects">
           <Stack gap="lg">
@@ -134,6 +138,9 @@ export function SettingsPage() {
         </Tabs.Panel>
         <Tabs.Panel value="company">
           <CompanySettings />
+        </Tabs.Panel>
+        <Tabs.Panel value="github">
+          <GithubSettings />
         </Tabs.Panel>
         <Tabs.Panel value="tracking">
           <DocumentStatusSettings />

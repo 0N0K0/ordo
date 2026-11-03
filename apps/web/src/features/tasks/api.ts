@@ -96,6 +96,9 @@ graphql(`
     occurrenceDate
     closed
     closedAt
+    githubLinked
+    githubUrl
+    githubNumber
   }
 `);
 
