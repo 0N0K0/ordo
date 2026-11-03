@@ -1,0 +1,255 @@
+import { Alert, Anchor, Badge, Button, Checkbox, Group, Paper, Select, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
+import { modals } from '@mantine/modals';
+import { daysBetween, formatMoney } from '@ordo/shared';
+import { CheckCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { Link } from 'react-router';
+import { localToday } from '../../lib/dates';
+import { notifyError, notifySuccess } from '../../lib/notify';
+import { useMailAccounts } from '../mail/api';
+import { DOCUMENT_TYPE_LABELS } from './labels';
+import { useOverdueInvoices, useTrackingMutations, type OverdueInvoice } from './tracking-api';
+
+const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+const instantFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
+
+/** Invoices not reminded for that many days are offered for a new reminder. */
+const REMIND_AFTER_DAYS = 7;
+
+/**
+ * Days since the last reminder of an invoice (null: never reminded).
+ * @param {OverdueInvoice} invoice Invoice.
+ * @param {string} today Today (YYYY-MM-DD).
+ * @returns {number | null} Days.
+ */
+function daysSinceReminder(invoice: OverdueInvoice, today: string): number | null {
+  if (!invoice.lastReminderAt) return null;
+  const date = new Date(invoice.lastReminderAt);
+  const day = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  return daysBetween(day, today);
+}
+
+/**
+ * Overdue invoices: how late, what is still due, reminders already made and to whom the reminder goes; the
+ * chosen ones are reminded at once, one mail each with the invoice joined.
+ * @returns {JSX.Element} Panel.
+ */
+export function OverdueInvoicesPanel() {
+  const today = localToday();
+  const { data: invoices, isPending } = useOverdueInvoices(today);
+  const { data: accounts } = useMailAccounts();
+  const { sendReminders } = useTrackingMutations();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const account = accountId ?? accounts?.[0]?.id ?? null;
+  const remindable = (invoices ?? []).filter((invoice) => invoice.billingEmail);
+  const chosen = remindable.filter((invoice) => selected.has(invoice.id));
+  const stale = remindable.filter((invoice) => (daysSinceReminder(invoice, today) ?? Infinity) >= REMIND_AFTER_DAYS);
+
+  /**
+   * Adds or removes an invoice from the selection.
+   * @param {string} id Invoice.
+   * @returns {void}
+   */
+  const toggle = (id: string) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  /**
+   * Asks for confirmation, then sends the reminders of the selection.
+   * @returns {void}
+   */
+  const confirmSend = () => {
+    if (!account || chosen.length === 0) return;
+    const from = accounts?.find((item) => item.id === account);
+    const modalId = 'send-reminders';
+    modals.open({
+      modalId,
+      title: `Relancer ${chosen.length} facture${chosen.length > 1 ? 's' : ''}`,
+      children: (
+        <Stack gap="md">
+          <Text size="sm">
+            {chosen.length} mail{chosen.length > 1 ? 's partiront' : ' partira'} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa facture.
+          </Text>
+          <Stack gap={2}>
+            {chosen.map((invoice) => (
+              <Text key={invoice.id} size="xs" c="dimmed">
+                {invoice.number} — {invoice.clientName} → {invoice.billingEmail}
+              </Text>
+            ))}
+          </Stack>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={() => modals.close(modalId)}>
+              Annuler
+            </Button>
+            <Button
+              leftSection={<PaperPlaneTiltIcon aria-hidden />}
+              onClick={() => {
+                modals.close(modalId);
+                sendReminders.mutate(
+                  { accountId: account, documentIds: chosen.map((invoice) => invoice.id) },
+                  {
+                    onSuccess: (results) => {
+                      const sent = results.filter((result) => !result.error);
+                      const failed = results.filter((result) => result.error);
+                      if (sent.length) notifySuccess(`${sent.length} relance${sent.length > 1 ? 's envoyées' : ' envoyée'}.`);
+                      if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
+                      setSelected(new Set(failed.map((result) => result.documentId)));
+                    },
+                    onError: (error) => notifyError(error.message),
+                  },
+                );
+              }}
+            >
+              Envoyer
+            </Button>
+          </Group>
+        </Stack>
+      ),
+    });
+  };
+
+  if (isPending) return <Skeleton height={200} />;
+  if (!invoices?.length) {
+    return (
+      <Paper withBorder radius="md" p="xl">
+        <Stack align="center" gap="sm">
+          <ThemeIcon size="xl" radius="xl" variant="light" color="green">
+            <CheckCircleIcon aria-hidden />
+          </ThemeIcon>
+          <Text size="sm" c="dimmed" ta="center">
+            Aucune facture en retard : tout ce qui est échu est réglé.
+          </Text>
+        </Stack>
+      </Paper>
+    );
+  }
+
+  const total = invoices.reduce((sum, invoice) => sum + Math.round((invoice.balance ?? 0) * 100), 0);
+  return (
+    <Stack gap="sm">
+      {accounts && accounts.length === 0 && (
+        <Alert color="yellow">
+          Aucune boîte mail : ajoutez-en une dans{' '}
+          <Anchor component={Link} to="/settings?tab=mail" size="sm">
+            les paramètres
+          </Anchor>{' '}
+          pour envoyer les relances.
+        </Alert>
+      )}
+      <Group justify="space-between" align="flex-end" wrap="wrap">
+        <Text size="sm">
+          {invoices.length} facture{invoices.length > 1 ? 's' : ''} en retard, <b>{formatMoney(total)}</b> à encaisser.
+        </Text>
+        <Group gap="sm" align="flex-end" wrap="wrap">
+          <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
+            Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
+          </Button>
+          {accounts && accounts.length > 1 && (
+            <Select
+              aria-label="Boîte d’envoi"
+              w={240}
+              allowDeselect={false}
+              data={accounts.map((item) => ({ value: item.id, label: item.email }))}
+              value={account}
+              onChange={setAccountId}
+            />
+          )}
+          <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
+            Relancer{chosen.length ? ` (${chosen.length})` : ''}
+          </Button>
+        </Group>
+      </Group>
+      <Paper withBorder radius="md">
+        <Table verticalSpacing="xs" highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th w={40}>
+                <Checkbox
+                  aria-label="Tout sélectionner"
+                  checked={remindable.length > 0 && chosen.length === remindable.length}
+                  indeterminate={chosen.length > 0 && chosen.length < remindable.length}
+                  disabled={remindable.length === 0}
+                  onChange={() => setSelected(chosen.length === remindable.length ? new Set() : new Set(remindable.map((invoice) => invoice.id)))}
+                />
+              </Table.Th>
+              <Table.Th>Facture</Table.Th>
+              <Table.Th>Échéance</Table.Th>
+              <Table.Th ta="right">Reste dû</Table.Th>
+              <Table.Th>Dernière relance</Table.Th>
+              <Table.Th>Destinataire</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {invoices.map((invoice) => {
+              const late = invoice.dueDate ? daysBetween(String(invoice.dueDate), today) : 0;
+              const since = daysSinceReminder(invoice, today);
+              return (
+                <Table.Tr key={invoice.id}>
+                  <Table.Td>
+                    <Checkbox
+                      aria-label={`Relancer ${invoice.number}`}
+                      checked={selected.has(invoice.id) && Boolean(invoice.billingEmail)}
+                      disabled={!invoice.billingEmail}
+                      onChange={() => toggle(invoice.id)}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <Anchor component={Link} to={`/accounting/${invoice.id}`} size="sm" fw={600}>
+                      {invoice.type === 'DEPOSIT_INVOICE' ? `${DOCUMENT_TYPE_LABELS.DEPOSIT_INVOICE} ` : ''}
+                      {invoice.number}
+                    </Anchor>
+                    <Text size="xs" c="dimmed">
+                      {invoice.clientName}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{invoice.dueDate ? dayFormat.format(new Date(`${invoice.dueDate}T00:00:00Z`)) : '—'}</Text>
+                    <Badge size="xs" variant="light" color={late > 30 ? 'red' : 'orange'}>
+                      {late} jour{late > 1 ? 's' : ''} de retard
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td ta="right" ff="monospace">
+                    {formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency)}
+                  </Table.Td>
+                  <Table.Td>
+                    {invoice.lastReminderAt ? (
+                      <>
+                        <Text size="sm">{instantFormat.format(new Date(invoice.lastReminderAt))}</Text>
+                        <Text size="xs" c="dimmed">
+                          {since === 0 ? 'aujourd’hui' : `il y a ${since} jour${since && since > 1 ? 's' : ''}`} · {invoice.reminderCount} relance{invoice.reminderCount > 1 ? 's' : ''}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        Jamais
+                      </Text>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    {invoice.billingEmail ? (
+                      <Text size="sm" truncate maw={220}>
+                        {invoice.billingEmail}
+                      </Text>
+                    ) : (
+                      <Text size="sm" c="red">
+                        Aucune adresse
+                      </Text>
+                    )}
+                  </Table.Td>
+                </Table.Tr>
+              );
+            })}
+          </Table.Tbody>
+        </Table>
+      </Paper>
+      <Text size="xs" c="dimmed">
+        Une relance par mail et par facture, avec le PDF, la signature de la boîte d’envoi et le reste dû. Pour personnaliser le texte, relancez depuis la facture (« Relancer par mail »).
+      </Text>
+    </Stack>
+  );
+}

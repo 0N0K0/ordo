@@ -13,6 +13,11 @@ type AccountingDocument {
   Final invoices: still due by the client; credit notes: still owed to the client.
   """
   balance: Float
+
+  """
+  Address the document is mailed to: its contact, else its service, else its client.
+  """
+  billingEmail: String
   billingSchedule: String
   buyer: JSON
   clientId: ID!
@@ -38,6 +43,7 @@ type AccountingDocument {
   """
   invoicedNet: Float
   issueDate: Date!
+  lastReminderAt: DateTime
   lateInterest: String
   lines: [AccountingLine!]!
   number: String
@@ -57,6 +63,7 @@ type AccountingDocument {
   recurringId: ID
   referenceLabel: String
   referenceValue: String
+  reminderCount: Int!
   reminders: [DocumentReminder!]!
   seller: JSON
   sentAt: DateTime
@@ -1000,6 +1007,11 @@ type Mutation {
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
 
+  """
+  Mails the reminder of several unpaid invoices (one mail each, with the PDF), noted as reminders.
+  """
+  sendDocumentReminders(accountId: ID!, documentIds: [ID!]!): [ReminderResult!]!
+
   """Sends a mail; returns the projects it was linked to."""
   sendMail(input: SendMailInput!): [ID!]!
 
@@ -1250,6 +1262,9 @@ type Query {
   Fields of a new document of a client (company terms and mentions, dates).
   """
   newDocumentDefaults(clientId: ID!, issueDate: Date!, type: AccountingDocumentType!): JSON!
+
+  """Final invoices still due after their due date, oldest due first."""
+  overdueInvoices(today: Date!): [AccountingDocument!]!
   projectCategories: [ProjectCategory!]!
 
   """Mails linked to a project, latest first."""
@@ -1307,6 +1322,14 @@ input RecurringInvoiceInput {
   name: String!
   recurrence: JSON!
   startDate: Date!
+}
+
+type ReminderResult {
+  documentId: ID!
+
+  """Null when sent, else why it was not."""
+  error: String
+  number: String!
 }
 
 input SaveMailDraftInput {

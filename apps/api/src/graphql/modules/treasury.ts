@@ -1,5 +1,6 @@
-import { formatDay, fromCents, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { formatDay, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
+import * as reminders from '../../services/reminders';
 import * as statuses from '../../services/document-statuses';
 import * as tracking from '../../services/document-tracking';
 import * as treasury from '../../services/treasury';
@@ -149,8 +150,29 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
     },
   }),
   reminders: t.relation('reminders', { query: { orderBy: { date: 'desc' } } }),
+  reminderCount: t.relationCount('reminders'),
+  lastReminderAt: t.field({
+    type: 'DateTime',
+    nullable: true,
+    select: { reminders: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 } },
+    resolve: (document) => document.reminders[0]?.date ?? null,
+  }),
+  billingEmail: t.string({
+    nullable: true,
+    description: 'Address the document is mailed to: its contact, else its service, else its client.',
+    select: { contactId: true, serviceId: true, clientId: true },
+    resolve: async (document) => (await reminders.billingRecipient(document)).email,
+  }),
   payments: t.relation('allocations', { query: { orderBy: { entry: { date: 'asc' } } } }),
 }));
+
+const ReminderResultRef = builder.objectRef<reminders.ReminderResult>('ReminderResult').implement({
+  fields: (t) => ({
+    documentId: t.exposeID('documentId'),
+    number: t.exposeString('number'),
+    error: t.exposeString('error', { nullable: true, description: 'Null when sent, else why it was not.' }),
+  }),
+});
 
 builder.prismaObjectFields('ImportedDocument', (t) => ({
   settled: t.exposeBoolean('settled'),
@@ -266,6 +288,20 @@ const PaymentInput = builder.inputType('DocumentPaymentInput', {
 });
 
 builder.queryFields((t) => ({
+  overdueInvoices: t.prismaField({
+    type: ['AccountingDocument'],
+    description: 'Final invoices still due after their due date, oldest due first.',
+    args: { today: t.arg({ type: 'Date', required: true }) },
+    resolve: async (query, _root, args, ctx) => {
+      const balances = await balancesOf(ctx);
+      const late = await prisma.accountingDocument.findMany({
+        where: { status: 'FINAL', type: { in: ['INVOICE', 'DEPOSIT_INVOICE'] }, dueDate: { lt: parseDay(args.today) } },
+        select: { id: true },
+      });
+      const ids = late.filter((document) => (balances.get(document.id)?.balance ?? 0) > 0).map((document) => document.id);
+      return prisma.accountingDocument.findMany({ ...query, where: { id: { in: ids } }, orderBy: [{ dueDate: 'asc' }, { number: 'asc' }] });
+    },
+  }),
   documentStatuses: t.prismaField({
     type: ['DocumentStatus'],
     resolve: (query) => prisma.documentStatus.findMany({ ...query, orderBy: [{ scope: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }] }),
@@ -349,6 +385,12 @@ builder.mutationFields((t) => ({
       await tracking.removeSignedQuote(id);
       return true;
     },
+  }),
+  sendDocumentReminders: t.field({
+    type: [ReminderResultRef],
+    description: 'Mails the reminder of several unpaid invoices (one mail each, with the PDF), noted as reminders.',
+    args: { accountId: t.arg.id({ required: true }), documentIds: t.arg.idList({ required: true }) },
+    resolve: (_root, args) => reminders.sendReminders(args),
   }),
   addDocumentReminder: t.boolean({
     args: { id: t.arg.id({ required: true }), note: t.arg.string() },

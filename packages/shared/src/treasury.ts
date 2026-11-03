@@ -85,3 +85,54 @@ export const documentPaymentSchema = z.object({
   method: optionalText(100),
 });
 export type DocumentPaymentInput = z.input<typeof documentPaymentSchema>;
+
+/**
+ * Text escaped for HTML.
+ * @param {string} text Text.
+ * @returns {string} HTML.
+ */
+function escapeText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** What the reminder of an unpaid invoice says. */
+export interface ReminderMailInput {
+  /** Invoice or deposit invoice. */
+  deposit: boolean;
+  number: string;
+  /** Total of the invoice and what is still due, in cents. */
+  totalGross: number;
+  balance: number;
+  currency: string;
+  /** YYYY-MM-DD. */
+  dueDate: string | null;
+  companyName: string;
+  firstName: string | null;
+}
+
+/**
+ * Reminder mail of an unpaid invoice: subject and HTML body (without signature), the invoice joined apart.
+ * @param {ReminderMailInput} invoice Invoice.
+ * @returns {{ subject: string, html: string }} Mail.
+ */
+export function reminderMail(invoice: ReminderMailInput): { subject: string; html: string } {
+  const label = invoice.deposit ? 'Facture d’acompte' : 'Facture';
+  const money = (cents: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: invoice.currency }).format(cents / 100);
+  const date = invoice.dueDate ? new Date(`${invoice.dueDate}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : null;
+  return {
+    subject: `Relance — ${label} ${invoice.number}${invoice.companyName ? ` — ${invoice.companyName}` : ''}`,
+    html: [
+      `<p>Bonjour${invoice.firstName ? ` ${escapeText(invoice.firstName)}` : ''},</p>`,
+      `<p>Sauf erreur de notre part, notre ${invoice.deposit ? 'facture d’acompte' : 'facture'} n° ${escapeText(invoice.number)} d’un montant de ${escapeText(money(invoice.totalGross))}${date ? `, échue le ${date},` : ''} n’a pas encore été réglée : il reste ${escapeText(money(invoice.balance))} à payer.</p>`,
+      '<p>Merci de bien vouloir procéder à son règlement dans les meilleurs délais. Vous la trouverez de nouveau ci-jointe.</p>',
+      '<p>Si votre paiement a été effectué entre-temps, merci de ne pas tenir compte de ce message.</p>',
+      '<p>Cordialement,</p>',
+    ].join(''),
+  };
+}
+
+/** Reminders sent at once: the mail account they are sent from. */
+export const sendRemindersSchema = z.object({
+  accountId: z.string().min(1, 'Choisissez la boîte d’envoi.'),
+  documentIds: z.array(z.string()).min(1, 'Aucune facture choisie.').max(100, '100 factures maximum à la fois.'),
+});

@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { DocumentPaymentInput, DocumentStatusCategory, DocumentStatusScope } from '@ordo/shared';
 import { graphql } from '../../graphql';
-import type { DocumentStatusesQuery } from '../../graphql/graphql';
+import type { DocumentStatusesQuery, OverdueInvoicesQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 import { accountingQueryKey } from './api';
 
 export type DocumentStatus = DocumentStatusesQuery['documentStatuses'][number];
+export type OverdueInvoice = OverdueInvoicesQuery['overdueInvoices'][number];
 
 const DocumentStatusesDocument = graphql(`
   query DocumentStatuses {
@@ -17,6 +18,39 @@ const DocumentStatusesDocument = graphql(`
       category
       position
       documentCount
+    }
+  }
+`);
+
+const OverdueInvoicesDocument = graphql(`
+  query OverdueInvoices($today: Date!) {
+    overdueInvoices(today: $today) {
+      id
+      type
+      number
+      clientId
+      clientName
+      projectId
+      contactId
+      serviceId
+      issueDate
+      dueDate
+      totalGross
+      currency
+      balance
+      billingEmail
+      reminderCount
+      lastReminderAt
+    }
+  }
+`);
+
+const SendReminders = graphql(`
+  mutation SendDocumentReminders($accountId: ID!, $documentIds: [ID!]!) {
+    sendDocumentReminders(accountId: $accountId, documentIds: $documentIds) {
+      documentId
+      number
+      error
     }
   }
 `);
@@ -86,6 +120,15 @@ export function useDocumentStatuses() {
 }
 
 /**
+ * Final invoices still due after their due date, with their reminders.
+ * @param {string} today Today (YYYY-MM-DD).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useOverdueInvoices(today: string) {
+  return useQuery({ queryKey: [...accountingQueryKey, 'overdue', today], queryFn: async () => (await execute(OverdueInvoicesDocument, { today })).overdueInvoices });
+}
+
+/**
  * Mutation refreshing the accounting data (documents, statuses, treasury) once done.
  * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
  * @returns {UseMutationResult} Mutation state.
@@ -126,6 +169,9 @@ export function useTrackingMutations() {
     accept: useAccountingMutation(async (variables: { id: string; date: string; file: File | null }) => (await execute(AcceptQuote, variables)).acceptQuote),
     removeSigned: useAccountingMutation(async (id: string) => (await execute(RemoveSignedQuote, { id })).removeSignedQuote),
     addReminder: useAccountingMutation(async (variables: { id: string; note: string | null }) => (await execute(AddReminder, variables)).addDocumentReminder),
+    sendReminders: useAccountingMutation(
+      async (variables: { accountId: string; documentIds: string[] }) => (await execute(SendReminders, variables)).sendDocumentReminders,
+    ),
     deleteReminder: useAccountingMutation(async (id: string) => (await execute(DeleteReminder, { id })).deleteDocumentReminder),
     recordPayment: useAccountingMutation(
       async (variables: { id: string; input: DocumentPaymentInput }) =>

@@ -1,12 +1,15 @@
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Table, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
-import { ArrowsClockwiseIcon, CaretDownIcon, FileArrowUpIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BellRingingIcon, CaretDownIcon, FileArrowUpIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
+import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { CatalogPanel } from './CatalogPanel';
+import { OverdueInvoicesPanel } from './OverdueInvoicesPanel';
+import { useOverdueInvoices } from './tracking-api';
 import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice } from './documents-api';
 import { ImportedDocumentsTable } from './ImportedDocumentsTable';
 import { openImportForm } from './imported-form';
@@ -147,6 +150,7 @@ export function AccountingPage() {
   const tab = params.get('tab') ?? 'QUOTE';
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
+  const overdue = useOverdueInvoices(localToday());
 
   return (
     <Stack gap="lg">
@@ -176,6 +180,19 @@ export function AccountingPage() {
               {item.label}
             </Tabs.Tab>
           ))}
+          <Tabs.Tab
+            value="overdue"
+            leftSection={<BellRingingIcon aria-hidden />}
+            rightSection={
+              overdue.data?.length ? (
+                <Badge size="xs" circle color="red">
+                  {overdue.data.length}
+                </Badge>
+              ) : undefined
+            }
+          >
+            À relancer
+          </Tabs.Tab>
           <Tabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Récurrentes
           </Tabs.Tab>
@@ -195,6 +212,9 @@ export function AccountingPage() {
             )}
           </Tabs.Panel>
         ))}
+        <Tabs.Panel value="overdue">
+          <OverdueInvoicesPanel />
+        </Tabs.Panel>
         <Tabs.Panel value="recurring">
           <RecurringList />
         </Tabs.Panel>

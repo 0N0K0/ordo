@@ -1,6 +1,6 @@
 import { Box } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { formatMoney, type AccountingDocumentType } from '@ordo/shared';
+import { formatMoney, reminderMail, type AccountingDocumentType } from '@ordo/shared';
 import type { ComposeOptions } from '../mail/compose-options';
 import { escapeHtml } from '../mail/mail-format';
 
@@ -93,17 +93,20 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
         ? `d’un montant de ${amount}`
         : `d’un montant de ${amount}${date ? `, à régler avant le ${date}` : ''}`;
   if (document.reminder) {
-    const due = formatMoney(document.reminder.balance, document.currency);
+    const mail = reminderMail({
+      deposit: document.type === 'DEPOSIT_INVOICE',
+      number: document.number,
+      totalGross: document.totalGross,
+      balance: document.reminder.balance,
+      currency: document.currency,
+      dueDate: document.dueDate,
+      companyName: document.companyName,
+      firstName: document.recipient.firstName,
+    });
     return {
       to: document.recipient.email ? [document.recipient.email] : [],
-      subject: `Relance — ${phrase.label} ${document.number}${document.companyName ? ` — ${document.companyName}` : ''}`,
-      body: [
-        `<p>Bonjour${document.recipient.firstName ? ` ${escapeHtml(document.recipient.firstName)}` : ''},</p>`,
-        `<p>Sauf erreur de notre part, ${phrase.article} n° ${escapeHtml(document.number)} d’un montant de ${escapeHtml(amount)}${date ? `, échue le ${date},` : ''} n’a pas encore été réglée : il reste ${escapeHtml(due)} à payer.</p>`,
-        '<p>Merci de bien vouloir procéder à son règlement dans les meilleurs délais. Vous la trouverez de nouveau ci-jointe.</p>',
-        '<p>Si votre paiement a été effectué entre-temps, merci de ne pas tenir compte de ce message.</p>',
-        '<p>Cordialement,</p>',
-      ].join(''),
+      subject: mail.subject,
+      body: mail.html,
       files: [await fetchFile(pdfUrl(document.id, true), `${phrase.label} ${document.number}.pdf`)],
       projectId: document.projectId,
       onSent: document.onSent,

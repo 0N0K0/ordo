@@ -900,6 +900,21 @@ export type DocumentStatusesQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type DocumentStatusesQuery = { documentStatuses: Array<{ id: string, scope: DocumentStatusScope, name: string, color: string, category: DocumentStatusCategory, position: number, documentCount: number }> };
 
+export type OverdueInvoicesQueryVariables = Exact<{
+  today: string;
+}>;
+
+
+export type OverdueInvoicesQuery = { overdueInvoices: Array<{ id: string, type: AccountingDocumentType, number: string | null, clientId: string, clientName: string, projectId: string | null, contactId: string | null, serviceId: string | null, issueDate: string, dueDate: string | null, totalGross: number, currency: string, balance: number | null, billingEmail: string | null, reminderCount: number, lastReminderAt: string | null }> };
+
+export type SendDocumentRemindersMutationVariables = Exact<{
+  accountId: string | number;
+  documentIds: Array<string | number> | string | number;
+}>;
+
+
+export type SendDocumentRemindersMutation = { sendDocumentReminders: Array<{ documentId: string, number: string, error: string | null }> };
+
 export type CreateDocumentStatusMutationVariables = Exact<{
   scope: DocumentStatusScope;
   name: string;
@@ -3014,6 +3029,37 @@ export const DocumentStatusesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DocumentStatusesQuery, DocumentStatusesQueryVariables>;
+export const OverdueInvoicesDocument = new TypedDocumentString(`
+    query OverdueInvoices($today: Date!) {
+  overdueInvoices(today: $today) {
+    id
+    type
+    number
+    clientId
+    clientName
+    projectId
+    contactId
+    serviceId
+    issueDate
+    dueDate
+    totalGross
+    currency
+    balance
+    billingEmail
+    reminderCount
+    lastReminderAt
+  }
+}
+    `) as unknown as TypedDocumentString<OverdueInvoicesQuery, OverdueInvoicesQueryVariables>;
+export const SendDocumentRemindersDocument = new TypedDocumentString(`
+    mutation SendDocumentReminders($accountId: ID!, $documentIds: [ID!]!) {
+  sendDocumentReminders(accountId: $accountId, documentIds: $documentIds) {
+    documentId
+    number
+    error
+  }
+}
+    `) as unknown as TypedDocumentString<SendDocumentRemindersMutation, SendDocumentRemindersMutationVariables>;
 export const CreateDocumentStatusDocument = new TypedDocumentString(`
     mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {
   createDocumentStatus(
