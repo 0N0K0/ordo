@@ -248,6 +248,7 @@ input BulkTaskInput {
   milestoneId: ID
   priorityId: ID
   removeAssigneeIds: [ID!]
+  sprintId: ID
   startDate: Date
   statusId: ID
   typeId: ID
@@ -544,6 +545,31 @@ input ContributorUpdateInput {
   """Projects the contributor is directly attached to."""
   projectIds: [ID!]
   removeAvatar: Boolean
+}
+
+"""Dashboard of charts on the tasks, global or of a project tree."""
+type Dashboard {
+  charts: [DashboardChart!]!
+  id: ID!
+  name: String!
+  position: Int!
+  projectId: ID
+}
+
+type DashboardChart {
+  """Chart configuration (shared chartConfigSchema)."""
+  config: JSON!
+  dashboardId: ID!
+  id: ID!
+  position: Int!
+  title: String!
+  wide: Boolean!
+}
+
+input DashboardChartInput {
+  config: JSON!
+  title: String!
+  wide: Boolean!
 }
 
 """Calendar date, YYYY-MM-DD."""
@@ -868,6 +894,8 @@ type Mutation {
   createClientContact(clientId: ID!, input: ClientContactInput!): ClientContact!
   createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
   createContributor(input: ContributorInput!): Contributor!
+  createDashboard(name: String!, projectId: ID): ID!
+  createDashboardChart(dashboardId: ID!, input: DashboardChartInput!): ID!
 
   """Invoice or deposit invoice from a quote, credit note from an invoice."""
   createDocumentFrom(depositPercent: Float, issueDate: Date!, sourceId: ID!, type: AccountingDocumentType!): ID!
@@ -878,6 +906,7 @@ type Mutation {
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
+  createSprint(input: SprintInput!, projectId: ID!): ID!
   createTask(input: TaskInput!): Task!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
   createTaskStatus(input: TaskLabelInput!): TaskStatus!
@@ -899,6 +928,8 @@ type Mutation {
   deleteClientContact(id: ID!): Boolean!
   deleteClientService(id: ID!): Boolean!
   deleteContributor(id: ID!): Boolean!
+  deleteDashboard(id: ID!): Boolean!
+  deleteDashboardChart(id: ID!): Boolean!
   deleteDocumentReminder(id: ID!): Boolean!
   deleteDocumentStatus(id: ID!): Boolean!
   deleteImportedDocument(id: ID!): Boolean!
@@ -917,6 +948,7 @@ type Mutation {
   deleteProjectResource(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
   deleteRecurringInvoice(id: ID!): Boolean!
+  deleteSprint(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
     deleteSubtasks: Boolean!
@@ -931,6 +963,7 @@ type Mutation {
   deleteTreasuryAccount(id: ID!): Boolean!
   deleteTreasuryEntry(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
+  duplicateDashboardChart(id: ID!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
 
   """Makes a draft final; returns its number."""
@@ -957,6 +990,8 @@ type Mutation {
   materializeTaskOccurrences(from: Date!, to: Date!): Int!
   moveCalendarCategory(id: ID!, index: Int!): Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
+  moveDashboard(id: ID!, index: Int!): Boolean!
+  moveDashboardChart(id: ID!, index: Int!): Boolean!
   moveDocumentStatus(id: ID!, index: Int!): Boolean!
   moveMailAccount(id: ID!, index: Int!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
@@ -992,6 +1027,7 @@ type Mutation {
   removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
+  renameDashboard(id: ID!, name: String!): Boolean!
 
   """
   Sends a confirmation link to the new address; the email changes once confirmed.
@@ -1083,6 +1119,7 @@ type Mutation {
   updateClientService(id: ID!, input: ClientServiceInput!): ClientService!
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
+  updateDashboardChart(id: ID!, input: DashboardChartInput!): Boolean!
   updateDocumentStatus(category: DocumentStatusCategory, color: String, id: ID!, name: String): Boolean!
   updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
@@ -1092,6 +1129,7 @@ type Mutation {
   updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
   updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
+  updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
   updateTaskComment(body: String!, id: ID!): TaskComment!
   updateTaskPriority(id: ID!, input: TaskLabelUpdateInput!): TaskPriority!
@@ -1232,6 +1270,9 @@ type Query {
   clients: [Client!]!
   companyProfile: CompanyProfile!
   contributors: [Contributor!]!
+
+  """Dashboards of a project, or the global ones."""
+  dashboards(projectId: ID): [Dashboard!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
   forecastEntries: [TreasuryEntry!]!
@@ -1276,6 +1317,9 @@ type Query {
   projects: [Project!]!
   recurringInvoices: [RecurringInvoice!]!
   runningTimeEntry: TimeEntry
+
+  """Sprints, by start date."""
+  sprints: [Sprint!]!
   task(number: Int!): Task
   taskPriorities: [TaskPriority!]!
   taskStatuses: [TaskStatus!]!
@@ -1377,6 +1421,23 @@ input SendMailInput {
   to: [String!]!
 }
 
+"""Period of a project the tasks of its project tree are planned in."""
+type Sprint {
+  endDate: Date!
+  goal: String
+  id: ID!
+  name: String!
+  projectId: ID!
+  startDate: Date!
+}
+
+input SprintInput {
+  endDate: Date!
+  goal: String
+  name: String!
+  startDate: Date!
+}
+
 type Task {
   archived: Boolean!
   assigneeIds: [ID!]!
@@ -1411,6 +1472,7 @@ type Task {
 
   """First task of the series this task is an occurrence of."""
   seriesId: ID
+  sprintId: ID
   startDate: Date
   statusId: ID
   title: String!
@@ -1438,6 +1500,7 @@ input TaskInput {
   parentId: ID
   priorityId: ID
   projectId: ID!
+  sprintId: ID
   startDate: Date
   statusId: ID
   title: String!
@@ -1521,6 +1584,7 @@ input TaskUpdateInput {
   milestoneId: ID
   parentId: ID
   priorityId: ID
+  sprintId: ID
   startDate: Date
   statusId: ID
   title: String

@@ -79,6 +79,8 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
     }
     case 'milestone':
       return (task.milestoneId && context.milestoneById.get(task.milestoneId)?.title) || '';
+    case 'sprint':
+      return (task.sprintId && context.sprintById.get(task.sprintId)?.name) || '';
     case 'blockedBy':
       return numbers(task.blockedByIds);
     case 'blocking':

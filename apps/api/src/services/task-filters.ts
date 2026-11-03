@@ -218,13 +218,15 @@ function conditionWhere(
         type: 'typeId',
         parent: 'parentId',
         milestone: 'milestoneId',
-      }[field as 'project' | 'status' | 'priority' | 'type' | 'parent' | 'milestone'] as
+        sprint: 'sprintId',
+      }[field as 'project' | 'status' | 'priority' | 'type' | 'parent' | 'milestone' | 'sprint'] as
         | 'projectId'
         | 'statusId'
         | 'priorityId'
         | 'typeId'
         | 'parentId'
-        | 'milestoneId';
+        | 'milestoneId'
+        | 'sprintId';
       const nullable = key !== 'projectId';
       switch (operator) {
         case 'in':

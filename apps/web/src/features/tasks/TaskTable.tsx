@@ -59,6 +59,7 @@ import {
   EffortCell,
   LabelCell,
   MilestoneCell,
+  SprintCell,
   TitleCell,
 } from './views/inline-cells';
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
@@ -328,6 +329,7 @@ export function TaskTable({
         ) : null;
       },
       milestone: (task) => <MilestoneCell task={task} context={context} />,
+      sprint: (task) => <SprintCell task={task} context={context} />,
       blockedBy: (task) => <BlockedByCell task={task} context={context} />,
       blocking: (task) => <TaskNumbers ids={task.blockingIds} context={context} />,
       related: (task) => <TaskNumbers ids={task.relatedIds} context={context} />,

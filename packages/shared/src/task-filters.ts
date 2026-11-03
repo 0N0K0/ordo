@@ -23,6 +23,7 @@ export const TASK_FILTER_FIELDS = {
   type: 'reference',
   parent: 'reference',
   milestone: 'reference',
+  sprint: 'reference',
   assignees: 'multiReference',
   startDate: 'date',
   endDate: 'date',
@@ -237,6 +238,7 @@ export const TASK_COLUMNS = [
   'endDate',
   'parent',
   'milestone',
+  'sprint',
   'blockedBy',
   'blocking',
   'related',
@@ -255,7 +257,7 @@ export const EVENT_PERIODS = ['thisWeek', 'nextWeek', 'thisMonth', 'nextMonth', 
 export type EventPeriod = (typeof EVENT_PERIODS)[number];
 
 /** Fields the table can be grouped by. */
-export const TASK_GROUP_BY = ['state', 'project', 'status', 'priority', 'type', 'assignees', 'parent', 'milestone'] as const;
+export const TASK_GROUP_BY = ['state', 'project', 'status', 'priority', 'type', 'assignees', 'parent', 'milestone', 'sprint'] as const;
 export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
 
 const columnSchema = z.enum(TASK_COLUMNS);

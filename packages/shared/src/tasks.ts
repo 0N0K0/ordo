@@ -71,6 +71,7 @@ export const taskFormSchema = z
     endDate: dateSchema,
     parentId: z.string().nullable(),
     milestoneId: z.string().nullable(),
+    sprintId: z.string().nullable(),
   })
   .refine((values) => !values.startDate || !values.endDate || values.endDate >= values.startDate, {
     path: ['endDate'],
@@ -90,3 +91,15 @@ export const milestoneFormSchema = z.object({
   description: z.string(),
 });
 export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;
+
+export const sprintNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(120, '120 caractères maximum.');
+
+export const sprintFormSchema = z
+  .object({
+    name: sprintNameSchema,
+    startDate: z.iso.date({ error: 'La date de début est requise.' }),
+    endDate: z.iso.date({ error: 'La date de fin est requise.' }),
+    goal: z.string(),
+  })
+  .refine((values) => values.endDate >= values.startDate, { path: ['endDate'], error: 'La fin doit suivre le début.' });
+export type SprintFormValues = z.input<typeof sprintFormSchema>;

@@ -4,7 +4,7 @@ import type { ReferenceTargets } from '../../components/markdown/remark-referenc
 import { useWorkspace, type Project } from '../workspace/api';
 import { projectPath } from '../workspace/tree';
 import { useMe } from '../auth/api';
-import { useTasksData, type Contributor, type Milestone, type Task, type TaskLabel, type TaskStatus } from './api';
+import { useTasksData, type Contributor, type Milestone, type Sprint, type Task, type TaskLabel, type TaskStatus } from './api';
 
 export interface TaskContext {
   tasks: Task[];
@@ -15,6 +15,9 @@ export interface TaskContext {
   projects: Project[];
   milestones: Milestone[];
   milestoneById: Map<string, Milestone>;
+  /** Sprints, by start date. */
+  sprints: Sprint[];
+  sprintById: Map<string, Sprint>;
   /** Contributor profile of the logged-in user ("Moi"). */
   meId: string | null;
   taskById: Map<string, Task>;
@@ -32,6 +35,8 @@ export interface TaskContext {
   childrenOf: (taskId: string) => Task[];
   /** Milestones usable by the tasks of a project: those of its whole project tree. */
   milestonesFor: (projectId: string) => Milestone[];
+  /** Sprints usable by the tasks of a project: those of its whole project tree. */
+  sprintsFor: (projectId: string) => Sprint[];
   /**
    * Contributors that can be assigned to tasks of these projects: "Moi" and those attached to one of the
    * projects or to a parent project, plus the `keep` ones (current assignees, attached or not).
@@ -92,8 +97,11 @@ export function useTaskContext() {
       projects: workspace.projects,
       milestones: data.milestones,
       milestoneById: new Map(data.milestones.map((milestone) => [milestone.id, milestone])),
+      sprints: data.sprints,
+      sprintById: new Map(data.sprints.map((sprint) => [sprint.id, sprint])),
       meId,
       milestonesFor: (projectId) => data.milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)),
+      sprintsFor: (projectId) => data.sprints.filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)),
       assignableFor: (projectIds, keep = []) => {
         const scope = new Set<string>();
         for (const projectId of projectIds) {

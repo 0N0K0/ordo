@@ -73,6 +73,10 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
       return milestone ? `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` : null;
     }
+    case 'sprint': {
+      const sprint = task.sprintId ? context.sprintById.get(task.sprintId) : undefined;
+      return sprint ? `${sprint.startDate} ${sprint.name}` : null;
+    }
     case 'blockedBy':
       return task.blockedByIds.length || null;
     case 'blocking':
@@ -238,6 +242,11 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
       if (!milestone) return none('Sans jalon');
       return [{ key: milestone.id, label: milestone.title, order: `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` }];
+    }
+    case 'sprint': {
+      const sprint = task.sprintId ? context.sprintById.get(task.sprintId) : undefined;
+      if (!sprint) return none('Sans sprint');
+      return [{ key: sprint.id, label: sprint.name, order: `${sprint.startDate} ${sprint.name}` }];
     }
   }
 }
