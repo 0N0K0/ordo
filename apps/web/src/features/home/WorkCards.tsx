@@ -184,62 +184,39 @@ export function TimeCard({ context, time }: TimeCardProps) {
 }
 
 /**
- * Running sprints with their progress, and the milestones of the coming 30 days.
+ * Milestones of the coming 30 days, with their open tasks.
  * @param {{ context: TaskContext | null, today: string }} props Component props.
  * @returns {JSX.Element} Card.
  */
-export function SprintsCard({ context, today }: { context: TaskContext | null; today: string }) {
-  const data = useMemo(() => {
+export function MilestonesCard({ context, today }: { context: TaskContext | null; today: string }) {
+  const milestones = useMemo(() => {
     if (!context) return null;
-    const live = context.tasks.filter((task) => !task.archived);
-    const sprints = context.sprints
-      .filter((sprint) => sprint.startDate.slice(0, 10) <= today && today <= sprint.endDate.slice(0, 10))
-      .map((sprint) => {
-        const tasks = live.filter((task) => task.sprintId === sprint.id);
-        return { sprint, total: tasks.length, closed: tasks.filter((task) => task.closed).length };
-      });
     const until = addDays(today, 30);
-    const milestones = context.milestones
+    return context.milestones
       .filter((milestone) => milestone.dueDate && milestone.dueDate.slice(0, 10) >= today && milestone.dueDate.slice(0, 10) <= until)
       .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))
-      .map((milestone) => ({ milestone, open: live.filter((task) => task.milestoneId === milestone.id && !task.closed).length }));
-    return { sprints, milestones };
+      .map((milestone) => ({ milestone, open: context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived && !task.closed).length }));
   }, [context, today]);
 
   return (
-    <HomeCard title="Sprints et jalons" icon={<FlagIcon aria-hidden />} loading={!data || !context}>
-      {data && context && data.sprints.length === 0 && data.milestones.length === 0 && <HomeEmpty icon={<FlagIcon aria-hidden />}>Aucun sprint en cours ni jalon dans les 30 jours.</HomeEmpty>}
-      {data && context && data.sprints.length > 0 && (
-        <Stack gap={4}>
-          {data.sprints.slice(0, 4).map(({ sprint, total, closed }) => (
-            <Link key={sprint.id} to={`/projects/${sprint.projectId}?tab=sprints`} className={classes.row}>
-              <Group justify="space-between" wrap="nowrap" gap="xs">
-                <Text size="sm" truncate>
-                  {sprint.name} · {context.projectById.get(sprint.projectId)?.title}
-                </Text>
-                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                  {closed}/{total} · J-{Math.max(0, daysBetween(today, sprint.endDate.slice(0, 10)))}
-                </Text>
-              </Group>
-              <Progress value={total ? (closed / total) * 100 : 0} size="sm" mt={4} color="teal" aria-label={`${closed} tâches fermées sur ${total}`} />
-            </Link>
-          ))}
-        </Stack>
-      )}
-      {data && context && data.milestones.length > 0 && (
+    <HomeCard title="Jalons" icon={<FlagIcon aria-hidden />} loading={!milestones || !context}>
+      {milestones && milestones.length === 0 && <HomeEmpty icon={<FlagIcon aria-hidden />}>Aucun jalon dans les 30 jours.</HomeEmpty>}
+      {milestones && context && milestones.length > 0 && (
         <Stack gap={0}>
-          <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-            Jalons
-          </Text>
-          {data.milestones.slice(0, 4).map(({ milestone, open }) => (
+          {milestones.slice(0, MAX_ROWS).map(({ milestone, open }) => (
             <Link key={milestone.id} to={`/projects/${milestone.projectId}?tab=milestones`} className={classes.row}>
               <Group justify="space-between" wrap="nowrap" gap="xs">
-                <Text size="sm" truncate>
-                  {milestone.title} · {context.projectById.get(milestone.projectId)?.title}
-                </Text>
-                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                  {dayLabel(milestone.dueDate!.slice(0, 10), today)} · {open} ouverte{open > 1 ? 's' : ''}
-                </Text>
+                <Stack gap={0} miw={0}>
+                  <Text size="sm" truncate>
+                    {milestone.title}
+                  </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {context.projectById.get(milestone.projectId)?.title ?? 'Projet inconnu'} · {open} tâche{open > 1 ? 's' : ''} ouverte{open > 1 ? 's' : ''}
+                  </Text>
+                </Stack>
+                <Badge variant="light" color={daysBetween(today, milestone.dueDate!.slice(0, 10)) <= 7 ? 'orange' : 'gray'} style={{ flexShrink: 0 }}>
+                  {dayLabel(milestone.dueDate!.slice(0, 10), today)}
+                </Badge>
               </Group>
             </Link>
           ))}

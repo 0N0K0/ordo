@@ -1438,8 +1438,10 @@ type Query {
   """Opens a message (and marks it as read)."""
   mailMessage(accountId: ID!, folder: String!, uid: Int!): MailView!
 
-  """A page of a folder, latest first."""
-  mailMessages(accountId: ID!, folder: String!, page: Int!, search: String): MailPage!
+  """
+  A page of a folder, latest first (optionally the unread messages only).
+  """
+  mailMessages(accountId: ID!, folder: String!, page: Int!, search: String, unread: Boolean): MailPage!
 
   """Ids of the tasks matching a filter, in manual order."""
   matchingTaskIds(query: TaskQueryInput!): [ID!]!

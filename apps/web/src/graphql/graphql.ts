@@ -1474,6 +1474,7 @@ export type MailMessagesQueryVariables = Exact<{
   folder: string;
   page: number;
   search?: string | null | undefined;
+  unread?: boolean | null | undefined;
 }>;
 
 
@@ -3961,12 +3962,13 @@ export const MailFoldersDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MailFoldersQuery, MailFoldersQueryVariables>;
 export const MailMessagesDocument = new TypedDocumentString(`
-    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {
+    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {
   mailMessages(
     accountId: $accountId
     folder: $folder
     page: $page
     search: $search
+    unread: $unread
   ) {
     total
     pageSize

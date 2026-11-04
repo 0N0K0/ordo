@@ -1,16 +1,19 @@
-import { SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Button, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { addDays, formatDuration } from '@ordo/shared';
+import { FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { useAccountingDocuments } from '../features/accounting/documents-api';
 import { useMe } from '../features/auth/api';
+import { ChronoCard } from '../features/home/ChronoCard';
 import { BillingCard, QuotesCard, TreasuryCard } from '../features/home/FinanceCards';
 import { StatTile } from '../features/home/HomeCard';
 import { billingSummary, money, useMyTodayTasks, useWeekTime } from '../features/home/home-data';
 import { MailCard } from '../features/home/MailCard';
-import { AgendaCard, SprintsCard, TasksCard, TimeCard } from '../features/home/WorkCards';
+import { AgendaCard, MilestonesCard, TasksCard, TimeCard } from '../features/home/WorkCards';
 import { useMailAccounts, useUnreadMailCount } from '../features/mail/api';
 import { useTaskContext } from '../features/tasks/use-task-context';
 import { useTreasuryProjection } from '../features/treasury/api';
+import { useEntityActions } from '../features/workspace/use-entity-actions';
 import { localToday } from '../lib/dates';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -23,9 +26,9 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'num
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /**
- * Home page: everything at a glance. Key figures (tasks, time, mails, invoicing, treasury) linking to their
- * pages, then condensed cards: tasks of the day, agenda, time, invoicing, quotes, treasury, mails, sprints
- * and milestones.
+ * Home page: everything at a glance. Quick creation of a client or a project, key figures (tasks, time,
+ * mails, invoicing, treasury) linking to their pages, then condensed cards: tasks of the day, agenda, timer
+ * and alarms, invoicing, quotes, treasury, unread mails, milestones and time.
  * @returns {JSX.Element} Home page.
  */
 export function HomePage() {
@@ -42,15 +45,26 @@ export function HomePage() {
   const accounts = useMailAccounts();
   const hasMail = (accounts.data?.length ?? 0) > 0;
   const unread = useUnreadMailCount(hasMail);
+  const actions = useEntityActions();
 
   return (
     <Stack gap="lg">
-      <Stack gap={0}>
-        <Title order={1} size="h2">
-          Bonjour {user?.username}
-        </Title>
-        <Text c="dimmed">{capitalized(dateFormat.format(new Date(`${today}T00:00:00Z`)))}</Text>
-      </Stack>
+      <Group justify="space-between" align="flex-start" gap="sm">
+        <Stack gap={0}>
+          <Title order={1} size="h2">
+            Bonjour {user?.username}
+          </Title>
+          <Text c="dimmed">{capitalized(dateFormat.format(new Date(`${today}T00:00:00Z`)))}</Text>
+        </Stack>
+        <Group gap="sm">
+          <Button variant="default" leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
+            Nouveau client
+          </Button>
+          <Button leftSection={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
+            Nouveau projet
+          </Button>
+        </Group>
+      </Group>
 
       <SimpleGrid cols={{ base: 2, sm: 3, xl: 6 }} spacing="md">
         <StatTile
@@ -91,12 +105,13 @@ export function HomePage() {
       <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
         <TasksCard context={context} tasks={myTasks.tasks} today={today} />
         <AgendaCard today={today} />
-        <TimeCard context={context} time={time} />
+        <ChronoCard context={context} />
         <BillingCard summary={summary} today={today} />
         <QuotesCard summary={summary} today={today} />
         <TreasuryCard projection={projection.data} today={today} />
         <MailCard today={today} />
-        <SprintsCard context={context} today={today} />
+        <MilestonesCard context={context} today={today} />
+        <TimeCard context={context} time={time} />
       </SimpleGrid>
     </Stack>
   );
