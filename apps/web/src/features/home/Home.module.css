@@ -25,4 +25,17 @@
     margin-inline: calc(var(--mantine-spacing-xs) * -1);
     padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
   }
+
+  .handle {
+    /* Espacement */
+    margin-inline-start: calc(var(--mantine-spacing-xs) * -1);
+
+    /* Interaction */
+    cursor: grab;
+    touch-action: none;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
 }

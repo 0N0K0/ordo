@@ -1,7 +1,8 @@
-import { Anchor, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Title } from '@mantine/core';
-import { ArrowRightIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { ActionIcon, Anchor, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ArrowRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
+import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { DragHandleContext } from './drag-handle';
 import classes from './Home.module.css';
 
 interface HomeCardProps {
@@ -16,16 +17,25 @@ interface HomeCardProps {
 }
 
 /**
- * Card of the home page: a title with its icon, a link to the full page, and a condensed content.
+ * Card of the home page: a title with its icon, a link to the full page, and a condensed content; in a
+ * sortable grid, a handle moves it.
  * @param {HomeCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
 export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, children }: HomeCardProps) {
+  const handle = useContext(DragHandleContext);
   return (
-    <Paper withBorder radius="md" p="md">
+    <Paper withBorder radius="md" p="md" h="100%">
       <Stack gap="sm" h="100%">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
+            {handle && (
+              <Tooltip label="Déplacer">
+                <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Déplacer la carte ${title}`} className={classes.handle} {...handle.attributes} {...handle.listeners}>
+                  <DotsSixVerticalIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            )}
             <ThemeIcon variant="light" radius="md">
               {icon}
             </ThemeIcon>

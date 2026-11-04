@@ -1,7 +1,8 @@
 import { Button, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { addDays, formatDuration } from '@ordo/shared';
-import { FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
-import { useMemo } from 'react';
+import { useLocalStorage } from '@mantine/hooks';
+import { ArrowCounterClockwiseIcon, FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
+import { useMemo, type ReactNode } from 'react';
 import { useAccountingDocuments } from '../features/accounting/documents-api';
 import { useMe } from '../features/auth/api';
 import { ChronoCard } from '../features/home/ChronoCard';
@@ -9,6 +10,7 @@ import { BillingCard, QuotesCard, TreasuryCard } from '../features/home/FinanceC
 import { StatTile } from '../features/home/HomeCard';
 import { billingSummary, money, useMyTodayTasks, useWeekTime } from '../features/home/home-data';
 import { MailCard } from '../features/home/MailCard';
+import { SortableGrid } from '../features/home/SortableGrid';
 import { AgendaCard, MilestonesCard, TasksCard, TimeCard } from '../features/home/WorkCards';
 import { useMailAccounts, useUnreadMailCount } from '../features/mail/api';
 import { useTaskContext } from '../features/tasks/use-task-context';
@@ -17,6 +19,9 @@ import { useEntityActions } from '../features/workspace/use-entity-actions';
 import { localToday } from '../lib/dates';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+
+type CardId = 'tasks' | 'agenda' | 'chrono' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'milestones' | 'time';
+const DEFAULT_ORDER: CardId[] = ['tasks', 'agenda', 'chrono', 'billing', 'quotes', 'treasury', 'mail', 'milestones', 'time'];
 
 /**
  * Text with a capital first letter.
@@ -28,7 +33,8 @@ const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(
 /**
  * Home page: everything at a glance. Quick creation of a client or a project, key figures (tasks, time,
  * mails, invoicing, treasury) linking to their pages, then condensed cards: tasks of the day, agenda, timer
- * and alarms, invoicing, quotes, treasury, unread mails, milestones and time.
+ * and alarms, invoicing, quotes, treasury, unread mails, milestones and time, reordered by drag and drop
+ * (order kept in the browser).
  * @returns {JSX.Element} Home page.
  */
 export function HomePage() {
@@ -46,6 +52,21 @@ export function HomePage() {
   const hasMail = (accounts.data?.length ?? 0) > 0;
   const unread = useUnreadMailCount(hasMail);
   const actions = useEntityActions();
+  const [storedOrder, setStoredOrder] = useLocalStorage<CardId[]>({ key: 'ordo.home.cards', defaultValue: DEFAULT_ORDER });
+  // Cards added since the order was saved go last; removed ones are dropped.
+  const order = [...storedOrder.filter((id) => DEFAULT_ORDER.includes(id)), ...DEFAULT_ORDER.filter((id) => !storedOrder.includes(id))];
+  const customized = order.join() !== DEFAULT_ORDER.join();
+  const cards: Record<CardId, ReactNode> = {
+    tasks: <TasksCard context={context} tasks={myTasks.tasks} today={today} />,
+    agenda: <AgendaCard today={today} />,
+    chrono: <ChronoCard context={context} />,
+    billing: <BillingCard summary={summary} today={today} />,
+    quotes: <QuotesCard summary={summary} today={today} />,
+    treasury: <TreasuryCard projection={projection.data} today={today} />,
+    mail: <MailCard today={today} />,
+    milestones: <MilestonesCard context={context} today={today} />,
+    time: <TimeCard context={context} time={time} />,
+  };
 
   return (
     <Stack gap="lg">
@@ -102,17 +123,14 @@ export function HomePage() {
         />
       </SimpleGrid>
 
-      <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
-        <TasksCard context={context} tasks={myTasks.tasks} today={today} />
-        <AgendaCard today={today} />
-        <ChronoCard context={context} />
-        <BillingCard summary={summary} today={today} />
-        <QuotesCard summary={summary} today={today} />
-        <TreasuryCard projection={projection.data} today={today} />
-        <MailCard today={today} />
-        <MilestonesCard context={context} today={today} />
-        <TimeCard context={context} time={time} />
-      </SimpleGrid>
+      <SortableGrid items={order.map((id) => ({ id, node: cards[id] }))} onReorder={(ids) => setStoredOrder(ids as CardId[])} />
+      {customized && (
+        <Group justify="center">
+          <Button variant="subtle" color="gray" size="xs" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => setStoredOrder(DEFAULT_ORDER)}>
+            Disposition par défaut
+          </Button>
+        </Group>
+      )}
     </Stack>
   );
 }
