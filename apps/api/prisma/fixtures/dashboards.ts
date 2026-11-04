@@ -1,18 +1,19 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, emptyFilter, type ChartConfig } from '@ordo/shared';
+import { addDays, chartConfigSchema, emptyFilter } from '@ordo/shared';
+import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma, Project } from '../../src/generated/prisma/client';
 
 /**
  * Chart configuration from the defaults.
- * @param {Partial<ChartConfig>} config Changes.
+ * @param {Partial<z.input<typeof chartConfigSchema>>} config Changes (defaults filled by the schema).
  * @returns {Prisma.InputJsonValue} Stored configuration.
  */
-const chart = (config: Partial<ChartConfig>) => chartConfigSchema.parse({ filter: emptyFilter(), ...config }) as unknown as Prisma.InputJsonValue;
+const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyFilter(), ...config }) as unknown as Prisma.InputJsonValue;
 
 /**
  * Sprints and dashboards: four two-week sprints per active root project (two over, one running, one coming)
- * with tasks of the tree planned in them, a global "KPI" dashboard and a "Sprint" dashboard on the first
+ * with tasks of the tree planned in them, global "KPI" and "Finances" dashboards, and a "Sprint" dashboard on the first
  * project (burndown of the running sprint, velocity).
  * @param {{ projects: Project[], today: string }} context Projects and today.
  * @returns {Promise<void>}
@@ -80,6 +81,25 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
     { title: 'Tâches créées (cumul mensuel)', wide: true, config: chart({ type: 'area', dimension: 'createdAt', bucket: 'month', period: 'past:365', cumulative: true, series: 'type' }) },
   ];
   await prisma.dashboardChart.createMany({ data: charts.map((item, position) => ({ ...item, dashboardId: global.id, position })) });
+
+  const finances = await prisma.dashboard.create({ data: { name: 'Finances', projectId: null, position: 1 } });
+  const financeCharts = [
+    {
+      title: 'Chiffre d’affaires HT par mois',
+      wide: true,
+      config: chart({ source: 'documents', type: 'bar', dimension: 'issueDate', bucket: 'month', period: 'past:365', measure: 'totalNet', documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] } }),
+    },
+    {
+      title: 'Reste à encaisser par client',
+      wide: false,
+      config: chart({ source: 'documents', type: 'stackedBar', dimension: 'client', measure: 'balance', series: 'payment', documents: { types: ['INVOICE', 'DEPOSIT_INVOICE'] } }),
+    },
+    { title: 'Devis par statut de suivi', wide: false, config: chart({ source: 'documents', type: 'donut', dimension: 'trackingStatus', measure: 'count', documents: { types: ['QUOTE'] } }) },
+    { title: 'Solde de trésorerie', wide: true, config: chart({ source: 'treasury', type: 'line', dimension: 'date', bucket: 'week', period: 'past:182', measure: 'balance' }) },
+    { title: 'Entrées et sorties par mois', wide: false, config: chart({ source: 'treasury', type: 'bar', dimension: 'date', bucket: 'month', period: 'past:182', measure: 'amount', series: 'direction' }) },
+    { title: 'Dépenses par catégorie', wide: false, config: chart({ source: 'treasury', type: 'donut', dimension: 'category', period: 'past:365', measure: 'expense', treasury: { direction: 'out' } }) },
+  ];
+  await prisma.dashboardChart.createMany({ data: financeCharts.map((item, position) => ({ ...item, dashboardId: finances.id, position })) });
 
   if (running && roots[0]) {
     const sprintBoard = await prisma.dashboard.create({ data: { name: 'Sprint', projectId: roots[0].id, position: 0 } });

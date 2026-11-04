@@ -732,7 +732,7 @@ export type DeleteCatalogItemMutationVariables = Exact<{
 
 export type DeleteCatalogItemMutation = { deleteCatalogItem: boolean };
 
-export type AccountingDocumentListFieldsFragment = { id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
+export type AccountingDocumentListFieldsFragment = { id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, paid: number | null, overdue: boolean, sentAt: string | null, acceptedAt: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
 
 export type AccountingDocumentFieldsFragment = { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, method: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
 
@@ -742,7 +742,7 @@ export type AccountingDocumentsQueryVariables = Exact<{
 }>;
 
 
-export type AccountingDocumentsQuery = { accountingDocuments: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null }> };
+export type AccountingDocumentsQuery = { accountingDocuments: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, paid: number | null, overdue: boolean, sentAt: string | null, acceptedAt: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null }> };
 
 export type AccountingDocumentQueryVariables = Exact<{
   id: string | number;
@@ -2436,7 +2436,10 @@ export const AccountingDocumentListFieldsFragmentDoc = new TypedDocumentString(`
     category
   }
   balance
+  paid
   overdue
+  sentAt
+  acceptedAt
 }
     `, {"fragmentName":"AccountingDocumentListFields"}) as unknown as TypedDocumentString<AccountingDocumentListFieldsFragment, unknown>;
 export const AccountingDocumentFieldsFragmentDoc = new TypedDocumentString(`
@@ -2546,7 +2549,10 @@ export const AccountingDocumentFieldsFragmentDoc = new TypedDocumentString(`
     category
   }
   balance
+  paid
   overdue
+  sentAt
+  acceptedAt
 }`, {"fragmentName":"AccountingDocumentFields"}) as unknown as TypedDocumentString<AccountingDocumentFieldsFragment, unknown>;
 export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
     fragment AlarmFields on Alarm {
@@ -3069,7 +3075,10 @@ export const AccountingDocumentsDocument = new TypedDocumentString(`
     category
   }
   balance
+  paid
   overdue
+  sentAt
+  acceptedAt
 }`) as unknown as TypedDocumentString<AccountingDocumentsQuery, AccountingDocumentsQueryVariables>;
 export const AccountingDocumentDocument = new TypedDocumentString(`
     query AccountingDocument($id: ID!) {
@@ -3101,7 +3110,10 @@ export const AccountingDocumentDocument = new TypedDocumentString(`
     category
   }
   balance
+  paid
   overdue
+  sentAt
+  acceptedAt
 }
 fragment AccountingDocumentFields on AccountingDocument {
   ...AccountingDocumentListFields
