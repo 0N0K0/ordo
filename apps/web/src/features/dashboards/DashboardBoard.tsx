@@ -1,11 +1,15 @@
 import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type FilterGroup } from '@ordo/shared';
+import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
 import {
   ArrowDownIcon,
   ArrowsHorizontalIcon,
   ArrowUpIcon,
+  BankIcon,
+  CaretDownIcon,
   ChartBarIcon,
+  CheckSquareOffsetIcon,
+  ReceiptIcon,
   CopyIcon,
   DotsThreeIcon,
   FileImageIcon,
@@ -14,7 +18,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -23,8 +27,9 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from './api';
 import { ChartEditor } from './ChartEditor';
 import { chartPng, downloadChartsPdf, exportFileName, saveFile } from './chart-image';
-import { describeChart, useChartData } from './chart-data';
+import { describeChart, useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
+import { countLabel, NEW_CHART_TITLES } from './aggregate';
 
 /** Image of a chart as exported. */
 interface Capture {
@@ -36,6 +41,7 @@ type Captures = MutableRefObject<Map<string, () => Promise<Capture>>>;
 
 let modalCount = 0;
 
+/** Title of a new chart of each source. */
 /**
  * Stored configuration of a chart, or the defaults when it no longer validates.
  * @param {unknown} config Stored configuration.
@@ -50,7 +56,7 @@ interface ChartCardProps {
   chart: DashboardChart;
   index: number;
   count: number;
-  baseFilter: FilterGroup | null;
+  scope: ChartScope;
   context: TaskContext;
   /** Title of the dashboard, for the file names. */
   dashboardName: string;
@@ -63,9 +69,9 @@ interface ChartCardProps {
  * @param {ChartCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
-function ChartCard({ chart, index, count, baseFilter, context, dashboardName, captures, onEdit }: ChartCardProps) {
+function ChartCard({ chart, index, count, scope, context, dashboardName, captures, onEdit }: ChartCardProps) {
   const config = parseConfig(chart.config);
-  const { data, isPending, error } = useChartData(config, baseFilter, context);
+  const { data, isPending, error } = useChartData(config, scope, context);
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
   const view = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -76,7 +82,11 @@ function ChartCard({ chart, index, count, baseFilter, context, dashboardName, ca
     const registry = captures.current;
     registry.set(chart.id, async () => {
       if (!view.current || !data) throw new Error(`« ${chart.title} » n’est pas encore affiché.`);
-      return { title: chart.title, description, image: await chartPng(view.current, chart.title, data.series.length > 1 ? data.series : []) };
+      return {
+        title: chart.title,
+        description,
+        image: await chartPng(view.current, chart.title, data.series.length > 1 ? data.series : []),
+      };
     });
     return () => void registry.delete(chart.id);
   }, [captures, chart.id, chart.title, data, description]);
@@ -94,7 +104,11 @@ function ChartCard({ chart, index, count, baseFilter, context, dashboardName, ca
       .then((image) =>
         format === 'png'
           ? saveFile(image.image, exportFileName(`${dashboardName} — ${chart.title}`, 'png'))
-          : downloadChartsPdf({ title: chart.title, subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`, charts: [image] }),
+          : downloadChartsPdf({
+              title: chart.title,
+              subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+              charts: [image],
+            }),
       )
       .catch((exportError: Error) => notifyError(exportError.message))
       .finally(() => setExporting(false));
@@ -111,13 +125,16 @@ function ChartCard({ chart, index, count, baseFilter, context, dashboardName, ca
       title: 'Supprimer le diagramme',
       children: (
         <Stack gap="md">
-          <Text size="sm">Le diagramme « {chart.title} » sera supprimé définitivement. Les tâches ne sont pas modifiées.</Text>
+          <Text size="sm">Le diagramme « {chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées.</Text>
           <DestructiveActions
             loading={false}
             onCancel={() => modals.close(modalId)}
             onConfirm={() => {
               modals.close(modalId);
-              removeChart.mutate(chart.id, { onSuccess: () => notifySuccess('Diagramme supprimé.'), onError: (deleteError) => notifyError(deleteError.message) });
+              removeChart.mutate(chart.id, {
+                onSuccess: () => notifySuccess('Diagramme supprimé.'),
+                onError: (deleteError) => notifyError(deleteError.message),
+              });
             }}
           />
         </Stack>
@@ -135,7 +152,7 @@ function ChartCard({ chart, index, count, baseFilter, context, dashboardName, ca
             </Text>
             <Text size="xs" c="dimmed" truncate>
               {description}
-              {data && ` · ${data.taskCount} tâche${data.taskCount > 1 ? 's' : ''}`}
+              {data && ` · ${countLabel(config, data.taskCount)}`}
             </Text>
           </Stack>
           <Menu position="bottom-end" shadow="md" withinPortal>
@@ -148,12 +165,29 @@ function ChartCard({ chart, index, count, baseFilter, context, dashboardName, ca
               <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={onEdit}>
                 Modifier
               </Menu.Item>
-              <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => duplicateChart.mutate(chart.id, { onError: (copyError) => notifyError(copyError.message) })}>
+              <Menu.Item
+                leftSection={<CopyIcon aria-hidden />}
+                onClick={() =>
+                  duplicateChart.mutate(chart.id, {
+                    onError: (copyError) => notifyError(copyError.message),
+                  })
+                }
+              >
                 Dupliquer
               </Menu.Item>
               <Menu.Item
                 leftSection={<ArrowsHorizontalIcon aria-hidden />}
-                onClick={() => updateChart.mutate({ id: chart.id, input: { title: chart.title, config, wide: !chart.wide } }, { onError: (widthError) => notifyError(widthError.message) })}
+                onClick={() =>
+                  updateChart.mutate(
+                    {
+                      id: chart.id,
+                      input: { title: chart.title, config, wide: !chart.wide },
+                    },
+                    {
+                      onError: (widthError) => notifyError(widthError.message),
+                    },
+                  )
+                }
               >
                 {chart.wide ? 'Demi-largeur' : 'Pleine largeur'}
               </Menu.Item>
@@ -206,6 +240,7 @@ interface DashboardBoardProps {
  * @returns {JSX.Element} Board.
  */
 export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardProps) {
+  const scope = useMemo<ChartScope>(() => ({ baseFilter, projectId }), [baseFilter, projectId]);
   const { context, isPending: contextPending } = useTaskContext();
   const { data: dashboards, isPending, error } = useDashboards(projectId);
   const mutations = useDashboardMutations();
@@ -241,7 +276,14 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       }
       modals.close(modalId);
       if (dashboard) mutations.rename.mutate({ id: dashboard.id, name: result.data }, { onError: (renameError) => notifyError(renameError.message) });
-      else mutations.create.mutate({ name: result.data, projectId }, { onSuccess: (id) => select(id), onError: (createError) => notifyError(createError.message) });
+      else
+        mutations.create.mutate(
+          { name: result.data, projectId },
+          {
+            onSuccess: (id) => select(id),
+            onError: (createError) => notifyError(createError.message),
+          },
+        );
     };
     modals.open({
       modalId,
@@ -280,15 +322,18 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       children: (
         <Stack gap="md">
           <Text size="sm">
-            « {dashboard.name} » et ses {dashboard.charts.length} diagramme{dashboard.charts.length > 1 ? 's' : ''} seront supprimés définitivement. Les tâches ne sont pas
-            modifiées.
+            « {dashboard.name} » et ses {dashboard.charts.length} diagramme
+            {dashboard.charts.length > 1 ? 's' : ''} seront supprimés définitivement. Les données affichées ne sont pas modifiées.
           </Text>
           <DestructiveActions
             loading={false}
             onCancel={() => modals.close(modalId)}
             onConfirm={() => {
               modals.close(modalId);
-              mutations.remove.mutate(dashboard.id, { onSuccess: () => notifySuccess('Tableau de bord supprimé.'), onError: (deleteError) => notifyError(deleteError.message) });
+              mutations.remove.mutate(dashboard.id, {
+                onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
+                onError: (deleteError) => notifyError(deleteError.message),
+              });
             }}
           />
         </Stack>
@@ -297,11 +342,12 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
   };
 
   /**
-   * Opens the chart editor.
+   * Opens the chart editor, for a chart or a new chart of a source.
    * @param {DashboardChart} [chart] Chart to edit. Optional.
+   * @param {ChartSource} [source] Source of a new chart. Optional. Default = tasks.
    * @returns {void}
    */
-  const openEditor = (chart?: DashboardChart) => {
+  const openEditor = (chart?: DashboardChart, source: ChartSource = 'tasks') => {
     if (!context || !current) return;
     const modalId = `chart-${++modalCount}`;
     modals.open({
@@ -312,9 +358,20 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
         <ChartEditor
           dashboardId={current.id}
           chart={chart}
-          initial={chart ? { title: chart.title, config: parseConfig(chart.config), wide: chart.wide } : { title: 'Tâches créées par semaine', config: defaultChartConfig(), wide: false }}
-          baseFilter={baseFilter}
-          projectId={projectId}
+          initial={
+            chart
+              ? {
+                  title: chart.title,
+                  config: parseConfig(chart.config),
+                  wide: chart.wide,
+                }
+              : {
+                  title: NEW_CHART_TITLES[source],
+                  config: defaultChartConfig(source),
+                  wide: false,
+                }
+          }
+          scope={scope}
           context={context}
           onDone={() => modals.close(modalId)}
         />
@@ -329,7 +386,12 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
   const exportDashboard = () => {
     if (!current) return;
     setExporting(true);
-    Promise.all(current.charts.map((chart) => captures.current.get(chart.id)).filter((capture) => capture !== undefined).map((capture) => capture()))
+    Promise.all(
+      current.charts
+        .map((chart) => captures.current.get(chart.id))
+        .filter((capture) => capture !== undefined)
+        .map((capture) => capture()),
+    )
       .then((charts) =>
         downloadChartsPdf({
           title: `${title} — ${current.name}`,
@@ -387,9 +449,24 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           </Tabs.List>
         </Tabs>
         <Group gap="xs">
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openEditor()}>
-            Nouveau diagramme
-          </Button>
+          <Menu position="bottom-end" shadow="md">
+            <Menu.Target>
+              <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
+                Nouveau diagramme
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item leftSection={<CheckSquareOffsetIcon aria-hidden />} onClick={() => openEditor(undefined, 'tasks')}>
+                Tâches
+              </Menu.Item>
+              <Menu.Item leftSection={<ReceiptIcon aria-hidden />} onClick={() => openEditor(undefined, 'documents')}>
+                Facturation (devis, factures…)
+              </Menu.Item>
+              <Menu.Item leftSection={<BankIcon aria-hidden />} onClick={() => openEditor(undefined, 'treasury')}>
+                Trésorerie
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
           <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
             Exporter en PDF
           </Button>
@@ -440,7 +517,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
               chart={chart}
               index={chartIndex}
               count={current.charts.length}
-              baseFilter={baseFilter}
+              scope={scope}
               context={context}
               dashboardName={`${title} — ${current.name}`}
               captures={captures}

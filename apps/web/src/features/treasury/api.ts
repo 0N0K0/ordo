@@ -132,19 +132,29 @@ const RealizeForecast = graphql(`
 
 /**
  * Treasury accounts with their balance today.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
  */
-export function useTreasuryAccounts() {
-  return useQuery({ queryKey: [...treasuryKey, 'accounts'], queryFn: async () => (await execute(AccountsDocument)).treasuryAccounts });
+export function useTreasuryAccounts(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: [...treasuryKey, 'accounts'],
+    queryFn: async () => (await execute(AccountsDocument)).treasuryAccounts,
+  });
 }
 
 /**
  * Entries between two dates, latest first.
  * @param {{ from: string, to: string, accountId: string | null }} filter Period and account.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
  */
-export function useTreasuryEntries(filter: { from: string; to: string; accountId: string | null }) {
-  return useQuery({ queryKey: [...treasuryKey, 'entries', filter], queryFn: async () => (await execute(EntriesDocument, filter)).treasuryEntries });
+export function useTreasuryEntries(filter: { from: string; to: string; accountId: string | null }, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: [...treasuryKey, 'entries', filter],
+    queryFn: async () => (await execute(EntriesDocument, filter)).treasuryEntries,
+  });
 }
 
 /**
@@ -158,10 +168,15 @@ export function useForecastEntries() {
 /**
  * Balance over a period: actual until today, forecast after, with the expected movements.
  * @param {{ today: string, from: string, until: string }} variables Today and period.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
  */
-export function useTreasuryProjection(variables: { today: string; from: string; until: string }) {
-  return useQuery({ queryKey: [...treasuryKey, 'projection', variables], queryFn: async () => (await execute(ProjectionDocument, variables)).treasuryProjection });
+export function useTreasuryProjection(variables: { today: string; from: string; until: string }, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: [...treasuryKey, 'projection', variables],
+    queryFn: async () => (await execute(ProjectionDocument, variables)).treasuryProjection,
+  });
 }
 
 /**

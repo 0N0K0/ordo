@@ -43,7 +43,10 @@ graphql(`
       category
     }
     balance
+    paid
     overdue
+    sentAt
+    acceptedAt
   }
 `);
 
@@ -273,10 +276,12 @@ const MoveProjectResource = graphql(`
 /**
  * Documents (recurring models excluded), latest first, optionally of a client or a project.
  * @param {{ clientId?: string, projectId?: string }} [filter] Filter. Optional.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
  */
-export function useAccountingDocuments(filter: { clientId?: string; projectId?: string } = {}) {
+export function useAccountingDocuments(filter: { clientId?: string; projectId?: string } = {}, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [...accountingQueryKey, 'documents', filter],
     queryFn: async () => (await execute(DocumentsDocument, filter)).accountingDocuments,
   });
@@ -441,10 +446,12 @@ export type { ImportedDocumentInput };
 /**
  * Imported quotes and invoices, optionally of a client or a project.
  * @param {{ clientId?: string, projectId?: string }} [filter] Filter. Optional.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
  */
-export function useImportedDocuments(filter: { clientId?: string; projectId?: string } = {}) {
+export function useImportedDocuments(filter: { clientId?: string; projectId?: string } = {}, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [...accountingQueryKey, 'imported', filter],
     queryFn: async () => (await execute(ImportedDocumentsDocument, filter)).importedDocuments,
   });

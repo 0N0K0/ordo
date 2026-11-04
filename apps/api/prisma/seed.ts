@@ -502,11 +502,11 @@ for (const [title, offset, days, categoryId] of [
   });
 }
 
-// --- Sprints and dashboards --------------------------------------------------------------------------------
-await seedSprintsAndDashboards({ projects, today });
-
 // --- Accounting -------------------------------------------------------------------------------------------
 await seedAccounting({ clients, projects, today });
+
+// --- Sprints and dashboards (after the accounting: finance charts filter its accounts and statuses) ------------
+await seedSprintsAndDashboards({ projects, today });
 
 // --- Mailbox ----------------------------------------------------------------------------------------------
 await seedMailbox({ projects, today });
