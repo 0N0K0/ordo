@@ -43,7 +43,7 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
   };
 
   return (
-    <HomeCard title="Chrono et alarmes" icon={<TimerIcon aria-hidden />} loading={!context || running.isPending}>
+    <HomeCard title="Chrono et alarmes" icon={<TimerIcon aria-hidden />} to="/time" linkLabel="Tous les chronos" loading={!context || running.isPending}>
       {context && !running.isPending && (
         <Stack gap="sm">
           {running.data ? <RunningTimer key={running.data.id} entry={running.data} context={context} /> : <TimerStartForm context={context} />}

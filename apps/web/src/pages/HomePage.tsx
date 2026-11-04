@@ -75,7 +75,7 @@ export function HomePage() {
           to="/tasks"
           loading={!myTasks.tasks}
         />
-        <StatTile label="Temps cette semaine" value={formatDuration(time?.week ?? 0)} hint={`Aujourd’hui : ${formatDuration(time?.today ?? 0)}`} loading={!time} />
+        <StatTile label="Temps cette semaine" value={formatDuration(time?.week ?? 0)} hint={`Aujourd’hui : ${formatDuration(time?.today ?? 0)}`} to="/time" loading={!time} />
         <StatTile
           label="Mails non lus"
           value={hasMail ? (unread.data ?? '—') : '—'}

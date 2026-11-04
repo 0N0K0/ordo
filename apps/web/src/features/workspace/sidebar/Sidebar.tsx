@@ -3,6 +3,8 @@ import {
   Alert,
   Button,
   CloseButton,
+  Collapse,
+  Divider,
   Group,
   Menu,
   NavLink,
@@ -19,9 +21,11 @@ import {
   AlarmIcon,
   BankIcon,
   CalendarBlankIcon,
+  CaretDownIcon,
   ChartBarIcon,
   CheckIcon,
   CheckSquareOffsetIcon,
+  EnvelopeSimpleIcon,
   FolderOpenIcon,
   FolderPlusIcon,
   GearSixIcon,
@@ -30,10 +34,11 @@ import {
   PlusIcon,
   ReceiptIcon,
   SortAscendingIcon,
+  TimerIcon,
   UserPlusIcon,
   UsersThreeIcon,
 } from '@phosphor-icons/react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { ErrorIcon } from '../../../components/feedback-icons';
 import { useWorkspace } from '../api';
@@ -49,8 +54,9 @@ import {
   type TreeSection,
 } from '../tree';
 import { useEntityActions, type EntityRef } from '../use-entity-actions';
-import { MailNavLink } from '../../mail/MailNavLink';
+import { MailNavBadge } from '../../mail/MailNavBadge';
 import { ActiveTree } from './ActiveTree';
+import { AgendaNavBadge, TasksNavBadge, TimeNavBadge, TreasuryNavBadge } from './NavBadges';
 import { SidebarSection } from './SidebarSection';
 import { StaticTree } from './StaticTrees';
 import { TreeExpansionContext, type TreeExpansion } from './tree-expansion';
@@ -104,6 +110,52 @@ function TreeSkeleton() {
   );
 }
 
+interface MenuLink {
+  to: string;
+  label: string;
+  icon: ReactNode;
+  badge?: ReactNode;
+  /** First of its group: a separator above it. */
+  groupStart?: boolean;
+}
+
+/** Menu below « Accueil », in groups; the first ones always show, the others fold behind « Plus ». */
+const MENU_LINKS: MenuLink[] = [
+  { to: '/tasks', label: 'Mes tâches', icon: <CheckSquareOffsetIcon aria-hidden />, badge: <TasksNavBadge />, groupStart: true },
+  { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
+  { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge />, groupStart: true },
+  { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },
+  { to: '/mail', label: 'Mails', icon: <EnvelopeSimpleIcon aria-hidden />, badge: <MailNavBadge />, groupStart: true },
+  { to: '/accounting', label: 'Facturation', icon: <ReceiptIcon aria-hidden />, groupStart: true },
+  { to: '/treasury', label: 'Trésorerie', icon: <BankIcon aria-hidden />, badge: <TreasuryNavBadge /> },
+  { to: '/documents', label: 'Documents', icon: <FolderOpenIcon aria-hidden />, groupStart: true },
+  { to: '/dashboards', label: 'Tableaux de bord', icon: <ChartBarIcon aria-hidden />, groupStart: true },
+];
+const ALWAYS_SHOWN = 3;
+const MORE_LINKS = MENU_LINKS.slice(ALWAYS_SHOWN);
+
+/**
+ * Whether a menu link is the page open (or one of its sub-pages).
+ * @param {string} to Link.
+ * @param {string} pathname Current path.
+ * @returns {boolean} True when active.
+ */
+const isActive = (to: string, pathname: string) => pathname === to || pathname.startsWith(`${to}/`);
+
+/**
+ * Entries of the menu, with a separator above the first of each group.
+ * @param {{ links: MenuLink[], pathname: string }} props Component props.
+ * @returns {JSX.Element} Entries.
+ */
+function MenuLinks({ links, pathname }: { links: MenuLink[]; pathname: string }) {
+  return links.map((item) => (
+    <Fragment key={item.to}>
+      {item.groupStart && <Divider my={4} />}
+      <NavLink component={Link} to={item.to} label={item.label} leftSection={item.icon} rightSection={item.badge} active={isActive(item.to, pathname)} />
+    </Fragment>
+  ));
+}
+
 /**
  * Sidebar with the client and project tree: search, sort, favorites, active items and archives.
  * @returns {JSX.Element} Sidebar content.
@@ -122,6 +174,11 @@ export function Sidebar() {
     key: 'ordo.sidebar.sections',
     defaultValue: { favorites: true, active: true, archives: false },
   });
+  const [moreOpen, setMoreOpen] = useLocalStorage<boolean>({
+    key: 'ordo.sidebar.more',
+    defaultValue: false,
+  });
+  const activeMore = MORE_LINKS.find((item) => isActive(item.to, pathname));
   const [collapsed, setCollapsed] = useLocalStorage<string[]>({
     key: 'ordo.sidebar.collapsed',
     defaultValue: [],
@@ -217,55 +274,27 @@ export function Sidebar() {
         leftSection={<HouseIcon aria-hidden />}
         active={pathname === '/'}
       />
+      <MenuLinks links={MENU_LINKS.slice(0, ALWAYS_SHOWN)} pathname={pathname} />
+      {/* Collapsed: the page open stays reachable. */}
+      {!moreOpen && activeMore && <MenuLinks links={[{ ...activeMore, groupStart: true }]} pathname={pathname} />}
+      <Collapse expanded={moreOpen} transitionDuration={150}>
+        <MenuLinks links={MORE_LINKS} pathname={pathname} />
+      </Collapse>
       <NavLink
-        component={Link}
-        to="/tasks"
-        label="Mes tâches"
-        leftSection={<CheckSquareOffsetIcon aria-hidden />}
-        active={pathname === '/tasks'}
-      />
-      <NavLink
-        component={Link}
-        to="/calendar"
-        label="Agenda"
-        leftSection={<CalendarBlankIcon aria-hidden />}
-        active={pathname === '/calendar'}
-      />
-      <MailNavLink active={pathname === '/mail'} />
-      <NavLink
-        component={Link}
-        to="/accounting"
-        label="Facturation"
-        leftSection={<ReceiptIcon aria-hidden />}
-        active={pathname.startsWith('/accounting')}
-      />
-      <NavLink
-        component={Link}
-        to="/treasury"
-        label="Trésorerie"
-        leftSection={<BankIcon aria-hidden />}
-        active={pathname === '/treasury'}
-      />
-      <NavLink
-        component={Link}
-        to="/documents"
-        label="Documents"
-        leftSection={<FolderOpenIcon aria-hidden />}
-        active={pathname === '/documents'}
-      />
-      <NavLink
-        component={Link}
-        to="/dashboards"
-        label="Tableaux de bord"
-        leftSection={<ChartBarIcon aria-hidden />}
-        active={pathname === '/dashboards'}
-      />
-      <NavLink
-        component={Link}
-        to="/alarms"
-        label="Alarmes"
-        leftSection={<AlarmIcon aria-hidden />}
-        active={pathname === '/alarms'}
+        component="button"
+        label={moreOpen ? 'Moins' : 'Plus'}
+        leftSection={
+          <CaretDownIcon
+            aria-hidden
+            style={{
+              transform: moreOpen ? 'rotate(180deg)' : undefined,
+              transition: 'transform 150ms ease',
+            }}
+          />
+        }
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen(!moreOpen)}
+        c="dimmed"
         style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}
       />
       <Group gap="xs" p="sm" wrap="nowrap">

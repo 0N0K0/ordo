@@ -100,11 +100,11 @@ export function useTimeEntries(projectId: string) {
 }
 
 /**
- * Time entries of every project started since a moment (time of the week on the home page).
- * @param {string} since Moment (ISO date-time).
+ * Time entries of every project, latest first, started since a moment or all of them.
+ * @param {string | null} since Moment (ISO date-time), or null for every entry.
  * @returns {UseQueryResult} Query state.
  */
-export function useTimeEntriesSince(since: string) {
+export function useTimeEntriesSince(since: string | null) {
   return useQuery({
     queryKey: [...timeQueryKey, 'since', since],
     queryFn: async () => (await execute(TimeEntriesDocument, { since })).timeEntries,

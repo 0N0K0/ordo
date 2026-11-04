@@ -20,6 +20,7 @@ import { SettingsPage } from './features/workspace/pages/SettingsPage';
 import { AppLayout } from './layouts/AppLayout';
 import { HomePage } from './pages/HomePage';
 import { TasksPage } from './pages/TasksPage';
+import { TimePage } from './pages/TimePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: 'tasks', element: <TasksPage /> },
+          { path: 'time', element: <TimePage /> },
           { path: 'account', element: <AccountPage /> },
           { path: 'alarms', element: <AlarmsPage /> },
           { path: 'mail', element: <MailPage /> },

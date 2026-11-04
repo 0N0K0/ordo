@@ -155,7 +155,7 @@ interface TimeCardProps {
 export function TimeCard({ context, time }: TimeCardProps) {
   const max = time?.byProject[0]?.seconds ?? 0;
   return (
-    <HomeCard title="Temps passé" icon={<ClockIcon aria-hidden />} loading={!time || !context}>
+    <HomeCard title="Temps passé" icon={<ClockIcon aria-hidden />} to="/time" loading={!time || !context}>
       {time && context && (
         <Stack gap="sm">
           <SimpleGrid cols={2}>
