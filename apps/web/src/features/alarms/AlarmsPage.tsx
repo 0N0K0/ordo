@@ -29,8 +29,8 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { describeAlarm } from './alarm-labels';
-import { AlarmForm } from './AlarmForm';
 import { useAlarmMutations, useAlarms, type Alarm } from './api';
+import { useAlarmForm } from './use-alarm-form';
 
 const nextFormat = new Intl.DateTimeFormat('fr-FR', {
   weekday: 'short',
@@ -39,8 +39,6 @@ const nextFormat = new Intl.DateTimeFormat('fr-FR', {
   hour: '2-digit',
   minute: '2-digit',
 });
-
-let modalCount = 0;
 
 /**
  * Alarm fields to send back unchanged, with some changes.
@@ -97,27 +95,7 @@ export function AlarmsPage() {
     'Notification' in window ? Notification.permission : 'denied',
   );
 
-  /**
-   * Opens the alarm form.
-   * @param {Alarm} [alarm] Alarm to edit. Optional.
-   * @returns {void}
-   */
-  const openForm = (alarm?: Alarm) => {
-    if (!context) return;
-    const modalId = `alarm-${++modalCount}`;
-    modals.open({
-      modalId,
-      title: alarm ? 'Modifier l’alarme' : 'Nouvelle alarme',
-      size: 'lg',
-      children: (
-        <AlarmForm
-          context={context}
-          alarm={alarm}
-          onDone={() => modals.close(modalId)}
-        />
-      ),
-    });
-  };
+  const openForm = useAlarmForm(context);
 
   /**
    * Asks for confirmation before deleting an alarm.

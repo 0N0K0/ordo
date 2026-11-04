@@ -61,9 +61,10 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
 
 /**
  * Timer in the app header, on every page: the running timer, or a button starting one.
+ * @param {{ defaultProjectId?: string, compact?: boolean }} props Component props: project preselected to start a timer, icon only.
  * @returns {JSX.Element | null} Widget.
  */
-export function TimerWidget() {
+export function TimerWidget({ defaultProjectId, compact }: { defaultProjectId?: string; compact?: boolean }) {
   const { context } = useTaskContext();
   const running = useRunningTimer();
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -73,11 +74,19 @@ export function TimerWidget() {
   return (
     <Popover opened={opened} onChange={(value) => !value && close()} width={380} position="bottom-end" shadow="md" trapFocus>
       <Popover.Target>
-        <Button size="xs" variant="light" leftSection={<PlayIcon aria-hidden />} onClick={toggle}>
-          Chrono
-        </Button>
+        {compact ? (
+          <Tooltip label="Lancer un chrono">
+            <ActionIcon size="input-xs" variant="light" aria-label="Lancer un chrono" onClick={toggle}>
+              <PlayIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+        ) : (
+          <Button size="xs" variant="light" leftSection={<PlayIcon aria-hidden />} onClick={toggle}>
+            Chrono
+          </Button>
+        )}
       </Popover.Target>
-      <Popover.Dropdown>{context && <TimerStartForm context={context} popover onStarted={close} />}</Popover.Dropdown>
+      <Popover.Dropdown>{context && <TimerStartForm key={defaultProjectId} context={context} defaultProjectId={defaultProjectId} popover onStarted={close} />}</Popover.Dropdown>
     </Popover>
   );
 }
