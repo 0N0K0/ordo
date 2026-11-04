@@ -260,14 +260,15 @@ builder.queryFields((t) => ({
   }),
   mailMessages: t.field({
     type: MailPage,
-    description: 'A page of a folder, latest first.',
+    description: 'A page of a folder, latest first (optionally the unread messages only).',
     args: {
       accountId: t.arg.id({ required: true }),
       folder: t.arg.string({ required: true }),
       page: t.arg.int({ required: true }),
       search: t.arg.string(),
+      unread: t.arg.boolean(),
     },
-    resolve: (_root, { accountId, folder, page, search }) => reader.listMessages(accountId, folder, Math.max(0, page), search ?? ''),
+    resolve: (_root, { accountId, folder, page, search, unread }) => reader.listMessages(accountId, folder, Math.max(0, page), search ?? '', unread ?? false),
   }),
   mailMessage: t.field({
     type: MailView,

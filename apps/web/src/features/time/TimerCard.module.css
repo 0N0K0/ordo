@@ -11,4 +11,22 @@
       color: var(--mantine-color-dimmed);
     }
   }
+
+  /* Project and tasks side by side, one under the other when the space is short. */
+  .fields {
+    /* Agencement */
+    display: flex;
+    flex-wrap: wrap;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-sm);
+
+    & > * {
+      /* Agencement */
+      flex: 1 1 var(--timer-field-min, 16rem);
+
+      /* Dimension */
+      min-width: 0;
+    }
+  }
 }

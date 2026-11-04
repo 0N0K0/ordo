@@ -137,7 +137,7 @@ type Documents = {
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": typeof types.LinkedMailFieldsFragmentDoc,
     "\n  query MailAccounts {\n    mailAccounts {\n      ...MailAccountFields\n    }\n  }\n": typeof types.MailAccountsDocument,
     "\n  query MailFolders($accountId: ID!) {\n    mailFolders(accountId: $accountId) {\n      path\n      name\n      specialUse\n      unseen\n      depth\n    }\n  }\n": typeof types.MailFoldersDocument,
-    "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n": typeof types.MailMessagesDocument,
+    "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n": typeof types.MailMessagesDocument,
     "\n  query MailMessage($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailMessage(accountId: $accountId, folder: $folder, uid: $uid) {\n      ...MailViewFields\n    }\n  }\n": typeof types.MailMessageDocument,
     "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n": typeof types.UnreadMailCountDocument,
     "\n  query ProjectMails($projectId: ID!) {\n    projectMails(projectId: $projectId) {\n      ...LinkedMailFields\n    }\n  }\n": typeof types.ProjectMailsDocument,
@@ -219,7 +219,7 @@ type Documents = {
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": typeof types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": typeof types.DeleteSprintDocument,
     "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n  }\n": typeof types.TimeEntryFieldsFragmentDoc,
-    "\n  query TimeEntries($projectId: ID) {\n    timeEntries(projectId: $projectId) {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.TimeEntriesDocument,
+    "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": typeof types.StartTimerDocument,
     "\n  mutation SetTimerPaused($paused: Boolean!) {\n    setTimerPaused(paused: $paused) {\n      id\n    }\n  }\n": typeof types.SetTimerPausedDocument,
@@ -388,7 +388,7 @@ const documents: Documents = {
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": types.LinkedMailFieldsFragmentDoc,
     "\n  query MailAccounts {\n    mailAccounts {\n      ...MailAccountFields\n    }\n  }\n": types.MailAccountsDocument,
     "\n  query MailFolders($accountId: ID!) {\n    mailFolders(accountId: $accountId) {\n      path\n      name\n      specialUse\n      unseen\n      depth\n    }\n  }\n": types.MailFoldersDocument,
-    "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n": types.MailMessagesDocument,
+    "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n": types.MailMessagesDocument,
     "\n  query MailMessage($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailMessage(accountId: $accountId, folder: $folder, uid: $uid) {\n      ...MailViewFields\n    }\n  }\n": types.MailMessageDocument,
     "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n": types.UnreadMailCountDocument,
     "\n  query ProjectMails($projectId: ID!) {\n    projectMails(projectId: $projectId) {\n      ...LinkedMailFields\n    }\n  }\n": types.ProjectMailsDocument,
@@ -470,7 +470,7 @@ const documents: Documents = {
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": types.DeleteSprintDocument,
     "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n  }\n": types.TimeEntryFieldsFragmentDoc,
-    "\n  query TimeEntries($projectId: ID) {\n    timeEntries(projectId: $projectId) {\n      ...TimeEntryFields\n    }\n  }\n": types.TimeEntriesDocument,
+    "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": types.StartTimerDocument,
     "\n  mutation SetTimerPaused($paused: Boolean!) {\n    setTimerPaused(paused: $paused) {\n      id\n    }\n  }\n": types.SetTimerPausedDocument,
@@ -1008,7 +1008,7 @@ export function graphql(source: "\n  query MailFolders($accountId: ID!) {\n    m
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n"): typeof import('./graphql').MailMessagesDocument;
+export function graphql(source: "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n      }\n    }\n  }\n"): typeof import('./graphql').MailMessagesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1336,7 +1336,7 @@ export function graphql(source: "\n  fragment TimeEntryFields on TimeEntry {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TimeEntries($projectId: ID) {\n    timeEntries(projectId: $projectId) {\n      ...TimeEntryFields\n    }\n  }\n"): typeof import('./graphql').TimeEntriesDocument;
+export function graphql(source: "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n"): typeof import('./graphql').TimeEntriesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

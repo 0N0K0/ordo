@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type {
   LinkedMailFieldsFragment,
@@ -140,8 +140,8 @@ const MailFoldersDocument = graphql(`
 `);
 
 const MailMessagesDocument = graphql(`
-  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {
-    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search) {
+  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {
+    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread) {
       total
       pageSize
       messages {
@@ -354,6 +354,32 @@ export function useMailMessages(params: { accountId: string; folder: string; pag
     placeholderData: keepPreviousData,
     refetchInterval: 60_000,
     retry: false,
+  });
+}
+
+/**
+ * Unread mails of the inbox of every account, latest first (refreshed every two minutes).
+ * @param {string[]} accountIds Accounts.
+ * @returns {{ data: { accountId: string, message: object }[] | undefined, isPending: boolean, error: Error | null }} Mails, loading state and first error.
+ */
+export function useUnreadMails(accountIds: string[]) {
+  return useQueries({
+    queries: accountIds.map((accountId) => ({
+      queryKey: [...mailQueryKey, 'unread-messages', accountId],
+      queryFn: async () => (await execute(MailMessagesDocument, { accountId, folder: 'INBOX', page: 0, search: '', unread: true })).mailMessages,
+      refetchInterval: 120_000,
+      retry: false,
+    })),
+    combine: (results) => ({
+      // An unreachable account leaves out its mails, not the others.
+      data: results.every((result) => result.data || result.error)
+        ? results
+            .flatMap((result, index) => (result.data?.messages ?? []).map((message) => ({ accountId: accountIds[index], message })))
+            .sort((a, b) => String(b.message.date).localeCompare(String(a.message.date)))
+        : undefined,
+      isPending: results.some((result) => result.isPending),
+      error: results.find((result) => result.error)?.error ?? null,
+    }),
   });
 }
 

@@ -1474,6 +1474,7 @@ export type MailMessagesQueryVariables = Exact<{
   folder: string;
   page: number;
   search?: string | null | undefined;
+  unread?: boolean | null | undefined;
 }>;
 
 
@@ -2061,6 +2062,7 @@ export type TimeEntryFieldsFragment = { id: string, projectId: string, descripti
 
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
+  since?: string | null | undefined;
 }>;
 
 
@@ -3960,12 +3962,13 @@ export const MailFoldersDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MailFoldersQuery, MailFoldersQueryVariables>;
 export const MailMessagesDocument = new TypedDocumentString(`
-    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String) {
+    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {
   mailMessages(
     accountId: $accountId
     folder: $folder
     page: $page
     search: $search
+    unread: $unread
   ) {
     total
     pageSize
@@ -4731,8 +4734,8 @@ export const DeleteSprintDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteSprintMutation, DeleteSprintMutationVariables>;
 export const TimeEntriesDocument = new TypedDocumentString(`
-    query TimeEntries($projectId: ID) {
-  timeEntries(projectId: $projectId) {
+    query TimeEntries($projectId: ID, $since: DateTime) {
+  timeEntries(projectId: $projectId, since: $since) {
     ...TimeEntryFields
   }
 }

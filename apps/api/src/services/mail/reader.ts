@@ -147,11 +147,13 @@ export async function unreadInboxes(): Promise<number> {
 }
 
 /**
- * A page of a folder, latest first, optionally filtered by a text search (subject, sender, body).
+ * A page of a folder, latest first, optionally filtered by a text search (subject, sender, body) and to
+ * the unread messages.
  * @param {string} accountId Account.
  * @param {string} folder Folder path.
  * @param {number} page Page, from 0.
  * @param {string} search Text search.
+ * @param {boolean} [unread] Unread messages only. Optional. Default = false.
  * @returns {Promise<{ messages: MailSummary[], total: number }>} Messages and total count.
  */
 export async function listMessages(
@@ -159,18 +161,17 @@ export async function listMessages(
   folder: string,
   page: number,
   search: string,
+  unread = false,
 ): Promise<{ messages: MailSummary[]; total: number }> {
   return withImap(accountId, async (client) => {
     const lock = await client.getMailboxLock(folder);
     try {
-      let uids: number[];
       const query = search.trim();
-      if (query) {
-        uids = ((await client.search({ or: [{ subject: query }, { from: query }, { to: query }, { body: query }] }, { uid: true })) ||
-          []) as number[];
-      } else {
-        uids = ((await client.search({ all: true }, { uid: true })) || []) as number[];
-      }
+      const criteria = {
+        ...(query ? { or: [{ subject: query }, { from: query }, { to: query }, { body: query }] } : {}),
+        ...(unread ? { seen: false } : {}),
+      };
+      const uids = ((await client.search(Object.keys(criteria).length ? criteria : { all: true }, { uid: true })) || []) as number[];
       uids.sort((a, b) => b - a);
       const pageUids = uids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       if (pageUids.length === 0) return { messages: [], total: uids.length };
