@@ -2061,6 +2061,7 @@ export type TimeEntryFieldsFragment = { id: string, projectId: string, descripti
 
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
+  since?: string | null | undefined;
 }>;
 
 
@@ -4731,8 +4732,8 @@ export const DeleteSprintDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteSprintMutation, DeleteSprintMutationVariables>;
 export const TimeEntriesDocument = new TypedDocumentString(`
-    query TimeEntries($projectId: ID) {
-  timeEntries(projectId: $projectId) {
+    query TimeEntries($projectId: ID, $since: DateTime) {
+  timeEntries(projectId: $projectId, since: $since) {
     ...TimeEntryFields
   }
 }

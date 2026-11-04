@@ -21,6 +21,7 @@ import {
   CalendarBlankIcon,
   ChartBarIcon,
   CheckIcon,
+  CheckSquareOffsetIcon,
   FolderOpenIcon,
   FolderPlusIcon,
   GearSixIcon,
@@ -215,6 +216,13 @@ export function Sidebar() {
         label="Accueil"
         leftSection={<HouseIcon aria-hidden />}
         active={pathname === '/'}
+      />
+      <NavLink
+        component={Link}
+        to="/tasks"
+        label="Mes tâches"
+        leftSection={<CheckSquareOffsetIcon aria-hidden />}
+        active={pathname === '/tasks'}
       />
       <NavLink
         component={Link}

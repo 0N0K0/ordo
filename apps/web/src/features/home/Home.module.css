@@ -1,0 +1,28 @@
+@layer app {
+  .tile,
+  .row {
+    /* Agencement */
+    display: block;
+
+    /* Typographie */
+    color: inherit;
+    text-decoration: none;
+
+    /* Arrière-Plan */
+    &:hover {
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    /* Animation */
+    transition: background-color 150ms ease;
+  }
+
+  .row {
+    /* Dimension */
+    border-radius: var(--mantine-radius-sm);
+
+    /* Espacement */
+    margin-inline: calc(var(--mantine-spacing-xs) * -1);
+    padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
+  }
+}

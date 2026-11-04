@@ -219,7 +219,7 @@ type Documents = {
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": typeof types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": typeof types.DeleteSprintDocument,
     "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n  }\n": typeof types.TimeEntryFieldsFragmentDoc,
-    "\n  query TimeEntries($projectId: ID) {\n    timeEntries(projectId: $projectId) {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.TimeEntriesDocument,
+    "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": typeof types.StartTimerDocument,
     "\n  mutation SetTimerPaused($paused: Boolean!) {\n    setTimerPaused(paused: $paused) {\n      id\n    }\n  }\n": typeof types.SetTimerPausedDocument,
@@ -470,7 +470,7 @@ const documents: Documents = {
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": types.DeleteSprintDocument,
     "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n  }\n": types.TimeEntryFieldsFragmentDoc,
-    "\n  query TimeEntries($projectId: ID) {\n    timeEntries(projectId: $projectId) {\n      ...TimeEntryFields\n    }\n  }\n": types.TimeEntriesDocument,
+    "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": types.StartTimerDocument,
     "\n  mutation SetTimerPaused($paused: Boolean!) {\n    setTimerPaused(paused: $paused) {\n      id\n    }\n  }\n": types.SetTimerPausedDocument,
@@ -1336,7 +1336,7 @@ export function graphql(source: "\n  fragment TimeEntryFields on TimeEntry {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TimeEntries($projectId: ID) {\n    timeEntries(projectId: $projectId) {\n      ...TimeEntryFields\n    }\n  }\n"): typeof import('./graphql').TimeEntriesDocument;
+export function graphql(source: "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n"): typeof import('./graphql').TimeEntriesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

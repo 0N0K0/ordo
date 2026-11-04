@@ -23,8 +23,8 @@ graphql(`
 `);
 
 const TimeEntriesDocument = graphql(`
-  query TimeEntries($projectId: ID) {
-    timeEntries(projectId: $projectId) {
+  query TimeEntries($projectId: ID, $since: DateTime) {
+    timeEntries(projectId: $projectId, since: $since) {
       ...TimeEntryFields
     }
   }
@@ -96,6 +96,18 @@ export function useTimeEntries(projectId: string) {
     enabled: Boolean(projectId),
     queryKey: [...timeQueryKey, 'entries', projectId],
     queryFn: async () => (await execute(TimeEntriesDocument, { projectId })).timeEntries,
+  });
+}
+
+/**
+ * Time entries of every project started since a moment (time of the week on the home page).
+ * @param {string} since Moment (ISO date-time).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTimeEntriesSince(since: string) {
+  return useQuery({
+    queryKey: [...timeQueryKey, 'since', since],
+    queryFn: async () => (await execute(TimeEntriesDocument, { since })).timeEntries,
   });
 }
 

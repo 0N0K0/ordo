@@ -118,9 +118,9 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Time entries, latest first: those of a project and its sub-projects, or every entry.',
-    args: { projectId: t.arg.id() },
-    resolve: async (query, _root, { projectId }) => {
+    description: 'Time entries, latest first: those of a project and its sub-projects, or every entry; optionally only those started since a moment.',
+    args: { projectId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
+    resolve: async (query, _root, { projectId, since }) => {
       let projectIds: string[] | undefined;
       if (projectId) {
         const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
@@ -131,7 +131,7 @@ builder.queryFields((t) => ({
       }
       return prisma.timeEntry.findMany({
         ...query,
-        where: projectIds ? { projectId: { in: projectIds } } : {},
+        where: { ...(projectIds ? { projectId: { in: projectIds } } : {}), ...(since ? { startedAt: { gte: since } } : {}) },
         orderBy: { startedAt: 'desc' },
       });
     },
