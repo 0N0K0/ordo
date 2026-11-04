@@ -59,18 +59,20 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
       }}
     >
       <Stack gap="sm">
-        <ProjectSelect
-          context={context}
-          label="Projet"
-          required
-          value={projectId}
-          onChange={(value) => {
-            setProjectId(value);
-            setTaskIds([]);
-          }}
-          {...extra}
-        />
-        <TimeTasksSelect context={context} projectId={projectId} value={taskIds} onChange={setTaskIds} {...extra} />
+        <div className={classes.fields}>
+          <ProjectSelect
+            context={context}
+            label="Projet"
+            required
+            value={projectId}
+            onChange={(value) => {
+              setProjectId(value);
+              setTaskIds([]);
+            }}
+            {...extra}
+          />
+          <TimeTasksSelect context={context} projectId={projectId} value={taskIds} onChange={setTaskIds} {...extra} />
+        </div>
         <Textarea
           label="Description"
           placeholder="Ce que vous faites…"
@@ -184,15 +186,17 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
           </Tooltip>
         </Group>
       </Group>
-      <ProjectSelect
-        context={context}
-        label="Projet"
-        value={entry.projectId}
-        onChange={(projectId) => projectId && save({ projectId, taskIds: [] })}
-        allowDeselect={false}
-        {...extra}
-      />
-      <TimeTasksSelect context={context} projectId={entry.projectId} value={entry.taskIds} onChange={(taskIds) => save({ taskIds })} {...extra} />
+      <div className={classes.fields}>
+        <ProjectSelect
+          context={context}
+          label="Projet"
+          value={entry.projectId}
+          onChange={(projectId) => projectId && save({ projectId, taskIds: [] })}
+          allowDeselect={false}
+          {...extra}
+        />
+        <TimeTasksSelect context={context} projectId={entry.projectId} value={entry.taskIds} onChange={(taskIds) => save({ taskIds })} {...extra} />
+      </div>
       <Textarea
         label="Description"
         placeholder="Ce que vous faites…"
