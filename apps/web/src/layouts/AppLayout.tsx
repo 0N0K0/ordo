@@ -7,10 +7,10 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../features/auth/api';
 import { TaskPanel } from '../features/tasks/TaskPanel';
 import { AlarmCenter } from '../features/alarms/AlarmCenter';
-import { TimerWidget } from '../features/time/TimerWidget';
 import { Sidebar } from '../features/workspace/sidebar/Sidebar';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
+import { QuickActions } from './QuickActions';
 import { useResizableSidebar } from './use-resizable-sidebar';
 
 /**
@@ -67,7 +67,7 @@ export function AppLayout() {
               </Anchor>
             </Group>
             <Group gap="sm" wrap="nowrap">
-              <TimerWidget />
+              <QuickActions />
               <Button
                 component={NavLink}
                 to="/account"
