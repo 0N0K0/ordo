@@ -15,13 +15,13 @@ import * as types from './graphql';
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": typeof types.CompanyProfileFieldsFragmentDoc,
+    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": typeof types.CompanyProfileFieldsFragmentDoc,
     "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": typeof types.CompanyProfileDocument,
     "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": typeof types.DocumentSequencesDocument,
     "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": typeof types.ClientBillingDocument,
     "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": typeof types.UpdateCompanyProfileDocument,
     "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": typeof types.SetCompanyLogoDocument,
-    "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": typeof types.SetDocumentSequenceDocument,
+    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": typeof types.SetDocumentSequenceDocument,
     "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientDetailsDocument,
     "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": typeof types.CreateClientServiceDocument,
     "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientServiceDocument,
@@ -266,13 +266,13 @@ type Documents = {
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
 };
 const documents: Documents = {
-    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": types.CompanyProfileFieldsFragmentDoc,
+    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": types.CompanyProfileFieldsFragmentDoc,
     "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": types.CompanyProfileDocument,
     "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": types.DocumentSequencesDocument,
     "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": types.ClientBillingDocument,
     "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": types.UpdateCompanyProfileDocument,
     "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": types.SetCompanyLogoDocument,
-    "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": types.SetDocumentSequenceDocument,
+    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": types.SetDocumentSequenceDocument,
     "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientDetailsDocument,
     "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": types.CreateClientServiceDocument,
     "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientServiceDocument,
@@ -520,7 +520,7 @@ const documents: Documents = {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n"): typeof import('./graphql').CompanyProfileFieldsFragmentDoc;
+export function graphql(source: "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n"): typeof import('./graphql').CompanyProfileFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -544,7 +544,7 @@ export function graphql(source: "\n  mutation SetCompanyLogo($file: File) {\n   
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n"): typeof import('./graphql').SetDocumentSequenceDocument;
+export function graphql(source: "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n"): typeof import('./graphql').SetDocumentSequenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

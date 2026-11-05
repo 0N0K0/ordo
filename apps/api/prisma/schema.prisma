@@ -811,6 +811,7 @@ model CalendarEventException {
 model CompanyProfile {
   id                String   @id @default("company")
   name              String   @default("")
+  contact           String?
   /// Legal form (SASU, EURL, EI, micro-entreprise…).
   legalForm         String?
   /// Share capital, as written ("1 000 €").

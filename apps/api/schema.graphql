@@ -465,6 +465,7 @@ type CompanyProfile {
   bankName: String
   bic: String
   capital: String
+  contact: String
   email: String
   iban: String
   lateInterest: String!
@@ -494,6 +495,7 @@ input CompanyProfileInput {
   bankName: String!
   bic: String!
   capital: String!
+  contact: String
   email: String!
   iban: String!
   lateInterest: String!
