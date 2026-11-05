@@ -4,24 +4,42 @@ import * as parties from '../../services/client-parties';
 import * as company from '../../services/company';
 import { builder } from '../builder';
 
-export const AccountingDocumentTypeEnum = builder.enumType('AccountingDocumentType', { values: ACCOUNTING_DOCUMENT_TYPES });
+export const AccountingDocumentTypeEnum = builder.enumType(
+  'AccountingDocumentType',
+  { values: ACCOUNTING_DOCUMENT_TYPES },
+);
 
-const ClientKindEnum = builder.enumType('ClientKind', { values: ['COMPANY', 'INDIVIDUAL'] as const });
+const ClientKindEnum = builder.enumType('ClientKind', {
+  values: ['COMPANY', 'INDIVIDUAL'] as const,
+});
 
 builder.prismaObjectFields('Client', (t) => ({
   kind: t.field({ type: ClientKindEnum, resolve: (client) => client.kind }),
   firstName: t.exposeString('firstName', { nullable: true }),
   lastName: t.exposeString('lastName', { nullable: true }),
-  address: t.field({ type: 'JSON', nullable: true, description: 'Postal address { lines, postalCode, city, region, country }.', resolve: (client) => client.address }),
+  address: t.field({
+    type: 'JSON',
+    nullable: true,
+    description: 'Postal address { lines, postalCode, city, region, country }.',
+    resolve: (client) => client.address,
+  }),
   email: t.exposeString('email', { nullable: true }),
-  phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (client) => client.phones }),
+  phones: t.field({
+    type: 'JSON',
+    description: '[{ label, number }]',
+    resolve: (client) => client.phones,
+  }),
   website: t.exposeString('website', { nullable: true }),
   vatNumber: t.exposeString('vatNumber', { nullable: true }),
   siren: t.exposeString('siren', { nullable: true }),
   siret: t.exposeString('siret', { nullable: true }),
   activityCode: t.exposeString('activityCode', { nullable: true }),
-  services: t.relation('services', { query: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } }),
-  contacts: t.relation('contacts', { query: { orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] } }),
+  services: t.relation('services', {
+    query: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
+  }),
+  contacts: t.relation('contacts', {
+    query: { orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] },
+  }),
 }));
 
 builder.prismaObject('ClientService', {
@@ -29,7 +47,11 @@ builder.prismaObject('ClientService', {
     id: t.exposeID('id'),
     clientId: t.exposeID('clientId'),
     name: t.exposeString('name'),
-    address: t.field({ type: 'JSON', nullable: true, resolve: (service) => service.address }),
+    address: t.field({
+      type: 'JSON',
+      nullable: true,
+      resolve: (service) => service.address,
+    }),
     email: t.exposeString('email', { nullable: true }),
     phones: t.field({ type: 'JSON', resolve: (service) => service.phones }),
   }),
@@ -51,6 +73,7 @@ builder.prismaObject('ClientContact', {
 builder.prismaObject('CompanyProfile', {
   fields: (t) => ({
     name: t.exposeString('name'),
+    contact: t.exposeString('contact', { nullable: true }),
     legalForm: t.exposeString('legalForm', { nullable: true }),
     capital: t.exposeString('capital', { nullable: true }),
     registration: t.exposeString('registration', { nullable: true }),
@@ -60,14 +83,19 @@ builder.prismaObject('CompanyProfile', {
     vatNumber: t.exposeString('vatNumber', { nullable: true }),
     vatApplicable: t.exposeBoolean('vatApplicable'),
     vatExemptionText: t.exposeString('vatExemptionText'),
-    address: t.field({ type: 'JSON', nullable: true, resolve: (profile) => profile.address }),
+    address: t.field({
+      type: 'JSON',
+      nullable: true,
+      resolve: (profile) => profile.address,
+    }),
     email: t.exposeString('email', { nullable: true }),
     phone: t.exposeString('phone', { nullable: true }),
     website: t.exposeString('website', { nullable: true }),
     logoUrl: t.string({
       nullable: true,
       select: { logoId: true },
-      resolve: (profile) => (profile.logoId ? `/api/attachments/${profile.logoId}/logo` : null),
+      resolve: (profile) =>
+        profile.logoId ? `/api/attachments/${profile.logoId}/logo` : null,
     }),
     bankName: t.exposeString('bankName', { nullable: true }),
     accountHolder: t.exposeString('accountHolder', { nullable: true }),
@@ -83,14 +111,21 @@ builder.prismaObject('CompanyProfile', {
   }),
 });
 
-const DocumentSequence = builder.objectRef<company.SequenceInfo>('DocumentSequence').implement({
-  fields: (t) => ({
-    type: t.field({ type: AccountingDocumentTypeEnum, resolve: (sequence) => sequence.type }),
-    year: t.exposeInt('year'),
-    nextNumber: t.exposeInt('nextNumber'),
-    minimum: t.exposeInt('minimum', { description: 'Lowest allowed next number.' }),
-  }),
-});
+const DocumentSequence = builder
+  .objectRef<company.SequenceInfo>('DocumentSequence')
+  .implement({
+    fields: (t) => ({
+      type: t.field({
+        type: AccountingDocumentTypeEnum,
+        resolve: (sequence) => sequence.type,
+      }),
+      year: t.exposeInt('year'),
+      nextNumber: t.exposeInt('nextNumber'),
+      minimum: t.exposeInt('minimum', {
+        description: 'Lowest allowed next number.',
+      }),
+    }),
+  });
 
 const ClientDetailsInput = builder.inputType('ClientDetailsInput', {
   fields: (t) => ({
@@ -131,6 +166,7 @@ const ClientContactInput = builder.inputType('ClientContactInput', {
 const CompanyProfileInput = builder.inputType('CompanyProfileInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
+    contact: t.string(),
     legalForm: t.string({ required: true }),
     capital: t.string({ required: true }),
     registration: t.string({ required: true }),
@@ -163,13 +199,17 @@ builder.queryFields((t) => ({
     type: 'Client',
     nullable: true,
     args: { id: t.arg.id({ required: true }) },
-    resolve: (query, _root, { id }) => prisma.client.findUnique({ ...query, where: { id } }),
+    resolve: (query, _root, { id }) =>
+      prisma.client.findUnique({ ...query, where: { id } }),
   }),
   companyProfile: t.prismaField({
     type: 'CompanyProfile',
     resolve: async (query) => {
       await company.getCompanyProfile();
-      return prisma.companyProfile.findUniqueOrThrow({ ...query, where: { id: 'company' } });
+      return prisma.companyProfile.findUniqueOrThrow({
+        ...query,
+        where: { id: 'company' },
+      });
     },
   }),
   documentSequences: t.field({
@@ -184,8 +224,15 @@ builder.mutationFields((t) => ({
     type: 'CompanyProfile',
     args: { input: t.arg({ type: CompanyProfileInput, required: true }) },
     resolve: async (query, _root, { input }) => {
-      await company.updateCompanyProfile({ ...input, address: (input.address ?? null) as never });
-      return prisma.companyProfile.findUniqueOrThrow({ ...query, where: { id: 'company' } });
+      await company.updateCompanyProfile({
+        ...input,
+        contact: (input.contact ?? null) as never,
+        address: (input.address ?? null) as never,
+      });
+      return prisma.companyProfile.findUniqueOrThrow({
+        ...query,
+        where: { id: 'company' },
+      });
     },
   }),
   setCompanyLogo: t.prismaField({
@@ -194,12 +241,20 @@ builder.mutationFields((t) => ({
     args: { file: t.arg({ type: 'File' }) },
     resolve: async (query, _root, { file }) => {
       await company.setCompanyLogo(file ?? null);
-      return prisma.companyProfile.findUniqueOrThrow({ ...query, where: { id: 'company' } });
+      return prisma.companyProfile.findUniqueOrThrow({
+        ...query,
+        where: { id: 'company' },
+      });
     },
   }),
   setDocumentSequence: t.boolean({
-    description: 'Sets the number the next final document of a type gets in a year.',
-    args: { type: t.arg({ type: AccountingDocumentTypeEnum, required: true }), year: t.arg.int({ required: true }), nextNumber: t.arg.int({ required: true }) },
+    description:
+      'Sets the number the next final document of a type gets in a year.',
+    args: {
+      type: t.arg({ type: AccountingDocumentTypeEnum, required: true }),
+      year: t.arg.int({ required: true }),
+      nextNumber: t.arg.int({ required: true }),
+    },
     resolve: async (_root, { type, year, nextNumber }) => {
       await company.setSequenceStart(type, year, nextNumber);
       return true;
@@ -207,28 +262,57 @@ builder.mutationFields((t) => ({
   }),
   updateClientDetails: t.prismaField({
     type: 'Client',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: ClientDetailsInput, required: true }) },
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: ClientDetailsInput, required: true }),
+    },
     resolve: async (query, _root, { id, input }) => {
-      await parties.updateClientDetails(id, { ...input, address: (input.address ?? null) as never, phones: input.phones as never });
+      await parties.updateClientDetails(id, {
+        ...input,
+        address: (input.address ?? null) as never,
+        phones: input.phones as never,
+      });
       return prisma.client.findUniqueOrThrow({ ...query, where: { id } });
     },
   }),
   createClientService: t.prismaField({
     type: 'ClientService',
-    args: { clientId: t.arg.id({ required: true }), input: t.arg({ type: ClientServiceInput, required: true }) },
+    args: {
+      clientId: t.arg.id({ required: true }),
+      input: t.arg({ type: ClientServiceInput, required: true }),
+    },
     resolve: async (query, _root, { clientId, input }) =>
       prisma.clientService.findUniqueOrThrow({
         ...query,
-        where: { id: (await parties.createClientService(clientId, { ...input, address: (input.address ?? null) as never, phones: input.phones as never })).id },
+        where: {
+          id: (
+            await parties.createClientService(clientId, {
+              ...input,
+              address: (input.address ?? null) as never,
+              phones: input.phones as never,
+            })
+          ).id,
+        },
       }),
   }),
   updateClientService: t.prismaField({
     type: 'ClientService',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: ClientServiceInput, required: true }) },
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: ClientServiceInput, required: true }),
+    },
     resolve: async (query, _root, { id, input }) =>
       prisma.clientService.findUniqueOrThrow({
         ...query,
-        where: { id: (await parties.updateClientService(id, { ...input, address: (input.address ?? null) as never, phones: input.phones as never })).id },
+        where: {
+          id: (
+            await parties.updateClientService(id, {
+              ...input,
+              address: (input.address ?? null) as never,
+              phones: input.phones as never,
+            })
+          ).id,
+        },
       }),
   }),
   deleteClientService: t.boolean({
@@ -240,20 +324,42 @@ builder.mutationFields((t) => ({
   }),
   createClientContact: t.prismaField({
     type: 'ClientContact',
-    args: { clientId: t.arg.id({ required: true }), input: t.arg({ type: ClientContactInput, required: true }) },
+    args: {
+      clientId: t.arg.id({ required: true }),
+      input: t.arg({ type: ClientContactInput, required: true }),
+    },
     resolve: async (query, _root, { clientId, input }) =>
       prisma.clientContact.findUniqueOrThrow({
         ...query,
-        where: { id: (await parties.createClientContact(clientId, { ...input, serviceId: input.serviceId ?? null, phones: input.phones as never })).id },
+        where: {
+          id: (
+            await parties.createClientContact(clientId, {
+              ...input,
+              serviceId: input.serviceId ?? null,
+              phones: input.phones as never,
+            })
+          ).id,
+        },
       }),
   }),
   updateClientContact: t.prismaField({
     type: 'ClientContact',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: ClientContactInput, required: true }) },
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: ClientContactInput, required: true }),
+    },
     resolve: async (query, _root, { id, input }) =>
       prisma.clientContact.findUniqueOrThrow({
         ...query,
-        where: { id: (await parties.updateClientContact(id, { ...input, serviceId: input.serviceId ?? null, phones: input.phones as never })).id },
+        where: {
+          id: (
+            await parties.updateClientContact(id, {
+              ...input,
+              serviceId: input.serviceId ?? null,
+              phones: input.phones as never,
+            })
+          ).id,
+        },
       }),
   }),
   deleteClientContact: t.boolean({

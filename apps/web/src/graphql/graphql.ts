@@ -607,12 +607,12 @@ export type TreasuryEntryStatus =
   | 'ACTUAL'
   | 'FORECAST';
 
-export type CompanyProfileFieldsFragment = { name: string, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
+export type CompanyProfileFieldsFragment = { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
 
 export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CompanyProfileQuery = { companyProfile: { name: string, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number } };
+export type CompanyProfileQuery = { companyProfile: { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number } };
 
 export type DocumentSequencesQueryVariables = Exact<{
   year: number;
@@ -2386,6 +2386,7 @@ export class TypedDocumentString<TResult, TVariables>
 export const CompanyProfileFieldsFragmentDoc = new TypedDocumentString(`
     fragment CompanyProfileFields on CompanyProfile {
   name
+  contact
   legalForm
   capital
   registration
@@ -2883,6 +2884,7 @@ export const CompanyProfileDocument = new TypedDocumentString(`
 }
     fragment CompanyProfileFields on CompanyProfile {
   name
+  contact
   legalForm
   capital
   registration
