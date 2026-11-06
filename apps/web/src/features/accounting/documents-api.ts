@@ -349,6 +349,7 @@ function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVar
  * @returns {object} Mutations.
  */
 export function useDocumentMutations() {
+  const queryClient = useQueryClient();
   return {
     create: useAccountingMutation(
       async (variables: { type: AccountingDocumentType; input: AccountingDocumentInput }) =>
@@ -357,7 +358,12 @@ export function useDocumentMutations() {
     update: useAccountingMutation(
       async (variables: { id: string; input: AccountingDocumentInput }) => (await execute(UpdateDocument, variables as never)).updateAccountingDocument,
     ),
-    remove: useAccountingMutation(async (id: string) => (await execute(DeleteDocument, { id })).deleteAccountingDocument),
+    remove: useMutation<boolean, Error, string>({
+      mutationFn: async (id) => (await execute(DeleteDocument, { id })).deleteAccountingDocument,
+      // The deleted document is not fetched again: its page would show « introuvable » before leaving.
+      onSettled: (_result, _error, id) =>
+        queryClient.invalidateQueries({ queryKey: accountingQueryKey, predicate: (query) => !(query.queryKey[1] === 'document' && query.queryKey[2] === id) }),
+    }),
     finalize: useAccountingMutation(async (id: string) => (await execute(FinalizeDocument, { id })).finalizeAccountingDocument),
     createFrom: useAccountingMutation(
       async (variables: { sourceId: string; type: AccountingDocumentType; depositPercent?: number | null; issueDate: string }) =>
