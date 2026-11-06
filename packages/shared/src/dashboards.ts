@@ -64,7 +64,50 @@ export type ChartBucket = (typeof CHART_BUCKETS)[number];
 
 /** Period of a time axis: past or coming, or everything. */
 export const CHART_PERIODS = ['past:28', 'past:91', 'past:182', 'past:365', 'past:730', 'next:91', 'next:182', 'next:365', 'all'] as const;
-export type ChartPeriod = (typeof CHART_PERIODS)[number];
+
+/** Calendar period: a month, quarter or year — the current one (0), the previous one (-1), or a chosen one (its first day). */
+export const CALENDAR_PERIOD = /^(month|quarter|year):(0|-1|\d{4}-\d{2}-\d{2})$/;
+export const CALENDAR_SCALES = ['month', 'quarter', 'year'] as const;
+export type CalendarScale = (typeof CALENDAR_SCALES)[number];
+export type ChartPeriod = (typeof CHART_PERIODS)[number] | `${CalendarScale}:${string}`;
+
+/**
+ * First day of the month, quarter or year of a day.
+ * @param {CalendarScale} scale Scale.
+ * @param {string} day YYYY-MM-DD.
+ * @returns {string} First day.
+ */
+export function calendarStart(scale: CalendarScale, day: string): string {
+  if (scale === 'year') return `${day.slice(0, 4)}-01-01`;
+  const month = Number(day.slice(5, 7)) - 1;
+  return `${day.slice(0, 4)}-${String((scale === 'quarter' ? month - (month % 3) : month) + 1).padStart(2, '0')}-01`;
+}
+
+/**
+ * First day of the month, quarter or year after (or before) another one.
+ * @param {CalendarScale} scale Scale.
+ * @param {string} start First day of a period.
+ * @param {number} delta Periods to move.
+ * @returns {string} First day.
+ */
+export function shiftCalendar(scale: CalendarScale, start: string, delta: number): string {
+  const months = (scale === 'month' ? 1 : scale === 'quarter' ? 3 : 12) * delta;
+  return new Date(Date.UTC(Number(start.slice(0, 4)), Number(start.slice(5, 7)) - 1 + months, 1)).toISOString().slice(0, 10);
+}
+
+/**
+ * First day and day after the last one of a calendar period, or null when the period is not one.
+ * @param {string} period Period ("month:0", "quarter:-1", "year:2026-01-01"…).
+ * @param {string} today User's day.
+ * @returns {[string, string] | null} Range.
+ */
+export function calendarRange(period: string, today: string): [string, string] | null {
+  const match = CALENDAR_PERIOD.exec(period);
+  if (!match) return null;
+  const scale = match[1] as CalendarScale;
+  const start = match[2] === '0' ? calendarStart(scale, today) : match[2] === '-1' ? shiftCalendar(scale, calendarStart(scale, today), -1) : calendarStart(scale, match[2]);
+  return [start, shiftCalendar(scale, start, 1)];
+}
 
 /**
  * Whether a dimension is a date.
@@ -100,6 +143,43 @@ export const treasuryChartFilterSchema = z.object({
 });
 export type TreasuryChartFilter = z.infer<typeof treasuryChartFilterSchema>;
 
+/** Id of the main data set of a chart (its own source, measure and filters). */
+export const MAIN_DATASET = 'main';
+
+/** Additional data set of a chart: its own source, measure and filters, on the axis of the chart. */
+export const chartDatasetSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1, 'Nommez le jeu de données.').max(60, '60 caractères maximum.'),
+  source: z.enum(CHART_SOURCES),
+  measure: z.enum(CHART_MEASURES),
+  /** Date of the records on a time axis (the dates differ between sources); the axis date when null. */
+  dateField: z.enum(CHART_TIME_DIMENSIONS).nullable().default(null),
+  /** Its own series: one per value of this field, or none. */
+  series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
+  /** How it is drawn; the type of the chart when null. */
+  type: z.enum(['bar', 'line', 'area']).nullable().default(null),
+  filter: taskFilterSchema.default(emptyFilter),
+  search: z.string().max(200).default(''),
+  includeArchived: z.boolean().default(false),
+  documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
+  treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
+});
+export type ChartDataset = z.infer<typeof chartDatasetSchema>;
+
+/** Comparison of two data sets (their totals, whatever their series): the share of one in another (percent), or their difference. */
+export const CHART_COMPARISON_KINDS = ['ratio', 'difference'] as const;
+export const chartComparisonSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1, 'Nommez la comparaison.').max(60, '60 caractères maximum.'),
+  kind: z.enum(CHART_COMPARISON_KINDS),
+  /** Data sets compared (MAIN_DATASET or the id of another one): a / b, or a − b. */
+  a: z.string().min(1),
+  b: z.string().min(1),
+  /** How it is drawn. */
+  type: z.enum(['line', 'bar', 'area']).default('line'),
+});
+export type ChartComparison = z.infer<typeof chartComparisonSchema>;
+
 export const chartConfigSchema = z
   .object({
     source: z.enum(CHART_SOURCES).default('tasks'),
@@ -107,7 +187,8 @@ export const chartConfigSchema = z
     /** Axis (categories of a donut). */
     dimension: z.enum(CHART_DIMENSIONS),
     bucket: z.enum(CHART_BUCKETS).default('week'),
-    period: z.enum(CHART_PERIODS).default('past:91'),
+    /** Rolling period (tasks), or a calendar month, quarter or year (invoicing, treasury). */
+    period: z.union([z.enum(CHART_PERIODS), z.string().regex(CALENDAR_PERIOD) as unknown as z.ZodType<`${CalendarScale}:${string}`>]).default('past:91'),
     measure: z.enum(CHART_MEASURES).default('count'),
     /** Series: one line, bar or area per value of this field. */
     series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
@@ -121,6 +202,12 @@ export const chartConfigSchema = z
     includeArchived: z.boolean().default(false),
     documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
     treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
+    /** Name of the main data set (shown when there are several). */
+    name: z.string().trim().max(60, '60 caractères maximum.').default(''),
+    /** Other data sets, drawn on the same axis. */
+    datasets: z.array(chartDatasetSchema).max(8, '8 jeux de données supplémentaires maximum.').default([]),
+    /** Comparisons of data sets (ratio in percent on a right axis, or difference). */
+    comparisons: z.array(chartComparisonSchema).max(8, '8 comparaisons maximum.').default([]),
   })
   .superRefine((config, context) => {
     const source = config.source;
@@ -134,6 +221,31 @@ export const chartConfigSchema = z
     if (source === 'treasury' && config.measure === 'balance' && !isTimeDimension(config.dimension)) {
       issue('measure', 'Le solde se suit dans le temps : choisissez la date comme axe.');
     }
+    if (config.datasets.length || config.comparisons.length) {
+      if (config.type === 'donut' || config.type === 'burndown') issue('type', 'Plusieurs jeux de données se comparent en barres, courbes ou aires.');
+    }
+    const ids = new Set([MAIN_DATASET]);
+    const time = isTimeDimension(config.dimension);
+    config.datasets.forEach((dataset, index) => {
+      const path = (field: string) => ['datasets', index, field];
+      if (ids.has(dataset.id)) context.addIssue({ code: 'custom', path: path('id'), message: 'Jeu de données en double.' });
+      ids.add(dataset.id);
+      if (!SOURCE_MEASURES[dataset.source].includes(dataset.measure)) context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : mesure indisponible pour sa source.` });
+      if (dataset.source === 'treasury' && dataset.measure === 'balance') context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : le solde ne se compare pas.` });
+      if (dataset.series && (!SOURCE_GROUP_DIMENSIONS[dataset.source].includes(dataset.series) || dataset.series === config.dimension)) {
+        context.addIssue({ code: 'custom', path: path('series'), message: `« ${dataset.name} » : séries indisponibles.` });
+      }
+      if (time) {
+        const field = dataset.dateField ?? config.dimension;
+        if (!SOURCE_TIME_DIMENSIONS[dataset.source].includes(field)) context.addIssue({ code: 'custom', path: path('dateField'), message: `« ${dataset.name} » : choisissez sa date.` });
+      } else if (!SOURCE_GROUP_DIMENSIONS[dataset.source].includes(config.dimension as ChartGroupDimension)) {
+        context.addIssue({ code: 'custom', path: path('source'), message: `« ${dataset.name} » : l’axe n’existe pas pour sa source.` });
+      }
+    });
+    config.comparisons.forEach((comparison, index) => {
+      if (!ids.has(comparison.a) || !ids.has(comparison.b)) context.addIssue({ code: 'custom', path: ['comparisons', index, 'a'], message: `« ${comparison.name} » : jeu de données introuvable.` });
+      if (comparison.a === comparison.b) context.addIssue({ code: 'custom', path: ['comparisons', index, 'b'], message: `« ${comparison.name} » : comparez deux jeux différents.` });
+    });
   });
 export type ChartConfig = z.infer<typeof chartConfigSchema>;
 
@@ -153,11 +265,11 @@ export function defaultChartConfig(source: ChartSource = 'tasks'): ChartConfig {
       type: 'bar',
       dimension: 'issueDate',
       bucket: 'month',
-      period: 'past:365',
+      period: 'year:0',
       measure: 'totalNet',
       documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] },
     });
   }
-  if (source === 'treasury') return chartConfigSchema.parse({ source, type: 'bar', dimension: 'date', bucket: 'month', period: 'past:365', measure: 'amount', series: 'direction' });
+  if (source === 'treasury') return chartConfigSchema.parse({ source, type: 'bar', dimension: 'date', bucket: 'month', period: 'year:0', measure: 'amount', series: 'direction' });
   return chartConfigSchema.parse({ type: 'bar', dimension: 'createdAt', filter: emptyFilter() });
 }

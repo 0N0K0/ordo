@@ -826,12 +826,43 @@ export interface TaskQuery {
  * @returns {UseQueryResult<string[]>} Query state; previous ids are kept while a new filter loads.
  */
 export function useMatchingTaskIds(query: TaskQuery | null) {
-  return useQuery({
+  return useQuery({ ...matchingTaskIdsQuery(query), placeholderData: (previous) => previous });
+}
+
+const MatchingTaskIdsBySprintDocument = graphql(`
+  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {
+    matchingTaskIdsBySprint(query: $query) {
+      sprintId
+      taskIds
+    }
+  }
+`);
+
+/**
+ * Query of the tasks of each ended sprint matching a filter at the end of the sprint (its status conditions on
+ * the statuses of then), as a map of sets.
+ * @param {TaskQuery | null} query Filter, search and user clock; null: not loaded.
+ * @returns {object} Query options.
+ */
+export function matchingTaskIdsBySprintQuery(query: TaskQuery | null) {
+  return {
+    enabled: query !== null,
+    queryKey: [...tasksQueryKey, 'matching-by-sprint', query],
+    queryFn: async () => new Map((await execute(MatchingTaskIdsBySprintDocument, { query: query! })).matchingTaskIdsBySprint.map((item) => [item.sprintId, new Set(item.taskIds)])),
+  };
+}
+
+/**
+ * Query of the ids of the tasks matching a filter (for several queries at once).
+ * @param {TaskQuery | null} query Filter, search and user clock; null: not loaded.
+ * @returns {object} Query options.
+ */
+export function matchingTaskIdsQuery(query: TaskQuery | null) {
+  return {
     enabled: query !== null,
     queryKey: [...tasksQueryKey, 'matching', query],
     queryFn: async () => (await execute(MatchingTaskIdsDocument, { query: query! })).matchingTaskIds,
-    placeholderData: (previous) => previous,
-  });
+  };
 }
 
 /**

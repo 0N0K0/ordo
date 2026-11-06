@@ -1,12 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { DashboardsQuery } from '../../graphql/graphql';
+import type { DashboardsQuery, SprintTaskStatusesQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 
 export type Dashboard = DashboardsQuery['dashboards'][number];
 export type DashboardChart = Dashboard['charts'][number];
 
 const dashboardsKey = ['dashboards'] as const;
+
+export type SprintTaskStatus = SprintTaskStatusesQuery['sprintTaskStatuses'][number];
+
+const SprintTaskStatusesDocument = graphql(`
+  query SprintTaskStatuses($today: Date!) {
+    sprintTaskStatuses(today: $today) {
+      sprintId
+      taskId
+      statusId
+      closed
+    }
+  }
+`);
+
+/**
+ * Status of the tasks of the ended sprints at the end of each sprint, by "sprint|task".
+ * @param {string} today User's day.
+ * @param {boolean} enabled Loaded (charts by sprint or filtered on it).
+ * @returns {UseQueryResult<Map<string, SprintTaskStatus>>} Query state.
+ */
+export function useSprintTaskStatuses(today: string, enabled: boolean) {
+  return useQuery({
+    enabled,
+    queryKey: ['tasks', 'sprint-statuses', today],
+    queryFn: async () => new Map((await execute(SprintTaskStatusesDocument, { today })).sprintTaskStatuses.map((item) => [`${item.sprintId}|${item.taskId}`, item])),
+  });
+}
 
 const DashboardsDocument = graphql(`
   query Dashboards($projectId: ID) {
@@ -62,6 +89,11 @@ const DuplicateChart = graphql(`
     duplicateDashboardChart(id: $id)
   }
 `);
+const TransferChart = graphql(`
+  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {
+    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)
+  }
+`);
 const DeleteChart = graphql(`
   mutation DeleteDashboardChart($id: ID!) {
     deleteDashboardChart(id: $id)
@@ -108,12 +140,39 @@ export function useDashboardMutations() {
     rename: useDashboardMutation(async (variables: { id: string; name: string }) => (await execute(RenameDashboard, variables)).renameDashboard),
     remove: useDashboardMutation(async (id: string) => (await execute(DeleteDashboard, { id })).deleteDashboard),
     move: useDashboardMutation(async (variables: { id: string; index: number }) => (await execute(MoveDashboard, variables)).moveDashboard),
-    createChart: useDashboardMutation(
-      async (variables: { dashboardId: string; input: ChartValues }) => (await execute(CreateChart, variables)).createDashboardChart,
-    ),
+    createChart: useDashboardMutation(async (variables: { dashboardId: string; input: ChartValues }) => (await execute(CreateChart, variables)).createDashboardChart),
     updateChart: useDashboardMutation(async (variables: { id: string; input: ChartValues }) => (await execute(UpdateChart, variables)).updateDashboardChart),
     duplicateChart: useDashboardMutation(async (id: string) => (await execute(DuplicateChart, { id })).duplicateDashboardChart),
+    transferChart: useDashboardMutation(async (variables: { id: string; dashboardId: string | null; projectId: string | null }) => (await execute(TransferChart, variables)).transferDashboardChart),
     removeChart: useDashboardMutation(async (id: string) => (await execute(DeleteChart, { id })).deleteDashboardChart),
-    moveChart: useDashboardMutation(async (variables: { id: string; index: number }) => (await execute(MoveChart, variables)).moveDashboardChart),
+    moveChart: useMoveChart(),
   };
+}
+
+/**
+ * Moves a chart in its dashboard, reordering the cached dashboards at once (drag and drop).
+ * @returns {UseMutationResult} Mutation state.
+ */
+function useMoveChart() {
+  const queryClient = useQueryClient();
+  return useMutation<boolean, Error, { id: string; index: number }, { previous: [readonly unknown[], Dashboard[] | undefined][] }>({
+    mutationFn: async (variables) => (await execute(MoveChart, variables)).moveDashboardChart,
+    onMutate: async ({ id, index }) => {
+      await queryClient.cancelQueries({ queryKey: dashboardsKey });
+      const previous = queryClient.getQueriesData<Dashboard[]>({ queryKey: dashboardsKey });
+      queryClient.setQueriesData<Dashboard[]>({ queryKey: dashboardsKey }, (dashboards) =>
+        dashboards?.map((dashboard) => {
+          const moved = dashboard.charts.find((chart) => chart.id === id);
+          if (!moved) return dashboard;
+          const others = dashboard.charts.filter((chart) => chart.id !== id);
+          return { ...dashboard, charts: [...others.slice(0, index), moved, ...others.slice(index)] };
+        }),
+      );
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      for (const [key, data] of context?.previous ?? []) queryClient.setQueryData(key, data);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: dashboardsKey }),
+  });
 }

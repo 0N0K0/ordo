@@ -1,4 +1,4 @@
-import { Alert, Button, Divider, Grid, Group, MultiSelect, Paper, Select, SegmentedControl, SimpleGrid, Skeleton, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Divider, Grid, Group, Paper, Select, SegmentedControl, SimpleGrid, Skeleton, Stack, Switch, Text, TextInput } from '@mantine/core';
 import {
   CHART_BUCKETS,
   CHART_PERIODS,
@@ -15,16 +15,15 @@ import {
 } from '@ordo/shared';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
-import { useDocumentStatuses } from '../accounting/tracking-api';
 import type { TaskContext } from '../tasks/use-task-context';
 import { FilterBuilder } from '../tasks/views/FilterBuilder';
-import { useTreasuryAccounts, useTreasurySettings } from '../treasury/api';
-import { useWorkspace } from '../workspace/api';
-import { countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES } from './aggregate';
+import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES, periodLabel } from './aggregate';
+import { CalendarPeriodPicker } from './CalendarPeriodPicker';
 import { useDashboardMutations, type DashboardChart } from './api';
 import { useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
+import { DatasetsEditor } from './DatasetsEditor';
+import { DocumentFilters, TreasuryFilters } from './source-filters';
 
 const TYPE_LABELS: Record<ChartConfig['type'], string> = {
   bar: 'Barres',
@@ -41,116 +40,6 @@ const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
   quarter: 'Trimestre',
   year: 'Année',
 };
-const PERIOD_LABELS: Record<ChartConfig['period'], string> = {
-  'past:28': '4 dernières semaines',
-  'past:91': '3 derniers mois',
-  'past:182': '6 derniers mois',
-  'past:365': '12 derniers mois',
-  'past:730': '24 derniers mois',
-  'next:91': '3 prochains mois',
-  'next:182': '6 prochains mois',
-  'next:365': '12 prochains mois',
-  all: 'Toute la période',
-};
-
-/**
- * Filters of a document chart: types, clients, tracking statuses, drafts, imported documents, credit notes.
- * @param {{ config: ChartConfig, change: (changes: Partial<ChartConfig>) => void }} props Configuration and update.
- * @returns {JSX.Element} Filters.
- */
-function DocumentFilters({ config, change }: { config: ChartConfig; change: (changes: Partial<ChartConfig>) => void }) {
-  const { data: workspace } = useWorkspace();
-  const { data: statuses } = useDocumentStatuses();
-  const filter = config.documents;
-  const set = (changes: Partial<ChartConfig['documents']>) => change({ documents: { ...filter, ...changes } });
-  return (
-    <Stack gap="sm">
-      <MultiSelect
-        label="Types de documents"
-        placeholder="Tous"
-        data={(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((value) => ({ value, label: DOCUMENT_TYPE_LABELS[value] }))}
-        value={filter.types}
-        onChange={(types) => set({ types: types as ChartConfig['documents']['types'] })}
-      />
-      <MultiSelect
-        label="Clients"
-        placeholder="Tous"
-        searchable
-        data={(workspace?.clients ?? []).map((client) => ({
-          value: client.id,
-          label: client.name,
-        }))}
-        value={filter.clientIds}
-        onChange={(clientIds) => set({ clientIds })}
-      />
-      <MultiSelect
-        label="Statuts de suivi"
-        placeholder="Tous"
-        data={(statuses ?? []).map((status) => ({
-          value: status.id,
-          label: `${status.name} (${status.scope === 'QUOTE' ? 'devis' : 'factures'})`,
-        }))}
-        value={filter.statusIds}
-        onChange={(statusIds) => set({ statusIds })}
-      />
-      <Switch label="Avoirs en négatif (chiffre d’affaires net)" checked={filter.creditNotesNegative} onChange={(event) => set({ creditNotesNegative: event.currentTarget.checked })} />
-      <Switch label="Inclure les documents importés" checked={filter.includeImported} onChange={(event) => set({ includeImported: event.currentTarget.checked })} />
-      <Switch label="Inclure les brouillons" checked={filter.includeDrafts} onChange={(event) => set({ includeDrafts: event.currentTarget.checked })} />
-    </Stack>
-  );
-}
-
-/**
- * Filters of a treasury chart: accounts, categories, money in or out, expected movements.
- * @param {{ config: ChartConfig, change: (changes: Partial<ChartConfig>) => void }} props Configuration and update.
- * @returns {JSX.Element} Filters.
- */
-function TreasuryFilters({ config, change }: { config: ChartConfig; change: (changes: Partial<ChartConfig>) => void }) {
-  const { data: accounts } = useTreasuryAccounts();
-  const { data: settings } = useTreasurySettings();
-  // By name: a category also keeps the movements of its sub-categories.
-  const categories = [...new Set((settings?.treasuryCategories ?? []).map((category) => category.name))].sort((a, b) => a.localeCompare(b, 'fr'));
-  const filter = config.treasury;
-  const set = (changes: Partial<ChartConfig['treasury']>) => change({ treasury: { ...filter, ...changes } });
-  return (
-    <Stack gap="sm">
-      <MultiSelect
-        label="Comptes"
-        placeholder="Tous"
-        data={(accounts ?? []).map((account) => ({
-          value: account.id,
-          label: account.name,
-        }))}
-        value={filter.accountIds}
-        onChange={(accountIds) => set({ accountIds })}
-      />
-      <MultiSelect label="Catégories" placeholder="Toutes" searchable data={categories} value={filter.categories} onChange={(selected) => set({ categories: selected })} />
-      <Stack gap={4}>
-        <Text size="sm" fw={500}>
-          Mouvements
-        </Text>
-        <SegmentedControl
-          data={[
-            { value: 'all', label: 'Tous' },
-            { value: 'in', label: 'Entrées' },
-            { value: 'out', label: 'Sorties' },
-          ]}
-          value={filter.direction}
-          onChange={(direction) =>
-            set({
-              direction: direction as ChartConfig['treasury']['direction'],
-            })
-          }
-        />
-      </Stack>
-      <Switch
-        label="Inclure le prévisionnel (prévisions, factures à encaisser, factures récurrentes à venir)"
-        checked={filter.includeForecast}
-        onChange={(event) => set({ includeForecast: event.currentTarget.checked })}
-      />
-    </Stack>
-  );
-}
 
 interface ChartEditorProps {
   dashboardId: string;
@@ -165,14 +54,19 @@ interface ChartEditorProps {
 /**
  * Chart editor: source (tasks, invoicing, treasury), title, kind, axis (a date by day, week, month, quarter or
  * year over a period, or a field), measure, series, running total, sprint of a burndown, width, filters of the
- * records counted; with a live preview.
+ * records counted, other data sets and their comparisons (percent or difference); with a live preview.
  * @param {ChartEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
 export function ChartEditor({ dashboardId, chart, initial, scope, context, onDone }: ChartEditorProps) {
   const [title, setTitle] = useState(initial.title);
   const [wide, setWide] = useState(initial.wide);
-  const [config, setConfig] = useState<ChartConfig>(initial.config);
+  // Invoicing and treasury charts follow a calendar month, quarter or year (an older rolling period becomes the current year).
+  const [config, setConfig] = useState<ChartConfig>(() =>
+    initial.config.source !== 'tasks'
+      ? { ...initial.config, period: `${calendarParts(initial.config.period).scale}:${calendarParts(initial.config.period).anchor}` as ChartConfig['period'] }
+      : initial.config,
+  );
   const [titleError, setTitleError] = useState<string | null>(null);
   const { createChart, updateChart } = useDashboardMutations();
   const { data, isPending } = useChartData(config, scope, context);
@@ -219,8 +113,11 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
       })),
     },
   ];
+  const several = config.datasets.length > 0 || config.comparisons.length > 0;
   const typeData = Object.entries(TYPE_LABELS)
     .filter(([value]) => value !== 'burndown' || source === 'tasks')
+    // Several data sets: bars, lines or areas.
+    .filter(([value]) => !several || (value !== 'donut' && value !== 'burndown'))
     .map(([value, label]) => ({ value, label }));
 
   return (
@@ -308,6 +205,8 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                     change({
                       dimension: dimension as ChartDimension,
                       ...(config.series === dimension && { series: null }),
+                      // The series of a data set cannot be its axis either.
+                      datasets: config.datasets.map((dataset) => (dataset.series === dimension ? { ...dataset, series: null } : dataset)),
                     })
                   }
                 />
@@ -334,21 +233,25 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                     value={config.bucket}
                     onChange={(bucket) => bucket && change({ bucket: bucket as ChartConfig['bucket'] })}
                   />
-                  <Select
-                    label="Période"
-                    allowDeselect={false}
-                    data={CHART_PERIODS.map((value) => ({
-                      value,
-                      label: PERIOD_LABELS[value],
-                    }))}
-                    value={config.period}
-                    onChange={(period) => period && change({ period: period as ChartConfig['period'] })}
-                  />
+                  {source !== 'tasks' ? (
+                    <CalendarPeriodPicker value={config.period} onChange={(period) => change({ period })} />
+                  ) : (
+                    <Select
+                      label="Période"
+                      allowDeselect={false}
+                      data={CHART_PERIODS.map((value) => ({
+                        value,
+                        label: periodLabel(value),
+                      }))}
+                      value={config.period}
+                      onChange={(period) => period && change({ period: period as ChartConfig['period'] })}
+                    />
+                  )}
                 </SimpleGrid>
               )}
               {config.type !== 'donut' && !(source === 'treasury' && config.measure === 'balance') && (
                 <Select
-                  label="Séries"
+                  label={several ? 'Séries du jeu principal' : 'Séries'}
                   placeholder="Aucune (une seule série)"
                   clearable
                   data={SOURCE_GROUP_DIMENSIONS[source]
@@ -372,7 +275,12 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
           )}
           <Switch label="Pleine largeur" checked={wide} onChange={(event) => setWide(event.currentTarget.checked)} />
 
-          <Divider label={source === 'tasks' ? 'Tâches comptées' : source === 'documents' ? 'Documents comptés' : 'Mouvements comptés'} labelPosition="left" />
+          <Divider
+            label={`${several ? 'Jeu principal — ' : ''}${source === 'tasks' ? 'tâches comptées' : source === 'documents' ? 'documents comptés' : 'mouvements comptés'}`.replace(/^./, (letter) =>
+              letter.toUpperCase(),
+            )}
+            labelPosition="left"
+          />
           {source === 'tasks' && (
             <>
               <TextInput placeholder="Recherche (titre, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
@@ -387,6 +295,12 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
               Tableau de bord d’un projet : seuls les {source === 'documents' ? 'documents' : 'mouvements'} rattachés au projet ou à ses sous-projets comptent
               {source === 'treasury' && ' (le solde reste celui de tous les comptes)'}.
             </Text>
+          )}
+          {!burndown && config.type !== 'donut' && !(source === 'treasury' && config.measure === 'balance') && (
+            <>
+              <Divider label="Jeux de données et comparaisons" labelPosition="left" />
+              <DatasetsEditor config={config} change={change} context={context} />
+            </>
           )}
           {!validation.success && (
             <Alert color="red" p="xs">

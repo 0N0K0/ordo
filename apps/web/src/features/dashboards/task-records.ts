@@ -1,6 +1,7 @@
 import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
 import type { Task } from '../tasks/api';
 import type { TaskContext } from '../tasks/use-task-context';
+import type { SprintTaskStatus } from './api';
 import { aggregate, localDay, none, round, type ChartData, type Key } from './aggregate';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -165,6 +166,18 @@ function valueOf(task: Task, measure: ChartMeasure, context: TaskContext): numbe
   return 0;
 }
 
+/** Tasks as they were at the end of the ended sprints, for the charts by sprint. */
+export interface SprintView {
+  /** Ids of the tasks matching the filter now. */
+  current: ReadonlySet<string>;
+  /** Ended sprints: ids of their tasks matching the filter at their end. */
+  matches: ReadonlyMap<string, ReadonlySet<string>>;
+  /** Status of the tasks at the end of the ended sprints, by "sprint|task". */
+  statuses: ReadonlyMap<string, SprintTaskStatus>;
+  /** Tasks matching at the end of an ended sprint but no longer now. */
+  extraTasks: Task[];
+}
+
 /**
  * Burndown of a sprint: what is left (tasks or effort) at the end of each day of the sprint, against the
  * ideal straight line. Tasks closed after the sprint count as still open on its days.
@@ -208,18 +221,34 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
 
 /**
  * Data of a task chart: the matching tasks spread over the axis and the series, measured in number, effort
- * (tasks without sub-tasks) or tracked time; a task with several assignees or tags counts for each.
- * Burndowns follow a sprint day by day.
+ * (tasks without sub-tasks) or tracked time; a task with several assignees or tags counts for each. By sprint,
+ * a task counts in each of its sprints where it matched the filter, with its status at the end of the sprint
+ * (ended sprints; now for the others). Burndowns follow a sprint day by day.
  * @param {Task[]} tasks Matching tasks.
  * @param {ChartConfig} config Configuration.
  * @param {TaskContext} context Task context.
  * @param {string} today User's day (YYYY-MM-DD).
+ * @param {SprintView} [bySprint] Sprint view of the tasks (charts by sprint). Optional.
  * @returns {ChartData} Data.
  */
-export function taskChartData(tasks: Task[], config: ChartConfig, context: TaskContext, today: string): ChartData {
+export function taskChartData(tasks: Task[], config: ChartConfig, context: TaskContext, today: string, bySprint?: SprintView): ChartData {
   if (config.type === 'burndown') return burndown(tasks, config, context, today);
+  const sprintChart = bySprint !== undefined && (config.dimension === 'sprint' || config.series === 'sprint');
+  // By sprint, a task counts in each of its sprints where it matched the filter (at the end of an ended sprint,
+  // now for the others), with the status it had then.
+  const counted = !sprintChart
+    ? tasks
+    : [...new Map([...tasks, ...bySprint.extraTasks].map((task) => [task.id, task])).values()].flatMap((task) => {
+        if (!task.sprintIds.length) return bySprint.current.has(task.id) ? [task] : [];
+        return task.sprintIds
+          .filter((sprintId) => (bySprint.matches.has(sprintId) ? bySprint.matches.get(sprintId)!.has(task.id) : bySprint.current.has(task.id)))
+          .map((sprintId) => {
+            const status = bySprint.statuses.get(`${sprintId}|${task.id}`);
+            return { ...task, sprintIds: [sprintId], ...(status && { statusId: status.statusId ?? null, closed: status.closed }) };
+          });
+      });
   return aggregate(
-    tasks.map((task) => ({
+    counted.map((task) => ({
       day: (dimension: ChartDimension) => taskDay(task, dimension),
       keys: (dimension: ChartGroupDimension) => groupKeys(task, dimension, context),
       value: (measure: ChartMeasure) => valueOf(task, measure, context),

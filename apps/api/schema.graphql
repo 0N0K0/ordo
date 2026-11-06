@@ -1292,6 +1292,11 @@ type Mutation {
   """
   testMailAccount(id: ID, input: MailAccountInput!): Boolean!
 
+  """
+  Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.
+  """
+  transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
+
   """Moves the task and its sub-tasks to another project."""
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
   unlinkGithubProject(projectId: ID!): Boolean!
@@ -1512,6 +1517,11 @@ type Query {
 
   """Ids of the tasks matching a filter, in manual order."""
   matchingTaskIds(query: TaskQueryInput!): [ID!]!
+
+  """
+  For each sprint ended before the query day: ids of its tasks matching a filter whose status conditions (status, category, closed) use the status the tasks had at the end of the sprint.
+  """
+  matchingTaskIdsBySprint(query: TaskQueryInput!): [SprintMatches!]!
   me: User
   milestones: [Milestone!]!
 
@@ -1533,6 +1543,11 @@ type Query {
   projects: [Project!]!
   recurringInvoices: [RecurringInvoice!]!
   runningTimeEntry: TimeEntry
+
+  """
+  Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).
+  """
+  sprintTaskStatuses(today: Date!): [SprintTaskStatus!]!
 
   """Sprints, by start date."""
   sprints: [Sprint!]!
@@ -1665,6 +1680,20 @@ input SprintInput {
   goal: String
   name: String!
   startDate: Date!
+}
+
+"""Tasks of a sprint matching a filter at the end of the sprint."""
+type SprintMatches {
+  sprintId: ID!
+  taskIds: [ID!]!
+}
+
+"""Status of a task at the end of a sprint."""
+type SprintTaskStatus {
+  closed: Boolean!
+  sprintId: ID!
+  statusId: ID
+  taskId: ID!
 }
 
 type Task {

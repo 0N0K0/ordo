@@ -2,6 +2,7 @@ import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, St
 import { modals } from '@mantine/modals';
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
 import {
+  ArrowBendUpRightIcon,
   ArrowDownIcon,
   ArrowsHorizontalIcon,
   ArrowUpIcon,
@@ -11,14 +12,20 @@ import {
   CheckSquareOffsetIcon,
   ReceiptIcon,
   CopyIcon,
+  DotsSixVerticalIcon,
   DotsThreeIcon,
   FileImageIcon,
   FilePdfIcon,
   PencilSimpleIcon,
   PlusIcon,
+  TableIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -26,9 +33,12 @@ import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from './api';
 import { ChartEditor } from './ChartEditor';
-import { chartPng, downloadChartsPdf, exportFileName, saveFile } from './chart-image';
+import { chartPng, chartSizeFor, downloadChartsPdf, exportFileName, saveFile, type ExportScheme } from './chart-image';
+import { ImageExportForm } from './ImageExportForm';
+import { chartTable, downloadChartCsv, downloadChartTablePdf } from './chart-table';
 import { describeChart, useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
+import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from './aggregate';
 
 /** Image of a chart as exported. */
@@ -37,7 +47,37 @@ interface Capture {
   description: string;
   image: string;
 }
-type Captures = MutableRefObject<Map<string, () => Promise<Capture>>>;
+/** How a chart is captured: colors, size it is drawn at (off screen), final image size. */
+interface CaptureOptions {
+  scheme: ExportScheme;
+  /** Size to draw the chart at, off screen; as displayed when omitted. */
+  render?: { width: number; height: number };
+  /** Final image size, in pixels; the drawn size when omitted. */
+  frame?: { width: number; height: number };
+}
+type Captures = MutableRefObject<Map<string, (options: CaptureOptions) => Promise<Capture>>>;
+
+/** Chart drawn for printing: an A4 landscape page, below the title and description. */
+const PRINT_SIZE = { width: 1120, height: 600 };
+
+/**
+ * Waits for a drawn chart in an element (its size is measured after a few frames).
+ * @param {() => HTMLElement | null} element Element holding the chart.
+ * @returns {Promise<HTMLElement>} Element, once its chart is drawn.
+ */
+function drawnChart(element: () => HTMLElement | null): Promise<HTMLElement> {
+  return new Promise((resolve, reject) => {
+    const started = performance.now();
+    const check = () => {
+      const current = element();
+      const svg = current?.querySelector('svg.recharts-surface');
+      if (current && svg && svg.getBoundingClientRect().width > 0) resolve(current);
+      else if (performance.now() - started > 3000) reject(new Error('Le diagramme n’a pas pu être préparé pour l’impression.'));
+      else requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  });
+}
 
 let modalCount = 0;
 
@@ -65,50 +105,79 @@ interface ChartCardProps {
 }
 
 /**
- * Chart of a dashboard, with its actions: edit, duplicate, width, order, image and PDF exports, delete.
+ * Chart of a dashboard, moved by its handle (drag and drop, or keyboard), with its actions: edit, duplicate,
+ * width, order, move to another dashboard (general or
+ * of a project), image and PDF exports, its data as CSV or PDF table, delete.
  * @param {ChartCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
 function ChartCard({ chart, index, count, scope, context, dashboardName, captures, onEdit }: ChartCardProps) {
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: chart.id });
   const config = parseConfig(chart.config);
   const { data, isPending, error } = useChartData(config, scope, context);
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
   const view = useRef<HTMLDivElement>(null);
+  const printView = useRef<HTMLDivElement>(null);
+  // Drawn off screen at the size of an export while it is made.
+  const [printSize, setPrintSize] = useState<{ width: number; height: number } | null>(null);
   const [exporting, setExporting] = useState(false);
   const description = describeChart(config, context);
 
   // The dashboard export asks every chart for its image.
   useEffect(() => {
     const registry = captures.current;
-    registry.set(chart.id, async () => {
+    registry.set(chart.id, async ({ scheme, render, frame }) => {
       if (!view.current || !data) throw new Error(`« ${chart.title} » n’est pas encore affiché.`);
-      return {
-        title: chart.title,
-        description,
-        image: await chartPng(view.current, chart.title, data.series.length > 1 ? data.series : []),
-      };
+      const legend = data.series.length > 1 ? data.series : [];
+      if (!render) return { title: chart.title, description, image: await chartPng(view.current, chart.title, legend, { scheme, frame }) };
+      if (data.empty) throw new Error(`« ${chart.title} » est vide.`);
+      setPrintSize(render);
+      try {
+        const element = await drawnChart(() => printView.current);
+        return { title: chart.title, description, image: await chartPng(element, chart.title, legend, { scheme, frame }) };
+      } finally {
+        setPrintSize(null);
+      }
     });
     return () => void registry.delete(chart.id);
   }, [captures, chart.id, chart.title, data, description]);
 
   /**
-   * Exports the chart as an image or a PDF.
+   * Exports the chart as a PDF (light colors, page format), or asks the settings of an image (colors,
+   * orientation, ratio, size) and exports it.
    * @param {'png' | 'pdf'} format Format.
    * @returns {void}
    */
   const exportChart = (format: 'png' | 'pdf') => {
     const capture = captures.current.get(chart.id);
     if (!capture) return;
+    if (format === 'png') {
+      const modalId = `export-image-${chart.id}`;
+      modals.open({
+        modalId,
+        title: `Exporter « ${chart.title} » en image`,
+        children: (
+          <ImageExportForm
+            onDone={() => modals.close(modalId)}
+            onExport={(settings) => {
+              const frame = { width: settings.width, height: settings.height };
+              return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
+                .then((image) => saveFile(image.image, exportFileName(`${dashboardName} — ${chart.title}`, 'png')))
+                .catch((exportError: Error) => notifyError(exportError.message));
+            }}
+          />
+        ),
+      });
+      return;
+    }
     setExporting(true);
-    capture()
+    capture({ scheme: 'light', render: PRINT_SIZE })
       .then((image) =>
-        format === 'png'
-          ? saveFile(image.image, exportFileName(`${dashboardName} — ${chart.title}`, 'png'))
-          : downloadChartsPdf({
-              title: chart.title,
-              subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
-              charts: [image],
-            }),
+        downloadChartsPdf({
+          title: chart.title,
+          subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+          charts: [image],
+        }),
       )
       .catch((exportError: Error) => notifyError(exportError.message))
       .finally(() => setExporting(false));
@@ -143,10 +212,37 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   };
 
   return (
-    <Paper withBorder radius="md" p="md" style={{ gridColumn: chart.wide ? '1 / -1' : undefined, minWidth: 0 }}>
+    <Paper
+      ref={setNodeRef}
+      withBorder
+      radius="md"
+      p="md"
+      shadow={isDragging ? 'md' : undefined}
+      style={{
+        gridColumn: chart.wide ? '1 / -1' : undefined,
+        minWidth: 0,
+        transform: CSS.Translate.toString(transform),
+        transition,
+        position: 'relative',
+        zIndex: isDragging ? 1 : undefined,
+      }}
+    >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <Stack gap={0} style={{ minWidth: 0 }}>
+          <Tooltip label="Déplacer">
+            <ActionIcon
+              ref={setActivatorNodeRef}
+              variant="subtle"
+              color="gray"
+              aria-label={`Déplacer ${chart.title}`}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
+              {...attributes}
+              {...listeners}
+            >
+              <DotsSixVerticalIcon weight="bold" aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
               {chart.title}
             </Text>
@@ -197,12 +293,41 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               <Menu.Item leftSection={<ArrowDownIcon aria-hidden />} disabled={index === count - 1} onClick={() => moveChart.mutate({ id: chart.id, index: index + 1 })}>
                 Reculer
               </Menu.Item>
+              <Menu.Item
+                leftSection={<ArrowBendUpRightIcon aria-hidden />}
+                onClick={() => {
+                  const modalId = `transfer-chart-${chart.id}`;
+                  modals.open({
+                    modalId,
+                    title: `Déplacer « ${chart.title} »`,
+                    children: <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={() => modals.close(modalId)} />,
+                  });
+                }}
+              >
+                Déplacer vers…
+              </Menu.Item>
               <Menu.Divider />
               <Menu.Item leftSection={<FileImageIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('png')}>
-                Exporter en image (PNG)
+                Exporter en image…
               </Menu.Item>
               <Menu.Item leftSection={<FilePdfIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('pdf')}>
                 Exporter en PDF
+              </Menu.Item>
+              <Menu.Item leftSection={<TableIcon aria-hidden />} disabled={!data || data.empty} onClick={() => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.title}`)}>
+                Exporter les données (CSV)
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<TableIcon aria-hidden />}
+                disabled={!data || data.empty}
+                onClick={() => {
+                  if (!data) return;
+                  setExporting(true);
+                  downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`)
+                    .catch((exportError: Error) => notifyError(exportError.message))
+                    .finally(() => setExporting(false));
+                }}
+              >
+                Exporter les données (PDF)
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={confirmDelete}>
@@ -220,6 +345,14 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
         ) : (
           <ChartView ref={view} config={config} data={data} height={280} />
         )}
+        {printSize &&
+          data &&
+          createPortal(
+            <div aria-hidden style={{ position: 'fixed', left: -printSize.width * 3, top: 0, width: printSize.width, pointerEvents: 'none' }}>
+              <ChartView ref={printView} config={config} data={data} height={printSize.height} />
+            </div>,
+            document.body,
+          )}
       </Stack>
     </Paper>
   );
@@ -248,6 +381,18 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
   const captures: Captures = useRef(new Map());
   const [exporting, setExporting] = useState(false);
   const current: Dashboard | undefined = dashboards?.find((item) => item.id === params.get('dashboard')) ?? dashboards?.[0];
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  /**
+   * Moves the dropped chart to its new place.
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!current || !over || active.id === over.id) return;
+    const index = current.charts.findIndex((chart) => chart.id === over.id);
+    if (index >= 0) mutations.moveChart.mutate({ id: String(active.id), index }, { onError: (moveError) => notifyError(moveError.message) });
+  };
 
   /**
    * Opens a dashboard (kept in the URL).
@@ -390,7 +535,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       current.charts
         .map((chart) => captures.current.get(chart.id))
         .filter((capture) => capture !== undefined)
-        .map((capture) => capture()),
+        .map((capture) => capture({ scheme: 'light', render: PRINT_SIZE })),
     )
       .then((charts) =>
         downloadChartsPdf({
@@ -510,21 +655,25 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           </Stack>
         </Paper>
       ) : (
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-          {current.charts.map((chart, chartIndex) => (
-            <ChartCard
-              key={chart.id}
-              chart={chart}
-              index={chartIndex}
-              count={current.charts.length}
-              scope={scope}
-              context={context}
-              dashboardName={`${title} — ${current.name}`}
-              captures={captures}
-              onEdit={() => openEditor(chart)}
-            />
-          ))}
-        </SimpleGrid>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={current.charts.map((chart) => chart.id)} strategy={rectSortingStrategy}>
+            <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+              {current.charts.map((chart, chartIndex) => (
+                <ChartCard
+                  key={chart.id}
+                  chart={chart}
+                  index={chartIndex}
+                  count={current.charts.length}
+                  scope={scope}
+                  context={context}
+                  dashboardName={`${title} — ${current.name}`}
+                  captures={captures}
+                  onEdit={() => openEditor(chart)}
+                />
+              ))}
+            </SimpleGrid>
+          </SortableContext>
+        </DndContext>
       )}
     </Stack>
   );

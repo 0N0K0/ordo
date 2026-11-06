@@ -1,4 +1,4 @@
-import { markdownSchema, sprintNameSchema } from '@ordo/shared';
+import { addDays, formatDay, markdownSchema, parseDay, sprintNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { Sprint } from '../generated/prisma/client';
@@ -78,4 +78,43 @@ export async function updateSprint(id: string, input: SprintInput): Promise<Spri
 export async function deleteSprint(id: string): Promise<void> {
   await findSprint(id);
   await prisma.sprint.delete({ where: { id } });
+}
+
+/** Status of a task at the end of a sprint it is in. */
+export interface SprintTaskStatus {
+  sprintId: string;
+  taskId: string;
+  statusId: string | null;
+  closed: boolean;
+}
+
+/**
+ * Status of the tasks of the sprints ended before a day, at the end of each sprint: the last status recorded
+ * up to its last day (the first one recorded when the task was created later). Tasks without recorded
+ * status are left out (their current status stands).
+ * @param {string} today Day (YYYY-MM-DD): sprints ending before it.
+ * @returns {Promise<SprintTaskStatus[]>} Statuses.
+ */
+export async function sprintTaskStatuses(today: string): Promise<SprintTaskStatus[]> {
+  const ended = await prisma.sprint.findMany({
+    where: { endDate: { lt: parseDay(today) } },
+    select: { id: true, endDate: true, tasks: { select: { id: true } } },
+  });
+  const taskIds = [...new Set(ended.flatMap((sprint) => sprint.tasks.map((task) => task.id)))];
+  if (!taskIds.length) return [];
+  const changes = await prisma.taskStatusChange.findMany({ where: { taskId: { in: taskIds } }, orderBy: { at: 'asc' }, select: { taskId: true, statusId: true, closed: true, at: true } });
+  const byTask = new Map<string, typeof changes>();
+  for (const change of changes) byTask.set(change.taskId, [...(byTask.get(change.taskId) ?? []), change]);
+  const result: SprintTaskStatus[] = [];
+  for (const sprint of ended) {
+    // Up to the end of its last day.
+    const end = parseDay(addDays(formatDay(sprint.endDate), 1)).getTime();
+    for (const { id } of sprint.tasks) {
+      const history = byTask.get(id);
+      if (!history?.length) continue;
+      const last = history.filter((change) => change.at.getTime() < end).at(-1) ?? history[0];
+      result.push({ sprintId: sprint.id, taskId: id, statusId: last.statusId, closed: last.closed });
+    }
+  }
+  return result;
 }
