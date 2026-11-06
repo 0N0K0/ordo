@@ -24,6 +24,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -43,7 +44,30 @@ interface Capture {
   description: string;
   image: string;
 }
-type Captures = MutableRefObject<Map<string, () => Promise<Capture>>>;
+/** Captures of the charts: as shown (PNG), or for printing (light colors, page format). */
+type Captures = MutableRefObject<Map<string, (print: boolean) => Promise<Capture>>>;
+
+/** Chart drawn for printing: an A4 landscape page, below the title and description. */
+const PRINT_SIZE = { width: 1120, height: 600 };
+
+/**
+ * Waits for a drawn chart in an element (its size is measured after a few frames).
+ * @param {() => HTMLElement | null} element Element holding the chart.
+ * @returns {Promise<HTMLElement>} Element, once its chart is drawn.
+ */
+function drawnChart(element: () => HTMLElement | null): Promise<HTMLElement> {
+  return new Promise((resolve, reject) => {
+    const started = performance.now();
+    const check = () => {
+      const current = element();
+      const svg = current?.querySelector('svg.recharts-surface');
+      if (current && svg && svg.getBoundingClientRect().width > 0) resolve(current);
+      else if (performance.now() - started > 3000) reject(new Error('Le diagramme n’a pas pu être préparé pour l’impression.'));
+      else requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  });
+}
 
 let modalCount = 0;
 
@@ -83,19 +107,27 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   const { data, isPending, error } = useChartData(config, scope, context);
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
   const view = useRef<HTMLDivElement>(null);
+  const printView = useRef<HTMLDivElement>(null);
+  // Drawn off screen in the page format while a PDF is made.
+  const [printing, setPrinting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const description = describeChart(config, context);
 
   // The dashboard export asks every chart for its image.
   useEffect(() => {
     const registry = captures.current;
-    registry.set(chart.id, async () => {
+    registry.set(chart.id, async (print) => {
       if (!view.current || !data) throw new Error(`« ${chart.title} » n’est pas encore affiché.`);
-      return {
-        title: chart.title,
-        description,
-        image: await chartPng(view.current, chart.title, data.series.length > 1 ? data.series : []),
-      };
+      const legend = data.series.length > 1 ? data.series : [];
+      if (!print) return { title: chart.title, description, image: await chartPng(view.current, chart.title, legend) };
+      if (data.empty) throw new Error(`« ${chart.title} » est vide.`);
+      setPrinting(true);
+      try {
+        const element = await drawnChart(() => printView.current);
+        return { title: chart.title, description, image: await chartPng(element, chart.title, legend, { light: true }) };
+      } finally {
+        setPrinting(false);
+      }
     });
     return () => void registry.delete(chart.id);
   }, [captures, chart.id, chart.title, data, description]);
@@ -109,7 +141,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     const capture = captures.current.get(chart.id);
     if (!capture) return;
     setExporting(true);
-    capture()
+    capture(format === 'pdf')
       .then((image) =>
         format === 'png'
           ? saveFile(image.image, exportFileName(`${dashboardName} — ${chart.title}`, 'png'))
@@ -269,6 +301,14 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
         ) : (
           <ChartView ref={view} config={config} data={data} height={280} />
         )}
+        {printing &&
+          data &&
+          createPortal(
+            <div aria-hidden style={{ position: 'fixed', left: -PRINT_SIZE.width * 3, top: 0, width: PRINT_SIZE.width, pointerEvents: 'none' }}>
+              <ChartView ref={printView} config={config} data={data} height={PRINT_SIZE.height} />
+            </div>,
+            document.body,
+          )}
       </Stack>
     </Paper>
   );
@@ -451,7 +491,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       current.charts
         .map((chart) => captures.current.get(chart.id))
         .filter((capture) => capture !== undefined)
-        .map((capture) => capture()),
+        .map((capture) => capture(true)),
     )
       .then((charts) =>
         downloadChartsPdf({

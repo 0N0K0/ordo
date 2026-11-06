@@ -31,24 +31,55 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /**
- * PNG of a drawn chart, as shown (colors of the current theme), with its title above and its legend below.
+ * Runs a reading of styles with the light color scheme, without the page showing it (switched back in the same
+ * task, before any repaint).
+ * @param {() => T} read Synchronous reading.
+ * @returns {T} Its result.
+ */
+function withLightScheme<T>(read: () => T): T {
+  const root = document.documentElement;
+  const previous = root.getAttribute('data-mantine-color-scheme');
+  root.setAttribute('data-mantine-color-scheme', 'light');
+  try {
+    return read();
+  } finally {
+    if (previous === null) root.removeAttribute('data-mantine-color-scheme');
+    else root.setAttribute('data-mantine-color-scheme', previous);
+  }
+}
+
+/**
+ * PNG of a drawn chart, with its title above and its legend below: in the colors of the current theme, or of
+ * the light one (printing).
  * @param {HTMLElement} container Element holding the chart.
  * @param {string} title Title.
  * @param {ChartSeries[]} legend Legend entries.
+ * @param {{ light?: boolean }} [options] Light colors whatever the theme. Optional.
  * @returns {Promise<string>} PNG data URL.
  */
-export async function chartPng(container: HTMLElement, title: string, legend: ChartSeries[]): Promise<string> {
+export async function chartPng(container: HTMLElement, title: string, legend: ChartSeries[], options: { light?: boolean } = {}): Promise<string> {
   const svg = container.querySelector<SVGSVGElement>('svg.recharts-surface');
   if (!svg) throw new Error('Rien à exporter : le diagramme est vide.');
   const { width, height } = svg.getBoundingClientRect();
   const copy = svg.cloneNode(true) as SVGSVGElement;
-  const originals = [svg, ...svg.querySelectorAll('*')];
-  const copies = [copy, ...copy.querySelectorAll('*')];
-  originals.forEach((element, index) => {
-    const computed = getComputedStyle(element);
-    const style = STYLES.map((name) => `${name}:${computed.getPropertyValue(name)}`).join(';');
-    copies[index].setAttribute('style', style);
-  });
+  // Styles, page colors and legend colors are read at once (in the light scheme when asked).
+  const read = () => {
+    const originals = [svg, ...svg.querySelectorAll('*')];
+    const copies = [copy, ...copy.querySelectorAll('*')];
+    originals.forEach((element, index) => {
+      const computed = getComputedStyle(element);
+      const style = STYLES.map((name) => `${name}:${computed.getPropertyValue(name)}`).join(';');
+      copies[index].setAttribute('style', style);
+    });
+    const page = getComputedStyle(document.body);
+    return {
+      font: page.getPropertyValue('font-family'),
+      background: page.backgroundColor || '#ffffff',
+      text: page.color || '#1d232b',
+      colors: legend.map((entry) => resolveColor(entry.color)),
+    };
+  };
+  const page = options.light ? withLightScheme(read) : read();
   copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   copy.setAttribute('width', String(width));
   copy.setAttribute('height', String(height));
@@ -56,21 +87,20 @@ export async function chartPng(container: HTMLElement, title: string, legend: Ch
 
   try {
     const image = await loadImage(url);
-    const page = getComputedStyle(document.body);
-    const font = page.getPropertyValue('font-family');
+    const font = page.font;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
     // Legend laid out on lines of the chart's width.
     context.font = `13px ${font}`;
     const lines: { name: string; color: string; x: number }[][] = [[]];
     let x = 0;
-    for (const entry of legend) {
+    for (const [index, entry] of legend.entries()) {
       const itemWidth = 18 + context.measureText(entry.name).width + 16;
       if (x > 0 && x + itemWidth > width) {
         lines.push([]);
         x = 0;
       }
-      lines[lines.length - 1].push({ name: entry.name, color: resolveColor(entry.color), x });
+      lines[lines.length - 1].push({ name: entry.name, color: page.colors[index], x });
       x += itemWidth;
     }
     const legendHeight = legend.length ? lines.length * 22 + 8 : 0;
@@ -78,9 +108,9 @@ export async function chartPng(container: HTMLElement, title: string, legend: Ch
     canvas.width = (width + 2 * PAD) * SCALE;
     canvas.height = (PAD + titleHeight + height + legendHeight + PAD) * SCALE;
     context.scale(SCALE, SCALE);
-    context.fillStyle = page.backgroundColor || '#ffffff';
+    context.fillStyle = page.background;
     context.fillRect(0, 0, width + 2 * PAD, canvas.height / SCALE);
-    context.fillStyle = page.color || '#1d232b';
+    context.fillStyle = page.text;
     context.font = `600 17px ${font}`;
     context.textBaseline = 'top';
     context.fillText(title, PAD, PAD);
@@ -92,7 +122,7 @@ export async function chartPng(container: HTMLElement, title: string, legend: Ch
       for (const entry of line) {
         context.fillStyle = entry.color;
         context.fillRect(PAD + entry.x, y - 6, 12, 12);
-        context.fillStyle = page.color || '#1d232b';
+        context.fillStyle = page.text;
         context.fillText(entry.name, PAD + entry.x + 18, y);
       }
     });

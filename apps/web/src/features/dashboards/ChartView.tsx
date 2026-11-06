@@ -124,7 +124,8 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
         <Center>
           <DonutChart
             data={data.slices}
-            size={Math.min(height - 40, 260)}
+            // Larger when printed (page format).
+            size={Math.min(height - 40, height > 400 ? 520 : 260)}
             thickness={34}
             withLabels
             withLabelsLine
