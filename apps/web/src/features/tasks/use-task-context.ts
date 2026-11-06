@@ -4,6 +4,7 @@ import type { ReferenceTargets } from '../../components/markdown/remark-referenc
 import { useWorkspace, type Project } from '../workspace/api';
 import { projectPath } from '../workspace/tree';
 import { useMe } from '../auth/api';
+import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
 import { useTasksData, type Contributor, type Milestone, type Sprint, type Task, type TaskLabel, type TaskStatus } from './api';
 
 export interface TaskContext {
@@ -15,7 +16,12 @@ export interface TaskContext {
   /** Tags, several per task. */
   tags: TaskLabel[];
   projects: Project[];
+  /** Milestones, in the order chosen by the user. */
   milestones: Milestone[];
+  /** Order chosen by the user for the milestones. */
+  milestoneOrder: MilestoneOrder;
+  /** Rank of a milestone in the chosen order (to sort and group tasks by milestone). */
+  milestoneRank: Map<string, number>;
   milestoneById: Map<string, Milestone>;
   /** Sprints, by start date. */
   sprints: Sprint[];
@@ -66,12 +72,14 @@ export function useTaskContext() {
   const meId = me?.contributorId ?? null;
   const data = tasksQuery.data;
   const workspace = workspaceQuery.data;
+  const [milestoneOrder] = useMilestoneOrder();
 
   const context = useMemo<TaskContext | null>(() => {
     if (!data || !workspace) return null;
     const byPosition = <T extends { position: number }>(items: T[]) => [...items].sort((a, b) => a.position - b.position);
     const tasks = byPosition(data.tasks);
     const projectById = new Map(workspace.projects.map((project) => [project.id, project]));
+    const milestones = sortMilestones(data.milestones, milestoneOrder);
     const statusById = new Map(data.taskStatuses.map((status) => [status.id, status]));
     const children = new Map<string, Task[]>();
     for (const task of tasks) {
@@ -98,12 +106,14 @@ export function useTaskContext() {
       priorities: byPosition(data.taskPriorities),
       types: byPosition(data.taskTypes),
       projects: workspace.projects,
-      milestones: data.milestones,
+      milestones,
+      milestoneOrder,
+      milestoneRank: new Map(milestones.map((milestone, index) => [milestone.id, index])),
       milestoneById: new Map(data.milestones.map((milestone) => [milestone.id, milestone])),
       sprints: data.sprints,
       sprintById: new Map(data.sprints.map((sprint) => [sprint.id, sprint])),
       meId,
-      milestonesFor: (projectId) => data.milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)),
+      milestonesFor: (projectId) => milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)),
       sprintsFor: (projectId) => data.sprints.filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)),
       assignableFor: (projectIds, keep = []) => {
         const scope = new Set<string>();
@@ -112,9 +122,7 @@ export function useTaskContext() {
             scope.add(current);
           }
         }
-        return data.contributors.filter(
-          (contributor) => contributor.isMe || keep.includes(contributor.id) || contributor.projectIds.some((id) => scope.has(id)),
-        );
+        return data.contributors.filter((contributor) => contributor.isMe || keep.includes(contributor.id) || contributor.projectIds.some((id) => scope.has(id)));
       },
       contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
       taskById: new Map(tasks.map((task) => [task.id, task])),
@@ -149,7 +157,7 @@ export function useTaskContext() {
         handles: new Set(data.contributors.map((contributor) => contributor.handle)),
       },
     };
-  }, [data, workspace, meId]);
+  }, [data, workspace, meId, milestoneOrder]);
 
   return {
     context,
