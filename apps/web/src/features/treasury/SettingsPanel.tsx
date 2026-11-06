@@ -101,7 +101,8 @@ interface CategoryFormProps {
   direction?: TreasuryDirection;
   parentId?: string | null;
   categories: TreasuryCategory[];
-  onDone: () => void;
+  /** Closes the form; given the id of the category created. */
+  onDone: (createdId?: string) => void;
 }
 
 /**
@@ -109,7 +110,7 @@ interface CategoryFormProps {
  * @param {CategoryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function CategoryForm({ category, direction = 'OUT', parentId = null, categories, onDone }: CategoryFormProps) {
+export function CategoryForm({ category, direction = 'OUT', parentId = null, categories, onDone }: CategoryFormProps) {
   const { createCategory, updateCategory } = useTreasuryMutations();
   const form = useAppForm<{ name: string; direction: TreasuryDirection; parentId: string | null }>({
     initialValues: { name: category?.name ?? '', direction: category?.direction ?? direction, parentId: category?.parentId ?? parentId },
@@ -122,12 +123,28 @@ function CategoryForm({ category, direction = 'OUT', parentId = null, categories
         const callbacks = {
           onSuccess: () => {
             notifySuccess(category ? 'Catégorie modifiée.' : 'Catégorie créée.');
-            onDone();
           },
           onError: (error: Error) => showFormError(form, error),
         };
-        if (category) updateCategory.mutate({ id: category.id, input }, callbacks);
-        else createCategory.mutate(input, callbacks);
+        if (category)
+          updateCategory.mutate(
+            { id: category.id, input },
+            {
+              ...callbacks,
+              onSuccess: () => {
+                callbacks.onSuccess();
+                onDone();
+              },
+            },
+          );
+        else
+          createCategory.mutate(input, {
+            ...callbacks,
+            onSuccess: (id) => {
+              callbacks.onSuccess();
+              onDone(id);
+            },
+          });
       })}
     >
       <Stack gap="sm">
@@ -160,21 +177,29 @@ function CategoryForm({ category, direction = 'OUT', parentId = null, categories
           data={categoryOptions(categories, form.values.direction, category?.id)}
           {...form.getInputProps('parentId')}
         />
-        <FormActions loading={createCategory.isPending || updateCategory.isPending} onCancel={onDone} />
+        <FormActions loading={createCategory.isPending || updateCategory.isPending} onCancel={() => onDone()} />
       </Stack>
     </form>
   );
 }
 
+interface MethodFormProps {
+  method?: TreasuryPaymentMethod;
+  /** New method: for this direction only (both when omitted). */
+  direction?: TreasuryDirection;
+  /** Closes the form; given the id of the method created. */
+  onDone: (createdId?: string) => void;
+}
+
 /**
  * Payment method: name and the directions it serves.
- * @param {{ method?: TreasuryPaymentMethod, onDone: () => void }} props Component props.
+ * @param {MethodFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function MethodForm({ method, onDone }: { method?: TreasuryPaymentMethod; onDone: () => void }) {
+export function MethodForm({ method, direction, onDone }: MethodFormProps) {
   const { createMethod, updateMethod } = useTreasuryMutations();
   const form = useAppForm<{ name: string; incoming: boolean; outgoing: boolean }>({
-    initialValues: { name: method?.name ?? '', incoming: method?.incoming ?? true, outgoing: method?.outgoing ?? true },
+    initialValues: { name: method?.name ?? '', incoming: method?.incoming ?? direction !== 'OUT', outgoing: method?.outgoing ?? direction !== 'IN' },
     schema: treasuryPaymentMethodSchema,
   });
   return (
@@ -184,12 +209,28 @@ function MethodForm({ method, onDone }: { method?: TreasuryPaymentMethod; onDone
         const callbacks = {
           onSuccess: () => {
             notifySuccess(method ? 'Moyen de paiement modifié.' : 'Moyen de paiement créé.');
-            onDone();
           },
           onError: (error: Error) => showFormError(form, error),
         };
-        if (method) updateMethod.mutate({ id: method.id, input }, callbacks);
-        else createMethod.mutate(input, callbacks);
+        if (method)
+          updateMethod.mutate(
+            { id: method.id, input },
+            {
+              ...callbacks,
+              onSuccess: () => {
+                callbacks.onSuccess();
+                onDone();
+              },
+            },
+          );
+        else
+          createMethod.mutate(input, {
+            ...callbacks,
+            onSuccess: (id) => {
+              callbacks.onSuccess();
+              onDone(id);
+            },
+          });
       })}
     >
       <Stack gap="sm">
@@ -198,7 +239,7 @@ function MethodForm({ method, onDone }: { method?: TreasuryPaymentMethod; onDone
           <Checkbox label="Pour les entrées" {...form.getInputProps('incoming', { type: 'checkbox' })} />
           <Checkbox label="Pour les sorties" {...form.getInputProps('outgoing', { type: 'checkbox' })} />
         </Group>
-        <FormActions loading={createMethod.isPending || updateMethod.isPending} onCancel={onDone} />
+        <FormActions loading={createMethod.isPending || updateMethod.isPending} onCancel={() => onDone()} />
       </Stack>
     </form>
   );
@@ -206,10 +247,10 @@ function MethodForm({ method, onDone }: { method?: TreasuryPaymentMethod; onDone
 
 /**
  * Counterparty: name, note, archived.
- * @param {{ counterparty?: TreasuryCounterparty, onDone: () => void }} props Component props.
+ * @param {{ counterparty?: TreasuryCounterparty, onDone: (createdId?: string) => void }} props Component props (`onDone` is given the id of the counterparty created).
  * @returns {JSX.Element} Form.
  */
-function CounterpartyForm({ counterparty, onDone }: { counterparty?: TreasuryCounterparty; onDone: () => void }) {
+export function CounterpartyForm({ counterparty, onDone }: { counterparty?: TreasuryCounterparty; onDone: (createdId?: string) => void }) {
   const { createCounterparty, updateCounterparty } = useTreasuryMutations();
   const form = useAppForm<{ name: string; note: string; archived: boolean }>({
     initialValues: { name: counterparty?.name ?? '', note: counterparty?.note ?? '', archived: counterparty?.archived ?? false },
@@ -222,20 +263,36 @@ function CounterpartyForm({ counterparty, onDone }: { counterparty?: TreasuryCou
         const callbacks = {
           onSuccess: () => {
             notifySuccess(counterparty ? 'Tiers modifié.' : 'Tiers créé.');
-            onDone();
           },
           onError: (error: Error) => showFormError(form, error),
         };
         const payload = { ...input, note: input.note || null };
-        if (counterparty) updateCounterparty.mutate({ id: counterparty.id, input: payload }, callbacks);
-        else createCounterparty.mutate(payload, callbacks);
+        if (counterparty)
+          updateCounterparty.mutate(
+            { id: counterparty.id, input: payload },
+            {
+              ...callbacks,
+              onSuccess: () => {
+                callbacks.onSuccess();
+                onDone();
+              },
+            },
+          );
+        else
+          createCounterparty.mutate(payload, {
+            ...callbacks,
+            onSuccess: (id) => {
+              callbacks.onSuccess();
+              onDone(id);
+            },
+          });
       })}
     >
       <Stack gap="sm">
         <TextInput label="Nom" required placeholder="Fournisseur, administration, banque…" data-autofocus {...form.getInputProps('name')} />
         <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
         {counterparty && <Checkbox label="Archivé (n’est plus proposé)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
-        <FormActions loading={createCounterparty.isPending || updateCounterparty.isPending} onCancel={onDone} />
+        <FormActions loading={createCounterparty.isPending || updateCounterparty.isPending} onCancel={() => onDone()} />
       </Stack>
     </form>
   );

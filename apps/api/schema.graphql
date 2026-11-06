@@ -1433,6 +1433,10 @@ type Query {
   documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
+
+  """
+  Forecasts (repeated ones once) and actual entries dated after today: the entries of the forecast.
+  """
   forecastEntries: [TreasuryEntry!]!
 
   """Board of a URL with its fields, to configure a link."""
@@ -1512,6 +1516,11 @@ type Query {
   treasuryAccounts: [TreasuryAccount!]!
   treasuryCategories: [TreasuryCategory!]!
   treasuryCounterparties: [TreasuryCounterparty!]!
+
+  """
+  Documents of the app that can support an entry: the library, then the documents of the projects.
+  """
+  treasuryDocumentOptions: [TreasuryEntryDocument!]!
 
   """Entries between two dates (included), latest first."""
   treasuryEntries(accountId: ID, from: Date!, to: Date!): [TreasuryEntry!]!
@@ -1950,6 +1959,9 @@ type TreasuryEntry {
 
   """Execution date."""
   date: Date!
+
+  """Supporting documents: of the library, then of projects."""
+  documents: [TreasuryEntryDocument!]!
   id: ID!
   label: String!
   linkedEntries: [TreasuryLinkedEntry!]!
@@ -1962,7 +1974,24 @@ type TreasuryEntry {
   projectId: ID
   recurrence: JSON
   status: TreasuryEntryStatus!
-  valueDate: Date
+  valueDate: Date!
+}
+
+"""
+Document of the app supporting an entry: of the library, or of a project.
+"""
+type TreasuryEntryDocument {
+  id: ID!
+
+  """FILE or LINK."""
+  kind: String!
+  place: String!
+  projectId: ID
+
+  """LIBRARY or PROJECT."""
+  source: String!
+  title: String!
+  url: String!
 }
 
 input TreasuryEntryInput {
@@ -1974,12 +2003,16 @@ input TreasuryEntryInput {
   counterpartyId: ID
   date: Date!
   label: String!
+  libraryDocumentIds: [ID!]
   linkedEntryIds: [ID!]
   methodId: ID
   note: String
   projectId: ID
+  projectResourceIds: [ID!]
   recurrence: JSON
   status: TreasuryEntryStatus!
+
+  """The execution date when omitted."""
   valueDate: Date
 }
 
@@ -2030,6 +2063,7 @@ type TreasuryProjectionItem {
   kind: String!
   label: String!
   overdue: Boolean!
+  payerName: String
   recurringInvoiceId: ID
 }
 

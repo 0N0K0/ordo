@@ -1,7 +1,7 @@
-import { ActionIcon, Badge, Group, Paper, SegmentedControl, Select, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Modal, Paper, SegmentedControl, Select, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { MonthPickerInput, YearPickerInput } from '@mantine/dates';
 import { addDays, formatMoney, offsetLinkedMovements } from '@ordo/shared';
-import { ArrowsLeftRightIcon, LinkIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, FilePdfIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { localToday } from '../../lib/dates';
@@ -9,6 +9,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryEntries, useTreasuryMutations, useTreasurySettings, type TreasuryAccount, type TreasuryEntry } from './api';
 import { categoryPaths } from './categories';
 import { confirmDeletion } from './confirm-deletion';
+import { StatementForm } from './StatementForm';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -64,6 +65,7 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
   const [month, setMonth] = useState<string>(`${today.slice(0, 7)}-01`);
   const [year, setYear] = useState<string>(`${today.slice(0, 4)}-01-01`);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const from = scale === 'month' ? month : year;
   const to = scale === 'month' ? addDays(`${addDays(month, 31).slice(0, 7)}-01`, -1) : `${year.slice(0, 4)}-12-31`;
   const { data: entries, isPending } = useTreasuryEntries({ from, to, accountId });
@@ -99,6 +101,9 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
           onChange={setAccountId}
           w={220}
         />
+        <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => setExporting(true)}>
+          Exporter en PDF
+        </Button>
         {actual.length > 0 && (
           <Stack gap={0} ml="auto" align="flex-end">
             <Text size="sm" c="dimmed">
@@ -134,7 +139,7 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
                 <Table.Th>Libellé</Table.Th>
                 <Table.Th>Émetteur / destinataire</Table.Th>
                 <Table.Th>Compte</Table.Th>
-                <Table.Th>Documents et liens</Table.Th>
+                <Table.Th>Documents, pièces et liens</Table.Th>
                 <Table.Th ta="right">Montant</Table.Th>
                 <Table.Th />
               </Table.Tr>
@@ -202,6 +207,24 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
                               </Badge>
                             ),
                           )}
+                          {entry.documents.map((document) => (
+                            <Tooltip key={`${document.source}-${document.id}`} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
+                              <Badge
+                                size="sm"
+                                variant="light"
+                                color="gray"
+                                leftSection={<PaperclipIcon aria-hidden />}
+                                component="a"
+                                href={document.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ cursor: 'pointer' }}
+                                tt="none"
+                              >
+                                {document.title.length > 24 ? `${document.title.slice(0, 23)}…` : document.title}
+                              </Badge>
+                            </Tooltip>
+                          ))}
                           {entry.linkedEntries.map((linked) => (
                             <Tooltip key={linked.id} label={`${printedDate(String(linked.date))} · ${linked.label}`}>
                               <Badge size="sm" variant="outline" color={linked.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
@@ -254,6 +277,9 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
           </Table>
         </Paper>
       )}
+      <Modal opened={exporting} onClose={() => setExporting(false)} title="Exporter le relevé des mouvements">
+        {exporting && <StatementForm accounts={accounts} accountId={accountId} onDone={() => setExporting(false)} />}
+      </Modal>
     </Stack>
   );
 }

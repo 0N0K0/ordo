@@ -619,12 +619,15 @@ export type TreasuryEntryInput = {
   counterpartyId?: string | number | null | undefined;
   date: string;
   label: string;
+  libraryDocumentIds?: Array<string | number> | null | undefined;
   linkedEntryIds?: Array<string | number> | null | undefined;
   methodId?: string | number | null | undefined;
   note?: string | null | undefined;
   projectId?: string | number | null | undefined;
+  projectResourceIds?: Array<string | number> | null | undefined;
   recurrence?: unknown;
   status: TreasuryEntryStatus;
+  /** The execution date when omitted. */
   valueDate?: string | null | undefined;
 };
 
@@ -2155,7 +2158,14 @@ export type DeleteTimeEntryMutationVariables = Exact<{
 
 export type DeleteTimeEntryMutation = { deleteTimeEntry: boolean };
 
-export type TreasuryEntryFieldsFragment = { id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string | null, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }> };
+export type TreasuryEntryFieldsFragment = { id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> };
+
+export type TreasuryEntryDocumentFieldsFragment = { id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string };
+
+export type TreasuryDocumentOptionsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TreasuryDocumentOptionsQuery = { treasuryDocumentOptions: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> };
 
 export type TreasuryAccountsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2169,12 +2179,12 @@ export type TreasuryEntriesQueryVariables = Exact<{
 }>;
 
 
-export type TreasuryEntriesQuery = { treasuryEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string | null, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }> }> };
+export type TreasuryEntriesQuery = { treasuryEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
 
 export type ForecastEntriesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForecastEntriesQuery = { forecastEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string | null, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }> }> };
+export type ForecastEntriesQuery = { forecastEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
 
 export type TreasuryProjectionQueryVariables = Exact<{
   today: string;
@@ -2183,7 +2193,7 @@ export type TreasuryProjectionQueryVariables = Exact<{
 }>;
 
 
-export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, series: Array<{ date: string, balance: number, forecast: boolean }>, items: Array<{ date: string, dueDate: string, label: string, amount: number, kind: string, overdue: boolean, entryId: string | null, documentId: string | null, importedDocumentId: string | null, recurringInvoiceId: string | null, accountId: string | null }> } };
+export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, series: Array<{ date: string, balance: number, forecast: boolean }>, items: Array<{ date: string, dueDate: string, label: string, payerName: string | null, amount: number, kind: string, overdue: boolean, entryId: string | null, documentId: string | null, importedDocumentId: string | null, recurringInvoiceId: string | null, accountId: string | null }> } };
 
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2929,6 +2939,17 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
   documentNumber
 }
     `, {"fragmentName":"TimeEntryFields"}) as unknown as TypedDocumentString<TimeEntryFieldsFragment, unknown>;
+export const TreasuryEntryDocumentFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
+  id
+  source
+  kind
+  title
+  url
+  projectId
+  place
+}
+    `, {"fragmentName":"TreasuryEntryDocumentFields"}) as unknown as TypedDocumentString<TreasuryEntryDocumentFieldsFragment, unknown>;
 export const TreasuryEntryFieldsFragmentDoc = new TypedDocumentString(`
     fragment TreasuryEntryFields on TreasuryEntry {
   id
@@ -2962,8 +2983,19 @@ export const TreasuryEntryFieldsFragmentDoc = new TypedDocumentString(`
     importedDocumentId
     documentLabel
   }
+  documents {
+    ...TreasuryEntryDocumentFields
+  }
 }
-    `, {"fragmentName":"TreasuryEntryFields"}) as unknown as TypedDocumentString<TreasuryEntryFieldsFragment, unknown>;
+    fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
+  id
+  source
+  kind
+  title
+  url
+  projectId
+  place
+}`, {"fragmentName":"TreasuryEntryFields"}) as unknown as TypedDocumentString<TreasuryEntryFieldsFragment, unknown>;
 export const ClientFieldsFragmentDoc = new TypedDocumentString(`
     fragment ClientFields on Client {
   id
@@ -4970,6 +5002,21 @@ export const DeleteTimeEntryDocument = new TypedDocumentString(`
   deleteTimeEntry(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTimeEntryMutation, DeleteTimeEntryMutationVariables>;
+export const TreasuryDocumentOptionsDocument = new TypedDocumentString(`
+    query TreasuryDocumentOptions {
+  treasuryDocumentOptions {
+    ...TreasuryEntryDocumentFields
+  }
+}
+    fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
+  id
+  source
+  kind
+  title
+  url
+  projectId
+  place
+}`) as unknown as TypedDocumentString<TreasuryDocumentOptionsQuery, TreasuryDocumentOptionsQueryVariables>;
 export const TreasuryAccountsDocument = new TypedDocumentString(`
     query TreasuryAccounts {
   treasuryAccounts {
@@ -5021,6 +5068,18 @@ export const TreasuryEntriesDocument = new TypedDocumentString(`
     importedDocumentId
     documentLabel
   }
+  documents {
+    ...TreasuryEntryDocumentFields
+  }
+}
+fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
+  id
+  source
+  kind
+  title
+  url
+  projectId
+  place
 }`) as unknown as TypedDocumentString<TreasuryEntriesQuery, TreasuryEntriesQueryVariables>;
 export const ForecastEntriesDocument = new TypedDocumentString(`
     query ForecastEntries {
@@ -5060,6 +5119,18 @@ export const ForecastEntriesDocument = new TypedDocumentString(`
     importedDocumentId
     documentLabel
   }
+  documents {
+    ...TreasuryEntryDocumentFields
+  }
+}
+fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
+  id
+  source
+  kind
+  title
+  url
+  projectId
+  place
 }`) as unknown as TypedDocumentString<ForecastEntriesQuery, ForecastEntriesQueryVariables>;
 export const TreasuryProjectionDocument = new TypedDocumentString(`
     query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {
@@ -5074,6 +5145,7 @@ export const TreasuryProjectionDocument = new TypedDocumentString(`
       date
       dueDate
       label
+      payerName
       amount
       kind
       overdue

@@ -91,6 +91,43 @@ const LinkedEntryRef = builder.objectRef<LinkedEntry>('TreasuryLinkedEntry').imp
   }),
 });
 
+/** Supporting document of an entry: of the library, or of a project. */
+interface EntryDocument {
+  id: string;
+  source: 'LIBRARY' | 'PROJECT';
+  kind: string;
+  title: string;
+  url: string;
+  projectId: string | null;
+  /** Library folder, or project, it belongs to. */
+  place: string;
+}
+
+const EntryDocumentRef = builder.objectRef<EntryDocument>('TreasuryEntryDocument').implement({
+  description: 'Document of the app supporting an entry: of the library, or of a project.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    source: t.exposeString('source', { description: 'LIBRARY or PROJECT.' }),
+    kind: t.exposeString('kind', { description: 'FILE or LINK.' }),
+    title: t.exposeString('title'),
+    url: t.exposeString('url'),
+    projectId: t.exposeID('projectId', { nullable: true }),
+    place: t.exposeString('place'),
+  }),
+});
+
+const documentSelect = {
+  select: { id: true, kind: true, title: true, url: true, attachment: { select: { id: true, name: true } } },
+} as const;
+
+/**
+ * Address of a file or link document.
+ * @param {{ kind: string, url: string | null, attachment: { id: string, name: string } | null }} document Document.
+ * @returns {string} URL.
+ */
+const documentUrl = (document: { kind: string; url: string | null; attachment: { id: string; name: string } | null }) =>
+  document.kind === 'LINK' ? (document.url ?? '') : `/api/attachments/${document.attachment?.id}/${encodeURIComponent(document.attachment?.name ?? 'fichier')}`;
+
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
 builder.prismaObject('DocumentStatus', {
@@ -134,7 +171,7 @@ builder.prismaObject('TreasuryEntry', {
     accountName: t.string({ select: { account: { select: { name: true } } }, resolve: (entry) => entry.account.name }),
     status: t.field({ type: EntryStatusEnum, resolve: (entry) => entry.status }),
     date: t.expose('date', { type: 'Date', description: 'Execution date.' }),
-    valueDate: t.expose('valueDate', { type: 'Date', nullable: true }),
+    valueDate: t.expose('valueDate', { type: 'Date' }),
     label: t.exposeString('label'),
     amount: t.float({ resolve: (entry) => Number(entry.amount) }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
@@ -160,6 +197,34 @@ builder.prismaObject('TreasuryEntry', {
     note: t.exposeString('note', { nullable: true }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (entry) => entry.recurrence }),
     allocations: t.relation('allocations'),
+    documents: t.field({
+      type: [EntryDocumentRef],
+      description: 'Supporting documents: of the library, then of projects.',
+      select: {
+        libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
+        projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+      },
+      resolve: (entry) => [
+        ...entry.libraryDocuments.map((document) => ({
+          id: document.id,
+          source: 'LIBRARY' as const,
+          kind: document.kind,
+          title: document.title,
+          url: documentUrl(document),
+          projectId: null,
+          place: document.folder?.name ?? 'Documents',
+        })),
+        ...entry.projectResources.map((resource) => ({
+          id: resource.id,
+          source: 'PROJECT' as const,
+          kind: resource.kind,
+          title: resource.title,
+          url: documentUrl(resource),
+          projectId: resource.project.id,
+          place: resource.project.title,
+        })),
+      ],
+    }),
   }),
 });
 
@@ -270,6 +335,7 @@ const ProjectionItem = builder.objectRef<treasury.ProjectionItem>('TreasuryProje
     date: t.exposeString('date', { description: 'Expected date, YYYY-MM-DD (overdue items: today).' }),
     dueDate: t.exposeString('dueDate'),
     label: t.exposeString('label'),
+    payerName: t.exposeString('payerName', { nullable: true }),
     amount: t.float({ resolve: (item) => fromCents(item.amount) }),
     kind: t.exposeString('kind'),
     overdue: t.exposeBoolean('overdue'),
@@ -319,7 +385,7 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
     accountId: t.id({ required: true }),
     status: t.field({ type: EntryStatusEnum, required: true }),
     date: t.field({ type: 'Date', required: true }),
-    valueDate: t.field({ type: 'Date' }),
+    valueDate: t.field({ type: 'Date', description: 'The execution date when omitted.' }),
     label: t.string({ required: true }),
     amount: t.float({ required: true }),
     categoryId: t.id(),
@@ -331,6 +397,8 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
     recurrence: t.field({ type: 'JSON' }),
     allocations: t.field({ type: [AllocationInput], required: true }),
     linkedEntryIds: t.idList(),
+    libraryDocumentIds: t.idList(),
+    projectResourceIds: t.idList(),
   }),
 });
 
@@ -372,6 +440,8 @@ const entryInput = (input: typeof EntryInput.$inferInput): TreasuryEntryInput =>
   counterpartyId: input.counterpartyId ?? null,
   projectId: input.projectId ?? null,
   linkedEntryIds: input.linkedEntryIds ?? [],
+  libraryDocumentIds: input.libraryDocumentIds ?? [],
+  projectResourceIds: input.projectResourceIds ?? [],
   note: input.note ?? null,
   recurrence: (input.recurrence ?? null) as TreasuryEntryInput['recurrence'],
   allocations: input.allocations.map((allocation) => ({
@@ -436,6 +506,39 @@ builder.queryFields((t) => ({
     type: ['TreasuryCounterparty'],
     resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { name: 'asc' }] }),
   }),
+  treasuryDocumentOptions: t.field({
+    type: [EntryDocumentRef],
+    description: 'Documents of the app that can support an entry: the library, then the documents of the projects.',
+    resolve: async () => {
+      const [documents, resources] = await Promise.all([
+        prisma.libraryDocument.findMany({ select: { ...documentSelect.select, folder: { select: { name: true } } }, orderBy: { title: 'asc' } }),
+        prisma.projectResource.findMany({
+          select: { ...documentSelect.select, project: { select: { id: true, title: true } } },
+          orderBy: [{ project: { title: 'asc' } }, { position: 'asc' }],
+        }),
+      ]);
+      return [
+        ...documents.map((document) => ({
+          id: document.id,
+          source: 'LIBRARY' as const,
+          kind: document.kind,
+          title: document.title,
+          url: documentUrl(document),
+          projectId: null,
+          place: document.folder?.name ?? 'Documents',
+        })),
+        ...resources.map((resource) => ({
+          id: resource.id,
+          source: 'PROJECT' as const,
+          kind: resource.kind,
+          title: resource.title,
+          url: documentUrl(resource),
+          projectId: resource.project.id,
+          place: resource.project.title,
+        })),
+      ];
+    },
+  }),
   treasuryEntrySearch: t.prismaField({
     type: ['TreasuryEntry'],
     description: 'Entries whose label contains a text (to link entries), latest first.',
@@ -450,7 +553,13 @@ builder.queryFields((t) => ({
   }),
   forecastEntries: t.prismaField({
     type: ['TreasuryEntry'],
-    resolve: (query) => prisma.treasuryEntry.findMany({ ...query, where: { status: 'FORECAST' }, orderBy: [{ date: 'asc' }, { createdAt: 'asc' }] }),
+    description: 'Forecasts (repeated ones once) and actual entries dated after today: the entries of the forecast.',
+    resolve: (query) =>
+      prisma.treasuryEntry.findMany({
+        ...query,
+        where: { OR: [{ status: 'FORECAST' }, { status: 'ACTUAL', date: { gt: parseDay(today()) } }] },
+        orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+      }),
   }),
   treasuryProjection: t.field({
     type: Projection,

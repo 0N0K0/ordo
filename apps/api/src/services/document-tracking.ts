@@ -234,6 +234,7 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
       accountId: payment.accountId,
       status: 'ACTUAL',
       date: parseDay(payment.date),
+      valueDate: parseDay(payment.date),
       label: `${refund ? 'Remboursement' : 'Règlement'} ${document.number} — ${document.client.name}`,
       amount: new Prisma.Decimal(refund ? -payment.amount : payment.amount),
       categoryId: category?.id ?? null,

@@ -12,6 +12,7 @@ import { exportsRouter } from './routes/exports';
 import { libraryRouter } from './routes/library';
 import { iconsRouter } from './routes/icons';
 import { mailRouter } from './routes/mail';
+import { treasuryRouter } from './routes/treasury';
 import { scheduleConversationFollowUp } from './services/mail/linked';
 import { scheduleGithubSync } from './services/github/sync';
 import { scheduleRecurringInvoices } from './services/recurring-invoices';
@@ -48,6 +49,7 @@ app.use('/api/accounting', accountingRouter);
 app.use('/api/mail', mailRouter);
 app.use('/api/exports', exportsRouter);
 app.use('/api/library', libraryRouter);
+app.use('/api/treasury', treasuryRouter);
 app.use(yoga.graphqlEndpoint, async (req, res) => {
   await yoga(req, res);
 });

@@ -6,6 +6,7 @@ import type {
   TreasuryAccountsQuery,
   TreasuryEntriesQuery,
   TreasuryEntrySearchQuery,
+  TreasuryDocumentOptionsQuery,
   TreasuryProjectionQuery,
   TreasurySettingsQuery,
 } from '../../graphql/graphql';
@@ -21,6 +22,7 @@ export type TreasurySettings = TreasurySettingsQuery;
 export type TreasuryCategory = TreasurySettingsQuery['treasuryCategories'][number];
 export type TreasuryPaymentMethod = TreasurySettingsQuery['treasuryPaymentMethods'][number];
 export type TreasuryCounterparty = TreasurySettingsQuery['treasuryCounterparties'][number];
+export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
 export type FoundEntry = TreasuryEntrySearchQuery['treasuryEntrySearch'][number];
 
 // Under the accounting key: payments change documents, and documents change the forecast.
@@ -58,6 +60,29 @@ graphql(`
       documentId
       importedDocumentId
       documentLabel
+    }
+    documents {
+      ...TreasuryEntryDocumentFields
+    }
+  }
+`);
+
+graphql(`
+  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
+    id
+    source
+    kind
+    title
+    url
+    projectId
+    place
+  }
+`);
+
+const DocumentOptionsDocument = graphql(`
+  query TreasuryDocumentOptions {
+    treasuryDocumentOptions {
+      ...TreasuryEntryDocumentFields
     }
   }
 `);
@@ -105,6 +130,7 @@ const ProjectionDocument = graphql(`
         date
         dueDate
         label
+        payerName
         amount
         kind
         overdue
@@ -272,6 +298,15 @@ export function useTreasuryEntries(filter: { from: string; to: string; accountId
  */
 export function useTreasurySettings() {
   return useQuery({ queryKey: [...treasuryKey, 'settings'], queryFn: () => execute(SettingsDocument) });
+}
+
+/**
+ * Documents of the app that can support an entry: the library, then the documents of the projects.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTreasuryDocumentOptions(enabled = true) {
+  return useQuery({ enabled, queryKey: [...treasuryKey, 'document-options'], queryFn: async () => (await execute(DocumentOptionsDocument)).treasuryDocumentOptions });
 }
 
 /**

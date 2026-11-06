@@ -92,6 +92,9 @@ export const treasuryEntrySchema = z
     allocations: z.array(treasuryAllocationSchema).max(50, '50 documents maximum.'),
     /** Linked entries (both ways). */
     linkedEntryIds: z.array(z.string()).max(50, '50 mouvements liés maximum.'),
+    /** Supporting documents: of the library, or of a project. */
+    libraryDocumentIds: z.array(z.string()).max(50, '50 documents maximum.'),
+    projectResourceIds: z.array(z.string()).max(50, '50 documents maximum.'),
   })
   .superRefine((entry, context) => {
     if (entry.status === 'ACTUAL' && entry.recurrence) {

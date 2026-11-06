@@ -265,7 +265,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     counterpartyIds.set(name, (await createCounterparty({ name, note: null, archived: false })).id);
   }
   const counterpartyOf = (name: string | undefined) => (name ? (counterpartyIds.get(name) ?? null) : null);
-  const entryBase = { valueDate: null, clientId: null, counterpartyId: null, projectId: null, note: null, recurrence: null, allocations: [], linkedEntryIds: [] };
+  const entryBase = { valueDate: null, clientId: null, counterpartyId: null, projectId: null, note: null, recurrence: null, allocations: [], linkedEntryIds: [], libraryDocumentIds: [], projectResourceIds: [] };
   await createAccount({ name: 'Livret pro', openingBalance: 12000, openingDate: day(-180) });
 
   /**
