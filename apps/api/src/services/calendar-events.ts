@@ -2,6 +2,7 @@ import {
   addDays,
   calendarEventInputSchema,
   daysBetween,
+  entrySeconds,
   formatDay,
   occurrenceDates,
   occurrencesBefore,
@@ -50,28 +51,36 @@ export interface EventOccurrence {
   projectId: string | null;
   contributorIds: string[];
   categoryIds: string[];
+  /** Tasks the event is about. */
+  taskIds: string[];
   /** Cancelled but kept in the calendar. */
   calledOff: boolean;
   /** Event (and occurrence) this one postpones. */
   postponedFrom: { eventId: string; date: string | null; title: string } | null;
   /** Events postponing this occurrence. */
   postponedTo: { eventId: string; title: string; startDate: string; startTime: string | null }[];
+  /** Time tracked on this occurrence, in seconds (running timers until now). */
+  trackedSeconds: number;
 }
 
 type EventWithRelations = CalendarEvent & {
   exceptions: CalendarEventException[];
   contributors: { id: string }[];
   categories: { id: string }[];
+  tasks: { id: string }[];
   postponedFrom: { title: string } | null;
   postponements: { id: string; title: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
+  timeEntries: { calendarOccurrenceDate: Date | null; startedAt: Date; endedAt: Date | null; pausedAt: Date | null; pausedSeconds: number; duration: number | null }[];
 };
 
 const occurrenceInclude = {
   exceptions: true,
   contributors: { select: { id: true } },
   categories: { select: { id: true } },
+  tasks: { select: { id: true } },
   postponedFrom: { select: { title: true } },
   postponements: { select: { id: true, title: true, startDate: true, startTime: true, postponedFromDate: true } },
+  timeEntries: { select: { calendarOccurrenceDate: true, startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true } },
 } as const;
 
 /**
@@ -100,6 +109,7 @@ async function parseEvent(input: CalendarEventInput) {
   if ((await prisma.calendarCategory.count({ where: { id: { in: event.categoryIds } } })) !== new Set(event.categoryIds).size) {
     throw notFound('Catégorie');
   }
+  if ((await prisma.task.count({ where: { id: { in: event.taskIds } } })) !== new Set(event.taskIds).size) throw notFound('Tâche');
   if (event.allDay) {
     event.startTime = null;
     event.endTime = null;
@@ -154,6 +164,7 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
       recurrence: event.recurrence ?? undefined,
       contributors: { connect: event.contributorIds.map((id) => ({ id })) },
       categories: { connect: event.categoryIds.map((id) => ({ id })) },
+      tasks: { connect: [...new Set(event.taskIds)].map((id) => ({ id })) },
     },
   });
 }
@@ -209,6 +220,7 @@ export async function updateCalendarEvent(
   const relations = {
     contributors: { set: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
     categories: { set: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
+    tasks: { set: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
   };
 
   if (!occurrence) {
@@ -270,6 +282,7 @@ export async function updateCalendarEvent(
         recurrence: rule ?? undefined,
         contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
         categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
+        tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
       },
     });
   });
@@ -339,6 +352,7 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     projectId: event.projectId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     categoryIds: event.categories.map((category) => category.id),
+    taskIds: event.tasks.map((task) => task.id),
     calledOff: event.calledOff || (change?.calledOff ?? false),
     postponedFrom: event.postponedFromId
       ? { eventId: event.postponedFromId, date: event.postponedFromDate ? formatDay(event.postponedFromDate) : null, title: event.postponedFrom?.title ?? '' }
@@ -346,6 +360,20 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     postponedTo: event.postponements
       .filter((postponement) => (postponement.postponedFromDate ? formatDay(postponement.postponedFromDate) : null) === date)
       .map((postponement) => ({ eventId: postponement.id, title: postponement.title, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
+    trackedSeconds: event.timeEntries
+      .filter((entry) => (entry.calendarOccurrenceDate ? formatDay(entry.calendarOccurrenceDate) : null) === date)
+      .reduce(
+        (sum, entry) =>
+          sum +
+          entrySeconds({
+            startedAt: entry.startedAt.toISOString(),
+            endedAt: entry.endedAt?.toISOString() ?? null,
+            pausedAt: entry.pausedAt?.toISOString() ?? null,
+            pausedSeconds: entry.pausedSeconds,
+            duration: entry.duration,
+          }),
+        0,
+      ),
   };
 }
 
@@ -403,6 +431,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     projectId: event.projectId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     categoryIds: event.categories.map((category) => category.id),
+    taskIds: event.tasks.map((task) => task.id),
   };
 }
 
@@ -489,6 +518,7 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
       contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
       categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
+      tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
     },
   });
   await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);

@@ -36,6 +36,7 @@ graphql(`
     projectId
     contributorIds
     categoryIds
+    taskIds
     calledOff
     postponedFrom {
       eventId
@@ -48,6 +49,7 @@ graphql(`
       startDate
       startTime
     }
+    trackedSeconds
   }
 `);
 

@@ -19,6 +19,9 @@ graphql(`
     taskIds
     documentId
     documentNumber
+    calendarEventId
+    calendarOccurrenceDate
+    calendarEventTitle
   }
 `);
 
@@ -150,6 +153,8 @@ export interface TimeEntryValues {
   startedAt: string;
   /** Seconds. */
   duration: number;
+  /** Calendar event the time was spent on (null: none). */
+  event?: { eventId: string; occurrenceDate: string | null } | null;
 }
 
 /**
@@ -159,7 +164,7 @@ export interface TimeEntryValues {
 export function useTimeMutations() {
   return {
     start: useTimeMutation(
-      async (input: { projectId: string; taskIds: string[]; description?: string | null }) =>
+      async (input: { projectId: string; taskIds: string[]; description?: string | null; event?: { eventId: string; occurrenceDate: string | null } | null }) =>
         (await execute(StartTimerDocument, { input })).startTimer,
     ),
     setPaused: useTimeMutation(async (paused: boolean) => (await execute(SetTimerPausedDocument, { paused })).setTimerPaused),

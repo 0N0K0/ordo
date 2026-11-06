@@ -1,4 +1,4 @@
-import { durationSchema, timeDescriptionSchema } from '@ordo/shared';
+import { durationSchema, parseDay, timeDescriptionSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { TimeEntry } from '../generated/prisma/client';
@@ -12,6 +12,28 @@ import { clientError, notFound, parseInput } from '../graphql/errors';
  */
 function fieldError(field: string, message: string) {
   return clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
+}
+
+/** Calendar event (and occurrence of a recurring one) a time is spent on. */
+export interface TimeEventLink {
+  eventId: string;
+  /** Occurrence of a recurring event. */
+  occurrenceDate: string | null;
+}
+
+/**
+ * Prisma data of the event a time is spent on, after checking it (null: none, undefined: unchanged).
+ * @param {TimeEventLink | null | undefined} link Event.
+ * @returns {Promise<{ calendarEventId: string | null, calendarOccurrenceDate: Date | null } | undefined>} Data.
+ */
+async function eventLinkData(link: TimeEventLink | null | undefined): Promise<{ calendarEventId: string | null; calendarOccurrenceDate: Date | null } | undefined> {
+  if (link === undefined) return undefined;
+  if (link === null) return { calendarEventId: null, calendarOccurrenceDate: null };
+  const event = await prisma.calendarEvent.findUnique({ where: { id: link.eventId }, select: { recurrence: true } });
+  if (!event) throw fieldError('calendarEventId', 'Évènement introuvable.');
+  const recurring = event.recurrence !== null;
+  if (recurring && !link.occurrenceDate) throw fieldError('calendarEventId', 'Choisissez l’occurrence de l’évènement.');
+  return { calendarEventId: link.eventId, calendarOccurrenceDate: recurring && link.occurrenceDate ? parseDay(link.occurrenceDate) : null };
 }
 
 /**
@@ -95,14 +117,16 @@ export async function stopTimer(): Promise<TimeEntry | null> {
  * @param {string | null} [input.description] What is being done. Optional.
  * @returns {Promise<TimeEntry>} Running entry.
  */
-export async function startTimer(input: { projectId: string; taskIds: string[]; description?: string | null }): Promise<TimeEntry> {
+export async function startTimer(input: { projectId: string; taskIds: string[]; description?: string | null; event?: TimeEventLink | null }): Promise<TimeEntry> {
   const description = parseInput(timeDescriptionSchema, input.description ?? null);
   await assertProjectAndTasks(input.projectId, input.taskIds, true);
+  const link = await eventLinkData(input.event ?? null);
   await stopTimer();
   return prisma.timeEntry.create({
     data: {
       projectId: input.projectId,
       description,
+      ...link,
       startedAt: new Date(),
       tasks: { connect: input.taskIds.map((id) => ({ id })) },
     },
@@ -133,6 +157,8 @@ export interface TimeEntryInput {
   startedAt?: Date | null;
   /** Seconds; finished entries only. */
   duration?: number | null;
+  /** Event the time is spent on (null: none, undefined: unchanged). */
+  event?: TimeEventLink | null;
 }
 
 /**
@@ -149,10 +175,12 @@ export async function createTimeEntry(
   });
   const taskIds = input.taskIds ?? [];
   await assertProjectAndTasks(input.projectId, taskIds, true);
+  const link = await eventLinkData(input.event ?? null);
   return prisma.timeEntry.create({
     data: {
       projectId: input.projectId,
       description,
+      ...link,
       startedAt: input.startedAt,
       endedAt: new Date(input.startedAt.getTime() + duration * 1000),
       duration,
@@ -185,11 +213,13 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
 
   const startedAt = input.startedAt ?? entry.startedAt;
   const seconds = duration ?? entry.duration;
+  const link = await eventLinkData(input.event);
   return prisma.timeEntry.update({
     where: { id },
     data: {
       projectId,
       description,
+      ...link,
       startedAt,
       ...(!running && seconds !== null && { duration: seconds, endedAt: new Date(startedAt.getTime() + seconds * 1000) }),
       tasks: { set: taskIds.map((taskId) => ({ id: taskId })) },

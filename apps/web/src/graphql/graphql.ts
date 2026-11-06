@@ -140,6 +140,8 @@ export type CalendarEventInput = {
   reminders: Array<number>;
   startDate: string;
   startTime?: string | null | undefined;
+  /** Tasks the event is about (none when omitted). */
+  taskIds?: Array<string | number> | null | undefined;
   timeZone: string;
   title: string;
 };
@@ -560,6 +562,7 @@ export type TimeEntryInput = {
   description?: string | null | undefined;
   /** Seconds. */
   duration: number;
+  event?: TimeEventInput | null | undefined;
   projectId: string | number;
   startedAt: string;
   taskIds: Array<string | number>;
@@ -570,13 +573,22 @@ export type TimeEntryUpdateInput = {
   description?: string | null | undefined;
   /** Seconds. */
   duration?: number | null | undefined;
+  /** Null: no event; omitted: unchanged. */
+  event?: TimeEventInput | null | undefined;
   projectId?: string | number | null | undefined;
   startedAt?: string | null | undefined;
   taskIds?: Array<string | number> | null | undefined;
 };
 
+/** Calendar event a time is spent on (its occurrence for a recurring one). */
+export type TimeEventInput = {
+  eventId: string | number;
+  occurrenceDate?: string | null | undefined;
+};
+
 export type TimerInput = {
   description?: string | null | undefined;
+  event?: TimeEventInput | null | undefined;
   projectId: string | number;
   taskIds: Array<string | number>;
 };
@@ -1215,7 +1227,7 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
-export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, calledOff: boolean, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
 
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1274,7 +1286,7 @@ export type CalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, calledOff: boolean, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
 
 export type CreateCalendarCategoryMutationVariables = Exact<{
   input: CalendarCategoryInput;
@@ -2169,7 +2181,7 @@ export type DeleteSprintMutationVariables = Exact<{
 
 export type DeleteSprintMutation = { deleteSprint: boolean };
 
-export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null };
+export type TimeEntryFieldsFragment = { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventTitle: string | null };
 
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
@@ -2177,12 +2189,12 @@ export type TimeEntriesQueryVariables = Exact<{
 }>;
 
 
-export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null }> };
+export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventTitle: string | null }> };
 
 export type RunningTimeEntryQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null } | null };
+export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventTitle: string | null } | null };
 
 export type StartTimerMutationVariables = Exact<{
   input: TimerInput;
@@ -2815,6 +2827,7 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
   projectId
   contributorIds
   categoryIds
+  taskIds
   calledOff
   postponedFrom {
     eventId
@@ -2827,6 +2840,7 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
     startDate
     startTime
   }
+  trackedSeconds
 }
     `, {"fragmentName":"CalendarEventOccurrenceFields"}) as unknown as TypedDocumentString<CalendarEventOccurrenceFieldsFragment, unknown>;
 export const MailAccountFieldsFragmentDoc = new TypedDocumentString(`
@@ -3016,6 +3030,9 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
+  calendarEventId
+  calendarOccurrenceDate
+  calendarEventTitle
 }
     `, {"fragmentName":"TimeEntryFields"}) as unknown as TypedDocumentString<TimeEntryFieldsFragment, unknown>;
 export const TreasuryEntryDocumentFieldsFragmentDoc = new TypedDocumentString(`
@@ -3965,6 +3982,7 @@ export const CalendarEventsDocument = new TypedDocumentString(`
   projectId
   contributorIds
   categoryIds
+  taskIds
   calledOff
   postponedFrom {
     eventId
@@ -3977,6 +3995,7 @@ export const CalendarEventsDocument = new TypedDocumentString(`
     startDate
     startTime
   }
+  trackedSeconds
 }`) as unknown as TypedDocumentString<CalendarEventsQuery, CalendarEventsQueryVariables>;
 export const CreateCalendarCategoryDocument = new TypedDocumentString(`
     mutation CreateCalendarCategory($input: CalendarCategoryInput!) {
@@ -5084,6 +5103,9 @@ export const TimeEntriesDocument = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
+  calendarEventId
+  calendarOccurrenceDate
+  calendarEventTitle
 }`) as unknown as TypedDocumentString<TimeEntriesQuery, TimeEntriesQueryVariables>;
 export const RunningTimeEntryDocument = new TypedDocumentString(`
     query RunningTimeEntry {
@@ -5103,6 +5125,9 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
+  calendarEventId
+  calendarOccurrenceDate
+  calendarEventTitle
 }`) as unknown as TypedDocumentString<RunningTimeEntryQuery, RunningTimeEntryQueryVariables>;
 export const StartTimerDocument = new TypedDocumentString(`
     mutation StartTimer($input: TimerInput!) {
