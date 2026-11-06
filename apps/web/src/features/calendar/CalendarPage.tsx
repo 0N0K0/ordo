@@ -6,7 +6,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, plannedPauses, plannedSlots } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, plannedPauses, plannedSlots } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -15,6 +15,9 @@ import { notifyError } from '../../lib/notify';
 import { useUpdateTask } from '../tasks/api';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useTaskLink } from '../tasks/use-task-link';
+import { useTimeEntriesSince } from '../time/api';
+import { useNow } from '../time/use-now';
+import { useTimeEntryDialogs } from '../time/use-time-dialogs';
 import { scheduleRules, useCalendarCategories, useCalendarEventMutations, useCalendarEvents, useMaterializeTaskOccurrences, useWorkSchedules, type EventOccurrence } from './api';
 import { askScope } from './ask-scope';
 import classes from './CalendarPage.module.css';
@@ -35,6 +38,8 @@ interface Filters {
   tasks: boolean;
   /** Planned working hours, in the background. */
   workHours?: boolean;
+  /** Tracked times (timers). */
+  timers?: boolean;
   projectIds: string[];
   categoryIds: string[];
   contributorIds: string[];
@@ -53,7 +58,8 @@ const dayOf = (date: Date) => localParts(date).date;
 
 /**
  * Calendar: events and dated tasks by month, week or day, filtered by project, category and contributor;
- * planned working hours in the background and their pauses as bands; cancelled events struck through.
+ * planned working hours in the background and their pauses as bands; tracked times (timers) on demand;
+ * cancelled events struck through.
  * Events and tasks move and stretch by drag and drop; selecting a period creates an event. In week and
  * day views, the all-day row is collapsed by default and expands across every day. The
  * occurrences of recurring tasks are created for the displayed period only.
@@ -81,6 +87,14 @@ export function CalendarPage() {
   const taskLink = useTaskLink();
   const { data: schedules } = useWorkSchedules();
   const [managingSchedules, setManagingSchedules] = useState(false);
+  // Tracked times of the displayed period (from its first day, local midnight).
+  const showTimers = filters.timers === true;
+  const timeEntries = useTimeEntriesSince(range ? new Date(`${range.from}T00:00:00`).toISOString() : null, showTimers && range !== null);
+  const timerRunning = (timeEntries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
+  // A running timer grows every minute in the calendar.
+  const now = useNow(showTimers && timerRunning);
+  const minute = Math.floor(now / 60_000);
+  const { openForm: openTimeEntry } = useTimeEntryDialogs(context);
   // A date to show (link to a postponed event…).
   const [params, setParams] = useSearchParams();
   const requestedDate = params.get('date');
@@ -134,6 +148,30 @@ export function CalendarPage() {
         classNames: [...(occurrence.occurrenceDate ? [classes.recurring] : []), ...(occurrence.calledOff ? [classes.closed] : [])],
       });
     }
+    // Tracked times: blocks from their start to their end (now while running), in the color of their project.
+    if (showTimers && range) {
+      for (const entry of timeEntries.data ?? []) {
+        if (!inProjects(entry.projectId)) continue;
+        const start = new Date(entry.startedAt);
+        if (dayOf(start) > range.to) continue;
+        const running = entry.endedAt === null;
+        const end = entry.endedAt ? new Date(entry.endedAt) : entry.pausedAt ? new Date(entry.pausedAt) : new Date(minute * 60_000 + 60_000);
+        const project = context.projectById.get(entry.projectId);
+        const color = project?.color ?? 'var(--mantine-color-gray-6)';
+        result.push({
+          id: `time:${entry.id}`,
+          title: `${running ? '● ' : ''}${project?.title ?? 'Projet'}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
+          start,
+          end: end > start ? end : new Date(start.getTime() + 60_000),
+          editable: false,
+          backgroundColor: 'transparent',
+          borderColor: color,
+          textColor: 'var(--mantine-color-text)',
+          extendedProps: { kind: 'time', entry },
+          classNames: [classes.timer],
+        });
+      }
+    }
     // Working hours in the background (week and day), pauses as all-day bands.
     if (range && schedules && filters.workHours !== false) {
       const rules = scheduleRules(schedules);
@@ -182,7 +220,7 @@ export function CalendarPage() {
       }
     }
     return result;
-  }, [context, events.data, filters, categoryFilter, categoryById, range, schedules]);
+  }, [context, events.data, filters, categoryFilter, categoryById, range, schedules, showTimers, timeEntries.data, minute]);
 
   /**
    * Saves an event or a task moved or stretched in the calendar (cancelled: back in place).
@@ -272,6 +310,7 @@ export function CalendarPage() {
       <Group gap="sm" wrap="wrap" align="flex-end">
         <Switch label="Tâches" checked={filters.tasks} onChange={(event) => setFilters({ ...filters, tasks: event.currentTarget.checked })} />
         <Switch label="Plages de travail" checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
+        <Switch label="Chronos" checked={showTimers} onChange={(event) => setFilters({ ...filters, timers: event.currentTarget.checked })} />
         <MultiSelect
           size="xs"
           placeholder={filters.projectIds.length ? undefined : 'Tous les projets'}
@@ -371,6 +410,7 @@ export function CalendarPage() {
             info.jsEvent.preventDefault();
             if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.number));
             else if (info.event.extendedProps.kind === 'pause') setManagingSchedules(true);
+            else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else openEvent({ occurrence: info.event.extendedProps.occurrence });
           }}
           eventDrop={(info) => void handleChange(info)}

@@ -102,10 +102,12 @@ export function useTimeEntries(projectId: string) {
 /**
  * Time entries of every project, latest first, started since a moment or all of them.
  * @param {string | null} since Moment (ISO date-time), or null for every entry.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
  */
-export function useTimeEntriesSince(since: string | null) {
+export function useTimeEntriesSince(since: string | null, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [...timeQueryKey, 'since', since],
     queryFn: async () => (await execute(TimeEntriesDocument, { since })).timeEntries,
   });

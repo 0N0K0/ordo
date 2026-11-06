@@ -102,4 +102,13 @@
       color: var(--mantine-color-orange-light-color);
     }
   }
+
+  /* Tracked time: hatched, to tell it from events. */
+  .timer {
+    /* Bordures */
+    border-width: 0 0 0 3px !important;
+
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, var(--mantine-color-default-hover) 0 6px, transparent 6px 12px) !important;
+  }
 }
