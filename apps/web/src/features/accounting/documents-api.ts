@@ -47,6 +47,8 @@ graphql(`
     overdue
     sentAt
     acceptedAt
+    depositType
+    depositValue
   }
 `);
 
@@ -58,6 +60,8 @@ graphql(`
     serviceId
     contactId
     sourceId
+    importedSourceId
+    importedSourceNumber
     derived {
       id
       type
@@ -217,6 +221,11 @@ const CreateFromDocument = graphql(`
     createDocumentFrom(sourceId: $sourceId, type: $type, depositPercent: $depositPercent, issueDate: $issueDate)
   }
 `);
+const CreateDepositInvoice = graphql(`
+  mutation CreateDepositInvoice($quoteId: ID, $importedQuoteId: ID, $percent: Float!, $issueDate: Date!) {
+    createDepositInvoice(quoteId: $quoteId, importedQuoteId: $importedQuoteId, percent: $percent, issueDate: $issueDate)
+  }
+`);
 const DuplicateDocument = graphql(`
   mutation DuplicateAccountingDocument($id: ID!, $issueDate: Date!) {
     duplicateAccountingDocument(id: $id, issueDate: $issueDate)
@@ -340,6 +349,7 @@ function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVar
  * @returns {object} Mutations.
  */
 export function useDocumentMutations() {
+  const queryClient = useQueryClient();
   return {
     create: useAccountingMutation(
       async (variables: { type: AccountingDocumentType; input: AccountingDocumentInput }) =>
@@ -348,11 +358,20 @@ export function useDocumentMutations() {
     update: useAccountingMutation(
       async (variables: { id: string; input: AccountingDocumentInput }) => (await execute(UpdateDocument, variables as never)).updateAccountingDocument,
     ),
-    remove: useAccountingMutation(async (id: string) => (await execute(DeleteDocument, { id })).deleteAccountingDocument),
+    remove: useMutation<boolean, Error, string>({
+      mutationFn: async (id) => (await execute(DeleteDocument, { id })).deleteAccountingDocument,
+      // The deleted document is not fetched again: its page would show « introuvable » before leaving.
+      onSettled: (_result, _error, id) =>
+        queryClient.invalidateQueries({ queryKey: accountingQueryKey, predicate: (query) => !(query.queryKey[1] === 'document' && query.queryKey[2] === id) }),
+    }),
     finalize: useAccountingMutation(async (id: string) => (await execute(FinalizeDocument, { id })).finalizeAccountingDocument),
     createFrom: useAccountingMutation(
       async (variables: { sourceId: string; type: AccountingDocumentType; depositPercent?: number | null; issueDate: string }) =>
         (await execute(CreateFromDocument, variables)).createDocumentFrom,
+    ),
+    createDeposit: useAccountingMutation(
+      async (variables: { quoteId?: string | null; importedQuoteId?: string | null; percent: number; issueDate: string }) =>
+        (await execute(CreateDepositInvoice, variables)).createDepositInvoice,
     ),
     duplicate: useAccountingMutation(async (variables: { id: string; issueDate: string }) => (await execute(DuplicateDocument, variables)).duplicateAccountingDocument),
     addAttachments: useAccountingMutation(async (variables: { id: string; files: File[] }) => (await execute(AddAttachments, variables)).addAccountingAttachments),

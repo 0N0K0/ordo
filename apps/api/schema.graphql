@@ -36,6 +36,10 @@ type AccountingDocument {
   globalDiscountType: DiscountType
   globalDiscountValue: Float
   id: ID!
+
+  """Imported quote a deposit invoice was made from."""
+  importedSourceId: ID
+  importedSourceNumber: String
   introduction: String
 
   """
@@ -1010,6 +1014,11 @@ type Mutation {
   createContributor(input: ContributorInput!): Contributor!
   createDashboard(name: String!, projectId: ID): ID!
   createDashboardChart(dashboardId: ID!, input: DashboardChartInput!): ID!
+
+  """
+  Deposit invoice from a quote of Ordo or an imported quote: a percentage of its total excluding VAT.
+  """
+  createDepositInvoice(importedQuoteId: ID, issueDate: Date!, percent: Float!, quoteId: ID): ID!
   createDocumentFolder(name: String!, parentId: ID): ID!
 
   """Invoice or deposit invoice from a quote, credit note from an invoice."""
