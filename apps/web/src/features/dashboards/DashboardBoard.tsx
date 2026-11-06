@@ -2,6 +2,7 @@ import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, St
 import { modals } from '@mantine/modals';
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
 import {
+  ArrowBendUpRightIcon,
   ArrowDownIcon,
   ArrowsHorizontalIcon,
   ArrowUpIcon,
@@ -29,6 +30,7 @@ import { ChartEditor } from './ChartEditor';
 import { chartPng, downloadChartsPdf, exportFileName, saveFile } from './chart-image';
 import { describeChart, useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
+import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from './aggregate';
 
 /** Image of a chart as exported. */
@@ -65,7 +67,8 @@ interface ChartCardProps {
 }
 
 /**
- * Chart of a dashboard, with its actions: edit, duplicate, width, order, image and PDF exports, delete.
+ * Chart of a dashboard, with its actions: edit, duplicate, width, order, move to another dashboard (general or
+ * of a project), image and PDF exports, delete.
  * @param {ChartCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
@@ -196,6 +199,19 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               </Menu.Item>
               <Menu.Item leftSection={<ArrowDownIcon aria-hidden />} disabled={index === count - 1} onClick={() => moveChart.mutate({ id: chart.id, index: index + 1 })}>
                 Reculer
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<ArrowBendUpRightIcon aria-hidden />}
+                onClick={() => {
+                  const modalId = `transfer-chart-${chart.id}`;
+                  modals.open({
+                    modalId,
+                    title: `Déplacer « ${chart.title} »`,
+                    children: <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={() => modals.close(modalId)} />,
+                  });
+                }}
+              >
+                Déplacer vers…
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item leftSection={<FileImageIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('png')}>

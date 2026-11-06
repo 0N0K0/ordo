@@ -1292,6 +1292,11 @@ type Mutation {
   """
   testMailAccount(id: ID, input: MailAccountInput!): Boolean!
 
+  """
+  Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.
+  """
+  transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
+
   """Moves the task and its sub-tasks to another project."""
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
   unlinkGithubProject(projectId: ID!): Boolean!

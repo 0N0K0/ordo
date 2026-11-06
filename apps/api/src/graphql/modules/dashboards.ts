@@ -83,6 +83,11 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => (await dashboards.duplicateChart(id)).id,
   }),
+  transferDashboardChart: t.id({
+    description: 'Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.',
+    args: { id: t.arg.id({ required: true }), dashboardId: t.arg.id(), projectId: t.arg.id() },
+    resolve: async (_root, { id, dashboardId, projectId }) => (await dashboards.transferChart(id, { dashboardId: dashboardId ?? null, projectId: projectId ?? null })).id,
+  }),
   deleteDashboardChart: t.boolean({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {

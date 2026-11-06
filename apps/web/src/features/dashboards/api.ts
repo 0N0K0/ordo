@@ -62,6 +62,11 @@ const DuplicateChart = graphql(`
     duplicateDashboardChart(id: $id)
   }
 `);
+const TransferChart = graphql(`
+  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {
+    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)
+  }
+`);
 const DeleteChart = graphql(`
   mutation DeleteDashboardChart($id: ID!) {
     deleteDashboardChart(id: $id)
@@ -113,6 +118,9 @@ export function useDashboardMutations() {
     ),
     updateChart: useDashboardMutation(async (variables: { id: string; input: ChartValues }) => (await execute(UpdateChart, variables)).updateDashboardChart),
     duplicateChart: useDashboardMutation(async (id: string) => (await execute(DuplicateChart, { id })).duplicateDashboardChart),
+    transferChart: useDashboardMutation(
+      async (variables: { id: string; dashboardId: string | null; projectId: string | null }) => (await execute(TransferChart, variables)).transferDashboardChart,
+    ),
     removeChart: useDashboardMutation(async (id: string) => (await execute(DeleteChart, { id })).deleteDashboardChart),
     moveChart: useDashboardMutation(async (variables: { id: string; index: number }) => (await execute(MoveChart, variables)).moveDashboardChart),
   };

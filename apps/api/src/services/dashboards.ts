@@ -154,3 +154,26 @@ export async function moveChart(id: string, index: number): Promise<void> {
   );
   await prisma.$transaction(order.map((chartId, position) => prisma.dashboardChart.update({ where: { id: chartId }, data: { position } })));
 }
+
+/**
+ * Moves a chart to the end of another dashboard: a given one, or the first one of a project (or of the general
+ * dashboards when no project), created when there is none. Its data then follow the scope of that dashboard.
+ * @param {string} id Chart id.
+ * @param {{ dashboardId: string | null, projectId: string | null }} target Dashboard, or project of the dashboard.
+ * @returns {Promise<Dashboard>} Dashboard the chart is now on.
+ */
+export async function transferChart(id: string, target: { dashboardId: string | null; projectId: string | null }): Promise<Dashboard> {
+  const chart = await findChart(id);
+  let dashboard: Dashboard | null;
+  if (target.dashboardId) dashboard = await findDashboard(target.dashboardId);
+  else {
+    if (target.projectId && !(await prisma.project.findUnique({ where: { id: target.projectId }, select: { id: true } }))) throw notFound('Projet');
+    dashboard =
+      (await prisma.dashboard.findFirst({ where: { projectId: target.projectId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] })) ??
+      (await createDashboard('Tableau de bord', target.projectId));
+  }
+  if (dashboard.id === chart.dashboardId) return dashboard;
+  const { _max } = await prisma.dashboardChart.aggregate({ where: { dashboardId: dashboard.id }, _max: { position: true } });
+  await prisma.dashboardChart.update({ where: { id }, data: { dashboardId: dashboard.id, position: (_max.position ?? -1) + 1 } });
+  return dashboard;
+}

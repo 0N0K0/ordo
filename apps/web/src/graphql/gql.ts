@@ -117,6 +117,7 @@ type Documents = {
     "\n  mutation CreateDashboardChart($dashboardId: ID!, $input: DashboardChartInput!) {\n    createDashboardChart(dashboardId: $dashboardId, input: $input)\n  }\n": typeof types.CreateDashboardChartDocument,
     "\n  mutation UpdateDashboardChart($id: ID!, $input: DashboardChartInput!) {\n    updateDashboardChart(id: $id, input: $input)\n  }\n": typeof types.UpdateDashboardChartDocument,
     "\n  mutation DuplicateDashboardChart($id: ID!) {\n    duplicateDashboardChart(id: $id)\n  }\n": typeof types.DuplicateDashboardChartDocument,
+    "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": typeof types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": typeof types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": typeof types.MoveDashboardChartDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": typeof types.GithubLoginDocument,
@@ -388,6 +389,7 @@ const documents: Documents = {
     "\n  mutation CreateDashboardChart($dashboardId: ID!, $input: DashboardChartInput!) {\n    createDashboardChart(dashboardId: $dashboardId, input: $input)\n  }\n": types.CreateDashboardChartDocument,
     "\n  mutation UpdateDashboardChart($id: ID!, $input: DashboardChartInput!) {\n    updateDashboardChart(id: $id, input: $input)\n  }\n": types.UpdateDashboardChartDocument,
     "\n  mutation DuplicateDashboardChart($id: ID!) {\n    duplicateDashboardChart(id: $id)\n  }\n": types.DuplicateDashboardChartDocument,
+    "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": types.MoveDashboardChartDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": types.GithubLoginDocument,
@@ -965,6 +967,10 @@ export function graphql(source: "\n  mutation UpdateDashboardChart($id: ID!, $in
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DuplicateDashboardChart($id: ID!) {\n    duplicateDashboardChart(id: $id)\n  }\n"): typeof import('./graphql').DuplicateDashboardChartDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n"): typeof import('./graphql').TransferDashboardChartDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

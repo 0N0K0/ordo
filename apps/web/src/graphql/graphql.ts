@@ -1413,6 +1413,15 @@ export type DuplicateDashboardChartMutationVariables = Exact<{
 
 export type DuplicateDashboardChartMutation = { duplicateDashboardChart: string };
 
+export type TransferDashboardChartMutationVariables = Exact<{
+  id: string | number;
+  dashboardId?: string | number | null | undefined;
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type TransferDashboardChartMutation = { transferDashboardChart: string };
+
 export type DeleteDashboardChartMutationVariables = Exact<{
   id: string | number;
 }>;
@@ -4099,6 +4108,15 @@ export const DuplicateDashboardChartDocument = new TypedDocumentString(`
   duplicateDashboardChart(id: $id)
 }
     `) as unknown as TypedDocumentString<DuplicateDashboardChartMutation, DuplicateDashboardChartMutationVariables>;
+export const TransferDashboardChartDocument = new TypedDocumentString(`
+    mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {
+  transferDashboardChart(
+    id: $id
+    dashboardId: $dashboardId
+    projectId: $projectId
+  )
+}
+    `) as unknown as TypedDocumentString<TransferDashboardChartMutation, TransferDashboardChartMutationVariables>;
 export const DeleteDashboardChartDocument = new TypedDocumentString(`
     mutation DeleteDashboardChart($id: ID!) {
   deleteDashboardChart(id: $id)
