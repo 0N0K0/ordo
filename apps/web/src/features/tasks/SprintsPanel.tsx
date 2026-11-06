@@ -177,7 +177,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
         </Paper>
       ) : (
         sprints.map((sprint) => {
-          const tasks = context.tasks.filter((task) => task.sprintId === sprint.id && !task.archived);
+          const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);
           const done = tasks.filter((task) => context.isClosed(task));
           // Effort of the tasks without sub-tasks (a parent's effort is its sub-tasks').
           const effortOf = (items: typeof tasks) =>

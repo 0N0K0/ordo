@@ -46,16 +46,17 @@ function taskDay(task: Task, dimension: ChartDimension): string | null {
 function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskContext): Key[] {
   switch (dimension) {
     case 'sprint': {
-      const sprint = task.sprintId ? context.sprintById.get(task.sprintId) : undefined;
-      if (!sprint) return none('Sans sprint');
-      const shared = context.sprints.some((other) => other.name === sprint.name && other.projectId !== sprint.projectId);
-      return [
-        {
+      // Counted in each of its sprints.
+      const sprints = task.sprintIds.map((id) => context.sprintById.get(id)).filter((sprint) => sprint !== undefined);
+      if (sprints.length === 0) return none('Sans sprint');
+      return sprints.map((sprint) => {
+        const shared = context.sprints.some((other) => other.name === sprint.name && other.projectId !== sprint.projectId);
+        return {
           key: sprint.id,
           label: shared ? `${sprint.name} — ${context.projectById.get(sprint.projectId)?.title ?? ''}` : sprint.name,
           order: `${sprint.startDate} ${sprint.name}`,
-        },
-      ];
+        };
+      });
     }
     case 'milestone': {
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
@@ -184,7 +185,7 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
   };
   if (!sprint) return empty;
   const measure = config.measure === 'effort' ? 'effort' : 'count';
-  const inSprint = tasks.filter((task) => task.sprintId === sprint.id);
+  const inSprint = tasks.filter((task) => task.sprintIds.includes(sprint.id));
   const total = inSprint.reduce((sum, task) => sum + valueOf(task, measure, context), 0);
   const days: string[] = [];
   for (let day = String(sprint.startDate); day <= String(sprint.endDate); day = addDays(day, 1)) days.push(day);

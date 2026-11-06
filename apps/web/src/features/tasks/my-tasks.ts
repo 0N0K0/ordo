@@ -31,15 +31,17 @@ function group(combinator: 'and' | 'or', children: FilterGroup['children']): Fil
 }
 
 /**
- * "My tasks" of a period: open tasks assigned to me or to nobody that are overdue, in progress, or due,
- * starting or running during the period.
+ * "My tasks" of a period: open tasks assigned to me or to nobody that are overdue (past their "Date max"),
+ * in progress, or ending, starting, running or reaching their "Date max" during the period.
  * @param {MyTasksPeriod} period Period.
  * @returns {FilterGroup} Filter.
  */
 export function myTasksFilter(period: MyTasksPeriod): FilterGroup {
   const day = period === 'tomorrow' ? 'today+1' : 'today';
   const onPeriod: FilterCondition[] =
-    period === 'week' ? [condition('endDate', 'within', 'thisWeek'), condition('startDate', 'within', 'thisWeek')] : [condition('endDate', 'is', day), condition('startDate', 'is', day)];
+    period === 'week'
+      ? [condition('endDate', 'within', 'thisWeek'), condition('startDate', 'within', 'thisWeek'), condition('deadline', 'within', 'thisWeek')]
+      : [condition('endDate', 'is', day), condition('startDate', 'is', day), condition('deadline', 'is', day)];
   return group('and', [
     group('or', [condition('assignees', 'anyOf', [ME]), condition('assignees', 'isEmpty')]),
     condition('closed', 'isFalse'),

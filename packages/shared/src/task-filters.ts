@@ -8,7 +8,7 @@ export type TaskStatusCategory = (typeof TASK_STATUS_CATEGORIES)[number];
 export const CLOSED_STATUS_CATEGORIES: readonly TaskStatusCategory[] = ['DONE', 'CANCELLED'];
 
 /** Kind of value a filter field holds; it decides the available operators. */
-export type FilterFieldKind = 'text' | 'number' | 'date' | 'reference' | 'multiReference' | 'boolean' | 'category';
+export type FilterFieldKind = 'text' | 'number' | 'date' | 'reference' | 'multiReference' | 'sprint' | 'boolean' | 'category';
 
 /** Filterable task fields and their kind. */
 export const TASK_FILTER_FIELDS = {
@@ -23,11 +23,12 @@ export const TASK_FILTER_FIELDS = {
   type: 'reference',
   parent: 'reference',
   milestone: 'reference',
-  sprint: 'reference',
+  sprint: 'sprint',
   assignees: 'multiReference',
   tags: 'multiReference',
   startDate: 'date',
   endDate: 'date',
+  deadline: 'date',
   createdAt: 'date',
   updatedAt: 'date',
   overdue: 'boolean',
@@ -46,6 +47,9 @@ export const FILTER_OPERATORS = {
   // `inTree` (project, parent): the item or any of its descendants.
   reference: ['in', 'notIn', 'inTree', 'isEmpty', 'isNotEmpty'],
   multiReference: ['anyOf', 'allOf', 'noneOf', 'isEmpty', 'isNotEmpty'],
+  // A task may be in several sprints: it matches when one of them does. `in` / `notIn`: any / none of the
+  // chosen sprints; the relative operators follow the calendar (previous / next: per project tree).
+  sprint: ['in', 'notIn', 'allOf', 'current', 'previous', 'next', 'past', 'future', 'isEmpty', 'isNotEmpty'],
   boolean: ['isTrue', 'isFalse'],
   category: ['in', 'notIn'],
 } as const satisfies Record<FilterFieldKind, readonly string[]>;
@@ -55,7 +59,11 @@ export type FilterOperator = (typeof FILTER_OPERATORS)[FilterFieldKind][number];
 export const ME = '@me';
 
 /** Operators that take no value. */
-export const VALUELESS_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNotEmpty', 'isTrue', 'isFalse'];
+export const VALUELESS_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNotEmpty', 'isTrue', 'isFalse', 'current', 'previous', 'next', 'past', 'future'];
+
+/** Sprint operators relative to the calendar. */
+export const RELATIVE_SPRINT_OPERATORS = ['current', 'previous', 'next', 'past', 'future'] as const;
+export type RelativeSprintOperator = (typeof RELATIVE_SPRINT_OPERATORS)[number];
 
 /**
  * Relative date tokens: `today`, `today+3`, `today-7` (days from today),
@@ -164,6 +172,7 @@ export const filterConditionSchema = z
       }
       case 'reference':
       case 'multiReference':
+      case 'sprint':
         if (!Array.isArray(value) || value.length === 0) issue('Choisissez au moins une valeur.');
         break;
       case 'category':
@@ -238,6 +247,7 @@ export const TASK_COLUMNS = [
   'trackedTime',
   'startDate',
   'endDate',
+  'deadline',
   'parent',
   'milestone',
   'sprint',

@@ -2,7 +2,7 @@ import { ActionIcon, Button, Group, Menu, Paper, Progress, Stack, Text, TextInpu
 import { DatePickerInput } from '@mantine/dates';
 import { modals } from '@mantine/modals';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { ArrowDownIcon, ArrowUpIcon, DotsThreeIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { DotsThreeIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
@@ -85,13 +85,14 @@ let modalCount = 0;
  */
 export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
-  const { remove, move } = useMilestoneMutations();
+  const { remove } = useMilestoneMutations();
   const today = localToday();
   if (!context) return null;
   const project = context.projectById.get(projectId);
   const milestones = context.milestones
     .filter((milestone) => milestone.projectId === projectId)
-    .sort((a, b) => a.position - b.position);
+    // By due date, those without date last (in their manual order).
+    .sort((a, b) => (a.dueDate ?? '9999-99-99').localeCompare(b.dueDate ?? '9999-99-99') || a.position - b.position);
 
   /**
    * Opens the milestone form.
@@ -166,7 +167,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
           </Stack>
         </Paper>
       ) : (
-        milestones.map((milestone, index) => {
+        milestones.map((milestone) => {
           const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
           const done = tasks.filter((task) => context.isClosed(task)).length;
           const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
@@ -195,20 +196,6 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                     <Menu.Dropdown>
                       <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(milestone)}>
                         Modifier
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={<ArrowUpIcon aria-hidden />}
-                        disabled={index === 0}
-                        onClick={() => move.mutate({ id: milestone.id, index: index - 1 })}
-                      >
-                        Monter
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={<ArrowDownIcon aria-hidden />}
-                        disabled={index === milestones.length - 1}
-                        onClick={() => move.mutate({ id: milestone.id, index: index + 1 })}
-                      >
-                        Descendre
                       </Menu.Item>
                       <Menu.Divider />
                       <Menu.Item

@@ -70,6 +70,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return task.startDate;
     case 'endDate':
       return task.endDate;
+    case 'deadline':
+      return task.deadline;
     case 'parent':
       return task.parentId ? (context.taskById.get(task.parentId)?.number ?? null) : null;
     case 'milestone': {
@@ -78,8 +80,13 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return milestone ? `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` : null;
     }
     case 'sprint': {
-      const sprint = task.sprintId ? context.sprintById.get(task.sprintId) : undefined;
-      return sprint ? `${sprint.startDate} ${sprint.name}` : null;
+      // The earliest of its sprints.
+      const keys = task.sprintIds
+        .map((id) => context.sprintById.get(id))
+        .filter((sprint) => sprint !== undefined)
+        .map((sprint) => `${sprint.startDate} ${sprint.name}`)
+        .sort();
+      return keys[0] ?? null;
     }
     case 'blockedBy':
       return task.blockedByIds.length || null;
@@ -253,9 +260,10 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
       return [{ key: milestone.id, label: milestone.title, order: `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` }];
     }
     case 'sprint': {
-      const sprint = task.sprintId ? context.sprintById.get(task.sprintId) : undefined;
-      if (!sprint) return none('Sans sprint');
-      return [{ key: sprint.id, label: sprint.name, order: `${sprint.startDate} ${sprint.name}` }];
+      // In the group of each of its sprints.
+      const sprints = task.sprintIds.map((id) => context.sprintById.get(id)).filter((sprint) => sprint !== undefined);
+      if (sprints.length === 0) return none('Sans sprint');
+      return sprints.map((sprint) => ({ key: sprint.id, label: sprint.name, order: `${sprint.startDate} ${sprint.name}` }));
     }
   }
 }

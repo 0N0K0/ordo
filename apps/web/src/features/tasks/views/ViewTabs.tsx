@@ -1,17 +1,10 @@
-import { ActionIcon, Button, Group, Indicator, Menu, Stack, Tabs, Text, TextInput } from '@mantine/core';
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { ActionIcon, Button, Group, Indicator, Menu, Stack, Tabs, Text, TextInput, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { taskViewNameSchema } from '@ordo/shared';
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  CaretDownIcon,
-  CopyIcon,
-  FloppyDiskIcon,
-  PencilSimpleIcon,
-  PlusIcon,
-  StarIcon,
-  TrashIcon,
-} from '@phosphor-icons/react';
+import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import type { TaskView, TaskViewState } from './use-task-view';
@@ -108,12 +101,43 @@ function promptName(title: string, initial: string, submitLabel: string, onSubmi
 }
 
 /**
- * Tabs of the saved views, with the save / revert actions of the current one.
+ * Tab of a view that can be dragged along the tab list (a click still selects it: the drag starts after a
+ * few pixels).
+ * @param {TabsTabProps & { value: string }} props Tab props.
+ * @returns {JSX.Element} Tab.
+ */
+function SortableTab(props: TabsTabProps & { value: string }) {
+  // Pointer only: the tab keeps its role and keyboard navigation (its menu moves the view with the keyboard).
+  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: props.value });
+  return (
+    <Tabs.Tab
+      ref={setNodeRef}
+      {...props}
+      {...listeners}
+      style={{ transform: CSS.Translate.toString(transform && { ...transform, y: 0 }), transition, zIndex: isDragging ? 1 : undefined, cursor: isDragging ? 'grabbing' : undefined }}
+    />
+  );
+}
+
+/**
+ * Tabs of the saved views, reordered by drag and drop, with the save / revert actions of the current one.
  * @param {{ state: TaskViewState }} props Component props.
  * @returns {JSX.Element} Tabs.
  */
 export function ViewTabs({ state }: { state: TaskViewState }) {
   const { views, current, dirty } = state;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  /**
+   * Moves the dropped view to its new place.
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const index = views.findIndex((view) => view.id === over.id);
+    if (index >= 0) state.move(String(active.id), index);
+  };
 
   /**
    * Asks for confirmation before deleting a view.
@@ -127,10 +151,7 @@ export function ViewTabs({ state }: { state: TaskViewState }) {
       title: 'Supprimer la vue',
       children: (
         <Stack gap="md">
-          <Text size="sm">
-            La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont
-            pas modifiées. Cette action est irréversible.
-          </Text>
+          <Text size="sm">La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées. Cette action est irréversible.</Text>
           <DestructiveActions
             loading={false}
             onCancel={() => modals.close(modalId)}
@@ -148,79 +169,60 @@ export function ViewTabs({ state }: { state: TaskViewState }) {
     <Group justify="space-between" wrap="nowrap" gap="sm">
       <Group gap={0} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
         <Tabs value={current?.id ?? null} onChange={(id) => id && state.select(id)} style={{ minWidth: 0 }}>
-          <Tabs.List style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
-            {views.map((view, index) => {
-              const active = view.id === current?.id;
-              return (
-                <Tabs.Tab
-                  key={view.id}
-                  value={view.id}
-                  leftSection={view.isDefault ? <StarIcon weight="fill" aria-label="Vue par défaut" /> : undefined}
-                  rightSection={
-                    active ? (
-                      <Menu position="bottom-end" withinPortal shadow="md">
-                        <Menu.Target>
-                          <ActionIcon
-                            component="span"
-                            variant="subtle"
-                            color="gray"
-                            size="xs"
-                            aria-label={`Actions sur la vue ${view.name}`}
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <CaretDownIcon aria-hidden />
-                          </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          <Menu.Item
-                            leftSection={<PencilSimpleIcon aria-hidden />}
-                            onClick={() => promptName('Renommer la vue', view.name, 'Renommer', (name) => state.rename(view.id, name))}
-                          >
-                            Renommer
-                          </Menu.Item>
-                          <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => state.duplicate(view)}>
-                            Dupliquer
-                          </Menu.Item>
-                          {!view.isDefault && (
-                            <Menu.Item leftSection={<StarIcon aria-hidden />} onClick={() => state.setDefault(view)}>
-                              Définir par défaut
-                            </Menu.Item>
-                          )}
-                          <Menu.Item
-                            leftSection={<ArrowLeftIcon aria-hidden />}
-                            disabled={index === 0}
-                            onClick={() => state.move(view.id, index - 1)}
-                          >
-                            Déplacer à gauche
-                          </Menu.Item>
-                          <Menu.Item
-                            leftSection={<ArrowRightIcon aria-hidden />}
-                            disabled={index === views.length - 1}
-                            onClick={() => state.move(view.id, index + 1)}
-                          >
-                            Déplacer à droite
-                          </Menu.Item>
-                          <Menu.Divider />
-                          <Menu.Item
-                            leftSection={<TrashIcon aria-hidden />}
-                            color="red"
-                            disabled={views.length === 1}
-                            onClick={() => confirmDelete(view)}
-                          >
-                            Supprimer
-                          </Menu.Item>
-                        </Menu.Dropdown>
-                      </Menu>
-                    ) : undefined
-                  }
-                >
-                  <Indicator disabled={!(active && dirty)} size={7} offset={-4} position="top-end" color="orange">
-                    {view.name}
-                  </Indicator>
-                </Tabs.Tab>
-              );
-            })}
-          </Tabs.List>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={views.map((view) => view.id)} strategy={horizontalListSortingStrategy}>
+              <Tabs.List style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
+                {views.map((view, index) => {
+                  const active = view.id === current?.id;
+                  return (
+                    <SortableTab
+                      key={view.id}
+                      value={view.id}
+                      leftSection={view.isDefault ? <StarIcon weight="fill" aria-label="Vue par défaut" /> : undefined}
+                      rightSection={
+                        active ? (
+                          <Menu position="bottom-end" withinPortal shadow="md">
+                            <Menu.Target>
+                              <ActionIcon component="span" variant="subtle" color="gray" size="xs" aria-label={`Actions sur la vue ${view.name}`} onClick={(event) => event.stopPropagation()}>
+                                <CaretDownIcon aria-hidden />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => promptName('Renommer la vue', view.name, 'Renommer', (name) => state.rename(view.id, name))}>
+                                Renommer
+                              </Menu.Item>
+                              <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => state.duplicate(view)}>
+                                Dupliquer
+                              </Menu.Item>
+                              {!view.isDefault && (
+                                <Menu.Item leftSection={<StarIcon aria-hidden />} onClick={() => state.setDefault(view)}>
+                                  Définir par défaut
+                                </Menu.Item>
+                              )}
+                              <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={index === 0} onClick={() => state.move(view.id, index - 1)}>
+                                Déplacer à gauche
+                              </Menu.Item>
+                              <Menu.Item leftSection={<ArrowRightIcon aria-hidden />} disabled={index === views.length - 1} onClick={() => state.move(view.id, index + 1)}>
+                                Déplacer à droite
+                              </Menu.Item>
+                              <Menu.Divider />
+                              <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" disabled={views.length === 1} onClick={() => confirmDelete(view)}>
+                                Supprimer
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        ) : undefined
+                      }
+                    >
+                      <Indicator disabled={!(active && dirty)} size={7} offset={-4} position="top-end" color="orange">
+                        {view.name}
+                      </Indicator>
+                    </SortableTab>
+                  );
+                })}
+              </Tabs.List>
+            </SortableContext>
+          </DndContext>
         </Tabs>
         <Menu position="bottom-start" withinPortal shadow="md">
           <Menu.Target>
@@ -229,16 +231,8 @@ export function ViewTabs({ state }: { state: TaskViewState }) {
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item onClick={() => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false))}>
-              Vue vierge
-            </Menu.Item>
-            <Menu.Item
-              onClick={() =>
-                promptName('Nouvelle vue', `${current?.name ?? 'Vue'} (copie)`.slice(0, 60), 'Créer', (name) =>
-                  state.createView(name, true),
-                )
-              }
-            >
+            <Menu.Item onClick={() => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false))}>Vue vierge</Menu.Item>
+            <Menu.Item onClick={() => promptName('Nouvelle vue', `${current?.name ?? 'Vue'} (copie)`.slice(0, 60), 'Créer', (name) => state.createView(name, true))}>
               À partir de l’affichage actuel
             </Menu.Item>
           </Menu.Dropdown>

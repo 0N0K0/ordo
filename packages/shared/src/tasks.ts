@@ -70,9 +70,10 @@ export const taskFormSchema = z
     effort: z.union([z.number(), z.literal('')]).transform((value) => (value === '' ? null : value)).pipe(effortSchema),
     startDate: dateSchema,
     endDate: dateSchema,
+    deadline: dateSchema,
     parentId: z.string().nullable(),
     milestoneId: z.string().nullable(),
-    sprintId: z.string().nullable(),
+    sprintIds: z.array(z.string()),
   })
   .refine((values) => !values.startDate || !values.endDate || values.endDate >= values.startDate, {
     path: ['endDate'],

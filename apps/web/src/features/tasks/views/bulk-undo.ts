@@ -1,7 +1,7 @@
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task } from '../api';
 
-const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'sprintId', 'effort', 'startDate', 'endDate'] as const;
+const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'effort', 'startDate', 'endDate', 'deadline'] as const;
 
 /**
  * Changes restoring tasks as they were before a bulk change, grouped by identical restoring changes.
@@ -25,6 +25,10 @@ export function revertChanges(tasks: Task[], changes: BulkChanges): { ids: strin
     const removedTags = (changes.removeTagIds ?? []).filter((id) => task.tagIds.includes(id));
     if (addedTags.length) previous.removeTagIds = addedTags;
     if (removedTags.length) previous.addTagIds = removedTags;
+    const addedSprints = (changes.addSprintIds ?? []).filter((id) => !task.sprintIds.includes(id));
+    const removedSprints = (changes.removeSprintIds ?? []).filter((id) => task.sprintIds.includes(id));
+    if (addedSprints.length) previous.removeSprintIds = addedSprints;
+    if (removedSprints.length) previous.addSprintIds = removedSprints;
     if (Object.keys(previous).length === 0) continue;
     const key = JSON.stringify(previous);
     const group = groups.get(key) ?? { ids: [], changes: previous };

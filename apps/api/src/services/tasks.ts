@@ -126,17 +126,18 @@ async function assertMilestone(milestoneId: string, projectId: string): Promise<
 }
 
 /**
- * Checks that a sprint can be used by a task of a project: it belongs to the same project tree.
- * @param {string} sprintId Sprint.
+ * Checks that sprints can be used by a task of a project: they belong to the same project tree.
+ * @param {string[]} sprintIds Sprints.
  * @param {string} projectId Project of the task.
  * @returns {Promise<void>}
  */
-async function assertSprint(sprintId: string, projectId: string): Promise<void> {
-  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId }, select: { projectId: true } });
-  if (!sprint) throw fieldError('sprintId', 'Sprint introuvable.');
+async function assertSprints(sprintIds: string[], projectId: string): Promise<void> {
+  if (sprintIds.length === 0) return;
+  const sprints = await prisma.sprint.findMany({ where: { id: { in: sprintIds } }, select: { projectId: true } });
+  if (sprints.length !== new Set(sprintIds).size) throw fieldError('sprintIds', 'Sprint introuvable.');
   const rootOf = await loadRootOf();
-  if (rootOf(sprint.projectId) !== rootOf(projectId)) {
-    throw fieldError('sprintId', 'Le sprint doit appartenir au projet de la tâche ou à son arborescence.');
+  if (sprints.some((sprint) => rootOf(sprint.projectId) !== rootOf(projectId))) {
+    throw fieldError('sprintIds', 'Les sprints doivent appartenir au projet de la tâche ou à son arborescence.');
   }
 }
 
@@ -189,9 +190,10 @@ export interface TaskInput {
   effort?: number | null;
   startDate?: string | null;
   endDate?: string | null;
+  deadline?: string | null;
   parentId?: string | null;
   milestoneId?: string | null;
-  sprintId?: string | null;
+  sprintIds?: string[] | null;
 }
 
 const detailsSchema = z.object({
@@ -200,6 +202,7 @@ const detailsSchema = z.object({
   effort: effortSchema.optional(),
   startDate: dateSchema.optional(),
   endDate: dateSchema.optional(),
+  deadline: dateSchema.optional(),
 });
 
 /**
@@ -215,6 +218,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     effort: input.effort,
     startDate: input.startDate,
     endDate: input.endDate,
+    deadline: input.deadline,
   });
   const startDate = details.startDate === undefined ? current?.startDate : toDate(details.startDate);
   const endDate = details.endDate === undefined ? current?.endDate : toDate(details.endDate);
@@ -227,6 +231,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     effort: details.effort,
     startDate: toDate(details.startDate),
     endDate: toDate(details.endDate),
+    deadline: toDate(details.deadline),
   };
 }
 
@@ -251,7 +256,7 @@ export async function createTask(input: TaskInput & { title: string; projectId: 
   await assertReferences(input);
   if (input.parentId) await assertParent(input.parentId, input.projectId, null);
   if (input.milestoneId) await assertMilestone(input.milestoneId, input.projectId);
-  if (input.sprintId) await assertSprint(input.sprintId, input.projectId);
+  if (input.sprintIds) await assertSprints(input.sprintIds, input.projectId);
 
   const task = await prisma.task.create({
     data: {
@@ -263,8 +268,8 @@ export async function createTask(input: TaskInput & { title: string; projectId: 
       typeId: input.typeId ?? null,
       parentId: input.parentId ?? null,
       milestoneId: input.milestoneId ?? null,
-      sprintId: input.sprintId ?? null,
       position: await nextPosition(),
+      sprints: { connect: (input.sprintIds ?? []).map((id) => ({ id })) },
       assignees: { connect: (input.assigneeIds ?? []).map((id) => ({ id })) },
       tags: { connect: (input.tagIds ?? []).map((id) => ({ id })) },
     },
@@ -285,7 +290,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   await assertReferences(input);
   if (input.parentId) await assertParent(input.parentId, task.projectId, id);
   if (input.milestoneId) await assertMilestone(input.milestoneId, task.projectId);
-  if (input.sprintId) await assertSprint(input.sprintId, task.projectId);
+  if (input.sprintIds) await assertSprints(input.sprintIds, task.projectId);
   const previous = input.assigneeIds
     ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id)
     : [];
@@ -299,7 +304,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       typeId: input.typeId,
       parentId: input.parentId,
       milestoneId: input.milestoneId,
-      sprintId: input.sprintId,
+      ...(input.sprintIds && { sprints: { set: input.sprintIds.map((sprintId) => ({ id: sprintId })) } }),
       ...(input.assigneeIds && { assignees: { set: input.assigneeIds.map((assigneeId) => ({ id: assigneeId })) } }),
       ...(input.tagIds && { tags: { set: input.tagIds.map((tagId) => ({ id: tagId })) } }),
     },
@@ -405,12 +410,14 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
   const losingMilestone = movedTasks
     .filter((item) => item.milestone && rootOf(item.milestone.projectId) !== targetRoot)
     .map((item) => item.id);
-  // Same for sprints.
+  // Same for sprints: each task leaves those of another tree.
   const sprintTasks = await prisma.task.findMany({
-    where: { id: { in: moved }, sprintId: { not: null } },
-    select: { id: true, sprint: { select: { projectId: true } } },
+    where: { id: { in: moved }, sprints: { some: {} } },
+    select: { id: true, sprints: { select: { id: true, projectId: true } } },
   });
-  const losingSprint = sprintTasks.filter((item) => item.sprint && rootOf(item.sprint.projectId) !== targetRoot).map((item) => item.id);
+  const losingSprints = sprintTasks
+    .map((item) => ({ id: item.id, sprints: item.sprints.filter((sprint) => rootOf(sprint.projectId) !== targetRoot).map((sprint) => ({ id: sprint.id })) }))
+    .filter((item) => item.sprints.length > 0);
 
   const results = await prisma.$transaction([
     prisma.taskBlock.deleteMany({
@@ -433,9 +440,9 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
     prisma.task.updateMany({ where: { id: { in: moved } }, data: { projectId } }),
     prisma.task.update({ where: { id }, data: parentOutside ? { parentId: null } : {} }),
     prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
-    prisma.task.updateMany({ where: { id: { in: losingSprint } }, data: { sprintId: null } }),
+    ...losingSprints.map((item) => prisma.task.update({ where: { id: item.id }, data: { sprints: { disconnect: item.sprints } } })),
   ]);
-  const removedLinks = results[0].count + results[1].count + (parentOutside ? 1 : 0) + losingMilestone.length + losingSprint.length;
+  const removedLinks = results[0].count + results[1].count + (parentOutside ? 1 : 0) + losingMilestone.length + losingSprints.length;
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
   await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
@@ -449,7 +456,7 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
  * @returns {Promise<Task>} Clone of the task.
  */
 export async function cloneTask(id: string, includeSubtasks: boolean): Promise<Task> {
-  const include = { assignees: { select: { id: true } }, tags: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
+  const include = { assignees: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
   const source = await prisma.task.findUnique({ where: { id }, include });
   if (!source) throw notFound('Tâche');
 
@@ -463,7 +470,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
      * @returns {Promise<Task>} Copy.
      */
     const copy = (
-      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } }; tags: { select: { id: true } } } }>,
+      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } }; tags: { select: { id: true } }; sprints: { select: { id: true } } } }>,
       parentId: string | null,
     ) =>
       tx.task.create({
@@ -477,9 +484,10 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           effort: task.effort,
           startDate: task.startDate,
           endDate: task.endDate,
+          deadline: task.deadline,
           parentId,
           milestoneId: task.milestoneId,
-          sprintId: task.sprintId,
+          sprints: { connect: task.sprints },
           position: position++,
           assignees: { connect: task.assignees },
           tags: { connect: task.tags },
@@ -508,7 +516,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
         const children = await tx.task.findMany({
           where: { parentId: sourceId },
           orderBy: { position: 'asc' },
-          include: { assignees: { select: { id: true } }, tags: { select: { id: true } } },
+          include: { assignees: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } } },
         });
         for (const child of children) {
           const childClone = await copy(child, cloneId);
@@ -690,10 +698,12 @@ export interface BulkTaskChanges {
   priorityId?: string | null;
   typeId?: string | null;
   milestoneId?: string | null;
-  sprintId?: string | null;
+  addSprintIds?: string[] | null;
+  removeSprintIds?: string[] | null;
   effort?: number | null;
   startDate?: string | null;
   endDate?: string | null;
+  deadline?: string | null;
   addAssigneeIds?: string[] | null;
   removeAssigneeIds?: string[] | null;
   addTagIds?: string[] | null;
@@ -728,10 +738,13 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
   const remove = (changes.removeAssigneeIds ?? []).map((assigneeId) => ({ id: assigneeId }));
   const addTags = (changes.addTagIds ?? []).map((tagId) => ({ id: tagId }));
   const removeTags = (changes.removeTagIds ?? []).map((tagId) => ({ id: tagId }));
-  const details = parseInput(detailsSchema.pick({ effort: true, startDate: true, endDate: true }), {
+  const addSprints = (changes.addSprintIds ?? []).map((sprintId) => ({ id: sprintId }));
+  const removeSprints = (changes.removeSprintIds ?? []).map((sprintId) => ({ id: sprintId }));
+  const details = parseInput(detailsSchema.pick({ effort: true, startDate: true, endDate: true, deadline: true }), {
     effort: changes.effort,
     startDate: changes.startDate,
     endDate: changes.endDate,
+    deadline: changes.deadline,
   });
 
   const tasks = await prisma.task.findMany({
@@ -740,7 +753,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
   });
   for (const task of tasks) {
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
-    if (changes.sprintId) await assertSprint(changes.sprintId, task.projectId);
+    if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
     // The date range must stay valid for every task.
     const start = details.startDate === undefined ? task.startDate : toDate(details.startDate);
     const end = details.endDate === undefined ? task.endDate : toDate(details.endDate);
@@ -755,19 +768,22 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         priorityId: changes.priorityId,
         typeId: changes.typeId,
         milestoneId: changes.milestoneId,
-        sprintId: changes.sprintId,
         effort: details.effort,
         startDate: toDate(details.startDate),
         endDate: toDate(details.endDate),
+        deadline: toDate(details.deadline),
       },
     }),
-    ...(add.length || remove.length || addTags.length || removeTags.length
+    ...(add.length || remove.length || addTags.length || removeTags.length || addSprints.length || removeSprints.length
       ? ids.map((taskId) =>
           prisma.task.update({
             where: { id: taskId },
             data: {
               ...((add.length || remove.length) && { assignees: { ...(add.length && { connect: add }), ...(remove.length && { disconnect: remove }) } }),
               ...((addTags.length || removeTags.length) && { tags: { ...(addTags.length && { connect: addTags }), ...(removeTags.length && { disconnect: removeTags }) } }),
+              ...((addSprints.length || removeSprints.length) && {
+                sprints: { ...(addSprints.length && { connect: addSprints }), ...(removeSprints.length && { disconnect: removeSprints }) },
+              }),
             },
           }),
         )

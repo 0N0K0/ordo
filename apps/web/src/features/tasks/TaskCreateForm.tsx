@@ -1,4 +1,4 @@
-import { Button, Group, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Button, Group, MultiSelect, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
 import { useTaskLink } from './use-task-link';
@@ -44,9 +44,10 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       effort: '',
       startDate: null,
       endDate: null,
+      deadline: null,
       parentId: parent?.id ?? null,
       milestoneId: null,
-      sprintId: null,
+      sprintIds: [],
     },
     schema: taskFormSchema,
   });
@@ -90,9 +91,15 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
               if (milestone && projectId && context.rootOf(milestone.projectId) !== context.rootOf(projectId)) {
                 form.setFieldValue('milestoneId', null);
               }
-              const sprint = form.values.sprintId ? context.sprintById.get(form.values.sprintId) : undefined;
-              if (sprint && projectId && context.rootOf(sprint.projectId) !== context.rootOf(projectId)) {
-                form.setFieldValue('sprintId', null);
+              // So must the sprints.
+              if (projectId) {
+                form.setFieldValue(
+                  'sprintIds',
+                  form.values.sprintIds.filter((id) => {
+                    const sprint = context.sprintById.get(id);
+                    return sprint && context.rootOf(sprint.projectId) === context.rootOf(projectId);
+                  }),
+                );
               }
             }}
           />
@@ -117,15 +124,15 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           nothingFoundMessage="Aucun jalon dans ce projet"
           {...form.getInputProps('milestoneId')}
         />
-        <Select
-          label="Sprint"
-          placeholder={form.values.projectId ? 'Aucun' : 'Choisissez d’abord un projet'}
+        <MultiSelect
+          label="Sprints"
+          placeholder={!form.values.projectId ? 'Choisissez d’abord un projet' : form.values.sprintIds.length ? undefined : 'Aucun'}
           disabled={!form.values.projectId}
           data={(form.values.projectId ? context.sprintsFor(form.values.projectId) : []).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
           clearable
           searchable
           nothingFoundMessage="Aucun sprint dans ce projet"
-          {...form.getInputProps('sprintId')}
+          {...form.getInputProps('sprintIds')}
         />
         <MarkdownEditor
           label="Description"
@@ -150,7 +157,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           error={form.errors.assigneeIds as string | undefined}
         />
         <TagsSelect tags={context.tags} value={form.values.tagIds} onChange={(tagIds) => form.setFieldValue('tagIds', tagIds)} />
-        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
           <NumberInput label="Effort" min={0} decimalScale={2} decimalSeparator="," {...form.getInputProps('effort')} />
           <DatePickerInput label="Début" clearable placeholder="—" {...form.getInputProps('startDate')} />
           <DatePickerInput
@@ -160,6 +167,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             minDate={form.values.startDate ?? undefined}
             {...form.getInputProps('endDate')}
           />
+          <DatePickerInput label="Date max" clearable placeholder="—" {...form.getInputProps('deadline')} />
         </SimpleGrid>
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>

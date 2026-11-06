@@ -3,6 +3,7 @@ import {
   filterPeriod,
   ME,
   TASK_FILTER_FIELDS,
+  type RelativeSprintOperator,
   type FilterCondition,
   type FilterGroup,
   type TaskStatusCategory,
@@ -56,7 +57,7 @@ function resolvePeriod(token: string, clock: FilterClock): [number, number] {
   return [dayValue(start), dayValue(end)];
 }
 
-type DateField = 'startDate' | 'endDate' | 'createdAt' | 'updatedAt';
+type DateField = 'startDate' | 'endDate' | 'deadline' | 'createdAt' | 'updatedAt';
 
 /**
  * Converts a calendar day boundary to the stored value of a field: calendar dates are stored as UTC
@@ -74,23 +75,30 @@ function boundary(field: DateField, day: number, clock: FilterClock): Date {
 /** Open task: not closed (the open / closed state, not the status, says whether it is done). */
 const OPEN: Prisma.TaskWhereInput = { closedAt: null };
 
-/** Ids needed by the `inTree` operators, loaded once per query. */
+/** Ids needed by the `inTree` and relative sprint operators, loaded once per query. */
 interface Trees {
   projectDescendants: (ids: string[]) => string[];
   taskDescendants: (ids: string[]) => string[];
+  /** Sprints matching a relative operator (current, previous, next, past, future). */
+  sprintsWhere: (operator: RelativeSprintOperator) => string[];
 }
 
 /**
- * Loads the project and task trees when a filter uses `inTree`.
+ * Loads the project and task trees when a filter uses `inTree`, and the sprints when it uses a relative
+ * sprint operator.
  * @param {FilterGroup} filter Filter.
+ * @param {FilterClock} clock User clock.
  * @returns {Promise<Trees>} Lookups.
  */
-async function loadTrees(filter: FilterGroup): Promise<Trees> {
+async function loadTrees(filter: FilterGroup, clock: FilterClock): Promise<Trees> {
   const fields = new Set<string>();
+  let relativeSprints = false;
   const collect = (group: FilterGroup): void =>
-    group.children.forEach((child) =>
-      child.type === 'group' ? collect(child) : child.operator === 'inTree' && fields.add(child.field),
-    );
+    group.children.forEach((child) => {
+      if (child.type === 'group') collect(child);
+      else if (child.operator === 'inTree') fields.add(child.field);
+      else if (child.field === 'sprint' && !['in', 'notIn', 'allOf', 'isEmpty', 'isNotEmpty'].includes(child.operator)) relativeSprints = true;
+    });
   collect(filter);
 
   /**
@@ -113,11 +121,70 @@ async function loadTrees(filter: FilterGroup): Promise<Trees> {
     return [...result];
   };
 
-  const [projects, tasks] = await Promise.all([
-    fields.has('project') ? prisma.project.findMany({ select: { id: true, parentId: true } }) : [],
+  const [projects, tasks, sprints] = await Promise.all([
+    fields.has('project') || relativeSprints ? prisma.project.findMany({ select: { id: true, parentId: true } }) : [],
     fields.has('parent') ? prisma.task.findMany({ select: { id: true, parentId: true } }) : [],
+    relativeSprints ? prisma.sprint.findMany({ select: { id: true, projectId: true, startDate: true, endDate: true } }) : [],
   ]);
-  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks) };
+  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock) };
+}
+
+/**
+ * Sprints matching a relative operator: running today, over, not started yet, or per project tree the last
+ * one over (previous) and the first one not started (next).
+ * @param {{ id: string, projectId: string, startDate: Date, endDate: Date }[]} sprints Sprints.
+ * @param {{ id: string, parentId: string | null }[]} projects Projects.
+ * @param {FilterClock} clock User clock.
+ * @returns {(operator: RelativeSprintOperator) => string[]} Lookup.
+ */
+function relativeSprintIds(
+  sprints: { id: string; projectId: string; startDate: Date; endDate: Date }[],
+  projects: { id: string; parentId: string | null }[],
+  clock: FilterClock,
+): (operator: RelativeSprintOperator) => string[] {
+  const today = dayValue(clock.today);
+  const parentOf = new Map(projects.map((project) => [project.id, project.parentId]));
+  /**
+   * Root project of a project.
+   * @param {string} id Project.
+   * @returns {string} Root project.
+   */
+  const rootOf = (id: string): string => {
+    let current = id;
+    for (let parent = parentOf.get(current); parent; parent = parentOf.get(current)) current = parent;
+    return current;
+  };
+  const past = sprints.filter((sprint) => sprint.endDate.getTime() < today);
+  const future = sprints.filter((sprint) => sprint.startDate.getTime() > today);
+  /**
+   * The best sprint of each project tree.
+   * @param {typeof sprints} candidates Sprints.
+   * @param {(a: (typeof sprints)[number], b: (typeof sprints)[number]) => boolean} better Whether a beats b.
+   * @returns {string[]} Ids.
+   */
+  const bestPerTree = (candidates: typeof sprints, better: (a: (typeof sprints)[number], b: (typeof sprints)[number]) => boolean) => {
+    const best = new Map<string, (typeof sprints)[number]>();
+    for (const sprint of candidates) {
+      const root = rootOf(sprint.projectId);
+      const current = best.get(root);
+      if (!current || better(sprint, current)) best.set(root, sprint);
+    }
+    return [...best.values()].map((sprint) => sprint.id);
+  };
+  return (operator) => {
+    switch (operator) {
+      case 'current':
+        return sprints.filter((sprint) => sprint.startDate.getTime() <= today && sprint.endDate.getTime() >= today).map((sprint) => sprint.id);
+      case 'past':
+        return past.map((sprint) => sprint.id);
+      case 'future':
+        return future.map((sprint) => sprint.id);
+      case 'previous':
+        return bestPerTree(past, (a, b) => a.endDate > b.endDate);
+      default:
+        return bestPerTree(future, (a, b) => a.startDate < b.startDate);
+    }
+  };
 }
 
 /**
@@ -187,7 +254,7 @@ function conditionWhere(
 
     case 'date': {
       const key = field as DateField;
-      const nullable = key === 'startDate' || key === 'endDate';
+      const nullable = key === 'startDate' || key === 'endDate' || key === 'deadline';
       if (operator === 'isEmpty') return nullable ? { [key]: null } : NEVER;
       if (operator === 'isNotEmpty') return nullable ? { NOT: { [key]: null } } : {};
       const at = (day: number) => boundary(key, day, clock);
@@ -218,15 +285,7 @@ function conditionWhere(
         type: 'typeId',
         parent: 'parentId',
         milestone: 'milestoneId',
-        sprint: 'sprintId',
-      }[field as 'project' | 'status' | 'priority' | 'type' | 'parent' | 'milestone' | 'sprint'] as
-        | 'projectId'
-        | 'statusId'
-        | 'priorityId'
-        | 'typeId'
-        | 'parentId'
-        | 'milestoneId'
-        | 'sprintId';
+      }[field as 'project' | 'status' | 'priority' | 'type' | 'parent' | 'milestone'] as 'projectId' | 'statusId' | 'priorityId' | 'typeId' | 'parentId' | 'milestoneId';
       const nullable = key !== 'projectId';
       switch (operator) {
         case 'in':
@@ -260,6 +319,23 @@ function conditionWhere(
       }
     }
 
+    case 'sprint': {
+      switch (operator) {
+        case 'in':
+          return { sprints: { some: { id: { in: ids } } } };
+        case 'notIn':
+          return { sprints: { none: { id: { in: ids } } } };
+        case 'allOf':
+          return { AND: ids.map((id) => ({ sprints: { some: { id } } })) };
+        case 'isEmpty':
+          return { sprints: { none: {} } };
+        case 'isNotEmpty':
+          return { sprints: { some: {} } };
+        default:
+          return { sprints: { some: { id: { in: trees.sprintsWhere(operator as RelativeSprintOperator) } } } };
+      }
+    }
+
     case 'category': {
       const categories = ids as TaskStatusCategory[];
       // A task without status counts as "to do".
@@ -272,7 +348,8 @@ function conditionWhere(
     case 'boolean': {
       const today = new Date(dayValue(clock.today));
       const truth: Prisma.TaskWhereInput = {
-        overdue: { AND: [{ endDate: { lt: today } }, OPEN] },
+        // Past its "Date max".
+        overdue: { AND: [{ deadline: { lt: today } }, OPEN] },
         // Blocked by at least one task that is still open.
         blocked: { blockedBy: { some: { blocker: { archivedAt: null, ...OPEN } } } },
         hasSubtasks: { children: { some: {} } },
@@ -280,12 +357,12 @@ function conditionWhere(
         archived: { NOT: { archivedAt: null } },
       }[field as 'overdue' | 'blocked' | 'hasSubtasks' | 'closed' | 'archived'];
       if (operator === 'isTrue') return truth;
-      // NOT would drop tasks without end date (SQL NULL): "not overdue" is spelled out.
+      // NOT would drop tasks without "Date max" (SQL NULL): "not overdue" is spelled out.
       if (field === 'overdue') {
         return {
           OR: [
-            { endDate: null },
-            { endDate: { gte: today } },
+            { deadline: null },
+            { deadline: { gte: today } },
             { NOT: { closedAt: null } },
           ],
         };
@@ -352,7 +429,7 @@ export async function buildTaskWhere({
   clock: FilterClock;
   user: FilterUser;
 }): Promise<Prisma.TaskWhereInput> {
-  const trees = await loadTrees(filter);
+  const trees = await loadTrees(filter, clock);
   return {
     AND: [
       includeArchived ? {} : { archivedAt: null },

@@ -10,6 +10,7 @@ import {
   Grid,
   Group,
   Menu,
+  MultiSelect,
   NumberInput,
   Progress,
   Select,
@@ -39,6 +40,7 @@ import { Link, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
+import { localToday } from '../../lib/dates';
 import { notifyError } from '../../lib/notify';
 import { useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskTime } from '../time/TaskTime';
@@ -437,6 +439,15 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 onChange={(endDate) => save({ endDate })}
               />
             </Group>
+            <DatePickerInput
+              label="Date max"
+              description="Au-delà, la tâche ouverte est en retard."
+              clearable
+              placeholder="—"
+              value={task.deadline}
+              onChange={(deadline) => save({ deadline })}
+              error={task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined}
+            />
             <TaskSelect
               label="Tâche parente"
               placeholder="Aucune"
@@ -454,12 +465,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               searchable
               nothingFoundMessage="Aucun jalon dans ce projet"
             />
-            <Select
-              label="Sprint"
-              placeholder="Aucun"
+            <MultiSelect
+              label="Sprints"
+              placeholder={task.sprintIds.length ? undefined : 'Aucun'}
               data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
-              value={task.sprintId}
-              onChange={(sprintId) => save({ sprintId })}
+              value={task.sprintIds}
+              onChange={(sprintIds) => save({ sprintIds })}
               clearable
               searchable
               nothingFoundMessage="Aucun sprint dans ce projet"

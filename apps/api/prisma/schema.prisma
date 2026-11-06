@@ -312,9 +312,6 @@ model Task {
   type              TaskType?      @relation(fields: [typeId], references: [id], onDelete: SetNull)
   milestoneId       String?
   milestone         Milestone?     @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
-  /// Sprint of the project tree the task is planned in.
-  sprintId          String?
-  sprint            Sprint?        @relation(fields: [sprintId], references: [id], onDelete: SetNull)
   /// Item of the GitHub board the task is synchronized with (ProjectV2Item node id).
   githubItemId      String?        @unique
   /// Content of the item: issue or draft issue node id.
@@ -328,6 +325,8 @@ model Task {
   effort            Float?
   startDate         DateTime?      @db.Date
   endDate           DateTime?      @db.Date
+  /// Latest acceptable date ("Date max"): an open task past it is overdue.
+  deadline          DateTime?      @db.Date
   /// Parent task, possibly in another project of the same tree.
   parentId          String?
   parent            Task?          @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -343,6 +342,8 @@ model Task {
   updatedAt         DateTime       @updatedAt
   assignees         Contributor[]
   tags              TaskTag[]      @relation("TaskTags")
+  /// Sprints of the project tree the task is planned in (it may run over several).
+  sprints           Sprint[]       @relation("TaskSprints")
   /// Tasks this task blocks.
   blocking          TaskBlock[]    @relation("Blocker")
   /// Tasks blocking this task.
@@ -365,7 +366,7 @@ model Task {
   @@index([projectId])
   @@index([parentId])
   @@index([milestoneId])
-  @@index([sprintId])
+  @@index([deadline])
   @@index([closedAt])
   @@index([seriesId])
 }
@@ -456,7 +457,7 @@ model Sprint {
   githubIterationId String?  @unique
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  tasks             Task[]
+  tasks             Task[]   @relation("TaskSprints")
 
   @@index([projectId])
 }

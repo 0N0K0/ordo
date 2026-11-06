@@ -247,14 +247,16 @@ type Attachment {
 """Omitted fields are left unchanged; null clears a field."""
 input BulkTaskInput {
   addAssigneeIds: [ID!]
+  addSprintIds: [ID!]
   addTagIds: [ID!]
+  deadline: Date
   effort: Float
   endDate: Date
   milestoneId: ID
   priorityId: ID
   removeAssigneeIds: [ID!]
+  removeSprintIds: [ID!]
   removeTagIds: [ID!]
-  sprintId: ID
   startDate: Date
   statusId: ID
   typeId: ID
@@ -1615,6 +1617,9 @@ type Task {
   commentCount: Int!
   comments: [TaskComment!]!
   createdAt: DateTime!
+
+  """Latest acceptable date ("Date max"): an open task past it is overdue."""
+  deadline: Date
   description: String
   effort: Float
   endDate: Date
@@ -1640,7 +1645,9 @@ type Task {
 
   """First task of the series this task is an occurrence of."""
   seriesId: ID
-  sprintId: ID
+
+  """Sprints the task is planned in."""
+  sprintIds: [ID!]!
   startDate: Date
   statusId: ID
   tagIds: [ID!]!
@@ -1665,6 +1672,7 @@ type TaskComment {
 
 input TaskInput {
   assigneeIds: [ID!]
+  deadline: Date
   description: String
   effort: Float
   endDate: Date
@@ -1672,7 +1680,7 @@ input TaskInput {
   parentId: ID
   priorityId: ID
   projectId: ID!
-  sprintId: ID
+  sprintIds: [ID!]
   startDate: Date
   statusId: ID
   tagIds: [ID!]
@@ -1758,13 +1766,14 @@ Omitted fields are left unchanged; null clears a field. Use transferTask to chan
 """
 input TaskUpdateInput {
   assigneeIds: [ID!]
+  deadline: Date
   description: String
   effort: Float
   endDate: Date
   milestoneId: ID
   parentId: ID
   priorityId: ID
-  sprintId: ID
+  sprintIds: [ID!]
   startDate: Date
   statusId: ID
   tagIds: [ID!]

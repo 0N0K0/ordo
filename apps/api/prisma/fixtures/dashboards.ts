@@ -39,6 +39,7 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
         }
       }
     }
+    let carried: string | null = null;
     const tasks = await prisma.task.findMany({ where: { projectId: { in: [...tree] }, archivedAt: null }, select: { id: true, closedAt: true }, orderBy: { number: 'asc' } });
     for (let index = 0; index < 4; index += 1) {
       const start = addDays(firstStart, index * 14);
@@ -55,7 +56,10 @@ export async function seedSprintsAndDashboards({ projects, today }: { projects: 
       // Closed tasks in the sprints over or running, open ones in the running and coming sprints.
       const pool = tasks.filter((task) => (index < 2 ? task.closedAt !== null : index === 3 ? task.closedAt === null : true));
       const chosen = faker.helpers.arrayElements(pool, Math.min(pool.length, faker.number.int({ min: 3, max: 8 })));
-      await prisma.task.updateMany({ where: { id: { in: chosen.map((task) => task.id) } }, data: { sprintId: sprint.id } });
+      for (const task of chosen) await prisma.task.update({ where: { id: task.id }, data: { sprints: { connect: { id: sprint.id } } } });
+      // An open task of the running sprint goes on in the next one: a task may run over several sprints.
+      if (index === 3 && carried) await prisma.task.update({ where: { id: carried }, data: { sprints: { connect: { id: sprint.id } } } });
+      carried = index === 2 ? (chosen.find((task) => task.closedAt === null)?.id ?? null) : carried;
       for (const task of chosen) tasks.splice(tasks.indexOf(task), 1);
       // Tasks of a sprint over were closed during it.
       if (index < 3) {

@@ -169,6 +169,8 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
   const roots = new Set(tasks.map((task) => context.rootOf(task.projectId)));
   const commonMilestones = roots.size === 1 ? context.milestonesFor(tasks[0].projectId) : [];
   const commonSprints = roots.size === 1 ? context.sprintsFor(tasks[0].projectId) : [];
+  // Sprints at least one selected task is in.
+  const usedSprints = context.sprints.filter((sprint) => tasks.some((task) => task.sprintIds.includes(sprint.id)));
 
   /**
    * Applies field changes to the selection.
@@ -349,13 +351,24 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
           </Menu.Target>
           <Menu.Dropdown>
             {commonSprints.length === 0 && <Menu.Label>Aucun sprint commun aux tâches sélectionnées</Menu.Label>}
+            {commonSprints.length > 0 && <Menu.Label>Ajouter au sprint</Menu.Label>}
             {commonSprints.map((sprint) => (
-              <Menu.Item key={sprint.id} onClick={() => apply({ sprintId: sprint.id }, `Sprint « ${sprint.name} » appliqué à ${tasksLabel(ids.length)}.`)}>
+              <Menu.Item key={sprint.id} onClick={() => apply({ addSprintIds: [sprint.id] }, `Sprint « ${sprint.name} » ajouté à ${tasksLabel(ids.length)}.`)}>
                 {sprint.name}
               </Menu.Item>
             ))}
-            <Menu.Divider />
-            <Menu.Item onClick={() => apply({ sprintId: null }, `Sprint retiré de ${tasksLabel(ids.length)}.`)}>Aucun</Menu.Item>
+            {usedSprints.length > 0 && (
+              <>
+                <Menu.Divider />
+                <Menu.Label>Retirer du sprint</Menu.Label>
+                {usedSprints.map((sprint) => (
+                  <Menu.Item key={sprint.id} onClick={() => apply({ removeSprintIds: [sprint.id] }, `Sprint « ${sprint.name} » retiré de ${tasksLabel(ids.length)}.`)}>
+                    {sprint.name}
+                  </Menu.Item>
+                ))}
+                <Menu.Item onClick={() => apply({ removeSprintIds: usedSprints.map((sprint) => sprint.id) }, `Sprints retirés de ${tasksLabel(ids.length)}.`)}>Tous</Menu.Item>
+              </>
+            )}
           </Menu.Dropdown>
         </Menu>
         {assigneeMenu(true)}

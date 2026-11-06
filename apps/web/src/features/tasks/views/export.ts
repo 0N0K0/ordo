@@ -78,6 +78,8 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
       return printedDay(task.startDate);
     case 'endDate':
       return printedDay(task.endDate);
+    case 'deadline':
+      return printedDay(task.deadline);
     case 'parent': {
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
       return parent ? `#${parent.number} ${parent.title}` : '';
@@ -85,7 +87,10 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
     case 'milestone':
       return (task.milestoneId && context.milestoneById.get(task.milestoneId)?.title) || '';
     case 'sprint':
-      return (task.sprintId && context.sprintById.get(task.sprintId)?.name) || '';
+      return task.sprintIds
+        .map((id) => context.sprintById.get(id)?.name)
+        .filter(Boolean)
+        .join(', ');
     case 'blockedBy':
       return numbers(task.blockedByIds);
     case 'blocking':
