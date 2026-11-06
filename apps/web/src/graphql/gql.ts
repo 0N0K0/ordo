@@ -109,6 +109,7 @@ type Documents = {
     "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.DeleteCalendarEventDocument,
     "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n": typeof types.MaterializeTaskOccurrencesDocument,
+    "\n  query SprintTaskStatuses($today: Date!) {\n    sprintTaskStatuses(today: $today) {\n      sprintId\n      taskId\n      statusId\n      closed\n    }\n  }\n": typeof types.SprintTaskStatusesDocument,
     "\n  query Dashboards($projectId: ID) {\n    dashboards(projectId: $projectId) {\n      id\n      projectId\n      name\n      position\n      charts {\n        id\n        dashboardId\n        title\n        config\n        wide\n        position\n      }\n    }\n  }\n": typeof types.DashboardsDocument,
     "\n  mutation CreateDashboard($name: String!, $projectId: ID) {\n    createDashboard(name: $name, projectId: $projectId)\n  }\n": typeof types.CreateDashboardDocument,
     "\n  mutation RenameDashboard($id: ID!, $name: String!) {\n    renameDashboard(id: $id, name: $name)\n  }\n": typeof types.RenameDashboardDocument,
@@ -219,6 +220,7 @@ type Documents = {
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID!) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": typeof types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": typeof types.BulkDeleteTasksDocument,
+    "\n  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {\n    matchingTaskIdsBySprint(query: $query) {\n      sprintId\n      taskIds\n    }\n  }\n": typeof types.MatchingTaskIdsBySprintDocument,
     "\n  mutation CreateMilestone($input: MilestoneInput!) {\n    createMilestone(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateMilestoneDocument,
     "\n  mutation UpdateMilestone($id: ID!, $input: MilestoneUpdateInput!) {\n    updateMilestone(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateMilestoneDocument,
     "\n  mutation DeleteMilestone($id: ID!) {\n    deleteMilestone(id: $id)\n  }\n": typeof types.DeleteMilestoneDocument,
@@ -381,6 +383,7 @@ const documents: Documents = {
     "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.DeleteCalendarEventDocument,
     "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n": types.MaterializeTaskOccurrencesDocument,
+    "\n  query SprintTaskStatuses($today: Date!) {\n    sprintTaskStatuses(today: $today) {\n      sprintId\n      taskId\n      statusId\n      closed\n    }\n  }\n": types.SprintTaskStatusesDocument,
     "\n  query Dashboards($projectId: ID) {\n    dashboards(projectId: $projectId) {\n      id\n      projectId\n      name\n      position\n      charts {\n        id\n        dashboardId\n        title\n        config\n        wide\n        position\n      }\n    }\n  }\n": types.DashboardsDocument,
     "\n  mutation CreateDashboard($name: String!, $projectId: ID) {\n    createDashboard(name: $name, projectId: $projectId)\n  }\n": types.CreateDashboardDocument,
     "\n  mutation RenameDashboard($id: ID!, $name: String!) {\n    renameDashboard(id: $id, name: $name)\n  }\n": types.RenameDashboardDocument,
@@ -491,6 +494,7 @@ const documents: Documents = {
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID!) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": types.BulkDeleteTasksDocument,
+    "\n  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {\n    matchingTaskIdsBySprint(query: $query) {\n      sprintId\n      taskIds\n    }\n  }\n": types.MatchingTaskIdsBySprintDocument,
     "\n  mutation CreateMilestone($input: MilestoneInput!) {\n    createMilestone(input: $input) {\n      id\n    }\n  }\n": types.CreateMilestoneDocument,
     "\n  mutation UpdateMilestone($id: ID!, $input: MilestoneUpdateInput!) {\n    updateMilestone(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateMilestoneDocument,
     "\n  mutation DeleteMilestone($id: ID!) {\n    deleteMilestone(id: $id)\n  }\n": types.DeleteMilestoneDocument,
@@ -938,6 +942,10 @@ export function graphql(source: "\n  mutation MaterializeTaskOccurrences($from: 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query SprintTaskStatuses($today: Date!) {\n    sprintTaskStatuses(today: $today) {\n      sprintId\n      taskId\n      statusId\n      closed\n    }\n  }\n"): typeof import('./graphql').SprintTaskStatusesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  query Dashboards($projectId: ID) {\n    dashboards(projectId: $projectId) {\n      id\n      projectId\n      name\n      position\n      charts {\n        id\n        dashboardId\n        title\n        config\n        wide\n        position\n      }\n    }\n  }\n"): typeof import('./graphql').DashboardsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -1375,6 +1383,10 @@ export function graphql(source: "\n  mutation BulkSetTasksArchived($ids: [ID!]!,
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n"): typeof import('./graphql').BulkDeleteTasksDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {\n    matchingTaskIdsBySprint(query: $query) {\n      sprintId\n      taskIds\n    }\n  }\n"): typeof import('./graphql').MatchingTaskIdsBySprintDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

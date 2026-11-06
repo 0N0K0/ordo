@@ -63,7 +63,9 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
   const [wide, setWide] = useState(initial.wide);
   // Invoicing and treasury charts follow a calendar month, quarter or year (an older rolling period becomes the current year).
   const [config, setConfig] = useState<ChartConfig>(() =>
-    initial.config.source !== 'tasks' ? { ...initial.config, period: `${calendarParts(initial.config.period).scale}:${calendarParts(initial.config.period).anchor}` as ChartConfig['period'] } : initial.config,
+    initial.config.source !== 'tasks'
+      ? { ...initial.config, period: `${calendarParts(initial.config.period).scale}:${calendarParts(initial.config.period).anchor}` as ChartConfig['period'] }
+      : initial.config,
   );
   const [titleError, setTitleError] = useState<string | null>(null);
   const { createChart, updateChart } = useDashboardMutations();
@@ -274,7 +276,9 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
           <Switch label="Pleine largeur" checked={wide} onChange={(event) => setWide(event.currentTarget.checked)} />
 
           <Divider
-            label={`${several ? 'Jeu principal — ' : ''}${source === 'tasks' ? 'tâches comptées' : source === 'documents' ? 'documents comptés' : 'mouvements comptés'}`.replace(/^./, (letter) => letter.toUpperCase())}
+            label={`${several ? 'Jeu principal — ' : ''}${source === 'tasks' ? 'tâches comptées' : source === 'documents' ? 'documents comptés' : 'mouvements comptés'}`.replace(/^./, (letter) =>
+              letter.toUpperCase(),
+            )}
             labelPosition="left"
           />
           {source === 'tasks' && (

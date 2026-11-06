@@ -1352,6 +1352,13 @@ export type MaterializeTaskOccurrencesMutationVariables = Exact<{
 
 export type MaterializeTaskOccurrencesMutation = { materializeTaskOccurrences: number };
 
+export type SprintTaskStatusesQueryVariables = Exact<{
+  today: string;
+}>;
+
+
+export type SprintTaskStatusesQuery = { sprintTaskStatuses: Array<{ sprintId: string, taskId: string, statusId: string | null, closed: boolean }> };
+
 export type DashboardsQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
 }>;
@@ -2136,6 +2143,13 @@ export type BulkDeleteTasksMutationVariables = Exact<{
 
 
 export type BulkDeleteTasksMutation = { bulkDeleteTasks: boolean };
+
+export type MatchingTaskIdsBySprintQueryVariables = Exact<{
+  query: TaskQueryInput;
+}>;
+
+
+export type MatchingTaskIdsBySprintQuery = { matchingTaskIdsBySprint: Array<{ sprintId: string, taskIds: Array<string> }> };
 
 export type CreateMilestoneMutationVariables = Exact<{
   input: MilestoneInput;
@@ -4055,6 +4069,16 @@ export const MaterializeTaskOccurrencesDocument = new TypedDocumentString(`
   materializeTaskOccurrences(from: $from, to: $to)
 }
     `) as unknown as TypedDocumentString<MaterializeTaskOccurrencesMutation, MaterializeTaskOccurrencesMutationVariables>;
+export const SprintTaskStatusesDocument = new TypedDocumentString(`
+    query SprintTaskStatuses($today: Date!) {
+  sprintTaskStatuses(today: $today) {
+    sprintId
+    taskId
+    statusId
+    closed
+  }
+}
+    `) as unknown as TypedDocumentString<SprintTaskStatusesQuery, SprintTaskStatusesQueryVariables>;
 export const DashboardsDocument = new TypedDocumentString(`
     query Dashboards($projectId: ID) {
   dashboards(projectId: $projectId) {
@@ -5064,6 +5088,14 @@ export const BulkDeleteTasksDocument = new TypedDocumentString(`
   bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)
 }
     `) as unknown as TypedDocumentString<BulkDeleteTasksMutation, BulkDeleteTasksMutationVariables>;
+export const MatchingTaskIdsBySprintDocument = new TypedDocumentString(`
+    query MatchingTaskIdsBySprint($query: TaskQueryInput!) {
+  matchingTaskIdsBySprint(query: $query) {
+    sprintId
+    taskIds
+  }
+}
+    `) as unknown as TypedDocumentString<MatchingTaskIdsBySprintQuery, MatchingTaskIdsBySprintQueryVariables>;
 export const CreateMilestoneDocument = new TypedDocumentString(`
     mutation CreateMilestone($input: MilestoneInput!) {
   createMilestone(input: $input) {

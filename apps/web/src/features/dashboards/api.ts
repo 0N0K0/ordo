@@ -1,12 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { DashboardsQuery } from '../../graphql/graphql';
+import type { DashboardsQuery, SprintTaskStatusesQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 
 export type Dashboard = DashboardsQuery['dashboards'][number];
 export type DashboardChart = Dashboard['charts'][number];
 
 const dashboardsKey = ['dashboards'] as const;
+
+export type SprintTaskStatus = SprintTaskStatusesQuery['sprintTaskStatuses'][number];
+
+const SprintTaskStatusesDocument = graphql(`
+  query SprintTaskStatuses($today: Date!) {
+    sprintTaskStatuses(today: $today) {
+      sprintId
+      taskId
+      statusId
+      closed
+    }
+  }
+`);
+
+/**
+ * Status of the tasks of the ended sprints at the end of each sprint, by "sprint|task".
+ * @param {string} today User's day.
+ * @param {boolean} enabled Loaded (charts by sprint or filtered on it).
+ * @returns {UseQueryResult<Map<string, SprintTaskStatus>>} Query state.
+ */
+export function useSprintTaskStatuses(today: string, enabled: boolean) {
+  return useQuery({
+    enabled,
+    queryKey: ['tasks', 'sprint-statuses', today],
+    queryFn: async () => new Map((await execute(SprintTaskStatusesDocument, { today })).sprintTaskStatuses.map((item) => [`${item.sprintId}|${item.taskId}`, item])),
+  });
+}
 
 const DashboardsDocument = graphql(`
   query Dashboards($projectId: ID) {

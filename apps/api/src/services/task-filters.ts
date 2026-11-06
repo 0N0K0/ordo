@@ -372,6 +372,63 @@ function conditionWhere(
   }
 }
 
+/** Statuses of tasks at a moment (end of a sprint), used by the status conditions instead of the current ones. */
+export interface StatusAt {
+  /** Status and state of each task with a recorded status at that moment; the others keep their current one. */
+  statuses: ReadonlyMap<string, { statusId: string | null; closed: boolean }>;
+  /** Category of each status. */
+  categoryOf: ReadonlyMap<string, TaskStatusCategory>;
+}
+
+/** Conditions on the status of a task. */
+const STATUS_FIELDS = new Set(['status', 'statusCategory', 'closed']);
+
+/**
+ * Whether a status condition holds for a status and state (same rules as its Prisma translation).
+ * @param {FilterCondition} condition Condition on the status, its category or the closed state.
+ * @param {{ statusId: string | null, closed: boolean }} at Status and state.
+ * @param {ReadonlyMap<string, TaskStatusCategory>} categoryOf Category of each status.
+ * @returns {boolean} Holds.
+ */
+function statusHolds(condition: FilterCondition, at: { statusId: string | null; closed: boolean }, categoryOf: ReadonlyMap<string, TaskStatusCategory>): boolean {
+  const ids = Array.isArray(condition.value) ? (condition.value as string[]) : [];
+  if (condition.field === 'closed') return condition.operator === 'isTrue' ? at.closed : !at.closed;
+  if (condition.field === 'statusCategory') {
+    // A task without status counts as "to do".
+    const category = at.statusId ? categoryOf.get(at.statusId) : 'TODO';
+    const inside = category !== undefined && ids.includes(category);
+    return condition.operator === 'in' ? inside : !inside;
+  }
+  switch (condition.operator) {
+    case 'in':
+      return at.statusId !== null && ids.includes(at.statusId);
+    case 'notIn':
+      return at.statusId === null || !ids.includes(at.statusId);
+    case 'isEmpty':
+      return at.statusId === null;
+    default:
+      return at.statusId !== null;
+  }
+}
+
+/**
+ * Translates a condition, a status condition on the statuses of a moment when given: the tasks with a status
+ * recorded then match on it, the others on their current status.
+ * @param {FilterCondition} condition Condition.
+ * @param {FilterClock} clock User clock.
+ * @param {Trees} trees Tree lookups.
+ * @param {FilterUser} user Querying user.
+ * @param {StatusAt} [statusAt] Statuses of a moment. Optional.
+ * @returns {Prisma.TaskWhereInput} Prisma filter.
+ */
+function conditionAt(condition: FilterCondition, clock: FilterClock, trees: Trees, user: FilterUser, statusAt?: StatusAt): Prisma.TaskWhereInput {
+  const current = conditionWhere(condition, clock, trees, user);
+  if (!statusAt || !STATUS_FIELDS.has(condition.field)) return current;
+  const known = [...statusAt.statuses.keys()];
+  const matched = known.filter((id) => statusHolds(condition, statusAt.statuses.get(id)!, statusAt.categoryOf));
+  return { OR: [{ id: { in: matched } }, { AND: [{ id: { notIn: known } }, current] }] };
+}
+
 /**
  * Translates a filter group; an empty group matches every task.
  * @param {FilterGroup} group Validated group.
@@ -380,9 +437,9 @@ function conditionWhere(
  * @param {FilterUser} user Querying user.
  * @returns {Prisma.TaskWhereInput} Prisma filter.
  */
-function groupWhere(group: FilterGroup, clock: FilterClock, trees: Trees, user: FilterUser): Prisma.TaskWhereInput {
+function groupWhere(group: FilterGroup, clock: FilterClock, trees: Trees, user: FilterUser, statusAt?: StatusAt): Prisma.TaskWhereInput {
   const parts = group.children.map((child) =>
-    child.type === 'group' ? groupWhere(child, clock, trees, user) : conditionWhere(child, clock, trees, user),
+    child.type === 'group' ? groupWhere(child, clock, trees, user, statusAt) : conditionAt(child, clock, trees, user, statusAt),
   );
   if (parts.length === 0) return {};
   return group.combinator === 'and' ? { AND: parts } : { OR: parts };
@@ -414,6 +471,7 @@ function searchWhere(search: string): Prisma.TaskWhereInput {
  * @param {boolean} options.includeArchived Whether archived tasks are included.
  * @param {FilterClock} options.clock User clock.
  * @param {FilterUser} options.user Querying user.
+ * @param {StatusAt} [options.statusAt] Statuses the status conditions use instead of the current ones (end of a sprint). Optional.
  * @returns {Promise<Prisma.TaskWhereInput>} Prisma filter.
  */
 export async function buildTaskWhere({
@@ -422,19 +480,21 @@ export async function buildTaskWhere({
   includeArchived,
   clock,
   user,
+  statusAt,
 }: {
   filter: FilterGroup;
   search: string;
   includeArchived: boolean;
   clock: FilterClock;
   user: FilterUser;
+  statusAt?: StatusAt;
 }): Promise<Prisma.TaskWhereInput> {
   const trees = await loadTrees(filter, clock);
   return {
     AND: [
       includeArchived ? {} : { archivedAt: null },
       searchWhere(search),
-      groupWhere(filter, clock, trees, user),
+      groupWhere(filter, clock, trees, user, statusAt),
     ],
   };
 }

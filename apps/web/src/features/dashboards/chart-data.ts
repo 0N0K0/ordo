@@ -4,15 +4,16 @@ import { addDays, isTimeDimension, type ChartConfig, type FilterGroup } from '@o
 import { useMemo } from 'react';
 import { localToday } from '../../lib/dates';
 import { useAccountingDocuments, useImportedDocuments } from '../accounting/documents-api';
-import { matchingTaskIdsQuery, type Task } from '../tasks/api';
+import { matchingTaskIdsBySprintQuery, matchingTaskIdsQuery, type Task } from '../tasks/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import { pruneFilter } from '../tasks/views/filter-meta';
 import { useTreasuryAccounts, useTreasuryEntries, useTreasuryProjection, useTreasurySettings } from '../treasury/api';
 import { descendantIds } from '../workspace/api';
 import { DIMENSION_LABELS, measureLabel, periodLabel, periodRange, type ChartData } from './aggregate';
+import { useSprintTaskStatuses } from './api';
 import { datasetParts, mergeDatasets } from './datasets';
 import { documentChartData, treasuryChartData } from './finance-records';
-import { taskChartData } from './task-records';
+import { taskChartData, type SprintView } from './task-records';
 
 const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
   day: 'par jour',
@@ -90,9 +91,29 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
   const [queries] = useDebouncedValue(requests, 250);
   const matching = useQueries({ queries: queries.map((query) => ({ ...matchingTaskIdsQuery(query), placeholderData: (previous: string[] | undefined) => previous })) });
 
+  // Charts by sprint: the tasks matching at the end of each ended sprint, and their statuses then.
+  const bySprintParts = useMemo(
+    () => parts.map((part) => part.config.source === 'tasks' && part.config.type !== 'burndown' && (part.config.dimension === 'sprint' || part.config.series === 'sprint')),
+    [parts],
+  );
+  const sprintAware = bySprintParts.some(Boolean);
+  const sprintStatuses = useSprintTaskStatuses(today, sprintAware);
+  const sprintMatching = useQueries({
+    queries: queries.map((query, index) => ({ ...matchingTaskIdsBySprintQuery(bySprintParts[index] ? query : null), placeholderData: (previous: Map<string, Set<string>> | undefined) => previous })),
+  });
+  const sprintMatchingStamp = sprintMatching.map((query) => query.dataUpdatedAt).join();
+  const sprintMatchingData = useMemo(
+    () => sprintMatching.map((query) => query.data),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sprintMatchingStamp, sprintMatching.length],
+  );
+
   // Documents.
   const documents = useAccountingDocuments({}, sources.has('documents'));
-  const imported = useImportedDocuments({}, parts.some((part) => part.config.source === 'documents' && part.config.documents.includeImported));
+  const imported = useImportedDocuments(
+    {},
+    parts.some((part) => part.config.source === 'documents' && part.config.documents.includeImported),
+  );
 
   // Treasury: actual entries of the period, the projection for the balance and the expected movements.
   const [from, to] = periodRange(config.period, today);
@@ -135,7 +156,20 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
         const ids = matchingData[index];
         if (!ids) return null;
         const tasks = ids.map((id) => context.taskById.get(id)).filter((task): task is Task => task !== undefined);
-        partData = taskChartData(tasks, partConfig, context, today);
+        let bySprint: SprintView | undefined;
+        if (bySprintParts[index]) {
+          const matches = sprintMatchingData[index];
+          if (!matches || !sprintStatuses.data) return null;
+          const current = new Set(ids);
+          const extraIds = new Set([...matches.values()].flatMap((set) => [...set]).filter((id) => !current.has(id)));
+          bySprint = {
+            current,
+            matches,
+            statuses: sprintStatuses.data,
+            extraTasks: [...extraIds].map((id) => context.taskById.get(id)).filter((task): task is Task => task !== undefined),
+          };
+        }
+        partData = taskChartData(tasks, partConfig, context, today, bySprint);
       } else if (partConfig.source === 'documents') {
         if (!documents.data || (partConfig.documents.includeImported && !imported.data)) return null;
         partData = documentChartData(documents.data, imported.data ?? [], partConfig, context, projects, today);
@@ -156,12 +190,27 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
     }
     if (results.length === 1 && config.comparisons.length === 0) return results[0].data;
     return mergeDatasets(results, config);
-  }, [context, parts, matchingData, documents.data, imported.data, entries.data, projection.data, accounts.data, treasurySettings.data, needsProjection, config, projects, today]);
+  }, [
+    context,
+    parts,
+    matchingData,
+    bySprintParts,
+    sprintMatchingData,
+    sprintStatuses.data,
+    documents.data,
+    imported.data,
+    entries.data,
+    projection.data,
+    accounts.data,
+    treasurySettings.data,
+    needsProjection,
+    config,
+    projects,
+    today,
+  ]);
 
   const pending =
-    (sources.has('tasks') && matching.some((query, index) => queries[index] !== null && query.isPending)) ||
-    (sources.has('documents') && documents.isPending) ||
-    (treasury && entries.isPending);
+    (sources.has('tasks') && matching.some((query, index) => queries[index] !== null && query.isPending)) || (sources.has('documents') && documents.isPending) || (treasury && entries.isPending);
   const error =
     matching.find((query) => query.error)?.error ??
     (sources.has('documents') ? (documents.error ?? imported.error) : null) ??

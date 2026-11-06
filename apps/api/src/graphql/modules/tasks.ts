@@ -81,6 +81,21 @@ const MilestoneUpdateInput = builder.inputType('MilestoneUpdateInput', {
   }),
 });
 
+const SprintMatchesRef = builder.objectRef<{ sprintId: string; taskIds: string[] }>('SprintMatches').implement({
+  description: 'Tasks of a sprint matching a filter at the end of the sprint.',
+  fields: (t) => ({ sprintId: t.exposeID('sprintId'), taskIds: t.exposeIDList('taskIds') }),
+});
+
+const SprintTaskStatusRef = builder.objectRef<sprints.SprintTaskStatus>('SprintTaskStatus').implement({
+  description: 'Status of a task at the end of a sprint.',
+  fields: (t) => ({
+    sprintId: t.exposeID('sprintId'),
+    taskId: t.exposeID('taskId'),
+    statusId: t.exposeID('statusId', { nullable: true }),
+    closed: t.exposeBoolean('closed'),
+  }),
+});
+
 builder.prismaObject('Sprint', {
   description: 'Period of a project the tasks of its project tree are planned in.',
   fields: (t) => ({
@@ -369,6 +384,39 @@ builder.queryFields((t) => ({
     args: { number: t.arg.int({ required: true }) },
     resolve: (query, _root, { number }) => prisma.task.findUnique({ ...query, where: { number } }),
   }),
+  matchingTaskIdsBySprint: t.field({
+    type: [SprintMatchesRef],
+    description:
+      'For each sprint ended before the query day: ids of its tasks matching a filter whose status conditions (status, category, closed) use the status the tasks had at the end of the sprint.',
+    args: { query: t.arg({ type: TaskQueryInput, required: true }) },
+    resolve: async (_root, { query }, ctx) => {
+      const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
+      const user = ctx.session ? await prisma.user.findUnique({ where: { id: ctx.session.userId }, select: { contributorId: true } }) : null;
+      const statuses = await sprints.sprintTaskStatuses(query.today);
+      const categoryOf = new Map((await prisma.taskStatus.findMany({ select: { id: true, category: true } })).map((status) => [status.id, status.category]));
+      const bySprint = new Map<string, Map<string, { statusId: string | null; closed: boolean }>>();
+      for (const item of statuses) {
+        const map = bySprint.get(item.sprintId) ?? new Map();
+        map.set(item.taskId, { statusId: item.statusId, closed: item.closed });
+        bySprint.set(item.sprintId, map);
+      }
+      const ended = await prisma.sprint.findMany({ where: { endDate: { lt: new Date(`${query.today}T00:00:00Z`) } }, select: { id: true } });
+      return Promise.all(
+        ended.map(async ({ id }) => {
+          const where = await taskFilters.buildTaskWhere({
+            filter,
+            search: query.search ?? '',
+            includeArchived: query.includeArchived ?? false,
+            clock: { today: query.today, utcOffset: query.utcOffset },
+            user: { contributorId: user?.contributorId ?? null },
+            statusAt: { statuses: bySprint.get(id) ?? new Map(), categoryOf },
+          });
+          const tasks = await prisma.task.findMany({ where: { AND: [where, { sprints: { some: { id } } }] }, select: { id: true } });
+          return { sprintId: id, taskIds: tasks.map((task) => task.id) };
+        }),
+      );
+    },
+  }),
   matchingTaskIds: t.idList({
     description: 'Ids of the tasks matching a filter, in manual order.',
     args: { query: t.arg({ type: TaskQueryInput, required: true }) },
@@ -394,6 +442,12 @@ builder.queryFields((t) => ({
     args: { projectId: t.arg.id() },
     resolve: (query, _root, { projectId }) =>
       prisma.taskView.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: [...byManualOrder] }),
+  }),
+  sprintTaskStatuses: t.field({
+    type: [SprintTaskStatusRef],
+    description: 'Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).',
+    args: { today: t.arg({ type: 'Date', required: true }) },
+    resolve: (_root, { today }) => sprints.sprintTaskStatuses(today),
   }),
   sprints: t.prismaField({
     type: ['Sprint'],
