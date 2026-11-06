@@ -61,9 +61,9 @@ interface ChartEditorProps {
 export function ChartEditor({ dashboardId, chart, initial, scope, context, onDone }: ChartEditorProps) {
   const [title, setTitle] = useState(initial.title);
   const [wide, setWide] = useState(initial.wide);
-  // Treasury charts follow a calendar month, quarter or year (an older rolling period becomes the current year).
+  // Invoicing and treasury charts follow a calendar month, quarter or year (an older rolling period becomes the current year).
   const [config, setConfig] = useState<ChartConfig>(() =>
-    initial.config.source === 'treasury' ? { ...initial.config, period: `${calendarParts(initial.config.period).scale}:${calendarParts(initial.config.period).anchor}` as ChartConfig['period'] } : initial.config,
+    initial.config.source !== 'tasks' ? { ...initial.config, period: `${calendarParts(initial.config.period).scale}:${calendarParts(initial.config.period).anchor}` as ChartConfig['period'] } : initial.config,
   );
   const [titleError, setTitleError] = useState<string | null>(null);
   const { createChart, updateChart } = useDashboardMutations();
@@ -231,7 +231,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                     value={config.bucket}
                     onChange={(bucket) => bucket && change({ bucket: bucket as ChartConfig['bucket'] })}
                   />
-                  {source === 'treasury' ? (
+                  {source !== 'tasks' ? (
                     <CalendarPeriodPicker value={config.period} onChange={(period) => change({ period })} />
                   ) : (
                     <Select

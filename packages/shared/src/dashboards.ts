@@ -187,7 +187,7 @@ export const chartConfigSchema = z
     /** Axis (categories of a donut). */
     dimension: z.enum(CHART_DIMENSIONS),
     bucket: z.enum(CHART_BUCKETS).default('week'),
-    /** Rolling period, or a calendar month, quarter or year (treasury). */
+    /** Rolling period (tasks), or a calendar month, quarter or year (invoicing, treasury). */
     period: z.union([z.enum(CHART_PERIODS), z.string().regex(CALENDAR_PERIOD) as unknown as z.ZodType<`${CalendarScale}:${string}`>]).default('past:91'),
     measure: z.enum(CHART_MEASURES).default('count'),
     /** Series: one line, bar or area per value of this field. */
@@ -265,7 +265,7 @@ export function defaultChartConfig(source: ChartSource = 'tasks'): ChartConfig {
       type: 'bar',
       dimension: 'issueDate',
       bucket: 'month',
-      period: 'past:365',
+      period: 'year:0',
       measure: 'totalNet',
       documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] },
     });
