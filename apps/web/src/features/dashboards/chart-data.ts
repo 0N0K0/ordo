@@ -9,22 +9,11 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { pruneFilter } from '../tasks/views/filter-meta';
 import { useTreasuryAccounts, useTreasuryEntries, useTreasuryProjection, useTreasurySettings } from '../treasury/api';
 import { descendantIds } from '../workspace/api';
-import { DIMENSION_LABELS, measureLabel, periodRange, type ChartData } from './aggregate';
+import { DIMENSION_LABELS, measureLabel, periodLabel, periodRange, type ChartData } from './aggregate';
 import { datasetParts, mergeDatasets } from './datasets';
 import { documentChartData, treasuryChartData } from './finance-records';
 import { taskChartData } from './task-records';
 
-const PERIOD_LABELS: Record<ChartConfig['period'], string> = {
-  'past:28': '4 dernières semaines',
-  'past:91': '3 derniers mois',
-  'past:182': '6 derniers mois',
-  'past:365': '12 derniers mois',
-  'past:730': '24 derniers mois',
-  'next:91': '3 prochains mois',
-  'next:182': '6 prochains mois',
-  'next:365': '12 prochains mois',
-  all: 'toute la période',
-};
 const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
   day: 'par jour',
   week: 'par semaine',
@@ -50,7 +39,7 @@ export function describeChart(config: ChartConfig, context: TaskContext): string
     return `Burndown ${config.measure === 'effort' ? 'de l’effort' : 'des tâches'}${sprint ? ` — ${sprint.name}` : ''}`;
   }
   const parts = [SOURCE_LABELS[config.source], measureLabel(config.source, config.measure), `par ${DIMENSION_LABELS[config.dimension].toLowerCase()}`];
-  if (isTimeDimension(config.dimension)) parts.push(`${BUCKET_LABELS[config.bucket]}, ${PERIOD_LABELS[config.period]}`);
+  if (isTimeDimension(config.dimension)) parts.push(`${BUCKET_LABELS[config.bucket]}, ${periodLabel(config.period).toLowerCase()}`);
   if (config.series) parts.push(`séries : ${DIMENSION_LABELS[config.series].toLowerCase()}`);
   if (config.cumulative && isTimeDimension(config.dimension)) parts.push('cumulé');
   if (config.source === 'documents' && config.documents.creditNotesNegative && config.measure !== 'count') parts.push('avoirs déduits');

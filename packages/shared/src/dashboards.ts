@@ -64,7 +64,50 @@ export type ChartBucket = (typeof CHART_BUCKETS)[number];
 
 /** Period of a time axis: past or coming, or everything. */
 export const CHART_PERIODS = ['past:28', 'past:91', 'past:182', 'past:365', 'past:730', 'next:91', 'next:182', 'next:365', 'all'] as const;
-export type ChartPeriod = (typeof CHART_PERIODS)[number];
+
+/** Calendar period: a month, quarter or year — the current one (0), the previous one (-1), or a chosen one (its first day). */
+export const CALENDAR_PERIOD = /^(month|quarter|year):(0|-1|\d{4}-\d{2}-\d{2})$/;
+export const CALENDAR_SCALES = ['month', 'quarter', 'year'] as const;
+export type CalendarScale = (typeof CALENDAR_SCALES)[number];
+export type ChartPeriod = (typeof CHART_PERIODS)[number] | `${CalendarScale}:${string}`;
+
+/**
+ * First day of the month, quarter or year of a day.
+ * @param {CalendarScale} scale Scale.
+ * @param {string} day YYYY-MM-DD.
+ * @returns {string} First day.
+ */
+export function calendarStart(scale: CalendarScale, day: string): string {
+  if (scale === 'year') return `${day.slice(0, 4)}-01-01`;
+  const month = Number(day.slice(5, 7)) - 1;
+  return `${day.slice(0, 4)}-${String((scale === 'quarter' ? month - (month % 3) : month) + 1).padStart(2, '0')}-01`;
+}
+
+/**
+ * First day of the month, quarter or year after (or before) another one.
+ * @param {CalendarScale} scale Scale.
+ * @param {string} start First day of a period.
+ * @param {number} delta Periods to move.
+ * @returns {string} First day.
+ */
+export function shiftCalendar(scale: CalendarScale, start: string, delta: number): string {
+  const months = (scale === 'month' ? 1 : scale === 'quarter' ? 3 : 12) * delta;
+  return new Date(Date.UTC(Number(start.slice(0, 4)), Number(start.slice(5, 7)) - 1 + months, 1)).toISOString().slice(0, 10);
+}
+
+/**
+ * First day and day after the last one of a calendar period, or null when the period is not one.
+ * @param {string} period Period ("month:0", "quarter:-1", "year:2026-01-01"…).
+ * @param {string} today User's day.
+ * @returns {[string, string] | null} Range.
+ */
+export function calendarRange(period: string, today: string): [string, string] | null {
+  const match = CALENDAR_PERIOD.exec(period);
+  if (!match) return null;
+  const scale = match[1] as CalendarScale;
+  const start = match[2] === '0' ? calendarStart(scale, today) : match[2] === '-1' ? shiftCalendar(scale, calendarStart(scale, today), -1) : calendarStart(scale, match[2]);
+  return [start, shiftCalendar(scale, start, 1)];
+}
 
 /**
  * Whether a dimension is a date.
@@ -113,6 +156,8 @@ export const chartDatasetSchema = z.object({
   dateField: z.enum(CHART_TIME_DIMENSIONS).nullable().default(null),
   /** Its own series: one per value of this field, or none. */
   series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
+  /** How it is drawn; the type of the chart when null. */
+  type: z.enum(['bar', 'line', 'area']).nullable().default(null),
   filter: taskFilterSchema.default(emptyFilter),
   search: z.string().max(200).default(''),
   includeArchived: z.boolean().default(false),
@@ -142,7 +187,8 @@ export const chartConfigSchema = z
     /** Axis (categories of a donut). */
     dimension: z.enum(CHART_DIMENSIONS),
     bucket: z.enum(CHART_BUCKETS).default('week'),
-    period: z.enum(CHART_PERIODS).default('past:91'),
+    /** Rolling period, or a calendar month, quarter or year (treasury). */
+    period: z.union([z.enum(CHART_PERIODS), z.string().regex(CALENDAR_PERIOD) as unknown as z.ZodType<`${CalendarScale}:${string}`>]).default('past:91'),
     measure: z.enum(CHART_MEASURES).default('count'),
     /** Series: one line, bar or area per value of this field. */
     series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
@@ -224,6 +270,6 @@ export function defaultChartConfig(source: ChartSource = 'tasks'): ChartConfig {
       documents: { types: ['INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] },
     });
   }
-  if (source === 'treasury') return chartConfigSchema.parse({ source, type: 'bar', dimension: 'date', bucket: 'month', period: 'past:365', measure: 'amount', series: 'direction' });
+  if (source === 'treasury') return chartConfigSchema.parse({ source, type: 'bar', dimension: 'date', bucket: 'month', period: 'year:0', measure: 'amount', series: 'direction' });
   return chartConfigSchema.parse({ type: 'bar', dimension: 'createdAt', filter: emptyFilter() });
 }

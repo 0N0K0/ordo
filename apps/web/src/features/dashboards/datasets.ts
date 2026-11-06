@@ -6,6 +6,8 @@ export interface DatasetPart {
   id: string;
   name: string;
   config: ChartConfig;
+  /** How it is drawn, when not like the chart. */
+  type: 'bar' | 'line' | 'area' | null;
 }
 
 /**
@@ -21,12 +23,14 @@ export function datasetParts(config: ChartConfig): DatasetPart[] {
     id: MAIN_DATASET,
     name: config.name || MEASURE_LABELS[config.measure],
     config: several ? { ...config, datasets: [], comparisons: [] } : config,
+    type: null,
   };
   return [
     main,
     ...config.datasets.map((dataset) => ({
       id: dataset.id,
       name: dataset.name,
+      type: dataset.type,
       config: {
         ...config,
         source: dataset.source,
@@ -74,8 +78,7 @@ export function mergeDatasets(results: { part: DatasetPart; data: ChartData }[],
     used.add(candidate);
     return candidate;
   };
-  const kind: ChartSeries['type'] = config.type === 'line' ? 'line' : config.type === 'area' ? 'area' : 'bar';
-  const stacked = config.type === 'stackedBar' || (config.type === 'area' && results.some(({ part }) => part.config.series !== null));
+  const chartKind: ChartSeries['type'] = config.type === 'line' ? 'line' : config.type === 'area' ? 'area' : 'bar';
   const order: string[] = [];
   const rows = new Map<string, Record<string, string | number | null>>();
   const series: ChartSeries[] = [];
@@ -83,6 +86,9 @@ export function mergeDatasets(results: { part: DatasetPart; data: ChartData }[],
   const totals = new Map<string, Map<string, number>>();
   for (const { part, data } of results) {
     const split = part.config.series !== null;
+    // Each data set has its own type (that of the chart by default); its bars stack in stacked bars, its areas when split.
+    const kind = part.type ?? chartKind;
+    const stacked = (kind === 'bar' && config.type === 'stackedBar') || (kind === 'area' && split);
     const names = new Map(data.series.map((serie) => [serie.name, unique(split ? `${part.name} · ${serie.name}` : part.name)]));
     for (const serie of data.series) {
       series.push({ name: names.get(serie.name)!, color: PALETTE[series.length % PALETTE.length], type: kind, ...(stacked && { stackId: part.id }) });

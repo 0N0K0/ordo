@@ -1,4 +1,4 @@
-import { addDays, filterPeriod, isTimeDimension, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource } from '@ordo/shared';
+import { addDays, calendarRange, CALENDAR_PERIOD, filterPeriod, isTimeDimension, type CalendarScale, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource } from '@ordo/shared';
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -221,7 +221,39 @@ export function bucketLabel(start: string, bucket: ChartBucket): string {
  * @returns {[string | null, string | null]} Range.
  */
 export function periodRange(period: ChartConfig['period'], today: string): [string | null, string | null] {
-  return period === 'all' ? [null, null] : filterPeriod(period, today);
+  return calendarRange(period, today) ?? (period === 'all' ? [null, null] : filterPeriod(period, today));
+}
+
+const ROLLING_LABELS: Record<string, string> = {
+  'past:28': '4 dernières semaines',
+  'past:91': '3 derniers mois',
+  'past:182': '6 derniers mois',
+  'past:365': '12 derniers mois',
+  'past:730': '24 derniers mois',
+  'next:91': '3 prochains mois',
+  'next:182': '6 prochains mois',
+  'next:365': '12 prochains mois',
+  all: 'Toute la période',
+};
+const CURRENT_LABELS = { month: ['Mois en cours', 'Mois précédent'], quarter: ['Trimestre en cours', 'Trimestre précédent'], year: ['Année en cours', 'Année précédente'] } as const;
+const monthName = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+/**
+ * Name of a period: rolling ("12 derniers mois"), current or previous ("Mois en cours"), or chosen ("mars 2026",
+ * "T2 2026", "2026").
+ * @param {ChartConfig['period']} period Period.
+ * @returns {string} Name.
+ */
+export function periodLabel(period: ChartConfig['period']): string {
+  const match = CALENDAR_PERIOD.exec(period);
+  if (!match) return ROLLING_LABELS[period] ?? period;
+  const scale = match[1] as keyof typeof CURRENT_LABELS;
+  if (match[2] === '0' || match[2] === '-1') return CURRENT_LABELS[scale][match[2] === '0' ? 0 : 1];
+  const start = match[2];
+  if (scale === 'year') return start.slice(0, 4);
+  if (scale === 'quarter') return `T${Math.floor((Number(start.slice(5, 7)) - 1) / 3) + 1} ${start.slice(0, 4)}`;
+  const label = monthName.format(new Date(`${start}T00:00:00Z`));
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /**
@@ -325,4 +357,14 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
     taskCount: counted,
     empty: counted === 0,
   };
+}
+
+/**
+ * Scale and anchor of a calendar period (a rolling period counts as the current year).
+ * @param {ChartConfig['period']} period Period.
+ * @returns {{ scale: CalendarScale, anchor: string }} Scale and "0", "-1" or the first day chosen.
+ */
+export function calendarParts(period: ChartConfig['period']): { scale: CalendarScale; anchor: string } {
+  const match = CALENDAR_PERIOD.exec(period);
+  return match ? { scale: match[1] as CalendarScale, anchor: match[2] } : { scale: 'year', anchor: '0' };
 }

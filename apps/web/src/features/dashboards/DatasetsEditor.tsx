@@ -71,6 +71,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
       measure: base.source === 'treasury' && base.measure === 'balance' ? 'amount' : base.measure,
       dateField,
       series: source ? null : config.series,
+      type: null,
       filter: structuredClone(base.filter),
       search: base.search,
       includeArchived: base.includeArchived,
@@ -192,6 +193,22 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                         />
                       )}
                     </SimpleGrid>
+                    <Stack gap={4}>
+                      <Text size="sm" fw={500}>
+                        Type de diagramme
+                      </Text>
+                      <SegmentedControl
+                        size="xs"
+                        data={[
+                          { value: 'chart', label: 'Comme le graphique' },
+                          { value: 'bar', label: 'Barres' },
+                          { value: 'line', label: 'Courbe' },
+                          { value: 'area', label: 'Aire' },
+                        ]}
+                        value={dataset.type ?? 'chart'}
+                        onChange={(type) => setDataset(index, { type: type === 'chart' ? null : (type as ChartDataset['type']) })}
+                      />
+                    </Stack>
                     <Select
                       label="Séries"
                       placeholder="Aucune (une seule série)"

@@ -17,7 +17,8 @@ import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { FilterBuilder } from '../tasks/views/FilterBuilder';
-import { countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES } from './aggregate';
+import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES, periodLabel } from './aggregate';
+import { CalendarPeriodPicker } from './CalendarPeriodPicker';
 import { useDashboardMutations, type DashboardChart } from './api';
 import { useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
@@ -38,17 +39,6 @@ const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
   month: 'Mois',
   quarter: 'Trimestre',
   year: 'Année',
-};
-const PERIOD_LABELS: Record<ChartConfig['period'], string> = {
-  'past:28': '4 dernières semaines',
-  'past:91': '3 derniers mois',
-  'past:182': '6 derniers mois',
-  'past:365': '12 derniers mois',
-  'past:730': '24 derniers mois',
-  'next:91': '3 prochains mois',
-  'next:182': '6 prochains mois',
-  'next:365': '12 prochains mois',
-  all: 'Toute la période',
 };
 
 interface ChartEditorProps {
@@ -71,7 +61,10 @@ interface ChartEditorProps {
 export function ChartEditor({ dashboardId, chart, initial, scope, context, onDone }: ChartEditorProps) {
   const [title, setTitle] = useState(initial.title);
   const [wide, setWide] = useState(initial.wide);
-  const [config, setConfig] = useState<ChartConfig>(initial.config);
+  // Treasury charts follow a calendar month, quarter or year (an older rolling period becomes the current year).
+  const [config, setConfig] = useState<ChartConfig>(() =>
+    initial.config.source === 'treasury' ? { ...initial.config, period: `${calendarParts(initial.config.period).scale}:${calendarParts(initial.config.period).anchor}` as ChartConfig['period'] } : initial.config,
+  );
   const [titleError, setTitleError] = useState<string | null>(null);
   const { createChart, updateChart } = useDashboardMutations();
   const { data, isPending } = useChartData(config, scope, context);
@@ -238,16 +231,20 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                     value={config.bucket}
                     onChange={(bucket) => bucket && change({ bucket: bucket as ChartConfig['bucket'] })}
                   />
-                  <Select
-                    label="Période"
-                    allowDeselect={false}
-                    data={CHART_PERIODS.map((value) => ({
-                      value,
-                      label: PERIOD_LABELS[value],
-                    }))}
-                    value={config.period}
-                    onChange={(period) => period && change({ period: period as ChartConfig['period'] })}
-                  />
+                  {source === 'treasury' ? (
+                    <CalendarPeriodPicker value={config.period} onChange={(period) => change({ period })} />
+                  ) : (
+                    <Select
+                      label="Période"
+                      allowDeselect={false}
+                      data={CHART_PERIODS.map((value) => ({
+                        value,
+                        label: periodLabel(value),
+                      }))}
+                      value={config.period}
+                      onChange={(period) => period && change({ period: period as ChartConfig['period'] })}
+                    />
+                  )}
                 </SimpleGrid>
               )}
               {config.type !== 'donut' && !(source === 'treasury' && config.measure === 'balance') && (
