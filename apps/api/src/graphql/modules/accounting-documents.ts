@@ -5,6 +5,7 @@ import * as imported from '../../services/imported-documents';
 import * as recurring from '../../services/recurring-invoices';
 import * as resources from '../../services/project-resources';
 import { builder } from '../builder';
+import { clientError } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 
 const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
@@ -56,6 +57,8 @@ builder.prismaObject('AccountingDocument', {
     projectId: t.exposeID('projectId', { nullable: true }),
     sourceId: t.exposeID('sourceId', { nullable: true }),
     sourceNumber: t.string({ nullable: true, select: { source: { select: { number: true } } }, resolve: (document) => document.source?.number ?? null }),
+    importedSourceId: t.exposeID('importedSourceId', { nullable: true, description: 'Imported quote a deposit invoice was made from.' }),
+    importedSourceNumber: t.string({ nullable: true, select: { importedSource: { select: { number: true } } }, resolve: (document) => document.importedSource?.number ?? null }),
     derived: t.relation('derived', { query: { where: { status: { not: 'TEMPLATE' } }, orderBy: { issueDate: 'asc' } } }),
     seller: t.field({ type: 'JSON', nullable: true, resolve: (document) => document.seller }),
     buyer: t.field({ type: 'JSON', nullable: true, resolve: (document) => document.buyer }),
@@ -336,7 +339,20 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createAccountingDocument: t.id({
     args: { type: t.arg({ type: AccountingDocumentTypeEnum, required: true }), input: t.arg({ type: DocumentInput, required: true }) },
-    resolve: async (_root, { type, input }) => (await docs.createDocument(type, documentInput(input))).id,
+    resolve: async (_root, { type, input }) => {
+      if (type === 'DEPOSIT_INVOICE') throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
+      return (await docs.createDocument(type, documentInput(input))).id;
+    },
+  }),
+  createDepositInvoice: t.id({
+    description: 'Deposit invoice from a quote of Ordo or an imported quote: a percentage of its total excluding VAT.',
+    args: {
+      quoteId: t.arg.id(),
+      importedQuoteId: t.arg.id(),
+      percent: t.arg.float({ required: true }),
+      issueDate: t.arg({ type: 'Date', required: true }),
+    },
+    resolve: async (_root, { quoteId, importedQuoteId, percent, issueDate }) => (await docs.createDepositInvoice({ quoteId, importedQuoteId, percent, issueDate })).id,
   }),
   updateAccountingDocument: t.id({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: DocumentInput, required: true }) },

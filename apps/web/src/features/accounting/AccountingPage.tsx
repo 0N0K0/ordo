@@ -11,7 +11,6 @@ import { CatalogPanel } from './CatalogPanel';
 import { OverdueInvoicesPanel } from './OverdueInvoicesPanel';
 import { useOverdueInvoices } from './tracking-api';
 import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice } from './documents-api';
-import { ImportedDocumentsTable } from './ImportedDocumentsTable';
 import { openImportForm } from './imported-form';
 import { DocumentsTable } from './DocumentsTable';
 import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from './labels';
@@ -142,12 +141,14 @@ function RecurringList() {
 }
 
 /**
- * Accounting: quotes, invoices, deposit invoices, credit notes, recurring invoices, imported documents and catalogue.
+ * Accounting: quotes, invoices, deposit invoices and credit notes (imported ones listed with their type),
+ * invoices to follow up, recurring invoices and catalogue.
  * @returns {JSX.Element} Page.
  */
 export function AccountingPage() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') ?? 'QUOTE';
+  // Imported documents are now listed with their type.
+  const tab = params.get('tab') && params.get('tab') !== 'imported' ? params.get('tab')! : 'QUOTE';
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
@@ -170,6 +171,10 @@ export function AccountingPage() {
                 {DOCUMENT_TYPE_LABELS[item.value]}
               </Menu.Item>
             ))}
+            <Menu.Divider />
+            <Menu.Item leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
+              Importer un document existant
+            </Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Group>
@@ -196,19 +201,20 @@ export function AccountingPage() {
           <Tabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Récurrentes
           </Tabs.Tab>
-          <Tabs.Tab value="imported" leftSection={<FileArrowUpIcon aria-hidden />}>
-            Importés
-          </Tabs.Tab>
           <Tabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
             Catalogue
           </Tabs.Tab>
         </Tabs.List>
         {TABS.map((item) => (
           <Tabs.Panel key={item.value} value={item.value}>
-            {isPending ? (
+            {isPending || imported.isPending ? (
               <Skeleton height={200} />
             ) : (
-              <DocumentsTable documents={(documents ?? []).filter((document) => document.type === item.value)} empty={EMPTY_DOCUMENTS[item.value]} />
+              <DocumentsTable
+                documents={(documents ?? []).filter((document) => document.type === item.value)}
+                imported={(imported.data ?? []).filter((document) => document.type === item.value)}
+                empty={EMPTY_DOCUMENTS[item.value]}
+              />
             )}
           </Tabs.Panel>
         ))}
@@ -217,16 +223,6 @@ export function AccountingPage() {
         </Tabs.Panel>
         <Tabs.Panel value="recurring">
           <RecurringList />
-        </Tabs.Panel>
-        <Tabs.Panel value="imported">
-          <Stack gap="sm">
-            <Group justify="flex-end">
-              <Button variant="light" leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
-                Importer un document
-              </Button>
-            </Group>
-            {imported.isPending ? <Skeleton height={120} /> : <ImportedDocumentsTable documents={imported.data ?? []} />}
-          </Stack>
         </Tabs.Panel>
         <Tabs.Panel value="catalog">
           <CatalogPanel />

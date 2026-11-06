@@ -906,6 +906,9 @@ model AccountingDocument {
   sourceId            String?
   source              AccountingDocument?      @relation("DocumentSource", fields: [sourceId], references: [id], onDelete: Restrict)
   derived             AccountingDocument[]     @relation("DocumentSource")
+  /// Imported quote a deposit invoice was made from (when the quote was not made in Ordo).
+  importedSourceId    String?
+  importedSource      ImportedDocument?        @relation(fields: [importedSourceId], references: [id], onDelete: SetNull)
   /// Seller and buyer as printed, frozen when the document becomes final.
   seller              Json?
   buyer               Json?
@@ -1086,6 +1089,8 @@ model ImportedDocument {
   settled      Boolean                @default(true)
   createdAt    DateTime               @default(now())
   allocations  TreasuryAllocation[]
+  /// Deposit invoices made in Ordo from this imported quote.
+  derived      AccountingDocument[]
 
   @@unique([type, number])
   @@index([clientId])

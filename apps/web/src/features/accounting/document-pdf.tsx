@@ -8,10 +8,15 @@ import { escapeHtml } from '../mail/mail-format';
  * URL of the PDF of a document.
  * @param {string} id Document id.
  * @param {boolean} [download] Downloaded rather than shown. Optional.
+ * @param {boolean} [paid] Receipted invoice (fully paid invoices only). Optional.
  * @returns {string} URL.
  */
-export function pdfUrl(id: string, download = false): string {
-  return `/api/accounting/documents/${id}/pdf${download ? '?download=1' : ''}`;
+export function pdfUrl(id: string, download = false, paid = false): string {
+  const params = new URLSearchParams();
+  if (download) params.set('download', '1');
+  if (paid) params.set('paid', '1');
+  const query = params.toString();
+  return `/api/accounting/documents/${id}/pdf${query ? `?${query}` : ''}`;
 }
 
 /**

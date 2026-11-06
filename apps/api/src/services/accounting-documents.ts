@@ -6,6 +6,7 @@ import {
   dueDateForTerms,
   fromCents,
   formatDay,
+  formatMoney,
   parseDay,
   type AccountingDocumentInput,
   type AccountingDocumentType,
@@ -211,7 +212,7 @@ export async function defaultFields(type: AccountingDocumentType, clientId: stri
 export async function createDocument(
   type: AccountingDocumentType,
   input: AccountingDocumentInput,
-  extra: { sourceId?: string | null; recurringId?: string | null; status?: 'DRAFT' | 'TEMPLATE' } = {},
+  extra: { sourceId?: string | null; importedSourceId?: string | null; recurringId?: string | null; status?: 'DRAFT' | 'TEMPLATE' } = {},
 ): Promise<AccountingDocument> {
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
@@ -224,6 +225,7 @@ export async function createDocument(
       type,
       status: extra.status ?? 'DRAFT',
       sourceId: extra.sourceId ?? null,
+      importedSourceId: extra.importedSourceId ?? null,
       recurringId: extra.recurringId ?? null,
       vatExemptionText: company.vatExemptionText,
       lines: { create: linesData(fields.lines) },
@@ -389,7 +391,7 @@ export async function invoicedAmount(quoteId: string): Promise<number> {
 
 /**
  * Creates a draft from a final document: an invoice from a quote (its lines, minus what was already invoiced
- * on it), a deposit invoice from a quote (a percentage of each VAT base), or a credit note from an invoice.
+ * on it), a deposit invoice from a quote (see createDepositInvoice), or a credit note from an invoice.
  * @param {string} sourceId Source document.
  * @param {AccountingDocumentType} type Type to create.
  * @param {object} [options] Options. Optional.
@@ -408,30 +410,14 @@ export async function createFromDocument(
     (source.type === 'QUOTE' && (type === 'INVOICE' || type === 'DEPOSIT_INVOICE')) ||
     ((source.type === 'INVOICE' || source.type === 'DEPOSIT_INVOICE') && type === 'CREDIT_NOTE');
   if (!allowed) throw clientError('BAD_USER_INPUT', 'Ce document ne peut pas être créé à partir de celui-ci.');
+  if (type === 'DEPOSIT_INVOICE') return createDepositInvoice({ quoteId: source.id, percent: options.depositPercent ?? 30, issueDate: options.issueDate });
 
   const defaults = await defaultFields(type, source.clientId, options.issueDate);
   const sourceLines = source.lines.map(lineInput);
   let lines: AccountingLineInput[];
   let title = source.title;
 
-  if (type === 'DEPOSIT_INVOICE') {
-    const percent = options.depositPercent ?? 30;
-    if (!(percent > 0 && percent <= 100)) throw clientError('BAD_USER_INPUT', 'Pourcentage d’acompte invalide (1 à 100 %).');
-    lines = documentTotals(source)
-      .vat.filter((item) => item.base > 0)
-      .map((item) => ({
-        kind: 'ITEM',
-        title: `Acompte de ${percent.toLocaleString('fr-FR')} % sur le devis ${source.number}`,
-        description: null,
-        quantity: 1,
-        unit: 'DEPOSIT',
-        unitPrice: fromCents(Math.round((item.base * percent) / 100)),
-        vatRate: item.rate,
-        discountType: null,
-        discountValue: null,
-      }));
-    title = title ?? `Acompte — devis ${source.number}`;
-  } else if (type === 'INVOICE') {
+  if (type === 'INVOICE') {
     const deductions: AccountingLineInput[] = (await invoicedOnQuote(source.id)).flatMap(({ number, rates }) =>
       [...rates.entries()]
         .filter(([, base]) => base !== 0)
@@ -475,11 +461,109 @@ export async function createFromDocument(
       referenceLabel: source.referenceLabel,
       referenceValue: source.referenceValue,
       vatApplicable: source.vatApplicable,
-      globalDiscountType: type === 'DEPOSIT_INVOICE' ? null : source.globalDiscountType,
-      globalDiscountValue: type === 'DEPOSIT_INVOICE' || source.globalDiscountValue === null ? null : Number(source.globalDiscountValue),
+      globalDiscountType: source.globalDiscountType,
+      globalDiscountValue: source.globalDiscountValue === null ? null : Number(source.globalDiscountValue),
       lines,
     },
     { sourceId: source.id },
+  );
+}
+
+/**
+ * Line of a deposit invoice: « Acompte de 30 % pour le devis D2600004 de 5 100,00 € HT du 12/10/2026 ».
+ * @param {number} percent Percentage of the quote.
+ * @param {{ number: string | null, totalNet: number, currency: string, issueDate: Date }} quote Quote (total in cents).
+ * @param {number} amount Amount excluding VAT, in cents.
+ * @param {number} vatRate VAT rate.
+ * @returns {AccountingLineInput} Line.
+ */
+function depositLine(percent: number, quote: { number: string | null; totalNet: number; currency: string; issueDate: Date }, amount: number, vatRate: number): AccountingLineInput {
+  const day = formatDay(quote.issueDate).split('-').reverse().join('/');
+  return {
+    kind: 'ITEM',
+    title: `Acompte de ${percent.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % pour le devis ${quote.number ?? ''} de ${formatMoney(quote.totalNet, quote.currency)} HT du ${day}`,
+    description: null,
+    quantity: 1,
+    unit: 'DEPOSIT',
+    unitPrice: fromCents(amount),
+    vatRate,
+    discountType: null,
+    discountValue: null,
+  };
+}
+
+/** VAT rates an imported quote's rate is matched to (its own rate is only known from its totals). */
+const VAT_RATES = [20, 10, 8.5, 5.5, 2.1, 0];
+
+/**
+ * Creates the draft of a deposit invoice from a quote, final in Ordo or imported: a percentage of the quote's
+ * total excluding VAT, as one line « Acompte de N % pour le devis … de … HT du … ». A quote of Ordo with
+ * several VAT rates gets one such line per rate (the VAT of a deposit follows that of the quote).
+ * @param {object} input Deposit.
+ * @param {string} [input.quoteId] Quote of Ordo. Optional.
+ * @param {string} [input.importedQuoteId] Imported quote. Optional.
+ * @param {number} input.percent Percentage of the quote (above 0, up to 100).
+ * @param {string} input.issueDate Date of the deposit invoice.
+ * @returns {Promise<AccountingDocument>} Draft.
+ */
+export async function createDepositInvoice(input: { quoteId?: string | null; importedQuoteId?: string | null; percent: number; issueDate: string }): Promise<AccountingDocument> {
+  const { percent, issueDate } = input;
+  if (!(percent > 0 && percent <= 100)) throw clientError('BAD_USER_INPUT', 'Pourcentage d’acompte invalide (plus de 0 et jusqu’à 100 %).');
+
+  if (input.quoteId) {
+    const quote = await findDocument(input.quoteId);
+    if (quote.type !== 'QUOTE' || quote.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis validé.');
+    const totals = documentTotals(quote);
+    const reference = { number: quote.number, totalNet: totals.totalNet, currency: quote.currency, issueDate: quote.issueDate };
+    const bases = totals.vat.filter((item) => item.base > 0);
+    const lines =
+      bases.length <= 1
+        ? [depositLine(percent, reference, Math.round((totals.totalNet * percent) / 100), bases[0]?.rate ?? 0)]
+        : bases.map((item) => ({ ...depositLine(percent, reference, Math.round((item.base * percent) / 100), item.rate), description: `Part soumise à la TVA à ${item.rate.toLocaleString('fr-FR')} %` }));
+    const defaults = await defaultFields('DEPOSIT_INVOICE', quote.clientId, issueDate);
+    // A deposit keeps the terms agreed on its quote.
+    const paymentTerms = quote.paymentTerms ?? defaults.paymentTerms;
+    return createDocument(
+      'DEPOSIT_INVOICE',
+      {
+        ...defaults,
+        paymentTerms,
+        paymentMethods: quote.paymentMethods ?? defaults.paymentMethods,
+        lateInterest: quote.lateInterest ?? defaults.lateInterest,
+        dueDate: dueDateForTerms(paymentTerms ?? null, issueDate) ?? defaults.dueDate,
+        serviceId: quote.serviceId,
+        contactId: quote.contactId,
+        projectId: quote.projectId,
+        title: quote.title ?? `Acompte — devis ${quote.number}`,
+        referenceLabel: quote.referenceLabel,
+        referenceValue: quote.referenceValue,
+        vatApplicable: quote.vatApplicable,
+        lines,
+      },
+      { sourceId: quote.id },
+    );
+  }
+
+  const imported = input.importedQuoteId ? await prisma.importedDocument.findUnique({ where: { id: input.importedQuoteId } }) : null;
+  if (!imported) throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
+  if (imported.type !== 'QUOTE') throw clientError('BAD_USER_INPUT', 'Une facture d’acompte s’établit à partir d’un devis.');
+  if (!imported.clientId) throw clientError('BAD_USER_INPUT', 'Rattachez d’abord le devis importé à un client.');
+  const totalNet = Math.round(Number(imported.totalNet) * 100);
+  const totalVat = Math.round(Number(imported.totalVat) * 100);
+  // The rate of the quote, from its totals, matched to the nearest usual rate.
+  const rate = totalNet > 0 ? (totalVat / totalNet) * 100 : 0;
+  const vatRate = VAT_RATES.reduce((best, item) => (Math.abs(item - rate) < Math.abs(best - rate) ? item : best), VAT_RATES[0]);
+  const defaults = await defaultFields('DEPOSIT_INVOICE', imported.clientId, issueDate);
+  return createDocument(
+    'DEPOSIT_INVOICE',
+    {
+      ...defaults,
+      projectId: imported.projectId,
+      title: imported.title ?? `Acompte — devis ${imported.number}`,
+      vatApplicable: totalVat > 0,
+      lines: [depositLine(percent, { number: imported.number, totalNet, currency: imported.currency, issueDate: imported.issueDate }, Math.round((totalNet * percent) / 100), totalVat > 0 ? vatRate : 0)],
+    },
+    { importedSourceId: imported.id },
   );
 }
 
@@ -491,7 +575,13 @@ export async function createFromDocument(
  */
 export async function duplicateDocument(id: string, issueDate: string): Promise<AccountingDocument> {
   const source = await findDocument(id);
-  return createDocument(source.type, { ...(await editableFields(source)), issueDate, dueDate: null }, { sourceId: null });
+  // A deposit invoice stays tied to its quote.
+  const deposit = source.type === 'DEPOSIT_INVOICE';
+  return createDocument(
+    source.type,
+    { ...(await editableFields(source)), issueDate, dueDate: null },
+    { sourceId: deposit ? source.sourceId : null, importedSourceId: deposit ? source.importedSourceId : null },
+  );
 }
 
 /**

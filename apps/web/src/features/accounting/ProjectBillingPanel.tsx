@@ -1,14 +1,14 @@
 import { Button, Group, Menu, Skeleton, Stack, Text, Title } from '@mantine/core';
-import { CaretDownIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, FileArrowUpIcon, PlusIcon } from '@phosphor-icons/react';
 import { useAccountingDocuments, useImportedDocuments } from './documents-api';
 import { DocumentsTable } from './DocumentsTable';
-import { ImportedDocumentsTable } from './ImportedDocumentsTable';
+import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openNewDocument } from './new-document';
 
 /**
  * Billing tab of a project or documents section of a client: its quotes, invoices, deposit invoices and
- * credit notes, and the imported ones.
+ * credit notes, imported ones among them.
  * @param {{ clientId?: string | null, projectId?: string }} props Client (for new documents) and project, or client alone.
  * @returns {JSX.Element} Panel.
  */
@@ -34,6 +34,10 @@ export function ProjectBillingPanel({ clientId, projectId }: { clientId?: string
                 {DOCUMENT_TYPE_LABELS[type]}
               </Menu.Item>
             ))}
+            <Menu.Divider />
+            <Menu.Item leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
+              Importer un document existant
+            </Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </Group>
@@ -42,18 +46,10 @@ export function ProjectBillingPanel({ clientId, projectId }: { clientId?: string
           Rattachez le projet à un client pour lui établir des documents.
         </Text>
       )}
-      {documents.isPending ? (
+      {documents.isPending || imported.isPending ? (
         <Skeleton height={120} />
       ) : (
-        <DocumentsTable documents={documents.data ?? []} showType showClient={!projectId && !clientId} empty="Aucun document comptable." />
-      )}
-      {(imported.data?.length ?? 0) > 0 && (
-        <Stack gap="xs">
-          <Text fw={600} size="sm">
-            Documents importés
-          </Text>
-          <ImportedDocumentsTable documents={imported.data ?? []} showClient={false} />
-        </Stack>
+        <DocumentsTable documents={documents.data ?? []} imported={imported.data ?? []} showType showClient={!projectId && !clientId} empty="Aucun document comptable." />
       )}
     </Stack>
   );

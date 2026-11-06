@@ -40,7 +40,7 @@ import {
   type AccountingLineInput,
 } from '@ordo/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
@@ -56,6 +56,7 @@ import { useAccountingDocument, useDocumentMutations, type AccountingDocument } 
 import { Section } from './EditorSection';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { LinesEditor } from './LinesEditor';
+import { openDepositForm } from './new-document';
 import { useTrackingMutations } from './tracking-api';
 import { TimeBillingForm } from './TimeBillingForm';
 import { TrackingPanel } from './TrackingPanel';
@@ -131,6 +132,8 @@ function Editor({ document }: { document: AccountingDocument }) {
   const readOnly = document.status === 'FINAL';
   const isTemplate = document.status === 'TEMPLATE';
   const isQuote = document.type === 'QUOTE';
+  // Fully paid final invoice: it can be printed receipted.
+  const receiptable = readOnly && (document.type === 'INVOICE' || document.type === 'DEPOSIT_INVOICE') && (document.paid ?? 0) > 0 && (document.balance ?? 1) <= 0;
   const isInvoice = document.type === 'INVOICE' || document.type === 'DEPOSIT_INVOICE';
   const totals = computeTotals({
     lines: values.lines,
@@ -290,42 +293,12 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @param {number | null} [depositPercent] Deposit percentage. Optional.
    * @returns {void}
    */
-  const createFrom = (type: 'INVOICE' | 'DEPOSIT_INVOICE' | 'CREDIT_NOTE', depositPercent: number | null = null) =>
+  const createFrom = (type: 'INVOICE' | 'CREDIT_NOTE') =>
     mutations.createFrom.mutate(
-      { sourceId: document.id, type, depositPercent, issueDate: localToday() },
+      { sourceId: document.id, type, issueDate: localToday() },
       { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: (error) => notifyError(error.message) },
     );
 
-  /**
-   * Asks the percentage of a deposit invoice.
-   * @returns {void}
-   */
-  const askDeposit = () => {
-    const modalId = `deposit-${document.id}`;
-    let percent = document.depositType === 'PERCENT' && document.depositValue ? document.depositValue : 30;
-    modals.open({
-      modalId,
-      title: 'Facture d’acompte',
-      children: (
-        <Stack gap="md">
-          <NumberInput label="Pourcentage du devis" suffix=" %" min={1} max={100} defaultValue={percent} onChange={(value) => (percent = Number(value) || 30)} data-autofocus />
-          <Group justify="flex-end" gap="sm">
-            <Button
-              onClick={() => {
-                modals.close(modalId);
-                createFrom('DEPOSIT_INVOICE', percent);
-              }}
-            >
-              Créer l’acompte
-            </Button>
-            <Button variant="default" onClick={() => modals.close(modalId)}>
-              Annuler
-            </Button>
-          </Group>
-        </Stack>
-      ),
-    });
-  };
 
   const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT';
   const billedIds = values.timeEntryIds ?? [];
@@ -392,6 +365,11 @@ function Editor({ document }: { document: AccountingDocument }) {
               </Anchor>
             </Text>
           )}
+          {document.importedSourceId && (
+            <Text size="sm" c="dimmed">
+              Établi à partir du devis importé {document.importedSourceNumber ?? ''}
+            </Text>
+          )}
         </Stack>
         <Group gap="xs">
           <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
@@ -402,6 +380,13 @@ function Editor({ document }: { document: AccountingDocument }) {
               <DownloadSimpleIcon aria-hidden />
             </ActionIcon>
           </Tooltip>
+          {receiptable && (
+            <Tooltip label="Facture portant la mention « acquittée » et ses règlements">
+              <Button component="a" href={pdfUrl(document.id, true, true)} download variant="default" leftSection={<ReceiptIcon aria-hidden />}>
+                Facture acquittée
+              </Button>
+            </Tooltip>
+          )}
           {readOnly && (
             <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
               Envoyer
@@ -426,7 +411,7 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
           {readOnly && isQuote && (
             <>
-              <Button variant="light" onClick={askDeposit}>
+              <Button variant="light" onClick={() => openDepositForm({ quoteId: document.id })}>
                 Facture d’acompte
               </Button>
               <Button variant="light" onClick={() => createFrom('INVOICE')}>

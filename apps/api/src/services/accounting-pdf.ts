@@ -10,6 +10,7 @@ import {
 } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../db';
+import { clientError } from '../graphql/errors';
 import {
   buyerSnapshot,
   documentTotals,
@@ -20,6 +21,7 @@ import {
   type DocumentWithLines,
   type Seller,
 } from './accounting-documents';
+import { documentBalances } from './document-tracking';
 import {
   FACTUR_X_FILENAME,
   facturXml,
@@ -49,7 +51,7 @@ const COLORS = {
   fill: '#f2f4f6',
   accent: '#aa9371',
 };
-const PAGE = { margin: 50, bottom: 70 };
+const PAGE = { margin: 34, bottom: 60 };
 
 const countryNames = new Intl.DisplayNames('fr', { type: 'region' });
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
@@ -344,26 +346,31 @@ class Flow {
 
 /** Columns of the lines table. */
 interface Column {
-  key: 'title' | 'quantity' | 'unit' | 'price' | 'vat' | 'total';
+  key: 'title' | 'quantity' | 'unit' | 'price' | 'discount' | 'vat' | 'total';
   label: string;
   width: number;
   align: 'left' | 'right';
 }
 
 /**
- * Columns of the lines table (no VAT column when VAT does not apply).
+ * Columns of the lines table (no discount column without discounts, no VAT column when VAT does not apply).
  * @param {number} width Table width.
  * @param {boolean} vatApplicable Whether VAT applies.
+ * @param {boolean} discounts Whether a line has a discount.
  * @returns {(Column & { x: number })[]} Columns with their left position.
  */
 function tableColumns(
   width: number,
   vatApplicable: boolean,
+  discounts: boolean,
 ): (Column & { x: number })[] {
   const fixed: Column[] = [
     { key: 'quantity', label: 'Qté', width: 42, align: 'right' },
     { key: 'unit', label: 'Unité', width: 52, align: 'left' },
     { key: 'price', label: 'PU HT', width: 72, align: 'right' },
+    ...(discounts
+      ? [{ key: 'discount', label: 'Remise', width: 66, align: 'right' } as const]
+      : []),
     ...(vatApplicable
       ? [{ key: 'vat', label: 'TVA', width: 40, align: 'right' } as const]
       : []),
@@ -406,7 +413,11 @@ function writeLines(
   totals: DocumentTotals,
 ): void {
   const width = doc.page.width - 2 * PAGE.margin;
-  const columns = tableColumns(width, document.vatApplicable);
+  const columns = tableColumns(
+    width,
+    document.vatApplicable,
+    totals.lines.some((line) => line.discount > 0),
+  );
   const pad = 5;
   const money = (cents: number) => formatMoney(cents, document.currency);
 
@@ -430,12 +441,8 @@ function writeLines(
     const titleColumn = columns[0];
     const textWidth =
       (line.kind === 'TEXT' ? width : titleColumn.width) - 2 * pad;
-    const notes = [
-      line.kind === 'DISBURSEMENT' ? 'Débours, hors TVA' : null,
-      total.discount
-        ? `Remise ${line.discountType === 'PERCENT' ? `${line.discountValue?.toLocaleString('fr-FR')} % ` : ''}: −${money(total.discount)}`
-        : null,
-    ].filter((note): note is string => note !== null);
+    const notes =
+      line.kind === 'DISBURSEMENT' ? ['Débours, hors TVA'] : [];
 
     const measure = () => {
       doc
@@ -495,6 +502,12 @@ function writeLines(
         }),
         unit: line.kind === 'DEDUCTION' ? '' : UNIT_LABELS[line.unit].short,
         price: money(Math.round(line.unitPrice * 100)),
+        // A percentage as such, an amount as the amount taken off.
+        discount: !total.discount
+          ? ''
+          : line.discountType === 'PERCENT'
+            ? `${line.discountValue?.toLocaleString('fr-FR')} %`
+            : `−${money(total.discount)}`,
         vat:
           line.kind === 'DISBURSEMENT'
             ? '—'
@@ -1025,14 +1038,38 @@ export interface DocumentPdf {
 }
 
 /**
+ * Payments of a fully paid final invoice or deposit invoice, oldest first.
+ * @param {DocumentWithLines} document Document.
+ * @returns {Promise<{ date: Date, method: string | null, amount: number }[]>} Payments (amounts in cents).
+ */
+async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date: Date; method: string | null; amount: number }[]> {
+  if (document.status !== 'FINAL' || (document.type !== 'INVOICE' && document.type !== 'DEPOSIT_INVOICE')) {
+    throw clientError('BAD_USER_INPUT', 'Seule une facture validée peut être acquittée.');
+  }
+  const balance = (await documentBalances()).get(document.id);
+  if (!balance || balance.paid <= 0 || balance.balance > 0) {
+    throw clientError('BAD_USER_INPUT', 'La facture n’est pas entièrement réglée : enregistrez d’abord son règlement.');
+  }
+  const allocations = await prisma.treasuryAllocation.findMany({
+    where: { documentId: document.id },
+    select: { amount: true, entry: { select: { date: true, method: true } } },
+    orderBy: { entry: { date: 'asc' } },
+  });
+  return allocations.map((allocation) => ({ date: allocation.entry.date, method: allocation.entry.method, amount: Math.round(Number(allocation.amount) * 100) }));
+}
+
+/**
  * PDF of an accounting document (PDF/A-3). Final invoices, deposit invoices and credit notes embed their
  * Factur-X XML (EN 16931); drafts and recurring models are watermarked and use the current details of the
- * company and the client; quotes end with a "Bon pour accord" box.
+ * company and the client; quotes end with a "Bon pour accord" box. A fully paid invoice can be printed
+ * receipted ("acquittée"), with its payments.
  * @param {string} id Document id.
+ * @param {{ paid?: boolean }} [options] Receipted invoice. Optional.
  * @returns {Promise<DocumentPdf>} PDF.
  */
-export async function documentPdf(id: string): Promise<DocumentPdf> {
+export async function documentPdf(id: string, options: { paid?: boolean } = {}): Promise<DocumentPdf> {
   const document = await findDocument(id);
+  const payments = options.paid ? await paidInvoicePayments(document) : null;
   const draft = document.status !== 'FINAL';
   const seller =
     !draft && document.seller
@@ -1054,10 +1091,17 @@ export async function documentPdf(id: string): Promise<DocumentPdf> {
         select: { number: true, issueDate: true },
       })
     : null;
+  // A deposit invoice made from an imported quote.
+  const importedSource = document.importedSourceId
+    ? await prisma.importedDocument.findUnique({
+        where: { id: document.importedSourceId },
+        select: { number: true },
+      })
+    : null;
   const totals = documentTotals(document);
   const typeTitle = TYPE_TITLES[document.type];
   const title = document.number
-    ? `${typeTitle} ${document.number}`
+    ? `${typeTitle} ${document.number}${payments ? ' acquittée' : ''}`
     : `${typeTitle} (brouillon)`;
 
   const doc = new PDFDocument({
@@ -1091,7 +1135,7 @@ export async function documentPdf(id: string): Promise<DocumentPdf> {
     seller,
     buyer,
     logo: logo ? Buffer.from(logo.data) : null,
-    sourceNumber: source?.number ?? null,
+    sourceNumber: source?.number ?? importedSource?.number ?? null,
   });
   if (document.title) {
     flow.ensure(20);
@@ -1111,6 +1155,16 @@ export async function documentPdf(id: string): Promise<DocumentPdf> {
   writeLines(doc, flow, document, totals);
   writeTotals(doc, flow, document, totals);
   flow.space(16);
+  if (payments) {
+    const last = payments[payments.length - 1];
+    writeSection(doc, flow, 'Facture acquittée', [
+      ...payments.map((payment) => ({
+        label: `Réglé le ${printedDate(payment.date)}${payment.method ? ` (${payment.method.toLowerCase()})` : ''}`,
+        value: formatMoney(payment.amount, document.currency),
+      })),
+      { label: '', value: `Pour acquit, le ${printedDate(last.date)}.` },
+    ]);
+  }
   if (document.conclusion) {
     flow.markdown(document.conclusion);
     flow.space(8);
