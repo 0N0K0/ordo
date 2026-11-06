@@ -12,6 +12,7 @@ import {
   CheckSquareOffsetIcon,
   ReceiptIcon,
   CopyIcon,
+  DotsSixVerticalIcon,
   DotsThreeIcon,
   FileImageIcon,
   FilePdfIcon,
@@ -19,6 +20,9 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
@@ -67,12 +71,14 @@ interface ChartCardProps {
 }
 
 /**
- * Chart of a dashboard, with its actions: edit, duplicate, width, order, move to another dashboard (general or
+ * Chart of a dashboard, moved by its handle (drag and drop, or keyboard), with its actions: edit, duplicate,
+ * width, order, move to another dashboard (general or
  * of a project), image and PDF exports, delete.
  * @param {ChartCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
 function ChartCard({ chart, index, count, scope, context, dashboardName, captures, onEdit }: ChartCardProps) {
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: chart.id });
   const config = parseConfig(chart.config);
   const { data, isPending, error } = useChartData(config, scope, context);
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
@@ -146,10 +152,37 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   };
 
   return (
-    <Paper withBorder radius="md" p="md" style={{ gridColumn: chart.wide ? '1 / -1' : undefined, minWidth: 0 }}>
+    <Paper
+      ref={setNodeRef}
+      withBorder
+      radius="md"
+      p="md"
+      shadow={isDragging ? 'md' : undefined}
+      style={{
+        gridColumn: chart.wide ? '1 / -1' : undefined,
+        minWidth: 0,
+        transform: CSS.Translate.toString(transform),
+        transition,
+        position: 'relative',
+        zIndex: isDragging ? 1 : undefined,
+      }}
+    >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <Stack gap={0} style={{ minWidth: 0 }}>
+          <Tooltip label="Déplacer">
+            <ActionIcon
+              ref={setActivatorNodeRef}
+              variant="subtle"
+              color="gray"
+              aria-label={`Déplacer ${chart.title}`}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', flex: 'none' }}
+              {...attributes}
+              {...listeners}
+            >
+              <DotsSixVerticalIcon weight="bold" aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
               {chart.title}
             </Text>
@@ -264,6 +297,18 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
   const captures: Captures = useRef(new Map());
   const [exporting, setExporting] = useState(false);
   const current: Dashboard | undefined = dashboards?.find((item) => item.id === params.get('dashboard')) ?? dashboards?.[0];
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  /**
+   * Moves the dropped chart to its new place.
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!current || !over || active.id === over.id) return;
+    const index = current.charts.findIndex((chart) => chart.id === over.id);
+    if (index >= 0) mutations.moveChart.mutate({ id: String(active.id), index }, { onError: (moveError) => notifyError(moveError.message) });
+  };
 
   /**
    * Opens a dashboard (kept in the URL).
@@ -526,21 +571,25 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           </Stack>
         </Paper>
       ) : (
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-          {current.charts.map((chart, chartIndex) => (
-            <ChartCard
-              key={chart.id}
-              chart={chart}
-              index={chartIndex}
-              count={current.charts.length}
-              scope={scope}
-              context={context}
-              dashboardName={`${title} — ${current.name}`}
-              captures={captures}
-              onEdit={() => openEditor(chart)}
-            />
-          ))}
-        </SimpleGrid>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={current.charts.map((chart) => chart.id)} strategy={rectSortingStrategy}>
+            <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+              {current.charts.map((chart, chartIndex) => (
+                <ChartCard
+                  key={chart.id}
+                  chart={chart}
+                  index={chartIndex}
+                  count={current.charts.length}
+                  scope={scope}
+                  context={context}
+                  dashboardName={`${title} — ${current.name}`}
+                  captures={captures}
+                  onEdit={() => openEditor(chart)}
+                />
+              ))}
+            </SimpleGrid>
+          </SortableContext>
+        </DndContext>
       )}
     </Stack>
   );
