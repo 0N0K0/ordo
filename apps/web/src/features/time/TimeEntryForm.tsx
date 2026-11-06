@@ -1,11 +1,13 @@
-import { Button, Group, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { Button, Group, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
+import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
+import { useCalendarEvents } from '../calendar/api';
 import { useTimeMutations, type TimeEntry } from './api';
 import { TimeTasksSelect } from './TimeTasksSelect';
 
@@ -29,7 +31,8 @@ interface TimeEntryFormProps {
 }
 
 /**
- * Time added by hand, or edited: project, tasks, description, day, start time and duration.
+ * Time added by hand, or edited: project, tasks, day, start time, duration, the calendar event it was spent
+ * on and description.
  * @param {TimeEntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -49,6 +52,18 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
     schema: timeEntryFormSchema,
   });
 
+  // The event the time was spent on: one of the events of its day.
+  const [eventKey, setEventKey] = useState<string | null>(entry?.calendarEventId ? `${entry.calendarEventId}|${entry.calendarOccurrenceDate ? String(entry.calendarOccurrenceDate) : ''}` : null);
+  const { data: dayEvents } = useCalendarEvents(form.values.date ? { from: form.values.date, to: form.values.date } : null);
+  const eventOptions = (dayEvents ?? [])
+    .filter((occurrence) => !occurrence.allDay || occurrence.startDate <= form.values.date)
+    .map((occurrence) => ({
+      value: `${occurrence.eventId}|${occurrence.occurrenceDate ?? ''}`,
+      label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.title}${occurrence.calledOff ? ' (annulé)' : ''}`,
+    }));
+  // The event of the entry stays listed while its day is shown, even when it moved.
+  if (eventKey && !eventOptions.some((option) => option.value === eventKey) && entry?.calendarEventTitle) eventOptions.push({ value: eventKey, label: entry.calendarEventTitle });
+
   const handleSubmit = form.onSubmit((values) => {
     const input = {
       projectId: values.projectId,
@@ -57,6 +72,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
       // Local day and time.
       startedAt: new Date(`${values.date}T${values.start}`).toISOString(),
       duration: parseDuration(values.duration)!,
+      event: eventKey ? { eventId: eventKey.split('|')[0], occurrenceDate: eventKey.split('|')[1] || null } : null,
     };
     const callbacks = {
       onSuccess: () => {
@@ -95,6 +111,17 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
           <TimeInput label="Début" required {...form.getInputProps('start')} />
           <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
         </SimpleGrid>
+        <Select
+          label="Évènement"
+          description="Le temps passé sur un évènement de l’agenda : seule la part hors de l’évènement y apparaît."
+          placeholder={eventOptions.length ? 'Aucun' : 'Aucun évènement ce jour-là'}
+          clearable
+          searchable
+          data={eventOptions}
+          value={eventKey}
+          onChange={setEventKey}
+          error={form.errors.calendarEventId}
+        />
         <Textarea label="Description" placeholder="Ce que vous avez fait…" autosize minRows={3} maxRows={12} {...form.getInputProps('description')} />
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>

@@ -297,24 +297,24 @@ model TaskTag {
 }
 
 model Task {
-  id                String         @id @default(cuid())
+  id                String          @id @default(cuid())
   /// Human-readable number (#12), global and stable across transfers.
-  number            Int            @unique @default(autoincrement())
+  number            Int             @unique @default(autoincrement())
   title             String
   /// Markdown.
   description       String?
   projectId         String
-  project           Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   statusId          String?
-  status            TaskStatus?    @relation(fields: [statusId], references: [id], onDelete: SetNull)
+  status            TaskStatus?     @relation(fields: [statusId], references: [id], onDelete: SetNull)
   priorityId        String?
-  priority          TaskPriority?  @relation(fields: [priorityId], references: [id], onDelete: SetNull)
+  priority          TaskPriority?   @relation(fields: [priorityId], references: [id], onDelete: SetNull)
   typeId            String?
-  type              TaskType?      @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  type              TaskType?       @relation(fields: [typeId], references: [id], onDelete: SetNull)
   milestoneId       String?
-  milestone         Milestone?     @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  milestone         Milestone?      @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   /// Item of the GitHub board the task is synchronized with (ProjectV2Item node id).
-  githubItemId      String?        @unique
+  githubItemId      String?         @unique
   /// Content of the item: issue or draft issue node id.
   githubContentId   String?
   /// ISSUE or DRAFT_ISSUE.
@@ -324,45 +324,47 @@ model Task {
   /// Synchronized values at the last sync, for the three-way merge.
   githubSnapshot    Json?
   effort            Float?
-  startDate         DateTime?      @db.Date
-  endDate           DateTime?      @db.Date
+  startDate         DateTime?       @db.Date
+  endDate           DateTime?       @db.Date
   /// Latest acceptable date ("Date max"): an open task past it is overdue.
-  deadline          DateTime?      @db.Date
+  deadline          DateTime?       @db.Date
   /// Parent task, possibly in another project of the same tree.
   parentId          String?
-  parent            Task?          @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children          Task[]         @relation("TaskTree")
+  parent            Task?           @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children          Task[]          @relation("TaskTree")
   /// Global manual order.
-  position          Int            @default(0)
+  position          Int             @default(0)
   /// Closed (done) task: it no longer blocks, is never overdue and counts as done. Independent of the status.
   closedAt          DateTime?
   archivedAt        DateTime?
   /// Archived along with its parent task: restoring the parent restores it.
-  archivedByCascade Boolean        @default(false)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  archivedByCascade Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
   assignees         Contributor[]
-  tags              TaskTag[]      @relation("TaskTags")
+  tags              TaskTag[]       @relation("TaskTags")
   /// Sprints of the project tree the task is planned in (it may run over several).
-  sprints           Sprint[]       @relation("TaskSprints")
+  sprints           Sprint[]        @relation("TaskSprints")
   /// Tasks this task blocks.
-  blocking          TaskBlock[]    @relation("Blocker")
+  blocking          TaskBlock[]     @relation("Blocker")
   /// Tasks blocking this task.
-  blockedBy         TaskBlock[]    @relation("Blocked")
+  blockedBy         TaskBlock[]     @relation("Blocked")
   /// Symmetric relations, stored once with taskAId < taskBId.
-  relationsA        TaskRelation[] @relation("RelationA")
-  relationsB        TaskRelation[] @relation("RelationB")
+  relationsA        TaskRelation[]  @relation("RelationA")
+  relationsB        TaskRelation[]  @relation("RelationB")
   comments          TaskComment[]
   timeEntries       TimeEntry[]
+  /// Calendar events about the task.
+  calendarEvents    CalendarEvent[] @relation("CalendarEventTasks")
   alarms            Alarm[]
   /// Repetition of a recurring task (set on the first task of the series).
   recurrence        Json?
   /// First task of the series this task is an occurrence of.
   seriesId          String?
-  series            Task?          @relation("TaskSeries", fields: [seriesId], references: [id], onDelete: SetNull)
-  occurrences       Task[]         @relation("TaskSeries")
+  series            Task?           @relation("TaskSeries", fields: [seriesId], references: [id], onDelete: SetNull)
+  occurrences       Task[]          @relation("TaskSeries")
   /// Date of the occurrence in its series (the first task: its own date).
-  occurrenceDate    DateTime?      @db.Date
+  occurrenceDate    DateTime?       @db.Date
 
   @@index([projectId])
   @@index([parentId])
@@ -596,28 +598,34 @@ model Attachment {
 
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
-  id            String              @id @default(cuid())
-  projectId     String
-  project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id                     String              @id @default(cuid())
+  projectId              String
+  project                Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// What was done (plain text, several lines).
-  description   String?
-  startedAt     DateTime
+  description            String?
+  startedAt              DateTime
   /// Null while the timer runs (a single entry runs at a time).
-  endedAt       DateTime?
+  endedAt                DateTime?
   /// Start of the current pause, while paused.
-  pausedAt      DateTime?
+  pausedAt               DateTime?
   /// Paused time before the current pause, in seconds.
-  pausedSeconds Int                 @default(0)
+  pausedSeconds          Int                 @default(0)
   /// Effective duration in seconds (pauses excluded), set once stopped.
-  duration      Int?
+  duration               Int?
   /// Invoice (draft or final) the time is billed on.
-  documentId    String?
-  document      AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  tasks         Task[]
+  documentId             String?
+  document               AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  /// Calendar event the time was spent on (its occurrence `calendarOccurrenceDate` for a recurring one): the
+  /// calendar only shows the part of the time outside the event.
+  calendarEventId        String?
+  calendarEvent          CalendarEvent?      @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  calendarOccurrenceDate DateTime?           @db.Date
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  tasks                  Task[]
 
   @@index([projectId])
+  @@index([calendarEventId])
   @@index([startedAt])
   @@index([endedAt])
   @@index([documentId])
@@ -790,6 +798,10 @@ model CalendarEvent {
   postponedFrom     CalendarEvent?           @relation("EventPostponement", fields: [postponedFromId], references: [id], onDelete: SetNull)
   postponedFromDate DateTime?                @db.Date
   postponements     CalendarEvent[]          @relation("EventPostponement")
+  /// Times tracked on the event.
+  timeEntries       TimeEntry[]
+  /// Tasks the event is about.
+  tasks             Task[]                   @relation("CalendarEventTasks")
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 

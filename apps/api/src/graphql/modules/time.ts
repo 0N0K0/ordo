@@ -19,6 +19,9 @@ builder.prismaObject('TimeEntry', {
       resolve: (entry) => entry.tasks.map((task) => task.id),
     }),
     documentId: t.exposeID('documentId', { nullable: true, description: 'Invoice the time is billed on.' }),
+    calendarEventId: t.exposeID('calendarEventId', { nullable: true, description: 'Calendar event the time was spent on.' }),
+    calendarOccurrenceDate: t.expose('calendarOccurrenceDate', { type: 'Date', nullable: true, description: 'Its occurrence, for a recurring event.' }),
+    calendarEventTitle: t.string({ nullable: true, select: { calendarEvent: { select: { title: true } } }, resolve: (entry) => entry.calendarEvent?.title ?? null }),
     documentNumber: t.string({
       nullable: true,
       description: 'Number of that invoice, null while it is a draft.',
@@ -52,11 +55,25 @@ builder.prismaObject('Alarm', {
   }),
 });
 
+const TimeEventInput = builder.inputType('TimeEventInput', {
+  description: 'Calendar event a time is spent on (its occurrence for a recurring one).',
+  fields: (t) => ({ eventId: t.id({ required: true }), occurrenceDate: t.field({ type: 'Date' }) }),
+});
+
+/**
+ * Event link of an input: null clears it, undefined leaves it unchanged.
+ * @param {{ eventId: string, occurrenceDate?: string | null } | null | undefined} event GraphQL input.
+ * @returns {import('../../services/time-entries').TimeEventLink | null | undefined} Service input.
+ */
+const eventLink = (event: { eventId: string | number; occurrenceDate?: string | null } | null | undefined) =>
+  event === undefined ? undefined : event === null ? null : { eventId: String(event.eventId), occurrenceDate: event.occurrenceDate ?? null };
+
 const TimerInput = builder.inputType('TimerInput', {
   fields: (t) => ({
     projectId: t.id({ required: true }),
     taskIds: t.idList({ required: true }),
     description: t.string(),
+    event: t.field({ type: TimeEventInput }),
   }),
 });
 
@@ -67,6 +84,7 @@ const TimeEntryInput = builder.inputType('TimeEntryInput', {
     description: t.string(),
     startedAt: t.field({ type: 'DateTime', required: true }),
     duration: t.int({ required: true, description: 'Seconds.' }),
+    event: t.field({ type: TimeEventInput }),
   }),
 });
 
@@ -78,6 +96,7 @@ const TimeEntryUpdateInput = builder.inputType('TimeEntryUpdateInput', {
     description: t.string(),
     startedAt: t.field({ type: 'DateTime' }),
     duration: t.int({ description: 'Seconds.' }),
+    event: t.field({ type: TimeEventInput, description: 'Null: no event; omitted: unchanged.' }),
   }),
 });
 
@@ -160,7 +179,7 @@ builder.mutationFields((t) => ({
     type: 'TimeEntry',
     description: 'Starts a timer; the running one is stopped first.',
     args: { input: t.arg({ type: TimerInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloadEntry(query, (await timeEntries.startTimer(input)).id),
+    resolve: async (query, _root, { input }) => reloadEntry(query, (await timeEntries.startTimer({ ...input, event: eventLink(input.event) })).id),
   }),
   setTimerPaused: t.prismaField({
     type: 'TimeEntry',
@@ -178,12 +197,12 @@ builder.mutationFields((t) => ({
   createTimeEntry: t.prismaField({
     type: 'TimeEntry',
     args: { input: t.arg({ type: TimeEntryInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloadEntry(query, (await timeEntries.createTimeEntry(input)).id),
+    resolve: async (query, _root, { input }) => reloadEntry(query, (await timeEntries.createTimeEntry({ ...input, event: eventLink(input.event) })).id),
   }),
   updateTimeEntry: t.prismaField({
     type: 'TimeEntry',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TimeEntryUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => reloadEntry(query, (await timeEntries.updateTimeEntry(id, input)).id),
+    resolve: async (query, _root, { id, input }) => reloadEntry(query, (await timeEntries.updateTimeEntry(id, { ...input, event: eventLink(input.event) })).id),
   }),
   deleteTimeEntry: t.boolean({
     args: { id: t.arg.id({ required: true }) },

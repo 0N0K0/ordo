@@ -37,6 +37,8 @@ export const calendarEventInputSchema = z
     projectId: z.string().nullable(),
     contributorIds: z.array(z.string()).max(200),
     categoryIds: z.array(z.string()).max(50),
+    /** Tasks the event is about. */
+    taskIds: z.array(z.string()).max(50, '50 tâches maximum.'),
   })
   .superRefine((event, context) => {
     if (!event.allDay) {

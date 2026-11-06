@@ -151,7 +151,9 @@ export function CalendarPage() {
       });
     }
     // Tracked times: blocks from their start to their end (now while running), in the color of their project.
+    // A time spent on an event only shows its part outside the event.
     if (showTimers && range) {
+      const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [`${occurrence.eventId}|${occurrence.occurrenceDate ?? ''}`, occurrence]));
       for (const entry of timeEntries.data ?? []) {
         if (!inProjects(entry.projectId)) continue;
         const start = new Date(entry.startedAt);
@@ -160,18 +162,35 @@ export function CalendarPage() {
         const end = entry.endedAt ? new Date(entry.endedAt) : entry.pausedAt ? new Date(entry.pausedAt) : new Date(minute * 60_000 + 60_000);
         const project = context.projectById.get(entry.projectId);
         const color = project?.color ?? 'var(--mantine-color-gray-6)';
-        result.push({
-          id: `time:${entry.id}`,
-          title: `${running ? '● ' : ''}${project?.title ?? 'Projet'}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
-          start,
-          end: end > start ? end : new Date(start.getTime() + 60_000),
-          editable: false,
-          backgroundColor: 'transparent',
-          borderColor: color,
-          textColor: 'var(--mantine-color-text)',
-          extendedProps: { kind: 'time', entry },
-          classNames: [classes.timer],
-        });
+        const stop = end > start ? end : new Date(start.getTime() + 60_000);
+        let parts: [Date, Date][] = [[start, stop]];
+        const occurrence = entry.calendarEventId
+          ? occurrenceByKey.get(`${entry.calendarEventId}|${entry.calendarOccurrenceDate ? String(entry.calendarOccurrenceDate) : ''}`)
+          : undefined;
+        if (occurrence && !occurrence.allDay) {
+          const eventStart = new Date(occurrence.start);
+          const eventEnd = new Date(occurrence.end);
+          parts = parts.flatMap(([from, to]) =>
+            [
+              [from, new Date(Math.min(to.getTime(), eventStart.getTime()))],
+              [new Date(Math.max(from.getTime(), eventEnd.getTime())), to],
+            ].filter(([partStart, partEnd]) => partEnd.getTime() - partStart.getTime() >= 60_000) as [Date, Date][],
+          );
+        } else if (occurrence?.allDay) parts = [];
+        parts.forEach(([partStart, partEnd], index) =>
+          result.push({
+            id: `time:${entry.id}:${index}`,
+            title: `${running ? '● ' : ''}${occurrence ? `Hors « ${occurrence.title} » · ` : ''}${project?.title ?? 'Projet'}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
+            start: partStart,
+            end: partEnd,
+            editable: false,
+            backgroundColor: 'transparent',
+            borderColor: color,
+            textColor: 'var(--mantine-color-text)',
+            extendedProps: { kind: 'time', entry },
+            classNames: [classes.timer],
+          }),
+        );
       }
     }
     // Working hours in the background (week and day); paused days simply have none.

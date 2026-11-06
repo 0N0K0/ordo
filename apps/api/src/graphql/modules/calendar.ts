@@ -68,9 +68,11 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     projectId: t.exposeID('projectId', { nullable: true }),
     contributorIds: t.exposeIDList('contributorIds'),
     categoryIds: t.exposeIDList('categoryIds'),
+    taskIds: t.exposeIDList('taskIds'),
     calledOff: t.exposeBoolean('calledOff', { description: 'Cancelled, kept in the calendar.' }),
     postponedFrom: t.field({ type: PostponedFrom, nullable: true, resolve: (occurrence) => occurrence.postponedFrom }),
     postponedTo: t.field({ type: [PostponedTo], resolve: (occurrence) => occurrence.postponedTo }),
+    trackedSeconds: t.exposeInt('trackedSeconds', { description: 'Time tracked on the occurrence.' }),
   }),
 });
 
@@ -136,6 +138,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     projectId: t.id(),
     contributorIds: t.idList({ required: true }),
     categoryIds: t.idList({ required: true }),
+    taskIds: t.idList({ description: 'Tasks the event is about (none when omitted).' }),
   }),
 });
 
@@ -156,6 +159,7 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   endTime: input.endTime ?? null,
   recurrence: (input.recurrence ?? null) as never,
   projectId: input.projectId ?? null,
+  taskIds: input.taskIds ?? [],
 });
 
 builder.queryFields((t) => ({

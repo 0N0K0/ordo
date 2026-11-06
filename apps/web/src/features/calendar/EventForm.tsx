@@ -1,7 +1,7 @@
 import { ActionIcon, Alert, Anchor, Button, Group, Modal, MultiSelect, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { addDays, calendarEventInputSchema, daysBetween, type CalendarEventInput } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TimerIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -13,6 +13,7 @@ import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useCalendarCategories, useCalendarEventMutations, type EventOccurrence } from './api';
+import { useTimeMutations } from '../time/api';
 import { useScopeQuestion } from './ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from './category-tree';
@@ -92,7 +93,7 @@ interface EventFormProps {
 
 /**
  * Calendar event form: title, dates and times (or all day), repetition with pauses, place, links,
- * project, contributors, categories, reminders, description. An event can be cancelled (kept struck through)
+ * project, contributors, categories, tasks, reminders, description; a timer can be started on it. An event can be cancelled (kept struck through)
  * and restored, or postponed (cancelled, and a new event linked to it takes the new date); a warning tells
  * when it falls outside the working hours. For an occurrence of a recurring event, saving, deleting,
  * cancelling and restoring ask which occurrences are concerned.
@@ -102,6 +103,28 @@ interface EventFormProps {
 export function EventForm({ context, occurrence, defaults, onDone }: EventFormProps) {
   const { create, update, remove, setCalledOff, postpone } = useCalendarEventMutations();
   const [postponing, setPostponing] = useState(false);
+  const { start: startTimer } = useTimeMutations();
+
+  /**
+   * Starts a timer on this occurrence (its project, tasks and title).
+   * @returns {void}
+   */
+  const handleTimer = () => {
+    if (!occurrence || !values.projectId) return;
+    startTimer.mutate(
+      {
+        projectId: values.projectId,
+        // Tasks of the event belonging to its project tree (a timer only takes those).
+        taskIds: (values.taskIds ?? []).filter((id) => {
+          const task = context.taskById.get(id);
+          return task !== undefined && context.rootOf(task.projectId) === context.rootOf(values.projectId!);
+        }),
+        description: values.title,
+        event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
+      },
+      { onSuccess: () => notifySuccess('Chrono lancé sur l’évènement.'), onError: (error) => notifyError(error.message) },
+    );
+  };
   const { data: categories } = useCalendarCategories();
   // Questions are stacked over this form's modal: it must stay mounted to finish the save.
   const scopeQuestion = useScopeQuestion();
@@ -125,6 +148,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         projectId: null,
         contributorIds: [],
         categoryIds: [],
+        taskIds: [],
         ...defaults,
       };
   const form = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
@@ -383,6 +407,20 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
             {...form.getInputProps('categoryIds')}
           />
           <MultiSelect
+            label="Tâches"
+            placeholder={values.taskIds?.length ? undefined : 'Aucune'}
+            description={values.projectId ? 'Tâches du projet et de ses sous-projets.' : undefined}
+            data={context.tasks
+              .filter((task) => values.taskIds?.includes(task.id) || (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId))))
+              .map((task) => ({ value: task.id, label: `#${task.number} ${task.title}${task.closed ? ' (fermée)' : ''}` }))}
+            searchable
+            clearable
+            limit={100}
+            nothingFoundMessage="Aucune tâche"
+            value={values.taskIds ?? []}
+            onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
+          />
+          <MultiSelect
             label="Rappels"
             placeholder={values.reminders.length ? undefined : 'Aucun'}
             data={REMINDER_PRESETS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
@@ -393,8 +431,22 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         </SimpleGrid>
         {recurring && (
           <Text size="xs" c="dimmed">
-            Projet, contributeurs, catégories et rappels s’appliquent à toute la série.
+            Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série.
           </Text>
+        )}
+        {occurrence && (
+          <Group gap="sm">
+            <Tooltip label={values.projectId ? 'Lance un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
+              <Button variant="light" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={startTimer.isPending} onClick={handleTimer}>
+                Chronométrer
+              </Button>
+            </Tooltip>
+            {occurrence.trackedSeconds > 0 && (
+              <Text size="sm" c="dimmed">
+                {formatDuration(occurrence.trackedSeconds)} chronométrées sur cet évènement.
+              </Text>
+            )}
+          </Group>
         )}
 
         <MarkdownEditor
