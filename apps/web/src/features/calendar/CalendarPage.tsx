@@ -4,23 +4,29 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Alert, Button, Group, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays } from '@ordo/shared';
-import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, PlusIcon } from '@phosphor-icons/react';
+import { addDays, entrySeconds, formatDuration, plannedSlots } from '@ordo/shared';
+import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
-import { notifyError } from '../../lib/notify';
+import { localToday } from '../../lib/dates';
+import { notifyError, notifySuccess } from '../../lib/notify';
 import { useUpdateTask } from '../tasks/api';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useTaskLink } from '../tasks/use-task-link';
-import { useCalendarCategories, useCalendarEventMutations, useCalendarEvents, useMaterializeTaskOccurrences, type EventOccurrence } from './api';
+import { useTimeEntriesSince } from '../time/api';
+import { useNow } from '../time/use-now';
+import { useTimeEntryDialogs } from '../time/use-time-dialogs';
+import { scheduleRules, useCalendarCategories, useCalendarEventMutations, useCalendarEvents, useMaterializeTaskOccurrences, useWorkSchedules, type EventOccurrence } from './api';
 import { askScope } from './ask-scope';
 import classes from './CalendarPage.module.css';
+import { downloadCalendarPdf, pdfItems } from './calendar-pdf';
 import { categoryOptions, categorySubtree } from './category-tree';
 import { localParts, occurrenceInput } from './event-input';
 import { useEventForm } from './use-event-form';
+import { WorkSchedulesManager } from './WorkSchedulesManager';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -32,6 +38,10 @@ const VIEWS: { value: View; label: string }[] = [
 
 interface Filters {
   tasks: boolean;
+  /** Planned working hours, in the background. */
+  workHours?: boolean;
+  /** Tracked times (timers). */
+  timers?: boolean;
   projectIds: string[];
   categoryIds: string[];
   contributorIds: string[];
@@ -49,7 +59,9 @@ const ALL_DAY_ROWS = 2;
 const dayOf = (date: Date) => localParts(date).date;
 
 /**
- * Calendar: events and dated tasks by month, week or day, filtered by project, category and contributor.
+ * Calendar: events and dated tasks by month, week or day, filtered by project, category and contributor;
+ * planned working hours in the background (none on paused days); tracked times (timers) on demand;
+ * cancelled events struck through.
  * Events and tasks move and stretch by drag and drop; selecting a period creates an event. In week and
  * day views, the all-day row is collapsed by default and expands across every day. The
  * occurrences of recurring tasks are created for the displayed period only.
@@ -75,6 +87,27 @@ export function CalendarPage() {
   const openEvent = useEventForm(context);
   const navigate = useNavigate();
   const taskLink = useTaskLink();
+  const { data: schedules } = useWorkSchedules();
+  const [managingSchedules, setManagingSchedules] = useState(false);
+  // Tracked times of the displayed period (from its first day, local midnight).
+  const showTimers = filters.timers === true;
+  const timeEntries = useTimeEntriesSince(range ? new Date(`${range.from}T00:00:00`).toISOString() : null, showTimers && range !== null);
+  const timerRunning = (timeEntries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
+  // A running timer grows every minute in the calendar.
+  const now = useNow(showTimers && timerRunning);
+  const minute = Math.floor(now / 60_000);
+  const { openForm: openTimeEntry } = useTimeEntryDialogs(context);
+  // A date to show (link to a postponed event…).
+  const [params, setParams] = useSearchParams();
+  const requestedDate = params.get('date');
+
+  useEffect(() => {
+    if (!requestedDate) return;
+    calendarRef.current?.getApi().gotoDate(requestedDate);
+    const next = new URLSearchParams(params);
+    next.delete('date');
+    setParams(next, { replace: true });
+  }, [requestedDate, params, setParams]);
 
   // Occurrences of recurring tasks exist once their period is displayed.
   const materializeMutate = materialize.mutate;
@@ -114,8 +147,45 @@ export function CalendarPage() {
         backgroundColor: color,
         borderColor: color,
         extendedProps: { kind: 'event', occurrence },
-        classNames: occurrence.occurrenceDate ? [classes.recurring] : [],
+        classNames: [...(occurrence.occurrenceDate ? [classes.recurring] : []), ...(occurrence.calledOff ? [classes.closed] : [])],
       });
+    }
+    // Tracked times: blocks from their start to their end (now while running), in the color of their project.
+    if (showTimers && range) {
+      for (const entry of timeEntries.data ?? []) {
+        if (!inProjects(entry.projectId)) continue;
+        const start = new Date(entry.startedAt);
+        if (dayOf(start) > range.to) continue;
+        const running = entry.endedAt === null;
+        const end = entry.endedAt ? new Date(entry.endedAt) : entry.pausedAt ? new Date(entry.pausedAt) : new Date(minute * 60_000 + 60_000);
+        const project = context.projectById.get(entry.projectId);
+        const color = project?.color ?? 'var(--mantine-color-gray-6)';
+        result.push({
+          id: `time:${entry.id}`,
+          title: `${running ? '● ' : ''}${project?.title ?? 'Projet'}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
+          start,
+          end: end > start ? end : new Date(start.getTime() + 60_000),
+          editable: false,
+          backgroundColor: 'transparent',
+          borderColor: color,
+          textColor: 'var(--mantine-color-text)',
+          extendedProps: { kind: 'time', entry },
+          classNames: [classes.timer],
+        });
+      }
+    }
+    // Working hours in the background (week and day); paused days simply have none.
+    if (range && schedules && filters.workHours !== false) {
+      const rules = scheduleRules(schedules);
+      for (const slot of plannedSlots(rules, range.from, range.to)) {
+        result.push({
+          id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`,
+          start: `${slot.date}T${slot.start}:00`,
+          end: `${slot.date}T${slot.end}:00`,
+          display: 'background',
+          classNames: [classes.workHours],
+        });
+      }
     }
     if (filters.tasks) {
       for (const task of context.tasks) {
@@ -140,7 +210,7 @@ export function CalendarPage() {
       }
     }
     return result;
-  }, [context, events.data, filters, categoryFilter, categoryById]);
+  }, [context, events.data, filters, categoryFilter, categoryById, range, schedules, showTimers, timeEntries.data, minute]);
 
   /**
    * Saves an event or a task moved or stretched in the calendar (cancelled: back in place).
@@ -191,6 +261,37 @@ export function CalendarPage() {
   };
 
   const api = () => calendarRef.current?.getApi();
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * Downloads the displayed view as a PDF (filters applied), to print.
+   * @returns {Promise<void>}
+   */
+  const exportPdf = async () => {
+    if (!range) return;
+    setExporting(true);
+    try {
+      const filtersLabel = [
+        filters.projectIds.length && context ? `Projets : ${filters.projectIds.map((id) => context.projectById.get(id)?.title ?? '').join(', ')}` : '',
+        filters.categoryIds.length ? `Catégories : ${filters.categoryIds.map((id) => categoryById.get(id)?.name ?? '').join(', ')}` : '',
+        filters.contributorIds.length && context ? `Contributeurs : ${filters.contributorIds.map((id) => context.contributorById.get(id)?.name ?? '').join(', ')}` : '',
+      ].filter(Boolean);
+      await downloadCalendarPdf({
+        title,
+        subtitle: ['Agenda', ...filtersLabel].join(' · '),
+        view: view === 'dayGridMonth' ? 'month' : view === 'timeGridWeek' ? 'week' : 'day',
+        from: range.from,
+        to: range.to,
+        today: localToday(),
+        items: pdfItems(items, classes.closed),
+      });
+      notifySuccess('Agenda exporté.');
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'Export PDF impossible.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <Stack gap="md">
@@ -218,6 +319,14 @@ export function CalendarPage() {
             {title}
           </Text>
           <SegmentedControl data={VIEWS} value={view} onChange={(value) => setView(value as View)} aria-label="Vue" />
+          <Tooltip label="Exporter la vue en PDF (pour l’imprimer)">
+            <ActionIcon variant="default" size="lg" aria-label="Exporter la vue en PDF" loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
+              <FilePdfIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
+            Plages de travail
+          </Button>
           <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
             Nouvel évènement
           </Button>
@@ -226,6 +335,8 @@ export function CalendarPage() {
 
       <Group gap="sm" wrap="wrap" align="flex-end">
         <Switch label="Tâches" checked={filters.tasks} onChange={(event) => setFilters({ ...filters, tasks: event.currentTarget.checked })} />
+        <Switch label="Plages de travail" checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
+        <Switch label="Chronos" checked={showTimers} onChange={(event) => setFilters({ ...filters, timers: event.currentTarget.checked })} />
         <MultiSelect
           size="xs"
           placeholder={filters.projectIds.length ? undefined : 'Tous les projets'}
@@ -266,11 +377,15 @@ export function CalendarPage() {
           {(events.error ?? materialize.error)?.message}
         </Alert>
       )}
+      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title="Plages de travail" size="xl">
+        {managingSchedules && <WorkSchedulesManager />}
+      </Modal>
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView={view}
+          initialDate={requestedDate ?? undefined}
           locale={frLocale}
           headerToolbar={false}
           // The month grows with its days (every task shown); week and day scroll in place.
@@ -320,6 +435,7 @@ export function CalendarPage() {
           eventClick={(info: EventClickArg) => {
             info.jsEvent.preventDefault();
             if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.number));
+            else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else openEvent({ occurrence: info.event.extendedProps.occurrence });
           }}
           eventDrop={(info) => void handleChange(info)}

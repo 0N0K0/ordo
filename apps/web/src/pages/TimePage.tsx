@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router';
 import { ProjectSelect } from '../features/tasks/task-ui';
 import { useTaskContext } from '../features/tasks/use-task-context';
 import { useTimeEntriesSince } from '../features/time/api';
+import { PlannedTime } from '../features/time/PlannedTime';
 import { TimeLog } from '../features/time/TimeLog';
 import { TimerCard } from '../features/time/TimerCard';
 import { useTimeEntryDialogs } from '../features/time/use-time-dialogs';
@@ -35,7 +36,8 @@ function periodStart(period: Period, today: string): string | null {
 }
 
 /**
- * Timers of every project: the running timer (or the form starting one), time added by hand, and the
+ * Timers of every project: the running timer (or the form starting one), planned against tracked time, time
+ * added by hand, and the
  * tracked times of a period by day, optionally of one project and its sub-projects.
  * @returns {JSX.Element} Page.
  */
@@ -80,6 +82,7 @@ export function TimePage() {
         Chronos
       </Title>
       <TimerCard />
+      <PlannedTime />
       <Group justify="space-between" align="flex-end" gap="sm">
         <Stack gap={2}>
           <Title order={2} size="h4">

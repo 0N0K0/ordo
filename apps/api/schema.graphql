@@ -300,6 +300,9 @@ input CalendarEventInput {
 """One occurrence of an event in a period."""
 type CalendarEventOccurrence {
   allDay: Boolean!
+
+  """Cancelled, kept in the calendar."""
+  calledOff: Boolean!
   categoryIds: [ID!]!
   contributorIds: [ID!]!
   description: String
@@ -312,6 +315,8 @@ type CalendarEventOccurrence {
   location: String
   modified: Boolean!
   occurrenceDate: String
+  postponedFrom: CalendarPostponedFrom
+  postponedTo: [CalendarPostponedTo!]!
   projectId: ID
   recurrence: JSON
   reminders: [Int!]!
@@ -338,6 +343,22 @@ type CalendarLink {
 input CalendarLinkInput {
   label: String!
   url: String!
+}
+
+"""Event (and occurrence) a postponement replaces."""
+type CalendarPostponedFrom {
+  """Occurrence of a recurring event."""
+  date: String
+  eventId: ID!
+  title: String!
+}
+
+"""Event postponing an occurrence."""
+type CalendarPostponedTo {
+  eventId: ID!
+  startDate: String!
+  startTime: String
+  title: String!
 }
 
 """
@@ -1045,6 +1066,7 @@ type Mutation {
   createTreasuryCounterparty(input: TreasuryCounterpartyInput!): ID!
   createTreasuryEntry(input: TreasuryEntryInput!): ID!
   createTreasuryPaymentMethod(input: TreasuryPaymentMethodInput!): ID!
+  createWorkSchedule(input: WorkScheduleInput!): ID!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
   deleteCalendarCategory(id: ID!): Boolean!
@@ -1100,6 +1122,7 @@ type Mutation {
   deleteTreasuryCounterparty(id: ID!): Boolean!
   deleteTreasuryEntry(id: ID!): Boolean!
   deleteTreasuryPaymentMethod(id: ID!): Boolean!
+  deleteWorkSchedule(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateDashboardChart(id: ID!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
@@ -1161,6 +1184,11 @@ type Mutation {
   moveTaskType(id: ID!, index: Int!): Boolean!
   moveTaskView(id: ID!, index: Int!): Boolean!
 
+  """
+  Cancels an event (or one occurrence) and creates its postponement, linked to it.
+  """
+  postponeCalendarEvent(id: ID!, input: CalendarEventInput!, occurrenceDate: Date): ID!
+
   """Records a forecast (one date of a repeated one) as an actual entry."""
   realizeTreasuryForecast(amount: Float!, date: Date!, id: ID!, occurrence: Date!): ID!
   recordDocumentPayment(id: ID!, input: DocumentPaymentInput!): Boolean!
@@ -1196,6 +1224,11 @@ type Mutation {
 
   """Sends a mail; returns the projects it was linked to."""
   sendMail(input: SendMailInput!): [ID!]!
+
+  """
+  Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.
+  """
+  setCalendarEventCalledOff(calledOff: Boolean!, id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
 
   """Archiving cascades to the active projects; restoring brings them back."""
   setClientArchived(archived: Boolean!, id: ID!): Client!
@@ -1296,6 +1329,7 @@ type Mutation {
   updateTreasuryCounterparty(id: ID!, input: TreasuryCounterpartyInput!): Boolean!
   updateTreasuryEntry(id: ID!, input: TreasuryEntryInput!): Boolean!
   updateTreasuryPaymentMethod(id: ID!, input: TreasuryPaymentMethodInput!): Boolean!
+  updateWorkSchedule(id: ID!, input: WorkScheduleInput!): Boolean!
 
   """Stores a file to link from a markdown text (10 MB maximum)."""
   uploadAttachment(file: File!): Attachment!
@@ -1532,6 +1566,7 @@ type Query {
 
   """Unread mails in the inbox of every account."""
   unreadMailCount: Int!
+  workSchedules: [WorkSchedule!]!
 }
 
 type RecurringInvoice {
@@ -2074,4 +2109,52 @@ type User {
   id: ID!
   pendingEmail: String
   username: String!
+}
+
+type WorkPause {
+  from: String!
+  label: String!
+  to: String!
+}
+
+input WorkPauseInput {
+  from: Date!
+  label: String!
+  to: Date!
+}
+
+"""
+Planned working hours: every n weeks from a date, time slots on weekdays, paused periods.
+"""
+type WorkSchedule {
+  endDate: Date
+  id: ID!
+  intervalWeeks: Int!
+  name: String!
+  pauses: [WorkPause!]!
+  slots: [WorkSlot!]!
+  startDate: Date!
+}
+
+input WorkScheduleInput {
+  endDate: Date
+  intervalWeeks: Int!
+  name: String!
+  pauses: [WorkPauseInput!]!
+  slots: [WorkSlotInput!]!
+  startDate: Date!
+}
+
+type WorkSlot {
+  end: String!
+  start: String!
+
+  """1 (Monday) to 7."""
+  weekday: Int!
+}
+
+input WorkSlotInput {
+  end: String!
+  start: String!
+  weekday: Int!
 }

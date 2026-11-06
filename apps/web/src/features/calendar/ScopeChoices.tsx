@@ -2,7 +2,7 @@ import { Button, Group, Stack, Text } from '@mantine/core';
 import type { CalendarEventScope } from './api';
 
 export interface ScopeQuestion {
-  action: 'update' | 'delete';
+  action: 'update' | 'delete' | 'cancel' | 'restore';
   /** Whether the occurrence alone can be changed (not when the repetition changed). */
   allowThis?: boolean;
 }
@@ -18,7 +18,13 @@ export function ScopeChoices({ action, allowThis = true, onAnswer }: ScopeQuesti
   return (
     <Stack gap="md">
       <Text size="sm">
-        {remove ? 'Quelles occurrences supprimer ? La suppression est définitive.' : 'À quelles occurrences appliquer la modification ?'}
+        {remove
+          ? 'Quelles occurrences supprimer ? La suppression est définitive.'
+          : action === 'cancel'
+            ? 'Quelles occurrences annuler ? Elles restent dans l’agenda, barrées, et pourront être rétablies.'
+            : action === 'restore'
+              ? 'Quelles occurrences rétablir ?'
+              : 'À quelles occurrences appliquer la modification ?'}
         {!allowThis && ' La répétition a changé : elle ne peut pas s’appliquer à une seule occurrence.'}
       </Text>
       <Stack gap="xs">

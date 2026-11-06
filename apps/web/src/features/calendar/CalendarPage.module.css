@@ -76,4 +76,22 @@
     /* Bordures */
     border-style: dashed !important;
   }
+
+  /* Planned working hours, behind the events. */
+  .workHours {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-green-light) !important;
+
+    /* Effets */
+    opacity: 0.6 !important;
+  }
+
+  /* Tracked time: hatched, to tell it from events. */
+  .timer {
+    /* Bordures */
+    border-width: 0 0 0 3px !important;
+
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, var(--mantine-color-default-hover) 0 6px, transparent 6px 12px) !important;
+  }
 }

@@ -1,7 +1,8 @@
-import { ActionIcon, Button, Group, Modal, MultiSelect, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, Group, Modal, MultiSelect, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, type CalendarEventInput } from '@ordo/shared';
-import { LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
@@ -13,10 +14,72 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useCalendarCategories, useCalendarEventMutations, type EventOccurrence } from './api';
 import { useScopeQuestion } from './ask-scope';
+import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from './category-tree';
 import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from './event-input';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
+
+const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+/**
+ * Printed day, with a time.
+ * @param {string} date YYYY-MM-DD.
+ * @param {string | null} [time] HH:MM. Optional.
+ * @returns {string} "mardi 12 novembre 2026 à 10:00".
+ */
+const printedDay = (date: string, time?: string | null) => `${dayFormat.format(new Date(`${date}T00:00:00Z`))}${time ? ` à ${time}` : ''}`;
+
+interface PostponeFormProps {
+  /** Fields of the event postponed (with the changes of the form). */
+  fields: CalendarEventInput;
+  /** Original title, for the title of the postponement. */
+  title: string;
+  loading: boolean;
+  onCancel: () => void;
+  onConfirm: (input: CalendarEventInput) => void;
+}
+
+/**
+ * New date (and title) of a postponement: the event keeps its duration, from the next day by default.
+ * @param {PostponeFormProps} props Component props.
+ * @returns {JSX.Element} Form.
+ */
+function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeFormProps) {
+  const span = Math.max(0, daysBetween(fields.startDate, fields.endDate));
+  const [values, setValues] = useState({
+    title: `Report de l’évènement « ${title} »`,
+    startDate: addDays(fields.startDate, 1),
+    startTime: fields.startTime ?? null,
+    endTime: fields.endTime ?? null,
+  });
+  const endDate = addDays(values.startDate, span);
+  const valid = Boolean(values.title.trim() && values.startDate && (fields.allDay || (values.startTime && values.endTime && (span > 0 || values.endTime > values.startTime))));
+  return (
+    <Stack gap="sm">
+      <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
+      <TextInput label="Titre" required value={values.title} onChange={(event) => setValues({ ...values, title: event.currentTarget.value })} />
+      <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
+        <DatePickerInput label="Nouvelle date" required valueFormat="ddd D MMM YYYY" value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
+        {!fields.allDay && <TimeInput label="Début" required value={values.startTime ?? ''} onChange={(event) => setValues({ ...values, startTime: event.currentTarget.value || null })} />}
+        {!fields.allDay && <TimeInput label="Fin" required value={values.endTime ?? ''} onChange={(event) => setValues({ ...values, endTime: event.currentTarget.value || null })} />}
+      </SimpleGrid>
+      <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
+      <Group justify="flex-end" gap="sm">
+        <Button variant="default" onClick={onCancel}>
+          Annuler
+        </Button>
+        <Button
+          loading={loading}
+          disabled={!valid}
+          onClick={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })}
+        >
+          Reporter
+        </Button>
+      </Group>
+    </Stack>
+  );
+}
 
 interface EventFormProps {
   context: TaskContext;
@@ -29,13 +92,16 @@ interface EventFormProps {
 
 /**
  * Calendar event form: title, dates and times (or all day), repetition with pauses, place, links,
- * project, contributors, categories, reminders, description. For an occurrence of a recurring event,
- * saving and deleting ask which occurrences are concerned.
+ * project, contributors, categories, reminders, description. An event can be cancelled (kept struck through)
+ * and restored, or postponed (cancelled, and a new event linked to it takes the new date); a warning tells
+ * when it falls outside the working hours. For an occurrence of a recurring event, saving, deleting,
+ * cancelling and restoring ask which occurrences are concerned.
  * @param {EventFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function EventForm({ context, occurrence, defaults, onDone }: EventFormProps) {
-  const { create, update, remove } = useCalendarEventMutations();
+  const { create, update, remove, setCalledOff, postpone } = useCalendarEventMutations();
+  const [postponing, setPostponing] = useState(false);
   const { data: categories } = useCalendarCategories();
   // Questions are stacked over this form's modal: it must stay mounted to finish the save.
   const scopeQuestion = useScopeQuestion();
@@ -119,6 +185,31 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
     setConfirmingDelete(true);
   };
 
+  /**
+   * Cancels the event (kept struck through) or restores it, asking which occurrences for a recurring one.
+   * @param {boolean} calledOff Cancel (true) or restore (false).
+   * @returns {Promise<void>}
+   */
+  const handleCalledOff = async (calledOff: boolean) => {
+    if (!occurrence) return;
+    let scope: 'THIS' | 'FOLLOWING' | 'ALL' = 'ALL';
+    if (recurring) {
+      const chosen = await scopeQuestion.ask({ action: calledOff ? 'cancel' : 'restore' });
+      if (!chosen) return;
+      scope = chosen;
+    }
+    setCalledOff.mutate(
+      { id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate, calledOff },
+      {
+        onSuccess: () => {
+          notifySuccess(calledOff ? 'Évènement annulé.' : 'Évènement rétabli.');
+          onDone();
+        },
+        onError: (error) => notifyError(error.message),
+      },
+    );
+  };
+
   return (
     <form onSubmit={handleSubmit} noValidate>
       {scopeQuestion.dialog}
@@ -144,7 +235,59 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
           />
         </Stack>
       </Modal>
+      <Modal opened={postponing} onClose={() => setPostponing(false)} title="Reporter l’évènement" centered zIndex={300}>
+        {postponing && occurrence && (
+          <PostponeForm
+            fields={values}
+            title={occurrence.title}
+            loading={postpone.isPending}
+            onCancel={() => setPostponing(false)}
+            onConfirm={(input) =>
+              postpone.mutate(
+                { id: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate, input },
+                {
+                  onSuccess: () => {
+                    notifySuccess('Évènement reporté.');
+                    setPostponing(false);
+                    onDone();
+                  },
+                  onError: (error) => notifyError(error.message),
+                },
+              )
+            }
+          />
+        )}
+      </Modal>
       <Stack gap="md">
+        {occurrence?.calledOff && (
+          <Alert color="gray" icon={<CalendarXIcon aria-hidden />} title="Évènement annulé">
+            Il reste dans l’agenda, barré.{' '}
+            {occurrence.postponedTo.map((target) => (
+              <span key={target.eventId}>
+                Reporté au{' '}
+                <Anchor component={Link} to={`/calendar?date=${target.startDate}`} onClick={onDone}>
+                  {printedDay(target.startDate, target.startTime)}
+                </Anchor>
+                .{' '}
+              </span>
+            ))}
+          </Alert>
+        )}
+        {occurrence?.postponedFrom && (
+          <Text size="sm" c="dimmed">
+            Report de l’évènement « {occurrence.postponedFrom.title} »
+            {occurrence.postponedFrom.date && (
+              <>
+                {' '}
+                du{' '}
+                <Anchor component={Link} to={`/calendar?date=${occurrence.postponedFrom.date}`} onClick={onDone}>
+                  {printedDay(occurrence.postponedFrom.date)}
+                </Anchor>
+              </>
+            )}
+            .
+          </Text>
+        )}
         <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
         <Switch
           label="Journée entière"
@@ -171,6 +314,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
           <DatePickerInput label="Fin" required valueFormat="ddd D MMM YYYY" minDate={values.startDate} {...form.getInputProps('endDate')} />
           {!values.allDay && <TimeInput label="Heure de fin" required {...form.getInputProps('endTime')} />}
         </SimpleGrid>
+        <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
         <RecurrenceEditor
           value={values.recurrence ?? null}
@@ -263,9 +407,25 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
 
         <Group justify="space-between" gap="sm">
           {occurrence ? (
-            <Button variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
-              Supprimer
-            </Button>
+            <Group gap={4}>
+              <Button variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
+                Supprimer
+              </Button>
+              {occurrence.calledOff ? (
+                <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
+                  Rétablir
+                </Button>
+              ) : (
+                <>
+                  <Button variant="subtle" color="gray" leftSection={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
+                    Annuler l’évènement
+                  </Button>
+                  <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={() => setPostponing(true)}>
+                    Reporter
+                  </Button>
+                </>
+              )}
+            </Group>
           ) : (
             <span />
           )}
