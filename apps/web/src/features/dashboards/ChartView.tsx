@@ -1,5 +1,5 @@
-import { AreaChart, BarChart, DonutChart, LineChart } from '@mantine/charts';
-import { Center, Stack, Text, ThemeIcon } from '@mantine/core';
+import { AreaChart, BarChart, CompositeChart, DonutChart, LineChart } from '@mantine/charts';
+import { Center, ColorSwatch, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import type { ChartConfig } from '@ordo/shared';
 import { ChartBarIcon } from '@phosphor-icons/react';
 import { forwardRef } from 'react';
@@ -8,11 +8,44 @@ import { MONEY_MEASURES, type ChartData } from './aggregate';
 const numberFormat = new Intl.NumberFormat('fr-FR', {
   maximumFractionDigits: 2,
 });
+const percentFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
 const moneyFormat = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
   currency: 'EUR',
   maximumFractionDigits: 0,
 });
+/**
+ * Tooltip of a mixed chart: each series with its own unit (percents for the ratios).
+ * @param {object} props Component props.
+ * @param {React.ReactNode} props.label Value of the axis.
+ * @param {{ name: string, value: number | null, color: string }[]} props.items Values of the series.
+ * @param {(name: string, value: number) => string} props.format Formats a value of a series.
+ * @returns {JSX.Element | null} Tooltip.
+ */
+function MixedTooltip({ label, items, format }: { label: React.ReactNode; items: { name: string; value: number | null; color: string }[]; format: (name: string, value: number) => string }) {
+  if (!items.length) return null;
+  return (
+    <Paper withBorder shadow="md" radius="md" p="xs">
+      <Text size="sm" fw={600} mb={4}>
+        {label}
+      </Text>
+      <Stack gap={2}>
+        {items.map((item) => (
+          <Group key={item.name} gap="xs" justify="space-between" wrap="nowrap">
+            <Group gap={6} wrap="nowrap">
+              <ColorSwatch color={item.color} size={10} withShadow={false} />
+              <Text size="xs">{item.name}</Text>
+            </Group>
+            <Text size="xs" ff="monospace">
+              {item.value === null || item.value === undefined ? '—' : format(item.name, item.value)}
+            </Text>
+          </Group>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
 interface ChartViewProps {
   config: ChartConfig;
   data: ChartData;
@@ -55,7 +88,29 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
   };
   return (
     <div ref={ref}>
-      {config.type === 'donut' ? (
+      {data.mixed ? (
+        // Several data sets: bars, lines or areas, comparisons as dashed lines (percents on the right axis).
+        <CompositeChart
+          {...common}
+          series={data.series.map((serie) => ({ ...serie, type: serie.type ?? 'bar' }))}
+          withLegend
+          withRightYAxis={data.percentAxis}
+          rightYAxisProps={{ tickFormatter: (value: number) => `${percentFormat.format(value)} %`, domain: [0, 'auto'] }}
+          valueFormatter={(value) => format(value)}
+          tooltipProps={{
+            content: ({ label, payload }) => (
+              <MixedTooltip
+                label={label}
+                items={(payload ?? []).map((item) => ({ name: String(item.name), value: item.value as number | null, color: String(item.color ?? '') }))}
+                format={(name, value) => (data.series.find((serie) => serie.name === name)?.yAxisId === 'right' ? `${percentFormat.format(value)} %` : format(value))}
+              />
+            ),
+          }}
+          curveType="monotone"
+          connectNulls={false}
+          withDots={data.rows.length <= 40}
+        />
+      ) : config.type === 'donut' ? (
         <Center>
           <DonutChart
             data={data.slices}

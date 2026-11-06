@@ -826,12 +826,20 @@ export interface TaskQuery {
  * @returns {UseQueryResult<string[]>} Query state; previous ids are kept while a new filter loads.
  */
 export function useMatchingTaskIds(query: TaskQuery | null) {
-  return useQuery({
+  return useQuery({ ...matchingTaskIdsQuery(query), placeholderData: (previous) => previous });
+}
+
+/**
+ * Query of the ids of the tasks matching a filter (for several queries at once).
+ * @param {TaskQuery | null} query Filter, search and user clock; null: not loaded.
+ * @returns {object} Query options.
+ */
+export function matchingTaskIdsQuery(query: TaskQuery | null) {
+  return {
     enabled: query !== null,
     queryKey: [...tasksQueryKey, 'matching', query],
     queryFn: async () => (await execute(MatchingTaskIdsDocument, { query: query! })).matchingTaskIds,
-    placeholderData: (previous) => previous,
-  });
+  };
 }
 
 /**

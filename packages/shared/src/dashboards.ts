@@ -100,6 +100,37 @@ export const treasuryChartFilterSchema = z.object({
 });
 export type TreasuryChartFilter = z.infer<typeof treasuryChartFilterSchema>;
 
+/** Id of the main data set of a chart (its own source, measure and filters). */
+export const MAIN_DATASET = 'main';
+
+/** Additional data set of a chart: its own source, measure and filters, on the axis of the chart. */
+export const chartDatasetSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1, 'Nommez le jeu de données.').max(60, '60 caractères maximum.'),
+  source: z.enum(CHART_SOURCES),
+  measure: z.enum(CHART_MEASURES),
+  /** Date of the records on a time axis (the dates differ between sources); the axis date when null. */
+  dateField: z.enum(CHART_TIME_DIMENSIONS).nullable().default(null),
+  filter: taskFilterSchema.default(emptyFilter),
+  search: z.string().max(200).default(''),
+  includeArchived: z.boolean().default(false),
+  documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
+  treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
+});
+export type ChartDataset = z.infer<typeof chartDatasetSchema>;
+
+/** Comparison of two data sets: the share of one in another (percent), or their difference. */
+export const CHART_COMPARISON_KINDS = ['ratio', 'difference'] as const;
+export const chartComparisonSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1, 'Nommez la comparaison.').max(60, '60 caractères maximum.'),
+  kind: z.enum(CHART_COMPARISON_KINDS),
+  /** Data sets compared (MAIN_DATASET or the id of another one): a / b, or a − b. */
+  a: z.string().min(1),
+  b: z.string().min(1),
+});
+export type ChartComparison = z.infer<typeof chartComparisonSchema>;
+
 export const chartConfigSchema = z
   .object({
     source: z.enum(CHART_SOURCES).default('tasks'),
@@ -121,6 +152,12 @@ export const chartConfigSchema = z
     includeArchived: z.boolean().default(false),
     documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
     treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
+    /** Name of the main data set (shown when there are several). */
+    name: z.string().trim().max(60, '60 caractères maximum.').default(''),
+    /** Other data sets, drawn on the same axis. */
+    datasets: z.array(chartDatasetSchema).max(8, '8 jeux de données supplémentaires maximum.').default([]),
+    /** Comparisons of data sets (ratio in percent on a right axis, or difference). */
+    comparisons: z.array(chartComparisonSchema).max(8, '8 comparaisons maximum.').default([]),
   })
   .superRefine((config, context) => {
     const source = config.source;
@@ -134,6 +171,29 @@ export const chartConfigSchema = z
     if (source === 'treasury' && config.measure === 'balance' && !isTimeDimension(config.dimension)) {
       issue('measure', 'Le solde se suit dans le temps : choisissez la date comme axe.');
     }
+    if (config.datasets.length || config.comparisons.length) {
+      if (config.type === 'donut' || config.type === 'burndown') issue('type', 'Plusieurs jeux de données se comparent en barres, courbes ou aires.');
+      if (config.series) issue('series', 'Avec plusieurs jeux de données, chaque jeu est une série : retirez les séries.');
+    }
+    const ids = new Set([MAIN_DATASET]);
+    const time = isTimeDimension(config.dimension);
+    config.datasets.forEach((dataset, index) => {
+      const path = (field: string) => ['datasets', index, field];
+      if (ids.has(dataset.id)) context.addIssue({ code: 'custom', path: path('id'), message: 'Jeu de données en double.' });
+      ids.add(dataset.id);
+      if (!SOURCE_MEASURES[dataset.source].includes(dataset.measure)) context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : mesure indisponible pour sa source.` });
+      if (dataset.source === 'treasury' && dataset.measure === 'balance') context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : le solde ne se compare pas.` });
+      if (time) {
+        const field = dataset.dateField ?? config.dimension;
+        if (!SOURCE_TIME_DIMENSIONS[dataset.source].includes(field)) context.addIssue({ code: 'custom', path: path('dateField'), message: `« ${dataset.name} » : choisissez sa date.` });
+      } else if (!SOURCE_GROUP_DIMENSIONS[dataset.source].includes(config.dimension as ChartGroupDimension)) {
+        context.addIssue({ code: 'custom', path: path('source'), message: `« ${dataset.name} » : l’axe n’existe pas pour sa source.` });
+      }
+    });
+    config.comparisons.forEach((comparison, index) => {
+      if (!ids.has(comparison.a) || !ids.has(comparison.b)) context.addIssue({ code: 'custom', path: ['comparisons', index, 'a'], message: `« ${comparison.name} » : jeu de données introuvable.` });
+      if (comparison.a === comparison.b) context.addIssue({ code: 'custom', path: ['comparisons', index, 'b'], message: `« ${comparison.name} » : comparez deux jeux différents.` });
+    });
   });
 export type ChartConfig = z.infer<typeof chartConfigSchema>;
 

@@ -87,12 +87,16 @@ export const NEW_CHART_TITLES: Record<ChartSource, string> = {
 
 /** Measures in euros. */
 export const MONEY_MEASURES: readonly ChartMeasure[] = ['totalNet', 'totalGross', 'paid', 'balance', 'amount', 'income', 'expense'];
-const PALETTE = ['blue.6', 'teal.6', 'orange.6', 'grape.6', 'red.6', 'cyan.6', 'lime.6', 'indigo.6', 'pink.6', 'yellow.6'];
+export const PALETTE = ['blue.6', 'teal.6', 'orange.6', 'grape.6', 'red.6', 'cyan.6', 'lime.6', 'indigo.6', 'pink.6', 'yellow.6'];
 
 export interface ChartSeries {
   name: string;
   color: string;
   strokeDasharray?: string;
+  /** Mixed charts: how this series is drawn. */
+  type?: 'bar' | 'line' | 'area';
+  /** "right": on the percent axis. */
+  yAxisId?: string;
 }
 
 export interface ChartData {
@@ -105,6 +109,10 @@ export interface ChartData {
   taskCount: number;
   /** Nothing to draw. */
   empty: boolean;
+  /** Several data sets or comparisons: drawn as a mixed chart. */
+  mixed?: boolean;
+  /** Some series are percents, on a right axis. */
+  percentAxis?: boolean;
 }
 
 /** Value of a field: a group of the axis or of the series. */
