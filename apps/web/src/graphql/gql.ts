@@ -92,7 +92,13 @@ type Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": typeof types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": typeof types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": typeof types.CancelEmailChangeDocument,
-    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    contributorIds\n    categoryIds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    contributorIds\n    categoryIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n": typeof types.WorkSchedulesDocument,
+    "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": typeof types.CreateWorkScheduleDocument,
+    "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": typeof types.UpdateWorkScheduleDocument,
+    "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": typeof types.DeleteWorkScheduleDocument,
+    "\n  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {\n    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)\n  }\n": typeof types.SetCalendarEventCalledOffDocument,
+    "\n  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {\n    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)\n  }\n": typeof types.PostponeCalendarEventDocument,
     "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n": typeof types.CalendarCategoriesDocument,
     "\n  query CalendarEvents($from: Date!, $to: Date!) {\n    calendarEvents(from: $from, to: $to) {\n      ...CalendarEventOccurrenceFields\n    }\n  }\n": typeof types.CalendarEventsDocument,
     "\n  mutation CreateCalendarCategory($input: CalendarCategoryInput!) {\n    createCalendarCategory(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateCalendarCategoryDocument,
@@ -357,7 +363,13 @@ const documents: Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": types.CancelEmailChangeDocument,
-    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    contributorIds\n    categoryIds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    contributorIds\n    categoryIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n": types.WorkSchedulesDocument,
+    "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": types.CreateWorkScheduleDocument,
+    "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": types.UpdateWorkScheduleDocument,
+    "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": types.DeleteWorkScheduleDocument,
+    "\n  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {\n    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)\n  }\n": types.SetCalendarEventCalledOffDocument,
+    "\n  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {\n    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)\n  }\n": types.PostponeCalendarEventDocument,
     "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n": types.CalendarCategoriesDocument,
     "\n  query CalendarEvents($from: Date!, $to: Date!) {\n    calendarEvents(from: $from, to: $to) {\n      ...CalendarEventOccurrenceFields\n    }\n  }\n": types.CalendarEventsDocument,
     "\n  mutation CreateCalendarCategory($input: CalendarCategoryInput!) {\n    createCalendarCategory(input: $input) {\n      id\n    }\n  }\n": types.CreateCalendarCategoryDocument,
@@ -856,7 +868,31 @@ export function graphql(source: "\n  mutation CancelEmailChange {\n    cancelEma
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    contributorIds\n    categoryIds\n  }\n"): typeof import('./graphql').CalendarEventOccurrenceFieldsFragmentDoc;
+export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    contributorIds\n    categoryIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n  }\n"): typeof import('./graphql').CalendarEventOccurrenceFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n"): typeof import('./graphql').WorkSchedulesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n"): typeof import('./graphql').CreateWorkScheduleDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateWorkScheduleDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n"): typeof import('./graphql').DeleteWorkScheduleDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {\n    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)\n  }\n"): typeof import('./graphql').SetCalendarEventCalledOffDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {\n    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)\n  }\n"): typeof import('./graphql').PostponeCalendarEventDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

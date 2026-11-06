@@ -757,37 +757,45 @@ model CalendarCategory {
 
 /// Calendar event, possibly recurring. Times are local to `timeZone`; all-day events have no times.
 model CalendarEvent {
-  id           String                   @id @default(cuid())
-  title        String
+  id                String                   @id @default(cuid())
+  title             String
   /// Markdown.
-  description  String?
-  location     String?
+  description       String?
+  location          String?
   /// [{ url, label }]
-  links        Json                     @default("[]")
-  allDay       Boolean                  @default(false)
+  links             Json                     @default("[]")
+  allDay            Boolean                  @default(false)
   /// First day (of the first occurrence for a recurring event).
-  startDate    DateTime                 @db.Date
+  startDate         DateTime                 @db.Date
   /// HH:MM, null for an all-day event.
-  startTime    String?
+  startTime         String?
   /// Last day, included.
-  endDate      DateTime                 @db.Date
-  endTime      String?
+  endDate           DateTime                 @db.Date
+  endTime           String?
   /// IANA time zone of the times.
-  timeZone     String
+  timeZone          String
   /// Repetition (see the shared recurrence rule), null for a one-off event.
-  recurrence   Json?
+  recurrence        Json?
   /// Reminders, in minutes before the start.
-  reminders    Int[]
-  projectId    String?
-  project      Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  contributors Contributor[]
-  categories   CalendarCategory[]
-  exceptions   CalendarEventException[]
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
+  reminders         Int[]
+  projectId         String?
+  project           Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  contributors      Contributor[]
+  categories        CalendarCategory[]
+  exceptions        CalendarEventException[]
+  /// Cancelled but kept in the calendar (struck through); can be restored.
+  calledOff         Boolean                  @default(false)
+  /// Postponement of another event (its occurrence `postponedFromDate` for a recurring one).
+  postponedFromId   String?
+  postponedFrom     CalendarEvent?           @relation("EventPostponement", fields: [postponedFromId], references: [id], onDelete: SetNull)
+  postponedFromDate DateTime?                @db.Date
+  postponements     CalendarEvent[]          @relation("EventPostponement")
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
   @@index([startDate])
   @@index([projectId])
+  @@index([postponedFromId])
 }
 
 /// One occurrence of a recurring event changed or cancelled on its own.
@@ -797,7 +805,10 @@ model CalendarEventException {
   event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Date of the occurrence in the series.
   date        DateTime      @db.Date
+  /// Deleted from the series (not shown).
   cancelled   Boolean       @default(false)
+  /// Cancelled but kept in the calendar (struck through).
+  calledOff   Boolean       @default(false)
   title       String?
   description String?
   location    String?
@@ -809,6 +820,23 @@ model CalendarEventException {
   endTime     String?
 
   @@unique([eventId, date])
+}
+
+/// Planned working hours: from a date (to another, or open-ended), every n weeks, time slots on weekdays;
+/// paused periods (holidays…) have none.
+model WorkSchedule {
+  id            String    @id @default(cuid())
+  name          String
+  startDate     DateTime  @db.Date
+  endDate       DateTime? @db.Date
+  /// Every n weeks, counted from the week of `startDate`.
+  intervalWeeks Int       @default(1)
+  /// [{ weekday: 1 (Monday) to 7, start: "HH:MM", end: "HH:MM" }], local times.
+  slots         Json      @default("[]")
+  /// [{ from, to, label }], dates included.
+  pauses        Json      @default("[]")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 /// The user's business, shown on the accounting documents (a single row).

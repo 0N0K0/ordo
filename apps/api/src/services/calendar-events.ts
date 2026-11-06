@@ -50,13 +50,29 @@ export interface EventOccurrence {
   projectId: string | null;
   contributorIds: string[];
   categoryIds: string[];
+  /** Cancelled but kept in the calendar. */
+  calledOff: boolean;
+  /** Event (and occurrence) this one postpones. */
+  postponedFrom: { eventId: string; date: string | null; title: string } | null;
+  /** Events postponing this occurrence. */
+  postponedTo: { eventId: string; title: string; startDate: string; startTime: string | null }[];
 }
 
 type EventWithRelations = CalendarEvent & {
   exceptions: CalendarEventException[];
   contributors: { id: string }[];
   categories: { id: string }[];
+  postponedFrom: { title: string } | null;
+  postponements: { id: string; title: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
 };
+
+const occurrenceInclude = {
+  exceptions: true,
+  contributors: { select: { id: true } },
+  categories: { select: { id: true } },
+  postponedFrom: { select: { title: true } },
+  postponements: { select: { id: true, title: true, startDate: true, startTime: true, postponedFromDate: true } },
+} as const;
 
 /**
  * Validated recurrence rule stored in JSON, or null.
@@ -323,6 +339,13 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     projectId: event.projectId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     categoryIds: event.categories.map((category) => category.id),
+    calledOff: event.calledOff || (change?.calledOff ?? false),
+    postponedFrom: event.postponedFromId
+      ? { eventId: event.postponedFromId, date: event.postponedFromDate ? formatDay(event.postponedFromDate) : null, title: event.postponedFrom?.title ?? '' }
+      : null,
+    postponedTo: event.postponements
+      .filter((postponement) => (postponement.postponedFromDate ? formatDay(postponement.postponedFromDate) : null) === date)
+      .map((postponement) => ({ eventId: postponement.id, title: postponement.title, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
   };
 }
 
@@ -336,7 +359,7 @@ export async function eventOccurrences(from: string, to: string): Promise<EventO
   const events = await prisma.calendarEvent.findMany({
     // Recurring events may occur in the period whatever their first date.
     where: { startDate: { lte: parseDay(addDays(to, 62)) }, OR: [{ recurrence: { not: Prisma.DbNull } }, { endDate: { gte: parseDay(addDays(from, -62)) } }] },
-    include: { exceptions: true, contributors: { select: { id: true } }, categories: { select: { id: true } } },
+    include: occurrenceInclude,
   });
   const result: EventOccurrence[] = [];
   for (const event of events) {
@@ -355,3 +378,119 @@ export async function eventOccurrences(from: string, to: string): Promise<EventO
   return result.sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
+
+/**
+ * Fields of a series (or one-off event) moved to start on a date, as an input of a change.
+ * @param {EventWithRelations} event Event.
+ * @param {string} date New first date.
+ * @returns {CalendarEventInput} Input.
+ */
+function seriesInput(event: EventWithRelations, date: string): CalendarEventInput {
+  const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));
+  return {
+    title: event.title,
+    description: event.description,
+    location: event.location,
+    links: (event.links as unknown as CalendarLink[]) ?? [],
+    allDay: event.allDay,
+    startDate: date,
+    startTime: event.startTime,
+    endDate: addDays(date, span),
+    endTime: event.endTime,
+    timeZone: event.timeZone,
+    recurrence: storedRecurrence(event.recurrence),
+    reminders: event.reminders,
+    projectId: event.projectId,
+    contributorIds: event.contributors.map((contributor) => contributor.id),
+    categoryIds: event.categories.map((category) => category.id),
+  };
+}
+
+/**
+ * Loads an event with what its occurrences need, or throws NOT_FOUND.
+ * @param {string} id Event id.
+ * @returns {Promise<EventWithRelations>} Event.
+ */
+async function findEventWithRelations(id: string): Promise<EventWithRelations> {
+  const event = await prisma.calendarEvent.findUnique({ where: { id }, include: occurrenceInclude });
+  if (!event) throw notFound('Évènement');
+  return event;
+}
+
+/**
+ * Cancels an event, keeping it in the calendar struck through, or restores it. For a recurring event: one
+ * occurrence, it and the following ones (the series is split), or the whole series.
+ * @param {string} id Event id.
+ * @param {EventScope} scope Scope.
+ * @param {string | null | undefined} occurrenceDate Occurrence. Optional for a one-off event.
+ * @param {boolean} calledOff Cancelled (true) or restored (false).
+ * @returns {Promise<void>}
+ */
+export async function setEventCalledOff(id: string, scope: EventScope, occurrenceDate: string | null | undefined, calledOff: boolean): Promise<void> {
+  const event = await findEventWithRelations(id);
+  const occurrence = occurrenceOf(event, occurrenceDate);
+  if (!occurrence || scope === 'ALL') {
+    await prisma.$transaction([
+      prisma.calendarEvent.update({ where: { id }, data: { calledOff } }),
+      // The whole series: its occurrences follow.
+      prisma.calendarEventException.updateMany({ where: { eventId: id }, data: { calledOff } }),
+    ]);
+    return;
+  }
+  if (scope === 'THIS') {
+    const existing = event.exceptions.find((change) => formatDay(change.date) === occurrence.date);
+    // A restored occurrence of a cancelled series stays cancelled with it: only its own flag changes.
+    if (existing) {
+      await prisma.calendarEventException.update({ where: { id: existing.id }, data: { calledOff } });
+      return;
+    }
+    // The exception keeps the fields of the occurrence (an exception overrides them all).
+    const current = toOccurrence(event, occurrence.date, undefined);
+    await prisma.calendarEventException.create({
+      data: {
+        eventId: id,
+        date: parseDay(occurrence.date),
+        calledOff,
+        title: current.title,
+        description: current.description,
+        location: current.location,
+        links: current.links as unknown as Prisma.InputJsonValue,
+        allDay: current.allDay,
+        startDate: parseDay(current.startDate),
+        startTime: current.startTime,
+        endDate: parseDay(current.endDate),
+        endTime: current.endTime,
+      },
+    });
+    return;
+  }
+  // FOLLOWING: the series is split at the occurrence, the new one carries the state.
+  const split = await updateCalendarEvent(id, seriesInput(event, occurrence.date), 'FOLLOWING', occurrence.date);
+  await prisma.calendarEvent.update({ where: { id: split.id }, data: { calledOff } });
+}
+
+/**
+ * Postpones an event (one occurrence of a recurring one): it is cancelled and kept struck through, and a new
+ * one-off event, linked to it, takes the new date.
+ * @param {string} id Event id.
+ * @param {string | null | undefined} occurrenceDate Occurrence. Optional for a one-off event.
+ * @param {CalendarEventInput} input New event (its dates, title…).
+ * @returns {Promise<CalendarEvent>} New event.
+ */
+export async function postponeCalendarEvent(id: string, occurrenceDate: string | null | undefined, input: CalendarEventInput): Promise<CalendarEvent> {
+  const event = await findEvent(id);
+  const occurrence = occurrenceOf(event, occurrenceDate);
+  const fields = await parseEvent({ ...input, recurrence: null });
+  const created = await prisma.calendarEvent.create({
+    data: {
+      ...eventData(fields),
+      recurrence: undefined,
+      postponedFromId: id,
+      postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
+      contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
+      categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
+    },
+  });
+  await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);
+  return created;
+}

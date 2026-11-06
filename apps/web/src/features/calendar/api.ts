@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope } from '../../graphql/graphql';
+import type { WorkScheduleInput } from '@ordo/shared';
+import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, WorkSchedulesQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 import { tasksQueryKey } from '../tasks/api';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
+export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
 export type { CalendarEventInput, CalendarEventScope };
 
 graphql(`
@@ -34,6 +36,70 @@ graphql(`
     projectId
     contributorIds
     categoryIds
+    calledOff
+    postponedFrom {
+      eventId
+      date
+      title
+    }
+    postponedTo {
+      eventId
+      title
+      startDate
+      startTime
+    }
+  }
+`);
+
+const WorkSchedulesDocument = graphql(`
+  query WorkSchedules {
+    workSchedules {
+      id
+      name
+      startDate
+      endDate
+      intervalWeeks
+      slots {
+        weekday
+        start
+        end
+      }
+      pauses {
+        from
+        to
+        label
+      }
+    }
+  }
+`);
+
+const CreateWorkScheduleDocument = graphql(`
+  mutation CreateWorkSchedule($input: WorkScheduleInput!) {
+    createWorkSchedule(input: $input)
+  }
+`);
+
+const UpdateWorkScheduleDocument = graphql(`
+  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {
+    updateWorkSchedule(id: $id, input: $input)
+  }
+`);
+
+const DeleteWorkScheduleDocument = graphql(`
+  mutation DeleteWorkSchedule($id: ID!) {
+    deleteWorkSchedule(id: $id)
+  }
+`);
+
+const SetCalledOffDocument = graphql(`
+  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {
+    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)
+  }
+`);
+
+const PostponeDocument = graphql(`
+  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {
+    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)
   }
 `);
 
@@ -196,7 +262,43 @@ export function useCalendarEventMutations() {
       async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null }) =>
         (await execute(DeleteCalendarEventDocument, variables)).deleteCalendarEvent,
     ),
+    setCalledOff: useCalendarMutation(
+      async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null; calledOff: boolean }) =>
+        (await execute(SetCalledOffDocument, variables)).setCalendarEventCalledOff,
+    ),
+    postpone: useCalendarMutation(
+      async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent,
+    ),
   };
+}
+
+/**
+ * Planned working hours.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useWorkSchedules() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: async () => (await execute(WorkSchedulesDocument)).workSchedules });
+}
+
+/**
+ * Working hours edition.
+ * @returns {object} Mutations.
+ */
+export function useWorkScheduleMutations() {
+  return {
+    create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
+    update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
+    remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
+  };
+}
+
+/**
+ * Schedules as the shared functions read them.
+ * @param {WorkSchedule[]} schedules Schedules.
+ * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
+ */
+export function scheduleRules(schedules: readonly WorkSchedule[]) {
+  return schedules.map((schedule) => ({ ...schedule, startDate: String(schedule.startDate), endDate: schedule.endDate ? String(schedule.endDate) : null }));
 }
 
 /**

@@ -65,7 +65,7 @@ const alarms = await prisma.alarm.findMany();
 await prisma.$executeRawUnsafe(`
   TRUNCATE "TaskComment", "TaskBlock", "TaskRelation", "Task", "Milestone", "TaskView", "Project", "Client",
     "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "TaskTag", "Attachment", "TimeEntry",
-    "CalendarEventException", "CalendarEvent", "CalendarCategory", "TreasuryAllocation", "TreasuryEntry",
+    "CalendarEventException", "CalendarEvent", "CalendarCategory", "WorkSchedule", "TreasuryAllocation", "TreasuryEntry",
     "TreasuryAccount", "TreasuryCategory", "TreasuryPaymentMethod", "TreasuryCounterparty", "DocumentReminder", "RecurringInvoice", "AccountingLine", "AccountingDocument", "DocumentSequence",
     "ImportedDocument", "CatalogItem", "ClientContact", "ClientService", "ProjectResource", "Sprint", "DashboardChart", "Dashboard"
   RESTART IDENTITY CASCADE
@@ -502,6 +502,77 @@ for (const [title, offset, days, categoryId] of [
   });
 }
 
+// A cancelled meeting (kept struck through) and a postponed appointment.
+await prisma.calendarEvent.create({
+  data: {
+    title: 'Atelier de cadrage (annulé par le client)',
+    links: [],
+    startDate: new Date(`${addDays(monday, 3)}T00:00:00.000Z`),
+    startTime: '14:00',
+    endDate: new Date(`${addDays(monday, 3)}T00:00:00.000Z`),
+    endTime: '16:00',
+    timeZone: TIME_ZONE,
+    reminders: [15],
+    calledOff: true,
+    categories: { connect: [{ id: meetings }] },
+  },
+});
+const postponed = await prisma.calendarEvent.create({
+  data: {
+    title: 'Rendez-vous comptable',
+    links: [],
+    startDate: new Date(`${addDays(monday, 1)}T00:00:00.000Z`),
+    startTime: '10:00',
+    endDate: new Date(`${addDays(monday, 1)}T00:00:00.000Z`),
+    endTime: '11:00',
+    timeZone: TIME_ZONE,
+    reminders: [60],
+    calledOff: true,
+    categories: { connect: [{ id: admin }] },
+  },
+});
+await prisma.calendarEvent.create({
+  data: {
+    title: 'Report de l’évènement « Rendez-vous comptable »',
+    links: [],
+    startDate: new Date(`${addDays(monday, 9)}T00:00:00.000Z`),
+    startTime: '10:00',
+    endDate: new Date(`${addDays(monday, 9)}T00:00:00.000Z`),
+    endTime: '11:00',
+    timeZone: TIME_ZONE,
+    reminders: [60],
+    postponedFromId: postponed.id,
+    categories: { connect: [{ id: admin }] },
+  },
+});
+
+// Working hours: Monday to Thursday 9–12:30 and 14–18, Friday morning; a week of holidays.
+await prisma.workSchedule.create({
+  data: {
+    name: 'Semaine type',
+    startDate: new Date(`${addDays(monday, -56)}T00:00:00.000Z`),
+    intervalWeeks: 1,
+    slots: [
+      ...[1, 2, 3, 4].flatMap((weekday) => [
+        { weekday, start: '09:00', end: '12:30' },
+        { weekday, start: '14:00', end: '18:00' },
+      ]),
+      { weekday: 5, start: '09:00', end: '12:30' },
+    ],
+    pauses: [{ from: addDays(monday, 38), to: addDays(monday, 42), label: 'Congés' }],
+  },
+});
+// Every other week, Saturday morning.
+await prisma.workSchedule.create({
+  data: {
+    name: 'Samedis matin',
+    startDate: new Date(`${addDays(monday, -14)}T00:00:00.000Z`),
+    intervalWeeks: 2,
+    slots: [{ weekday: 6, start: '09:00', end: '12:00' }],
+    pauses: [],
+  },
+});
+
 // --- Accounting -------------------------------------------------------------------------------------------
 await seedAccounting({ clients, projects, today });
 
@@ -521,6 +592,7 @@ const counts = {
   temps: await prisma.timeEntry.count(),
   'catégories d’agenda': await prisma.calendarCategory.count(),
   'évènements': await prisma.calendarEvent.count(),
+  'plages de travail': await prisma.workSchedule.count(),
   'documents comptables': await prisma.accountingDocument.count({ where: { status: { not: 'TEMPLATE' } } }),
   'documents importés': await prisma.importedDocument.count(),
   'articles du catalogue': await prisma.catalogItem.count(),

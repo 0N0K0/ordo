@@ -641,6 +641,27 @@ export type TreasuryPaymentMethodInput = {
   outgoing: boolean;
 };
 
+export type WorkPauseInput = {
+  from: string;
+  label: string;
+  to: string;
+};
+
+export type WorkScheduleInput = {
+  endDate?: string | null | undefined;
+  intervalWeeks: number;
+  name: string;
+  pauses: Array<WorkPauseInput>;
+  slots: Array<WorkSlotInput>;
+  startDate: string;
+};
+
+export type WorkSlotInput = {
+  end: string;
+  start: string;
+  weekday: number;
+};
+
 export type CompanyProfileFieldsFragment = { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
 
 export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
@@ -1194,7 +1215,53 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
-export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, links: Array<{ url: string, label: string }> };
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, calledOff: boolean, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
+
+export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, slots: Array<{ weekday: number, start: string, end: string }>, pauses: Array<{ from: string, to: string, label: string }> }> };
+
+export type CreateWorkScheduleMutationVariables = Exact<{
+  input: WorkScheduleInput;
+}>;
+
+
+export type CreateWorkScheduleMutation = { createWorkSchedule: string };
+
+export type UpdateWorkScheduleMutationVariables = Exact<{
+  id: string | number;
+  input: WorkScheduleInput;
+}>;
+
+
+export type UpdateWorkScheduleMutation = { updateWorkSchedule: boolean };
+
+export type DeleteWorkScheduleMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteWorkScheduleMutation = { deleteWorkSchedule: boolean };
+
+export type SetCalendarEventCalledOffMutationVariables = Exact<{
+  id: string | number;
+  scope: CalendarEventScope;
+  occurrenceDate?: string | null | undefined;
+  calledOff: boolean;
+}>;
+
+
+export type SetCalendarEventCalledOffMutation = { setCalendarEventCalledOff: boolean };
+
+export type PostponeCalendarEventMutationVariables = Exact<{
+  id: string | number;
+  occurrenceDate?: string | null | undefined;
+  input: CalendarEventInput;
+}>;
+
+
+export type PostponeCalendarEventMutation = { postponeCalendarEvent: string };
 
 export type CalendarCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1207,7 +1274,7 @@ export type CalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, links: Array<{ url: string, label: string }> }> };
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, calledOff: boolean, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
 
 export type CreateCalendarCategoryMutationVariables = Exact<{
   input: CalendarCategoryInput;
@@ -2748,6 +2815,18 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
   projectId
   contributorIds
   categoryIds
+  calledOff
+  postponedFrom {
+    eventId
+    date
+    title
+  }
+  postponedTo {
+    eventId
+    title
+    startDate
+    startTime
+  }
 }
     `, {"fragmentName":"CalendarEventOccurrenceFields"}) as unknown as TypedDocumentString<CalendarEventOccurrenceFieldsFragment, unknown>;
 export const MailAccountFieldsFragmentDoc = new TypedDocumentString(`
@@ -3792,6 +3871,57 @@ export const CancelEmailChangeDocument = new TypedDocumentString(`
   pendingEmail
   contributorId
 }`) as unknown as TypedDocumentString<CancelEmailChangeMutation, CancelEmailChangeMutationVariables>;
+export const WorkSchedulesDocument = new TypedDocumentString(`
+    query WorkSchedules {
+  workSchedules {
+    id
+    name
+    startDate
+    endDate
+    intervalWeeks
+    slots {
+      weekday
+      start
+      end
+    }
+    pauses {
+      from
+      to
+      label
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<WorkSchedulesQuery, WorkSchedulesQueryVariables>;
+export const CreateWorkScheduleDocument = new TypedDocumentString(`
+    mutation CreateWorkSchedule($input: WorkScheduleInput!) {
+  createWorkSchedule(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateWorkScheduleMutation, CreateWorkScheduleMutationVariables>;
+export const UpdateWorkScheduleDocument = new TypedDocumentString(`
+    mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {
+  updateWorkSchedule(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateWorkScheduleMutation, UpdateWorkScheduleMutationVariables>;
+export const DeleteWorkScheduleDocument = new TypedDocumentString(`
+    mutation DeleteWorkSchedule($id: ID!) {
+  deleteWorkSchedule(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteWorkScheduleMutation, DeleteWorkScheduleMutationVariables>;
+export const SetCalendarEventCalledOffDocument = new TypedDocumentString(`
+    mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {
+  setCalendarEventCalledOff(
+    id: $id
+    scope: $scope
+    occurrenceDate: $occurrenceDate
+    calledOff: $calledOff
+  )
+}
+    `) as unknown as TypedDocumentString<SetCalendarEventCalledOffMutation, SetCalendarEventCalledOffMutationVariables>;
+export const PostponeCalendarEventDocument = new TypedDocumentString(`
+    mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {
+  postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)
+}
+    `) as unknown as TypedDocumentString<PostponeCalendarEventMutation, PostponeCalendarEventMutationVariables>;
 export const CalendarCategoriesDocument = new TypedDocumentString(`
     query CalendarCategories {
   calendarCategories {
@@ -3835,6 +3965,18 @@ export const CalendarEventsDocument = new TypedDocumentString(`
   projectId
   contributorIds
   categoryIds
+  calledOff
+  postponedFrom {
+    eventId
+    date
+    title
+  }
+  postponedTo {
+    eventId
+    title
+    startDate
+    startTime
+  }
 }`) as unknown as TypedDocumentString<CalendarEventsQuery, CalendarEventsQueryVariables>;
 export const CreateCalendarCategoryDocument = new TypedDocumentString(`
     mutation CreateCalendarCategory($input: CalendarCategoryInput!) {
