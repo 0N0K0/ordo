@@ -204,7 +204,7 @@ export function MilestonesCard({ context, today }: { context: TaskContext | null
       {milestones && context && milestones.length > 0 && (
         <Stack gap={0}>
           {milestones.slice(0, MAX_ROWS).map(({ milestone, open }) => (
-            <Link key={milestone.id} to={`/projects/${milestone.projectId}?tab=milestones`} className={classes.row}>
+            <Link key={milestone.id} to={`/projects/${milestone.projectId}?tab=settings&section=milestones`} className={classes.row}>
               <Group justify="space-between" wrap="nowrap" gap="xs">
                 <Stack gap={0} miw={0}>
                   <Text size="sm" truncate>

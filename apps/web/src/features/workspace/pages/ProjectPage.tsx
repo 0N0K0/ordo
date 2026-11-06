@@ -1,5 +1,6 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { ChartBarIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { CheckSquareOffsetIcon, GearIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { useMediaQuery } from '@mantine/hooks';
 import { useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
@@ -48,6 +49,50 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** Sections of the settings tab of a project. */
+const SETTINGS_SECTIONS = ['milestones', 'sprints', 'contributors', 'github'] as const;
+type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+/**
+ * Settings of a project, one section at a time from a side menu: milestones, sprints, contributors, GitHub.
+ * @param {{ projectId: string, section: SettingsSection, onSection: (section: SettingsSection) => void }} props Project, section shown and its change.
+ * @returns {JSX.Element} Settings.
+ */
+function ProjectSettings({ projectId, section, onSection }: { projectId: string; section: SettingsSection; onSection: (section: SettingsSection) => void }) {
+  // Side menu on wide screens, above the section on narrow ones.
+  const wide = useMediaQuery('(min-width: 48em)', true);
+  return (
+    <Tabs orientation={wide ? 'vertical' : 'horizontal'} variant="pills" value={section} onChange={(value) => value && onSection(value as SettingsSection)} keepMounted={false}>
+      <Tabs.List {...(wide ? { mr: 'lg', miw: 180 } : { mb: 'md' })}>
+        <Tabs.Tab value="milestones" leftSection={<FlagIcon aria-hidden />}>
+          Jalons
+        </Tabs.Tab>
+        <Tabs.Tab value="sprints" leftSection={<TimerIcon aria-hidden />}>
+          Sprints
+        </Tabs.Tab>
+        <Tabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
+          Contributeurs
+        </Tabs.Tab>
+        <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
+          GitHub
+        </Tabs.Tab>
+      </Tabs.List>
+      <Tabs.Panel value="milestones" style={{ minWidth: 0 }}>
+        <MilestonesPanel projectId={projectId} />
+      </Tabs.Panel>
+      <Tabs.Panel value="sprints" style={{ minWidth: 0 }}>
+        <SprintsPanel projectId={projectId} />
+      </Tabs.Panel>
+      <Tabs.Panel value="contributors" style={{ minWidth: 0 }}>
+        <ProjectContributors projectId={projectId} />
+      </Tabs.Panel>
+      <Tabs.Panel value="github" style={{ minWidth: 0 }}>
+        <ProjectGithubPanel projectId={projectId} />
+      </Tabs.Panel>
+    </Tabs>
+  );
+}
+
 /**
  * Project detail page.
  * @returns {JSX.Element} Page.
@@ -57,7 +102,13 @@ export function ProjectPage() {
   const { data, isPending } = useWorkspace();
   const actions = useEntityActions();
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') ?? 'overview';
+  // The former tabs of the settings (links, bookmarks) open their section.
+  const requested = params.get('tab') ?? 'overview';
+  const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
+  // The dashboards are in the overview.
+  const tab = legacy ? 'settings' : requested === 'dashboards' ? 'overview' : requested;
+  const sectionParam = legacy ? requested : params.get('section');
+  const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : 'milestones';
   // Tasks of the project and of its sub-projects.
   const baseFilter = useMemo(
     () =>
@@ -138,32 +189,20 @@ export function ProjectPage() {
           <Tabs.Tab value="tasks" leftSection={<CheckSquareOffsetIcon aria-hidden />}>
             Tâches
           </Tabs.Tab>
-          <Tabs.Tab value="sprints" leftSection={<TimerIcon aria-hidden />}>
-            Sprints
-          </Tabs.Tab>
-          <Tabs.Tab value="dashboards" leftSection={<ChartBarIcon aria-hidden />}>
-            Tableaux de bord
-          </Tabs.Tab>
           <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
           </Tabs.Tab>
           <Tabs.Tab value="billing" leftSection={<ReceiptIcon aria-hidden />}>
             Facturation
           </Tabs.Tab>
-          <Tabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
-            Ressources
-          </Tabs.Tab>
           <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
             Mails
           </Tabs.Tab>
-          <Tabs.Tab value="milestones" leftSection={<FlagIcon aria-hidden />}>
-            Jalons
+          <Tabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
+            Ressources
           </Tabs.Tab>
-          <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
-            GitHub
-          </Tabs.Tab>
-          <Tabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
-            Contributeurs
+          <Tabs.Tab value="settings" leftSection={<GearIcon aria-hidden />}>
+            Paramètres
           </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="overview">
@@ -218,6 +257,8 @@ export function ProjectPage() {
                   {project.description ?? 'Aucune description.'}
                 </Text>
               </Stack>
+
+              <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
           </Stack>
         </Tabs.Panel>
         <Tabs.Panel value="tasks">
@@ -229,12 +270,6 @@ export function ProjectPage() {
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />
-        </Tabs.Panel>
-        <Tabs.Panel value="sprints">
-          <SprintsPanel projectId={project.id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="dashboards">
-          <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
         </Tabs.Panel>
         <Tabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />
@@ -248,14 +283,8 @@ export function ProjectPage() {
         <Tabs.Panel value="mail">
           <ProjectMailsPanel projectId={project.id} />
         </Tabs.Panel>
-        <Tabs.Panel value="milestones">
-          <MilestonesPanel projectId={project.id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="github">
-          <ProjectGithubPanel projectId={project.id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="contributors">
-          <ProjectContributors projectId={project.id} />
+        <Tabs.Panel value="settings">
+          <ProjectSettings projectId={project.id} section={section} onSection={(next) => setParams({ tab: 'settings', section: next }, { replace: true })} />
         </Tabs.Panel>
       </Tabs>
     </Stack>
