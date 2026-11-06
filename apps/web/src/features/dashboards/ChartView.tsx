@@ -95,7 +95,8 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
           series={data.series.map((serie) => ({ ...serie, type: serie.type ?? 'bar' }))}
           withLegend
           withRightYAxis={data.percentAxis}
-          rightYAxisProps={{ tickFormatter: (value: number) => `${percentFormat.format(value)} %`, domain: [0, 'auto'] }}
+          // Percents: up to 100 % at least (higher when a share exceeds it).
+          rightYAxisProps={{ tickFormatter: (value: number) => `${percentFormat.format(value)} %`, domain: [0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)] }}
           valueFormatter={(value) => format(value)}
           tooltipProps={{
             content: ({ label, payload }) => (
@@ -109,6 +110,15 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
           curveType="monotone"
           connectNulls={false}
           withDots={data.rows.length <= 40}
+          // The series of a data set stack together.
+          barProps={(serie) => {
+            const stackId = (serie as { stackId?: string }).stackId;
+            return stackId ? { stackId } : {};
+          }}
+          areaProps={(serie) => {
+            const stackId = (serie as { stackId?: string }).stackId;
+            return stackId ? { stackId } : {};
+          }}
         />
       ) : config.type === 'donut' ? (
         <Center>

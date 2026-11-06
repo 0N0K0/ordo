@@ -97,6 +97,8 @@ export interface ChartSeries {
   type?: 'bar' | 'line' | 'area';
   /** "right": on the percent axis. */
   yAxisId?: string;
+  /** Mixed charts: series stacked together (those of a same data set). */
+  stackId?: string;
 }
 
 export interface ChartData {

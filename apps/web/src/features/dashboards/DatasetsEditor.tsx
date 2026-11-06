@@ -4,6 +4,7 @@ import {
   defaultChartConfig,
   isTimeDimension,
   MAIN_DATASET,
+  SOURCE_GROUP_DIMENSIONS,
   SOURCE_MEASURES,
   SOURCE_TIME_DIMENSIONS,
   type ChartComparison,
@@ -69,6 +70,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
       source: base.source,
       measure: base.source === 'treasury' && base.measure === 'balance' ? 'amount' : base.measure,
       dateField,
+      series: source ? null : config.series,
       filter: structuredClone(base.filter),
       search: base.search,
       includeArchived: base.includeArchived,
@@ -77,8 +79,6 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
     };
     change({
       datasets: [...config.datasets, dataset],
-      // Several data sets are each a series.
-      series: null,
       ...(config.type === 'donut' || config.type === 'burndown' ? { type: 'bar' as const } : {}),
       ...(!config.name && { name: mainName }),
     });
@@ -103,7 +103,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
     const last = config.datasets.at(-1);
     const a = last?.id ?? MAIN_DATASET;
     const label = (id: string) => options.find((option) => option.value === id)?.label ?? '';
-    change({ comparisons: [...config.comparisons, { id: newId('c'), name: `% ${label(a)} / ${mainName}`, kind: 'ratio', a, b: MAIN_DATASET }] });
+    change({ comparisons: [...config.comparisons, { id: newId('c'), name: `% ${label(a)} / ${mainName}`, kind: 'ratio', a, b: MAIN_DATASET, type: 'line' }] });
   };
 
   /**
@@ -141,6 +141,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                     </Text>
                     <Text size="xs" c="dimmed">
                       {SOURCE_LABELS[dataset.source]} · {measureLabel(dataset.source, dataset.measure)}
+                      {dataset.series ? ` · séries : ${DIMENSION_LABELS[dataset.series].toLowerCase()}` : ''}
                     </Text>
                   </Accordion.Control>
                   <Tooltip label="Retirer le jeu de données">
@@ -163,6 +164,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                           source: next.source,
                           measure: next.measure,
                           dateField: time && !SOURCE_TIME_DIMENSIONS[next.source].includes(config.dimension) ? (SOURCE_TIME_DIMENSIONS[next.source][0] as ChartDataset['dateField']) : null,
+                          series: dataset.series && SOURCE_GROUP_DIMENSIONS[next.source].includes(dataset.series) ? dataset.series : null,
                           filter: next.filter,
                           documents: next.documents,
                           treasury: next.treasury,
@@ -190,6 +192,14 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                         />
                       )}
                     </SimpleGrid>
+                    <Select
+                      label="Séries"
+                      placeholder="Aucune (une seule série)"
+                      clearable
+                      data={SOURCE_GROUP_DIMENSIONS[dataset.source].filter((value) => value !== config.dimension).map((value) => ({ value, label: DIMENSION_LABELS[value] }))}
+                      value={dataset.series}
+                      onChange={(series) => setDataset(index, { series: (series as ChartDataset['series']) ?? null })}
+                    />
                     {dataset.source === 'tasks' && (
                       <>
                         <TextInput placeholder="Recherche (titre, description)" value={dataset.search} onChange={(event) => setDataset(index, { search: event.currentTarget.value })} />
@@ -242,12 +252,23 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                 value={comparison.kind}
                 onChange={(kind) => setComparison(index, { kind: kind as ChartComparison['kind'] })}
               />
+              <SegmentedControl
+                size="xs"
+                aria-label="Type de diagramme de la comparaison"
+                data={[
+                  { value: 'line', label: 'Courbe' },
+                  { value: 'bar', label: 'Barres' },
+                  { value: 'area', label: 'Aire' },
+                ]}
+                value={comparison.type}
+                onChange={(type) => setComparison(index, { type: type as ChartComparison['type'] })}
+              />
               <SimpleGrid cols={2} spacing="xs">
                 <Select label="A" allowDeselect={false} data={options} value={comparison.a} onChange={(a) => a && setComparison(index, { a })} />
                 <Select label="B" allowDeselect={false} data={options} value={comparison.b} onChange={(b) => b && setComparison(index, { b })} />
               </SimpleGrid>
               <Text size="xs" c="dimmed">
-                {comparison.kind === 'ratio' ? 'Part de A dans B, en %, sur l’axe de droite.' : 'A moins B, dans l’unité des jeux.'}
+                {comparison.kind === 'ratio' ? 'Part du total de A dans celui de B, en %, sur l’axe de droite.' : 'Total de A moins celui de B, dans l’unité des jeux.'}
               </Text>
             </Stack>
           </Paper>

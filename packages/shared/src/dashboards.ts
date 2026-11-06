@@ -111,6 +111,8 @@ export const chartDatasetSchema = z.object({
   measure: z.enum(CHART_MEASURES),
   /** Date of the records on a time axis (the dates differ between sources); the axis date when null. */
   dateField: z.enum(CHART_TIME_DIMENSIONS).nullable().default(null),
+  /** Its own series: one per value of this field, or none. */
+  series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
   filter: taskFilterSchema.default(emptyFilter),
   search: z.string().max(200).default(''),
   includeArchived: z.boolean().default(false),
@@ -119,7 +121,7 @@ export const chartDatasetSchema = z.object({
 });
 export type ChartDataset = z.infer<typeof chartDatasetSchema>;
 
-/** Comparison of two data sets: the share of one in another (percent), or their difference. */
+/** Comparison of two data sets (their totals, whatever their series): the share of one in another (percent), or their difference. */
 export const CHART_COMPARISON_KINDS = ['ratio', 'difference'] as const;
 export const chartComparisonSchema = z.object({
   id: z.string().min(1).max(40),
@@ -128,6 +130,8 @@ export const chartComparisonSchema = z.object({
   /** Data sets compared (MAIN_DATASET or the id of another one): a / b, or a − b. */
   a: z.string().min(1),
   b: z.string().min(1),
+  /** How it is drawn. */
+  type: z.enum(['line', 'bar', 'area']).default('line'),
 });
 export type ChartComparison = z.infer<typeof chartComparisonSchema>;
 
@@ -173,7 +177,6 @@ export const chartConfigSchema = z
     }
     if (config.datasets.length || config.comparisons.length) {
       if (config.type === 'donut' || config.type === 'burndown') issue('type', 'Plusieurs jeux de données se comparent en barres, courbes ou aires.');
-      if (config.series) issue('series', 'Avec plusieurs jeux de données, chaque jeu est une série : retirez les séries.');
     }
     const ids = new Set([MAIN_DATASET]);
     const time = isTimeDimension(config.dimension);
@@ -183,6 +186,9 @@ export const chartConfigSchema = z
       ids.add(dataset.id);
       if (!SOURCE_MEASURES[dataset.source].includes(dataset.measure)) context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : mesure indisponible pour sa source.` });
       if (dataset.source === 'treasury' && dataset.measure === 'balance') context.addIssue({ code: 'custom', path: path('measure'), message: `« ${dataset.name} » : le solde ne se compare pas.` });
+      if (dataset.series && (!SOURCE_GROUP_DIMENSIONS[dataset.source].includes(dataset.series) || dataset.series === config.dimension)) {
+        context.addIssue({ code: 'custom', path: path('series'), message: `« ${dataset.name} » : séries indisponibles.` });
+      }
       if (time) {
         const field = dataset.dateField ?? config.dimension;
         if (!SOURCE_TIME_DIMENSIONS[dataset.source].includes(field)) context.addIssue({ code: 'custom', path: path('dateField'), message: `« ${dataset.name} » : choisissez sa date.` });

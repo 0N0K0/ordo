@@ -210,6 +210,8 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                     change({
                       dimension: dimension as ChartDimension,
                       ...(config.series === dimension && { series: null }),
+                      // The series of a data set cannot be its axis either.
+                      datasets: config.datasets.map((dataset) => (dataset.series === dimension ? { ...dataset, series: null } : dataset)),
                     })
                   }
                 />
@@ -248,9 +250,9 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
                   />
                 </SimpleGrid>
               )}
-              {config.type !== 'donut' && !several && !(source === 'treasury' && config.measure === 'balance') && (
+              {config.type !== 'donut' && !(source === 'treasury' && config.measure === 'balance') && (
                 <Select
-                  label="Séries"
+                  label={several ? 'Séries du jeu principal' : 'Séries'}
                   placeholder="Aucune (une seule série)"
                   clearable
                   data={SOURCE_GROUP_DIMENSIONS[source]

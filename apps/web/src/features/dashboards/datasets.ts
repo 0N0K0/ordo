@@ -10,7 +10,7 @@ export interface DatasetPart {
 
 /**
  * Data sets of a chart: the main one (its own fields), then the others, each as a full configuration on the
- * axis of the chart (its own date on a time axis), without series.
+ * axis of the chart (its own date on a time axis), each split by its own series.
  * @param {ChartConfig} config Chart configuration.
  * @returns {DatasetPart[]} Data sets.
  */
@@ -20,7 +20,7 @@ export function datasetParts(config: ChartConfig): DatasetPart[] {
   const main: DatasetPart = {
     id: MAIN_DATASET,
     name: config.name || MEASURE_LABELS[config.measure],
-    config: several ? { ...config, series: null, datasets: [], comparisons: [] } : config,
+    config: several ? { ...config, datasets: [], comparisons: [] } : config,
   };
   return [
     main,
@@ -37,7 +37,7 @@ export function datasetParts(config: ChartConfig): DatasetPart[] {
         includeArchived: dataset.includeArchived,
         documents: dataset.documents,
         treasury: dataset.treasury,
-        series: null,
+        series: dataset.series,
         datasets: [],
         comparisons: [],
       },
@@ -58,8 +58,9 @@ function compare(kind: ChartComparison['kind'], a: number | null, b: number | nu
 }
 
 /**
- * One chart from several data sets on the same axis: one series per data set (rows joined by axis value, in
- * the order of the main data set then the others), and one per comparison (percents on a right axis).
+ * One chart from several data sets on the same axis: the series of each data set (one per data set without
+ * series; rows joined by axis value, in the order of the main data set then the others), and one per
+ * comparison, computed on the totals of the data sets (percents on a right axis).
  * @param {{ part: DatasetPart, data: ChartData }[]} results Data of each data set.
  * @param {ChartConfig} config Chart configuration.
  * @returns {ChartData} Data.
@@ -74,35 +75,46 @@ export function mergeDatasets(results: { part: DatasetPart; data: ChartData }[],
     return candidate;
   };
   const kind: ChartSeries['type'] = config.type === 'line' ? 'line' : config.type === 'area' ? 'area' : 'bar';
-  const names = new Map(results.map(({ part }) => [part.id, unique(part.name)]));
+  const stacked = config.type === 'stackedBar' || (config.type === 'area' && results.some(({ part }) => part.config.series !== null));
   const order: string[] = [];
   const rows = new Map<string, Record<string, string | number | null>>();
+  const series: ChartSeries[] = [];
+  /** Total of each data set by axis value, for the comparisons. */
+  const totals = new Map<string, Map<string, number>>();
   for (const { part, data } of results) {
+    const split = part.config.series !== null;
+    const names = new Map(data.series.map((serie) => [serie.name, unique(split ? `${part.name} · ${serie.name}` : part.name)]));
+    for (const serie of data.series) {
+      series.push({ name: names.get(serie.name)!, color: PALETTE[series.length % PALETTE.length], type: kind, ...(stacked && { stackId: part.id }) });
+    }
+    const total = new Map<string, number>();
     for (const row of data.rows) {
       const x = String(row.x);
       if (!rows.has(x)) {
         rows.set(x, { x });
         order.push(x);
       }
-      // Single series of the data set.
-      const value = data.series[0] ? row[data.series[0].name] : null;
-      rows.get(x)![names.get(part.id)!] = typeof value === 'number' ? value : 0;
+      for (const serie of data.series) {
+        const value = typeof row[serie.name] === 'number' ? (row[serie.name] as number) : 0;
+        rows.get(x)![names.get(serie.name)!] = value;
+        total.set(x, (total.get(x) ?? 0) + value);
+      }
     }
+    totals.set(part.id, total);
   }
   // An axis value missing from a data set counts zero there.
-  for (const row of rows.values()) for (const name of names.values()) row[name] ??= 0;
-  const series: ChartSeries[] = results.map(({ part }, index) => ({ name: names.get(part.id)!, color: PALETTE[index % PALETTE.length], type: kind }));
+  for (const row of rows.values()) for (const serie of series) row[serie.name] ??= 0;
   for (const [index, comparison] of config.comparisons.entries()) {
-    const a = names.get(comparison.a);
-    const b = names.get(comparison.b);
+    const a = totals.get(comparison.a);
+    const b = totals.get(comparison.b);
     if (!a || !b) continue;
     const name = unique(comparison.name);
-    for (const row of rows.values()) row[name] = compare(comparison.kind, row[a] as number | null, row[b] as number | null);
+    for (const [x, row] of rows) row[name] = compare(comparison.kind, a.get(x) ?? 0, b.get(x) ?? 0);
     series.push({
       name,
-      color: PALETTE[(results.length + index) % PALETTE.length],
-      type: 'line',
-      strokeDasharray: '5 5',
+      color: PALETTE[(series.length + index) % PALETTE.length],
+      type: comparison.type,
+      ...(comparison.type === 'line' && { strokeDasharray: '5 5' }),
       ...(comparison.kind === 'ratio' && { yAxisId: 'right' }),
     });
   }
