@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { TreasuryEntryInput } from '@ordo/shared';
+import type { TreasuryCategoryInput, TreasuryCounterpartyInput, TreasuryEntryInput, TreasuryPaymentMethodInput } from '@ordo/shared';
 import { graphql } from '../../graphql';
-import type { ForecastEntriesQuery, TreasuryAccountsQuery, TreasuryEntriesQuery, TreasuryProjectionQuery } from '../../graphql/graphql';
+import type {
+  ForecastEntriesQuery,
+  TreasuryAccountsQuery,
+  TreasuryEntriesQuery,
+  TreasuryEntrySearchQuery,
+  TreasuryDocumentOptionsQuery,
+  TreasuryProjectionQuery,
+  TreasurySettingsQuery,
+} from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 import { accountingQueryKey } from '../accounting/api';
 
@@ -10,6 +18,12 @@ export type TreasuryEntry = TreasuryEntriesQuery['treasuryEntries'][number];
 export type ForecastEntry = ForecastEntriesQuery['forecastEntries'][number];
 export type TreasuryProjection = TreasuryProjectionQuery['treasuryProjection'];
 export type ProjectionItem = TreasuryProjection['items'][number];
+export type TreasurySettings = TreasurySettingsQuery;
+export type TreasuryCategory = TreasurySettingsQuery['treasuryCategories'][number];
+export type TreasuryPaymentMethod = TreasurySettingsQuery['treasuryPaymentMethods'][number];
+export type TreasuryCounterparty = TreasurySettingsQuery['treasuryCounterparties'][number];
+export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
+export type FoundEntry = TreasuryEntrySearchQuery['treasuryEntrySearch'][number];
 
 // Under the accounting key: payments change documents, and documents change the forecast.
 const treasuryKey = [...accountingQueryKey, 'treasury'];
@@ -21,10 +35,22 @@ graphql(`
     accountName
     status
     date
+    valueDate
     label
     amount
-    category
-    method
+    categoryId
+    methodId
+    methodName
+    clientId
+    counterpartyId
+    payerName
+    linkedEntries {
+      id
+      date
+      label
+      amount
+      status
+    }
     projectId
     note
     recurrence
@@ -34,6 +60,29 @@ graphql(`
       documentId
       importedDocumentId
       documentLabel
+    }
+    documents {
+      ...TreasuryEntryDocumentFields
+    }
+  }
+`);
+
+graphql(`
+  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
+    id
+    source
+    kind
+    title
+    url
+    projectId
+    place
+  }
+`);
+
+const DocumentOptionsDocument = graphql(`
+  query TreasuryDocumentOptions {
+    treasuryDocumentOptions {
+      ...TreasuryEntryDocumentFields
     }
   }
 `);
@@ -81,6 +130,7 @@ const ProjectionDocument = graphql(`
         date
         dueDate
         label
+        payerName
         amount
         kind
         overdue
@@ -91,6 +141,91 @@ const ProjectionDocument = graphql(`
         accountId
       }
     }
+  }
+`);
+
+const SettingsDocument = graphql(`
+  query TreasurySettings {
+    treasuryCategories {
+      id
+      name
+      direction
+      parentId
+      entryCount
+    }
+    treasuryPaymentMethods {
+      id
+      name
+      incoming
+      outgoing
+      entryCount
+    }
+    treasuryCounterparties {
+      id
+      name
+      note
+      archived
+      entryCount
+    }
+  }
+`);
+
+const EntrySearchDocument = graphql(`
+  query TreasuryEntrySearch($text: String!) {
+    treasuryEntrySearch(text: $text, limit: 20) {
+      id
+      date
+      label
+      amount
+      status
+      accountName
+    }
+  }
+`);
+
+const CreateCategory = graphql(`
+  mutation CreateTreasuryCategory($input: TreasuryCategoryInput!) {
+    createTreasuryCategory(input: $input)
+  }
+`);
+const UpdateCategory = graphql(`
+  mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {
+    updateTreasuryCategory(id: $id, input: $input)
+  }
+`);
+const DeleteCategory = graphql(`
+  mutation DeleteTreasuryCategory($id: ID!) {
+    deleteTreasuryCategory(id: $id)
+  }
+`);
+const CreateMethod = graphql(`
+  mutation CreateTreasuryPaymentMethod($input: TreasuryPaymentMethodInput!) {
+    createTreasuryPaymentMethod(input: $input)
+  }
+`);
+const UpdateMethod = graphql(`
+  mutation UpdateTreasuryPaymentMethod($id: ID!, $input: TreasuryPaymentMethodInput!) {
+    updateTreasuryPaymentMethod(id: $id, input: $input)
+  }
+`);
+const DeleteMethod = graphql(`
+  mutation DeleteTreasuryPaymentMethod($id: ID!) {
+    deleteTreasuryPaymentMethod(id: $id)
+  }
+`);
+const CreateCounterparty = graphql(`
+  mutation CreateTreasuryCounterparty($input: TreasuryCounterpartyInput!) {
+    createTreasuryCounterparty(input: $input)
+  }
+`);
+const UpdateCounterparty = graphql(`
+  mutation UpdateTreasuryCounterparty($id: ID!, $input: TreasuryCounterpartyInput!) {
+    updateTreasuryCounterparty(id: $id, input: $input)
+  }
+`);
+const DeleteCounterparty = graphql(`
+  mutation DeleteTreasuryCounterparty($id: ID!) {
+    deleteTreasuryCounterparty(id: $id)
   }
 `);
 
@@ -158,6 +293,37 @@ export function useTreasuryEntries(filter: { from: string; to: string; accountId
 }
 
 /**
+ * Treasury settings: categories, payment methods and counterparties.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTreasurySettings() {
+  return useQuery({ queryKey: [...treasuryKey, 'settings'], queryFn: () => execute(SettingsDocument) });
+}
+
+/**
+ * Documents of the app that can support an entry: the library, then the documents of the projects.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTreasuryDocumentOptions(enabled = true) {
+  return useQuery({ enabled, queryKey: [...treasuryKey, 'document-options'], queryFn: async () => (await execute(DocumentOptionsDocument)).treasuryDocumentOptions });
+}
+
+/**
+ * Entries whose label contains a text (at least 2 characters), to link them.
+ * @param {string} text Text searched.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTreasuryEntrySearch(text: string) {
+  const trimmed = text.trim();
+  return useQuery({
+    enabled: trimmed.length >= 2,
+    queryKey: [...treasuryKey, 'search', trimmed],
+    queryFn: async () => (await execute(EntrySearchDocument, { text: trimmed })).treasuryEntrySearch,
+  });
+}
+
+/**
  * Forecast entries (repeated ones included once).
  * @returns {UseQueryResult} Query state.
  */
@@ -208,6 +374,17 @@ export function useTreasuryMutations() {
     createEntry: useTreasuryMutation(async (input: TreasuryEntryInput) => (await execute(CreateEntry, { input } as never)).createTreasuryEntry),
     updateEntry: useTreasuryMutation(async (variables: { id: string; input: TreasuryEntryInput }) => (await execute(UpdateEntry, variables as never)).updateTreasuryEntry),
     deleteEntry: useTreasuryMutation(async (id: string) => (await execute(DeleteEntry, { id })).deleteTreasuryEntry),
+    createCategory: useTreasuryMutation(async (input: TreasuryCategoryInput) => (await execute(CreateCategory, { input })).createTreasuryCategory),
+    updateCategory: useTreasuryMutation(async (variables: { id: string; input: TreasuryCategoryInput }) => (await execute(UpdateCategory, variables)).updateTreasuryCategory),
+    deleteCategory: useTreasuryMutation(async (id: string) => (await execute(DeleteCategory, { id })).deleteTreasuryCategory),
+    createMethod: useTreasuryMutation(async (input: TreasuryPaymentMethodInput) => (await execute(CreateMethod, { input })).createTreasuryPaymentMethod),
+    updateMethod: useTreasuryMutation(async (variables: { id: string; input: TreasuryPaymentMethodInput }) => (await execute(UpdateMethod, variables)).updateTreasuryPaymentMethod),
+    deleteMethod: useTreasuryMutation(async (id: string) => (await execute(DeleteMethod, { id })).deleteTreasuryPaymentMethod),
+    createCounterparty: useTreasuryMutation(async (input: TreasuryCounterpartyInput) => (await execute(CreateCounterparty, { input } as never)).createTreasuryCounterparty),
+    updateCounterparty: useTreasuryMutation(
+      async (variables: { id: string; input: TreasuryCounterpartyInput }) => (await execute(UpdateCounterparty, variables as never)).updateTreasuryCounterparty,
+    ),
+    deleteCounterparty: useTreasuryMutation(async (id: string) => (await execute(DeleteCounterparty, { id })).deleteTreasuryCounterparty),
     realize: useTreasuryMutation(
       async (variables: { id: string; occurrence: string; date: string; amount: number }) => (await execute(RealizeForecast, variables)).realizeTreasuryForecast,
     ),

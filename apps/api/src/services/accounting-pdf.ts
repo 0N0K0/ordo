@@ -1052,10 +1052,10 @@ async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date:
   }
   const allocations = await prisma.treasuryAllocation.findMany({
     where: { documentId: document.id },
-    select: { amount: true, entry: { select: { date: true, method: true } } },
+    select: { amount: true, entry: { select: { date: true, method: { select: { name: true } } } } },
     orderBy: { entry: { date: 'asc' } },
   });
-  return allocations.map((allocation) => ({ date: allocation.entry.date, method: allocation.entry.method, amount: Math.round(Number(allocation.amount) * 100) }));
+  return allocations.map((allocation) => ({ date: allocation.entry.date, method: allocation.entry.method?.name ?? null, amount: Math.round(Number(allocation.amount) * 100) }));
 }
 
 /**

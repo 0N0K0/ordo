@@ -66,7 +66,7 @@ await prisma.$executeRawUnsafe(`
   TRUNCATE "TaskComment", "TaskBlock", "TaskRelation", "Task", "Milestone", "TaskView", "Project", "Client",
     "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "TaskTag", "Attachment", "TimeEntry",
     "CalendarEventException", "CalendarEvent", "CalendarCategory", "TreasuryAllocation", "TreasuryEntry",
-    "TreasuryAccount", "DocumentReminder", "RecurringInvoice", "AccountingLine", "AccountingDocument", "DocumentSequence",
+    "TreasuryAccount", "TreasuryCategory", "TreasuryPaymentMethod", "TreasuryCounterparty", "DocumentReminder", "RecurringInvoice", "AccountingLine", "AccountingDocument", "DocumentSequence",
     "ImportedDocument", "CatalogItem", "ClientContact", "ClientService", "ProjectResource", "Sprint", "DashboardChart", "Dashboard"
   RESTART IDENTITY CASCADE
 `);

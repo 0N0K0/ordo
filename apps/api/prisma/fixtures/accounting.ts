@@ -17,6 +17,7 @@ import { acceptQuote, documentBalances, markSent, recordPayment, setTrackingStat
 import { importDocument } from '../../src/services/imported-documents';
 import { createRecurringInvoice, issueDueInvoices } from '../../src/services/recurring-invoices';
 import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury';
+import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury-settings';
 import { maybe } from './factories';
 
 /** Seller of the fixture documents: the seed only reloads a database whose final documents are its own. */
@@ -233,6 +234,38 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
 
   // --- Treasury accounts ---------------------------------------------------------------------------
   const bank = await createAccount({ name: 'Compte courant pro', openingBalance: 6200, openingDate: day(-180) });
+
+  // --- Treasury settings: categories (with sub-categories), payment methods, counterparties -------------
+  const categoryIds = new Map<string, string>();
+  const category = async (name: string, direction: 'IN' | 'OUT', parent?: string) => {
+    const created = await createCategory({ name, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null });
+    categoryIds.set(`${direction}:${name}`, created.id);
+  };
+  for (const name of ['Ventes', 'Subventions', 'Remboursements de frais', 'Divers']) await category(name, 'IN');
+  for (const name of ['Prestations', 'Ventes de produits']) await category(name, 'IN', 'Ventes');
+  for (const name of ['Locaux', 'Charges sociales', 'Impôts et taxes', 'Équipement', 'Frais de fonctionnement', 'Remboursements clients', 'Divers']) await category(name, 'OUT');
+  await category('Loyer', 'OUT', 'Locaux');
+  await category('TVA', 'OUT', 'Impôts et taxes');
+  for (const name of ['Matériel', 'Logiciels']) await category(name, 'OUT', 'Équipement');
+  for (const name of ['Frais bancaires', 'Déplacements', 'Repas']) await category(name, 'OUT', 'Frais de fonctionnement');
+  const categoryOf = (name: string, amount: number) => categoryIds.get(`${amount < 0 ? 'OUT' : 'IN'}:${name}`) ?? null;
+  const methodIds = new Map<string, string>();
+  for (const method of [
+    { name: 'Virement', incoming: true, outgoing: true },
+    { name: 'Chèque', incoming: true, outgoing: true },
+    { name: 'Prélèvement', incoming: false, outgoing: true },
+    { name: 'Carte', incoming: false, outgoing: true },
+    { name: 'Espèces', incoming: true, outgoing: true },
+  ]) {
+    methodIds.set(method.name, (await createPaymentMethod(method)).id);
+  }
+  const methodOf = (name: string) => methodIds.get(name) ?? null;
+  const counterpartyIds = new Map<string, string>();
+  for (const name of ['Agence immobilière du Centre', 'URSSAF', 'DGFiP', 'Banque Populaire', 'Région', 'SNCF', 'Boulanger']) {
+    counterpartyIds.set(name, (await createCounterparty({ name, note: null, archived: false })).id);
+  }
+  const counterpartyOf = (name: string | undefined) => (name ? (counterpartyIds.get(name) ?? null) : null);
+  const entryBase = { valueDate: null, clientId: null, counterpartyId: null, projectId: null, note: null, recurrence: null, allocations: [], linkedEntryIds: [], libraryDocumentIds: [], projectResourceIds: [] };
   await createAccount({ name: 'Livret pro', openingBalance: 12000, openingDate: day(-180) });
 
   /**
@@ -487,7 +520,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const pay = async (id: string | undefined, date: string, share = 1, fixed?: number) => {
     if (!id) return;
     const amount = fixed ?? Math.round((await due(id)) * share * 100) / 100;
-    if (amount > 0) await recordPayment(id, { accountId: bank.id, date, amount, method: faker.helpers.arrayElement(['Virement', 'Virement', 'Chèque']) });
+    if (amount > 0) await recordPayment(id, { accountId: bank.id, date, amount, methodId: methodOf(faker.helpers.arrayElement(['Virement', 'Virement', 'Chèque'])) });
   };
   const remind = (id: string | undefined, date: string, note: string) => id && prisma.documentReminder.create({ data: { documentId: id, date: new Date(`${date}T11:00:00`), note } });
 
@@ -522,20 +555,19 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     date: day(-160),
     label: `Règlement FA-2025-131 — ${clientD.name}`,
     amount: 2880,
-    category: 'Ventes',
-    method: 'Virement',
-    projectId: null,
-    note: null,
-    recurrence: null,
+    ...entryBase,
+    categoryId: categoryOf('Prestations', 2880),
+    methodId: methodOf('Virement'),
+    clientId: clientD.id,
     allocations: [{ documentId: null, importedDocumentId: unsettled.id, amount: 2880 }],
   });
 
   // --- Expenses: repeated forecasts realized month after month, one-off movements, coming expenses -------
   const repeated = [
-    { label: 'Loyer du bureau', amount: -750, category: 'Loyer', method: 'Prélèvement', start: day(-175), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
+    { label: 'Loyer du bureau', amount: -750, category: 'Loyer', method: 'Prélèvement', payee: 'Agence immobilière du Centre', start: day(-175), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
     { label: 'Abonnements logiciels', amount: -89, category: 'Logiciels', method: 'Carte', start: day(-170), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
-    { label: 'URSSAF', amount: -1450, category: 'Charges sociales', method: 'Prélèvement', start: day(-165), recurrence: rule({ frequency: 'MONTHLY', interval: 3, monthlyMode: 'DAY' }) },
-    { label: 'Frais bancaires', amount: -18, category: 'Frais bancaires', method: 'Prélèvement', start: day(-178), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
+    { label: 'URSSAF', amount: -1450, category: 'Charges sociales', method: 'Prélèvement', payee: 'URSSAF', start: day(-165), recurrence: rule({ frequency: 'MONTHLY', interval: 3, monthlyMode: 'DAY' }) },
+    { label: 'Frais bancaires', amount: -18, category: 'Frais bancaires', method: 'Prélèvement', payee: 'Banque Populaire', start: day(-178), recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }) },
   ];
   for (const forecast of repeated) {
     const created = await createEntry({
@@ -544,12 +576,11 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
       date: forecast.start,
       label: forecast.label,
       amount: forecast.amount,
-      category: forecast.category,
-      method: forecast.method,
-      projectId: null,
-      note: null,
+      ...entryBase,
+      categoryId: categoryOf(forecast.category, forecast.amount),
+      methodId: methodOf(forecast.method),
+      counterpartyId: counterpartyOf('payee' in forecast ? forecast.payee : undefined),
       recurrence: forecast.recurrence,
-      allocations: [],
     });
     for (const occurrence of occurrenceDates(forecast.recurrence, forecast.start, forecast.start, day(-1))) {
       // Charges vary a little; some are taken a day or two later.
@@ -558,19 +589,46 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     }
   }
   const oneOff = [
-    { date: day(-130), label: 'Écran 27 pouces', amount: -420, category: 'Matériel', method: 'Carte' },
-    { date: day(-96), label: 'Déplacement Paris', amount: -128.4, category: 'Déplacements', method: 'Carte' },
-    { date: day(-50), label: 'Déjeuner client', amount: -64, category: 'Divers', method: 'Carte' },
-    { date: day(-35), label: 'Remboursement de frais', amount: 86.2, category: 'Divers', method: 'Virement' },
+    { date: day(-130), label: 'Écran 27 pouces', amount: -420, category: 'Matériel', method: 'Carte', payee: 'Boulanger' },
+    { date: day(-96), label: 'Déplacement Paris', amount: -128.4, category: 'Déplacements', method: 'Carte', payee: 'SNCF' },
+    { date: day(-50), label: 'Déjeuner client', amount: -64, category: 'Repas', method: 'Carte' },
   ];
   for (const entry of oneOff) {
-    await createEntry({ ...entry, accountId: bank.id, status: 'ACTUAL', projectId: null, note: null, recurrence: null, allocations: [] });
+    const { category: name, method, payee, ...fields } = entry;
+    await createEntry({ ...entryBase, ...fields, accountId: bank.id, status: 'ACTUAL', categoryId: categoryOf(name, entry.amount), methodId: methodOf(method), counterpartyId: counterpartyOf(payee) });
   }
+  // Travel costs paid for a client and refunded by them: linked, they offset each other in the charts.
+  const advance = await createEntry({
+    ...entryBase,
+    accountId: bank.id,
+    status: 'ACTUAL',
+    date: day(-42),
+    valueDate: day(-40),
+    label: 'Billets de train avancés pour le client',
+    amount: -86.2,
+    categoryId: categoryOf('Déplacements', -86.2),
+    methodId: methodOf('Carte'),
+    counterpartyId: counterpartyOf('SNCF'),
+  });
+  await createEntry({
+    ...entryBase,
+    accountId: bank.id,
+    status: 'ACTUAL',
+    date: day(-35),
+    valueDate: day(-34),
+    label: 'Remboursement des billets de train',
+    amount: 86.2,
+    categoryId: categoryOf('Remboursements de frais', 86.2),
+    methodId: methodOf('Virement'),
+    clientId: clientA.id,
+    linkedEntryIds: [advance.id],
+  });
   for (const entry of [
-    { date: day(20), label: 'TVA trimestrielle', amount: -1850, category: 'TVA', method: 'Prélèvement' },
-    { date: day(40), label: 'Ordinateur portable', amount: -2300, category: 'Matériel', method: 'Carte' },
-    { date: day(60), label: 'Subvention région (solde)', amount: 3000, category: 'Divers', method: 'Virement' },
+    { date: day(20), label: 'TVA trimestrielle', amount: -1850, category: 'TVA', method: 'Prélèvement', payee: 'DGFiP' },
+    { date: day(40), label: 'Ordinateur portable', amount: -2300, category: 'Matériel', method: 'Carte', payee: 'Boulanger' },
+    { date: day(60), label: 'Subvention région (solde)', amount: 3000, category: 'Subventions', method: 'Virement', payee: 'Région' },
   ]) {
-    await createEntry({ ...entry, accountId: bank.id, status: 'FORECAST', projectId: null, note: null, recurrence: null, allocations: [] });
+    const { category: name, method, payee, ...fields } = entry;
+    await createEntry({ ...entryBase, ...fields, accountId: bank.id, status: 'FORECAST', categoryId: categoryOf(name, entry.amount), methodId: methodOf(method), counterpartyId: counterpartyOf(payee) });
   }
 }

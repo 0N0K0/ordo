@@ -7,7 +7,7 @@ import { Link } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { useTreasuryAccounts, type TreasuryAccount } from '../treasury/api';
+import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type TreasuryPaymentMethod } from '../treasury/api';
 import type { AccountingDocument } from './documents-api';
 import { Section } from './EditorSection';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
@@ -26,7 +26,7 @@ interface PaymentValues extends Record<string, unknown> {
   accountId: string;
   date: string;
   amount: number;
-  method: string;
+  methodId: string | null;
 }
 
 /**
@@ -36,21 +36,38 @@ interface PaymentValues extends Record<string, unknown> {
  */
 function PaymentForm({ document, onDone }: { document: AccountingDocument; onDone: () => void }) {
   const { data: accounts } = useTreasuryAccounts();
-  // The form starts once the accounts are known, so that the first one is chosen.
-  if (!accounts) return <Skeleton height={240} />;
-  return <PaymentFields document={document} accounts={accounts} onDone={onDone} />;
+  const { data: settings } = useTreasurySettings();
+  // The form starts once the accounts and methods are known, so that the first account and the usual method are chosen.
+  if (!accounts || !settings) return <Skeleton height={240} />;
+  const refund = document.type === 'CREDIT_NOTE';
+  const methods = settings.treasuryPaymentMethods.filter((method) => (refund ? method.outgoing : method.incoming));
+  return <PaymentFields document={document} accounts={accounts} methods={methods} onDone={onDone} />;
+}
+
+interface PaymentFieldsProps {
+  document: AccountingDocument;
+  accounts: TreasuryAccount[];
+  /** Payment methods of the direction of the payment. */
+  methods: TreasuryPaymentMethod[];
+  onDone: () => void;
 }
 
 /**
  * Fields of a payment, the accounts loaded.
- * @param {{ document: AccountingDocument, accounts: TreasuryAccount[], onDone: () => void }} props Component props.
+ * @param {PaymentFieldsProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function PaymentFields({ document, accounts, onDone }: { document: AccountingDocument; accounts: TreasuryAccount[]; onDone: () => void }) {
+function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsProps) {
   const { recordPayment } = useTrackingMutations();
   const open = accounts.filter((account) => !account.archived);
   const form = useAppForm<PaymentValues>({
-    initialValues: { accountId: open[0]?.id ?? '', date: localToday(), amount: document.balance ?? 0, method: document.paymentMethods ?? '' },
+    initialValues: {
+      accountId: open[0]?.id ?? '',
+      date: localToday(),
+      amount: document.balance ?? 0,
+      // The first method named in the payment terms of the document.
+      methodId: methods.find((method) => document.paymentMethods?.toLowerCase().includes(method.name.toLowerCase()))?.id ?? null,
+    },
     schema: documentPaymentSchema,
   });
   if (open.length === 0) {
@@ -69,7 +86,7 @@ function PaymentFields({ document, accounts, onDone }: { document: AccountingDoc
       noValidate
       onSubmit={form.onSubmit((input) =>
         recordPayment.mutate(
-          { id: document.id, input: { ...input, method: input.method || null } },
+          { id: document.id, input },
           {
             onSuccess: () => {
               notifySuccess(document.type === 'CREDIT_NOTE' ? 'Remboursement enregistré.' : 'Paiement enregistré.');
@@ -84,7 +101,13 @@ function PaymentFields({ document, accounts, onDone }: { document: AccountingDoc
         <Select label="Compte" required data={open.map((account) => ({ value: account.id, label: account.name }))} allowDeselect={false} {...form.getInputProps('accountId')} />
         <DatePickerInput label="Date" required valueFormat="D MMM YYYY" {...form.getInputProps('date')} />
         <NumberInput label="Montant" required min={0} decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" {...form.getInputProps('amount')} />
-        <TextInput label="Moyen de paiement" placeholder="Virement, chèque…" {...form.getInputProps('method')} />
+        <Select
+          label="Moyen de paiement"
+          clearable
+          placeholder={methods.length ? '—' : 'Aucun : ajoutez-en dans les paramètres de la trésorerie'}
+          data={methods.map((method) => ({ value: method.id, label: method.name }))}
+          {...form.getInputProps('methodId')}
+        />
         <Group justify="flex-end">
           <Button variant="default" onClick={onDone}>
             Annuler
@@ -289,7 +312,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             <Group key={payment.id} justify="space-between" wrap="nowrap">
               <Text size="xs" c="dimmed" truncate>
                 {printedDate(String(payment.entry.date))} · {payment.entry.accountName}
-                {payment.entry.method ? ` · ${payment.entry.method}` : ''}
+                {payment.entry.methodName ? ` · ${payment.entry.methodName}` : ''}
               </Text>
               <Text size="xs" ff="monospace">
                 {money(payment.amount)}

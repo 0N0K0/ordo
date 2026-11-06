@@ -19,7 +19,7 @@ import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
 import { useDocumentStatuses } from '../accounting/tracking-api';
 import type { TaskContext } from '../tasks/use-task-context';
 import { FilterBuilder } from '../tasks/views/FilterBuilder';
-import { useTreasuryAccounts, useTreasuryEntries } from '../treasury/api';
+import { useTreasuryAccounts, useTreasurySettings } from '../treasury/api';
 import { useWorkspace } from '../workspace/api';
 import { countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES } from './aggregate';
 import { useDashboardMutations, type DashboardChart } from './api';
@@ -107,14 +107,9 @@ function DocumentFilters({ config, change }: { config: ChartConfig; change: (cha
  */
 function TreasuryFilters({ config, change }: { config: ChartConfig; change: (changes: Partial<ChartConfig>) => void }) {
   const { data: accounts } = useTreasuryAccounts();
-  // Categories in use over the last two years.
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: entries } = useTreasuryEntries({
-    from: `${Number(today.slice(0, 4)) - 2}${today.slice(4)}`,
-    to: `${Number(today.slice(0, 4)) + 1}${today.slice(4)}`,
-    accountId: null,
-  });
-  const categories = [...new Set((entries ?? []).map((entry) => entry.category).filter((category): category is string => Boolean(category)))].sort((a, b) => a.localeCompare(b, 'fr'));
+  const { data: settings } = useTreasurySettings();
+  // By name: a category also keeps the movements of its sub-categories.
+  const categories = [...new Set((settings?.treasuryCategories ?? []).map((category) => category.name))].sort((a, b) => a.localeCompare(b, 'fr'));
   const filter = config.treasury;
   const set = (changes: Partial<ChartConfig['treasury']>) => change({ treasury: { ...filter, ...changes } });
   return (

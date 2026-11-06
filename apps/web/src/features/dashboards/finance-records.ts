@@ -1,8 +1,9 @@
-import { addDays, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
+import { addDays, offsetLinkedMovements, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
 import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
 import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
 import type { TaskContext } from '../tasks/use-task-context';
-import type { ProjectionItem, TreasuryAccount, TreasuryEntry, TreasuryProjection } from '../treasury/api';
+import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryEntry, TreasuryProjection } from '../treasury/api';
+import { categoryLineage } from '../treasury/categories';
 import { aggregate, bucketLabel, bucketOf, localDay, nextBucket, none, periodRange, round, type ChartData, type ChartRecord, type Key } from './aggregate';
 
 const TYPE_ORDER = ['QUOTE', 'DEPOSIT_INVOICE', 'INVOICE', 'CREDIT_NOTE'];
@@ -269,6 +270,8 @@ interface ChartMovement {
   date: string;
   amount: number;
   category: string | null;
+  /** Names of its category and of the parents of it (filters keep sub-categories). */
+  lineage: string[];
   accountId: string | null;
   projectId: string | null;
   forecast: boolean;
@@ -276,9 +279,11 @@ interface ChartMovement {
 
 /**
  * Data of a treasury chart: actual movements (and expected ones when asked) measured in net amount, money in,
- * money out or number; or the balance over time.
+ * money out or number; or the balance over time. Linked money in and out of a same bucket of the period offset
+ * each other (amounts only, not the number of movements).
  * @param {object} input Data.
  * @param {TreasuryEntry[]} input.entries Entries of the period.
+ * @param {TreasuryCategory[]} input.categories Treasury categories.
  * @param {TreasuryProjection | null} input.projection Projection (expected movements and balance).
  * @param {TreasuryAccount[]} input.accounts Accounts.
  * @param {ChartConfig} input.config Configuration.
@@ -289,6 +294,7 @@ interface ChartMovement {
  */
 export function treasuryChartData({
   entries,
+  categories,
   projection,
   accounts,
   config,
@@ -297,6 +303,7 @@ export function treasuryChartData({
   today,
 }: {
   entries: TreasuryEntry[];
+  categories: TreasuryCategory[];
   projection: TreasuryProjection | null;
   accounts: TreasuryAccount[];
   config: ChartConfig;
@@ -315,18 +322,36 @@ export function treasuryChartData({
             date: item.date,
             amount: item.amount,
             category: PROJECTION_KINDS[item.kind] ?? null,
+            lineage: PROJECTION_KINDS[item.kind] ? [PROJECTION_KINDS[item.kind]] : [],
             accountId: item.accountId ?? null,
             projectId: null,
             forecast: true,
           }))
       : [];
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const actual = entries.filter((entry) => entry.status === 'ACTUAL');
+  // Linked money in and out of a same bucket (the whole period for a donut) offset each other.
+  const remaining =
+    config.measure === 'count'
+      ? null
+      : offsetLinkedMovements(
+          actual.map((entry) => ({
+            id: entry.id,
+            amount: entry.amount,
+            linkedIds: entry.linkedEntries.map((linked) => linked.id),
+            period: config.type === 'donut' ? 'all' : bucketOf(String(entry.date), config.bucket),
+          })),
+        );
   const movements: ChartMovement[] = [
-    ...entries
-      .filter((entry) => entry.status === 'ACTUAL')
-      .map((entry) => ({
+    ...actual
+      .map((entry) => ({ entry, amount: remaining?.get(entry.id) ?? entry.amount }))
+      // Fully offset: left out of the charts.
+      .filter(({ amount }) => Math.abs(amount) >= 0.005)
+      .map(({ entry, amount }) => ({
         date: String(entry.date),
-        amount: entry.amount,
-        category: entry.category ?? null,
+        amount,
+        category: entry.categoryId ? (categoryById.get(entry.categoryId)?.name ?? null) : null,
+        lineage: categoryLineage(categoryById, entry.categoryId),
         accountId: entry.accountId,
         projectId: entry.projectId ?? null,
         forecast: false,
@@ -336,7 +361,7 @@ export function treasuryChartData({
     (movement) =>
       (filter.direction === 'all' || (filter.direction === 'in' ? movement.amount > 0 : movement.amount < 0)) &&
       (!filter.accountIds.length || (movement.accountId !== null && filter.accountIds.includes(movement.accountId))) &&
-      (!filter.categories.length || (movement.category !== null && filter.categories.includes(movement.category))) &&
+      (!filter.categories.length || movement.lineage.some((name) => filter.categories.includes(name))) &&
       (!projects || (movement.projectId !== null && projects.has(movement.projectId))),
   );
   const accountById = new Map(accounts.map((account) => [account.id, account]));

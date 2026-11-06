@@ -215,15 +215,31 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
   if (!(await prisma.treasuryAccount.findUnique({ where: { id: payment.accountId }, select: { id: true } }))) throw notFound('Compte');
   const refund = document.type === 'CREDIT_NOTE';
+  if (payment.methodId) {
+    const method = await prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } });
+    if (!method) throw notFound('Moyen de paiement');
+    if (!(refund ? method.outgoing : method.incoming)) {
+      const message = refund ? 'Ce moyen de paiement ne sert pas aux sorties.' : 'Ce moyen de paiement ne sert pas aux entrées.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });
+    }
+  }
+  // The usual category of payments, when it exists.
+  const category = await prisma.treasuryCategory.findFirst({
+    where: { name: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
   await prisma.treasuryEntry.create({
     data: {
       accountId: payment.accountId,
       status: 'ACTUAL',
       date: parseDay(payment.date),
+      valueDate: parseDay(payment.date),
       label: `${refund ? 'Remboursement' : 'Règlement'} ${document.number} — ${document.client.name}`,
       amount: new Prisma.Decimal(refund ? -payment.amount : payment.amount),
-      category: refund ? 'Remboursements clients' : 'Ventes',
-      method: payment.method,
+      categoryId: category?.id ?? null,
+      methodId: payment.methodId,
+      clientId: document.clientId,
       projectId: document.projectId,
       allocations: { create: { documentId: id, amount: new Prisma.Decimal(payment.amount) } },
     },

@@ -80,7 +80,31 @@ async function parseEntry(input: TreasuryEntryInput) {
   const entry = parseInput(treasuryEntrySchema, input);
   if (!(await prisma.treasuryAccount.findUnique({ where: { id: entry.accountId }, select: { id: true } }))) throw notFound('Compte');
   if (entry.projectId && !(await prisma.project.findUnique({ where: { id: entry.projectId }, select: { id: true } }))) throw notFound('Projet');
+  if (entry.clientId && !(await prisma.client.findUnique({ where: { id: entry.clientId }, select: { id: true } }))) throw notFound('Client');
+  if (entry.counterpartyId && !(await prisma.treasuryCounterparty.findUnique({ where: { id: entry.counterpartyId }, select: { id: true } }))) throw notFound('Tiers');
   const incoming = entry.amount > 0;
+  if (entry.categoryId) {
+    const category = await prisma.treasuryCategory.findUnique({ where: { id: entry.categoryId }, select: { direction: true } });
+    if (!category) throw notFound('Catégorie');
+    if ((category.direction === 'IN') !== incoming) {
+      const message = incoming ? 'Choisissez une catégorie d’entrée.' : 'Choisissez une catégorie de sortie.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { categoryId: message } });
+    }
+  }
+  if (entry.methodId) {
+    const method = await prisma.treasuryPaymentMethod.findUnique({ where: { id: entry.methodId }, select: { incoming: true, outgoing: true } });
+    if (!method) throw notFound('Moyen de paiement');
+    if (!(incoming ? method.incoming : method.outgoing)) {
+      const message = incoming ? 'Ce moyen de paiement ne sert pas aux entrées.' : 'Ce moyen de paiement ne sert pas aux sorties.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });
+    }
+  }
+  const libraryIds = [...new Set(entry.libraryDocumentIds)];
+  if (libraryIds.length && (await prisma.libraryDocument.count({ where: { id: { in: libraryIds } } })) !== libraryIds.length) throw notFound('Document');
+  const resourceIds = [...new Set(entry.projectResourceIds)];
+  if (resourceIds.length && (await prisma.projectResource.count({ where: { id: { in: resourceIds } } })) !== resourceIds.length) throw notFound('Document du projet');
+  const linked = [...new Set(entry.linkedEntryIds)];
+  if (linked.length && (await prisma.treasuryEntry.count({ where: { id: { in: linked } } })) !== linked.length) throw notFound('Mouvement lié');
   const wrongWay = 'Une entrée règle des factures, une sortie rembourse des avoirs.';
   for (const allocation of entry.allocations) {
     const document = allocation.documentId
@@ -102,14 +126,31 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
     accountId: entry.accountId,
     status: entry.status,
     date: parseDay(entry.date),
+    // Without a value date, the execution date.
+    valueDate: parseDay(entry.valueDate ?? entry.date),
     label: entry.label,
     amount: new Prisma.Decimal(entry.amount),
-    category: entry.category,
-    method: entry.method,
+    categoryId: entry.categoryId,
+    methodId: entry.methodId,
+    clientId: entry.clientId,
+    counterpartyId: entry.counterpartyId,
     projectId: entry.projectId,
     note: entry.note,
     recurrence: entry.recurrence ? (entry.recurrence as Prisma.InputJsonValue) : Prisma.DbNull,
   };
+}
+
+/**
+ * Supporting documents of a validated entry: connected on creation, replacing the previous ones on update.
+ * @param {Awaited<ReturnType<typeof parseEntry>>} entry Entry.
+ * @param {'connect' | 'set'} mode Creation or update.
+ * @returns {object} Relation data.
+ */
+function documentsData(entry: Awaited<ReturnType<typeof parseEntry>>, mode: 'connect' | 'set') {
+  return {
+    libraryDocuments: { [mode]: [...new Set(entry.libraryDocumentIds)].map((id) => ({ id })) },
+    projectResources: { [mode]: [...new Set(entry.projectResourceIds)].map((id) => ({ id })) },
+  } as { libraryDocuments: { connect: { id: string }[] }; projectResources: { connect: { id: string }[] } };
 }
 
 /**
@@ -132,7 +173,9 @@ function allocationsData(entry: Awaited<ReturnType<typeof parseEntry>>): Prisma.
  */
 export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEntry> {
   const entry = await parseEntry(input);
-  const created = await prisma.treasuryEntry.create({ data: { ...entryData(entry), allocations: { create: allocationsData(entry) } } });
+  const created = await prisma.treasuryEntry.create({
+    data: { ...entryData(entry), ...documentsData(entry, 'connect'), allocations: { create: allocationsData(entry) }, links: { connect: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) } },
+  });
   await syncPaymentStatus(entry.allocations.map((allocation) => allocation.documentId));
   return created;
 }
@@ -147,9 +190,17 @@ export async function updateEntry(id: string, input: TreasuryEntryInput): Promis
   const previous = await prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } });
   if (!previous) throw notFound('Mouvement');
   const entry = await parseEntry(input);
+  if (entry.linkedEntryIds.includes(id)) throw clientError('BAD_USER_INPUT', 'Un mouvement ne peut pas être lié à lui-même.', { fields: { linkedEntryIds: 'Retirez ce mouvement de ses liens.' } });
   const updated = await prisma.treasuryEntry.update({
     where: { id },
-    data: { ...entryData(entry), allocations: { deleteMany: {}, create: allocationsData(entry) } },
+    data: {
+      ...entryData(entry),
+      ...documentsData(entry, 'set'),
+      allocations: { deleteMany: {}, create: allocationsData(entry) },
+      // A link is kept once, from this side.
+      links: { set: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
+      linkedBy: { set: [] },
+    },
   });
   await syncPaymentStatus([...previous.allocations.map((allocation) => allocation.documentId), ...entry.allocations.map((allocation) => allocation.documentId)]);
   return updated;
@@ -185,14 +236,20 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
     accountId: forecast.accountId,
     status: 'ACTUAL',
     date: actual.date,
+    valueDate: null,
     label: forecast.label,
     amount: actual.amount,
-    category: forecast.category,
-    method: forecast.method,
+    categoryId: forecast.categoryId,
+    methodId: forecast.methodId,
+    clientId: forecast.clientId,
+    counterpartyId: forecast.counterpartyId,
     projectId: forecast.projectId,
     note: forecast.note,
     recurrence: null,
     allocations: [],
+    linkedEntryIds: [],
+    libraryDocumentIds: [],
+    projectResourceIds: [],
   });
   return prisma.$transaction(async (tx) => {
     if (rule) {
@@ -209,6 +266,8 @@ export interface ProjectionItem {
   /** Date it was due. */
   dueDate: string;
   label: string;
+  /** Payer or payee: client or counterparty of the entry, client of the document. */
+  payerName: string | null;
   /** Signed, in cents. */
   amount: number;
   kind: 'FORECAST' | 'ACTUAL' | 'INVOICE' | 'CREDIT_NOTE' | 'IMPORTED' | 'RECURRING_INVOICE';
@@ -247,6 +306,7 @@ export async function treasuryProjection(today: string, from: string, until: str
   // Actual entries dated after today, and forecasts.
   const upcoming = await prisma.treasuryEntry.findMany({
     where: { accountId: { in: accountIds }, OR: [{ status: 'FORECAST' }, { status: 'ACTUAL', date: { gt: parseDay(today), lte: parseDay(until) } }] },
+    include: { client: { select: { name: true } }, counterparty: { select: { name: true } } },
   });
   for (const entry of upcoming) {
     const start = formatDay(entry.date);
@@ -258,6 +318,7 @@ export async function treasuryProjection(today: string, from: string, until: str
         date: expected(date),
         dueDate: date,
         label: entry.label,
+        payerName: entry.client?.name ?? entry.counterparty?.name ?? null,
         amount: toCents(Number(entry.amount)),
         kind: entry.status,
         overdue: date < today,
@@ -281,6 +342,7 @@ export async function treasuryProjection(today: string, from: string, until: str
       date: expected(date),
       dueDate: date,
       label: `${credit ? 'Avoir' : 'Facture'} ${document.number} — ${document.client.name}`,
+      payerName: document.client.name,
       amount: (credit ? -1 : 1) * (balances.get(document.id)?.balance ?? 0),
       kind: credit ? 'CREDIT_NOTE' : 'INVOICE',
       overdue: date < today,
@@ -300,6 +362,7 @@ export async function treasuryProjection(today: string, from: string, until: str
       date: expected(date),
       dueDate: date,
       label: `${credit ? 'Avoir' : 'Facture'} ${document.number} (importé) — ${document.client?.name ?? document.clientName ?? ''}`,
+      payerName: document.client?.name ?? document.clientName ?? null,
       amount: (credit ? -1 : 1) * (importedDue.get(document.id)?.balance ?? 0),
       kind: 'IMPORTED',
       overdue: date < today,
@@ -321,6 +384,7 @@ export async function treasuryProjection(today: string, from: string, until: str
         date: expected(paidOn),
         dueDate: paidOn,
         label: `${schedule.name} — ${schedule.template.client.name}`,
+        payerName: schedule.template.client.name,
         amount: toCents(Number(schedule.template.totalGross)),
         kind: 'RECURRING_INVOICE',
         overdue: false,
@@ -353,12 +417,15 @@ export async function treasuryProjection(today: string, from: string, until: str
   }
   const series: Projection['series'] = [];
   let running = opening;
-  for (let day = start; day <= today; day = addDays(day, 1)) {
+  // A period over before today has no forecast.
+  const lastPast = until < today ? until : today;
+  for (let day = start; day <= lastPast; day = addDays(day, 1)) {
     running += pastByDay.get(day) ?? 0;
     series.push({ date: day, balance: running, forecast: false });
   }
   const futureByDay = new Map<string, number>();
   for (const item of items) futureByDay.set(item.date, (futureByDay.get(item.date) ?? 0) + item.amount);
+  if (until < today) return { balance, series, items };
   running = balance;
   // Overdue items (expected today) start the forecast.
   running += futureByDay.get(today) ?? 0;
