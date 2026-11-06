@@ -6,7 +6,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, plannedPauses, plannedSlots } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, plannedSlots } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -60,7 +60,7 @@ const dayOf = (date: Date) => localParts(date).date;
 
 /**
  * Calendar: events and dated tasks by month, week or day, filtered by project, category and contributor;
- * planned working hours in the background and their pauses as bands; tracked times (timers) on demand;
+ * planned working hours in the background (none on paused days); tracked times (timers) on demand;
  * cancelled events struck through.
  * Events and tasks move and stretch by drag and drop; selecting a period creates an event. In week and
  * day views, the all-day row is collapsed by default and expands across every day. The
@@ -174,7 +174,7 @@ export function CalendarPage() {
         });
       }
     }
-    // Working hours in the background (week and day), pauses as all-day bands.
+    // Working hours in the background (week and day); paused days simply have none.
     if (range && schedules && filters.workHours !== false) {
       const rules = scheduleRules(schedules);
       for (const slot of plannedSlots(rules, range.from, range.to)) {
@@ -184,18 +184,6 @@ export function CalendarPage() {
           end: `${slot.date}T${slot.end}:00`,
           display: 'background',
           classNames: [classes.workHours],
-        });
-      }
-      for (const pause of plannedPauses(rules, range.from, range.to)) {
-        result.push({
-          id: `pause:${pause.scheduleId}:${pause.from}`,
-          title: pause.label || 'Pause',
-          allDay: true,
-          start: pause.from,
-          end: addDays(pause.to, 1),
-          editable: false,
-          extendedProps: { kind: 'pause' },
-          classNames: [classes.pause],
         });
       }
     }
@@ -447,7 +435,6 @@ export function CalendarPage() {
           eventClick={(info: EventClickArg) => {
             info.jsEvent.preventDefault();
             if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.number));
-            else if (info.event.extendedProps.kind === 'pause') setManagingSchedules(true);
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else openEvent({ occurrence: info.event.extendedProps.occurrence });
           }}

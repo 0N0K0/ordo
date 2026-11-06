@@ -86,23 +86,6 @@
     opacity: 0.6 !important;
   }
 
-  /* Pause of the working hours (holidays…). */
-  .pause {
-    /* Bordures */
-    border: 1px dashed var(--mantine-color-orange-6) !important;
-
-    /* Arrière-Plan */
-    background-color: var(--mantine-color-orange-light) !important;
-
-    /* Typographie */
-    color: var(--mantine-color-orange-light-color) !important;
-
-    :global(.fc-event-main) {
-      /* Typographie */
-      color: var(--mantine-color-orange-light-color);
-    }
-  }
-
   /* Tracked time: hatched, to tell it from events. */
   .timer {
     /* Bordures */
