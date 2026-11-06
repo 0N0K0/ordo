@@ -115,7 +115,7 @@ graphql(`
         id
         date
         accountName
-        method
+        methodName
       }
     }
     lines {

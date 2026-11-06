@@ -605,7 +605,7 @@ input DocumentPaymentInput {
   accountId: ID!
   amount: Float!
   date: Date!
-  method: String
+  methodId: ID
 }
 
 type DocumentReminder {
@@ -1041,7 +1041,10 @@ type Mutation {
   createTaskView(input: TaskViewInput!): TaskView!
   createTimeEntry(input: TimeEntryInput!): TimeEntry!
   createTreasuryAccount(input: TreasuryAccountInput!): ID!
+  createTreasuryCategory(input: TreasuryCategoryInput!): ID!
+  createTreasuryCounterparty(input: TreasuryCounterpartyInput!): ID!
   createTreasuryEntry(input: TreasuryEntryInput!): ID!
+  createTreasuryPaymentMethod(input: TreasuryPaymentMethodInput!): ID!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
   deleteCalendarCategory(id: ID!): Boolean!
@@ -1093,7 +1096,10 @@ type Mutation {
   deleteTaskView(id: ID!): Boolean!
   deleteTimeEntry(id: ID!): Boolean!
   deleteTreasuryAccount(id: ID!): Boolean!
+  deleteTreasuryCategory(id: ID!): Boolean!
+  deleteTreasuryCounterparty(id: ID!): Boolean!
   deleteTreasuryEntry(id: ID!): Boolean!
+  deleteTreasuryPaymentMethod(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateDashboardChart(id: ID!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
@@ -1286,7 +1292,10 @@ type Mutation {
   updateTaskView(id: ID!, input: TaskViewUpdateInput!): TaskView!
   updateTimeEntry(id: ID!, input: TimeEntryUpdateInput!): TimeEntry!
   updateTreasuryAccount(id: ID!, input: TreasuryAccountInput!): Boolean!
+  updateTreasuryCategory(id: ID!, input: TreasuryCategoryInput!): Boolean!
+  updateTreasuryCounterparty(id: ID!, input: TreasuryCounterpartyInput!): Boolean!
   updateTreasuryEntry(id: ID!, input: TreasuryEntryInput!): Boolean!
+  updateTreasuryPaymentMethod(id: ID!, input: TreasuryPaymentMethodInput!): Boolean!
 
   """Stores a file to link from a markdown text (10 MB maximum)."""
   uploadAttachment(file: File!): Attachment!
@@ -1501,9 +1510,15 @@ type Query {
   """
   timeEntries(projectId: ID, since: DateTime): [TimeEntry!]!
   treasuryAccounts: [TreasuryAccount!]!
+  treasuryCategories: [TreasuryCategory!]!
+  treasuryCounterparties: [TreasuryCounterparty!]!
 
   """Entries between two dates (included), latest first."""
   treasuryEntries(accountId: ID, from: Date!, to: Date!): [TreasuryEntry!]!
+
+  """Entries whose label contains a text (to link entries), latest first."""
+  treasuryEntrySearch(limit: Int, text: String!): [TreasuryEntry!]!
+  treasuryPaymentMethods: [TreasuryPaymentMethod!]!
   treasuryProjection(from: Date!, today: Date!, until: Date!): TreasuryProjection!
 
   """Unread mails in the inbox of every account."""
@@ -1891,39 +1906,109 @@ type TreasuryBalancePoint {
   forecast: Boolean!
 }
 
+type TreasuryCategory {
+  direction: TreasuryDirection!
+  entryCount: Int!
+  id: ID!
+  name: String!
+  parentId: ID
+}
+
+input TreasuryCategoryInput {
+  direction: TreasuryDirection!
+  name: String!
+  parentId: ID
+}
+
+type TreasuryCounterparty {
+  archived: Boolean!
+  entryCount: Int!
+  id: ID!
+  name: String!
+  note: String
+}
+
+input TreasuryCounterpartyInput {
+  archived: Boolean!
+  name: String!
+  note: String
+}
+
+enum TreasuryDirection {
+  IN
+  OUT
+}
+
 type TreasuryEntry {
   accountId: ID!
   accountName: String!
   allocations: [TreasuryAllocation!]!
   amount: Float!
-  category: String
+  categoryId: ID
+  clientId: ID
+  counterpartyId: ID
+
+  """Execution date."""
   date: Date!
   id: ID!
   label: String!
-  method: String
+  linkedEntries: [TreasuryLinkedEntry!]!
+  methodId: ID
+  methodName: String
   note: String
+
+  """Payer or payee: the client or the counterparty."""
+  payerName: String
   projectId: ID
   recurrence: JSON
   status: TreasuryEntryStatus!
+  valueDate: Date
 }
 
 input TreasuryEntryInput {
   accountId: ID!
   allocations: [TreasuryAllocationInput!]!
   amount: Float!
-  category: String
+  categoryId: ID
+  clientId: ID
+  counterpartyId: ID
   date: Date!
   label: String!
-  method: String
+  linkedEntryIds: [ID!]
+  methodId: ID
   note: String
   projectId: ID
   recurrence: JSON
   status: TreasuryEntryStatus!
+  valueDate: Date
 }
 
 enum TreasuryEntryStatus {
   ACTUAL
   FORECAST
+}
+
+"""Entry linked to another one (both ways)."""
+type TreasuryLinkedEntry {
+  amount: Float!
+  date: Date!
+  id: ID!
+  label: String!
+  status: TreasuryEntryStatus!
+}
+
+type TreasuryPaymentMethod {
+  entryCount: Int!
+  id: ID!
+  incoming: Boolean!
+  name: String!
+  outgoing: Boolean!
+}
+
+input TreasuryPaymentMethodInput {
+  incoming: Boolean!
+  name: String!
+  outgoing: Boolean!
 }
 
 type TreasuryProjection {

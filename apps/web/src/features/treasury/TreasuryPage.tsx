@@ -22,21 +22,18 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
-import { DatePickerInput, MonthPickerInput } from '@mantine/dates';
-import { modals } from '@mantine/modals';
+import { DatePickerInput } from '@mantine/dates';
 import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
-import { BankIcon, CheckIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BankIcon, CheckIcon, GearIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import {
   useForecastEntries,
   useTreasuryAccounts,
-  useTreasuryEntries,
   useTreasuryMutations,
   useTreasuryProjection,
   type AccountValues,
@@ -45,7 +42,10 @@ import {
   type TreasuryAccount,
   type TreasuryEntry,
 } from './api';
+import { confirmDeletion } from './confirm-deletion';
+import { EntriesPanel } from './EntriesPanel';
 import { EntryForm } from './EntryForm';
+import { SettingsPanel } from './SettingsPanel';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -72,34 +72,6 @@ const KIND_LABELS: Record<string, { label: string; color: string }> = {
   IMPORTED: { label: 'Importé', color: 'cyan' },
   RECURRING_INVOICE: { label: 'Récurrente', color: 'teal' },
 };
-
-/**
- * Asks for confirmation, then runs a deletion.
- * @param {string} title Dialog title.
- * @param {string} message Risks.
- * @param {() => void} confirm Deletion.
- * @returns {void}
- */
-function confirmDeletion(title: string, message: string, confirm: () => void): void {
-  const modalId = `treasury-delete-${Date.now()}`;
-  modals.open({
-    modalId,
-    title,
-    children: (
-      <Stack gap="md">
-        <Text size="sm">{message}</Text>
-        <DestructiveActions
-          loading={false}
-          onCancel={() => modals.close(modalId)}
-          onConfirm={() => {
-            modals.close(modalId);
-            confirm();
-          }}
-        />
-      </Stack>
-    ),
-  });
-}
 
 /**
  * Account: name, opening balance and date, archived.
@@ -241,27 +213,26 @@ type Dialog =
   | null;
 
 /**
- * Treasury: balance of the accounts, balance curve (actual, then forecast), expected movements (forecasts,
- * invoices due, coming recurring invoices), actual movements by month with the documents they settle, and
- * the accounts.
+ * Treasury: balance of the accounts, balance curve (actual, then forecast) over the coming months or a
+ * calendar year, expected movements (forecasts, invoices due, coming recurring invoices), actual movements of a
+ * month or a year, the accounts, and the settings (categories, payment methods, counterparties).
  * @returns {JSX.Element} Page.
  */
 export function TreasuryPage() {
   const today = localToday();
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') ?? 'forecast';
-  const [months, setMonths] = useState('3');
-  const [month, setMonth] = useState<string>(today.slice(0, 7) + '-01');
-  const [accountId, setAccountId] = useState<string | null>(null);
+  // Horizon of the forecast in months, or a whole calendar year.
+  const [horizon, setHorizon] = useState('3');
+  const [chartYear, setChartYear] = useState(today.slice(0, 4));
   const [dialog, setDialog] = useState<Dialog>(null);
-  const until = addDays(today, Number(months) * 30);
+  const calendar = horizon === 'year';
+  const from = calendar ? `${chartYear}-01-01` : addDays(today, -90);
+  const until = calendar ? `${chartYear}-12-31` : addDays(today, Number(horizon) * 30);
   const { data: accounts, isPending: accountsPending } = useTreasuryAccounts();
-  const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from: addDays(today, -90), until });
-  const monthEnd = addDays(`${month.slice(0, 7)}-01`, 31).slice(0, 7);
-  const { data: entries } = useTreasuryEntries({ from: month, to: addDays(`${monthEnd}-01`, -1), accountId });
+  const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
   const { deleteEntry, deleteAccount } = useTreasuryMutations();
-  const categories = [...new Set([...(entries ?? []), ...(forecasts ?? [])].map((entry) => entry.category).filter((category): category is string => Boolean(category)))];
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
 
@@ -305,7 +276,7 @@ export function TreasuryPage() {
       }
     >
       {dialog?.kind === 'account' && <AccountForm account={dialog.account} onDone={close} />}
-      {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} categories={categories} onDone={close} />}
+      {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} onDone={close} />}
       {dialog?.kind === 'realize' && <RealizeForm item={dialog.item} onDone={close} />}
     </Modal>
   );
@@ -337,15 +308,19 @@ export function TreasuryPage() {
   const late = items.filter((item) => item.overdue && item.amount > 0 && item.kind !== 'FORECAST');
   const forecastSeries = (projection?.series ?? []).filter((point) => point.forecast);
   const lowest = forecastSeries.reduce<(typeof forecastSeries)[number] | null>((low, point) => (!low || point.balance < low.balance ? point : low), null);
-  const end = forecastSeries.at(-1);
+  // Balance at the end of the period (actual for a past year).
+  const end = projection?.series.at(-1);
   // One row per day: actual and forecast curves meet today.
   const chart = new Map<string, { date: string; Réel?: number; Prévu?: number }>();
-  for (const point of projection?.series ?? []) {
+  for (const point of (projection?.series ?? []).filter((item) => item.date >= from && item.date <= until)) {
     const row = chart.get(point.date) ?? { date: point.date };
     if (point.forecast) row.Prévu = point.balance;
     else row.Réel = point.balance;
     chart.set(point.date, row);
   }
+  // Years with accounts open, and the next one.
+  const firstYear = Math.min(Number(today.slice(0, 4)), ...accounts.map((account) => Number(String(account.openingDate).slice(0, 4))));
+  const years = Array.from({ length: Number(today.slice(0, 4)) + 2 - firstYear }, (_, index) => String(firstYear + index)).reverse();
   const forecastById = new Map((forecasts ?? []).map((entry) => [entry.id, entry]));
 
   return (
@@ -355,23 +330,27 @@ export function TreasuryPage() {
         <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={`${accounts.filter((account) => !account.archived).length} compte(s)`} />
         <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
         <Figure label="En retard" value={late.reduce((sum, item) => sum + item.amount, 0)} hint={`${late.length} échéance(s) dépassée(s)`} color={late.length ? 'red' : undefined} />
-        <Figure label={`Solde prévu au ${end ? printedDate(end.date) : '—'}`} value={end?.balance ?? 0} hint={lowest ? `Point bas ${money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined} />
+        <Figure label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? printedDate(end.date) : '—'}`} value={end?.balance ?? 0} hint={lowest ? `Point bas ${money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined} />
       </SimpleGrid>
 
       <Paper withBorder radius="md" p="md">
         <Group justify="space-between" mb="sm">
           <Text fw={600}>Évolution du solde</Text>
-          <SegmentedControl
-            size="xs"
-            aria-label="Horizon du prévisionnel"
-            data={[
-              { value: '3', label: '3 mois' },
-              { value: '6', label: '6 mois' },
-              { value: '12', label: '12 mois' },
-            ]}
-            value={months}
-            onChange={setMonths}
-          />
+          <Group gap="xs">
+            <SegmentedControl
+              size="xs"
+              aria-label="Période du graphique"
+              data={[
+                { value: '3', label: '3 mois' },
+                { value: '6', label: '6 mois' },
+                { value: '12', label: '12 mois' },
+                { value: 'year', label: 'Année civile' },
+              ]}
+              value={horizon}
+              onChange={setHorizon}
+            />
+            {calendar && <Select size="xs" aria-label="Année" w={90} allowDeselect={false} data={years} value={chartYear} onChange={(value) => value && setChartYear(value)} />}
+          </Group>
         </Group>
         {projectionPending ? (
           <Skeleton height={260} />
@@ -401,6 +380,9 @@ export function TreasuryPage() {
           <Tabs.Tab value="forecast">Prévisionnel</Tabs.Tab>
           <Tabs.Tab value="entries">Mouvements</Tabs.Tab>
           <Tabs.Tab value="accounts">Comptes</Tabs.Tab>
+          <Tabs.Tab value="settings" leftSection={<GearIcon aria-hidden />}>
+            Paramètres
+          </Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="forecast" pt="md">
@@ -500,108 +482,7 @@ export function TreasuryPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="entries" pt="md">
-          <Stack gap="sm">
-            <Group gap="sm">
-              <MonthPickerInput aria-label="Mois" valueFormat="MMMM YYYY" value={month} onChange={(value) => value && setMonth(value)} w={180} />
-              <Select
-                aria-label="Compte"
-                placeholder="Tous les comptes"
-                clearable
-                data={accounts.map((account) => ({ value: account.id, label: account.name }))}
-                value={accountId}
-                onChange={setAccountId}
-                w={220}
-              />
-              {!!entries?.length && (
-                <Text size="sm" c="dimmed" ml="auto">
-                  Entrées {money(entries.filter((entry) => entry.status === 'ACTUAL' && entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0))} · Sorties{' '}
-                  {money(entries.filter((entry) => entry.status === 'ACTUAL' && entry.amount < 0).reduce((sum, entry) => sum - entry.amount, 0))}
-                </Text>
-              )}
-            </Group>
-            {!entries?.filter((entry) => entry.status === 'ACTUAL').length ? (
-              <Text size="sm" c="dimmed">
-                Aucun mouvement ce mois-ci.
-              </Text>
-            ) : (
-              <Paper withBorder radius="md">
-                <Table verticalSpacing="xs" highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Date</Table.Th>
-                      <Table.Th>Libellé</Table.Th>
-                      <Table.Th>Compte</Table.Th>
-                      <Table.Th>Documents réglés</Table.Th>
-                      <Table.Th ta="right">Montant</Table.Th>
-                      <Table.Th />
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {entries
-                      .filter((entry) => entry.status === 'ACTUAL')
-                      .map((entry) => (
-                        <Table.Tr key={entry.id}>
-                          <Table.Td>{printedDate(String(entry.date))}</Table.Td>
-                          <Table.Td>
-                            <Text size="sm">{entry.label}</Text>
-                            <Text size="xs" c="dimmed">
-                              {[entry.category, entry.method].filter(Boolean).join(' · ')}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>{entry.accountName}</Table.Td>
-                          <Table.Td>
-                            <Group gap={4}>
-                              {entry.allocations.map((allocation) =>
-                                allocation.documentId ? (
-                                  <Badge key={allocation.id} size="sm" variant="light" component={Link} to={`/accounting/${allocation.documentId}`} style={{ cursor: 'pointer' }}>
-                                    {allocation.documentLabel} · {money(allocation.amount)}
-                                  </Badge>
-                                ) : (
-                                  <Badge key={allocation.id} size="sm" variant="light" color="cyan">
-                                    {allocation.documentLabel} · {money(allocation.amount)}
-                                  </Badge>
-                                ),
-                              )}
-                            </Group>
-                          </Table.Td>
-                          <Table.Td ta="right" ff="monospace" c={entry.amount < 0 ? 'red' : 'green'}>
-                            {entry.amount > 0 ? '+' : ''}
-                            {money(entry.amount)}
-                          </Table.Td>
-                          <Table.Td>
-                            <Group gap={2} justify="flex-end" wrap="nowrap">
-                              <Tooltip label="Modifier">
-                                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${entry.label}`} onClick={() => setDialog({ kind: 'entry', entry })}>
-                                  <PencilSimpleIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Supprimer">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  aria-label={`Supprimer ${entry.label}`}
-                                  onClick={() =>
-                                    confirmDeletion(
-                                      'Supprimer le mouvement',
-                                      entry.allocations.length
-                                        ? `« ${entry.label} » sera supprimé : les documents qu’il règle redeviendront dus.`
-                                        : `« ${entry.label} » sera supprimé définitivement.`,
-                                      () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
-                                    )
-                                  }
-                                >
-                                  <TrashIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                  </Table.Tbody>
-                </Table>
-              </Paper>
-            )}
-          </Stack>
+          <EntriesPanel accounts={accounts} onEdit={(entry) => setDialog({ kind: 'entry', entry })} />
         </Tabs.Panel>
 
         <Tabs.Panel value="accounts" pt="md">
@@ -672,6 +553,10 @@ export function TreasuryPage() {
               </Table>
             </Paper>
           </Stack>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="settings" pt="md">
+          <SettingsPanel />
         </Tabs.Panel>
       </Tabs>
       {dialogs}

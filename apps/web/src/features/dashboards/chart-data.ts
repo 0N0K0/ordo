@@ -6,7 +6,7 @@ import { useAccountingDocuments, useImportedDocuments } from '../accounting/docu
 import { useMatchingTaskIds, type Task } from '../tasks/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import { pruneFilter } from '../tasks/views/filter-meta';
-import { useTreasuryAccounts, useTreasuryEntries, useTreasuryProjection } from '../treasury/api';
+import { useTreasuryAccounts, useTreasuryEntries, useTreasuryProjection, useTreasurySettings } from '../treasury/api';
 import { descendantIds } from '../workspace/api';
 import { DIMENSION_LABELS, measureLabel, periodRange, type ChartData } from './aggregate';
 import { documentChartData, treasuryChartData } from './finance-records';
@@ -120,6 +120,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
     treasury && (forecast || config.measure === 'balance'),
   );
   const accounts = useTreasuryAccounts(treasury);
+  const treasurySettings = useTreasurySettings();
 
   const projects = useMemo(() => (scope.projectId && context ? new Set([scope.projectId, ...descendantIds(context.projects, scope.projectId)]) : null), [scope.projectId, context]);
 
@@ -135,9 +136,10 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
       return documentChartData(documents.data, imported.data ?? [], config, context, projects, today);
     }
     const needsProjection = forecast || config.measure === 'balance';
-    if (!entries.data || !accounts.data || (needsProjection && !projection.data)) return null;
+    if (!entries.data || !accounts.data || !treasurySettings.data || (needsProjection && !projection.data)) return null;
     return treasuryChartData({
       entries: entries.data,
+      categories: treasurySettings.data.treasuryCategories,
       projection: projection.data ?? null,
       accounts: accounts.data,
       config,
@@ -145,7 +147,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
       projects,
       today,
     });
-  }, [context, source, matching.data, documents.data, imported.data, entries.data, projection.data, accounts.data, forecast, config, projects, today]);
+  }, [context, source, matching.data, documents.data, imported.data, entries.data, projection.data, accounts.data, treasurySettings.data, forecast, config, projects, today]);
 
   const pending = source === 'tasks' ? matching.isPending : source === 'documents' ? documents.isPending : entries.isPending;
   const error = (source === 'tasks' ? matching.error : source === 'documents' ? (documents.error ?? imported.error) : (entries.error ?? projection.error ?? accounts.error)) ?? null;

@@ -4,6 +4,7 @@ import * as reminders from '../../services/reminders';
 import * as statuses from '../../services/document-statuses';
 import * as tracking from '../../services/document-tracking';
 import * as treasury from '../../services/treasury';
+import * as settings from '../../services/treasury-settings';
 import { builder } from '../builder';
 
 /**
@@ -39,6 +40,58 @@ function importedBalancesOf(ctx: object): Promise<Map<string, tracking.DocumentB
 const ScopeEnum = builder.enumType('DocumentStatusScope', { values: ['QUOTE', 'INVOICE'] as const });
 const CategoryEnum = builder.enumType('DocumentStatusCategory', { values: ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID'] as const });
 const EntryStatusEnum = builder.enumType('TreasuryEntryStatus', { values: ['ACTUAL', 'FORECAST'] as const });
+const DirectionEnum = builder.enumType('TreasuryDirection', { values: ['IN', 'OUT'] as const });
+
+builder.prismaObject('TreasuryCategory', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    direction: t.field({ type: DirectionEnum, resolve: (category) => category.direction }),
+    parentId: t.exposeID('parentId', { nullable: true }),
+    entryCount: t.relationCount('entries'),
+  }),
+});
+
+builder.prismaObject('TreasuryPaymentMethod', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    incoming: t.exposeBoolean('incoming'),
+    outgoing: t.exposeBoolean('outgoing'),
+    entryCount: t.relationCount('entries'),
+  }),
+});
+
+builder.prismaObject('TreasuryCounterparty', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    note: t.exposeString('note', { nullable: true }),
+    archived: t.exposeBoolean('archived'),
+    entryCount: t.relationCount('entries'),
+  }),
+});
+
+interface LinkedEntry {
+  id: string;
+  date: Date;
+  label: string;
+  amount: number;
+  status: 'ACTUAL' | 'FORECAST';
+}
+
+const LinkedEntryRef = builder.objectRef<LinkedEntry>('TreasuryLinkedEntry').implement({
+  description: 'Entry linked to another one (both ways).',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    date: t.expose('date', { type: 'Date' }),
+    label: t.exposeString('label'),
+    amount: t.exposeFloat('amount'),
+    status: t.field({ type: EntryStatusEnum, resolve: (entry) => entry.status }),
+  }),
+});
+
+const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
 builder.prismaObject('DocumentStatus', {
   fields: (t) => ({
@@ -80,11 +133,29 @@ builder.prismaObject('TreasuryEntry', {
     accountId: t.exposeID('accountId'),
     accountName: t.string({ select: { account: { select: { name: true } } }, resolve: (entry) => entry.account.name }),
     status: t.field({ type: EntryStatusEnum, resolve: (entry) => entry.status }),
-    date: t.expose('date', { type: 'Date' }),
+    date: t.expose('date', { type: 'Date', description: 'Execution date.' }),
+    valueDate: t.expose('valueDate', { type: 'Date', nullable: true }),
     label: t.exposeString('label'),
     amount: t.float({ resolve: (entry) => Number(entry.amount) }),
-    category: t.exposeString('category', { nullable: true }),
-    method: t.exposeString('method', { nullable: true }),
+    categoryId: t.exposeID('categoryId', { nullable: true }),
+    methodId: t.exposeID('methodId', { nullable: true }),
+    methodName: t.string({ nullable: true, select: { method: { select: { name: true } } }, resolve: (entry) => entry.method?.name ?? null }),
+    clientId: t.exposeID('clientId', { nullable: true }),
+    counterpartyId: t.exposeID('counterpartyId', { nullable: true }),
+    payerName: t.string({
+      nullable: true,
+      description: 'Payer or payee: the client or the counterparty.',
+      select: { client: { select: { name: true } }, counterparty: { select: { name: true } } },
+      resolve: (entry) => entry.client?.name ?? entry.counterparty?.name ?? null,
+    }),
+    linkedEntries: t.field({
+      type: [LinkedEntryRef],
+      select: { links: linkedSelect, linkedBy: linkedSelect },
+      resolve: (entry) =>
+        [...entry.links, ...entry.linkedBy]
+          .map((linked) => ({ ...linked, amount: Number(linked.amount) }))
+          .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    }),
     projectId: t.exposeID('projectId', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (entry) => entry.recurrence }),
@@ -248,14 +319,42 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
     accountId: t.id({ required: true }),
     status: t.field({ type: EntryStatusEnum, required: true }),
     date: t.field({ type: 'Date', required: true }),
+    valueDate: t.field({ type: 'Date' }),
     label: t.string({ required: true }),
     amount: t.float({ required: true }),
-    category: t.string(),
-    method: t.string(),
+    categoryId: t.id(),
+    methodId: t.id(),
+    clientId: t.id(),
+    counterpartyId: t.id(),
     projectId: t.id(),
     note: t.string(),
     recurrence: t.field({ type: 'JSON' }),
     allocations: t.field({ type: [AllocationInput], required: true }),
+    linkedEntryIds: t.idList(),
+  }),
+});
+
+const CategoryInput = builder.inputType('TreasuryCategoryInput', {
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    direction: t.field({ type: DirectionEnum, required: true }),
+    parentId: t.id(),
+  }),
+});
+
+const PaymentMethodInput = builder.inputType('TreasuryPaymentMethodInput', {
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    incoming: t.boolean({ required: true }),
+    outgoing: t.boolean({ required: true }),
+  }),
+});
+
+const CounterpartyInput = builder.inputType('TreasuryCounterpartyInput', {
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    note: t.string(),
+    archived: t.boolean({ required: true }),
   }),
 });
 
@@ -266,9 +365,13 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
  */
 const entryInput = (input: typeof EntryInput.$inferInput): TreasuryEntryInput => ({
   ...input,
-  category: input.category ?? null,
-  method: input.method ?? null,
+  valueDate: input.valueDate ?? null,
+  categoryId: input.categoryId ?? null,
+  methodId: input.methodId ?? null,
+  clientId: input.clientId ?? null,
+  counterpartyId: input.counterpartyId ?? null,
   projectId: input.projectId ?? null,
+  linkedEntryIds: input.linkedEntryIds ?? [],
   note: input.note ?? null,
   recurrence: (input.recurrence ?? null) as TreasuryEntryInput['recurrence'],
   allocations: input.allocations.map((allocation) => ({
@@ -283,7 +386,7 @@ const PaymentInput = builder.inputType('DocumentPaymentInput', {
     accountId: t.id({ required: true }),
     date: t.field({ type: 'Date', required: true }),
     amount: t.float({ required: true }),
-    method: t.string(),
+    methodId: t.id(),
   }),
 });
 
@@ -319,6 +422,30 @@ builder.queryFields((t) => ({
         ...query,
         where: { date: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) }, ...(accountId ? { accountId } : {}) },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      }),
+  }),
+  treasuryCategories: t.prismaField({
+    type: ['TreasuryCategory'],
+    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { name: 'asc' }] }),
+  }),
+  treasuryPaymentMethods: t.prismaField({
+    type: ['TreasuryPaymentMethod'],
+    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: { name: 'asc' } }),
+  }),
+  treasuryCounterparties: t.prismaField({
+    type: ['TreasuryCounterparty'],
+    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { name: 'asc' }] }),
+  }),
+  treasuryEntrySearch: t.prismaField({
+    type: ['TreasuryEntry'],
+    description: 'Entries whose label contains a text (to link entries), latest first.',
+    args: { text: t.arg.string({ required: true }), limit: t.arg.int() },
+    resolve: (query, _root, { text, limit }) =>
+      prisma.treasuryEntry.findMany({
+        ...query,
+        where: { label: { contains: text.trim(), mode: 'insensitive' } },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: Math.min(limit ?? 20, 50),
       }),
   }),
   forecastEntries: t.prismaField({
@@ -409,7 +536,7 @@ builder.mutationFields((t) => ({
   recordDocumentPayment: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: PaymentInput, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await tracking.recordPayment(id, { ...input, method: input.method ?? null });
+      await tracking.recordPayment(id, { ...input, methodId: input.methodId ?? null });
       return true;
     },
   }),
@@ -428,6 +555,60 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {
       await treasury.deleteAccount(id);
+      return true;
+    },
+  }),
+  createTreasuryCategory: t.id({
+    args: { input: t.arg({ type: CategoryInput, required: true }) },
+    resolve: async (_root, { input }) => (await settings.createCategory(input as never)).id,
+  }),
+  updateTreasuryCategory: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await settings.updateCategory(id, input as never);
+      return true;
+    },
+  }),
+  deleteTreasuryCategory: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await settings.deleteCategory(id);
+      return true;
+    },
+  }),
+  createTreasuryPaymentMethod: t.id({
+    args: { input: t.arg({ type: PaymentMethodInput, required: true }) },
+    resolve: async (_root, { input }) => (await settings.createPaymentMethod(input as never)).id,
+  }),
+  updateTreasuryPaymentMethod: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: PaymentMethodInput, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await settings.updatePaymentMethod(id, input as never);
+      return true;
+    },
+  }),
+  deleteTreasuryPaymentMethod: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await settings.deletePaymentMethod(id);
+      return true;
+    },
+  }),
+  createTreasuryCounterparty: t.id({
+    args: { input: t.arg({ type: CounterpartyInput, required: true }) },
+    resolve: async (_root, { input }) => (await settings.createCounterparty(input as never)).id,
+  }),
+  updateTreasuryCounterparty: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: CounterpartyInput, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await settings.updateCounterparty(id, input as never);
+      return true;
+    },
+  }),
+  deleteTreasuryCounterparty: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await settings.deleteCounterparty(id);
       return true;
     },
   }),

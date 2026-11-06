@@ -80,7 +80,27 @@ async function parseEntry(input: TreasuryEntryInput) {
   const entry = parseInput(treasuryEntrySchema, input);
   if (!(await prisma.treasuryAccount.findUnique({ where: { id: entry.accountId }, select: { id: true } }))) throw notFound('Compte');
   if (entry.projectId && !(await prisma.project.findUnique({ where: { id: entry.projectId }, select: { id: true } }))) throw notFound('Projet');
+  if (entry.clientId && !(await prisma.client.findUnique({ where: { id: entry.clientId }, select: { id: true } }))) throw notFound('Client');
+  if (entry.counterpartyId && !(await prisma.treasuryCounterparty.findUnique({ where: { id: entry.counterpartyId }, select: { id: true } }))) throw notFound('Tiers');
   const incoming = entry.amount > 0;
+  if (entry.categoryId) {
+    const category = await prisma.treasuryCategory.findUnique({ where: { id: entry.categoryId }, select: { direction: true } });
+    if (!category) throw notFound('Catégorie');
+    if ((category.direction === 'IN') !== incoming) {
+      const message = incoming ? 'Choisissez une catégorie d’entrée.' : 'Choisissez une catégorie de sortie.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { categoryId: message } });
+    }
+  }
+  if (entry.methodId) {
+    const method = await prisma.treasuryPaymentMethod.findUnique({ where: { id: entry.methodId }, select: { incoming: true, outgoing: true } });
+    if (!method) throw notFound('Moyen de paiement');
+    if (!(incoming ? method.incoming : method.outgoing)) {
+      const message = incoming ? 'Ce moyen de paiement ne sert pas aux entrées.' : 'Ce moyen de paiement ne sert pas aux sorties.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });
+    }
+  }
+  const linked = [...new Set(entry.linkedEntryIds)];
+  if (linked.length && (await prisma.treasuryEntry.count({ where: { id: { in: linked } } })) !== linked.length) throw notFound('Mouvement lié');
   const wrongWay = 'Une entrée règle des factures, une sortie rembourse des avoirs.';
   for (const allocation of entry.allocations) {
     const document = allocation.documentId
@@ -102,10 +122,13 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
     accountId: entry.accountId,
     status: entry.status,
     date: parseDay(entry.date),
+    valueDate: entry.valueDate ? parseDay(entry.valueDate) : null,
     label: entry.label,
     amount: new Prisma.Decimal(entry.amount),
-    category: entry.category,
-    method: entry.method,
+    categoryId: entry.categoryId,
+    methodId: entry.methodId,
+    clientId: entry.clientId,
+    counterpartyId: entry.counterpartyId,
     projectId: entry.projectId,
     note: entry.note,
     recurrence: entry.recurrence ? (entry.recurrence as Prisma.InputJsonValue) : Prisma.DbNull,
@@ -132,7 +155,9 @@ function allocationsData(entry: Awaited<ReturnType<typeof parseEntry>>): Prisma.
  */
 export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEntry> {
   const entry = await parseEntry(input);
-  const created = await prisma.treasuryEntry.create({ data: { ...entryData(entry), allocations: { create: allocationsData(entry) } } });
+  const created = await prisma.treasuryEntry.create({
+    data: { ...entryData(entry), allocations: { create: allocationsData(entry) }, links: { connect: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) } },
+  });
   await syncPaymentStatus(entry.allocations.map((allocation) => allocation.documentId));
   return created;
 }
@@ -147,9 +172,16 @@ export async function updateEntry(id: string, input: TreasuryEntryInput): Promis
   const previous = await prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } });
   if (!previous) throw notFound('Mouvement');
   const entry = await parseEntry(input);
+  if (entry.linkedEntryIds.includes(id)) throw clientError('BAD_USER_INPUT', 'Un mouvement ne peut pas être lié à lui-même.', { fields: { linkedEntryIds: 'Retirez ce mouvement de ses liens.' } });
   const updated = await prisma.treasuryEntry.update({
     where: { id },
-    data: { ...entryData(entry), allocations: { deleteMany: {}, create: allocationsData(entry) } },
+    data: {
+      ...entryData(entry),
+      allocations: { deleteMany: {}, create: allocationsData(entry) },
+      // A link is kept once, from this side.
+      links: { set: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
+      linkedBy: { set: [] },
+    },
   });
   await syncPaymentStatus([...previous.allocations.map((allocation) => allocation.documentId), ...entry.allocations.map((allocation) => allocation.documentId)]);
   return updated;
@@ -185,14 +217,18 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
     accountId: forecast.accountId,
     status: 'ACTUAL',
     date: actual.date,
+    valueDate: null,
     label: forecast.label,
     amount: actual.amount,
-    category: forecast.category,
-    method: forecast.method,
+    categoryId: forecast.categoryId,
+    methodId: forecast.methodId,
+    clientId: forecast.clientId,
+    counterpartyId: forecast.counterpartyId,
     projectId: forecast.projectId,
     note: forecast.note,
     recurrence: null,
     allocations: [],
+    linkedEntryIds: [],
   });
   return prisma.$transaction(async (tx) => {
     if (rule) {
@@ -353,12 +389,15 @@ export async function treasuryProjection(today: string, from: string, until: str
   }
   const series: Projection['series'] = [];
   let running = opening;
-  for (let day = start; day <= today; day = addDays(day, 1)) {
+  // A period over before today has no forecast.
+  const lastPast = until < today ? until : today;
+  for (let day = start; day <= lastPast; day = addDays(day, 1)) {
     running += pastByDay.get(day) ?? 0;
     series.push({ date: day, balance: running, forecast: false });
   }
   const futureByDay = new Map<string, number>();
   for (const item of items) futureByDay.set(item.date, (futureByDay.get(item.date) ?? 0) + item.amount);
+  if (until < today) return { balance, series, items };
   running = balance;
   // Overdue items (expected today) start the forecast.
   running += futureByDay.get(today) ?? 0;

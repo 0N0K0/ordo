@@ -175,7 +175,7 @@ export function useTrackingMutations() {
     deleteReminder: useAccountingMutation(async (id: string) => (await execute(DeleteReminder, { id })).deleteDocumentReminder),
     recordPayment: useAccountingMutation(
       async (variables: { id: string; input: DocumentPaymentInput }) =>
-        (await execute(RecordPayment, { id: variables.id, input: { ...variables.input, method: variables.input.method ?? null } })).recordDocumentPayment,
+        (await execute(RecordPayment, { id: variables.id, input: { ...variables.input, methodId: variables.input.methodId ?? null } })).recordDocumentPayment,
     ),
   };
 }

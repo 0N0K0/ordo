@@ -112,6 +112,7 @@ model Client {
   contacts     ClientContact[]
   documents    AccountingDocument[]
   imported     ImportedDocument[]
+  treasury     TreasuryEntry[]
 }
 
 enum ClientKind {
@@ -1165,30 +1166,87 @@ enum TreasuryEntryStatus {
   FORECAST
 }
 
+/// Money in or out.
+enum TreasuryDirection {
+  IN
+  OUT
+}
+
+/// Category of the treasury entries, for money in or out, possibly under a parent category of the same direction.
+model TreasuryCategory {
+  id        String             @id @default(cuid())
+  name      String
+  direction TreasuryDirection
+  parentId  String?
+  parent    TreasuryCategory?  @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  TreasuryCategory[] @relation("TreasuryCategoryTree")
+  createdAt DateTime           @default(now())
+  entries   TreasuryEntry[]
+
+  @@index([parentId])
+}
+
+/// Payment method (transfer, card, cheque…), usable for money in, out or both.
+model TreasuryPaymentMethod {
+  id        String          @id @default(cuid())
+  name      String
+  incoming  Boolean         @default(true)
+  outgoing  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  entries   TreasuryEntry[]
+}
+
+/// Payer or payee of entries that is not a client: supplier, administration, bank…
+model TreasuryCounterparty {
+  id        String          @id @default(cuid())
+  name      String
+  note      String?
+  archived  Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  entries   TreasuryEntry[]
+}
+
 /// Money in (positive) or out (negative) of an account, actual or expected.
 model TreasuryEntry {
-  id          String               @id @default(cuid())
-  accountId   String
-  account     TreasuryAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  status      TreasuryEntryStatus  @default(ACTUAL)
-  date        DateTime             @db.Date
-  label       String
+  id             String                 @id @default(cuid())
+  accountId      String
+  account        TreasuryAccount        @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  status         TreasuryEntryStatus    @default(ACTUAL)
+  /// Execution date: the one the balance, the charts and the periods follow.
+  date           DateTime               @db.Date
+  /// Value date given by the bank, for information.
+  valueDate      DateTime?              @db.Date
+  label          String
   /// Signed amount: positive for money in.
-  amount      Decimal              @db.Decimal(14, 2)
-  category    String?
-  /// Transfer, card, cheque…
-  method      String?
-  projectId   String?
-  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  note        String?
+  amount         Decimal                @db.Decimal(14, 2)
+  categoryId     String?
+  category       TreasuryCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  methodId       String?
+  method         TreasuryPaymentMethod? @relation(fields: [methodId], references: [id], onDelete: SetNull)
+  /// Payer or payee: a client, or another counterparty.
+  clientId       String?
+  client         Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  counterpartyId String?
+  counterparty   TreasuryCounterparty?  @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  note           String?
   /// Forecast only: repetition from `date` (shared recurrence rule); realized dates become exceptions.
-  recurrence  Json?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  allocations TreasuryAllocation[]
+  recurrence     Json?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  allocations    TreasuryAllocation[]
+  /// Linked entries, both ways (a link is stored once, from either side): linked money in and out of the same
+  /// period offset each other in the charts of money in and out.
+  links          TreasuryEntry[]        @relation("TreasuryEntryLinks")
+  linkedBy       TreasuryEntry[]        @relation("TreasuryEntryLinks")
 
   @@index([accountId, date])
   @@index([status, date])
+  @@index([categoryId])
+  @@index([methodId])
+  @@index([clientId])
+  @@index([counterpartyId])
 }
 
 /// Part of an actual entry settling a document: payment of an invoice, refund of a credit note.
