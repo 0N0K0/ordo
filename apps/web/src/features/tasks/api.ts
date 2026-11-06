@@ -976,10 +976,40 @@ export function useMilestoneMutations() {
         (await execute(UpdateMilestoneDocument, variables)).updateMilestone,
     ),
     remove: useTasksMutation(async (variables: { id: string }) => (await execute(DeleteMilestoneDocument, variables)).deleteMilestone),
-    move: useTasksMutation(
-      async (variables: { id: string; index: number }) => (await execute(MoveMilestoneDocument, variables)).moveMilestone,
-    ),
+    move: useMoveMilestone(),
   };
+}
+
+/**
+ * Moves a milestone to an index among those of its project, updating the cache at once (drag and drop).
+ * @returns {UseMutationResult} Mutation state.
+ */
+function useMoveMilestone() {
+  const queryClient = useQueryClient();
+  return useMutation<boolean, Error, { id: string; index: number }, { previous?: TasksData }>({
+    mutationFn: async (variables) => (await execute(MoveMilestoneDocument, variables)).moveMilestone,
+    onMutate: async ({ id, index }) => {
+      await queryClient.cancelQueries({ queryKey: tasksQueryKey });
+      const previous = queryClient.getQueryData<TasksData>(tasksQueryKey);
+      const moved = previous?.milestones.find((milestone) => milestone.id === id);
+      if (previous && moved) {
+        const others = previous.milestones
+          .filter((milestone) => milestone.projectId === moved.projectId && milestone.id !== id)
+          .sort((a, b) => a.position - b.position);
+        const order = [...others.slice(0, index), moved, ...others.slice(index)];
+        const positions = new Map(order.map((milestone, position) => [milestone.id, position]));
+        queryClient.setQueryData<TasksData>(tasksQueryKey, {
+          ...previous,
+          milestones: previous.milestones.map((milestone) => ({ ...milestone, position: positions.get(milestone.id) ?? milestone.position })),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(tasksQueryKey, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
+  });
 }
 
 const CreateSprintDocument = graphql(`

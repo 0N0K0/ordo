@@ -75,9 +75,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'parent':
       return task.parentId ? (context.taskById.get(task.parentId)?.number ?? null) : null;
     case 'milestone': {
-      // By due date, milestones without date after the dated ones.
-      const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
-      return milestone ? `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` : null;
+      // In the milestone order chosen by the user.
+      return task.milestoneId ? (context.milestoneRank.get(task.milestoneId) ?? null) : null;
     }
     case 'sprint': {
       // The earliest of its sprints.
@@ -198,9 +197,7 @@ function taskRows(tasks: Task[], config: TaskViewConfig, context: TaskContext, p
    * @returns {TaskRow[]} Rows.
    */
   const level = (parentId: string | null): TaskRow[] =>
-    sorted
-      .filter((task) => (parentId === null ? !task.parentId || !inList.has(task.parentId) : task.parentId === parentId))
-      .map((task) => toRow(task, level(task.id)));
+    sorted.filter((task) => (parentId === null ? !task.parentId || !inList.has(task.parentId) : task.parentId === parentId)).map((task) => toRow(task, level(task.id)));
   return level(null);
 }
 
@@ -223,9 +220,7 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
   const none = (label: string): GroupKey[] => [{ key: 'none', label, order: Number.MAX_SAFE_INTEGER }];
   switch (groupBy) {
     case 'state':
-      return task.closed
-        ? [{ key: 'closed', label: 'Fermées', color: 'violet', order: 1 }]
-        : [{ key: 'open', label: 'Ouvertes', color: 'green', order: 0 }];
+      return task.closed ? [{ key: 'closed', label: 'Fermées', color: 'violet', order: 1 }] : [{ key: 'open', label: 'Ouvertes', color: 'green', order: 0 }];
     case 'project':
       return [{ key: task.projectId, label: context.projectLabel(task.projectId), order: context.projectLabel(task.projectId) }];
     case 'status':
@@ -238,9 +233,7 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
       return [{ key: label.id, label: label.name, color: label.color, order: label.position }];
     }
     case 'assignees': {
-      const assignees = task.assigneeIds
-        .map((id) => context.contributorById.get(id))
-        .filter((contributor) => contributor !== undefined);
+      const assignees = task.assigneeIds.map((id) => context.contributorById.get(id)).filter((contributor) => contributor !== undefined);
       if (assignees.length === 0) return none('Non assignées');
       return assignees.map((contributor) => ({ key: contributor.id, label: contributor.name, order: contributor.name }));
     }
@@ -257,7 +250,7 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
     case 'milestone': {
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;
       if (!milestone) return none('Sans jalon');
-      return [{ key: milestone.id, label: milestone.title, order: `${milestone.dueDate ?? '9999-99-99'} ${milestone.title}` }];
+      return [{ key: milestone.id, label: milestone.title, order: context.milestoneRank.get(milestone.id) ?? Number.MAX_SAFE_INTEGER - 1 }];
     }
     case 'sprint': {
       // In the group of each of its sprints.
