@@ -1,6 +1,7 @@
 import { modals } from '@mantine/modals';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { DepositInvoiceForm } from './DepositInvoiceForm';
+import { DocumentsZipForm } from './DocumentsZipForm';
 import { NEW_DOCUMENT_TITLES } from './labels';
 import { NewDocumentForm } from './NewDocumentForm';
 
@@ -33,4 +34,13 @@ export function openNewDocument(type: AccountingDocumentType, preset: { clientId
     title: NEW_DOCUMENT_TITLES[type],
     children: <NewDocumentForm type={type} {...preset} onDone={() => modals.close(modalId)} />,
   });
+}
+
+/**
+ * Opens the download of the documents of a period as a ZIP.
+ * @returns {void}
+ */
+export function openDocumentsZip(): void {
+  const modalId = `documents-zip-${++modalCount}`;
+  modals.open({ modalId, title: 'Télécharger les documents d’une période', children: <DocumentsZipForm onDone={() => modals.close(modalId)} /> });
 }

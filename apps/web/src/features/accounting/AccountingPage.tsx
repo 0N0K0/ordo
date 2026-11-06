@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Table, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
-import { ArrowsClockwiseIcon, BellRingingIcon, CaretDownIcon, FileArrowUpIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BellRingingIcon, CaretDownIcon, FileArrowUpIcon, FileZipIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
@@ -14,7 +14,7 @@ import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, use
 import { openImportForm } from './imported-form';
 import { DocumentsTable } from './DocumentsTable';
 import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from './labels';
-import { openNewDocument } from './new-document';
+import { openDocumentsZip, openNewDocument } from './new-document';
 import { openRecurringForm } from './recurring-form';
 
 const TABS = [
@@ -159,24 +159,29 @@ export function AccountingPage() {
         <Title order={1} size="h2">
           Facturation
         </Title>
-        <Menu position="bottom-end" shadow="md">
-          <Menu.Target>
-            <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
-              Nouveau
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {TABS.map((item) => (
-              <Menu.Item key={item.value} onClick={() => openNewDocument(item.value)}>
-                {DOCUMENT_TYPE_LABELS[item.value]}
+        <Group gap="sm">
+          <Button variant="default" leftSection={<FileZipIcon aria-hidden />} onClick={openDocumentsZip}>
+            Télécharger (ZIP)
+          </Button>
+          <Menu position="bottom-end" shadow="md">
+            <Menu.Target>
+              <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
+                Nouveau
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              {TABS.map((item) => (
+                <Menu.Item key={item.value} onClick={() => openNewDocument(item.value)}>
+                  {DOCUMENT_TYPE_LABELS[item.value]}
+                </Menu.Item>
+              ))}
+              <Menu.Divider />
+              <Menu.Item leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
+                Importer un document existant
               </Menu.Item>
-            ))}
-            <Menu.Divider />
-            <Menu.Item leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
-              Importer un document existant
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
       </Group>
       <Tabs value={tab} onChange={(value) => setParams(value && value !== 'QUOTE' ? { tab: value } : {}, { replace: true })} keepMounted={false}>
         <Tabs.List mb="md">
