@@ -1,8 +1,12 @@
 import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { DatePickerInput } from '@mantine/dates';
+import type { ReactNode } from 'react';
 import { modals } from '@mantine/modals';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
-import { ArrowDownIcon, ArrowUpIcon, DotsThreeIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { DotsSixVerticalIcon, DotsThreeIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
@@ -79,9 +83,52 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
 
 let modalCount = 0;
 
+interface SortableMilestoneProps {
+  milestone: Milestone;
+  /** Whether it can be dragged (manual order only). */
+  sortable: boolean;
+  children: ReactNode;
+}
+
+/**
+ * Card of a milestone, dragged by its handle to reorder the milestones in manual order (pointer or keyboard).
+ * @param {SortableMilestoneProps} props Component props.
+ * @returns {JSX.Element} Card.
+ */
+function SortableMilestone({ milestone, sortable, children }: SortableMilestoneProps) {
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: milestone.id, disabled: !sortable });
+  return (
+    <Paper
+      ref={setNodeRef}
+      withBorder
+      radius="md"
+      p="md"
+      shadow={isDragging ? 'md' : undefined}
+      style={{ transform: CSS.Translate.toString(transform), transition, position: 'relative', zIndex: isDragging ? 1 : undefined }}
+    >
+      <Group gap="sm" wrap="nowrap" align="flex-start">
+        {sortable && (
+          <ActionIcon
+            ref={setActivatorNodeRef}
+            variant="subtle"
+            color="gray"
+            aria-label={`Déplacer le jalon ${milestone.title}`}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+            {...attributes}
+            {...listeners}
+          >
+            <DotsSixVerticalIcon weight="bold" aria-hidden />
+          </ActionIcon>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      </Group>
+    </Paper>
+  );
+}
+
 /**
  * Milestones of a project, in the order chosen by the user (due date, title or manual): due date, progress of their
- * tasks, description; create, edit, reorder (manual order), delete.
+ * tasks, description; create, edit, reorder by drag and drop (manual order), delete.
  * @param {{ projectId: string }} props Component props.
  * @returns {JSX.Element} Panel.
  */
@@ -89,11 +136,24 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, move } = useMilestoneMutations();
   const [order, setOrder] = useMilestoneOrder();
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const today = localToday();
   if (!context) return null;
   const project = context.projectById.get(projectId);
   // Already in the chosen order.
   const milestones = context.milestones.filter((milestone) => milestone.projectId === projectId);
+  const sortable = order === 'manual' && !project?.archived;
+
+  /**
+   * Moves the dropped milestone to its new place (manual order).
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const index = milestones.findIndex((milestone) => milestone.id === over.id);
+    if (index >= 0) move.mutate({ id: String(active.id), index }, { onError: (error) => notifyError(error.message) });
+  };
 
   /**
    * Opens the milestone form.
@@ -165,64 +225,58 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
           </Stack>
         </Paper>
       ) : (
-        milestones.map((milestone, index) => {
-          const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
-          const done = tasks.filter((task) => context.isClosed(task)).length;
-          const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
-          return (
-            <Paper key={milestone.id} withBorder radius="md" p="md">
-              <Stack gap="sm">
-                <Group justify="space-between" wrap="nowrap" align="flex-start">
-                  <Stack gap={2}>
-                    <Group gap="xs">
-                      <FlagIcon aria-hidden />
-                      <Title order={3} size="h5">
-                        {milestone.title}
-                      </Title>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={milestones.map((milestone) => milestone.id)} strategy={verticalListSortingStrategy}>
+            {milestones.map((milestone) => {
+              const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
+              const done = tasks.filter((task) => context.isClosed(task)).length;
+              const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
+              return (
+                <SortableMilestone key={milestone.id} milestone={milestone} sortable={sortable}>
+                  <Stack gap="sm">
+                    <Group justify="space-between" wrap="nowrap" align="flex-start">
+                      <Stack gap={2}>
+                        <Group gap="xs">
+                          <FlagIcon aria-hidden />
+                          <Title order={3} size="h5">
+                            {milestone.title}
+                          </Title>
+                        </Group>
+                        <Text size="sm" c={late ? 'red' : 'dimmed'} fw={late ? 600 : undefined}>
+                          {milestone.dueDate ? `Échéance : ${dateFormat.format(new Date(`${milestone.dueDate}T00:00:00Z`))}` : 'Sans échéance'}
+                          {late && ' — en retard'}
+                        </Text>
+                      </Stack>
+                      <Menu position="bottom-end" withinPortal shadow="md">
+                        <Menu.Target>
+                          <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur le jalon ${milestone.title}`}>
+                            <DotsThreeIcon weight="bold" aria-hidden />
+                          </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(milestone)}>
+                            Modifier
+                          </Menu.Item>
+                          <Menu.Divider />
+                          <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(milestone, tasks.length)}>
+                            Supprimer
+                          </Menu.Item>
+                        </Menu.Dropdown>
+                      </Menu>
                     </Group>
-                    <Text size="sm" c={late ? 'red' : 'dimmed'} fw={late ? 600 : undefined}>
-                      {milestone.dueDate ? `Échéance : ${dateFormat.format(new Date(`${milestone.dueDate}T00:00:00Z`))}` : 'Sans échéance'}
-                      {late && ' — en retard'}
-                    </Text>
+                    <Group gap="sm" wrap="nowrap">
+                      <Progress value={tasks.length ? (done / tasks.length) * 100 : 0} style={{ flex: 1 }} aria-label={`Avancement du jalon ${milestone.title}`} />
+                      <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
+                        {done}/{tasks.length} tâche{tasks.length > 1 ? 's' : ''}
+                      </Text>
+                    </Group>
+                    {milestone.description && <MarkdownView targets={context.targets}>{milestone.description}</MarkdownView>}
                   </Stack>
-                  <Menu position="bottom-end" withinPortal shadow="md">
-                    <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur le jalon ${milestone.title}`}>
-                        <DotsThreeIcon weight="bold" aria-hidden />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(milestone)}>
-                        Modifier
-                      </Menu.Item>
-                      {order === 'manual' && (
-                        <>
-                          <Menu.Item leftSection={<ArrowUpIcon aria-hidden />} disabled={index === 0} onClick={() => move.mutate({ id: milestone.id, index: index - 1 })}>
-                            Monter
-                          </Menu.Item>
-                          <Menu.Item leftSection={<ArrowDownIcon aria-hidden />} disabled={index === milestones.length - 1} onClick={() => move.mutate({ id: milestone.id, index: index + 1 })}>
-                            Descendre
-                          </Menu.Item>
-                        </>
-                      )}
-                      <Menu.Divider />
-                      <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(milestone, tasks.length)}>
-                        Supprimer
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
-                </Group>
-                <Group gap="sm" wrap="nowrap">
-                  <Progress value={tasks.length ? (done / tasks.length) * 100 : 0} style={{ flex: 1 }} aria-label={`Avancement du jalon ${milestone.title}`} />
-                  <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
-                    {done}/{tasks.length} tâche{tasks.length > 1 ? 's' : ''}
-                  </Text>
-                </Group>
-                {milestone.description && <MarkdownView targets={context.targets}>{milestone.description}</MarkdownView>}
-              </Stack>
-            </Paper>
-          );
-        })
+                </SortableMilestone>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
       )}
     </Stack>
   );
