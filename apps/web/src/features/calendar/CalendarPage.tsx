@@ -7,11 +7,12 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, plannedPauses, plannedSlots } from '@ordo/shared';
-import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
-import { notifyError } from '../../lib/notify';
+import { localToday } from '../../lib/dates';
+import { notifyError, notifySuccess } from '../../lib/notify';
 import { useUpdateTask } from '../tasks/api';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useTaskLink } from '../tasks/use-task-link';
@@ -21,6 +22,7 @@ import { useTimeEntryDialogs } from '../time/use-time-dialogs';
 import { scheduleRules, useCalendarCategories, useCalendarEventMutations, useCalendarEvents, useMaterializeTaskOccurrences, useWorkSchedules, type EventOccurrence } from './api';
 import { askScope } from './ask-scope';
 import classes from './CalendarPage.module.css';
+import { downloadCalendarPdf, pdfItems } from './calendar-pdf';
 import { categoryOptions, categorySubtree } from './category-tree';
 import { localParts, occurrenceInput } from './event-input';
 import { useEventForm } from './use-event-form';
@@ -271,6 +273,37 @@ export function CalendarPage() {
   };
 
   const api = () => calendarRef.current?.getApi();
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * Downloads the displayed view as a PDF (filters applied), to print.
+   * @returns {Promise<void>}
+   */
+  const exportPdf = async () => {
+    if (!range) return;
+    setExporting(true);
+    try {
+      const filtersLabel = [
+        filters.projectIds.length && context ? `Projets : ${filters.projectIds.map((id) => context.projectById.get(id)?.title ?? '').join(', ')}` : '',
+        filters.categoryIds.length ? `Catégories : ${filters.categoryIds.map((id) => categoryById.get(id)?.name ?? '').join(', ')}` : '',
+        filters.contributorIds.length && context ? `Contributeurs : ${filters.contributorIds.map((id) => context.contributorById.get(id)?.name ?? '').join(', ')}` : '',
+      ].filter(Boolean);
+      await downloadCalendarPdf({
+        title,
+        subtitle: ['Agenda', ...filtersLabel].join(' · '),
+        view: view === 'dayGridMonth' ? 'month' : view === 'timeGridWeek' ? 'week' : 'day',
+        from: range.from,
+        to: range.to,
+        today: localToday(),
+        items: pdfItems(items, classes.closed),
+      });
+      notifySuccess('Agenda exporté.');
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'Export PDF impossible.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <Stack gap="md">
@@ -298,6 +331,11 @@ export function CalendarPage() {
             {title}
           </Text>
           <SegmentedControl data={VIEWS} value={view} onChange={(value) => setView(value as View)} aria-label="Vue" />
+          <Tooltip label="Exporter la vue en PDF (pour l’imprimer)">
+            <ActionIcon variant="default" size="lg" aria-label="Exporter la vue en PDF" loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
+              <FilePdfIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             Plages de travail
           </Button>
