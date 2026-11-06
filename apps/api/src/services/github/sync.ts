@@ -39,11 +39,13 @@ export interface SyncSummary {
 const include = {
   assignees: { select: { id: true, githubLogin: true } },
   tags: { select: { id: true, name: true } },
+  sprints: { select: { id: true, startDate: true, githubIterationId: true } },
   parent: { select: { githubContentId: true, githubContentType: true } },
 } as const;
 type SyncedTask = Task & {
   assignees: { id: string; githubLogin: string | null }[];
   tags: { id: string; name: string }[];
+  sprints: { id: string; startDate: Date; githubIterationId: string | null }[];
   parent: { githubContentId: string | null; githubContentType: string | null } | null;
 };
 
@@ -102,7 +104,11 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
   }
   if (link.statusFieldId) fields.status = task.statusId ? (maps.statusOption[task.statusId] ?? `ordo:${task.statusId}`) : null;
   if (link.priorityFieldId) fields.priority = task.priorityId ? (maps.priorityOption[task.priorityId] ?? `ordo:${task.priorityId}`) : null;
-  if (link.iterationFieldId) fields.iteration = task.sprintId ? (maps.sprintIteration.get(task.sprintId) ?? `ordo:${task.sprintId}`) : null;
+  if (link.iterationFieldId) {
+    // A board item has one iteration: the latest sprint of the task.
+    const latest = [...task.sprints].sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0];
+    fields.iteration = latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
+  }
   if (link.startFieldId) fields.start = task.startDate ? task.startDate.toISOString().slice(0, 10) : null;
   if (link.endFieldId) fields.end = task.endDate ? task.endDate.toISOString().slice(0, 10) : null;
   if (link.effortFieldId) fields.effort = task.effort;
@@ -173,8 +179,10 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
   if ('priority' in values) data.priority = values.priority ? { connect: { id: maps.optionPriority.get(String(values.priority))! } } : { disconnect: true };
   if ('iteration' in values) {
+    // The iteration replaces the sprints mirroring iterations; the task keeps its other sprints.
     const sprintId = values.iteration ? maps.iterationSprint.get(String(values.iteration)) : undefined;
-    data.sprint = sprintId ? { connect: { id: sprintId } } : { disconnect: true };
+    const kept = task.sprints.filter((sprint) => !sprint.githubIterationId).map((sprint) => ({ id: sprint.id }));
+    data.sprints = { set: [...kept, ...(sprintId ? [{ id: sprintId }] : [])] };
   }
   if ('start' in values) data.startDate = day(values.start);
   if ('end' in values) data.endDate = day(values.end);

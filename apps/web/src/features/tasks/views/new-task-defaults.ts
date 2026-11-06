@@ -41,7 +41,7 @@ export function groupDefaults(groupBy: TaskGroupBy, key: string, context: TaskCo
     }
     case 'sprint': {
       const sprint = context.sprintById.get(key);
-      return sprint ? { sprintId: key, projectId: sprint.projectId } : {};
+      return sprint ? { sprintIds: [key], projectId: sprint.projectId } : {};
     }
     case 'parent': {
       const parent = context.taskById.get(key);

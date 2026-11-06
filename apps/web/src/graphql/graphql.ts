@@ -103,14 +103,16 @@ export type AlarmType =
 /** Omitted fields are left unchanged; null clears a field. */
 export type BulkTaskInput = {
   addAssigneeIds?: Array<string | number> | null | undefined;
+  addSprintIds?: Array<string | number> | null | undefined;
   addTagIds?: Array<string | number> | null | undefined;
+  deadline?: string | null | undefined;
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
   milestoneId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   removeAssigneeIds?: Array<string | number> | null | undefined;
+  removeSprintIds?: Array<string | number> | null | undefined;
   removeTagIds?: Array<string | number> | null | undefined;
-  sprintId?: string | number | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   typeId?: string | number | null | undefined;
@@ -475,6 +477,7 @@ export type SprintInput = {
 
 export type TaskInput = {
   assigneeIds?: Array<string | number> | null | undefined;
+  deadline?: string | null | undefined;
   description?: string | null | undefined;
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
@@ -482,7 +485,7 @@ export type TaskInput = {
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   projectId: string | number;
-  sprintId?: string | number | null | undefined;
+  sprintIds?: Array<string | number> | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   tagIds?: Array<string | number> | null | undefined;
@@ -526,13 +529,14 @@ export type TaskStatusCategory =
 /** Omitted fields are left unchanged; null clears a field. Use transferTask to change the project. */
 export type TaskUpdateInput = {
   assigneeIds?: Array<string | number> | null | undefined;
+  deadline?: string | null | undefined;
   description?: string | null | undefined;
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
   milestoneId?: string | number | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
-  sprintId?: string | number | null | undefined;
+  sprintIds?: Array<string | number> | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
   tagIds?: Array<string | number> | null | undefined;
@@ -1632,14 +1636,14 @@ export type MilestoneFieldsFragment = { id: string, projectId: string, title: st
 
 export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null };
+export type TaskFieldsFragment = { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string, githubAuthor: string | null };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, taskTags: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, taskTags: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   number: number;
@@ -1653,7 +1657,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null } };
+export type CreateTaskMutation = { createTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -1661,7 +1665,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintId: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number, title: string, description: string | null, projectId: string, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null } };
 
 export type SetTaskArchivedMutationVariables = Exact<{
   id: string | number;
@@ -2775,7 +2779,8 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   endDate
   parentId
   milestoneId
-  sprintId
+  sprintIds
+  deadline
   position
   archived
   createdAt
@@ -4310,7 +4315,8 @@ fragment TaskFields on Task {
   endDate
   parentId
   milestoneId
-  sprintId
+  sprintIds
+  deadline
   position
   archived
   createdAt
@@ -4366,7 +4372,8 @@ export const CreateTaskDocument = new TypedDocumentString(`
   endDate
   parentId
   milestoneId
-  sprintId
+  sprintIds
+  deadline
   position
   archived
   createdAt
@@ -4407,7 +4414,8 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   endDate
   parentId
   milestoneId
-  sprintId
+  sprintIds
+  deadline
   position
   archived
   createdAt

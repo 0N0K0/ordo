@@ -118,8 +118,9 @@ export function useMyTodayTasks(context: TaskContext | null, today: string) {
   return useMemo(() => {
     if (!context || !matching.data) return { tasks: null, overdue: 0 };
     const tasks = matching.data.map((id) => context.taskById.get(id)).filter((task): task is Task => task !== undefined);
-    const late = (task: Task) => task.endDate !== null && task.endDate < today;
-    tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.endDate ?? '9999').localeCompare(b.endDate ?? '9999') || a.number - b.number);
+    // Overdue: past its "Date max".
+    const late = (task: Task) => task.deadline !== null && task.deadline < today;
+    tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || a.number - b.number);
     return { tasks, overdue: tasks.filter(late).length };
   }, [context, matching.data, today]);
 }

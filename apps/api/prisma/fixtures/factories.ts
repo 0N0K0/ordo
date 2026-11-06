@@ -134,13 +134,18 @@ export const milestoneFactory = Factory.define<Prisma.MilestoneUncheckedCreateIn
 export const taskFactory = Factory.define<Prisma.TaskUncheckedCreateInput, object, Task>(({ sequence, onCreate }) => {
   onCreate((data) => prisma.task.create({ data }));
   const start = maybe(0.6, () => faker.date.between({ from: faker.date.recent({ days: 30 }), to: faker.date.soon({ days: 30 }) }));
+  const endDate = start ? maybe(0.8, () => day(faker.date.soon({ days: 20, refDate: start }))) : maybe(0.3, () => day(faker.date.soon({ days: 30 })));
   return {
     projectId: '',
     title: `${faker.helpers.arrayElement(TASK_VERBS)} ${faker.helpers.arrayElement(TASK_OBJECTS)}`,
     description: maybe(0.6, markdown),
     effort: maybe(0.7, () => faker.helpers.arrayElement([0.5, 1, 2, 3, 5, 8, 13])),
     startDate: start && day(start),
-    endDate: start ? maybe(0.8, () => day(faker.date.soon({ days: 20, refDate: start }))) : maybe(0.3, () => day(faker.date.soon({ days: 30 }))),
+    endDate,
+    // "Date max": the end date or a few days of margin after it, sometimes a deadline without end date.
+    deadline: endDate
+      ? maybe(0.8, () => day(faker.date.soon({ days: 5, refDate: endDate })))
+      : maybe(0.15, () => day(faker.date.soon({ days: 45 }))),
     position: sequence,
   };
 });

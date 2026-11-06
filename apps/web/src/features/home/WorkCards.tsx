@@ -36,7 +36,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
         <Stack gap={0}>
           {tasks.slice(0, MAX_ROWS).map((task) => {
             const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
-            const late = task.endDate !== null && task.endDate < today;
+            const late = task.deadline !== null && task.deadline < today;
             return (
               <Link key={task.id} to={link.to(task.number)} className={classes.row}>
                 <Group justify="space-between" wrap="nowrap" gap="xs">
@@ -48,9 +48,9 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
                       #{task.number} · {context.projectById.get(task.projectId)?.title ?? 'Projet inconnu'}
                     </Text>
                   </Stack>
-                  {late && task.endDate ? (
+                  {late && task.deadline ? (
                     <Badge color="red" variant="light" style={{ flexShrink: 0 }}>
-                      {daysBetween(task.endDate, today)} j de retard
+                      {daysBetween(task.deadline, today)} j de retard
                     </Badge>
                   ) : (
                     status && (

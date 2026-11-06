@@ -234,7 +234,7 @@ function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEd
     } else if (kind === 'date') {
       const value = typeof condition.value === 'string' ? condition.value : '';
       editor = operator === 'within' ? <PeriodValue value={value} onChange={set} /> : <DayValue value={value} onChange={set} />;
-    } else if (kind === 'reference' || kind === 'multiReference' || kind === 'category') {
+    } else if (kind === 'reference' || kind === 'multiReference' || kind === 'sprint' || kind === 'category') {
       editor = (
         <MultiSelect
           comboboxProps={INLINE}

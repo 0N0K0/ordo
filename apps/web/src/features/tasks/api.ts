@@ -80,7 +80,8 @@ graphql(`
     endDate
     parentId
     milestoneId
-    sprintId
+    sprintIds
+    deadline
     position
     archived
     createdAt
@@ -461,9 +462,10 @@ export interface TaskInputValues {
   effort?: number | null;
   startDate?: string | null;
   endDate?: string | null;
+  deadline?: string | null;
   parentId?: string | null;
   milestoneId?: string | null;
-  sprintId?: string | null;
+  sprintIds?: string[];
 }
 
 /**
@@ -850,6 +852,7 @@ function useViewMutation<TVariables, TResult>(mutationFn: (variables: TVariables
  * @returns {object} View mutations.
  */
 export function useTaskViewMutations() {
+  const queryClient = useQueryClient();
   return {
     create: useViewMutation(
       async (input: { name: string; config: unknown; projectId: string | null }) =>
@@ -866,9 +869,19 @@ export function useTaskViewMutations() {
     setDefault: useViewMutation(
       async (variables: { id: string }) => (await execute(SetDefaultTaskViewDocument, variables)).setDefaultTaskView,
     ),
-    move: useViewMutation(
-      async (variables: { id: string; index: number }) => (await execute(MoveTaskViewDocument, variables)).moveTaskView,
-    ),
+    move: useMutation<boolean, Error, { id: string; index: number }>({
+      mutationFn: async (variables) => (await execute(MoveTaskViewDocument, variables)).moveTaskView,
+      // The tab stays where it was dropped while the server reorders.
+      onMutate: ({ id, index }) => {
+        for (const [key, views] of queryClient.getQueriesData<TaskViewRecord[]>({ queryKey: taskViewsQueryKey })) {
+          if (!views?.some((view) => view.id === id)) continue;
+          const order = views.filter((view) => view.id !== id);
+          order.splice(index, 0, views.find((view) => view.id === id)!);
+          queryClient.setQueryData(key, order);
+        }
+      },
+      onSettled: () => queryClient.invalidateQueries({ queryKey: taskViewsQueryKey }),
+    }),
   };
 }
 
@@ -877,10 +890,12 @@ export interface BulkChanges {
   priorityId?: string | null;
   typeId?: string | null;
   milestoneId?: string | null;
-  sprintId?: string | null;
+  addSprintIds?: string[];
+  removeSprintIds?: string[];
   effort?: number | null;
   startDate?: string | null;
   endDate?: string | null;
+  deadline?: string | null;
   addAssigneeIds?: string[];
   removeAssigneeIds?: string[];
   addTagIds?: string[];

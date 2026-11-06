@@ -256,20 +256,27 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
 }
 
 /**
- * Sprint cell: select among the sprints of the task's project tree.
+ * Sprints cell: multi-select among the sprints of the task's project tree. On a column selection, adding a
+ * sprint adds it to every selected task and removing one removes it.
  * @param {{ task: Task, context: TaskContext }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function SprintCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'sprint');
   return (
-    <Select
+    <MultiSelect
       {...cellCombobox}
-      aria-label={fieldLabel('Sprint', task, count)}
+      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+      aria-label={fieldLabel('Sprints', task, count)}
       data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
-      value={task.sprintId}
-      onChange={(sprintId) => apply({ sprintId }, { sprintId })}
-      placeholder="—"
+      value={task.sprintIds}
+      onChange={(sprintIds) => {
+        const added = sprintIds.filter((id) => !task.sprintIds.includes(id));
+        const removed = task.sprintIds.filter((id) => !sprintIds.includes(id));
+        apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
+      }}
+      placeholder={task.sprintIds.length ? undefined : '—'}
+      searchable
       nothingFoundMessage="Aucun sprint dans ce projet"
     />
   );
@@ -396,13 +403,15 @@ export function EffortCell({ task }: { task: Task }) {
 
 interface DateCellProps {
   task: Task;
-  column: 'startDate' | 'endDate';
-  /** Shown in red (overdue end date). */
+  column: 'startDate' | 'endDate' | 'deadline';
+  /** Shown in red (overdue: past its "Date max"). */
   alert?: boolean;
 }
 
+const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max' } as const;
+
 /**
- * Start or end date cell: date picker.
+ * Start, end or "Date max" cell: date picker.
  * @param {DateCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -414,7 +423,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       size="xs"
       classNames={{ root: classes.root, input: classes.input, section: classes.section }}
       onClick={stop}
-      aria-label={fieldLabel(column === 'startDate' ? 'Début' : 'Fin', task, count)}
+      aria-label={fieldLabel(DATE_LABELS[column], task, count)}
       valueFormat="D MMM YYYY"
       value={task[column]}
       // A single task keeps a valid range; with several, the API checks every task.

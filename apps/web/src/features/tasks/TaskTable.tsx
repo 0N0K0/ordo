@@ -204,7 +204,7 @@ interface TaskTableProps {
   config: TaskViewConfig;
   change: (change: (config: TaskViewConfig) => TaskViewConfig) => void;
   context: TaskContext;
-  /** User's day (YYYY-MM-DD), for overdue end dates. */
+  /** User's day (YYYY-MM-DD), for overdue tasks (past their "Date max"). */
   today: string;
   selection: RowSelectionState;
   onSelectionChange: (selection: RowSelectionState) => void;
@@ -320,12 +320,9 @@ export function TaskTable({
           </Text>
         ) : null,
       startDate: (task) => <DateCell task={task} column="startDate" />,
-      endDate: (task) => (
-        <DateCell
-          task={task}
-          column="endDate"
-          alert={task.endDate !== null && task.endDate < today && !context.isClosed(task)}
-        />
+      endDate: (task) => <DateCell task={task} column="endDate" />,
+      deadline: (task) => (
+        <DateCell task={task} column="deadline" alert={task.deadline !== null && task.deadline < today && !context.isClosed(task)} />
       ),
       parent: (task) => {
         const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;

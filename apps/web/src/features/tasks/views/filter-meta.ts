@@ -27,6 +27,7 @@ export const FIELD_LABELS: Record<TaskFilterField, string> = {
   tags: 'Étiquettes',
   startDate: 'Début',
   endDate: 'Fin',
+  deadline: 'Date max',
   createdAt: 'Créée le',
   updatedAt: 'Modifiée le',
   overdue: 'En retard',
@@ -43,7 +44,7 @@ export const FIELD_GROUPS: { group: string; fields: TaskFilterField[] }[] = [
     group: 'Organisation',
     fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'tags', 'effort'],
   },
-  { group: 'Dates', fields: ['startDate', 'endDate', 'createdAt', 'updatedAt'] },
+  { group: 'Dates', fields: ['startDate', 'endDate', 'deadline', 'createdAt', 'updatedAt'] },
   { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'archived'] },
 ];
 
@@ -81,6 +82,18 @@ export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOpera
     isEmpty: 'personne',
     isNotEmpty: 'au moins une personne',
   },
+  sprint: {
+    in: 'est l’un de',
+    notIn: 'n’est aucun de',
+    allOf: 'inclut tous',
+    current: 'en cours',
+    previous: 'précédent',
+    next: 'suivant',
+    past: 'passé',
+    future: 'à venir',
+    isEmpty: 'aucun',
+    isNotEmpty: 'au moins un',
+  },
   boolean: { isTrue: 'oui', isFalse: 'non' },
   category: { in: 'est', notIn: 'n’est pas' },
 };
@@ -100,9 +113,7 @@ export const PERIOD_LABELS: Record<string, string> = {
  * @returns {readonly FilterOperator[]} Operators.
  */
 export function operatorsOf(field: TaskFilterField): readonly FilterOperator[] {
-  const operators = FILTER_OPERATORS[TASK_FILTER_FIELDS[field]];
-  // Sprints have no sub-items.
-  return field === 'sprint' ? operators.filter((operator) => operator !== 'inTree') : operators;
+  return FILTER_OPERATORS[TASK_FILTER_FIELDS[field]];
 }
 
 /**
