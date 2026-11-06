@@ -1,5 +1,5 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { ChartBarIcon, CheckSquareOffsetIcon, GearIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { CheckSquareOffsetIcon, GearIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
 import { useMediaQuery } from '@mantine/hooks';
 import { useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -105,7 +105,8 @@ export function ProjectPage() {
   // The former tabs of the settings (links, bookmarks) open their section.
   const requested = params.get('tab') ?? 'overview';
   const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
-  const tab = legacy ? 'settings' : requested;
+  // The dashboards are in the overview.
+  const tab = legacy ? 'settings' : requested === 'dashboards' ? 'overview' : requested;
   const sectionParam = legacy ? requested : params.get('section');
   const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : 'milestones';
   // Tasks of the project and of its sub-projects.
@@ -188,20 +189,17 @@ export function ProjectPage() {
           <Tabs.Tab value="tasks" leftSection={<CheckSquareOffsetIcon aria-hidden />}>
             Tâches
           </Tabs.Tab>
-          <Tabs.Tab value="dashboards" leftSection={<ChartBarIcon aria-hidden />}>
-            Tableaux de bord
-          </Tabs.Tab>
           <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
           </Tabs.Tab>
           <Tabs.Tab value="billing" leftSection={<ReceiptIcon aria-hidden />}>
             Facturation
           </Tabs.Tab>
-          <Tabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
-            Ressources
-          </Tabs.Tab>
           <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
             Mails
+          </Tabs.Tab>
+          <Tabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
+            Ressources
           </Tabs.Tab>
           <Tabs.Tab value="settings" leftSection={<GearIcon aria-hidden />}>
             Paramètres
@@ -259,6 +257,8 @@ export function ProjectPage() {
                   {project.description ?? 'Aucune description.'}
                 </Text>
               </Stack>
+
+              <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
           </Stack>
         </Tabs.Panel>
         <Tabs.Panel value="tasks">
@@ -270,9 +270,6 @@ export function ProjectPage() {
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />
-        </Tabs.Panel>
-        <Tabs.Panel value="dashboards">
-          <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
         </Tabs.Panel>
         <Tabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />
