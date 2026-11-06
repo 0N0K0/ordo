@@ -18,6 +18,7 @@ import {
   FilePdfIcon,
   PencilSimpleIcon,
   PlusIcon,
+  TableIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
@@ -34,6 +35,7 @@ import { useDashboardMutations, useDashboards, type Dashboard, type DashboardCha
 import { ChartEditor } from './ChartEditor';
 import { chartPng, chartSizeFor, downloadChartsPdf, exportFileName, saveFile, type ExportScheme } from './chart-image';
 import { ImageExportForm } from './ImageExportForm';
+import { chartTable, downloadChartCsv, downloadChartTablePdf } from './chart-table';
 import { describeChart, useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
@@ -105,7 +107,7 @@ interface ChartCardProps {
 /**
  * Chart of a dashboard, moved by its handle (drag and drop, or keyboard), with its actions: edit, duplicate,
  * width, order, move to another dashboard (general or
- * of a project), image and PDF exports, delete.
+ * of a project), image and PDF exports, its data as CSV or PDF table, delete.
  * @param {ChartCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
@@ -310,6 +312,22 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               </Menu.Item>
               <Menu.Item leftSection={<FilePdfIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('pdf')}>
                 Exporter en PDF
+              </Menu.Item>
+              <Menu.Item leftSection={<TableIcon aria-hidden />} disabled={!data || data.empty} onClick={() => data && downloadChartCsv(chartTable(data, config), `${dashboardName} — ${chart.title}`)}>
+                Exporter les données (CSV)
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<TableIcon aria-hidden />}
+                disabled={!data || data.empty}
+                onClick={() => {
+                  if (!data) return;
+                  setExporting(true);
+                  downloadChartTablePdf(chartTable(data, config), chart.title, `${dashboardName} · ${description}`)
+                    .catch((exportError: Error) => notifyError(exportError.message))
+                    .finally(() => setExporting(false));
+                }}
+              >
+                Exporter les données (PDF)
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={confirmDelete}>

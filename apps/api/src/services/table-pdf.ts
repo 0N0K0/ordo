@@ -13,12 +13,15 @@ export const tablePdfSchema = z.object({
   rows: z
     .array(
       z.object({
-        kind: z.enum(['group', 'task', 'event']),
+        /** Group heading, task (square marker), event (dot), or plain row of data. */
+        kind: z.enum(['group', 'task', 'event', 'row']),
         depth: z.number().int().min(0).max(20).default(0),
         cells: z.array(z.string().max(5000)).max(30),
       }),
     )
     .max(10_000),
+  /** Alignment of each column (numbers to the right); left when omitted. */
+  align: z.array(z.enum(['left', 'right'])).max(30).default([]),
 });
 export type TablePdfInput = z.input<typeof tablePdfSchema>;
 
@@ -43,7 +46,8 @@ const MAX_NATURAL = { first: 340, other: 170 };
 function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth: number): number[] {
   const measure = (text: string, bold: boolean) => doc.font(bold ? 'bold' : 'regular').fontSize(FONT_SIZE).widthOfString(text);
   const columns = table.columns.map((label, index) => {
-    const extra = 2 * PAD + (index === 0 ? MARKER + INDENT * Math.max(0, ...table.rows.map((row) => row.depth)) : 0);
+    const marked = table.rows.some((row) => row.kind === 'task' || row.kind === 'event');
+    const extra = 2 * PAD + (index === 0 ? (marked ? MARKER : 0) + INDENT * Math.max(0, ...table.rows.map((row) => row.depth)) : 0);
     const texts = table.rows.filter((row) => row.kind !== 'group').map((row) => row.cells[index] ?? '');
     const words = [...label.split(/\s+/).map((word) => measure(word, true)), ...texts.flatMap((text) => text.split(/\s+/).map((word) => measure(word, false)))];
     const minimum = Math.max(24, ...words) + extra;
@@ -61,7 +65,8 @@ function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth
 
 /**
  * PDF (A4 landscape) of a table: title, subtitle, header repeated on each page, group rows, tasks with a square
- * marker and events with a round one in the first column, indented by level; page numbers in the footer.
+ * marker and events with a round one in the first column, indented by level, or plain rows of data (columns
+ * aligned as asked); page numbers in the footer.
  * @param {TablePdfInput} input Table.
  * @returns {Promise<Buffer>} PDF.
  */
@@ -109,7 +114,7 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     const height = Math.max(...table.columns.map((label, index) => doc.heightOfString(label, { width: widths[index] - 2 * PAD }))) + 2 * PAD;
     doc.rect(MARGIN, y, pageWidth, height).fill(COLORS.fill);
     doc.fillColor(COLORS.text);
-    table.columns.forEach((label, index) => doc.text(label, xs[index] + PAD, y + PAD, { width: widths[index] - 2 * PAD }));
+    table.columns.forEach((label, index) => doc.text(label, xs[index] + PAD, y + PAD, { width: widths[index] - 2 * PAD, align: table.align[index] ?? 'left' }));
     y += height;
   };
 
@@ -138,7 +143,8 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
       continue;
     }
     doc.font('regular').fontSize(FONT_SIZE);
-    const indent = row.depth * INDENT + MARKER;
+    const plain = row.kind === 'row';
+    const indent = row.depth * INDENT + (plain ? 0 : MARKER);
     const cellWidth = (index: number) => Math.max(10, widths[index] - 2 * PAD - (index === 0 ? indent : 0));
     const height = Math.max(...table.columns.map((_, index) => doc.heightOfString(row.cells[index] ?? '', { width: cellWidth(index) }))) + 2 * PAD;
     ensure(height);
@@ -146,10 +152,10 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     const markerX = MARGIN + PAD + row.depth * INDENT;
     const markerY = y + PAD + FONT_SIZE / 2;
     if (row.kind === 'event') doc.circle(markerX + 2.5, markerY, 2.5).fill(COLORS.event);
-    else doc.rect(markerX, markerY - 2.5, 5, 5).lineWidth(0.8).stroke(COLORS.task);
+    else if (!plain) doc.rect(markerX, markerY - 2.5, 5, 5).lineWidth(0.8).stroke(COLORS.task);
     doc.fillColor(COLORS.text);
     table.columns.forEach((_, index) =>
-      doc.text(row.cells[index] ?? '', xs[index] + PAD + (index === 0 ? indent : 0), y + PAD, { width: cellWidth(index) }),
+      doc.text(row.cells[index] ?? '', xs[index] + PAD + (index === 0 ? indent : 0), y + PAD, { width: cellWidth(index), align: table.align[index] ?? 'left' }),
     );
     y += height;
     doc.moveTo(MARGIN, y).lineTo(MARGIN + pageWidth, y).lineWidth(0.4).strokeColor(COLORS.border).stroke();
