@@ -32,7 +32,8 @@ import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from './api';
 import { ChartEditor } from './ChartEditor';
-import { chartPng, downloadChartsPdf, exportFileName, saveFile } from './chart-image';
+import { chartPng, chartSizeFor, downloadChartsPdf, exportFileName, saveFile, type ExportScheme } from './chart-image';
+import { ImageExportForm } from './ImageExportForm';
 import { describeChart, useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
@@ -44,8 +45,15 @@ interface Capture {
   description: string;
   image: string;
 }
-/** Captures of the charts: as shown (PNG), or for printing (light colors, page format). */
-type Captures = MutableRefObject<Map<string, (print: boolean) => Promise<Capture>>>;
+/** How a chart is captured: colors, size it is drawn at (off screen), final image size. */
+interface CaptureOptions {
+  scheme: ExportScheme;
+  /** Size to draw the chart at, off screen; as displayed when omitted. */
+  render?: { width: number; height: number };
+  /** Final image size, in pixels; the drawn size when omitted. */
+  frame?: { width: number; height: number };
+}
+type Captures = MutableRefObject<Map<string, (options: CaptureOptions) => Promise<Capture>>>;
 
 /** Chart drawn for printing: an A4 landscape page, below the title and description. */
 const PRINT_SIZE = { width: 1120, height: 600 };
@@ -108,48 +116,66 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
   const view = useRef<HTMLDivElement>(null);
   const printView = useRef<HTMLDivElement>(null);
-  // Drawn off screen in the page format while a PDF is made.
-  const [printing, setPrinting] = useState(false);
+  // Drawn off screen at the size of an export while it is made.
+  const [printSize, setPrintSize] = useState<{ width: number; height: number } | null>(null);
   const [exporting, setExporting] = useState(false);
   const description = describeChart(config, context);
 
   // The dashboard export asks every chart for its image.
   useEffect(() => {
     const registry = captures.current;
-    registry.set(chart.id, async (print) => {
+    registry.set(chart.id, async ({ scheme, render, frame }) => {
       if (!view.current || !data) throw new Error(`« ${chart.title} » n’est pas encore affiché.`);
       const legend = data.series.length > 1 ? data.series : [];
-      if (!print) return { title: chart.title, description, image: await chartPng(view.current, chart.title, legend) };
+      if (!render) return { title: chart.title, description, image: await chartPng(view.current, chart.title, legend, { scheme, frame }) };
       if (data.empty) throw new Error(`« ${chart.title} » est vide.`);
-      setPrinting(true);
+      setPrintSize(render);
       try {
         const element = await drawnChart(() => printView.current);
-        return { title: chart.title, description, image: await chartPng(element, chart.title, legend, { light: true }) };
+        return { title: chart.title, description, image: await chartPng(element, chart.title, legend, { scheme, frame }) };
       } finally {
-        setPrinting(false);
+        setPrintSize(null);
       }
     });
     return () => void registry.delete(chart.id);
   }, [captures, chart.id, chart.title, data, description]);
 
   /**
-   * Exports the chart as an image or a PDF.
+   * Exports the chart as a PDF (light colors, page format), or asks the settings of an image (colors,
+   * orientation, ratio, size) and exports it.
    * @param {'png' | 'pdf'} format Format.
    * @returns {void}
    */
   const exportChart = (format: 'png' | 'pdf') => {
     const capture = captures.current.get(chart.id);
     if (!capture) return;
+    if (format === 'png') {
+      const modalId = `export-image-${chart.id}`;
+      modals.open({
+        modalId,
+        title: `Exporter « ${chart.title} » en image`,
+        children: (
+          <ImageExportForm
+            onDone={() => modals.close(modalId)}
+            onExport={(settings) => {
+              const frame = { width: settings.width, height: settings.height };
+              return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
+                .then((image) => saveFile(image.image, exportFileName(`${dashboardName} — ${chart.title}`, 'png')))
+                .catch((exportError: Error) => notifyError(exportError.message));
+            }}
+          />
+        ),
+      });
+      return;
+    }
     setExporting(true);
-    capture(format === 'pdf')
+    capture({ scheme: 'light', render: PRINT_SIZE })
       .then((image) =>
-        format === 'png'
-          ? saveFile(image.image, exportFileName(`${dashboardName} — ${chart.title}`, 'png'))
-          : downloadChartsPdf({
-              title: chart.title,
-              subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
-              charts: [image],
-            }),
+        downloadChartsPdf({
+          title: chart.title,
+          subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+          charts: [image],
+        }),
       )
       .catch((exportError: Error) => notifyError(exportError.message))
       .finally(() => setExporting(false));
@@ -280,7 +306,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item leftSection={<FileImageIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('png')}>
-                Exporter en image (PNG)
+                Exporter en image…
               </Menu.Item>
               <Menu.Item leftSection={<FilePdfIcon aria-hidden />} disabled={!data || data.empty} onClick={() => exportChart('pdf')}>
                 Exporter en PDF
@@ -301,11 +327,11 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
         ) : (
           <ChartView ref={view} config={config} data={data} height={280} />
         )}
-        {printing &&
+        {printSize &&
           data &&
           createPortal(
-            <div aria-hidden style={{ position: 'fixed', left: -PRINT_SIZE.width * 3, top: 0, width: PRINT_SIZE.width, pointerEvents: 'none' }}>
-              <ChartView ref={printView} config={config} data={data} height={PRINT_SIZE.height} />
+            <div aria-hidden style={{ position: 'fixed', left: -printSize.width * 3, top: 0, width: printSize.width, pointerEvents: 'none' }}>
+              <ChartView ref={printView} config={config} data={data} height={printSize.height} />
             </div>,
             document.body,
           )}
@@ -491,7 +517,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       current.charts
         .map((chart) => captures.current.get(chart.id))
         .filter((capture) => capture !== undefined)
-        .map((capture) => capture(true)),
+        .map((capture) => capture({ scheme: 'light', render: PRINT_SIZE })),
     )
       .then((charts) =>
         downloadChartsPdf({

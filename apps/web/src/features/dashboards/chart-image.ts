@@ -30,16 +30,21 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Color scheme of an export: as shown, or forced. */
+export type ExportScheme = 'current' | 'light' | 'dark';
+
 /**
- * Runs a reading of styles with the light color scheme, without the page showing it (switched back in the same
- * task, before any repaint).
+ * Runs a reading of styles with a color scheme, without the page showing it (switched back in the same task,
+ * before any repaint).
+ * @param {ExportScheme} scheme Scheme.
  * @param {() => T} read Synchronous reading.
  * @returns {T} Its result.
  */
-function withLightScheme<T>(read: () => T): T {
+function withScheme<T>(scheme: ExportScheme, read: () => T): T {
+  if (scheme === 'current') return read();
   const root = document.documentElement;
   const previous = root.getAttribute('data-mantine-color-scheme');
-  root.setAttribute('data-mantine-color-scheme', 'light');
+  root.setAttribute('data-mantine-color-scheme', scheme);
   try {
     return read();
   } finally {
@@ -48,22 +53,39 @@ function withLightScheme<T>(read: () => T): T {
   }
 }
 
+const TITLE_HEIGHT = 32;
+const LEGEND_LINE = 22;
+
 /**
- * PNG of a drawn chart, with its title above and its legend below: in the colors of the current theme, or of
- * the light one (printing).
+ * Size to draw a chart at so that its image fills a frame (title and legend around it).
+ * @param {{ width: number, height: number }} frame Final image size, in pixels.
+ * @param {number} legendItems Number of legend entries (0: no legend).
+ * @returns {{ width: number, height: number }} Size of the chart, in CSS pixels.
+ */
+export function chartSizeFor(frame: { width: number; height: number }, legendItems: number): { width: number; height: number } {
+  const width = frame.width / SCALE - 2 * PAD;
+  // About 130 px per legend entry.
+  const legendLines = legendItems ? Math.ceil((legendItems * 130) / width) : 0;
+  const height = frame.height / SCALE - 2 * PAD - TITLE_HEIGHT - (legendLines ? legendLines * LEGEND_LINE + 8 : 0);
+  return { width: Math.max(160, Math.round(width)), height: Math.max(120, Math.round(height)) };
+}
+
+/**
+ * PNG of a drawn chart, with its title above and its legend below, in the colors of the theme shown or of a
+ * forced one; at its own size, or filling a frame of given pixels (the chart fitted and centered).
  * @param {HTMLElement} container Element holding the chart.
  * @param {string} title Title.
  * @param {ChartSeries[]} legend Legend entries.
- * @param {{ light?: boolean }} [options] Light colors whatever the theme. Optional.
+ * @param {{ scheme?: ExportScheme, frame?: { width: number, height: number } }} [options] Color scheme and final size. Optional.
  * @returns {Promise<string>} PNG data URL.
  */
-export async function chartPng(container: HTMLElement, title: string, legend: ChartSeries[], options: { light?: boolean } = {}): Promise<string> {
+export async function chartPng(container: HTMLElement, title: string, legend: ChartSeries[], options: { scheme?: ExportScheme; frame?: { width: number; height: number } } = {}): Promise<string> {
   const svg = container.querySelector<SVGSVGElement>('svg.recharts-surface');
   if (!svg) throw new Error('Rien à exporter : le diagramme est vide.');
   const { width, height } = svg.getBoundingClientRect();
   const copy = svg.cloneNode(true) as SVGSVGElement;
-  // Styles, page colors and legend colors are read at once (in the light scheme when asked).
-  const read = () => {
+  // Styles, page colors and legend colors are read at once (in the scheme asked).
+  const page = withScheme(options.scheme ?? 'current', () => {
     const originals = [svg, ...svg.querySelectorAll('*')];
     const copies = [copy, ...copy.querySelectorAll('*')];
     originals.forEach((element, index) => {
@@ -71,15 +93,14 @@ export async function chartPng(container: HTMLElement, title: string, legend: Ch
       const style = STYLES.map((name) => `${name}:${computed.getPropertyValue(name)}`).join(';');
       copies[index].setAttribute('style', style);
     });
-    const page = getComputedStyle(document.body);
+    const body = getComputedStyle(document.body);
     return {
-      font: page.getPropertyValue('font-family'),
-      background: page.backgroundColor || '#ffffff',
-      text: page.color || '#1d232b',
+      font: body.getPropertyValue('font-family'),
+      background: body.backgroundColor || '#ffffff',
+      text: body.color || '#1d232b',
       colors: legend.map((entry) => resolveColor(entry.color)),
     };
-  };
-  const page = options.light ? withLightScheme(read) : read();
+  });
   copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   copy.setAttribute('width', String(width));
   copy.setAttribute('height', String(height));
@@ -90,35 +111,44 @@ export async function chartPng(container: HTMLElement, title: string, legend: Ch
     const font = page.font;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
-    // Legend laid out on lines of the chart's width.
+    // Logical size of the image (drawn at twice its size).
+    const frameWidth = options.frame ? options.frame.width / SCALE : width + 2 * PAD;
+    const innerWidth = frameWidth - 2 * PAD;
+    // Legend laid out on lines of the image's width.
     context.font = `13px ${font}`;
     const lines: { name: string; color: string; x: number }[][] = [[]];
     let x = 0;
     for (const [index, entry] of legend.entries()) {
       const itemWidth = 18 + context.measureText(entry.name).width + 16;
-      if (x > 0 && x + itemWidth > width) {
+      if (x > 0 && x + itemWidth > innerWidth) {
         lines.push([]);
         x = 0;
       }
       lines[lines.length - 1].push({ name: entry.name, color: page.colors[index], x });
       x += itemWidth;
     }
-    const legendHeight = legend.length ? lines.length * 22 + 8 : 0;
-    const titleHeight = 32;
-    canvas.width = (width + 2 * PAD) * SCALE;
-    canvas.height = (PAD + titleHeight + height + legendHeight + PAD) * SCALE;
+    const legendHeight = legend.length ? lines.length * LEGEND_LINE + 8 : 0;
+    const frameHeight = options.frame ? options.frame.height / SCALE : PAD + TITLE_HEIGHT + height + legendHeight + PAD;
+    // The chart fits the room left, centered.
+    const room = { width: innerWidth, height: frameHeight - 2 * PAD - TITLE_HEIGHT - legendHeight };
+    const ratio = Math.min(room.width / width, room.height / height, options.frame ? Infinity : 1);
+    const drawn = { width: width * ratio, height: height * ratio };
+    const chartX = PAD + (room.width - drawn.width) / 2;
+    canvas.width = Math.round(frameWidth * SCALE);
+    canvas.height = Math.round(frameHeight * SCALE);
     context.scale(SCALE, SCALE);
     context.fillStyle = page.background;
-    context.fillRect(0, 0, width + 2 * PAD, canvas.height / SCALE);
+    context.fillRect(0, 0, frameWidth, frameHeight);
     context.fillStyle = page.text;
     context.font = `600 17px ${font}`;
     context.textBaseline = 'top';
     context.fillText(title, PAD, PAD);
-    context.drawImage(image, PAD, PAD + titleHeight, width, height);
+    context.drawImage(image, chartX, PAD + TITLE_HEIGHT, drawn.width, drawn.height);
     context.font = `13px ${font}`;
     context.textBaseline = 'middle';
+    const legendTop = PAD + TITLE_HEIGHT + drawn.height + 8;
     lines.forEach((line, index) => {
-      const y = PAD + titleHeight + height + 8 + index * 22 + 11;
+      const y = legendTop + index * LEGEND_LINE + 11;
       for (const entry of line) {
         context.fillStyle = entry.color;
         context.fillRect(PAD + entry.x, y - 6, 12, 12);
