@@ -20,6 +20,8 @@ model Workspace {
   kind                    WorkspaceKind            @default(PRO)
   /// Order in the switcher.
   position                Int                      @default(0)
+  /// Notifications this workspace still gives while another one is open.
+  notifyElsewhere         NotificationSource[]     @default([])
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   icons                   Icon[]
@@ -78,6 +80,13 @@ model Workspace {
   treasuryCounterparties  TreasuryCounterparty[]
   treasuryEntries         TreasuryEntry[]
   treasuryAllocations     TreasuryAllocation[]
+}
+
+/// Kind of notification a workspace can give while another one is open.
+enum NotificationSource {
+  ALARMS
+  CALENDAR
+  MAILS
 }
 
 /// A personal workspace has no invoicing, no clients and no company.

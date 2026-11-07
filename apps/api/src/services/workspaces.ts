@@ -2,7 +2,7 @@ import { parseCookie } from 'cookie';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
-import type { Workspace, WorkspaceKind } from '../generated/prisma/client';
+import type { NotificationSource, Workspace, WorkspaceKind } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { currentWorkspace, runInWorkspace } from '../workspace-context';
 
@@ -155,6 +155,17 @@ export async function updateWorkspace(id: string, input: { name: string; kind: W
   const updated = await unscopedPrisma.workspace.update({ where: { id }, data });
   await setUpWorkspace(updated);
   return updated;
+}
+
+/**
+ * Chooses the notifications a workspace still gives while another one is open.
+ * @param {string} id Workspace.
+ * @param {NotificationSource[]} sources Alarms, calendar reminders, new mails.
+ * @returns {Promise<Workspace>} Workspace.
+ */
+export async function setWorkspaceNotifications(id: string, sources: NotificationSource[]): Promise<Workspace> {
+  if (!(await unscopedPrisma.workspace.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Espace');
+  return unscopedPrisma.workspace.update({ where: { id }, data: { notifyElsewhere: [...new Set(sources)] } });
 }
 
 /**

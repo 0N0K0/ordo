@@ -192,8 +192,10 @@ type Alarm {
   lastFiredAt: DateTime
   minutes: Int
   note: String
+  project: Project
   projectId: ID
   startDate: Date
+  task: Task
   taskId: ID
   time: String
   title: String!
@@ -1403,6 +1405,11 @@ type Mutation {
   setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
   setTimerPaused(paused: Boolean!): TimeEntry!
 
+  """
+  Chooses the notifications a workspace still gives while another one is open.
+  """
+  setWorkspaceNotifications(id: ID!, sources: [NotificationSource!]!): Workspace!
+
   """Starts a timer; the running one is stopped first."""
   startTimer(input: TimerInput!): TimeEntry!
   stopTimer: TimeEntry
@@ -1473,6 +1480,13 @@ type Mutation {
 
   """Stores a file to link from a markdown text (10 MB maximum)."""
   uploadAttachment(file: File!): Attachment!
+}
+
+"""Kind of notification a workspace can give while another one is open."""
+enum NotificationSource {
+  ALARMS
+  CALENDAR
+  MAILS
 }
 
 type Project {
@@ -2400,6 +2414,9 @@ type Workspace {
   id: ID!
   kind: WorkspaceKind!
   name: String!
+
+  """Notifications it still gives while another workspace is open."""
+  notifyElsewhere: [NotificationSource!]!
   position: Int!
 }
 

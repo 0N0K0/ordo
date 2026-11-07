@@ -15,15 +15,16 @@ export function rememberWorkspace(id: string): void {
 }
 
 /**
- * Opens another workspace: the app reloads on its home page (the pages of a workspace mean nothing in another
- * one), and so do the other tabs.
+ * Opens another workspace: the app reloads on its home page, or on a page of that workspace (the pages of a
+ * workspace mean nothing in another one); the other tabs reload on their home page.
  * @param {string} id Workspace.
+ * @param {string} [path] Page opened. Optional. Default = home page.
  * @returns {void}
  */
-export function switchWorkspace(id: string): void {
+export function switchWorkspace(id: string, path = '/'): void {
   rememberWorkspace(id);
   channel?.postMessage(id);
-  window.location.assign('/');
+  window.location.assign(path);
 }
 
 // Another tab switched: this one follows.

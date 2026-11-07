@@ -7,12 +7,22 @@ const WorkspaceKind = builder.enumType('WorkspaceKind', {
   values: ['PRO', 'PERSO'] as const,
 });
 
+const NotificationSource = builder.enumType('NotificationSource', {
+  description: 'Kind of notification a workspace can give while another one is open.',
+  values: ['ALARMS', 'CALENDAR', 'MAILS'] as const,
+});
+
 builder.prismaObject('Workspace', {
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
     kind: t.expose('kind', { type: WorkspaceKind }),
     position: t.exposeInt('position'),
+    notifyElsewhere: t.field({
+      type: [NotificationSource],
+      description: 'Notifications it still gives while another workspace is open.',
+      resolve: (workspace) => workspace.notifyElsewhere,
+    }),
   }),
 });
 
@@ -46,6 +56,12 @@ builder.mutationFields((t) => ({
     description: 'Renames a workspace or changes its kind (it only becomes personal without clients nor invoicing documents).',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkspaceInput, required: true }) },
     resolve: (_query, _root, { id, input }) => workspaces.updateWorkspace(id, input),
+  }),
+  setWorkspaceNotifications: t.prismaField({
+    type: 'Workspace',
+    description: 'Chooses the notifications a workspace still gives while another one is open.',
+    args: { id: t.arg.id({ required: true }), sources: t.arg({ type: [NotificationSource], required: true }) },
+    resolve: (_query, _root, { id, sources }) => workspaces.setWorkspaceNotifications(id, sources),
   }),
   moveWorkspace: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },

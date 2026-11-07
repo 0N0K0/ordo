@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { WorkspaceKind, WorkspacesQuery } from '../../graphql/graphql';
+import type { NotificationSource, WorkspaceKind, WorkspacesQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 import { rememberWorkspace } from './switch';
 
 export type Workspace = WorkspacesQuery['workspaces'][number];
-export type { WorkspaceKind };
+export type { NotificationSource, WorkspaceKind };
 
 const WorkspacesQueryDocument = graphql(`
   query Workspaces {
@@ -14,6 +14,7 @@ const WorkspacesQueryDocument = graphql(`
       name
       kind
       position
+      notifyElsewhere
     }
     currentWorkspaceId
   }
@@ -30,6 +31,14 @@ const CreateWorkspaceMutation = graphql(`
 const UpdateWorkspaceMutation = graphql(`
   mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {
     updateWorkspace(id: $id, input: $input) {
+      id
+    }
+  }
+`);
+
+const SetWorkspaceNotificationsMutation = graphql(`
+  mutation SetWorkspaceNotifications($id: ID!, $sources: [NotificationSource!]!) {
+    setWorkspaceNotifications(id: $id, sources: $sources) {
       id
     }
   }
@@ -78,7 +87,7 @@ export function useActiveWorkspace(): { workspace: Workspace | undefined; perso:
 }
 
 /**
- * Creating, changing, moving and deleting workspaces.
+ * Creating, changing (notifications included), moving and deleting workspaces.
  * @returns {object} Mutations.
  */
 export function useWorkspaceMutations() {
@@ -91,6 +100,10 @@ export function useWorkspaceMutations() {
     }),
     update: useMutation({
       mutationFn: (variables: { id: string; input: { name: string; kind: WorkspaceKind } }) => execute(UpdateWorkspaceMutation, variables),
+      onSuccess,
+    }),
+    setNotifications: useMutation({
+      mutationFn: (variables: { id: string; sources: NotificationSource[] }) => execute(SetWorkspaceNotificationsMutation, variables),
       onSuccess,
     }),
     move: useMutation({ mutationFn: (variables: { id: string; index: number }) => execute(MoveWorkspaceMutation, variables), onSuccess }),

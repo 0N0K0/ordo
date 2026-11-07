@@ -1,15 +1,21 @@
-import { ActionIcon, Badge, Button, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Chip, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useWorkspaceMutations, useWorkspaces, type Workspace, type WorkspaceKind } from './api';
+import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Workspace, type WorkspaceKind } from './api';
 import { switchWorkspace } from './switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 
 const KINDS = [
   { value: 'PRO', label: 'Pro' },
   { value: 'PERSO', label: 'Perso' },
+];
+
+const SOURCES: { value: NotificationSource; label: string }[] = [
+  { value: 'ALARMS', label: 'Alarmes' },
+  { value: 'CALENDAR', label: 'Rappels d’agenda' },
+  { value: 'MAILS', label: 'Nouveaux mails' },
 ];
 
 interface WorkspaceRowProps {
@@ -27,7 +33,7 @@ interface WorkspaceRowProps {
  * @returns {JSX.Element} Row.
  */
 function WorkspaceRow({ workspace, index, count, current, fallbackId }: WorkspaceRowProps) {
-  const { update, move, remove } = useWorkspaceMutations();
+  const { update, setNotifications, move, remove } = useWorkspaceMutations();
   const [name, setName] = useState(workspace.name);
   const [confirming, setConfirming] = useState(false);
   const onError = (error: Error) => notifyError(error.message);
@@ -77,52 +83,66 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
     );
   }
   return (
-    <Group gap="xs" wrap="nowrap">
-      <WorkspaceKindIcon kind={workspace.kind} />
-      <TextInput
-        aria-label="Nom de l’espace"
-        style={{ flex: 1 }}
-        value={name}
-        maxLength={60}
-        onChange={(event) => setName(event.currentTarget.value)}
-        onBlur={() => save({ name })}
-        rightSection={
-          current ? (
-            <Badge size="xs" variant="light">
-              Actuel
-            </Badge>
-          ) : null
-        }
-        rightSectionWidth={current ? 64 : undefined}
-      />
-      <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />
-      <Tooltip label="Monter">
-        <ActionIcon variant="subtle" color="gray" aria-label={`Monter ${workspace.name}`} disabled={index === 0} onClick={() => move.mutate({ id: workspace.id, index: index - 1 }, { onError })}>
-          <ArrowUpIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label="Descendre">
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          aria-label={`Descendre ${workspace.name}`}
-          disabled={index === count - 1}
-          onClick={() => move.mutate({ id: workspace.id, index: index + 1 }, { onError })}
-        >
-          <ArrowDownIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label="Ouvrir">
-        <ActionIcon variant="subtle" color="gray" aria-label={`Ouvrir ${workspace.name}`} disabled={current} onClick={() => switchWorkspace(workspace.id)}>
-          <ArrowSquareOutIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-      <Tooltip label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}>
-        <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${workspace.name}`} disabled={count === 1} onClick={() => setConfirming(true)}>
-          <TrashIcon aria-hidden />
-        </ActionIcon>
-      </Tooltip>
-    </Group>
+    <Stack gap={4}>
+      <Group gap="xs" wrap="nowrap">
+        <WorkspaceKindIcon kind={workspace.kind} />
+        <TextInput
+          aria-label="Nom de l’espace"
+          style={{ flex: 1 }}
+          value={name}
+          maxLength={60}
+          onChange={(event) => setName(event.currentTarget.value)}
+          onBlur={() => save({ name })}
+          rightSection={
+            current ? (
+              <Badge size="xs" variant="light">
+                Actuel
+              </Badge>
+            ) : null
+          }
+          rightSectionWidth={current ? 64 : undefined}
+        />
+        <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />
+        <Tooltip label="Monter">
+          <ActionIcon variant="subtle" color="gray" aria-label={`Monter ${workspace.name}`} disabled={index === 0} onClick={() => move.mutate({ id: workspace.id, index: index - 1 }, { onError })}>
+            <ArrowUpIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Descendre">
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            aria-label={`Descendre ${workspace.name}`}
+            disabled={index === count - 1}
+            onClick={() => move.mutate({ id: workspace.id, index: index + 1 }, { onError })}
+          >
+            <ArrowDownIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Ouvrir">
+          <ActionIcon variant="subtle" color="gray" aria-label={`Ouvrir ${workspace.name}`} disabled={current} onClick={() => switchWorkspace(workspace.id)}>
+            <ArrowSquareOutIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}>
+          <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${workspace.name}`} disabled={count === 1} onClick={() => setConfirming(true)}>
+            <TrashIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+      <Group gap="xs" pl={28}>
+        <Text size="xs" c="dimmed">
+          Notifier quand un autre espace est ouvert :
+        </Text>
+        <Chip.Group multiple value={workspace.notifyElsewhere} onChange={(sources) => setNotifications.mutate({ id: workspace.id, sources: sources as NotificationSource[] }, { onError })}>
+          {SOURCES.map((source) => (
+            <Chip key={source.value} value={source.value} size="xs" variant="light">
+              {source.label}
+            </Chip>
+          ))}
+        </Chip.Group>
+      </Group>
+    </Stack>
   );
 }
 
@@ -160,7 +180,7 @@ export function WorkspacesManager() {
     <Stack gap="sm">
       <Text size="sm" c="dimmed">
         Chaque espace a ses propres projets, tâches, temps, agenda, alarmes, boîtes mail, documents, tableaux de bord, trésorerie et paramètres. Un espace personnel n’a ni facturation, ni clients, ni
-        société.
+        société. Un espace peut continuer à notifier ses alarmes, rappels d’agenda et nouveaux mails quand un autre est ouvert.
       </Text>
       {workspaces.map((workspace, index) => (
         <WorkspaceRow

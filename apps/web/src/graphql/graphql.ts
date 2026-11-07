@@ -394,6 +394,12 @@ export type MilestoneUpdateInput = {
   title?: string | null | undefined;
 };
 
+/** Kind of notification a workspace can give while another one is open. */
+export type NotificationSource =
+  | 'ALARMS'
+  | 'CALENDAR'
+  | 'MAILS';
+
 export type ProjectCategoryInput = {
   color: string;
   name: string;
@@ -2794,10 +2800,35 @@ export type MoveProjectStatusMutationVariables = Exact<{
 
 export type MoveProjectStatusMutation = { moveProjectStatus: boolean };
 
+export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { number: number, title: string, projectId: string } | null, project: { id: string, title: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
+
+export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
+  id: string | number;
+  at: string;
+}>;
+
+
+export type ElsewhereMarkAlarmFiredMutation = { markAlarmFired: boolean };
+
+export type ElsewhereMailAccountsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ElsewhereMailAccountsQuery = { mailAccounts: Array<{ id: string }> };
+
+export type ElsewhereUnreadMailsQueryVariables = Exact<{
+  accountId: string | number;
+}>;
+
+
+export type ElsewhereUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
+
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkspacesQuery = { currentWorkspaceId: string, workspaces: Array<{ id: string, name: string, kind: WorkspaceKind, position: number }> };
+export type WorkspacesQuery = { currentWorkspaceId: string, workspaces: Array<{ id: string, name: string, kind: WorkspaceKind, position: number, notifyElsewhere: Array<NotificationSource> }> };
 
 export type CreateWorkspaceMutationVariables = Exact<{
   input: WorkspaceInput;
@@ -2813,6 +2844,14 @@ export type UpdateWorkspaceMutationVariables = Exact<{
 
 
 export type UpdateWorkspaceMutation = { updateWorkspace: { id: string } };
+
+export type SetWorkspaceNotificationsMutationVariables = Exact<{
+  id: string | number;
+  sources: Array<NotificationSource> | NotificationSource;
+}>;
+
+
+export type SetWorkspaceNotificationsMutation = { setWorkspaceNotifications: { id: string } };
 
 export type MoveWorkspaceMutationVariables = Exact<{
   id: string | number;
@@ -6241,6 +6280,73 @@ export const MoveProjectStatusDocument = new TypedDocumentString(`
   moveProjectStatus(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveProjectStatusMutation, MoveProjectStatusMutationVariables>;
+export const ElsewhereAlarmsDocument = new TypedDocumentString(`
+    query ElsewhereAlarms {
+  alarms {
+    ...AlarmFields
+    task {
+      number
+      title
+      projectId
+    }
+    project {
+      id
+      title
+    }
+  }
+  runningTimeEntry {
+    id
+    startedAt
+    endedAt
+    pausedAt
+    pausedSeconds
+    duration
+  }
+}
+    fragment AlarmFields on Alarm {
+  id
+  title
+  note
+  type
+  startDate
+  time
+  frequency
+  interval
+  weekdays
+  endDate
+  minutes
+  projectId
+  taskId
+  enabled
+  lastFiredAt
+  createdAt
+}`) as unknown as TypedDocumentString<ElsewhereAlarmsQuery, ElsewhereAlarmsQueryVariables>;
+export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
+    mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {
+  markAlarmFired(id: $id, at: $at)
+}
+    `) as unknown as TypedDocumentString<ElsewhereMarkAlarmFiredMutation, ElsewhereMarkAlarmFiredMutationVariables>;
+export const ElsewhereMailAccountsDocument = new TypedDocumentString(`
+    query ElsewhereMailAccounts {
+  mailAccounts {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<ElsewhereMailAccountsQuery, ElsewhereMailAccountsQueryVariables>;
+export const ElsewhereUnreadMailsDocument = new TypedDocumentString(`
+    query ElsewhereUnreadMails($accountId: ID!) {
+  mailMessages(accountId: $accountId, folder: "INBOX", page: 0, unread: true) {
+    messages {
+      uid
+      subject
+      from {
+        name
+        address
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ElsewhereUnreadMailsQuery, ElsewhereUnreadMailsQueryVariables>;
 export const WorkspacesDocument = new TypedDocumentString(`
     query Workspaces {
   workspaces {
@@ -6248,6 +6354,7 @@ export const WorkspacesDocument = new TypedDocumentString(`
     name
     kind
     position
+    notifyElsewhere
   }
   currentWorkspaceId
 }
@@ -6266,6 +6373,13 @@ export const UpdateWorkspaceDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UpdateWorkspaceMutation, UpdateWorkspaceMutationVariables>;
+export const SetWorkspaceNotificationsDocument = new TypedDocumentString(`
+    mutation SetWorkspaceNotifications($id: ID!, $sources: [NotificationSource!]!) {
+  setWorkspaceNotifications(id: $id, sources: $sources) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<SetWorkspaceNotificationsMutation, SetWorkspaceNotificationsMutationVariables>;
 export const MoveWorkspaceDocument = new TypedDocumentString(`
     mutation MoveWorkspace($id: ID!, $index: Int!) {
   moveWorkspace(id: $id, index: $index)

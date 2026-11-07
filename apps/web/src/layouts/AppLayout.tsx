@@ -8,6 +8,7 @@ import { useLogout, useMe } from '../features/auth/api';
 import { TaskPanel } from '../features/tasks/TaskPanel';
 import { AlarmCenter } from '../features/alarms/AlarmCenter';
 import { Sidebar } from '../features/workspace/sidebar/Sidebar';
+import { ElsewhereNotifier } from '../features/workspaces/ElsewhereNotifier';
 import { WorkspaceGate } from '../features/workspaces/WorkspaceGate';
 import { WorkspaceSwitcher } from '../features/workspaces/WorkspaceSwitcher';
 import { notifyError } from '../lib/notify';
@@ -97,6 +98,7 @@ export function AppLayout() {
           </AppShell.Header>
 
           <AlarmCenter />
+          <ElsewhereNotifier />
           <AppShell.Navbar aria-label="Clients et projets">
             <Sidebar />
             {!mobile && (
