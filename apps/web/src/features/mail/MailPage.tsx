@@ -132,7 +132,7 @@ export function MailPage() {
   const pages = Math.max(1, Math.ceil(total / (messages.data?.pageSize ?? 50)));
 
   return (
-    <Stack gap="md">
+    <Stack gap="md" className={classes.page}>
       <Modal opened={managingLabels} onClose={() => setManagingLabels(false)} title="Drapeaux">
         {managingLabels && <MailLabelsManager />}
       </Modal>
@@ -144,9 +144,9 @@ export function MailPage() {
           Nouveau mail
         </Button>
       </Group>
-      <Grid gap="md">
-        <Grid.Col span={{ base: 12, md: 3, xl: 2 }}>
-          <Paper withBorder radius="md" p={4}>
+      <Grid gap="md" classNames={{ root: classes.grid, inner: classes.gridInner }}>
+        <Grid.Col span={{ base: 12, md: 3, xl: 2 }} className={classes.column}>
+          <Paper withBorder radius="md" p={4} className={`${classes.pane} ${classes.paneScroll}`}>
             <NavLink
               label="Envois programmés"
               leftSection={<ClockCountdownIcon aria-hidden />}
@@ -181,7 +181,7 @@ export function MailPage() {
             )}
           </Paper>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 9, xl: 4 }}>
+        <Grid.Col span={{ base: 12, md: 9, xl: 4 }} className={classes.column}>
           <Paper withBorder radius="md" className={classes.pane}>
             {scheduledView ? (
               <div className={classes.paneScroll}>
@@ -478,8 +478,8 @@ export function MailPage() {
             )}
           </Paper>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, xl: 6 }}>
-          <Paper withBorder radius="md" p="md" className={`${classes.pane} ${classes.readerPane} ${classes.paneScroll}`}>
+        <Grid.Col span={{ base: 12, xl: 6 }} className={classes.column}>
+          <Paper withBorder radius="md" p="md" className={`${classes.pane} ${classes.paneScroll}`}>
             {accountId && uid !== null ? (
               <MailReader
                 key={`${accountId}-${folder}-${uid}`}

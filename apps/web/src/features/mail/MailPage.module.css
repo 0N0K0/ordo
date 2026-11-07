@@ -69,44 +69,55 @@
     }
   }
 
-  /* List and reader: stuck under the top bar, the height of the screen, their content scrolling inside. */
+  /* On wide screens (three columns side by side), the page is the height of the window: folders, list and
+     reader take the height left, each scrolling on its own. Below, the page scrolls as usual. */
+  .page {
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: calc(100dvh - var(--app-shell-header-offset, 56px) - 2 * var(--mantine-spacing-md));
+    }
+  }
+
+  .grid {
+    @media (min-width: 88em) {
+      /* Dimension */
+      flex: 1;
+      min-height: 0;
+    }
+  }
+
+  .gridInner,
+  .column {
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: 100%;
+    }
+  }
+
   .pane {
     /* Agencement */
     display: flex;
     flex-direction: column;
 
-    @media (min-width: 62em) {
-      /* Position */
-      position: sticky;
-      top: calc(var(--app-shell-header-offset, 56px) + var(--mantine-spacing-md));
-
+    @media (min-width: 88em) {
       /* Dimension */
-      height: calc(100dvh - var(--app-shell-header-offset, 56px) - 2 * var(--mantine-spacing-md));
+      height: 100%;
 
       /* Débordement */
       overflow: hidden;
     }
   }
 
-  /* The reader sits beside the list from the widest screens only. */
-  .readerPane {
-    @media (max-width: 88em) {
-      /* Position */
-      position: static;
-
-      /* Dimension */
-      height: auto;
-    }
-  }
-
   .paneScroll {
-    /* Dimension */
-    flex: 1;
-    min-height: 0;
+    @media (min-width: 88em) {
+      /* Dimension */
+      flex: 1;
+      min-height: 0;
 
-    /* Débordement */
-    overflow-y: auto;
-    overscroll-behavior: contain;
+      /* Débordement */
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
   }
 }
 
