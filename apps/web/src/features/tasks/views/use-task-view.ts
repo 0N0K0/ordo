@@ -43,7 +43,8 @@ export function useTaskView(projectId: string | null) {
   const mutations = useTaskViewMutations();
   const [params, setParams] = useSearchParams();
   const [drafts, setDrafts] = useState<Record<string, TaskViewConfig>>({});
-  const creating = useRef(false);
+  // Scope whose first view was asked for: asked once only, even when it fails (no retry loop).
+  const created = useRef<string | null>(null);
 
   const views: TaskView[] = useMemo(
     () =>
@@ -61,11 +62,12 @@ export function useTaskView(projectId: string | null) {
   // The first visit creates a "Toutes les tâches" view so there is always a tab.
   const { create } = mutations;
   useEffect(() => {
-    if (!viewsQuery.isSuccess || views.length > 0 || creating.current) return;
-    creating.current = true;
+    const scope = projectId ?? '';
+    if (!viewsQuery.isSuccess || views.length > 0 || created.current === scope) return;
+    created.current = scope;
     create.mutate(
       { name: 'Toutes les tâches', config: defaultTaskViewConfig(), projectId },
-      { onError: (error) => notifyError(error.message), onSettled: () => (creating.current = false) },
+      { onError: (error) => notifyError(error.message) },
     );
   }, [viewsQuery.isSuccess, views.length, create, projectId]);
 
