@@ -2,7 +2,8 @@ import { Badge, Group, Tooltip } from '@mantine/core';
 import { useMailAccounts, useTodoMailCount, useUnreadMailCount } from './api';
 
 /**
- * Counts of the inboxes on the "Mails" entry of the sidebar: mails to do, and unread ones.
+ * Counts on the "Mails" entry of the sidebar: mails to do (every folder but drafts, sent, archive, junk and
+ * trash), and unread ones (inboxes).
  * @returns {JSX.Element | null} Badges.
  */
 export function MailNavBadge() {

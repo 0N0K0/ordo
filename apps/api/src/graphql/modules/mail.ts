@@ -69,7 +69,7 @@ const MailFolder = builder.objectRef<reader.MailFolder>('MailFolder').implement(
     unseen: t.exposeInt('unseen'),
     depth: t.exposeInt('depth'),
     parent: t.exposeString('parent', { nullable: true }),
-    todo: t.exposeInt('todo', { nullable: true, description: 'Mails to do; null for the sent, drafts, trash and junk folders.' }),
+    todo: t.exposeInt('todo', { nullable: true, description: 'Mails to do; null for the sent, drafts, archive, trash and junk folders.' }),
   }),
 });
 
@@ -399,8 +399,8 @@ builder.queryFields((t) => ({
     resolve: (_root, { accountId, folder, uid }) => drafts.readDraft(accountId, folder, uid),
   }),
   todoMailCount: t.int({
-    description: 'Mails to do (not marked as done) in the inbox of every account.',
-    resolve: () => reader.todoInboxes(),
+    description: 'Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.',
+    resolve: () => reader.todoMails(),
   }),
   unreadMailCount: t.int({
     description: 'Unread mails in the inbox of every account.',

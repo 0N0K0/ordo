@@ -705,7 +705,8 @@ export function useUnreadMailCount(enabled: boolean) {
 }
 
 /**
- * Mails to do in every inbox, for the sidebar (refreshed every two minutes).
+ * Mails to do in every account (every folder but drafts, sent, archive, junk and trash), for the sidebar
+ * (refreshed every two minutes).
  * @param {boolean} enabled Whether accounts exist.
  * @returns {UseQueryResult} Query state.
  */

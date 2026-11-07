@@ -932,7 +932,9 @@ type MailFolder {
   path: String!
   specialUse: String
 
-  """Mails to do; null for the sent, drafts, trash and junk folders."""
+  """
+  Mails to do; null for the sent, drafts, archive, trash and junk folders.
+  """
   todo: Int
   unseen: Int!
 }
@@ -1714,7 +1716,9 @@ type Query {
   """
   timeEntries(projectId: ID, since: DateTime): [TimeEntry!]!
 
-  """Mails to do (not marked as done) in the inbox of every account."""
+  """
+  Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
+  """
   todoMailCount: Int!
   treasuryAccounts: [TreasuryAccount!]!
   treasuryCategories: [TreasuryCategory!]!
