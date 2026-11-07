@@ -95,7 +95,7 @@ let modalCount = 0;
  */
 export function SprintsPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
-  const { remove } = useSprintMutations();
+  const { remove, update } = useSprintMutations();
   const today = localToday();
   if (!context) return null;
   const project = context.projectById.get(projectId);
@@ -235,7 +235,19 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                     {effort > 0 && ` · effort ${numberFormat.format(doneEffort)}/${numberFormat.format(effort)}`}
                   </Text>
                 </Group>
-                {sprint.goal && <MarkdownView targets={context.targets}>{sprint.goal}</MarkdownView>}
+                {sprint.goal && (
+                  <MarkdownView
+                    targets={context.targets}
+                    onChange={(goal) =>
+                      update.mutate(
+                        { id: sprint.id, input: { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal } },
+                        { onError: (error) => notifyError(error.message) },
+                      )
+                    }
+                  >
+                    {sprint.goal}
+                  </MarkdownView>
+                )}
               </Stack>
             </Paper>
           );

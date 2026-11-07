@@ -134,7 +134,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
  */
 export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
-  const { remove, move } = useMilestoneMutations();
+  const { remove, move, update } = useMilestoneMutations();
   const [order, setOrder] = useMilestoneOrder();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const today = localToday();
@@ -270,7 +270,11 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                         {done}/{tasks.length} tâche{tasks.length > 1 ? 's' : ''}
                       </Text>
                     </Group>
-                    {milestone.description && <MarkdownView targets={context.targets}>{milestone.description}</MarkdownView>}
+                    {milestone.description && (
+                  <MarkdownView targets={context.targets} onChange={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: (error) => notifyError(error.message) })}>
+                    {milestone.description}
+                  </MarkdownView>
+                )}
                   </Stack>
                 </SortableMilestone>
               );
