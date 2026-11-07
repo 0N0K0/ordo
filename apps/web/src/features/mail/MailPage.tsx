@@ -1,7 +1,8 @@
-import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, ScrollArea, SegmentedControl, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
-import { CheckCircleIcon, ClockCountdownIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, ClockCountdownIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
@@ -14,11 +15,24 @@ import { MailLabelsManager } from './MailLabelsManager';
 import { MailOrganizeActions } from './MailOrganizeActions';
 import classes from './MailPage.module.css';
 import { MailReader } from './MailReader';
+import { AdvancedSearchPanel } from './AdvancedSearchPanel';
 import { MailSearchFolders, MailSearchList } from './MailSearchFolders';
+import { openSearchForm } from './open-search-form';
 import { ScheduledMailsList } from './ScheduledMailsList';
 import { useMailComposer } from './use-mail-composer';
 
 type DoneFilter = 'all' | 'todo' | 'done';
+
+const SORTS = [
+  { value: 'date-desc', label: 'Plus récents' },
+  { value: 'date-asc', label: 'Plus anciens' },
+  { value: 'correspondent-asc', label: 'Expéditeur (A → Z)' },
+  { value: 'correspondent-desc', label: 'Expéditeur (Z → A)' },
+  { value: 'subject-asc', label: 'Objet (A → Z)' },
+  { value: 'subject-desc', label: 'Objet (Z → A)' },
+  { value: 'size-desc', label: 'Plus lourds' },
+  { value: 'size-asc', label: 'Plus légers' },
+];
 
 /**
  * Mail client: accounts and folders (managed, mails dropped in them), search folders (kept in Ordo), scheduled
@@ -42,8 +56,24 @@ export function MailPage() {
   const scheduledView = params.get('view') === 'scheduled';
   // Search folder shown (its mails open in their account and folder).
   const searchId = params.get('search');
+  // Advanced search applied (criteria in the URL).
+  const advanced = useMemo(() => {
+    try {
+      const parsed = mailSearchCriteriaSchema.safeParse(JSON.parse(params.get('adv') ?? 'null'));
+      return parsed.success ? parsed.data : null;
+    } catch {
+      return null;
+    }
+  }, [params]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const sortParam = SORTS.find((item) => item.value === params.get('sort'))?.value ?? 'date-desc';
+  const [sortBy, sortDirection] = sortParam.split('-') as [string, string];
   const doneFilter = (['todo', 'done'].includes(params.get('state') ?? '') ? params.get('state') : 'all') as DoneFilter;
-  const messages = useMailMessages(accountId && !scheduledView && !searchId ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter } : null);
+  const messages = useMailMessages(
+    accountId && !scheduledView && !searchId && !advanced
+      ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter, sort: sortBy, ascending: sortDirection === 'asc' }
+      : null,
+  );
   const { data: folders } = useMailFolders(accountId);
   const { data: labels } = useMailLabels();
   const { data: scheduled } = useScheduledMails();
@@ -128,9 +158,9 @@ export function MailPage() {
                 )
               }
               active={scheduledView}
-              onClick={() => update({ view: 'scheduled', uid: null, page: null, search: null })}
+              onClick={() => update({ view: 'scheduled', uid: null, page: null, search: null, adv: null })}
             />
-            <MailSearchFolders selectedId={scheduledView ? null : searchId} onSelect={(id) => update({ search: id, view: null, uid: null, page: null })} />
+            <MailSearchFolders selectedId={scheduledView ? null : searchId} onSelect={(id) => update({ search: id, view: null, uid: null, page: null, adv: null })} />
             {isPending ? (
               <Skeleton height={120} />
             ) : (
@@ -139,7 +169,7 @@ export function MailPage() {
                   key={account.id}
                   account={account}
                   selected={accountId && !scheduledView && !searchId ? { accountId, folder } : null}
-                  onSelect={(next) => update({ account: next.accountId, folder: next.folder, uid: null, page: null, view: null, search: null })}
+                  onSelect={(next) => update({ account: next.accountId, folder: next.folder, uid: null, page: null, view: null, search: null, adv: null })}
                   dragged={dragged}
                   onDropped={() => {
                     setDragged(null);
@@ -152,12 +182,52 @@ export function MailPage() {
           </Paper>
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 9, xl: 4 }}>
-          <Paper withBorder radius="md">
+          <Paper withBorder radius="md" className={classes.pane}>
             {scheduledView ? (
-              <ScheduledMailsList />
+              <div className={classes.paneScroll}>
+                <ScheduledMailsList />
+              </div>
+            ) : advanced && accountId ? (
+              <>
+                <Group justify="space-between" p="xs" gap="xs" className={classes.listHeader}>
+                  <Text size="sm" fw={600}>
+                    Recherche avancée
+                  </Text>
+                  <Group gap={4}>
+                    <Button size="compact-xs" variant="subtle" onClick={() => setAdvancedOpen((open) => !open)}>
+                      {advancedOpen ? 'Masquer les critères' : 'Modifier'}
+                    </Button>
+                    <Button size="compact-xs" variant="subtle" color="gray" onClick={() => update({ adv: null, page: null, uid: null })}>
+                      Quitter
+                    </Button>
+                  </Group>
+                </Group>
+                {advancedOpen && (
+                  <Box p="xs" className={classes.listHeader}>
+                    <AdvancedSearchPanel
+                      accountId={accountId}
+                      folder={folder}
+                      value={advanced}
+                      onSearch={(criteria) => update({ adv: JSON.stringify(criteria), page: null, uid: null })}
+                      onClear={() => {
+                        setAdvancedOpen(false);
+                        update({ adv: null, page: null, uid: null });
+                      }}
+                      onSave={(criteria) => openSearchForm(undefined, (id) => update({ adv: null, search: id, page: null, uid: null }), criteria)}
+                    />
+                  </Box>
+                )}
+                <MailSearchList
+                  query={{ criteria: advanced }}
+                  page={page}
+                  onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
+                  open={uid !== null ? { accountId, folder, uid } : null}
+                  onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
+                />
+              </>
             ) : searchId ? (
               <MailSearchList
-                searchId={searchId}
+                query={{ id: searchId }}
                 page={page}
                 onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
                 open={accountId && uid !== null ? { accountId, folder, uid } : null}
@@ -166,17 +236,35 @@ export function MailPage() {
             ) : (
               <>
             <Stack gap={6} p="xs" className={classes.listHeader}>
-              <TextInput
-                size="xs"
-                placeholder="Rechercher (objet, expéditeur, texte)"
-                aria-label="Rechercher dans le dossier"
-                leftSection={<MagnifyingGlassIcon aria-hidden />}
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.currentTarget.value);
-                  update({ page: null, q: event.currentTarget.value || null });
-                }}
-              />
+              <Group gap={4} wrap="nowrap">
+                <TextInput
+                  size="xs"
+                  style={{ flex: 1 }}
+                  placeholder="Rechercher (objet, expéditeur, texte)"
+                  aria-label="Rechercher dans le dossier"
+                  leftSection={<MagnifyingGlassIcon aria-hidden />}
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.currentTarget.value);
+                    update({ page: null, q: event.currentTarget.value || null });
+                  }}
+                />
+                <Tooltip label="Recherche avancée">
+                  <ActionIcon variant={advancedOpen ? 'light' : 'subtle'} color="gray" aria-label="Recherche avancée" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>
+                    <SlidersHorizontalIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+              {advancedOpen && accountId && (
+                <AdvancedSearchPanel
+                  accountId={accountId}
+                  folder={folder}
+                  value={null}
+                  onSearch={(criteria) => update({ adv: JSON.stringify(criteria), page: null, uid: null })}
+                  onClear={() => setAdvancedOpen(false)}
+                  onSave={(criteria) => openSearchForm(undefined, (id) => update({ search: id, page: null, uid: null }), criteria)}
+                />
+              )}
               <Group justify="space-between" gap="xs" wrap="nowrap">
                 <Checkbox
                   size="xs"
@@ -273,6 +361,16 @@ export function MailPage() {
                     </Tooltip>
                   </Group>
                 ) : (
+                  <Group gap={4} wrap="nowrap">
+                  <Select
+                    size="xs"
+                    w={150}
+                    aria-label="Trier"
+                    data={SORTS}
+                    value={sortParam}
+                    allowDeselect={false}
+                    onChange={(value) => value && update({ sort: value === 'date-desc' ? null : value, page: null })}
+                  />
                   <SegmentedControl
                     size="xs"
                     aria-label="Mails traités"
@@ -284,6 +382,7 @@ export function MailPage() {
                     value={doneFilter}
                     onChange={(value) => update({ state: value === 'all' ? null : value, page: null, uid: null })}
                   />
+                  </Group>
                 )}
               </Group>
             </Stack>
@@ -302,7 +401,7 @@ export function MailPage() {
                 {debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}
               </Text>
             ) : (
-              <ScrollArea.Autosize mah="calc(100dvh - 260px)" style={{ opacity: messages.isPlaceholderData ? 0.6 : 1 }}>
+              <div className={classes.paneScroll} style={{ opacity: messages.isPlaceholderData ? 0.6 : 1 }}>
                 {messages.data?.messages.map((message) => {
                   const ticked = selected.includes(message.uid);
                   const messageLabels = message.labelIds.map((id) => labelById.get(id)).filter((label) => label !== undefined);
@@ -368,7 +467,7 @@ export function MailPage() {
                     </div>
                   );
                 })}
-              </ScrollArea.Autosize>
+              </div>
             )}
             {pages > 1 && (
               <Group justify="center" p="xs" className={classes.listFooter}>
@@ -380,7 +479,7 @@ export function MailPage() {
           </Paper>
         </Grid.Col>
         <Grid.Col span={{ base: 12, xl: 6 }}>
-          <Paper withBorder radius="md" p="md">
+          <Paper withBorder radius="md" p="md" className={`${classes.pane} ${classes.readerPane} ${classes.paneScroll}`}>
             {accountId && uid !== null ? (
               <MailReader
                 key={`${accountId}-${folder}-${uid}`}

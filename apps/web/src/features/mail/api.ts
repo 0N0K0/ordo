@@ -9,7 +9,7 @@ import type {
   MailViewFieldsFragment,
   SendMailInput,
 } from '../../graphql/graphql';
-import type { MailSearchInput } from '@ordo/shared';
+import type { MailSearchCriteria, MailSearchInput } from '@ordo/shared';
 import { execute } from '../../lib/graphql-client';
 
 export type MailAccount = MailAccountFieldsFragment;
@@ -144,8 +144,8 @@ const MailFoldersDocument = graphql(`
 `);
 
 const MailMessagesDocument = graphql(`
-  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String) {
-    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread, state: $state) {
+  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String, $sort: String, $ascending: Boolean) {
+    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread, state: $state, sort: $sort, ascending: $ascending) {
       total
       pageSize
       messages {
@@ -457,6 +457,42 @@ const MailSearchResultsDocument = graphql(`
   }
 `);
 
+const MailAdvancedSearchDocument = graphql(`
+  query MailAdvancedSearch($criteria: JSON!, $page: Int!) {
+    mailAdvancedSearch(criteria: $criteria, page: $page) {
+      total
+      pageSize
+      messages {
+        accountId
+        folder
+        folderName
+        uid
+        subject
+        from {
+          name
+          address
+        }
+        to {
+          name
+          address
+        }
+        date
+        seen
+        flagged
+        hasAttachments
+        labelIds
+        done
+      }
+    }
+  }
+`);
+
+const MoveMailFolderDocument = graphql(`
+  mutation MoveMailFolder($accountId: ID!, $path: String!, $parent: String) {
+    moveMailFolder(accountId: $accountId, path: $path, parent: $parent)
+  }
+`);
+
 const CreateMailSearchDocument = graphql(`
   mutation CreateMailSearch($input: MailSearchInput!) {
     createMailSearch(input: $input)
@@ -515,14 +551,17 @@ export function useMailSearches() {
 }
 
 /**
- * A page of the mails of a search folder (refreshed every two minutes).
- * @param {{ id: string, page: number } | null} params Search and page; null when none is open.
+ * A page of the mails of a search folder, or of an advanced search (refreshed every two minutes).
+ * @param {object | null} params Search (or criteria) and page; null when none is open.
  * @returns {UseQueryResult} Query state.
  */
-export function useMailSearchResults(params: { id: string; page: number } | null) {
+export function useMailSearchResults(params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number } | null) {
   return useQuery({
     queryKey: [...mailQueryKey, 'search-results', params],
-    queryFn: async () => (await execute(MailSearchResultsDocument, params!)).mailSearchResults,
+    queryFn: async () =>
+      params && 'criteria' in params
+        ? (await execute(MailAdvancedSearchDocument, { criteria: params.criteria, page: params.page })).mailAdvancedSearch
+        : (await execute(MailSearchResultsDocument, params as { id: string; page: number })).mailSearchResults,
     enabled: params !== null,
     placeholderData: keepPreviousData,
     refetchInterval: 120_000,
@@ -589,7 +628,9 @@ export function useMailFolders(accountId: string | null) {
  * @param {object | null} params Account, folder, page and search; null when nothing is selected.
  * @returns {UseQueryResult} Query state.
  */
-export function useMailMessages(params: { accountId: string; folder: string; page: number; search: string; state?: 'all' | 'todo' | 'done' } | null) {
+export function useMailMessages(
+  params: { accountId: string; folder: string; page: number; search: string; state?: 'all' | 'todo' | 'done'; sort?: string; ascending?: boolean } | null,
+) {
   return useQuery({
     queryKey: [...mailQueryKey, 'messages', params],
     queryFn: async () => (await execute(MailMessagesDocument, params!)).mailMessages,
@@ -755,6 +796,9 @@ export function useMailFolderMutations() {
       async (variables: { accountId: string; path: string; name: string }) => (await execute(RenameMailFolderDocument, variables)).renameMailFolder,
     ),
     remove: useMailMutation(async (variables: { accountId: string; path: string }) => (await execute(DeleteMailFolderDocument, variables)).deleteMailFolder),
+    move: useMailMutation(
+      async (variables: { accountId: string; path: string; parent: string | null }) => (await execute(MoveMailFolderDocument, variables)).moveMailFolder,
+    ),
   };
 }
 

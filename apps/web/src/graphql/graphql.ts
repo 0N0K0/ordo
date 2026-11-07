@@ -361,14 +361,23 @@ export type MailLocationInput = {
 
 export type MailSearchInput = {
   accountIds: Array<string | number>;
+  attachments?: boolean | null | undefined;
+  body?: string | null | undefined;
+  /** Folder path, with the folder scope. */
+  folder?: string | null | undefined;
+  from?: string | null | undefined;
   labelIds: Array<string | number>;
   name: string;
-  /** inbox or all. */
+  /** inbox, all or folder. */
   scope: string;
+  since?: string | null | undefined;
   /** all, todo or done. */
   state: string;
+  subject?: string | null | undefined;
   text: string;
+  to?: string | null | undefined;
   unread: boolean;
+  until?: string | null | undefined;
 };
 
 export type MilestoneInput = {
@@ -1627,6 +1636,8 @@ export type MailMessagesQueryVariables = Exact<{
   search?: string | null | undefined;
   unread?: boolean | null | undefined;
   state?: string | null | undefined;
+  sort?: string | null | undefined;
+  ascending?: boolean | null | undefined;
 }>;
 
 
@@ -1891,6 +1902,23 @@ export type MailSearchResultsQueryVariables = Exact<{
 
 
 export type MailSearchResultsQuery = { mailSearchResults: { total: number, pageSize: number, messages: Array<{ accountId: string, folder: string, folderName: string, uid: number, subject: string, date: string, seen: boolean, flagged: boolean, hasAttachments: boolean, labelIds: Array<string>, done: boolean, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }> }> } };
+
+export type MailAdvancedSearchQueryVariables = Exact<{
+  criteria: unknown;
+  page: number;
+}>;
+
+
+export type MailAdvancedSearchQuery = { mailAdvancedSearch: { total: number, pageSize: number, messages: Array<{ accountId: string, folder: string, folderName: string, uid: number, subject: string, date: string, seen: boolean, flagged: boolean, hasAttachments: boolean, labelIds: Array<string>, done: boolean, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }> }> } };
+
+export type MoveMailFolderMutationVariables = Exact<{
+  accountId: string | number;
+  path: string;
+  parent?: string | null | undefined;
+}>;
+
+
+export type MoveMailFolderMutation = { moveMailFolder: string };
 
 export type CreateMailSearchMutationVariables = Exact<{
   input: MailSearchInput;
@@ -4518,7 +4546,7 @@ export const MailFoldersDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MailFoldersQuery, MailFoldersQueryVariables>;
 export const MailMessagesDocument = new TypedDocumentString(`
-    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String) {
+    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String, $sort: String, $ascending: Boolean) {
   mailMessages(
     accountId: $accountId
     folder: $folder
@@ -4526,6 +4554,8 @@ export const MailMessagesDocument = new TypedDocumentString(`
     search: $search
     unread: $unread
     state: $state
+    sort: $sort
+    ascending: $ascending
   ) {
     total
     pageSize
@@ -4884,6 +4914,40 @@ export const MailSearchResultsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<MailSearchResultsQuery, MailSearchResultsQueryVariables>;
+export const MailAdvancedSearchDocument = new TypedDocumentString(`
+    query MailAdvancedSearch($criteria: JSON!, $page: Int!) {
+  mailAdvancedSearch(criteria: $criteria, page: $page) {
+    total
+    pageSize
+    messages {
+      accountId
+      folder
+      folderName
+      uid
+      subject
+      from {
+        name
+        address
+      }
+      to {
+        name
+        address
+      }
+      date
+      seen
+      flagged
+      hasAttachments
+      labelIds
+      done
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<MailAdvancedSearchQuery, MailAdvancedSearchQueryVariables>;
+export const MoveMailFolderDocument = new TypedDocumentString(`
+    mutation MoveMailFolder($accountId: ID!, $path: String!, $parent: String) {
+  moveMailFolder(accountId: $accountId, path: $path, parent: $parent)
+}
+    `) as unknown as TypedDocumentString<MoveMailFolderMutation, MoveMailFolderMutationVariables>;
 export const CreateMailSearchDocument = new TypedDocumentString(`
     mutation CreateMailSearch($input: MailSearchInput!) {
   createMailSearch(input: $input)

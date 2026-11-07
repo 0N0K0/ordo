@@ -68,4 +68,45 @@
       font-weight: 600;
     }
   }
+
+  /* List and reader: stuck under the top bar, the height of the screen, their content scrolling inside. */
+  .pane {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    @media (min-width: 62em) {
+      /* Position */
+      position: sticky;
+      top: calc(var(--app-shell-header-offset, 56px) + var(--mantine-spacing-md));
+
+      /* Dimension */
+      height: calc(100dvh - var(--app-shell-header-offset, 56px) - 2 * var(--mantine-spacing-md));
+
+      /* Débordement */
+      overflow: hidden;
+    }
+  }
+
+  /* The reader sits beside the list from the widest screens only. */
+  .readerPane {
+    @media (max-width: 88em) {
+      /* Position */
+      position: static;
+
+      /* Dimension */
+      height: auto;
+    }
+  }
+
+  .paneScroll {
+    /* Dimension */
+    flex: 1;
+    min-height: 0;
+
+    /* Débordement */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
+

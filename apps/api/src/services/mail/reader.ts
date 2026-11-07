@@ -1,4 +1,4 @@
-import type { FetchMessageObject, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
+import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
 import { clientError, notFound } from '../../graphql/errors';
@@ -182,6 +182,42 @@ export async function unreadInboxes(): Promise<number> {
   return counts.reduce((sum, count) => sum + count, 0);
 }
 
+/** Order of the mails of a folder. */
+export interface MailSort {
+  by: 'date' | 'correspondent' | 'subject' | 'size';
+  ascending: boolean;
+}
+
+const sortCollator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+
+/**
+ * UIDs of mails sorted on their sender, subject
+ * (without "Re:" or "Fwd:") or size; latest first between equals.
+ * @param {ImapFlow} client Client with the folder open.
+ * @param {number[]} uids UIDs.
+ * @param {MailSort} sort Order.
+ * @returns {Promise<number[]>} Sorted UIDs.
+ */
+async function sortedUids(client: ImapFlow, uids: number[], sort: MailSort): Promise<number[]> {
+  if (!uids.length) return uids;
+  const keys = new Map<number, string | number>();
+  for await (const message of client.fetch(uids, { uid: true, envelope: true, size: true }, { uid: true })) {
+    if (sort.by === 'size') keys.set(message.uid, message.size ?? 0);
+    else if (sort.by === 'subject') keys.set(message.uid, (message.envelope?.subject ?? '').replace(/^\s*((re|fwd?|tr)\s*:\s*)+/i, '').trim());
+    else {
+      const person = message.envelope?.from?.[0];
+      keys.set(message.uid, (person?.name || person?.address || '').trim());
+    }
+  }
+  const direction = sort.ascending ? 1 : -1;
+  return [...uids].sort((a, b) => {
+    const x = keys.get(a) ?? '';
+    const y = keys.get(b) ?? '';
+    const order = typeof x === 'number' && typeof y === 'number' ? x - y : sortCollator.compare(String(x), String(y));
+    return order !== 0 ? order * direction : b - a;
+  });
+}
+
 /** Fields fetched for a summary of a message. */
 export const SUMMARY_FETCH = { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true } as const;
 
@@ -219,6 +255,7 @@ export function toSummary(message: FetchMessageObject, keywords: boolean, marks:
  * @param {string} search Text search.
  * @param {boolean} [unread] Unread messages only. Optional. Default = false.
  * @param {'all' | 'todo' | 'done'} [state] Every mail, those to do, or those done. Optional. Default = all.
+ * @param {MailSort} [sort] Order of the mails. Optional. Default = latest first.
  * @returns {Promise<{ messages: MailSummary[], total: number }>} Messages and total count.
  */
 export async function listMessages(
@@ -228,6 +265,7 @@ export async function listMessages(
   search: string,
   unread = false,
   state: 'all' | 'todo' | 'done' = 'all',
+  sort: MailSort = { by: 'date', ascending: false },
 ): Promise<{ messages: MailSummary[]; total: number }> {
   return withImap(accountId, async (client) => {
     const lock = await client.getMailboxLock(folder);
@@ -252,7 +290,9 @@ export async function listMessages(
           uids = uids.filter((uid) => (marks.get(messageIds.get(uid) ?? '')?.done ?? false) === (state === 'done'));
         }
       }
-      uids.sort((a, b) => b - a);
+      // By date: the UIDs follow the arrival; otherwise sorted on the headers of every mail.
+      if (sort.by === 'date') uids.sort((a, b) => (sort.ascending ? a - b : b - a));
+      else uids = await sortedUids(client, uids, sort);
       const pageUids = uids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       if (pageUids.length === 0) return { messages: [], total: uids.length };
       const messages: MailSummary[] = [];
@@ -262,7 +302,9 @@ export async function listMessages(
         { uid: true },
       );
       for await (const message of fetched) messages.push(toSummary(message, keywords, marks));
-      messages.sort((a, b) => b.uid - a.uid);
+      // In the order of the page.
+      const rank = new Map(pageUids.map((uid, index) => [uid, index]));
+      messages.sort((a, b) => (rank.get(a.uid) ?? 0) - (rank.get(b.uid) ?? 0));
       return { messages, total: uids.length };
     } finally {
       lock.release();

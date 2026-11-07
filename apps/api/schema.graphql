@@ -982,16 +982,26 @@ type MailSearchHit {
 
 input MailSearchInput {
   accountIds: [ID!]!
+  attachments: Boolean
+  body: String
+
+  """Folder path, with the folder scope."""
+  folder: String
+  from: String
   labelIds: [ID!]!
   name: String!
 
-  """inbox or all."""
+  """inbox, all or folder."""
   scope: String!
+  since: Date
 
   """all, todo or done."""
   state: String!
+  subject: String
   text: String!
+  to: String
   unread: Boolean!
+  until: Date
 }
 
 type MailSearchPage {
@@ -1245,6 +1255,11 @@ type Mutation {
   moveDocumentStatus(id: ID!, index: Int!): Boolean!
   moveLibraryDocuments(folderId: ID, ids: [ID!]!): Boolean!
   moveMailAccount(id: ID!, index: Int!): Boolean!
+
+  """
+  Moves a folder (and its sub-folders) under another one, or to the top; returns its new path.
+  """
+  moveMailFolder(accountId: ID!, parent: String, path: String!): String!
   moveMails(accountId: ID!, folder: String!, target: String!, uids: [Int!]!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
 
@@ -1601,6 +1616,11 @@ type Query {
   libraryDocuments: [LibraryDocument!]!
   mailAccounts: [MailAccount!]!
 
+  """
+  A page of the mails matching criteria (shared mail search criteria), latest first; not saved.
+  """
+  mailAdvancedSearch(criteria: JSON!, page: Int!): MailSearchPage!
+
   """Opens a draft to go on writing it."""
   mailDraft(accountId: ID!, folder: String!, uid: Int!): MailDraft!
   mailFolders(accountId: ID!): [MailFolder!]!
@@ -1614,9 +1634,15 @@ type Query {
   """
   mailMessages(
     accountId: ID!
+
+    """Ascending order (descending by default)."""
+    ascending: Boolean
     folder: String!
     page: Int!
     search: String
+
+    """date (default), correspondent, subject or size."""
+    sort: String
 
     """all (default), todo or done."""
     state: String

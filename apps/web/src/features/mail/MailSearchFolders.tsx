@@ -1,5 +1,6 @@
-import { ActionIcon, Alert, Badge, Box, Group, Menu, NavLink, Pagination, ScrollArea, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Box, Group, Menu, NavLink, Pagination, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
+import type { MailSearchCriteria } from '@ordo/shared';
 import { CheckCircleIcon, DotsThreeIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -7,33 +8,7 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from './api';
 import { correspondent, listDate } from './mail-format';
 import classes from './MailPage.module.css';
-import { MailSearchForm } from './MailSearchForm';
-
-let modalCount = 0;
-
-/**
- * Opens the form of a search folder.
- * @param {MailSearch | undefined} search Search edited (none: new).
- * @param {(id: string) => void} [onCreated] Called with the id of a new search. Optional.
- * @returns {void}
- */
-function openSearchForm(search: MailSearch | undefined, onCreated?: (id: string) => void): void {
-  const modalId = `mail-search-${++modalCount}`;
-  modals.open({
-    modalId,
-    title: search ? 'Modifier le dossier de recherche' : 'Nouveau dossier de recherche',
-    size: 'lg',
-    children: (
-      <MailSearchForm
-        search={search}
-        onDone={(id) => {
-          modals.close(modalId);
-          if (id) onCreated?.(id);
-        }}
-      />
-    ),
-  });
-}
+import { openSearchForm } from './open-search-form';
 
 /**
  * Search folders in the navigation: open one, create, edit, delete.
@@ -120,7 +95,8 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
 }
 
 interface MailSearchListProps {
-  searchId: string;
+  /** Search folder, or criteria of an advanced search. */
+  query: { id: string } | { criteria: MailSearchCriteria };
   page: number;
   onPage: (page: number) => void;
   /** Mail open. */
@@ -129,12 +105,12 @@ interface MailSearchListProps {
 }
 
 /**
- * Mails of a search folder, latest first, with their account and folder.
+ * Mails of a search folder or of an advanced search, latest first, with their account and folder.
  * @param {MailSearchListProps} props Component props.
  * @returns {JSX.Element} List.
  */
-export function MailSearchList({ searchId, page, onPage, open, onOpen }: MailSearchListProps) {
-  const results = useMailSearchResults({ id: searchId, page: page - 1 });
+export function MailSearchList({ query, page, onPage, open, onOpen }: MailSearchListProps) {
+  const results = useMailSearchResults({ ...query, page: page - 1 });
   const { data: labels } = useMailLabels();
   const { data: accounts } = useMailAccounts();
   const several = (accounts?.length ?? 0) > 1;
@@ -161,13 +137,13 @@ export function MailSearchList({ searchId, page, onPage, open, onOpen }: MailSea
   if (total === 0) {
     return (
       <Text size="sm" c="dimmed" ta="center" p="xl">
-        Aucun mail ne répond aux critères de ce dossier.
+        Aucun mail ne répond {'id' in query ? 'aux critères de ce dossier' : 'à la recherche'}.
       </Text>
     );
   }
   return (
     <>
-      <ScrollArea.Autosize mah="calc(100dvh - 260px)" style={{ opacity: results.isPlaceholderData ? 0.6 : 1 }}>
+      <div className={classes.paneScroll} style={{ opacity: results.isPlaceholderData ? 0.6 : 1 }}>
         {results.data?.messages.map((message) => {
           const active = open?.accountId === message.accountId && open.folder === message.folder && open.uid === message.uid;
           return (
@@ -218,7 +194,7 @@ export function MailSearchList({ searchId, page, onPage, open, onOpen }: MailSea
             </div>
           );
         })}
-      </ScrollArea.Autosize>
+      </div>
       {pages > 1 && (
         <Group justify="center" p="xs" className={classes.listFooter}>
           <Pagination size="sm" total={pages} value={page} onChange={onPage} />

@@ -3,6 +3,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import {
   ArchiveIcon,
+  ArrowsOutCardinalIcon,
   CaretDownIcon,
   CaretRightIcon,
   DotsThreeIcon,
@@ -102,13 +103,91 @@ interface AccountFoldersProps {
  */
 export function AccountFolders({ account, selected, onSelect, dragged, onDropped }: AccountFoldersProps) {
   const { data: folders, isPending, error } = useMailFolders(account.id);
-  const { create, rename, remove } = useMailFolderMutations();
+  const { create, rename, remove, move: moveFolder } = useMailFolderMutations();
+  // Folder being dragged to another place of the tree.
+  const [draggedFolder, setDraggedFolder] = useState<{ path: string; name: string; parent: string | null } | null>(null);
+
+  /**
+   * Moves a folder under another one, or to the top; the folder shown follows.
+   * @param {{ path: string, name: string }} folder Folder.
+   * @param {string | null} parent New parent, or null for the top.
+   * @returns {void}
+   */
+  const placeFolder = (folder: { path: string; name: string }, parent: string | null) =>
+    moveFolder.mutate(
+      { accountId: account.id, path: folder.path, parent },
+      {
+        onSuccess: (path) => {
+          notifySuccess(parent ? `« ${folder.name} » rangé dans « ${parent.split(/[./]/).pop()} ».` : `« ${folder.name} » placé au premier niveau.`);
+          if (selected?.accountId === account.id && selected.folder === folder.path) onSelect({ accountId: account.id, folder: path });
+        },
+        onError: (failure) => notifyError(failure.message),
+      },
+    );
+
+  /**
+   * Asks where to move a folder (keyboard alternative to the drag and drop).
+   * @param {{ path: string, name: string }} folder Folder.
+   * @returns {void}
+   */
+  const askMove = (folder: { path: string; name: string }) => {
+    const modalId = `mail-folder-${++modalCount}`;
+    const choices = (folders ?? []).filter((item) => item.path !== folder.path && !within(item.path, folder.path));
+    modals.open({
+      modalId,
+      title: `Déplacer « ${folder.name} »`,
+      children: (
+        <Stack gap="xs">
+          <Text size="sm" c="dimmed">
+            Le dossier, ses sous-dossiers et leurs mails changent de place.
+          </Text>
+          <Button
+            variant="default"
+            justify="flex-start"
+            leftSection={<FolderIcon aria-hidden />}
+            onClick={() => {
+              modals.close(modalId);
+              placeFolder(folder, null);
+            }}
+          >
+            Premier niveau
+          </Button>
+          {choices.map((item) => (
+            <Button
+              key={item.path}
+              variant="subtle"
+              justify="flex-start"
+              leftSection={<FolderIcon aria-hidden />}
+              style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${item.depth} * var(--mantine-spacing-md))` }}
+              onClick={() => {
+                modals.close(modalId);
+                placeFolder(folder, item.path);
+              }}
+            >
+              {item.name}
+            </Button>
+          ))}
+        </Stack>
+      ),
+    });
+  };
   const { move } = useMailActions();
   const [over, setOver] = useState<string | null>(null);
   // Folders whose sub-folders are hidden, remembered in this browser.
   const [collapsed, setCollapsed] = useLocalStorage<string[]>({ key: `ordo.mail.collapsed.${account.id}`, defaultValue: [] });
   const byPath = new Map((folders ?? []).map((folder) => [folder.path, folder]));
   const parents = new Set((folders ?? []).map((folder) => folder.parent).filter((parent): parent is string => parent !== null));
+  /**
+   * Whether a folder is under another one, at any depth.
+   * @param {string} path Folder path.
+   * @param {string} ancestor Possible ancestor path.
+   * @returns {boolean} Under it.
+   */
+  const within = (path: string, ancestor: string): boolean => {
+    for (let current = byPath.get(path)?.parent ?? null; current; current = byPath.get(current)?.parent ?? null) if (current === ancestor) return true;
+    return false;
+  };
+
   /**
    * Whether a folder is hidden by a collapsed ancestor.
    * @param {string | null} parent Parent path.
@@ -202,7 +281,29 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
   };
 
   return (
-    <NavLink label={account.name} description={account.email} defaultOpened leftSection={<EnvelopeSimpleIcon aria-hidden />} childrenOffset={8}>
+    <NavLink
+      label={account.name}
+      description={account.email}
+      defaultOpened
+      leftSection={<EnvelopeSimpleIcon aria-hidden />}
+      childrenOffset={8}
+      // A folder dropped on the account goes to the top level.
+      variant={over === '' ? 'filled' : 'light'}
+      active={over === ''}
+      onDragOver={(event) => {
+        if (!draggedFolder) return;
+        event.preventDefault();
+        setOver('');
+      }}
+      onDragLeave={() => setOver((current) => (current === '' ? null : current))}
+      onDrop={(event) => {
+        setOver(null);
+        if (!draggedFolder) return;
+        event.preventDefault();
+        placeFolder(draggedFolder, null);
+        setDraggedFolder(null);
+      }}
+    >
       {isPending && <Skeleton height={28} my={4} />}
       {error && (
         <Text size="xs" c="red" px="sm" py={4}>
@@ -216,6 +317,8 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
         const folded = collapsed.includes(folder.path);
         // Mails of this account, from another folder, can be dropped here.
         const droppable = dragged !== null && dragged.accountId === account.id && dragged.folder !== folder.path;
+        // A folder can go under any folder but itself and its sub-folders.
+        const folderDroppable = draggedFolder !== null && folder.path !== draggedFolder.path && !within(folder.path, draggedFolder.path) && folder.path !== draggedFolder.parent;
         return (
           <NavLink
             key={folder.path}
@@ -262,6 +365,9 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
                     <Menu.Item leftSection={<FolderPlusIcon aria-hidden />} onClick={() => askCreate(folder.path)}>
                       Nouveau sous-dossier
                     </Menu.Item>
+                    <Menu.Item leftSection={<ArrowsOutCardinalIcon aria-hidden />} disabled={special} onClick={() => askMove(folder)}>
+                      Déplacer vers…
+                    </Menu.Item>
                     <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} disabled={special} onClick={() => askRename(folder)}>
                       Renommer
                     </Menu.Item>
@@ -282,7 +388,21 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
                 onSelect({ accountId: account.id, folder: folder.path });
               }
             }}
+            draggable={!special}
+            onDragStart={(event) => {
+              event.stopPropagation();
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('text/plain', folder.name);
+              setDraggedFolder({ path: folder.path, name: folder.name, parent: folder.parent });
+            }}
+            onDragEnd={() => setDraggedFolder(null)}
             onDragOver={(event) => {
+              if (folderDroppable) {
+                event.preventDefault();
+                event.stopPropagation();
+                setOver(folder.path);
+                return;
+              }
               if (!droppable) return;
               event.preventDefault();
               event.dataTransfer.dropEffect = 'move';
@@ -291,6 +411,13 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
             onDragLeave={() => setOver((current) => (current === folder.path ? null : current))}
             onDrop={(event) => {
               setOver(null);
+              if (folderDroppable && draggedFolder) {
+                event.preventDefault();
+                event.stopPropagation();
+                placeFolder(draggedFolder, folder.path);
+                setDraggedFolder(null);
+                return;
+              }
               if (!droppable || !dragged) return;
               event.preventDefault();
               move.mutate(

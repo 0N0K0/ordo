@@ -160,6 +160,33 @@ export async function renameFolder(accountId: string, path: string, name: string
 }
 
 /**
+ * Moves a folder (with its sub-folders) under another one, or to the top. Special folders stay in place, and
+ * a folder cannot go under itself or one of its sub-folders.
+ * @param {string} accountId Account.
+ * @param {string} path Folder path.
+ * @param {string | null} parent New parent folder path, or null for the top.
+ * @returns {Promise<string>} New path.
+ */
+export async function moveFolder(accountId: string, path: string, parent: string | null): Promise<string> {
+  return withImap(accountId, async (client) => {
+    const folders = await client.list();
+    const folder = folders.find((item) => item.path === path);
+    if (!folder) throw notFound('Dossier');
+    if (folder.path.toUpperCase() === 'INBOX' || folder.specialUse) throw clientError('BAD_USER_INPUT', 'Les dossiers spéciaux ne se déplacent pas.');
+    if ((folder.parentPath || null) === parent) return path;
+    let target: string;
+    if (parent) {
+      const destination = folders.find((item) => item.path === parent);
+      if (!destination) throw notFound('Dossier de destination');
+      if (parent === path || parent.startsWith(`${path}${folder.delimiter}`)) throw clientError('BAD_USER_INPUT', 'Un dossier ne peut pas aller dans lui-même ou dans un de ses sous-dossiers.');
+      target = `${parent}${destination.delimiter}${folder.name}`;
+    } else target = (client.namespace?.prefix ?? '') + folder.name;
+    if (folders.some((item) => item.path === target)) throw clientError('BAD_USER_INPUT', `Un dossier « ${folder.name} » existe déjà à cet endroit.`);
+    return (await client.mailboxRename(path, target)).newPath;
+  });
+}
+
+/**
  * Deletes a folder, its sub-folders and the mails in them. Special folders cannot be deleted.
  * @param {string} accountId Account.
  * @param {string} path Folder path.

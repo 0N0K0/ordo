@@ -315,11 +315,19 @@ const MailSearchInput = builder.inputType('MailSearchInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
     accountIds: t.idList({ required: true }),
-    scope: t.string({ required: true, description: 'inbox or all.' }),
+    scope: t.string({ required: true, description: 'inbox, all or folder.' }),
+    folder: t.string({ description: 'Folder path, with the folder scope.' }),
     state: t.string({ required: true, description: 'all, todo or done.' }),
     labelIds: t.idList({ required: true }),
     unread: t.boolean({ required: true }),
     text: t.string({ required: true }),
+    from: t.string(),
+    to: t.string(),
+    subject: t.string(),
+    body: t.string(),
+    since: t.field({ type: 'Date' }),
+    until: t.field({ type: 'Date' }),
+    attachments: t.boolean(),
   }),
 });
 
@@ -343,9 +351,14 @@ builder.queryFields((t) => ({
       search: t.arg.string(),
       unread: t.arg.boolean(),
       state: t.arg.string({ description: 'all (default), todo or done.' }),
+      sort: t.arg.string({ description: 'date (default), correspondent, subject or size.' }),
+      ascending: t.arg.boolean({ description: 'Ascending order (descending by default).' }),
     },
-    resolve: (_root, { accountId, folder, page, search, unread, state }) =>
-      reader.listMessages(accountId, folder, Math.max(0, page), search ?? '', unread ?? false, state === 'todo' || state === 'done' ? state : 'all'),
+    resolve: (_root, { accountId, folder, page, search, unread, state, sort, ascending }) =>
+      reader.listMessages(accountId, folder, Math.max(0, page), search ?? '', unread ?? false, state === 'todo' || state === 'done' ? state : 'all', {
+        by: sort === 'correspondent' || sort === 'subject' || sort === 'size' ? sort : 'date',
+        ascending: ascending ?? false,
+      }),
   }),
   mailSearches: t.prismaField({
     type: ['MailSearch'],
@@ -356,6 +369,12 @@ builder.queryFields((t) => ({
     description: 'A page of the mails of a search folder, latest first.',
     args: { id: t.arg.id({ required: true }), page: t.arg.int({ required: true }) },
     resolve: (_root, { id, page }) => searches.searchResults(id, Math.max(0, page)),
+  }),
+  mailAdvancedSearch: t.field({
+    type: MailSearchPage,
+    description: 'A page of the mails matching criteria (shared mail search criteria), latest first; not saved.',
+    args: { criteria: t.arg({ type: 'JSON', required: true }), page: t.arg.int({ required: true }) },
+    resolve: (_root, { criteria, page }) => searches.advancedSearch(criteria, Math.max(0, page)),
   }),
   mailLabels: t.prismaField({
     type: ['MailLabel'],
@@ -479,6 +498,11 @@ builder.mutationFields((t) => ({
     description: 'Renames a folder; returns its new path.',
     args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }), name: t.arg.string({ required: true }) },
     resolve: (_root, { accountId, path, name }) => organize.renameFolder(accountId, path, name),
+  }),
+  moveMailFolder: t.string({
+    description: 'Moves a folder (and its sub-folders) under another one, or to the top; returns its new path.',
+    args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }), parent: t.arg.string() },
+    resolve: (_root, { accountId, path, parent }) => organize.moveFolder(accountId, path, parent ?? null),
   }),
   deleteMailFolder: t.boolean({
     description: 'Deletes a folder and its mails.',
