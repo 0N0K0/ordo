@@ -1,6 +1,7 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
+import { resolveCalendarId } from '../../src/services/calendars';
 import type { CalendarEvent, Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */
@@ -234,10 +235,11 @@ export function clock(minutes: number): string {
 
 /**
  * One-off event on a working day from three weeks ago to five weeks ahead, between 8:00 and 18:00, lasting
- * 30 minutes to 3 hours; sometimes with a place, a video link and reminders.
+ * 30 minutes to 3 hours; sometimes with a place, a video link and reminders. Without a calendar, it goes into
+ * the first one of the workspace.
  */
 export const calendarEventFactory = Factory.define<Prisma.CalendarEventUncheckedCreateInput, object, CalendarEvent>(({ onCreate }) => {
-  onCreate((data) => prisma.calendarEvent.create({ data }));
+  onCreate(async (data) => prisma.calendarEvent.create({ data: { ...data, calendarId: data.calendarId || (await resolveCalendarId()) } }));
   let day = faker.date.between({ from: new Date(Date.now() - 21 * 86_400_000), to: new Date(Date.now() + 35 * 86_400_000) });
   while (day.getDay() === 0 || day.getDay() === 6) day = new Date(day.getTime() + 86_400_000);
   const start = faker.number.int({ min: 16, max: 34 }) * 30;
@@ -256,6 +258,7 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
     endTime: clock(end),
     timeZone: TIME_ZONE,
     reminders: faker.helpers.arrayElement([[], [15], [10], [30, 1440]]),
+    calendarId: '',
   };
 });
 

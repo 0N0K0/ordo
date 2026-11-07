@@ -77,6 +77,21 @@
     border-style: dashed !important;
   }
 
+  /* Several calendars: a stripe of the calendar color on the left. */
+  .calendarStripe {
+    /* Bordures */
+    border-left-width: 4px !important;
+  }
+
+  /* Calendar of another workspace: read only, lightly hatched. */
+  .subscribed {
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.18) 0 4px, transparent 4px 8px) !important;
+
+    /* Interactions */
+    cursor: pointer;
+  }
+
   /* Planned working hours, behind the events. */
   .workHours {
     /* Arrière-Plan */

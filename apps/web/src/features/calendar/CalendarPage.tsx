@@ -4,10 +4,10 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Alert, Button, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Checkbox, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, plannedSlots } from '@ordo/shared';
-import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
@@ -19,12 +19,24 @@ import { useTaskLink } from '../tasks/use-task-link';
 import { useTimeEntriesSince } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useTimeEntryDialogs } from '../time/use-time-dialogs';
-import { scheduleRules, useCalendarCategories, useCalendarEventMutations, useCalendarEvents, useMaterializeTaskOccurrences, useWorkSchedules, type EventOccurrence } from './api';
+import {
+  scheduleRules,
+  useCalendarCategories,
+  useCalendarEventMutations,
+  useCalendarEvents,
+  useCalendars,
+  useMaterializeTaskOccurrences,
+  useSubscribedCalendarEvents,
+  useWorkSchedules,
+  type CalendarSubscription,
+  type EventOccurrence,
+} from './api';
 import { askScope } from './ask-scope';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from './calendar-pdf';
 import { categoryOptions, categorySubtree } from './category-tree';
 import { localParts, occurrenceInput } from './event-input';
+import { SubscribedEventModal } from './SubscribedEventModal';
 import { useEventForm } from './use-event-form';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 
@@ -45,6 +57,8 @@ interface Filters {
   projectIds: string[];
   categoryIds: string[];
   contributorIds: string[];
+  /** Calendars hidden (of the workspace, or of other workspaces it subscribes to). */
+  hiddenCalendarIds?: string[];
 }
 
 const DEFAULT_COLOR = 'var(--mantine-primary-color-filled)';
@@ -60,6 +74,7 @@ const dayOf = (date: Date) => localParts(date).date;
 
 /**
  * Calendar: events and dated tasks by month, week or day, filtered by project, category and contributor;
+ * calendars of the workspace, and those of other workspaces it subscribes to (read only), shown or hidden;
  * planned working hours in the background (none on paused days); tracked times (timers) on demand;
  * cancelled events struck through.
  * Events and tasks move and stretch by drag and drop; selecting a period creates an event. In week and
@@ -71,6 +86,7 @@ export function CalendarPage() {
   const calendarRef = useRef<FullCalendar>(null);
   const { context } = useTaskContext();
   const { data: categories } = useCalendarCategories();
+  const { data: calendarsData } = useCalendars();
   const [view, setView] = useLocalStorage<View>({ key: 'ordo.calendar.view', defaultValue: 'timeGridWeek' });
   const [filters, setFilters] = useLocalStorage<Filters>({
     key: 'ordo.calendar.filters',
@@ -81,6 +97,13 @@ export function CalendarPage() {
   const [allDayExpanded, setAllDayExpanded] = useLocalStorage({ key: 'ordo.calendar.allDayExpanded', defaultValue: false });
   const [title, setTitle] = useState('');
   const events = useCalendarEvents(range);
+  const hidden = useMemo(() => new Set(filters.hiddenCalendarIds ?? []), [filters.hiddenCalendarIds]);
+  const ownCalendars = useMemo(() => calendarsData?.calendars ?? [], [calendarsData]);
+  const subscriptions = useMemo(() => calendarsData?.calendarSubscriptions ?? [], [calendarsData]);
+  const shownSubscriptions = subscriptions.filter((subscription) => !hidden.has(subscription.calendarId));
+  // Calendars of other workspaces: read in their workspaces, only when one is shown.
+  const subscribedEvents = useSubscribedCalendarEvents(shownSubscriptions.length > 0 ? range : null);
+  const [openedSubscribed, setOpenedSubscribed] = useState<{ occurrence: EventOccurrence; subscription: CalendarSubscription } | null>(null);
   const materialize = useMaterializeTaskOccurrences();
   const { update } = useCalendarEventMutations();
   const updateTask = useUpdateTask();
@@ -132,12 +155,17 @@ export function CalendarPage() {
     if (!context) return [];
     const inProjects = (projectId: string | null) => filters.projectIds.length === 0 || (projectId !== null && filters.projectIds.includes(projectId));
     const result: EventInput[] = [];
+    const calendarColor = new Map(ownCalendars.map((calendar) => [calendar.id, calendar.color]));
+    // Several calendars: each event shows the color of its own on its left.
+    const striped = ownCalendars.length + subscriptions.length > 1;
     for (const occurrence of events.data ?? []) {
+      if (hidden.has(occurrence.calendarId)) continue;
       if (!inProjects(occurrence.projectId)) continue;
       if (categoryFilter.size && !occurrence.categoryIds.some((id) => categoryFilter.has(id))) continue;
       if (filters.contributorIds.length && !occurrence.contributorIds.some((id) => filters.contributorIds.includes(id))) continue;
       const category = occurrence.categoryIds.map((id) => categoryById.get(id)).find(Boolean);
-      const color = category?.color ?? (occurrence.projectId ? context.projectById.get(occurrence.projectId)?.color : null) ?? DEFAULT_COLOR;
+      const ofCalendar = calendarColor.get(occurrence.calendarId) ?? DEFAULT_COLOR;
+      const color = category?.color ?? (occurrence.projectId ? context.projectById.get(occurrence.projectId)?.color : null) ?? ofCalendar;
       result.push({
         id: occurrence.key,
         title: occurrence.title,
@@ -145,10 +173,36 @@ export function CalendarPage() {
         start: occurrence.allDay ? occurrence.startDate : String(occurrence.start),
         end: occurrence.allDay ? addDays(occurrence.endDate, 1) : String(occurrence.end),
         backgroundColor: color,
-        borderColor: color,
+        borderColor: striped ? ofCalendar : color,
         extendedProps: { kind: 'event', occurrence },
-        classNames: [...(occurrence.occurrenceDate ? [classes.recurring] : []), ...(occurrence.calledOff ? [classes.closed] : [])],
+        classNames: [
+          ...(striped ? [classes.calendarStripe] : []),
+          ...(occurrence.occurrenceDate ? [classes.recurring] : []),
+          ...(occurrence.calledOff ? [classes.closed] : []),
+        ],
       });
+    }
+    // Calendars of other workspaces, read only: their projects, categories and contributors are not those of
+    // this workspace, so a filter on them leaves them out.
+    const filtering = filters.projectIds.length > 0 || categoryFilter.size > 0 || filters.contributorIds.length > 0;
+    if (!filtering) {
+      const subscriptionOf = new Map(subscriptions.map((subscription) => [subscription.calendarId, subscription]));
+      for (const occurrence of subscribedEvents.data ?? []) {
+        const subscription = subscriptionOf.get(occurrence.calendarId);
+        if (!subscription || hidden.has(occurrence.calendarId)) continue;
+        result.push({
+          id: `subscribed:${occurrence.key}`,
+          title: occurrence.title,
+          allDay: occurrence.allDay,
+          start: occurrence.allDay ? occurrence.startDate : String(occurrence.start),
+          end: occurrence.allDay ? addDays(occurrence.endDate, 1) : String(occurrence.end),
+          editable: false,
+          backgroundColor: subscription.color,
+          borderColor: subscription.color,
+          extendedProps: { kind: 'subscribed', occurrence, subscription },
+          classNames: [classes.subscribed, ...(occurrence.calledOff ? [classes.closed] : [])],
+        });
+      }
     }
     // Tracked times: blocks from their start to their end (now while running), in the color of their project.
     // A time spent on an event only shows its part outside the event.
@@ -229,7 +283,7 @@ export function CalendarPage() {
       }
     }
     return result;
-  }, [context, events.data, filters, categoryFilter, categoryById, range, schedules, showTimers, timeEntries.data, minute]);
+  }, [context, events.data, subscribedEvents.data, ownCalendars, subscriptions, hidden, filters, categoryFilter, categoryById, range, schedules, showTimers, timeEntries.data, minute]);
 
   /**
    * Saves an event or a task moved or stretched in the calendar (cancelled: back in place).
@@ -352,6 +406,35 @@ export function CalendarPage() {
         </Group>
       </Group>
 
+      <Group gap="md" wrap="wrap" align="center">
+        <Text size="sm" fw={500}>
+          Calendriers
+        </Text>
+        {[
+          ...ownCalendars.map((calendar) => ({ id: calendar.id, label: calendar.name, color: calendar.color })),
+          ...subscriptions.map((subscription) => ({ id: subscription.calendarId, label: `${subscription.name} · ${subscription.workspace.name}`, color: subscription.color })),
+        ].map((calendar) => (
+          <Checkbox
+            key={calendar.id}
+            size="xs"
+            color={calendar.color}
+            label={calendar.label}
+            checked={!hidden.has(calendar.id)}
+            onChange={(event) =>
+              setFilters({
+                ...filters,
+                hiddenCalendarIds: event.currentTarget.checked ? [...hidden].filter((id) => id !== calendar.id) : [...hidden, calendar.id],
+              })
+            }
+          />
+        ))}
+        <Tooltip label="Gérer les calendriers et les abonnements aux autres espaces">
+          <ActionIcon variant="subtle" color="gray" aria-label="Gérer les calendriers" onClick={() => navigate('/settings?tab=calendar')}>
+            <GearSixIcon aria-hidden />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+
       <Group gap="sm" wrap="wrap" align="flex-end">
         <Switch label="Tâches" checked={filters.tasks} onChange={(event) => setFilters({ ...filters, tasks: event.currentTarget.checked })} />
         <Switch label="Plages de travail" checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
@@ -391,11 +474,12 @@ export function CalendarPage() {
         />
       </Group>
 
-      {(events.error ?? materialize.error) && (
+      {(events.error ?? materialize.error ?? subscribedEvents.error) && (
         <Alert color="red" icon={<ErrorIcon />} title="Agenda incomplet">
-          {(events.error ?? materialize.error)?.message}
+          {(events.error ?? materialize.error ?? subscribedEvents.error)?.message}
         </Alert>
       )}
+      <SubscribedEventModal opened={openedSubscribed} onClose={() => setOpenedSubscribed(null)} />
       <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title="Plages de travail" size="xl">
         {managingSchedules && <WorkSchedulesManager />}
       </Modal>
@@ -445,9 +529,13 @@ export function CalendarPage() {
             const start = localParts(info.start);
             const end = localParts(info.end);
             openEvent({
-              defaults: info.allDay
+              defaults: {
+                // A new event goes into the first calendar shown.
+                calendarId: ownCalendars.find((calendar) => !hidden.has(calendar.id))?.id ?? null,
+                ...(info.allDay
                 ? { allDay: true, startDate: start.date, startTime: null, endDate: addDays(end.date, -1), endTime: null }
-                : { allDay: false, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time },
+                  : { allDay: false, startDate: start.date, startTime: start.time, endDate: end.date, endTime: end.time }),
+              },
             });
             info.view.calendar.unselect();
           }}
@@ -455,6 +543,8 @@ export function CalendarPage() {
             info.jsEvent.preventDefault();
             if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.number));
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
+            else if (info.event.extendedProps.kind === 'subscribed')
+              setOpenedSubscribed({ occurrence: info.event.extendedProps.occurrence, subscription: info.event.extendedProps.subscription });
             else openEvent({ occurrence: info.event.extendedProps.occurrence });
           }}
           eventDrop={(info) => void handleChange(info)}

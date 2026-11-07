@@ -5,6 +5,7 @@ import { LabelManager } from "../../../components/settings/LabelManager";
 import { CompanySettings } from "../../accounting/CompanySettings";
 import { DocumentStatusSettings } from "../../accounting/DocumentStatusSettings";
 import { CalendarCategoriesManager } from "../../calendar/CalendarCategoriesManager";
+import { CalendarsManager } from "../../calendar/CalendarsManager";
 import { GithubSettings } from "../../github/GithubSettings";
 import { MailAccountsManager } from "../../mail/settings/MailAccountsManager";
 import { useTasksData } from "../../tasks/api";
@@ -158,7 +159,10 @@ export function SettingsPage() {
           <DocumentStatusSettings />
         </Tabs.Panel>
         <Tabs.Panel value="calendar">
-          <CalendarCategoriesManager />
+          <Stack gap="md">
+            <CalendarsManager />
+            <CalendarCategoriesManager />
+          </Stack>
         </Tabs.Panel>
         <Tabs.Panel value="mail">
           <MailAccountsManager />

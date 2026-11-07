@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type { WorkScheduleInput } from '@ordo/shared';
-import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, WorkSchedulesQuery } from '../../graphql/graphql';
+import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../graphql/graphql';
 import { execute, executeIn } from '../../lib/graphql-client';
 import { tasksQueryKey } from '../tasks/api';
 
@@ -34,6 +34,7 @@ graphql(`
     seriesStartDate
     reminders
     projectId
+    calendarId
     contributorIds
     categoryIds
     taskIds
@@ -122,6 +123,92 @@ const CalendarEventsDocument = graphql(`
     calendarEvents(from: $from, to: $to) {
       ...CalendarEventOccurrenceFields
     }
+  }
+`);
+
+const CalendarsDocument = graphql(`
+  query Calendars {
+    calendars {
+      id
+      name
+      color
+      position
+    }
+    calendarSubscriptions {
+      id
+      calendarId
+      name
+      color
+      workspace {
+        id
+        name
+        kind
+      }
+    }
+  }
+`);
+
+const SubscribableCalendarsDocument = graphql(`
+  query SubscribableCalendars {
+    subscribableCalendars {
+      id
+      name
+      color
+      subscribed
+      workspace {
+        id
+        name
+        kind
+      }
+    }
+  }
+`);
+
+const SubscribedCalendarEventsDocument = graphql(`
+  query SubscribedCalendarEvents($from: Date!, $to: Date!) {
+    subscribedCalendarEvents(from: $from, to: $to) {
+      ...CalendarEventOccurrenceFields
+    }
+  }
+`);
+
+const CreateCalendarDocument = graphql(`
+  mutation CreateCalendar($input: CalendarInput!) {
+    createCalendar(input: $input) {
+      id
+    }
+  }
+`);
+
+const UpdateCalendarDocument = graphql(`
+  mutation UpdateCalendar($id: ID!, $input: CalendarInput!) {
+    updateCalendar(id: $id, input: $input) {
+      id
+    }
+  }
+`);
+
+const MoveCalendarDocument = graphql(`
+  mutation MoveCalendar($id: ID!, $index: Int!) {
+    moveCalendar(id: $id, index: $index)
+  }
+`);
+
+const DeleteCalendarDocument = graphql(`
+  mutation DeleteCalendar($id: ID!) {
+    deleteCalendar(id: $id)
+  }
+`);
+
+const SubscribeCalendarDocument = graphql(`
+  mutation SubscribeCalendar($calendarId: ID!) {
+    subscribeCalendar(calendarId: $calendarId)
+  }
+`);
+
+const UnsubscribeCalendarDocument = graphql(`
+  mutation UnsubscribeCalendar($calendarId: ID!) {
+    unsubscribeCalendar(calendarId: $calendarId)
   }
 `);
 
@@ -221,6 +308,45 @@ export async function fetchCalendarEvents(range: { from: string; to: string }, w
   return (await (workspace ? executeIn(workspace, CalendarEventsDocument, range) : execute(CalendarEventsDocument, range))).calendarEvents;
 }
 
+export type Calendar = CalendarsQuery['calendars'][number];
+export type CalendarSubscription = CalendarsQuery['calendarSubscriptions'][number];
+export type SubscribableCalendar = SubscribableCalendarsQuery['subscribableCalendars'][number];
+
+/**
+ * Calendars of the workspace, and those of other workspaces it shows (read only).
+ * @returns {UseQueryResult<CalendarsQuery>} Query state.
+ */
+export function useCalendars() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'calendars'], queryFn: () => execute(CalendarsDocument) });
+}
+
+/**
+ * Calendars of the other workspaces, with whether this one shows them.
+ * @param {boolean} enabled Whether to load them.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useSubscribableCalendars(enabled: boolean) {
+  return useQuery({
+    queryKey: [...calendarQueryKey, 'subscribable'],
+    queryFn: async () => (await execute(SubscribableCalendarsDocument)).subscribableCalendars,
+    enabled,
+  });
+}
+
+/**
+ * Event occurrences, in a period, of the calendars of other workspaces shown (read only).
+ * @param {{ from: string, to: string } | null} range Dates, included; null when none are shown.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useSubscribedCalendarEvents(range: { from: string; to: string } | null) {
+  return useQuery({
+    queryKey: [...calendarQueryKey, 'subscribed-events', range],
+    queryFn: async () => (await execute(SubscribedCalendarEventsDocument, range!)).subscribedCalendarEvents,
+    enabled: range !== null,
+    placeholderData: (previous) => previous,
+  });
+}
+
 /**
  * Mutation refreshing the calendar once done.
  * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
@@ -232,6 +358,22 @@ function useCalendarMutation<TVariables, TResult>(mutationFn: (variables: TVaria
     mutationFn,
     onSettled: () => queryClient.invalidateQueries({ queryKey: calendarQueryKey }),
   });
+}
+
+/**
+ * Calendars edition, and the subscriptions to the calendars of other workspaces.
+ * @returns {object} Mutations.
+ */
+export function useCalendarMutations() {
+  type Input = { name: string; color: string };
+  return {
+    create: useCalendarMutation(async (input: Input) => (await execute(CreateCalendarDocument, { input })).createCalendar),
+    update: useCalendarMutation(async (variables: { id: string; input: Input }) => (await execute(UpdateCalendarDocument, variables)).updateCalendar),
+    move: useCalendarMutation(async (variables: { id: string; index: number }) => (await execute(MoveCalendarDocument, variables)).moveCalendar),
+    remove: useCalendarMutation(async (id: string) => (await execute(DeleteCalendarDocument, { id })).deleteCalendar),
+    subscribe: useCalendarMutation(async (calendarId: string) => (await execute(SubscribeCalendarDocument, { calendarId })).subscribeCalendar),
+    unsubscribe: useCalendarMutation(async (calendarId: string) => (await execute(UnsubscribeCalendarDocument, { calendarId })).unsubscribeCalendar),
+  };
 }
 
 /**

@@ -5,6 +5,7 @@ import { prisma, unscopedPrisma } from '../db';
 import type { NotificationSource, Workspace, WorkspaceKind } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { currentWorkspace, runInWorkspace } from '../workspace-context';
+import { resolveCalendarId } from './calendars';
 
 /** Cookie (and header) naming the workspace the app shows. */
 export const WORKSPACE_COOKIE = 'ordo_workspace';
@@ -112,13 +113,15 @@ export async function ensureMeContributor(user: { id: string; username: string }
 }
 
 /**
- * Settings a workspace starts with: the "Moi" of every user, and the tracking statuses of a professional one.
+ * Settings a workspace starts with: the "Moi" of every user, a calendar, and the tracking statuses of a
+ * professional one.
  * @param {Workspace} workspace Workspace.
  * @returns {Promise<void>}
  */
 async function setUpWorkspace(workspace: Workspace): Promise<void> {
   await runInWorkspace(workspace, async () => {
     for (const user of await unscopedPrisma.user.findMany({ select: { id: true, username: true } })) await ensureMeContributor(user);
+    await resolveCalendarId();
     if (workspace.kind === 'PRO' && (await prisma.documentStatus.count()) === 0) {
       await prisma.documentStatus.createMany({ data: DEFAULT_DOCUMENT_STATUSES.map((status) => ({ ...status })) });
     }

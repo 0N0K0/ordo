@@ -39,6 +39,7 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     recurrence: (occurrence.recurrence as CalendarEventInput['recurrence']) ?? null,
     reminders: occurrence.reminders,
     projectId: occurrence.projectId,
+    calendarId: occurrence.calendarId,
     contributorIds: occurrence.contributorIds,
     categoryIds: occurrence.categoryIds,
     taskIds: occurrence.taskIds,

@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Anchor, Button, Group, Modal, MultiSelect, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TimerIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
@@ -12,7 +12,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useCalendarCategories, useCalendarEventMutations, type EventOccurrence } from './api';
+import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence } from './api';
 import { useTimeMutations } from '../time/api';
 import { useScopeQuestion } from './ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
@@ -126,6 +126,9 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
     );
   };
   const { data: categories } = useCalendarCategories();
+  const { data: calendarsData } = useCalendars();
+  const calendars = calendarsData?.calendars ?? [];
+  const colorOfCalendar = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
   // Questions are stacked over this form's modal: it must stay mounted to finish the save.
   const scopeQuestion = useScopeQuestion();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -146,6 +149,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         recurrence: null,
         reminders: [15],
         projectId: null,
+        calendarId: null,
         contributorIds: [],
         categoryIds: [],
         taskIds: [],
@@ -388,6 +392,22 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         </Stack>
 
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+          <Select
+            label="Calendrier"
+            description={recurring ? 'Pour toute la série.' : undefined}
+            data={calendars.map((calendar) => ({ value: calendar.id, label: calendar.name }))}
+            // Without a choice, the event goes into the first calendar.
+            value={values.calendarId ?? calendars[0]?.id ?? null}
+            onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
+            allowDeselect={false}
+            leftSection={<ColorSwatch size={12} color={colorOfCalendar.get(values.calendarId ?? calendars[0]?.id ?? '') ?? 'transparent'} />}
+            renderOption={({ option }) => (
+              <Group gap="xs" wrap="nowrap">
+                <ColorSwatch size={12} color={colorOfCalendar.get(option.value) ?? 'transparent'} />
+                {option.label}
+              </Group>
+            )}
+          />
           <ProjectSelect context={context} label="Projet" clearable placeholder="Aucun" {...form.getInputProps('projectId')} />
           <MultiSelect
             label="Contributeurs"

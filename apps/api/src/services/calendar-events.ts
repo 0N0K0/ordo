@@ -16,6 +16,8 @@ import {
 import { prisma } from '../db';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
+import { runInWorkspace } from '../workspace-context';
+import { listSubscriptions, resolveCalendarId } from './calendars';
 
 export interface CalendarLink {
   url: string;
@@ -49,6 +51,8 @@ export interface EventOccurrence {
   seriesStartDate: string;
   reminders: number[];
   projectId: string | null;
+  /** Calendar of the event (of its series). */
+  calendarId: string;
   contributorIds: string[];
   categoryIds: string[];
   /** Tasks the event is about. */
@@ -114,7 +118,7 @@ async function parseEvent(input: CalendarEventInput) {
     event.startTime = null;
     event.endTime = null;
   }
-  return event;
+  return { ...event, calendarId: await resolveCalendarId(event.calendarId) };
 }
 
 /**
@@ -137,6 +141,7 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     recurrence: (event.recurrence ?? undefined) as Prisma.InputJsonValue | undefined,
     reminders: [...new Set(event.reminders)].sort((a, b) => a - b),
     projectId: event.projectId,
+    calendarId: event.calendarId,
   };
 }
 
@@ -199,7 +204,7 @@ async function endSeriesBefore(event: CalendarEvent, rule: Recurrence, date: str
 }
 
 /**
- * Updates an event. For a recurring event, the change applies to one occurrence (THIS: project,
+ * Updates an event. For a recurring event, the change applies to one occurrence (THIS: calendar, project,
  * contributors and categories stay those of the series), to it and the following ones (FOLLOWING: the
  * series is split), or to the whole series (ALL: dates moved by as much as the occurrence was).
  * @param {string} id Event id.
@@ -350,6 +355,7 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     seriesStartDate: seriesStart,
     reminders: event.reminders,
     projectId: event.projectId,
+    calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
@@ -381,12 +387,17 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
  * Occurrences of the events overlapping a period (dates included).
  * @param {string} from First date.
  * @param {string} to Last date.
+ * @param {string[]} [calendarIds] Only the events of these calendars. Optional.
  * @returns {Promise<EventOccurrence[]>} Occurrences, by start.
  */
-export async function eventOccurrences(from: string, to: string): Promise<EventOccurrence[]> {
+export async function eventOccurrences(from: string, to: string, calendarIds?: string[]): Promise<EventOccurrence[]> {
   const events = await prisma.calendarEvent.findMany({
     // Recurring events may occur in the period whatever their first date.
-    where: { startDate: { lte: parseDay(addDays(to, 62)) }, OR: [{ recurrence: { not: Prisma.DbNull } }, { endDate: { gte: parseDay(addDays(from, -62)) } }] },
+    where: {
+      startDate: { lte: parseDay(addDays(to, 62)) },
+      OR: [{ recurrence: { not: Prisma.DbNull } }, { endDate: { gte: parseDay(addDays(from, -62)) } }],
+      ...(calendarIds ? { calendarId: { in: calendarIds } } : {}),
+    },
     include: occurrenceInclude,
   });
   const result: EventOccurrence[] = [];
@@ -404,6 +415,23 @@ export async function eventOccurrences(from: string, to: string): Promise<EventO
     }
   }
   return result.sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
+/**
+ * Occurrences, in a period, of the calendars of other workspaces this one shows (read in their workspaces).
+ * @param {string} from First date.
+ * @param {string} to Last date.
+ * @returns {Promise<EventOccurrence[]>} Occurrences, by start.
+ */
+export async function subscribedOccurrences(from: string, to: string): Promise<EventOccurrence[]> {
+  const byWorkspace = new Map<string, { workspace: { id: string; kind: 'PRO' | 'PERSO' }; calendarIds: string[] }>();
+  for (const subscription of await listSubscriptions()) {
+    const entry = byWorkspace.get(subscription.workspace.id) ?? { workspace: subscription.workspace, calendarIds: [] };
+    entry.calendarIds.push(subscription.calendarId);
+    byWorkspace.set(subscription.workspace.id, entry);
+  }
+  const lists = await Promise.all([...byWorkspace.values()].map(({ workspace, calendarIds }) => runInWorkspace(workspace, () => eventOccurrences(from, to, calendarIds))));
+  return lists.flat().sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
 
@@ -429,6 +457,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     recurrence: storedRecurrence(event.recurrence),
     reminders: event.reminders,
     projectId: event.projectId,
+    calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
