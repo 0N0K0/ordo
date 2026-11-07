@@ -29,6 +29,18 @@ export function senderName(addresses: Address[]): string {
 }
 
 /**
+ * Correspondent shown in a list: the recipients ("À : …") of a mail sent from one of the user's addresses,
+ * else its sender; whatever the folder (folders mix sent and received mails).
+ * @param {{ from: Address[], to: Address[] }} mail Mail.
+ * @param {ReadonlySet<string>} own The user's addresses, in lower case.
+ * @returns {string} Label.
+ */
+export function correspondent(mail: { from: Address[]; to: Address[] }, own: ReadonlySet<string>): string {
+  const sent = mail.from.some((address) => own.has(address.address.toLowerCase()));
+  return sent && mail.to.length ? `À : ${senderName(mail.to)}` : senderName(mail.from);
+}
+
+/**
  * Date of a mail in a list: time today, day this year, full date before.
  * @param {string} iso Date.
  * @returns {string} Label.

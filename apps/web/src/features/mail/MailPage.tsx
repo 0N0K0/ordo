@@ -9,7 +9,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useMailAccounts, useMailActions, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from './api';
 import { AccountFolders, type DraggedMails } from './MailFolders';
-import { listDate, senderName } from './mail-format';
+import { correspondent, listDate } from './mail-format';
 import { MailLabelsManager } from './MailLabelsManager';
 import { MailOrganizeActions } from './MailOrganizeActions';
 import classes from './MailPage.module.css';
@@ -50,6 +50,8 @@ export function MailPage() {
   const { setSeen, remove } = useMailActions();
   const isDrafts = folders?.find((item) => item.path === folder)?.specialUse === '\\Drafts';
   const labelById = useMemo(() => new Map((labels ?? []).map((label) => [label.id, label])), [labels]);
+  // Mails sent from one of these show their recipients.
+  const ownAddresses = useMemo(() => new Set((accounts ?? []).map((account) => account.email.toLowerCase())), [accounts]);
   // Mails ticked in the list (of the folder shown), and mails being dragged to a folder.
   const [selection, setSelection] = useState<{ key: string; uids: number[] }>({ key: '', uids: [] });
   const selectionKey = `${accountId}|${folder}|${page}|${doneFilter}|${debouncedSearch}`;
@@ -343,7 +345,7 @@ export function MailPage() {
                             <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
                               {message.done && <CheckCircleIcon weight="fill" color="var(--mantine-color-green-6)" aria-label="Traité" style={{ flex: 'none' }} />}
                               <Text size="sm" truncate className={classes.sender}>
-                                {folder === 'INBOX' || !message.to.length ? senderName(message.from) : `À : ${senderName(message.to)}`}
+                                {correspondent(message, ownAddresses)}
                               </Text>
                             </Group>
                             <Group gap={4} wrap="nowrap">

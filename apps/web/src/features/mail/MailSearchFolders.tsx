@@ -5,7 +5,7 @@ import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from './api';
-import { listDate, senderName } from './mail-format';
+import { correspondent, listDate } from './mail-format';
 import classes from './MailPage.module.css';
 import { MailSearchForm } from './MailSearchForm';
 
@@ -138,6 +138,8 @@ export function MailSearchList({ searchId, page, onPage, open, onOpen }: MailSea
   const { data: labels } = useMailLabels();
   const { data: accounts } = useMailAccounts();
   const several = (accounts?.length ?? 0) > 1;
+  // Mails sent from one of these show their recipients.
+  const ownAddresses = new Set((accounts ?? []).map((account) => account.email.toLowerCase()));
   if (results.error) {
     return (
       <Alert color="red" icon={<ErrorIcon />} m="xs">
@@ -186,7 +188,7 @@ export function MailSearchList({ searchId, page, onPage, open, onOpen }: MailSea
                 <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
                   {message.done && <CheckCircleIcon weight="fill" color="var(--mantine-color-green-6)" aria-label="Traité" style={{ flex: 'none' }} />}
                   <Text size="sm" truncate className={classes.sender}>
-                    {senderName(message.from)}
+                    {correspondent(message, ownAddresses)}
                   </Text>
                 </Group>
                 <Group gap={4} wrap="nowrap">
