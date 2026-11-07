@@ -35,6 +35,8 @@ export const calendarEventInputSchema = z
     /** Minutes before the start. */
     reminders: z.array(z.number().int().min(0).max(60 * 24 * 30)).max(10),
     projectId: z.string().nullable(),
+    /** Calendar of the event; the first one of the workspace when omitted. */
+    calendarId: z.string().nullish(),
     contributorIds: z.array(z.string()).max(200),
     categoryIds: z.array(z.string()).max(50),
     /** Tasks the event is about. */
@@ -64,3 +66,10 @@ export const calendarCategoryFormSchema = z.object({
   parentId: z.string().nullable(),
 });
 export type CalendarCategoryFormValues = z.infer<typeof calendarCategoryFormSchema>;
+
+/** Calendar of a workspace (every event belongs to one). */
+export const calendarFormSchema = z.object({
+  name: z.string().trim().min(1, 'Le nom est requis.').max(80, '80 caractères maximum.'),
+  color: colorSchema,
+});
+export type CalendarFormValues = z.infer<typeof calendarFormSchema>;

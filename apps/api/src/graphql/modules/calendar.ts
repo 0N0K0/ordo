@@ -1,6 +1,7 @@
 import { EVENT_SCOPES } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as categories from '../../services/calendar-categories';
+import * as calendars from '../../services/calendars';
 import * as events from '../../services/calendar-events';
 import * as schedules from '../../services/work-schedules';
 import { builder } from '../builder';
@@ -12,6 +13,43 @@ builder.prismaObject('CalendarCategory', {
     color: t.exposeString('color'),
     parentId: t.exposeID('parentId', { nullable: true }),
     position: t.exposeInt('position'),
+  }),
+});
+
+builder.prismaObject('Calendar', {
+  description: 'Calendar of the workspace: every event belongs to one.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
+    position: t.exposeInt('position'),
+  }),
+});
+
+const CalendarWorkspace = builder.objectRef<calendars.CalendarSubscriptionView['workspace']>('CalendarWorkspace').implement({
+  description: 'Workspace a calendar belongs to.',
+  fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), kind: t.exposeString('kind') }),
+});
+
+const CalendarSubscription = builder.objectRef<calendars.CalendarSubscriptionView>('CalendarSubscription').implement({
+  description: 'Calendar of another workspace shown, read only, in this one.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    calendarId: t.exposeID('calendarId'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
+    workspace: t.field({ type: CalendarWorkspace, resolve: (subscription) => subscription.workspace }),
+  }),
+});
+
+const SubscribableCalendar = builder.objectRef<calendars.SubscribableCalendar>('SubscribableCalendar').implement({
+  description: 'Calendar of another workspace, with whether this one shows it.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
+    workspace: t.field({ type: CalendarWorkspace, resolve: (calendar) => calendar.workspace }),
+    subscribed: t.exposeBoolean('subscribed'),
   }),
 });
 
@@ -66,6 +104,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     seriesStartDate: t.exposeString('seriesStartDate'),
     reminders: t.exposeIntList('reminders'),
     projectId: t.exposeID('projectId', { nullable: true }),
+    calendarId: t.exposeID('calendarId'),
     contributorIds: t.exposeIDList('contributorIds'),
     categoryIds: t.exposeIDList('categoryIds'),
     taskIds: t.exposeIDList('taskIds'),
@@ -136,10 +175,15 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     recurrence: t.field({ type: 'JSON' }),
     reminders: t.intList({ required: true, description: 'Minutes before the start.' }),
     projectId: t.id(),
+    calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),
     contributorIds: t.idList({ required: true }),
     categoryIds: t.idList({ required: true }),
     taskIds: t.idList({ description: 'Tasks the event is about (none when omitted).' }),
   }),
+});
+
+const CalendarInput = builder.inputType('CalendarInput', {
+  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
 });
 
 const CalendarCategoryInput = builder.inputType('CalendarCategoryInput', {
@@ -159,10 +203,32 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   endTime: input.endTime ?? null,
   recurrence: (input.recurrence ?? null) as never,
   projectId: input.projectId ?? null,
+  calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
 });
 
 builder.queryFields((t) => ({
+  calendars: t.prismaField({
+    type: ['Calendar'],
+    description: 'Calendars of the workspace, in their order.',
+    resolve: (query) => prisma.calendar.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  calendarSubscriptions: t.field({
+    type: [CalendarSubscription],
+    description: 'Calendars of other workspaces shown in this one (read only).',
+    resolve: () => calendars.listSubscriptions(),
+  }),
+  subscribableCalendars: t.field({
+    type: [SubscribableCalendar],
+    description: 'Calendars of the other workspaces.',
+    resolve: () => calendars.subscribableCalendars(),
+  }),
+  subscribedCalendarEvents: t.field({
+    type: [EventOccurrence],
+    description: 'Occurrences, in a period, of the calendars of other workspaces shown in this one (read only).',
+    args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
+    resolve: (_root, { from, to }) => events.subscribedOccurrences(from, to),
+  }),
   calendarCategories: t.prismaField({
     type: ['CalendarCategory'],
     resolve: (query) => prisma.calendarCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
@@ -180,6 +246,47 @@ builder.queryFields((t) => ({
 }));
 
 builder.mutationFields((t) => ({
+  createCalendar: t.prismaField({
+    type: 'Calendar',
+    args: { input: t.arg({ type: CalendarInput, required: true }) },
+    resolve: async (query, _root, { input }) => prisma.calendar.findUniqueOrThrow({ ...query, where: { id: (await calendars.createCalendar(input)).id } }),
+  }),
+  updateCalendar: t.prismaField({
+    type: 'Calendar',
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: CalendarInput, required: true }) },
+    resolve: async (query, _root, { id, input }) => prisma.calendar.findUniqueOrThrow({ ...query, where: { id: (await calendars.updateCalendar(id, input)).id } }),
+  }),
+  moveCalendar: t.boolean({
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, index }) => {
+      await calendars.moveCalendar(id, index);
+      return true;
+    },
+  }),
+  deleteCalendar: t.boolean({
+    description: 'Deletes a calendar with its events (not the last one of the workspace).',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await calendars.deleteCalendar(id);
+      return true;
+    },
+  }),
+  subscribeCalendar: t.boolean({
+    description: 'Shows a calendar of another workspace in this one (read only).',
+    args: { calendarId: t.arg.id({ required: true }) },
+    resolve: async (_root, { calendarId }) => {
+      await calendars.subscribe(calendarId);
+      return true;
+    },
+  }),
+  unsubscribeCalendar: t.boolean({
+    description: 'Stops showing a calendar of another workspace.',
+    args: { calendarId: t.arg.id({ required: true }) },
+    resolve: async (_root, { calendarId }) => {
+      await calendars.unsubscribe(calendarId);
+      return true;
+    },
+  }),
   createCalendarCategory: t.prismaField({
     type: 'CalendarCategory',
     args: { input: t.arg({ type: CalendarCategoryInput, required: true }) },

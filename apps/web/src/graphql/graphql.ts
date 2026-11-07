@@ -127,6 +127,8 @@ export type CalendarCategoryInput = {
 /** Times are local to timeZone; all-day events have none. */
 export type CalendarEventInput = {
   allDay: boolean;
+  /** Calendar; the first one of the workspace when omitted. */
+  calendarId?: string | number | null | undefined;
   categoryIds: Array<string | number>;
   contributorIds: Array<string | number>;
   description?: string | null | undefined;
@@ -151,6 +153,11 @@ export type CalendarEventScope =
   | 'ALL'
   | 'FOLLOWING'
   | 'THIS';
+
+export type CalendarInput = {
+  color: string;
+  name: string;
+};
 
 export type CalendarLinkInput = {
   label: string;
@@ -1264,7 +1271,7 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
-export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, calendarId: string, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
 
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1323,7 +1330,69 @@ export type CalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, calendarId: string, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
+
+export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CalendarsQuery = { calendars: Array<{ id: string, name: string, color: string, position: number }>, calendarSubscriptions: Array<{ id: string, calendarId: string, name: string, color: string, workspace: { id: string, name: string, kind: string } }> };
+
+export type SubscribableCalendarsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type SubscribableCalendarsQuery = { subscribableCalendars: Array<{ id: string, name: string, color: string, subscribed: boolean, workspace: { id: string, name: string, kind: string } }> };
+
+export type SubscribedCalendarEventsQueryVariables = Exact<{
+  from: string;
+  to: string;
+}>;
+
+
+export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, calendarId: string, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
+
+export type CreateCalendarMutationVariables = Exact<{
+  input: CalendarInput;
+}>;
+
+
+export type CreateCalendarMutation = { createCalendar: { id: string } };
+
+export type UpdateCalendarMutationVariables = Exact<{
+  id: string | number;
+  input: CalendarInput;
+}>;
+
+
+export type UpdateCalendarMutation = { updateCalendar: { id: string } };
+
+export type MoveCalendarMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveCalendarMutation = { moveCalendar: boolean };
+
+export type DeleteCalendarMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteCalendarMutation = { deleteCalendar: boolean };
+
+export type SubscribeCalendarMutationVariables = Exact<{
+  calendarId: string | number;
+}>;
+
+
+export type SubscribeCalendarMutation = { subscribeCalendar: boolean };
+
+export type UnsubscribeCalendarMutationVariables = Exact<{
+  calendarId: string | number;
+}>;
+
+
+export type UnsubscribeCalendarMutation = { unsubscribeCalendar: boolean };
 
 export type CreateCalendarCategoryMutationVariables = Exact<{
   input: CalendarCategoryInput;
@@ -3127,6 +3196,7 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
   seriesStartDate
   reminders
   projectId
+  calendarId
   contributorIds
   categoryIds
   taskIds
@@ -4284,6 +4354,7 @@ export const CalendarEventsDocument = new TypedDocumentString(`
   seriesStartDate
   reminders
   projectId
+  calendarId
   contributorIds
   categoryIds
   taskIds
@@ -4301,6 +4372,124 @@ export const CalendarEventsDocument = new TypedDocumentString(`
   }
   trackedSeconds
 }`) as unknown as TypedDocumentString<CalendarEventsQuery, CalendarEventsQueryVariables>;
+export const CalendarsDocument = new TypedDocumentString(`
+    query Calendars {
+  calendars {
+    id
+    name
+    color
+    position
+  }
+  calendarSubscriptions {
+    id
+    calendarId
+    name
+    color
+    workspace {
+      id
+      name
+      kind
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<CalendarsQuery, CalendarsQueryVariables>;
+export const SubscribableCalendarsDocument = new TypedDocumentString(`
+    query SubscribableCalendars {
+  subscribableCalendars {
+    id
+    name
+    color
+    subscribed
+    workspace {
+      id
+      name
+      kind
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<SubscribableCalendarsQuery, SubscribableCalendarsQueryVariables>;
+export const SubscribedCalendarEventsDocument = new TypedDocumentString(`
+    query SubscribedCalendarEvents($from: Date!, $to: Date!) {
+  subscribedCalendarEvents(from: $from, to: $to) {
+    ...CalendarEventOccurrenceFields
+  }
+}
+    fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
+  key
+  eventId
+  occurrenceDate
+  modified
+  title
+  description
+  location
+  links {
+    url
+    label
+  }
+  allDay
+  startDate
+  startTime
+  endDate
+  endTime
+  timeZone
+  start
+  end
+  recurrence
+  seriesStartDate
+  reminders
+  projectId
+  calendarId
+  contributorIds
+  categoryIds
+  taskIds
+  calledOff
+  postponedFrom {
+    eventId
+    date
+    title
+  }
+  postponedTo {
+    eventId
+    title
+    startDate
+    startTime
+  }
+  trackedSeconds
+}`) as unknown as TypedDocumentString<SubscribedCalendarEventsQuery, SubscribedCalendarEventsQueryVariables>;
+export const CreateCalendarDocument = new TypedDocumentString(`
+    mutation CreateCalendar($input: CalendarInput!) {
+  createCalendar(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateCalendarMutation, CreateCalendarMutationVariables>;
+export const UpdateCalendarDocument = new TypedDocumentString(`
+    mutation UpdateCalendar($id: ID!, $input: CalendarInput!) {
+  updateCalendar(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateCalendarMutation, UpdateCalendarMutationVariables>;
+export const MoveCalendarDocument = new TypedDocumentString(`
+    mutation MoveCalendar($id: ID!, $index: Int!) {
+  moveCalendar(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveCalendarMutation, MoveCalendarMutationVariables>;
+export const DeleteCalendarDocument = new TypedDocumentString(`
+    mutation DeleteCalendar($id: ID!) {
+  deleteCalendar(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteCalendarMutation, DeleteCalendarMutationVariables>;
+export const SubscribeCalendarDocument = new TypedDocumentString(`
+    mutation SubscribeCalendar($calendarId: ID!) {
+  subscribeCalendar(calendarId: $calendarId)
+}
+    `) as unknown as TypedDocumentString<SubscribeCalendarMutation, SubscribeCalendarMutationVariables>;
+export const UnsubscribeCalendarDocument = new TypedDocumentString(`
+    mutation UnsubscribeCalendar($calendarId: ID!) {
+  unsubscribeCalendar(calendarId: $calendarId)
+}
+    `) as unknown as TypedDocumentString<UnsubscribeCalendarMutation, UnsubscribeCalendarMutationVariables>;
 export const CreateCalendarCategoryDocument = new TypedDocumentString(`
     mutation CreateCalendarCategory($input: CalendarCategoryInput!) {
   createCalendarCategory(input: $input) {

@@ -264,6 +264,14 @@ input BulkTaskInput {
   typeId: ID
 }
 
+"""Calendar of the workspace: every event belongs to one."""
+type Calendar {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
 type CalendarCategory {
   color: String!
   id: ID!
@@ -281,6 +289,9 @@ input CalendarCategoryInput {
 """Times are local to timeZone; all-day events have none."""
 input CalendarEventInput {
   allDay: Boolean!
+
+  """Calendar; the first one of the workspace when omitted."""
+  calendarId: ID
   categoryIds: [ID!]!
   contributorIds: [ID!]!
   description: String
@@ -305,6 +316,7 @@ input CalendarEventInput {
 """One occurrence of an event in a period."""
 type CalendarEventOccurrence {
   allDay: Boolean!
+  calendarId: ID!
 
   """Cancelled, kept in the calendar."""
   calledOff: Boolean!
@@ -344,6 +356,11 @@ enum CalendarEventScope {
   THIS
 }
 
+input CalendarInput {
+  color: String!
+  name: String!
+}
+
 type CalendarLink {
   label: String!
   url: String!
@@ -368,6 +385,22 @@ type CalendarPostponedTo {
   startDate: String!
   startTime: String
   title: String!
+}
+
+"""Calendar of another workspace shown, read only, in this one."""
+type CalendarSubscription {
+  calendarId: ID!
+  color: String!
+  id: ID!
+  name: String!
+  workspace: CalendarWorkspace!
+}
+
+"""Workspace a calendar belongs to."""
+type CalendarWorkspace {
+  id: ID!
+  kind: String!
+  name: String!
 }
 
 """
@@ -1118,6 +1151,7 @@ type Mutation {
   confirmEmailChange(token: String!): Boolean!
   createAccountingDocument(input: AccountingDocumentInput!, type: AccountingDocumentType!): ID!
   createAlarm(input: AlarmInput!): Alarm!
+  createCalendar(input: CalendarInput!): Calendar!
   createCalendarCategory(input: CalendarCategoryInput!): CalendarCategory!
   createCalendarEvent(input: CalendarEventInput!): ID!
   createCatalogItem(input: CatalogItemInput!): ID!
@@ -1165,6 +1199,11 @@ type Mutation {
   createWorkspace(input: WorkspaceInput!): Workspace!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
+
+  """
+  Deletes a calendar with its events (not the last one of the workspace).
+  """
+  deleteCalendar(id: ID!): Boolean!
   deleteCalendarCategory(id: ID!): Boolean!
   deleteCalendarEvent(id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
   deleteCatalogItem(id: ID!): Boolean!
@@ -1258,6 +1297,7 @@ type Mutation {
   Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.
   """
   materializeTaskOccurrences(from: Date!, to: Date!): Int!
+  moveCalendar(id: ID!, index: Int!): Boolean!
   moveCalendarCategory(id: ID!, index: Int!): Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
   moveDashboard(id: ID!, index: Int!): Boolean!
@@ -1413,6 +1453,9 @@ type Mutation {
   """Starts a timer; the running one is stopped first."""
   startTimer(input: TimerInput!): TimeEntry!
   stopTimer: TimeEntry
+
+  """Shows a calendar of another workspace in this one (read only)."""
+  subscribeCalendar(calendarId: ID!): Boolean!
   syncGithubProject(projectId: ID!): GithubSyncSummary!
 
   """
@@ -1429,8 +1472,12 @@ type Mutation {
   transferTask(id: ID!, projectId: ID!): TaskTransferResult!
   unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
+
+  """Stops showing a calendar of another workspace."""
+  unsubscribeCalendar(calendarId: ID!): Boolean!
   updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
+  updateCalendar(id: ID!, input: CalendarInput!): Calendar!
   updateCalendarCategory(id: ID!, input: CalendarCategoryInput!): CalendarCategory!
 
   """
@@ -1607,6 +1654,12 @@ type Query {
   """Occurrences of the events overlapping a period (dates included)."""
   calendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
 
+  """Calendars of other workspaces shown in this one (read only)."""
+  calendarSubscriptions: [CalendarSubscription!]!
+
+  """Calendars of the workspace, in their order."""
+  calendars: [Calendar!]!
+
   """Catalogue, by title."""
   catalogItems: [CatalogItem!]!
   client(id: ID!): Client
@@ -1726,6 +1779,14 @@ type Query {
 
   """Sprints, by start date."""
   sprints: [Sprint!]!
+
+  """Calendars of the other workspaces."""
+  subscribableCalendars: [SubscribableCalendar!]!
+
+  """
+  Occurrences, in a period, of the calendars of other workspaces shown in this one (read only).
+  """
+  subscribedCalendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
   task(number: Int!): Task
   taskPriorities: [TaskPriority!]!
   taskStatuses: [TaskStatus!]!
@@ -1890,6 +1951,15 @@ type SprintTaskStatus {
   sprintId: ID!
   statusId: ID
   taskId: ID!
+}
+
+"""Calendar of another workspace, with whether this one shows it."""
+type SubscribableCalendar {
+  color: String!
+  id: ID!
+  name: String!
+  subscribed: Boolean!
+  workspace: CalendarWorkspace!
 }
 
 type Task {

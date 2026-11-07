@@ -60,6 +60,8 @@ model Workspace {
   mailMarks               MailMark[]
   scheduledMails          ScheduledMail[]
   mailFolderCursors       MailFolderCursor[]
+  calendars               Calendar[]
+  calendarSubscriptions   CalendarSubscription[]
   calendarCategories      CalendarCategory[]
   calendarEvents          CalendarEvent[]
   calendarEventExceptions CalendarEventException[]
@@ -1070,6 +1072,38 @@ model MailFolderCursor {
   @@index([workspaceId])
 }
 
+/// Calendar of a workspace: every event belongs to one; it can be shown or hidden in the calendar view.
+model Calendar {
+  id            String                 @id @default(cuid())
+  name          String
+  color         String
+  position      Int                    @default(0)
+  createdAt     DateTime               @default(now())
+  events        CalendarEvent[]
+  /// Other workspaces showing it (read only).
+  subscriptions CalendarSubscription[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId   String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+/// Calendar of another workspace shown, read only, in the calendar view of this one.
+model CalendarSubscription {
+  id          String    @id @default(cuid())
+  calendarId  String
+  calendar    Calendar  @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  /// Workspace subscribing (the calendar belongs to another one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, calendarId])
+  @@index([calendarId])
+}
+
 /// Category of calendar events, in a tree.
 model CalendarCategory {
   id          String             @id @default(cuid())
@@ -1114,6 +1148,9 @@ model CalendarEvent {
   reminders         Int[]
   projectId         String?
   project           Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  calendarId        String
+  /// Deleting a calendar deletes its events.
+  calendar          Calendar                 @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   contributors      Contributor[]
   categories        CalendarCategory[]
   exceptions        CalendarEventException[]
@@ -1136,6 +1173,7 @@ model CalendarEvent {
 
   @@index([startDate])
   @@index([projectId])
+  @@index([calendarId])
   @@index([postponedFromId])
   @@index([workspaceId])
 }

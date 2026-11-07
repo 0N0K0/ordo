@@ -88,6 +88,8 @@ for (const model of [
   prisma.treasuryPaymentMethod,
   prisma.treasuryCounterparty,
   prisma.calendarEvent,
+  prisma.calendarSubscription,
+  prisma.calendar,
   prisma.calendarCategory,
   prisma.workSchedule,
   prisma.timeEntry,
@@ -378,6 +380,16 @@ const sport = await category('Sport', '#fd7e14', personal, 0);
 const health = await category('Santé', '#fa5252', personal, 1);
 const admin = await category('Administratif', '#fab005', null, 2);
 
+// Two calendars: work, and personal life (the personal categories).
+const workCalendar = (await prisma.calendar.create({ data: { name: 'Travail', color: '#228be6', position: 0 } })).id;
+const personalCalendar = (await prisma.calendar.create({ data: { name: 'Personnel', color: '#e64980', position: 1 } })).id;
+/**
+ * Calendar of an event, from its categories.
+ * @param {readonly string[]} categoryIds Categories.
+ * @returns {string} Calendar id.
+ */
+const calendarOf = (categoryIds: readonly string[]) => (categoryIds.some((id) => [personal, sport, health].includes(id)) ? personalCalendar : workCalendar);
+
 const today = localDate(new Date());
 // Monday of the current week.
 const monday = addDays(today, -((new Date(`${today}T12:00:00`).getDay() + 6) % 7));
@@ -421,6 +433,7 @@ const recurring = async (event: {
         recurrence: event.recurrence,
         reminders: event.reminders ?? [10],
         projectId: event.projectId ?? null,
+        calendarId: calendarOf(event.categoryIds),
         categories: { connect: event.categoryIds.map((id) => ({ id })) },
         contributors: { connect: faker.helpers.arrayElements(contributors, { min: 0, max: 3 }).map(({ id }) => ({ id })) },
       },
@@ -515,6 +528,7 @@ for (let index = 0; index < 30; index += 1) {
   ]);
   await calendarEventFactory.create({
     projectId: categoryId === health ? null : (project?.id ?? null),
+    calendarId: calendarOf([categoryId]),
     categories: { connect: [{ id: categoryId }] },
     contributors: { connect: faker.helpers.arrayElements(contributors, { min: 0, max: 2 }).map(({ id }) => ({ id })) },
   });
@@ -535,6 +549,7 @@ for (const [title, offset, days, categoryId] of [
       endDate: new Date(`${addDays(start, days - 1)}T00:00:00.000Z`),
       timeZone: TIME_ZONE,
       reminders: [1440],
+      calendarId: calendarOf([categoryId]),
       categories: { connect: [{ id: categoryId }] },
     },
   });
@@ -552,6 +567,7 @@ await prisma.calendarEvent.create({
     timeZone: TIME_ZONE,
     reminders: [15],
     calledOff: true,
+    calendarId: workCalendar,
     categories: { connect: [{ id: meetings }] },
   },
 });
@@ -566,6 +582,7 @@ const postponed = await prisma.calendarEvent.create({
     timeZone: TIME_ZONE,
     reminders: [60],
     calledOff: true,
+    calendarId: workCalendar,
     categories: { connect: [{ id: admin }] },
   },
 });
@@ -580,6 +597,7 @@ await prisma.calendarEvent.create({
     timeZone: TIME_ZONE,
     reminders: [60],
     postponedFromId: postponed.id,
+    calendarId: workCalendar,
     categories: { connect: [{ id: admin }] },
   },
 });
@@ -628,6 +646,7 @@ const counts = {
   tâches: await prisma.task.count(),
   commentaires: await prisma.taskComment.count(),
   temps: await prisma.timeEntry.count(),
+  calendriers: await prisma.calendar.count(),
   'catégories d’agenda': await prisma.calendarCategory.count(),
   'évènements': await prisma.calendarEvent.count(),
   'plages de travail': await prisma.workSchedule.count(),
