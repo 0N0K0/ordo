@@ -69,6 +69,7 @@ const MailFolder = builder.objectRef<reader.MailFolder>('MailFolder').implement(
     unseen: t.exposeInt('unseen'),
     depth: t.exposeInt('depth'),
     parent: t.exposeString('parent', { nullable: true }),
+    todo: t.exposeInt('todo', { nullable: true, description: 'Mails to do; null for the sent, drafts, trash and junk folders.' }),
   }),
 });
 

@@ -931,6 +931,9 @@ type MailFolder {
   parent: String
   path: String!
   specialUse: String
+
+  """Mails to do; null for the sent, drafts, trash and junk folders."""
+  todo: Int
   unseen: Int!
 }
 

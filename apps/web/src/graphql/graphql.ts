@@ -1627,7 +1627,7 @@ export type MailFoldersQueryVariables = Exact<{
 }>;
 
 
-export type MailFoldersQuery = { mailFolders: Array<{ path: string, name: string, specialUse: string | null, unseen: number, depth: number, parent: string | null }> };
+export type MailFoldersQuery = { mailFolders: Array<{ path: string, name: string, specialUse: string | null, unseen: number, depth: number, parent: string | null, todo: number | null }> };
 
 export type MailMessagesQueryVariables = Exact<{
   accountId: string | number;
@@ -4542,6 +4542,7 @@ export const MailFoldersDocument = new TypedDocumentString(`
     unseen
     depth
     parent
+    todo
   }
 }
     `) as unknown as TypedDocumentString<MailFoldersQuery, MailFoldersQueryVariables>;

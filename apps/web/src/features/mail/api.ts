@@ -139,6 +139,7 @@ const MailFoldersDocument = graphql(`
       unseen
       depth
       parent
+      todo
     }
   }
 `);

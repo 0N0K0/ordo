@@ -23,7 +23,12 @@ export interface MailFolder {
   depth: number;
   /** Path of the parent folder, null at the top. */
   parent: string | null;
+  /** Mails to do (not marked as done); null for the sent, drafts, trash and junk folders. */
+  todo: number | null;
 }
+
+/** Folders without "to do" count: what is in them is not to handle. */
+const NO_TODO = new Set(['\\Sent', '\\Drafts', '\\Trash', '\\Junk']);
 
 export interface MailSummary {
   uid: number;
@@ -140,13 +145,31 @@ export function bareMessageId(id: string | undefined | null): string | null {
 }
 
 /**
- * Folders of an account, special ones first, with their unread count.
+ * Folders of an account, special ones first, with their unread count and the count of the mails to do.
  * @param {string} accountId Account.
  * @returns {Promise<MailFolder[]>} Folders.
  */
 export async function listFolders(accountId: string): Promise<MailFolder[]> {
+  const marks = new Map((await prisma.mailMark.findMany({ where: { accountId, done: true }, select: { messageId: true } })).map((mark) => [mark.messageId, true]));
   return withImap(accountId, async (client) => {
     const folders: ListResponse[] = await client.list({ statusQuery: { unseen: true } });
+    // Mails to do in each folder: without the done keyword, or without a done mark kept in Ordo.
+    const todo = new Map<string, number>();
+    for (const folder of folders) {
+      if (folder.flags.has('\\Noselect') || folder.flags.has('\\NonExistent') || NO_TODO.has(folder.specialUse ?? '')) continue;
+      const lock = await client.getMailboxLock(folder.path).catch(() => null);
+      if (!lock) continue;
+      try {
+        if (takesKeywords(client)) todo.set(folder.path, (((await client.search({ unKeyword: DONE_KEYWORD }, { uid: true })) || []) as number[]).length);
+        else {
+          const uids = ((await client.search({ all: true }, { uid: true })) || []) as number[];
+          const ids = marks.size ? await messageIdsOf(client, uids) : new Map<number, string>();
+          todo.set(folder.path, uids.filter((uid) => !marks.has(ids.get(uid) ?? '')).length);
+        }
+      } finally {
+        lock.release();
+      }
+    }
     const rank = (folder: ListResponse) => {
       if (folder.path.toUpperCase() === 'INBOX') return 0;
       const index = SPECIAL_ORDER.indexOf(folder.specialUse ?? '');
@@ -162,6 +185,7 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
         unseen: folder.status?.unseen ?? 0,
         depth: folder.parent.length,
         parent: folder.parentPath || null,
+        todo: todo.get(folder.path) ?? null,
       }));
   });
 }

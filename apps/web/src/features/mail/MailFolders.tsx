@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Box, Button, Group, Menu, NavLink, Skeleton, Stack, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Group, Menu, NavLink, Skeleton, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import {
@@ -95,7 +95,8 @@ interface AccountFoldersProps {
 }
 
 /**
- * Folders of an account in the navigation, as a tree whose branches fold and unfold, with their unread counts:
+ * Folders of an account in the navigation, as a tree whose branches fold and unfold, with their counts of mails
+ * to do and unread:
  * create, rename and delete folders (special ones excepted), and drop mails dragged from the list into one of
  * them.
  * @param {AccountFoldersProps} props Component props.
@@ -350,10 +351,19 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
             }
             rightSection={
               <Group gap={2} wrap="nowrap">
+                {(folder.todo ?? 0) > 0 && (
+                  <Tooltip label={`${folder.todo} à traiter`}>
+                    <Badge size="xs" variant="light" color="orange" circle={(folder.todo ?? 0) < 10} aria-label={`${folder.todo} à traiter`}>
+                      {folder.todo}
+                    </Badge>
+                  </Tooltip>
+                )}
                 {folder.unseen > 0 && (
-                  <Badge size="xs" variant="filled" circle={folder.unseen < 10}>
-                    {folder.unseen}
-                  </Badge>
+                  <Tooltip label={`${folder.unseen} non lu${folder.unseen > 1 ? 's' : ''}`}>
+                    <Badge size="xs" variant="filled" circle={folder.unseen < 10} aria-label={`${folder.unseen} non lu${folder.unseen > 1 ? 's' : ''}`}>
+                      {folder.unseen}
+                    </Badge>
+                  </Tooltip>
                 )}
                 <Menu position="bottom-end" shadow="md" withinPortal>
                   <Menu.Target>
