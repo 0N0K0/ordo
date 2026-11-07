@@ -91,7 +91,7 @@ function lastDay(month: string): string {
 }
 
 /**
- * Budgets of a range of months compared with the actual and forecast movements: each line of a split entry (for
+ * Budgets of a range of months compared with the actual and forecast movements (loans left out): each line of a split entry (for
  * its relation, or its member; a line without either is the app user's), and what the lines leave or a whole entry without lines (the app
  * user's, in the context planned on its day), counts in the budget of its month, member and context for its
  * category or the closest parent category that has one; without one, it is out of budget.
@@ -141,8 +141,9 @@ export async function budgetReport(from: string, to: string, meId: string | null
    * @returns {void}
    */
   const add = (day: string, key: Key, amount: number, kind: 'actual' | 'forecast') => {
-    if (!amount) return;
     const month = monthOf(day);
+    // A line of its own day may fall out of the range (an entry of the range for purchases of the month before).
+    if (!amount || month < from || month > to) return;
     const seen = new Set<string>();
     for (let category = key.categoryId; category && !seen.has(category); category = parentOf.get(category) ?? null) {
       seen.add(category);
@@ -163,6 +164,8 @@ export async function budgetReport(from: string, to: string, meId: string | null
     where: {
       OR: [
         { status: 'ACTUAL', date: { gte: first, lte: last } },
+        // Actual entries out of the range with lines of their own day in it (deferred debit card).
+        { status: 'ACTUAL', lines: { some: { date: { gte: first, lte: last } } } },
         { status: 'FORECAST', date: { lte: last } },
       ],
     },
@@ -171,13 +174,19 @@ export async function budgetReport(from: string, to: string, meId: string | null
   for (const entry of entries) {
     const start = formatDay(entry.date);
     const rule = entry.status === 'FORECAST' ? storedRecurrence(entry.recurrence) : null;
-    const days = rule ? occurrenceDates(rule, start, `${from}-01`, lastDay(to)) : start >= `${from}-01` ? [start] : [];
+    // Out of the range, an actual entry only counts by its lines of their own day (the check of `add`).
+    const days = rule ? occurrenceDates(rule, start, `${from}-01`, lastDay(to)) : entry.status === 'ACTUAL' || start >= `${from}-01` ? [start] : [];
     const total = Number(entry.amount);
     const lines = entry.lines.map((line) => ({ ...line, value: Number(line.value) }));
     const { amounts, remainder } = splitAmounts(total, lines);
     const kind = entry.status === 'ACTUAL' ? 'actual' : 'forecast';
     for (const day of days) {
-      lines.forEach((line, index) => add(day, { ...whom(line), contextId: line.contextId, categoryId: line.categoryId }, amounts[index], kind));
+      // A line of its own day (a purchase paid by a deferred debit card) counts that day.
+      // A loan is no spending: out of the budgets.
+      lines.forEach(
+        (line, index) =>
+          !line.loan && add(line.date && kind === 'actual' ? formatDay(line.date) : day, { ...whom(line), contextId: line.contextId, categoryId: line.categoryId }, amounts[index], kind),
+      );
       // What the lines leave, or the whole entry: the app user's, in the context planned that day.
       add(day, { memberId: me, relationId: null, contextId: plannedContext(planned, day), categoryId: lines.length ? null : entry.categoryId }, remainder, kind);
     }

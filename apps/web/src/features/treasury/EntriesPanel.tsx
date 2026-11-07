@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Button, Group, Modal, Paper, SegmentedControl, Select, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { MonthPickerInput, YearPickerInput } from '@mantine/dates';
-import { addDays, formatMoney, offsetLinkedMovements } from '@ordo/shared';
-import { ArrowsLeftRightIcon, FilePdfIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import { addDays, EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts } from '@ordo/shared';
+import { ArrowsLeftRightIcon, CaretDownIcon, CaretRightIcon, FileCsvIcon, FilePdfIcon, HandCoinsIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { localToday } from '../../lib/dates';
@@ -10,6 +10,7 @@ import { useTreasuryEntries, useTreasuryMutations, useTreasurySettings, type Tre
 import { categoryPaths } from './categories';
 import { confirmDeletion } from './confirm-deletion';
 import { StatementForm } from './StatementForm';
+import { StatementImport } from './StatementImport';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -66,6 +67,7 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
   const [year, setYear] = useState<string>(`${today.slice(0, 4)}-01-01`);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const from = scale === 'month' ? month : year;
   const to = scale === 'month' ? addDays(`${addDays(month, 31).slice(0, 7)}-01`, -1) : `${year.slice(0, 4)}-12-31`;
   const { data: entries, isPending } = useTreasuryEntries({ from, to, accountId });
@@ -74,6 +76,26 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
   const paths = useMemo(() => categoryPaths(settings?.treasuryCategories ?? []), [settings]);
   const actual = (entries ?? []).filter((entry) => entry.status === 'ACTUAL');
   const totals = periodTotals(actual);
+  // Split entries whose lines are shown.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const split = actual.filter((entry) => entry.lines.length > 0);
+  const allExpanded = split.length > 0 && split.every((entry) => expanded.has(entry.id));
+  const toggle = (id: string) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const nameOf = useMemo(
+    () =>
+      new Map([
+        ...(settings?.treasuryMembers ?? []).map((member) => [`m:${member.id}`, member.isMe ? `${member.name} (moi)` : member.name] as const),
+        ...(settings?.treasuryRelations ?? []).map((relation) => [`r:${relation.id}`, relation.name] as const),
+        ...(settings?.treasuryContexts ?? []).map((context) => [`c:${context.id}`, context.name] as const),
+      ]),
+    [settings],
+  );
 
   return (
     <Stack gap="sm">
@@ -104,6 +126,19 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
         <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => setExporting(true)}>
           Exporter en PDF
         </Button>
+        <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} onClick={() => setImporting(true)} disabled={!accounts.some((account) => !account.archived)}>
+          Importer un relevé
+        </Button>
+        {split.length > 0 && (
+          <Button
+            variant="subtle"
+            color="gray"
+            leftSection={allExpanded ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+            onClick={() => setExpanded(allExpanded ? new Set() : new Set(split.map((entry) => entry.id)))}
+          >
+            {allExpanded ? 'Réduire les répartitions' : 'Développer les répartitions'}
+          </Button>
+        )}
         {actual.length > 0 && (
           <Stack gap={0} ml="auto" align="flex-end">
             <Text size="sm" c="dimmed">
@@ -177,16 +212,32 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
                         )}
                       </Table.Td>
                       <Table.Td>
-                        <Text size="sm">{entry.label}</Text>
-                        <Text size="xs" c="dimmed">
-                          {[
-                            entry.categoryId ? paths.get(entry.categoryId) : null,
-                            entry.methodName,
-                            entry.lines.length ? `réparti en ${entry.lines.length} ligne${entry.lines.length > 1 ? 's' : ''}` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </Text>
+                        <Group gap={4} wrap="nowrap" align="flex-start">
+                          {entry.lines.length > 0 && (
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              size="sm"
+                              aria-label={expanded.has(entry.id) ? `Réduire la répartition de ${entry.label}` : `Développer la répartition de ${entry.label}`}
+                              aria-expanded={expanded.has(entry.id)}
+                              onClick={() => toggle(entry.id)}
+                            >
+                              {expanded.has(entry.id) ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+                            </ActionIcon>
+                          )}
+                          <div>
+                            <Text size="sm">{entry.label}</Text>
+                            <Text size="xs" c="dimmed">
+                              {[
+                                entry.categoryId ? paths.get(entry.categoryId) : null,
+                                entry.methodName,
+                                entry.lines.length ? `réparti en ${entry.lines.length} ligne${entry.lines.length > 1 ? 's' : ''}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </Text>
+                          </div>
+                        </Group>
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm">{entry.payerName ?? ''}</Text>
@@ -276,6 +327,7 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
                         </Group>
                       </Table.Td>
                     </Table.Tr>
+                    {expanded.has(entry.id) && <SplitRows entry={entry} paths={paths} nameOf={nameOf} />}
                   </Fragment>
                 );
               })}
@@ -283,9 +335,76 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
           </Table>
         </Paper>
       )}
+      <Modal opened={importing} onClose={() => setImporting(false)} title="Importer un relevé bancaire" size="xl">
+        {importing && <StatementImport accounts={accounts} onDone={() => setImporting(false)} />}
+      </Modal>
       <Modal opened={exporting} onClose={() => setExporting(false)} title="Exporter le relevé des mouvements">
         {exporting && <StatementForm accounts={accounts} accountId={accountId} onDone={() => setExporting(false)} />}
       </Modal>
     </Stack>
+  );
+}
+
+/**
+ * Lines of a split entry under it (and what they leave), muted: for whom, category, context, loan, own day,
+ * project, documents and links.
+ * @param {{ entry: TreasuryEntry, paths: Map<string, string>, nameOf: Map<string, string> }} props Entry, category paths, names of members ("m:"), relations ("r:") and contexts ("c:").
+ * @returns {JSX.Element} Rows.
+ */
+function SplitRows({ entry, paths, nameOf }: { entry: TreasuryEntry; paths: Map<string, string>; nameOf: Map<string, string> }) {
+  const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
+  const rows = [
+    ...entry.lines.map((line, index) => ({
+      key: line.id,
+      label: line.label ?? 'Ligne',
+      details: [
+        line.relationId ? `pour ${nameOf.get(`r:${line.relationId}`) ?? 'une relation'}` : line.memberId ? `pour ${nameOf.get(`m:${line.memberId}`) ?? ''}` : '',
+        line.categoryId ? paths.get(line.categoryId) : '',
+        line.contextId ? nameOf.get(`c:${line.contextId}`) : EVERYDAY_CONTEXT,
+        line.date ? `le ${printedDate(String(line.date))}` : '',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      loan: line.loan,
+      attachments: (line.projectId ? 1 : 0) + line.documents.length + line.linkedLines.length + line.linkedEntries.length,
+      amount: amounts[index] / 100,
+    })),
+    ...(remainder ? [{ key: 'rest', label: 'Non réparti', details: '', loan: false, attachments: 0, amount: remainder / 100 }] : []),
+  ];
+  return (
+    <>
+      {rows.map((row) => (
+        <Table.Tr key={row.key} bg="var(--mantine-color-default-hover)">
+          <Table.Td />
+          <Table.Td colSpan={3} pl="xl">
+            <Group gap={6} wrap="nowrap">
+              <Text size="xs">↳ {row.label}</Text>
+              {row.loan && (
+                <Badge size="xs" variant="light" color="grape" leftSection={<HandCoinsIcon aria-hidden />}>
+                  Prêt
+                </Badge>
+              )}
+            </Group>
+            {row.details && (
+              <Text size="xs" c="dimmed">
+                {row.details}
+              </Text>
+            )}
+          </Table.Td>
+          <Table.Td>
+            {row.attachments > 0 && (
+              <Badge size="xs" variant="light" color="gray" leftSection={<PaperclipIcon aria-hidden />}>
+                {row.attachments}
+              </Badge>
+            )}
+          </Table.Td>
+          <Table.Td ta="right" ff="monospace" fz="xs" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
+            {row.amount > 0 ? '+' : ''}
+            {money(row.amount)}
+          </Table.Td>
+          <Table.Td />
+        </Table.Tr>
+      ))}
+    </>
   );
 }

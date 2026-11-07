@@ -89,6 +89,10 @@ export const treasuryEntryLineSchema = z
     memberId: z.string().nullable(),
     /** A relation (out of the team or household) instead of a member: loan, gift… */
     relationId: z.string().nullish(),
+    /** Loan with the relation: money out lends (or repays), money in borrows (or is repaid). */
+    loan: z.boolean().default(false),
+    /** Own day of the line (a purchase paid by a deferred debit card); none: the day of the entry. */
+    date: isoDate.nullish(),
     categoryId: z.string().nullable(),
     contextId: z.string().nullable(),
     projectId: z.string().nullish(),
@@ -100,6 +104,7 @@ export const treasuryEntryLineSchema = z
   .superRefine((line, context) => {
     if (line.value === 0) context.addIssue({ code: 'custom', path: ['value'], message: 'La valeur ne peut pas être nulle.' });
     if (line.memberId && line.relationId) context.addIssue({ code: 'custom', path: ['memberId'], message: 'Un membre ou une relation, pas les deux.' });
+    if (line.loan && !line.relationId) context.addIssue({ code: 'custom', path: ['loan'], message: 'Un prêt se fait avec une relation.' });
     const limit = line.mode === 'PERCENT' ? 1000 : 99_999_999;
     if (Math.abs(line.value) > limit) context.addIssue({ code: 'custom', path: ['value'], message: line.mode === 'PERCENT' ? '1 000 % au plus.' : 'Montant trop grand.' });
   });
@@ -375,3 +380,145 @@ export function offsetLinkedMovements(movements: readonly LinkedMovement[]): Map
   }
   return result;
 }
+
+/** Columns of a bank statement in CSV (indexes from 0), as mapped at an import. */
+export const statementMappingSchema = z.object({
+  separator: z.enum([';', ',', '\t']),
+  encoding: z.enum(['utf-8', 'windows-1252']),
+  /** Lines before the operations (titles…). */
+  skipRows: z.number().int().min(0).max(50),
+  dateColumn: z.number().int().min(0),
+  dateFormat: z.enum(['DD/MM/YYYY', 'DD/MM/YY', 'YYYY-MM-DD', 'DD-MM-YYYY']),
+  /** Columns joined into the label. */
+  labelColumns: z.array(z.number().int().min(0)).min(1, 'Choisissez la colonne du libellé.').max(4),
+  /** One signed amount column, or a debit and a credit column. */
+  amountColumn: z.number().int().min(0).nullable(),
+  debitColumn: z.number().int().min(0).nullable(),
+  creditColumn: z.number().int().min(0).nullable(),
+});
+export type StatementMapping = z.infer<typeof statementMappingSchema>;
+
+/** Operation read from a statement. */
+export interface StatementRow {
+  date: string;
+  label: string;
+  /** Signed: positive for money in. */
+  amount: number;
+}
+
+/**
+ * Cells of a CSV text: quoted cells may hold separators, line breaks and doubled quotes.
+ * @param {string} text CSV text.
+ * @param {string} separator Cell separator.
+ * @returns {string[][]} Rows of cells.
+ */
+export function parseCsv(text: string, separator: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (quoted) {
+      if (char === '"' && text[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (char === '"') quoted = false;
+      else cell += char;
+    } else if (char === '"' && cell === '') quoted = true;
+    else if (char === separator) {
+      row.push(cell);
+      cell = '';
+    } else if (char === '\n' || char === '\r') {
+      if (char === '\r' && text[index + 1] === '\n') index += 1;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else cell += char;
+  }
+  if (cell !== '' || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter((cells) => cells.some((value) => value.trim() !== ''));
+}
+
+/**
+ * Amount of a statement cell: "1 234,56", "-12.50", "12,50 €"… (empty: null).
+ * @param {string | undefined} value Cell.
+ * @returns {number | null} Amount.
+ */
+export function statementAmount(value: string | undefined): number | null {
+  const cleaned = (value ?? '').replace(/[\s\u00a0\u202f€]/g, '').replace(/^\+/, '');
+  if (!cleaned) return null;
+  // The last "," or "." is the decimal mark; the others group thousands.
+  const decimal = Math.max(cleaned.lastIndexOf(','), cleaned.lastIndexOf('.'));
+  const normalized = decimal >= 0 && cleaned.length - decimal - 1 <= 2 ? `${cleaned.slice(0, decimal).replace(/[.,]/g, '')}.${cleaned.slice(decimal + 1)}` : cleaned.replace(/[.,]/g, '');
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : null;
+}
+
+/**
+ * Date of a statement cell in its format (invalid: null).
+ * @param {string | undefined} value Cell.
+ * @param {StatementMapping['dateFormat']} format Format.
+ * @returns {string | null} YYYY-MM-DD.
+ */
+export function statementDate(value: string | undefined, format: StatementMapping['dateFormat']): string | null {
+  const parts = (value ?? '').trim().split(/[/.-]/);
+  if (parts.length !== 3) return null;
+  let [year, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
+  if (format === 'DD/MM/YY' || year.length === 2) year = `20${year.padStart(2, '0')}`;
+  const date = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) ? date : null;
+}
+
+/**
+ * Operations of a statement, read with its column mapping; lines without a valid date or amount are left out
+ * (headers, totals…).
+ * @param {string} text CSV text (decoded).
+ * @param {StatementMapping} mapping Columns.
+ * @returns {StatementRow[]} Operations.
+ */
+export function readStatement(text: string, mapping: StatementMapping): StatementRow[] {
+  return parseCsv(text, mapping.separator)
+    .slice(mapping.skipRows)
+    .flatMap((cells) => {
+      const date = statementDate(cells[mapping.dateColumn], mapping.dateFormat);
+      const label = mapping.labelColumns
+        .map((column) => (cells[column] ?? '').trim())
+        .filter(Boolean)
+        .join(' — ')
+        .replace(/\s+/g, ' ')
+        .slice(0, 300);
+      let amount: number | null;
+      if (mapping.amountColumn !== null) amount = statementAmount(cells[mapping.amountColumn]);
+      else {
+        const debit = mapping.debitColumn !== null ? statementAmount(cells[mapping.debitColumn]) : null;
+        const credit = mapping.creditColumn !== null ? statementAmount(cells[mapping.creditColumn]) : null;
+        amount = debit === null && credit === null ? null : (credit ?? 0) - Math.abs(debit ?? 0);
+      }
+      return date && label && amount ? [{ date, label, amount }] : [];
+    });
+}
+
+/** Operations to create from a statement: each one new, or realizing a forecast. */
+export const statementImportSchema = z.object({
+  accountId: z.string().min(1),
+  mapping: statementMappingSchema.nullable(),
+  rows: z
+    .array(
+      z.object({
+        date: isoDate,
+        label: z.string().trim().min(1).max(300),
+        amount: amount.refine((value) => value !== 0, 'Montant nul.'),
+        /** Forecast it realizes (its occurrence of that date). */
+        forecastId: z.string().nullish(),
+        occurrence: isoDate.nullish(),
+      }),
+    )
+    .min(1, 'Aucune opération à importer.')
+    .max(2000, '2 000 opérations au plus.'),
+});
+export type StatementImportInput = z.input<typeof statementImportSchema>;

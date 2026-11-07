@@ -144,6 +144,8 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
           value: line.mode === 'AMOUNT' && (entry?.amount ?? 0) < 0 ? -line.value : line.value,
           memberId: line.memberId ?? null,
           relationId: line.relationId ?? null,
+          loan: line.loan,
+          date: line.date ? String(line.date) : null,
           categoryId: line.categoryId ?? null,
           contextId: line.contextId ?? null,
           projectId: line.projectId ?? null,

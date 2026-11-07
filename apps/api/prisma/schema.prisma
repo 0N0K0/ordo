@@ -1633,6 +1633,8 @@ model TreasuryAccount {
   openingDate    DateTime        @db.Date
   position       Int             @default(0)
   archived       Boolean         @default(false)
+  /// Columns of its bank statements (CSV), as last mapped at an import.
+  csvMapping     Json?
   createdAt      DateTime        @default(now())
   entries        TreasuryEntry[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -1666,6 +1668,10 @@ model TreasuryEntryLine {
   /// Someone out of the team or household it is for (loan, gift…), instead of a member.
   relationId       String?
   relation         TreasuryRelation?   @relation(fields: [relationId], references: [id], onDelete: SetNull)
+  /// Loan with the relation: money out is lent (or a debt repaid), money in is borrowed (or a loan repaid back).
+  loan             Boolean             @default(false)
+  /// Own day of the line (a purchase paid by a deferred debit card): budgets and charts count it on that day.
+  date             DateTime?           @db.Date
   categoryId       String?
   category         TreasuryCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   contextId        String?

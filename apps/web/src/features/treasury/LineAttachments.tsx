@@ -1,4 +1,5 @@
-import { ActionIcon, Badge, Button, Group, MultiSelect, Select, Stack, Text } from '@mantine/core';
+import { ActionIcon, Badge, Button, Checkbox, Group, MultiSelect, Select, Stack, Text } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import { LinkIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTreasuryEntrySearch } from './api';
@@ -57,6 +58,26 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
 
   return (
     <Stack gap="sm">
+      <Checkbox
+        label="Prêt"
+        description={
+          line.relationId
+            ? 'Une sortie prête à la relation (ou lui rembourse ce que vous lui devez), une entrée vous fait prêter par elle (ou vous rembourse). Suivi dans l’onglet Prêts.'
+            : 'Choisissez d’abord une relation dans la colonne « Pour ».'
+        }
+        disabled={!line.relationId}
+        checked={line.loan}
+        onChange={(event) => onChange({ loan: event.currentTarget.checked })}
+      />
+      <DatePickerInput
+        label="Date d’achat"
+        description="Si elle diffère de celle du mouvement (carte à débit différé) : budgets et graphiques la comptent ce jour-là."
+        placeholder="Celle du mouvement"
+        clearable
+        valueFormat="D MMM YYYY"
+        value={line.date}
+        onChange={(date) => onChange({ date: date ? String(date) : null })}
+      />
       <Select label="Projet" clearable searchable data={projects} value={line.projectId} onChange={(projectId) => onChange({ projectId })} />
       <MultiSelect
         label="Pièces justificatives"

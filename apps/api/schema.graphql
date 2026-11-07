@@ -1296,6 +1296,11 @@ type Mutation {
   finalizeAccountingDocument(id: ID!): String!
   importDocument(file: File, input: ImportedDocumentInput!): ID!
 
+  """
+  Creates the operations of a bank statement in an account (or realizes their forecasts); keeps the column mapping.
+  """
+  importTreasuryStatement(accountId: ID!, mapping: JSON, rows: [TreasuryStatementRowInput!]!): JSON!
+
   """Issues the recurring invoices due today (also done every hour)."""
   issueDueRecurringInvoices(today: Date!): Int!
 
@@ -1874,6 +1879,9 @@ type Query {
   """Entries whose label contains a text (to link entries), latest first."""
   treasuryEntrySearch(limit: Int, text: String!): [TreasuryEntry!]!
 
+  """Loans with the relations, both ways (actual lines marked as loans)."""
+  treasuryLoans: [TreasuryRelationLoans!]!
+
   """Members of the team or household: the app user first."""
   treasuryMembers: [Contributor!]!
   treasuryPaymentMethods: [TreasuryPaymentMethod!]!
@@ -2293,6 +2301,9 @@ type TreasuryAccount {
 
   """Balance today."""
   balance: Float!
+
+  """Columns of its bank statements (CSV), as last mapped."""
+  csvMapping: JSON
   entryCount: Int!
   id: ID!
   name: String!
@@ -2538,6 +2549,9 @@ type TreasuryEntryLine {
   categoryId: ID
   contextId: ID
 
+  """Own day of the line (deferred debit card); none: the day of the entry."""
+  date: Date
+
   """Supporting documents: of the library, then of projects."""
   documents: [TreasuryEntryDocument!]!
   id: ID!
@@ -2548,6 +2562,11 @@ type TreasuryEntryLine {
 
   """Lines of other entries linked to this one (both ways)."""
   linkedLines: [TreasuryLinkedLine!]!
+
+  """
+  Loan with the relation: money out lends (or repays), money in borrows (or is repaid).
+  """
+  loan: Boolean!
   memberId: ID
   mode: TreasuryLineMode!
   projectId: ID
@@ -2562,6 +2581,7 @@ type TreasuryEntryLine {
 input TreasuryEntryLineInput {
   categoryId: ID
   contextId: ID
+  date: Date
 
   """Line kept (its links from other entries stay); none for a new line."""
   id: ID
@@ -2573,6 +2593,7 @@ input TreasuryEntryLineInput {
 
   """Lines of other entries."""
   linkedLineIds: [ID!]
+  loan: Boolean
   memberId: ID
   mode: TreasuryLineMode!
   projectId: ID
@@ -2611,6 +2632,15 @@ type TreasuryLinkedLine {
   id: ID!
   label: String
   status: TreasuryEntryStatus!
+}
+
+type TreasuryLoanItem {
+  """Negative: money out (lent, or a debt repaid)."""
+  amount: Float!
+  date: String!
+  entryId: ID!
+  label: String!
+  lineId: ID!
 }
 
 type TreasuryPaymentMethod {
@@ -2668,6 +2698,32 @@ input TreasuryRelationInput {
   contributorId: ID
   name: String!
   note: String
+}
+
+"""Loans with a relation, both ways."""
+type TreasuryRelationLoans {
+  """What the relation owes (positive) or is owed (negative)."""
+  balance: Float!
+
+  """Money in from them: borrowed, or loans repaid back."""
+  in: Float!
+  items: [TreasuryLoanItem!]!
+
+  """Money out to them: lent, or debts repaid."""
+  out: Float!
+  relationId: ID!
+}
+
+input TreasuryStatementRowInput {
+  amount: Float!
+  date: Date!
+
+  """Forecast it realizes."""
+  forecastId: ID
+  label: String!
+
+  """Occurrence of a repeated forecast it realizes."""
+  occurrence: Date
 }
 
 type User {
