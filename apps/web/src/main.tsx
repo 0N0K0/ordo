@@ -14,6 +14,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router/dom';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { queryClient } from './lib/query-client';
 import { router } from './router';
 import { iconDefaults, theme } from './theme';
@@ -24,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
       <DatesProvider settings={{ locale: 'fr', firstDayOfWeek: 1 }}>
         <IconContext.Provider value={iconDefaults}>
           <Notifications position="top-right" />
+          <UpdatePrompt />
           <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
           </QueryClientProvider>
