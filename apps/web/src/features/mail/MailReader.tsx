@@ -198,9 +198,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
           <Group gap={4} wrap="nowrap">
             {!isDraft && (
               <MailOrganizeActions
-                accountId={accountId}
-                folder={folder}
-                uids={[uid]}
+                groups={[{ accountId, folder, uids: [uid] }]}
                 done={mail.done}
                 labelIds={mail.labelIds}
                 onMoved={onDeleted}

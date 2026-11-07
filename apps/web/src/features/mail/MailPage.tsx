@@ -1,18 +1,15 @@
 import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
-import { modals } from '@mantine/modals';
-import { CheckCircleIcon, ClockCountdownIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
-import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useMailAccounts, useMailActions, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from './api';
+import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from './api';
 import { AccountFolders, type DraggedMails } from './MailFolders';
 import { correspondent, listDate } from './mail-format';
 import { MailLabelsManager } from './MailLabelsManager';
-import { MailOrganizeActions } from './MailOrganizeActions';
+import { MailSelectionBar } from './MailOrganizeActions';
 import classes from './MailPage.module.css';
 import { MailReader } from './MailReader';
 import { AdvancedSearchPanel } from './AdvancedSearchPanel';
@@ -77,7 +74,6 @@ export function MailPage() {
   const { data: folders } = useMailFolders(accountId);
   const { data: labels } = useMailLabels();
   const { data: scheduled } = useScheduledMails();
-  const { setSeen, remove } = useMailActions();
   const isDrafts = folders?.find((item) => item.path === folder)?.specialUse === '\\Drafts';
   const labelById = useMemo(() => new Map((labels ?? []).map((label) => [label.id, label])), [labels]);
   // Mails sent from one of these show their recipients.
@@ -223,6 +219,8 @@ export function MailPage() {
                   onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
                   open={uid !== null ? { accountId, folder, uid } : null}
                   onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
+                  onOpenGone={() => update({ uid: null })}
+                  onManageLabels={() => setManagingLabels(true)}
                 />
               </>
             ) : searchId ? (
@@ -232,6 +230,8 @@ export function MailPage() {
                 onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
                 open={accountId && uid !== null ? { accountId, folder, uid } : null}
                 onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
+                  onOpenGone={() => update({ uid: null })}
+                  onManageLabels={() => setManagingLabels(true)}
               />
             ) : (
               <>
@@ -275,91 +275,17 @@ export function MailPage() {
                   onChange={(event) => setSelected(event.currentTarget.checked ? (messages.data?.messages ?? []).map((message) => message.uid) : [])}
                 />
                 {selected.length > 0 && accountId ? (
-                  <Group gap={4} wrap="nowrap" style={{ flex: 1 }} justify="flex-end">
-                    <Text size="xs" c="dimmed" mr="auto">
-                      {selected.length} sélectionné{selected.length > 1 ? 's' : ''}
-                    </Text>
-                    <MailOrganizeActions
-                      accountId={accountId}
-                      folder={folder}
-                      uids={selected}
-                      done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
-                      labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
-                      onMoved={() => {
-                        setSelected([]);
-                        if (uid !== null && selected.includes(uid)) update({ uid: null });
-                      }}
-                      onManageLabels={() => setManagingLabels(true)}
-                    />
-                    <Tooltip label="Marquer comme lu">
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Marquer comme lu"
-                        onClick={() => setSeen.mutate({ accountId, folder, uids: selected, seen: true }, { onError: (error) => notifyError(error.message) })}
-                      >
-                        <EnvelopeOpenIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Marquer comme non lu">
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Marquer comme non lu"
-                        onClick={() => setSeen.mutate({ accountId, folder, uids: selected, seen: false }, { onError: (error) => notifyError(error.message) })}
-                      >
-                        <EnvelopeSimpleIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Supprimer">
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label="Supprimer les mails sélectionnés"
-                        onClick={() => {
-                          const modalId = 'delete-selected-mails';
-                          const uids = [...selected];
-                          modals.open({
-                            modalId,
-                            title: 'Supprimer les mails',
-                            children: (
-                              <Stack gap="md">
-                                <Text size="sm">
-                                  {uids.length} mail{uids.length > 1 ? 's seront placés' : ' sera placé'} dans la corbeille de la boîte (supprimé{uids.length > 1 ? 's' : ''} définitivement
-                                  s’ils y sont déjà). Leurs copies rattachées à des projets sont conservées.
-                                </Text>
-                                <DestructiveActions
-                                  loading={false}
-                                  onCancel={() => modals.close(modalId)}
-                                  onConfirm={() => {
-                                    modals.close(modalId);
-                                    remove.mutate(
-                                      { accountId, folder, uids },
-                                      {
-                                        onSuccess: () => {
-                                          notifySuccess(uids.length > 1 ? 'Mails supprimés.' : 'Mail supprimé.');
-                                          setSelected([]);
-                                          if (uid !== null && uids.includes(uid)) update({ uid: null });
-                                        },
-                                        onError: (error) => notifyError(error.message),
-                                      },
-                                    );
-                                  }}
-                                />
-                              </Stack>
-                            ),
-                          });
-                        }}
-                      >
-                        <TrashIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Désélectionner">
-                      <ActionIcon variant="subtle" color="gray" aria-label="Désélectionner" onClick={() => setSelected([])}>
-                        <XIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
+                  <MailSelectionBar
+                    groups={[{ accountId, folder, uids: selected }]}
+                    done={selectedMessages.length > 0 && selectedMessages.every((message) => message.done)}
+                    labelIds={(labels ?? []).map((label) => label.id).filter((id) => selectedMessages.length > 0 && selectedMessages.every((message) => message.labelIds.includes(id)))}
+                    onGone={() => {
+                      setSelected([]);
+                      if (uid !== null && selected.includes(uid)) update({ uid: null });
+                    }}
+                    onClear={() => setSelected([])}
+                    onManageLabels={() => setManagingLabels(true)}
+                  />
                 ) : (
                   <Group gap={4} wrap="nowrap">
                   <Select
