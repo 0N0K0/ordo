@@ -115,12 +115,12 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
       }}
     >
       {prefix}
-      <Text component={Link} to={link.to(task.number)} size="sm" c="dimmed" onClick={stop} style={{ flex: 'none' }}>
+      <Text component={Link} to={link.to(task.id)} size="sm" c="dimmed" onClick={stop} style={{ flex: 'none' }}>
         #{task.number}
       </Text>
       <Text
         component={Link}
-        to={link.to(task.number)}
+        to={link.to(task.id)}
         size="sm"
         fw={500}
         c="inherit"

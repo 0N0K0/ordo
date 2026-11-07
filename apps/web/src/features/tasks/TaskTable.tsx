@@ -186,7 +186,7 @@ function TaskNumbers({ ids, context }: { ids: string[]; context: TaskContext }) 
         <Tooltip key={task.id} label={task.title}>
           <Anchor
             component={Link}
-            to={link.to(task.number)}
+            to={link.to(task.id)}
             size="sm"
             td={context.isClosed(task) ? 'line-through' : undefined}
             onClick={(event) => event.stopPropagation()}
@@ -272,7 +272,7 @@ export function TaskTable({
   onOpenCreateForm,
 }: TaskTableProps) {
   const [params] = useSearchParams();
-  const openNumber = params.get(TASK_PARAM);
+  const openId = params.get(TASK_PARAM);
   const moveTask = useMoveTask();
   const [expanded, setExpanded] = useState<ExpandedState>(true);
   const anchorRow = useRef<string | null>(null);
@@ -672,7 +672,7 @@ export function TaskTable({
         id={row.id}
         disabled={!dndEnabled}
         dropTarget={projection?.parentId === row.id}
-        active={String(original.task.number) === openNumber}
+        active={original.task.id === openId}
         archived={original.task.archived}
         selected={row.getIsSelected()}
       >

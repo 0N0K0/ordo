@@ -102,7 +102,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
           {series && (
             <Text size="xs" c="dimmed">
               Occurrence du {task.occurrenceDate ? formatLongDate(task.occurrenceDate) : '—'} de{' '}
-              <Anchor component={Link} to={link.to(series.number)} size="xs">
+              <Anchor component={Link} to={link.to(series.id)} size="xs">
                 #{series.number}
               </Anchor>
             </Text>

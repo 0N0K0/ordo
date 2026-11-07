@@ -34,6 +34,8 @@ function fromNow(date: string): string {
 }
 
 interface CommentProps {
+  /** Project of the task: "#12" in the comment is task 12 of it. */
+  projectId: string;
   comment: TaskComment;
   context: TaskContext;
 }
@@ -43,7 +45,7 @@ interface CommentProps {
  * @param {CommentProps} props Component props.
  * @returns {JSX.Element} Comment.
  */
-function Comment({ comment, context }: CommentProps) {
+function Comment({ comment, context, projectId }: CommentProps) {
   const { update, remove } = useTaskCommentMutations();
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -116,7 +118,7 @@ function Comment({ comment, context }: CommentProps) {
       </Group>
       <div style={{ padding: 'var(--mantine-spacing-sm)' }}>
         {draft === null ? (
-          <MarkdownView targets={context.targets} onChange={(body) => update.mutate({ id: comment.id, body }, { onError: (error) => notifyError(error.message) })}>
+          <MarkdownView targets={context.targetsFor(projectId)} onChange={(body) => update.mutate({ id: comment.id, body }, { onError: (error) => notifyError(error.message) })}>
             {comment.body}
           </MarkdownView>
         ) : (
@@ -124,7 +126,7 @@ function Comment({ comment, context }: CommentProps) {
             <MarkdownEditor
               value={draft}
               onChange={setDraft}
-              suggestions={context.suggestions}
+              suggestions={context.suggestionsFor(projectId)}
               minRows={3}
               autoFocus
               onSubmitShortcut={save}
@@ -155,7 +157,7 @@ interface TaskCommentsProps {
  * @returns {JSX.Element} Thread.
  */
 export function TaskComments({ task, context }: TaskCommentsProps) {
-  const comments = useTaskComments(task.number);
+  const comments = useTaskComments(task.id);
   const { add } = useTaskCommentMutations();
   const [body, setBody] = useState('');
 
@@ -176,13 +178,13 @@ export function TaskComments({ task, context }: TaskCommentsProps) {
       {comments.isPending ? (
         <Skeleton height={80} radius="md" />
       ) : (
-        comments.data?.map((comment) => <Comment key={comment.id} comment={comment} context={context} />)
+        comments.data?.map((comment) => <Comment key={comment.id} comment={comment} context={context} projectId={task.projectId} />)
       )}
       <MarkdownEditor
         label="Ajouter un commentaire"
         value={body}
         onChange={setBody}
-        suggestions={context.suggestions}
+        suggestions={context.suggestionsFor(task.projectId)}
         minRows={3}
         placeholder="Écrivez un commentaire…"
         onSubmitShortcut={submit}

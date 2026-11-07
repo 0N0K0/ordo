@@ -68,7 +68,7 @@ export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolea
   return (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
       <TaskStateIcon closed={closed ?? task.closed} blocked={blocked} />
-      <Anchor component={Link} to={link.to(task.number)} size="sm" truncate>
+      <Anchor component={Link} to={link.to(task.id)} size="sm" truncate>
         <Text span c="dimmed" size="sm">
           #{task.number}
         </Text>{' '}
@@ -214,17 +214,19 @@ export function ProjectSelect({ context, ...props }: ProjectSelectProps) {
 interface TaskSelectProps extends Omit<SelectProps, 'data'> {
   /** Candidate tasks. */
   tasks: Task[];
+  /** Label of a task (its number is only unique in its project); "#12 Title" by default. */
+  labelOf?: (task: Task) => string;
 }
 
 /**
- * Searchable select of a task, "#12 Title".
+ * Searchable select of a task, "#12 Title" (or the label given, with the project of the task).
  * @param {TaskSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function TaskSelect({ tasks, ...props }: TaskSelectProps) {
+export function TaskSelect({ tasks, labelOf = (task) => `#${task.number} ${task.title}`, ...props }: TaskSelectProps) {
   return (
     <Select
-      data={tasks.map((task) => ({ value: task.id, label: `#${task.number} ${task.title}` }))}
+      data={tasks.map((task) => ({ value: task.id, label: labelOf(task) }))}
       searchable
       clearable
       nothingFoundMessage="Aucune tâche"

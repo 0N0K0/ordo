@@ -432,7 +432,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
             description={values.projectId ? 'Tâches du projet et de ses sous-projets.' : undefined}
             data={context.tasks
               .filter((task) => values.taskIds?.includes(task.id) || (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId))))
-              .map((task) => ({ value: task.id, label: `#${task.number} ${task.title}${task.closed ? ' (fermée)' : ''}` }))}
+              .map((task) => ({ value: task.id, label: `${context.taskLabel(task, values.projectId)}${task.closed ? ' (fermée)' : ''}` }))}
             searchable
             clearable
             limit={100}
@@ -473,7 +473,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
           label="Description"
           value={values.description ?? ''}
           onChange={(description) => form.setFieldValue('description', description)}
-          suggestions={context.suggestions}
+          suggestions={context.suggestionsFor(values.projectId ?? null)}
           minRows={3}
         />
 

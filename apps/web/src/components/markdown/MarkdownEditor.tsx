@@ -39,10 +39,12 @@ import {
 } from './markdown-commands';
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
-import type { ReferenceTargets } from './remark-references';
+import { referenceLabel, taskReferenceUrl, type ReferenceTargets, type ReferenceTask } from './remark-references';
 
 export interface MarkdownSuggestions {
-  tasks: { number: number; title: string }[];
+  /** Project of the text: its tasks come first and show without their project. */
+  projectId: string | null;
+  tasks: ReferenceTask[];
   contributors: { handle: string; name: string; avatarUrl: string | null }[];
 }
 
@@ -145,7 +147,9 @@ export function MarkdownEditor({
 
   const targets: ReferenceTargets = useMemo(
     () => ({
-      taskNumbers: new Set(suggestions.tasks.map((task) => task.number)),
+      projectId: suggestions.projectId,
+      taskById: new Map(suggestions.tasks.map((task) => [task.id, task])),
+      taskByNumber: new Map(suggestions.tasks.map((task) => [`${task.projectId}:${task.number}`, task])),
       handles: new Set(suggestions.contributors.map((contributor) => contributor.handle)),
     }),
     [suggestions],
@@ -155,16 +159,18 @@ export function MarkdownEditor({
     if (!token) return [];
     const query = normalize(token.query);
     if (token.trigger === '#') {
+      // Tasks of the project of the text first; a reference is a link to the task by its id.
       return suggestions.tasks
         .filter((task) => String(task.number).startsWith(query) || normalize(task.title).includes(query))
+        .sort((a, b) => Number(b.projectId === suggestions.projectId) - Number(a.projectId === suggestions.projectId))
         .slice(0, MAX_SUGGESTIONS)
         .map((task) => ({
-          key: `t${task.number}`,
-          reference: `#${task.number}`,
+          key: `t${task.id}`,
+          reference: `[#${task.number}](${taskReferenceUrl(task.id)})`,
           label: (
             <>
               <Text span size="sm" c="dimmed" ff="monospace">
-                #{task.number}
+                {referenceLabel(task, suggestions.projectId)}
               </Text>{' '}
               <Text span size="sm">
                 {task.title}

@@ -68,7 +68,7 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
           label="Objectif"
           value={form.values.goal}
           onChange={(goal) => form.setFieldValue('goal', goal)}
-          suggestions={context.suggestions}
+          suggestions={context.suggestionsFor(sprint?.projectId ?? projectId)}
           minRows={3}
           onSubmitShortcut={() => handleSubmit()}
         />
@@ -237,7 +237,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                 </Group>
                 {sprint.goal && (
                   <MarkdownView
-                    targets={context.targets}
+                    targets={context.targetsFor(sprint.projectId)}
                     onChange={(goal) =>
                       update.mutate(
                         { id: sprint.id, input: { name: sprint.name, startDate: String(sprint.startDate), endDate: String(sprint.endDate), goal } },

@@ -64,7 +64,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
           label="Description"
           value={form.values.description}
           onChange={(description) => form.setFieldValue('description', description)}
-          suggestions={context.suggestions}
+          suggestions={context.suggestionsFor(milestone?.projectId ?? projectId)}
           minRows={4}
           onSubmitShortcut={() => handleSubmit()}
         />
@@ -271,7 +271,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                       </Text>
                     </Group>
                     {milestone.description && (
-                  <MarkdownView targets={context.targets} onChange={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: (error) => notifyError(error.message) })}>
+                  <MarkdownView targets={context.targetsFor(milestone.projectId)} onChange={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: (error) => notifyError(error.message) })}>
                     {milestone.description}
                   </MarkdownView>
                 )}

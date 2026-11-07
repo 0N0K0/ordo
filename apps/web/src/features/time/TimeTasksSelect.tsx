@@ -23,7 +23,7 @@ export function TimeTasksSelect({ context, projectId, value, onChange, ...props 
       description={value.length > 1 ? `Le temps est réparti à parts égales entre les ${value.length} tâches.` : undefined}
       placeholder={value.length ? undefined : projectId ? 'Aucune' : 'Choisissez d’abord un projet'}
       disabled={!projectId}
-      data={tasks.map((task) => ({ value: task.id, label: `#${task.number} ${task.title}${task.closed ? ' (fermée)' : ''}` }))}
+      data={tasks.map((task) => ({ value: task.id, label: `${context.taskLabel(task, projectId)}${task.closed ? ' (fermée)' : ''}` }))}
       value={value}
       onChange={onChange}
       searchable

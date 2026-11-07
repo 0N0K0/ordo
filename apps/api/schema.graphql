@@ -1826,7 +1826,9 @@ type Query {
   Occurrences, in a period, of the calendars of other workspaces shown in this one (read only).
   """
   subscribedCalendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
-  task(number: Int!): Task
+
+  """A task, by its id (its number is only unique in its project)."""
+  task(id: ID!): Task
   taskPriorities: [TaskPriority!]!
   taskStatuses: [TaskStatus!]!
   taskTags: [TaskTag!]!
@@ -2046,6 +2048,8 @@ type Task {
   githubUrl: String
   id: ID!
   milestoneId: ID
+
+  """Number within its project (#12); links use the id."""
   number: Int!
   occurrenceDate: Date
   parentId: ID

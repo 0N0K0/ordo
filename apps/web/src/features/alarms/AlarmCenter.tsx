@@ -71,7 +71,9 @@ export function AlarmCenter() {
     const alarmLinks = (alarm: Alarm): RingLink[] => {
       const { tasksData: data, workspace: space } = latest.current;
       const task = alarm.taskId ? data?.tasks.find((item) => item.id === alarm.taskId) : undefined;
-      if (task) return [link(`#${task.number} ${task.title}`, `/projects/${task.projectId}?tab=tasks&task=${task.number}`)];
+      // Its number is only unique in its project: the project comes with it.
+      const place = task ? space?.projects.find((item) => item.id === task.projectId)?.title : undefined;
+      if (task) return [link(`${place ? `${place} ` : ''}#${task.number} ${task.title}`, `/projects/${task.projectId}?tab=tasks&task=${task.id}`)];
       const project = alarm.projectId ? space?.projects.find((item) => item.id === alarm.projectId) : undefined;
       return project ? [link(project.title, `/projects/${project.id}`)] : [];
     };

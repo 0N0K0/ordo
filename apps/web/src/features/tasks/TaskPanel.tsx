@@ -102,6 +102,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
       ))}
       {adding ? (
         <TaskSelect
+          labelOf={(candidate) => context.taskLabel(candidate)}
           tasks={candidates.filter((candidate) => !linked.has(candidate.id))}
           size="xs"
           placeholder="Rechercher une tâche"
@@ -312,7 +313,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 )}
               </Group>
               {description === null ? (
-                <MarkdownView targets={context.targets} onChange={(next) => save({ description: next })}>
+                <MarkdownView targets={context.targetsFor(task.projectId)} onChange={(next) => save({ description: next })}>
                   {task.description}
                 </MarkdownView>
               ) : (
@@ -320,7 +321,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   <MarkdownEditor
                     value={description}
                     onChange={setDescription}
-                    suggestions={context.suggestions}
+                    suggestions={context.suggestionsFor(task.projectId)}
                     autoFocus
                     onSubmitShortcut={() => save({ description: description || null }, () => setDescription(null))}
                   />
@@ -451,6 +452,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               error={task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined}
             />
             <TaskSelect
+              labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
               label="Tâche parente"
               placeholder="Aucune"
               tasks={candidates.filter((candidate) => !excluded.has(candidate.id) || candidate.id === parent?.id)}
@@ -516,10 +518,10 @@ function TaskDetail({ task, context }: TaskDetailProps) {
 export function TaskPanel() {
   const [params] = useSearchParams();
   const link = useTaskLink();
-  const number = params.get(TASK_PARAM);
+  const taskId = params.get(TASK_PARAM);
   const { context, isPending } = useTaskContext();
-  if (!number) return null;
-  const task = context?.taskByNumber.get(Number(number));
+  if (!taskId) return null;
+  const task = taskId ? context?.taskById.get(taskId) : undefined;
 
   return (
     <Drawer
@@ -529,7 +531,7 @@ export function TaskPanel() {
       size="min(72rem, 100%)"
       title={
         <Text size="sm" c="dimmed">
-          Tâche #{number}
+          {task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}
         </Text>
       }
       padding="lg"
@@ -543,7 +545,7 @@ export function TaskPanel() {
         <TaskDetail key={task.id} task={task} context={context} />
       ) : (
         <Alert color="red" icon={<ErrorIcon />} title="Tâche introuvable">
-          La tâche #{number} n’existe pas ou a été supprimée.
+          Cette tâche n’existe pas ou a été supprimée.
         </Alert>
       )}
     </Drawer>

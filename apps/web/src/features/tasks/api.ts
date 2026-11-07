@@ -153,8 +153,8 @@ const TasksDataDocument = graphql(`
 `);
 
 const TaskCommentsDocument = graphql(`
-  query TaskComments($number: Int!) {
-    task(number: $number) {
+  query TaskComments($id: ID!) {
+    task(id: $id) {
       id
       comments {
         ...TaskCommentFields
@@ -427,13 +427,13 @@ export function useTasksData() {
 
 /**
  * Comments of a task.
- * @param {number} number Task number.
+ * @param {string} id Task id.
  * @returns {UseQueryResult<TaskComment[]>} Query state.
  */
-export function useTaskComments(number: number) {
+export function useTaskComments(id: string) {
   return useQuery({
-    queryKey: [...tasksQueryKey, number, 'comments'],
-    queryFn: async () => (await execute(TaskCommentsDocument, { number })).task?.comments ?? [],
+    queryKey: [...tasksQueryKey, id, 'comments'],
+    queryFn: async () => (await execute(TaskCommentsDocument, { id })).task?.comments ?? [],
   });
 }
 
