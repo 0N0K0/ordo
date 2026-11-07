@@ -1,13 +1,13 @@
 import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Skeleton, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
-import { ArrowDownIcon, ArrowUpIcon, CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowDownIcon, ArrowUpIcon, CalendarBlankIcon, DownloadSimpleIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { WorkspaceKindIcon } from '../workspaces/WorkspaceKindIcon';
-import { useCalendarMutations, useCalendars, useSubscribableCalendars, type Calendar, type SubscribableCalendar } from './api';
+import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars, type Calendar, type SubscribableCalendar } from './api';
 
 let modalCount = 0;
 
@@ -60,7 +60,8 @@ function CalendarForm({ calendar, onDone }: CalendarFormProps) {
 }
 
 /**
- * Calendars of the workspace: create, edit, reorder, delete (with their events; the last one stays).
+ * Calendars of the workspace: create, edit, reorder, export as iCalendar (one, or all), delete (with their events;
+ * the last one stays).
  * @returns {JSX.Element} Section.
  */
 function OwnCalendars() {
@@ -124,9 +125,16 @@ function OwnCalendars() {
               Chaque évènement appartient à un calendrier, que l’agenda peut afficher ou masquer. D’autres espaces peuvent s’y abonner, en lecture seule.
             </Text>
           </Stack>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Ajouter
-          </Button>
+          <Group gap="xs">
+            <Tooltip label="Tous les calendriers de l’espace, dans un fichier pour un autre agenda (Google, Apple, Outlook…)">
+              <Button component="a" href={calendarIcsUrl(null)} download variant="default" leftSection={<DownloadSimpleIcon aria-hidden />} disabled={!calendars.length}>
+                Tout exporter (.ics)
+              </Button>
+            </Tooltip>
+            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+              Ajouter
+            </Button>
+          </Group>
         </Group>
         {isPending ? (
           <Skeleton height={48} />
@@ -158,6 +166,11 @@ function OwnCalendars() {
                     onClick={() => move.mutate({ id: calendar.id, index: index + 1 }, { onError })}
                   >
                     <ArrowDownIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Exporter (.ics)">
+                  <ActionIcon component="a" href={calendarIcsUrl(calendar.id)} download variant="subtle" color="gray" aria-label={`Exporter ${calendar.name} (.ics)`}>
+                    <DownloadSimpleIcon aria-hidden />
                   </ActionIcon>
                 </Tooltip>
                 <Tooltip label="Modifier">
