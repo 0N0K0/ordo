@@ -721,6 +721,8 @@ model MailAccount {
   updatedAt    DateTime           @updatedAt
   messages     MailMessage[]
   cursors      MailFolderCursor[]
+  marks        MailMark[]
+  scheduled    ScheduledMail[]
 }
 
 /// Copy of a mail linked to a project (mails are otherwise read live from the server).
@@ -754,6 +756,58 @@ model MailMessage {
 }
 
 /// Last mail checked in a folder, to link the new messages of conversations already linked to a project.
+/// Flag of mails, set by the user (name, color): an IMAP keyword on the mails, or a mark in Ordo when the server
+/// takes no keywords.
+model MailLabel {
+  id        String   @id @default(cuid())
+  name      String
+  color     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+/// Flags and "done" state of a mail kept in Ordo, for servers that take no IMAP keywords.
+model MailMark {
+  accountId String
+  account   MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Message-ID of the mail, without angle brackets.
+  messageId String
+  labelIds  String[]
+  done      Boolean     @default(false)
+
+  @@id([accountId, messageId])
+}
+
+enum ScheduledMailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+/// Mail to send later: the message is built when it is scheduled (files included), sent at its time.
+model ScheduledMail {
+  id         String              @id @default(cuid())
+  accountId  String
+  account    MailAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sendAt     DateTime
+  subject    String
+  to         String[]
+  /// Message to send (without the Bcc header) and the copy to keep (sent folder, projects, back to drafts).
+  raw        Bytes
+  copy       Bytes
+  recipients String[]
+  references String[]
+  /// Project the mail was written from.
+  projectId  String?
+  status     ScheduledMailStatus @default(PENDING)
+  error      String?
+  sentAt     DateTime?
+  createdAt  DateTime            @default(now())
+
+  @@index([status, sendAt])
+}
+
 model MailFolderCursor {
   accountId   String
   account     MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)

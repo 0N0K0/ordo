@@ -1592,7 +1592,7 @@ export type DeleteLibraryDocumentsMutation = { deleteLibraryDocuments: boolean }
 
 export type MailAccountFieldsFragment = { id: string, name: string, email: string, displayName: string | null, imapHost: string, imapPort: number, imapSecure: boolean, imapUser: string, smtpHost: string, smtpPort: number, smtpSecure: boolean, smtpUser: string, saveSent: boolean, signature: string | null };
 
-export type MailViewFieldsFragment = { accountId: string, folder: string, uid: number, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> };
+export type MailViewFieldsFragment = { accountId: string, folder: string, uid: number, labelIds: Array<string>, done: boolean, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> };
 
 export type LinkedMailFieldsFragment = { id: string, projectId: string, accountId: string | null, messageId: string, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, sent: boolean, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, attachments: Array<{ id: string, name: string, size: number, inline: boolean, url: string }> };
 
@@ -1606,7 +1606,7 @@ export type MailFoldersQueryVariables = Exact<{
 }>;
 
 
-export type MailFoldersQuery = { mailFolders: Array<{ path: string, name: string, specialUse: string | null, unseen: number, depth: number }> };
+export type MailFoldersQuery = { mailFolders: Array<{ path: string, name: string, specialUse: string | null, unseen: number, depth: number, parent: string | null }> };
 
 export type MailMessagesQueryVariables = Exact<{
   accountId: string | number;
@@ -1614,10 +1614,11 @@ export type MailMessagesQueryVariables = Exact<{
   page: number;
   search?: string | null | undefined;
   unread?: boolean | null | undefined;
+  state?: string | null | undefined;
 }>;
 
 
-export type MailMessagesQuery = { mailMessages: { total: number, pageSize: number, messages: Array<{ uid: number, subject: string, date: string, seen: boolean, flagged: boolean, hasAttachments: boolean, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }> }> } };
+export type MailMessagesQuery = { mailMessages: { total: number, pageSize: number, messages: Array<{ uid: number, subject: string, date: string, seen: boolean, flagged: boolean, hasAttachments: boolean, labelIds: Array<string>, done: boolean, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }> }> } };
 
 export type MailMessageQueryVariables = Exact<{
   accountId: string | number;
@@ -1626,7 +1627,7 @@ export type MailMessageQueryVariables = Exact<{
 }>;
 
 
-export type MailMessageQuery = { mailMessage: { accountId: string, folder: string, uid: number, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> } };
+export type MailMessageQuery = { mailMessage: { accountId: string, folder: string, uid: number, labelIds: Array<string>, done: boolean, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> } };
 
 export type UnreadMailCountQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1751,6 +1752,120 @@ export type SendMailMutationVariables = Exact<{
 
 
 export type SendMailMutation = { sendMail: Array<string> };
+
+export type MailLabelsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MailLabelsQuery = { mailLabels: Array<{ id: string, name: string, color: string, position: number }> };
+
+export type ScheduledMailsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ScheduledMailsQuery = { scheduledMails: Array<{ id: string, accountId: string, sendAt: string, subject: string, to: Array<string>, status: string, error: string | null }> };
+
+export type MarkMailsMutationVariables = Exact<{
+  accountId: string | number;
+  folder: string;
+  uids: Array<number> | number;
+  labelId?: string | number | null | undefined;
+  on?: boolean | null | undefined;
+  done?: boolean | null | undefined;
+}>;
+
+
+export type MarkMailsMutation = { markMails: boolean };
+
+export type ReportMailSpamMutationVariables = Exact<{
+  accountId: string | number;
+  folder: string;
+  uids: Array<number> | number;
+  spam: boolean;
+}>;
+
+
+export type ReportMailSpamMutation = { reportMailSpam: string };
+
+export type MoveMailsMutationVariables = Exact<{
+  accountId: string | number;
+  folder: string;
+  uids: Array<number> | number;
+  target: string;
+}>;
+
+
+export type MoveMailsMutation = { moveMails: boolean };
+
+export type CreateMailFolderMutationVariables = Exact<{
+  accountId: string | number;
+  parent?: string | null | undefined;
+  name: string;
+}>;
+
+
+export type CreateMailFolderMutation = { createMailFolder: string };
+
+export type RenameMailFolderMutationVariables = Exact<{
+  accountId: string | number;
+  path: string;
+  name: string;
+}>;
+
+
+export type RenameMailFolderMutation = { renameMailFolder: string };
+
+export type DeleteMailFolderMutationVariables = Exact<{
+  accountId: string | number;
+  path: string;
+}>;
+
+
+export type DeleteMailFolderMutation = { deleteMailFolder: boolean };
+
+export type CreateMailLabelMutationVariables = Exact<{
+  name: string;
+  color: string;
+}>;
+
+
+export type CreateMailLabelMutation = { createMailLabel: string };
+
+export type UpdateMailLabelMutationVariables = Exact<{
+  id: string | number;
+  name: string;
+  color: string;
+}>;
+
+
+export type UpdateMailLabelMutation = { updateMailLabel: boolean };
+
+export type DeleteMailLabelMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteMailLabelMutation = { deleteMailLabel: boolean };
+
+export type ScheduleMailMutationVariables = Exact<{
+  input: SendMailInput;
+  sendAt: string;
+}>;
+
+
+export type ScheduleMailMutation = { scheduleMail: string };
+
+export type SendScheduledMailMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type SendScheduledMailMutation = { sendScheduledMail: boolean };
+
+export type CancelScheduledMailMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type CancelScheduledMailMutation = { cancelScheduledMail: boolean };
 
 export type ContributorFieldsFragment = { id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> };
 
@@ -2889,6 +3004,8 @@ export const MailViewFieldsFragmentDoc = new TypedDocumentString(`
   accountId
   folder
   uid
+  labelIds
+  done
   messageId
   inReplyTo
   references
@@ -4349,17 +4466,19 @@ export const MailFoldersDocument = new TypedDocumentString(`
     specialUse
     unseen
     depth
+    parent
   }
 }
     `) as unknown as TypedDocumentString<MailFoldersQuery, MailFoldersQueryVariables>;
 export const MailMessagesDocument = new TypedDocumentString(`
-    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {
+    query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String) {
   mailMessages(
     accountId: $accountId
     folder: $folder
     page: $page
     search: $search
     unread: $unread
+    state: $state
   ) {
     total
     pageSize
@@ -4378,6 +4497,8 @@ export const MailMessagesDocument = new TypedDocumentString(`
       seen
       flagged
       hasAttachments
+      labelIds
+      done
     }
   }
 }
@@ -4392,6 +4513,8 @@ export const MailMessageDocument = new TypedDocumentString(`
   accountId
   folder
   uid
+  labelIds
+  done
   messageId
   inReplyTo
   references
@@ -4585,6 +4708,96 @@ export const SendMailDocument = new TypedDocumentString(`
   sendMail(input: $input)
 }
     `) as unknown as TypedDocumentString<SendMailMutation, SendMailMutationVariables>;
+export const MailLabelsDocument = new TypedDocumentString(`
+    query MailLabels {
+  mailLabels {
+    id
+    name
+    color
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<MailLabelsQuery, MailLabelsQueryVariables>;
+export const ScheduledMailsDocument = new TypedDocumentString(`
+    query ScheduledMails {
+  scheduledMails {
+    id
+    accountId
+    sendAt
+    subject
+    to
+    status
+    error
+  }
+}
+    `) as unknown as TypedDocumentString<ScheduledMailsQuery, ScheduledMailsQueryVariables>;
+export const MarkMailsDocument = new TypedDocumentString(`
+    mutation MarkMails($accountId: ID!, $folder: String!, $uids: [Int!]!, $labelId: ID, $on: Boolean, $done: Boolean) {
+  markMails(
+    accountId: $accountId
+    folder: $folder
+    uids: $uids
+    labelId: $labelId
+    on: $on
+    done: $done
+  )
+}
+    `) as unknown as TypedDocumentString<MarkMailsMutation, MarkMailsMutationVariables>;
+export const ReportMailSpamDocument = new TypedDocumentString(`
+    mutation ReportMailSpam($accountId: ID!, $folder: String!, $uids: [Int!]!, $spam: Boolean!) {
+  reportMailSpam(accountId: $accountId, folder: $folder, uids: $uids, spam: $spam)
+}
+    `) as unknown as TypedDocumentString<ReportMailSpamMutation, ReportMailSpamMutationVariables>;
+export const MoveMailsDocument = new TypedDocumentString(`
+    mutation MoveMails($accountId: ID!, $folder: String!, $uids: [Int!]!, $target: String!) {
+  moveMails(accountId: $accountId, folder: $folder, uids: $uids, target: $target)
+}
+    `) as unknown as TypedDocumentString<MoveMailsMutation, MoveMailsMutationVariables>;
+export const CreateMailFolderDocument = new TypedDocumentString(`
+    mutation CreateMailFolder($accountId: ID!, $parent: String, $name: String!) {
+  createMailFolder(accountId: $accountId, parent: $parent, name: $name)
+}
+    `) as unknown as TypedDocumentString<CreateMailFolderMutation, CreateMailFolderMutationVariables>;
+export const RenameMailFolderDocument = new TypedDocumentString(`
+    mutation RenameMailFolder($accountId: ID!, $path: String!, $name: String!) {
+  renameMailFolder(accountId: $accountId, path: $path, name: $name)
+}
+    `) as unknown as TypedDocumentString<RenameMailFolderMutation, RenameMailFolderMutationVariables>;
+export const DeleteMailFolderDocument = new TypedDocumentString(`
+    mutation DeleteMailFolder($accountId: ID!, $path: String!) {
+  deleteMailFolder(accountId: $accountId, path: $path)
+}
+    `) as unknown as TypedDocumentString<DeleteMailFolderMutation, DeleteMailFolderMutationVariables>;
+export const CreateMailLabelDocument = new TypedDocumentString(`
+    mutation CreateMailLabel($name: String!, $color: String!) {
+  createMailLabel(name: $name, color: $color)
+}
+    `) as unknown as TypedDocumentString<CreateMailLabelMutation, CreateMailLabelMutationVariables>;
+export const UpdateMailLabelDocument = new TypedDocumentString(`
+    mutation UpdateMailLabel($id: ID!, $name: String!, $color: String!) {
+  updateMailLabel(id: $id, name: $name, color: $color)
+}
+    `) as unknown as TypedDocumentString<UpdateMailLabelMutation, UpdateMailLabelMutationVariables>;
+export const DeleteMailLabelDocument = new TypedDocumentString(`
+    mutation DeleteMailLabel($id: ID!) {
+  deleteMailLabel(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteMailLabelMutation, DeleteMailLabelMutationVariables>;
+export const ScheduleMailDocument = new TypedDocumentString(`
+    mutation ScheduleMail($input: SendMailInput!, $sendAt: DateTime!) {
+  scheduleMail(input: $input, sendAt: $sendAt)
+}
+    `) as unknown as TypedDocumentString<ScheduleMailMutation, ScheduleMailMutationVariables>;
+export const SendScheduledMailDocument = new TypedDocumentString(`
+    mutation SendScheduledMail($id: ID!) {
+  sendScheduledMail(id: $id)
+}
+    `) as unknown as TypedDocumentString<SendScheduledMailMutation, SendScheduledMailMutationVariables>;
+export const CancelScheduledMailDocument = new TypedDocumentString(`
+    mutation CancelScheduledMail($id: ID!) {
+  cancelScheduledMail(id: $id)
+}
+    `) as unknown as TypedDocumentString<CancelScheduledMailMutation, CancelScheduledMailMutationVariables>;
 export const TasksDataDocument = new TypedDocumentString(`
     query TasksData {
   tasks {

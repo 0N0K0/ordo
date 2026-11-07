@@ -1,5 +1,6 @@
-import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Modal, Paper, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
-import { PaperclipIcon, PaperPlaneTiltIcon, XIcon } from '@phosphor-icons/react';
+import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Modal, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
+import { DateTimePicker } from '@mantine/dates';
+import { ClockCountdownIcon, PaperclipIcon, PaperPlaneTiltIcon, XIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RichEditor } from '../../components/rich-text/RichEditor';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -12,6 +13,25 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
 const AUTOSAVE_MS = 4000;
 const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+const scheduleFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Usual moments to send a mail later: this afternoon (in the morning), tomorrow morning, next Monday morning.
+ * @returns {{ label: string, at: Date }[]} Moments to come.
+ */
+function schedulePresets(): { label: string; at: Date }[] {
+  const now = new Date();
+  const at = (days: number, hour: number) => {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, hour, 0, 0, 0);
+    return date;
+  };
+  const monday = (8 - now.getDay()) % 7 || 7;
+  return [
+    ...(now.getHours() < 13 ? [{ label: 'Cet après-midi', at: at(0, 14) }] : []),
+    { label: 'Demain matin', at: at(1, 8) },
+    { label: 'Lundi matin', at: at(monday, 8) },
+  ];
+}
 
 /**
  * Recipient field: addresses as chips, separated by commas, semicolons or spaces.
@@ -49,7 +69,9 @@ type SaveState = { status: 'idle' } | { status: 'saving' } | { status: 'saved'; 
  */
 export function MailComposer({ options, onDone }: { options: ComposeOptions; onDone: () => void }) {
   const { data: accounts } = useMailAccounts();
-  const { send, saveDraft, deleteDraft } = useMailActions();
+  const { send, saveDraft, deleteDraft, schedule } = useMailActions();
+  const [scheduling, setScheduling] = useState(false);
+  const [sendAt, setSendAt] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<string | null>(options.accountId ?? null);
   const [to, setTo] = useState(options.to ?? []);
   const [cc, setCc] = useState(options.cc ?? []);
@@ -170,6 +192,27 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           setSavedSnapshot(snapshot);
           notifySuccess(projectIds.length ? 'Mail envoyé et rattaché au projet.' : 'Mail envoyé.');
           options.onSent?.();
+          onDone();
+        },
+        onError: (error) => notifyError(error.message),
+      },
+    );
+  };
+
+  /**
+   * Schedules the mail (built now with its files, sent at its time); its draft is removed.
+   * @param {Date} sendAt Time to send it.
+   * @returns {Promise<void>}
+   */
+  const scheduleAt = async (sendAt: Date) => {
+    if (!account) return;
+    await saving.current;
+    schedule.mutate(
+      { input: { ...fields(), accountId: account.id, draft: draft.current }, sendAt: sendAt.toISOString() },
+      {
+        onSuccess: () => {
+          setSavedSnapshot(snapshot);
+          notifySuccess(`Envoi programmé le ${scheduleFormat.format(sendAt)}.`);
           onDone();
         },
         onError: (error) => notifyError(error.message),
@@ -399,6 +442,43 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           <Button variant="default" onClick={requestClose}>
             Fermer
           </Button>
+          <Popover opened={scheduling} onChange={setScheduling} position="top-end" shadow="md" withinPortal={false} trapFocus>
+            <Popover.Target>
+              <Button
+                variant="light"
+                leftSection={<ClockCountdownIcon aria-hidden />}
+                disabled={!account || recipients.length === 0 || invalid}
+                loading={schedule.isPending}
+                onClick={() => setScheduling((open) => !open)}
+              >
+                Programmer
+              </Button>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <Stack gap="xs" w={260}>
+                <Text size="sm" fw={600}>
+                  Envoyer plus tard
+                </Text>
+                {schedulePresets().map((preset) => (
+                  <Button key={preset.label} size="xs" variant="default" justify="space-between" onClick={() => void scheduleAt(preset.at)} rightSection={<Text size="xs" c="dimmed">{scheduleFormat.format(preset.at)}</Text>}>
+                    {preset.label}
+                  </Button>
+                ))}
+                <DateTimePicker
+                  label="Date et heure"
+                  placeholder="Choisir…"
+                  valueFormat="DD/MM/YYYY HH:mm"
+                  minDate={new Date()}
+                  value={sendAt}
+                  onChange={setSendAt}
+                  popoverProps={{ withinPortal: false }}
+                />
+                <Button size="xs" disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
+                  Programmer l’envoi
+                </Button>
+              </Stack>
+            </Popover.Dropdown>
+          </Popover>
           <Button
             leftSection={<PaperPlaneTiltIcon aria-hidden />}
             loading={send.isPending}

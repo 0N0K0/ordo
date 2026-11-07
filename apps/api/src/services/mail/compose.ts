@@ -91,12 +91,13 @@ export interface BuiltMessage {
  * @param {object} [options] Options. Optional.
  * @param {boolean} [options.draft] Draft: recipients may be missing or incomplete. Optional.
  * @param {Record<string, string>} [options.headers] Extra headers. Optional.
+ * @param {Date} [options.date] Date of the mail (scheduled sending); now when omitted. Optional.
  * @returns {Promise<BuiltMessage>} Message.
  */
 export async function buildMessage(
   account: MailAccount,
   input: MailFields,
-  options: { draft?: boolean; headers?: Record<string, string> } = {},
+  options: { draft?: boolean; headers?: Record<string, string>; date?: Date } = {},
 ): Promise<BuiltMessage> {
   const recipients = options.draft ? z.array(z.string().max(320)).max(100) : recipientsSchema;
   const fields = parseInput(
@@ -128,7 +129,7 @@ export async function buildMessage(
   const domain = account.email.split('@')[1] ?? 'ordo.local';
   const composer = new MailComposer({
     messageId: `<${randomUUID()}@${domain}>`,
-    date: new Date(),
+    date: options.date ?? new Date(),
     from: { name: account.displayName ?? '', address: account.email },
     to: fields.to,
     cc: fields.cc,

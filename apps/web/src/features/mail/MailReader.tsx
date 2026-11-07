@@ -4,6 +4,8 @@ import {
   ArrowBendDoubleUpLeftIcon,
   ArrowBendUpLeftIcon,
   ArrowBendUpRightIcon,
+  CheckCircleIcon,
+  FlagIcon,
   EnvelopeSimpleIcon,
   PencilSimpleLineIcon,
   TrashIcon,
@@ -15,7 +17,8 @@ import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useWorkspace } from '../workspace/api';
-import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailMessage, type MailView } from './api';
+import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, type MailView } from './api';
+import { MailOrganizeActions } from './MailOrganizeActions';
 import { forwardOptions, replyOptions, splitDraftHtml, type SourceMail } from './compose-options';
 import { escapeHtml } from './mail-format';
 import { LinkToProject } from './LinkToProject';
@@ -38,20 +41,23 @@ interface MailReaderProps {
   uid: number;
   /** Mail of the drafts folder: it is resumed rather than answered. */
   isDraft?: boolean;
-  /** Called once the mail is deleted. */
+  /** Called once the mail is deleted (or moved away). */
   onDeleted: () => void;
+  /** Opens the flags settings. */
+  onManageLabels: () => void;
 }
 
 /**
- * Mail read live on the server: header, body, files; reply, reply all, forward, mark as unread, delete,
- * link to a project.
+ * Mail read live on the server: header, body, files and flags; reply, reply all, forward, done / to do,
+ * flags, spam, move, mark as unread, delete, link to a project.
  * @param {MailReaderProps} props Component props.
  * @returns {JSX.Element} Reader.
  */
-export function MailReader({ accountId, folder, uid, isDraft, onDeleted }: MailReaderProps) {
+export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManageLabels }: MailReaderProps) {
   const { data: mail, isPending, error } = useMailMessage({ accountId, folder, uid });
   const { data: accounts } = useMailAccounts();
   const { data: workspace } = useWorkspace();
+  const { data: labels } = useMailLabels();
   const { setSeen, remove, deleteDraft } = useMailActions();
   const [resuming, setResuming] = useState(false);
   const compose = useMailComposer();
@@ -190,6 +196,17 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted }: MailR
         date={String(mail.date)}
         actions={
           <Group gap={4} wrap="nowrap">
+            {!isDraft && (
+              <MailOrganizeActions
+                accountId={accountId}
+                folder={folder}
+                uids={[uid]}
+                done={mail.done}
+                labelIds={mail.labelIds}
+                onMoved={onDeleted}
+                onManageLabels={onManageLabels}
+              />
+            )}
             <Tooltip label="Marquer comme non lu">
               <ActionIcon
                 variant="subtle"
@@ -210,8 +227,21 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted }: MailR
           </Group>
         }
         extra={
-          mail.linkedProjectIds.length > 0 && (
+          (mail.linkedProjectIds.length > 0 || mail.labelIds.length > 0 || mail.done) && (
             <Group gap={4} mt={4}>
+              {mail.done && (
+                <Badge size="sm" variant="light" color="green" leftSection={<CheckCircleIcon weight="fill" aria-hidden />}>
+                  Traité
+                </Badge>
+              )}
+              {mail.labelIds
+                .map((id) => labels?.find((label) => label.id === id))
+                .filter((label) => label !== undefined)
+                .map((label) => (
+                  <Badge key={label.id} size="sm" variant="light" color={label.color} leftSection={<FlagIcon weight="fill" aria-hidden />}>
+                    {label.name}
+                  </Badge>
+                ))}
               {mail.linkedProjectIds.map((projectId) => (
                 <Badge
                   key={projectId}

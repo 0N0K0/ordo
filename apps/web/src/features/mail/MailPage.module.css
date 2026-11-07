@@ -13,6 +13,9 @@
     /* Agencement */
     display: block;
 
+    /* Interaction */
+    cursor: pointer;
+
     /* Dimension */
     width: 100%;
 
@@ -33,6 +36,20 @@
 
     &[data-unread] {
       border-left-color: var(--mantine-primary-color-filled);
+    }
+
+    &[data-selected] {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    /* Done: still readable, set back. */
+    &[data-done] {
+      opacity: 0.6;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: -2px;
     }
   }
 

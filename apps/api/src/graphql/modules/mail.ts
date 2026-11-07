@@ -3,8 +3,28 @@ import * as accounts from '../../services/mail/accounts';
 import * as drafts from '../../services/mail/drafts';
 import * as linked from '../../services/mail/linked';
 import * as reader from '../../services/mail/reader';
+import * as organize from '../../services/mail/organize';
+import * as scheduled from '../../services/mail/scheduled';
 import { sendMail } from '../../services/mail/sender';
 import { builder } from '../builder';
+
+builder.prismaObject('MailLabel', {
+  description: 'Flag of mails (name, color).',
+  fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), color: t.exposeString('color'), position: t.exposeInt('position') }),
+});
+
+builder.prismaObject('ScheduledMail', {
+  description: 'Mail waiting to be sent at its time (or failed).',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    accountId: t.exposeID('accountId'),
+    sendAt: t.expose('sendAt', { type: 'DateTime' }),
+    subject: t.exposeString('subject'),
+    to: t.exposeStringList('to'),
+    status: t.exposeString('status', { description: 'PENDING, SENDING or FAILED.' }),
+    error: t.exposeString('error', { nullable: true }),
+  }),
+});
 
 builder.prismaObject('MailAccount', {
   description: 'Mailbox settings (passwords are never returned).',
@@ -37,6 +57,7 @@ const MailFolder = builder.objectRef<reader.MailFolder>('MailFolder').implement(
     specialUse: t.exposeString('specialUse', { nullable: true }),
     unseen: t.exposeInt('unseen'),
     depth: t.exposeInt('depth'),
+    parent: t.exposeString('parent', { nullable: true }),
   }),
 });
 
@@ -50,6 +71,8 @@ const MailSummary = builder.objectRef<reader.MailSummary>('MailSummary').impleme
     seen: t.exposeBoolean('seen'),
     flagged: t.exposeBoolean('flagged'),
     hasAttachments: t.exposeBoolean('hasAttachments'),
+    labelIds: t.exposeIDList('labelIds', { description: 'Flags set by the user.' }),
+    done: t.exposeBoolean('done', { description: 'Marked as done.' }),
   }),
 });
 
@@ -89,6 +112,8 @@ const MailView = builder.objectRef<reader.MailView>('MailView').implement({
     html: t.exposeString('html', { nullable: true }),
     text: t.exposeString('text', { nullable: true }),
     attachments: t.field({ type: [MailAttachmentInfo], resolve: (mail) => mail.attachments }),
+    labelIds: t.exposeIDList('labelIds'),
+    done: t.exposeBoolean('done'),
     linkedProjectIds: t.idList({
       description: 'Projects this message is linked to.',
       resolve: async (mail) =>
@@ -267,8 +292,19 @@ builder.queryFields((t) => ({
       page: t.arg.int({ required: true }),
       search: t.arg.string(),
       unread: t.arg.boolean(),
+      state: t.arg.string({ description: 'all (default), todo or done.' }),
     },
-    resolve: (_root, { accountId, folder, page, search, unread }) => reader.listMessages(accountId, folder, Math.max(0, page), search ?? '', unread ?? false),
+    resolve: (_root, { accountId, folder, page, search, unread, state }) =>
+      reader.listMessages(accountId, folder, Math.max(0, page), search ?? '', unread ?? false, state === 'todo' || state === 'done' ? state : 'all'),
+  }),
+  mailLabels: t.prismaField({
+    type: ['MailLabel'],
+    resolve: (query) => prisma.mailLabel.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  scheduledMails: t.prismaField({
+    type: ['ScheduledMail'],
+    description: 'Mails waiting to be sent, and those that failed.',
+    resolve: (query) => prisma.scheduledMail.findMany({ ...query, where: { status: { in: ['PENDING', 'SENDING', 'FAILED'] } }, orderBy: { sendAt: 'asc' } }),
   }),
   mailMessage: t.field({
     type: MailView,
@@ -344,6 +380,90 @@ builder.mutationFields((t) => ({
     },
     resolve: async (_root, { accountId, folder, uids, seen }) => {
       await reader.setSeen(accountId, folder, uids, seen);
+      return true;
+    },
+  }),
+  markMails: t.boolean({
+    description: 'Adds or removes a flag (labelId and on), or sets the done state (done), on mails.',
+    args: {
+      accountId: t.arg.id({ required: true }),
+      folder: t.arg.string({ required: true }),
+      uids: t.arg.intList({ required: true }),
+      labelId: t.arg.id(),
+      on: t.arg.boolean(),
+      done: t.arg.boolean(),
+    },
+    resolve: async (_root, { accountId, folder, uids, labelId, on, done }) => {
+      await organize.markMails(accountId, folder, uids, labelId ? { labelId: String(labelId), on: on ?? true } : { done: done ?? true });
+      return true;
+    },
+  }),
+  reportMailSpam: t.string({
+    description: 'Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.',
+    args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }), spam: t.arg.boolean({ required: true }) },
+    resolve: (_root, { accountId, folder, uids, spam }) => organize.reportSpam(accountId, folder, uids, spam),
+  }),
+  moveMails: t.boolean({
+    args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uids: t.arg.intList({ required: true }), target: t.arg.string({ required: true }) },
+    resolve: async (_root, { accountId, folder, uids, target }) => {
+      await organize.moveMails(accountId, folder, uids, target);
+      return true;
+    },
+  }),
+  createMailFolder: t.string({
+    description: 'Creates a folder (under another one, or at the top); returns its path.',
+    args: { accountId: t.arg.id({ required: true }), parent: t.arg.string(), name: t.arg.string({ required: true }) },
+    resolve: (_root, { accountId, parent, name }) => organize.createFolder(accountId, parent ?? null, name),
+  }),
+  renameMailFolder: t.string({
+    description: 'Renames a folder; returns its new path.',
+    args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }), name: t.arg.string({ required: true }) },
+    resolve: (_root, { accountId, path, name }) => organize.renameFolder(accountId, path, name),
+  }),
+  deleteMailFolder: t.boolean({
+    description: 'Deletes a folder and its mails.',
+    args: { accountId: t.arg.id({ required: true }), path: t.arg.string({ required: true }) },
+    resolve: async (_root, { accountId, path }) => {
+      await organize.deleteFolder(accountId, path);
+      return true;
+    },
+  }),
+  createMailLabel: t.id({
+    args: { name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
+    resolve: async (_root, args) => (await organize.createLabel(args)).id,
+  }),
+  updateMailLabel: t.boolean({
+    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }) },
+    resolve: async (_root, { id, ...input }) => {
+      await organize.updateLabel(id, input);
+      return true;
+    },
+  }),
+  deleteMailLabel: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await organize.deleteLabel(id);
+      return true;
+    },
+  }),
+  scheduleMail: t.id({
+    description: 'Schedules a mail (built now, sent at its time); its draft is removed.',
+    args: { input: t.arg({ type: SendMailInput, required: true }), sendAt: t.arg({ type: 'DateTime', required: true }) },
+    resolve: async (_root, { input, sendAt }) => (await scheduled.scheduleMail(input, sendAt)).id,
+  }),
+  sendScheduledMail: t.boolean({
+    description: 'Sends a scheduled (or failed) mail now.',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await scheduled.sendScheduled(id);
+      return true;
+    },
+  }),
+  cancelScheduledMail: t.boolean({
+    description: 'Cancels a scheduled mail: it goes back to the drafts.',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await scheduled.cancelScheduled(id);
       return true;
     },
   }),

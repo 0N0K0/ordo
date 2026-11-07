@@ -3,6 +3,7 @@ import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
 import { clientError, notFound } from '../../graphql/errors';
 import { withImap } from './imap';
+import { DONE_KEYWORD, keywordLabel, messageIdsOf, takesKeywords } from './keywords';
 import { sanitizeMailHtml } from './sanitize';
 
 export const PAGE_SIZE = 50;
@@ -20,6 +21,8 @@ export interface MailFolder {
   unseen: number;
   /** Depth in the folder tree (0 for top-level folders). */
   depth: number;
+  /** Path of the parent folder, null at the top. */
+  parent: string | null;
 }
 
 export interface MailSummary {
@@ -31,6 +34,10 @@ export interface MailSummary {
   seen: boolean;
   flagged: boolean;
   hasAttachments: boolean;
+  /** Flags set by the user. */
+  labelIds: string[];
+  /** Marked as done. */
+  done: boolean;
 }
 
 export interface MailAttachmentInfo {
@@ -57,6 +64,34 @@ export interface MailView {
   html: string | null;
   text: string | null;
   attachments: MailAttachmentInfo[];
+  /** Flags set by the user. */
+  labelIds: string[];
+  /** Marked as done. */
+  done: boolean;
+}
+
+/**
+ * Flags and done state of a message: its IMAP keywords, or the marks kept in Ordo for servers without keywords.
+ * @param {string} accountId Account.
+ * @param {string} folder Folder path.
+ * @param {number} uid Message UID.
+ * @param {string | null} messageId Message-ID.
+ * @returns {Promise<{ labelIds: string[], done: boolean }>} Marks.
+ */
+async function messageMarks(accountId: string, folder: string, uid: number, messageId: string | null): Promise<{ labelIds: string[]; done: boolean }> {
+  const flags = await withImap(accountId, async (client) => {
+    const lock = await client.getMailboxLock(folder);
+    try {
+      if (!takesKeywords(client)) return null;
+      const message = await client.fetchOne(String(uid), { uid: true, flags: true }, { uid: true });
+      return message ? [...(message.flags ?? [])] : [];
+    } finally {
+      lock.release();
+    }
+  });
+  if (flags) return { labelIds: flags.map(keywordLabel).filter((id): id is string => id !== null), done: flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) };
+  const mark = messageId ? await prisma.mailMark.findUnique({ where: { accountId_messageId: { accountId, messageId } } }) : null;
+  return { labelIds: mark?.labelIds ?? [], done: mark?.done ?? false };
 }
 
 // Usual order of the special folders, the others follow by name.
@@ -126,6 +161,7 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
         specialUse: folder.path.toUpperCase() === 'INBOX' ? '\\Inbox' : (folder.specialUse ?? null),
         unseen: folder.status?.unseen ?? 0,
         depth: folder.parent.length,
+        parent: folder.parentPath || null,
       }));
   });
 }
@@ -147,13 +183,15 @@ export async function unreadInboxes(): Promise<number> {
 }
 
 /**
- * A page of a folder, latest first, optionally filtered by a text search (subject, sender, body) and to
- * the unread messages.
+ * A page of a folder, latest first, optionally filtered by a text search (subject, sender, body), to the
+ * unread messages and on the done state; with the flags and done state of each mail (IMAP keywords, or marks
+ * kept in Ordo for servers without keywords).
  * @param {string} accountId Account.
  * @param {string} folder Folder path.
  * @param {number} page Page, from 0.
  * @param {string} search Text search.
  * @param {boolean} [unread] Unread messages only. Optional. Default = false.
+ * @param {'all' | 'todo' | 'done'} [state] Every mail, those to do, or those done. Optional. Default = all.
  * @returns {Promise<{ messages: MailSummary[], total: number }>} Messages and total count.
  */
 export async function listMessages(
@@ -162,16 +200,31 @@ export async function listMessages(
   page: number,
   search: string,
   unread = false,
+  state: 'all' | 'todo' | 'done' = 'all',
 ): Promise<{ messages: MailSummary[]; total: number }> {
   return withImap(accountId, async (client) => {
     const lock = await client.getMailboxLock(folder);
     try {
+      const keywords = takesKeywords(client);
       const query = search.trim();
       const criteria = {
         ...(query ? { or: [{ subject: query }, { from: query }, { to: query }, { body: query }] } : {}),
         ...(unread ? { seen: false } : {}),
+        ...(keywords && state === 'done' ? { keyword: DONE_KEYWORD } : {}),
+        ...(keywords && state === 'todo' ? { unKeyword: DONE_KEYWORD } : {}),
       };
-      const uids = ((await client.search(Object.keys(criteria).length ? criteria : { all: true }, { uid: true })) || []) as number[];
+      let uids = ((await client.search(Object.keys(criteria).length ? criteria : { all: true }, { uid: true })) || []) as number[];
+      // Without keywords, the marks kept in Ordo (by Message-ID).
+      const marks = new Map<string, { labelIds: string[]; done: boolean }>();
+      let messageIds = new Map<number, string>();
+      if (!keywords) {
+        const stored = await prisma.mailMark.findMany({ where: { accountId } });
+        for (const mark of stored) marks.set(mark.messageId, mark);
+        if (state !== 'all' && uids.length) {
+          messageIds = await messageIdsOf(client, uids);
+          uids = uids.filter((uid) => (marks.get(messageIds.get(uid) ?? '')?.done ?? false) === (state === 'done'));
+        }
+      }
       uids.sort((a, b) => b - a);
       const pageUids = uids.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
       if (pageUids.length === 0) return { messages: [], total: uids.length };
@@ -182,7 +235,11 @@ export async function listMessages(
         { uid: true },
       );
       for await (const message of fetched) {
+        const flags = [...(message.flags ?? [])];
+        const mark = keywords ? null : marks.get(bareMessageId(message.envelope?.messageId) ?? '');
         messages.push({
+          labelIds: keywords ? flags.map(keywordLabel).filter((id): id is string => id !== null) : (mark?.labelIds ?? []),
+          done: keywords ? flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) : (mark?.done ?? false),
           uid: message.uid,
           subject: message.envelope?.subject || '(sans objet)',
           from: envelopeAddresses(message.envelope?.from),
@@ -263,6 +320,7 @@ export function messageHtml(parsed: ParsedMail, urlOf: (index: number) => string
 export async function readMessage(accountId: string, folder: string, uid: number): Promise<MailView> {
   const parsed = await fetchParsed(accountId, folder, uid);
   await setSeen(accountId, folder, [uid], true).catch(() => undefined);
+  const marks = await messageMarks(accountId, folder, uid, bareMessageId(parsed.messageId)).catch(() => ({ labelIds: [], done: false }));
   const base = `/api/mail/${accountId}/attachment?folder=${encodeURIComponent(folder)}&uid=${uid}`;
   return {
     accountId,
@@ -282,6 +340,7 @@ export async function readMessage(accountId: string, folder: string, uid: number
     html: messageHtml(parsed, (index) => `${base}&index=${index}`),
     text: parsed.text ?? null,
     attachments: attachmentInfos(parsed),
+    ...marks,
   };
 }
 
