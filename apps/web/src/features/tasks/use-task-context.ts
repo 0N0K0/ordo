@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../components/markdown/MarkdownEditor';
-import type { ReferenceTargets } from '../../components/markdown/remark-references';
+import type { ReferenceTargets, ReferenceTask } from '../../components/markdown/remark-references';
 import { useWorkspace, type Project } from '../workspace/api';
 import { projectPath } from '../workspace/tree';
 import { useMe } from '../auth/api';
@@ -29,7 +29,11 @@ export interface TaskContext {
   /** Contributor profile of the logged-in user ("Moi"). */
   meId: string | null;
   taskById: Map<string, Task>;
-  taskByNumber: Map<number, Task>;
+  /**
+   * Label of a task: "#12 Titre" in its own project, "Client › Projet #12 Titre" seen from elsewhere (its number is
+   * only unique in its project).
+   */
+  taskLabel: (task: Task, fromProjectId?: string | null) => string;
   statusById: Map<string, TaskStatus>;
   priorityById: Map<string, TaskLabel>;
   typeById: Map<string, TaskLabel>;
@@ -57,8 +61,10 @@ export interface TaskContext {
   isBlocked: (task: Task) => boolean;
   /** Whether a task is closed (done). */
   isClosed: (task: Task) => boolean;
-  suggestions: MarkdownSuggestions;
-  targets: ReferenceTargets;
+  /** Items offered when typing "#" and "@" in a text of a project (none: tasks of every project). */
+  suggestionsFor: (projectId: string | null) => MarkdownSuggestions;
+  /** References of a text of a project: "#12" is task 12 of it. */
+  targetsFor: (projectId: string | null) => ReferenceTargets;
 }
 
 /**
@@ -99,6 +105,21 @@ export function useTaskContext() {
       return current;
     };
 
+    /**
+     * Client and project path of a project.
+     * @param {string} projectId Project.
+     * @returns {string} "Client › Projet › Sous-projet".
+     */
+    const placeOf = (projectId: string) => {
+      const project = projectById.get(projectId);
+      return project ? `${projectPath(workspace, project)} › ${project.title}` : 'Projet inconnu';
+    };
+    // Tasks texts can reference, by id and by "<projectId>:<number>".
+    const referenceTasks: ReferenceTask[] = tasks.map((task) => ({ id: task.id, projectId: task.projectId, number: task.number, title: task.title, place: placeOf(task.projectId) }));
+    const referenceById = new Map(referenceTasks.map((task) => [task.id, task]));
+    const referenceByNumber = new Map(referenceTasks.map((task) => [`${task.projectId}:${task.number}`, task]));
+    const contributors = data.contributors.map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl }));
+    const handles = new Set(data.contributors.map((contributor) => contributor.handle));
     return {
       tasks,
       contributors: data.contributors,
@@ -126,7 +147,7 @@ export function useTaskContext() {
       },
       contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
       taskById: new Map(tasks.map((task) => [task.id, task])),
-      taskByNumber: new Map(tasks.map((task) => [task.number, task])),
+      taskLabel: (task, fromProjectId = null) => `${task.projectId === fromProjectId ? '' : `${placeOf(task.projectId)} `}#${task.number} ${task.title}`,
       statusById,
       priorityById: new Map(data.taskPriorities.map((priority) => [priority.id, priority])),
       typeById: new Map(data.taskTypes.map((type) => [type.id, type])),
@@ -134,10 +155,7 @@ export function useTaskContext() {
       tagById: new Map(data.taskTags.map((tag) => [tag.id, tag])),
       contributorById: new Map(data.contributors.map((contributor) => [contributor.id, contributor])),
       projectById,
-      projectLabel: (projectId) => {
-        const project = projectById.get(projectId);
-        return project ? `${projectPath(workspace, project)} › ${project.title}` : 'Projet inconnu';
-      },
+      projectLabel: placeOf,
       rootOf,
       childrenOf: (taskId) => children.get(taskId) ?? [],
       // The open / closed state says whether a task is done, whatever its status.
@@ -148,14 +166,8 @@ export function useTaskContext() {
           const blocker = tasks.find((item) => item.id === id);
           return blocker !== undefined && !blocker.archived && !blocker.closed;
         }),
-      suggestions: {
-        tasks: tasks.map((task) => ({ number: task.number, title: task.title })),
-        contributors: data.contributors.map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl })),
-      },
-      targets: {
-        taskNumbers: new Set(tasks.map((task) => task.number)),
-        handles: new Set(data.contributors.map((contributor) => contributor.handle)),
-      },
+      suggestionsFor: (projectId) => ({ projectId, tasks: referenceTasks, contributors }),
+      targetsFor: (projectId) => ({ projectId, taskById: referenceById, taskByNumber: referenceByNumber, handles }),
     };
   }, [data, workspace, meId, milestoneOrder]);
 

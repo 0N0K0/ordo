@@ -383,7 +383,8 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
 }
 
 /**
- * Transfers a task and its sub-tasks to another project. Links leaving the new project tree are removed.
+ * Transfers a task and its sub-tasks to another project, where they take the next numbers (given by the database).
+ * Links leaving the new project tree are removed.
  * @param {string} id Task id.
  * @param {string} projectId Target project.
  * @returns {Promise<{ task: Task, removedLinks: number }>} Moved task and number of removed links.

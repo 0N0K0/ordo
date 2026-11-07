@@ -63,7 +63,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
         onSuccess: (task) => {
           notifySuccess(`Tâche #${task.number} créée.`);
           onDone();
-          link.open(task.number);
+          link.open(task.id);
         },
         onError: (error) => showFormError(form, error),
       },
@@ -104,6 +104,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             }}
           />
           <TaskSelect
+            labelOf={(task) => context.taskLabel(task, form.values.projectId)}
             tasks={parentCandidates}
             label="Tâche parente"
             placeholder={form.values.projectId ? 'Aucune' : 'Choisissez d’abord un projet'}
@@ -138,7 +139,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           label="Description"
           value={form.values.description}
           onChange={(description) => form.setFieldValue('description', description)}
-          suggestions={context.suggestions}
+          suggestions={context.suggestionsFor(form.values.projectId || null)}
           minRows={5}
           error={form.errors.description as string | undefined}
           onSubmitShortcut={() => handleSubmit()}

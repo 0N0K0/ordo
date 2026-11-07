@@ -245,7 +245,7 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
     case 'parent': {
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
       if (!parent) return none('Sans tâche parente');
-      return [{ key: parent.id, label: `#${parent.number} ${parent.title}`, order: parent.number }];
+      return [{ key: parent.id, label: context.taskLabel(parent, task.projectId), order: parent.number }];
     }
     case 'milestone': {
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;

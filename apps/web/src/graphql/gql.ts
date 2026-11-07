@@ -202,7 +202,7 @@ type Documents = {
     "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": typeof types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": typeof types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
-    "\n  query TaskComments($number: Int!) {\n    task(number: $number) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
+    "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
     "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n": typeof types.SetTaskArchivedDocument,
@@ -328,7 +328,7 @@ type Documents = {
     "\n  mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": typeof types.DeleteProjectStatusDocument,
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": typeof types.MoveProjectStatusDocument,
-    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
+    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
     "\n  query ElsewhereMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": typeof types.ElsewhereMailAccountsDocument,
     "\n  query ElsewhereUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": typeof types.ElsewhereUnreadMailsDocument,
@@ -528,7 +528,7 @@ const documents: Documents = {
     "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n  }\n": types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
-    "\n  query TaskComments($number: Int!) {\n    task(number: $number) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
+    "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
     "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n": types.SetTaskArchivedDocument,
@@ -654,7 +654,7 @@ const documents: Documents = {
     "\n  mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": types.DeleteProjectStatusDocument,
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": types.MoveProjectStatusDocument,
-    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
+    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
     "\n  query ElsewhereMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": types.ElsewhereMailAccountsDocument,
     "\n  query ElsewhereUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": types.ElsewhereUnreadMailsDocument,
@@ -1418,7 +1418,7 @@ export function graphql(source: "\n  query TasksData {\n    tasks {\n      ...Ta
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TaskComments($number: Int!) {\n    task(number: $number) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n"): typeof import('./graphql').TaskCommentsDocument;
+export function graphql(source: "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n"): typeof import('./graphql').TaskCommentsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1922,7 +1922,7 @@ export function graphql(source: "\n  mutation MoveProjectStatus($id: ID!, $index
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n"): typeof import('./graphql').ElsewhereAlarmsDocument;
+export function graphql(source: "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n"): typeof import('./graphql').ElsewhereAlarmsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

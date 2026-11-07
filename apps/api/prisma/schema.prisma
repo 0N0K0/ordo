@@ -456,8 +456,9 @@ model TaskTag {
 
 model Task {
   id                String             @id @default(cuid())
-  /// Human-readable number (#12), global and stable across transfers.
-  number            Int                @unique @default(autoincrement())
+  /// Human-readable number (#12) within its project, given by the database (trigger "task_project_number"): the
+  /// next of the project on creation, and of the target project on a transfer. Links use the id, never the number.
+  number            Int                @default(0)
   title             String
   /// Markdown.
   description       String?
@@ -529,6 +530,7 @@ model Task {
   workspaceId       String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@unique([projectId, number])
   @@index([projectId])
   @@index([parentId])
   @@index([milestoneId])

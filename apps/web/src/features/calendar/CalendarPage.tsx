@@ -286,7 +286,8 @@ export function CalendarPage() {
         const color = context.projectById.get(task.projectId)?.color ?? 'var(--mantine-color-gray-6)';
         result.push({
           id: `task:${task.id}`,
-          title: `#${task.number} ${task.title}`,
+          // Its number is only unique in its project: the project comes with it.
+          title: context.taskLabel(task),
           allDay: true,
           start,
           end: addDays(end, 1),
@@ -570,7 +571,7 @@ export function CalendarPage() {
           }}
           eventClick={(info: EventClickArg) => {
             info.jsEvent.preventDefault();
-            if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.number));
+            if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else if (info.event.extendedProps.kind === 'subscribed')
               setOpenedSubscribed({ occurrence: info.event.extendedProps.occurrence, subscription: info.event.extendedProps.subscription });

@@ -65,7 +65,7 @@ function referenceOptions(field: TaskFilterField, context: TaskContext): { value
     case 'type':
       return labels(context.types);
     case 'parent':
-      return context.tasks.map((task) => ({ value: task.id, label: `#${task.number} ${task.title}` }));
+      return context.tasks.map((task) => ({ value: task.id, label: context.taskLabel(task) }));
     case 'assignees':
       // "Moi" follows the logged-in user, whatever their contributor profile.
       return [

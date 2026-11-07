@@ -38,7 +38,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
             const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
             const late = task.deadline !== null && task.deadline < today;
             return (
-              <Link key={task.id} to={link.to(task.number)} className={classes.row}>
+              <Link key={task.id} to={link.to(task.id)} className={classes.row}>
                 <Group justify="space-between" wrap="nowrap" gap="xs">
                   <Stack gap={0} miw={0}>
                     <Text size="sm" truncate>

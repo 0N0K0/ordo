@@ -42,11 +42,12 @@ const printedDay = (day: string | null) => (day ? dayFormat.format(new Date(`${d
  * @returns {string} Text.
  */
 function taskCell(task: Task, column: TaskColumn, context: TaskContext): string {
+  // Linked tasks: "#12" in the project of the task, with their project otherwise (numbers are per project).
   const numbers = (ids: string[]) =>
     ids
-      .map((id) => context.taskById.get(id)?.number)
-      .filter((number) => number !== undefined)
-      .map((number) => `#${number}`)
+      .map((id) => context.taskById.get(id))
+      .filter((other) => other !== undefined)
+      .map((other) => (other.projectId === task.projectId ? `#${other.number}` : `${context.projectLabel(other.projectId)} #${other.number}`))
       .join(', ');
   switch (column) {
     case 'title':
@@ -82,7 +83,7 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
       return printedDay(task.deadline);
     case 'parent': {
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
-      return parent ? `#${parent.number} ${parent.title}` : '';
+      return parent ? context.taskLabel(parent, task.projectId) : '';
     }
     case 'milestone':
       return (task.milestoneId && context.milestoneById.get(task.milestoneId)?.title) || '';

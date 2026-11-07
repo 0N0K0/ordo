@@ -4,13 +4,13 @@ import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, PlusIcon, Text
 import { useState, type ReactNode } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
+import { NO_TARGETS } from '../../components/markdown/remark-references';
 import { useCatalogItems } from './catalog-api';
 import classes from './LinesEditor.module.css';
 
 const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: 'Débours', TEXT: 'Texte', DEDUCTION: 'Déjà facturé' };
 
-const NO_SUGGESTIONS = { tasks: [], contributors: [] };
-const NO_TARGETS = { taskNumbers: new Set<number>(), handles: new Set<string>() };
+const NO_SUGGESTIONS = { projectId: null, tasks: [], contributors: [] };
 
 /**
  * New line of a kind.

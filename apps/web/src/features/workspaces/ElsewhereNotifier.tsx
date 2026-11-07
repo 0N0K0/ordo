@@ -17,6 +17,7 @@ const ElsewhereAlarmsDocument = graphql(`
     alarms {
       ...AlarmFields
       task {
+        id
         number
         title
         projectId
@@ -121,7 +122,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
      * @returns {RingLink[]} Links.
      */
     const alarmLinks = (alarm: ElsewhereAlarm): RingLink[] => {
-      if (alarm.task) return [link(`#${alarm.task.number} ${alarm.task.title}`, `/projects/${alarm.task.projectId}?tab=tasks&task=${alarm.task.number}`)];
+      if (alarm.task) return [link(`#${alarm.task.number} ${alarm.task.title}`, `/projects/${alarm.task.projectId}?tab=tasks&task=${alarm.task.id}`)];
       if (alarm.project) return [link(alarm.project.title, `/projects/${alarm.project.id}`)];
       return [link(`Ouvrir « ${name} »`, '/')];
     };

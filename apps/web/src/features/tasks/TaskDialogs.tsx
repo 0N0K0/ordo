@@ -166,7 +166,7 @@ export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
         onSuccess: (clone) => {
           notifySuccess(`Tâche #${task.number} clonée en #${clone.number}.`);
           onDone();
-          link.open(clone.number);
+          link.open(clone.id);
         },
         onError: (error) => notifyError(error.message),
       },

@@ -171,7 +171,7 @@ builder.prismaObject('TaskComment', {
 builder.prismaObject('Task', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    number: t.exposeInt('number'),
+    number: t.exposeInt('number', { description: 'Number within its project (#12); links use the id.' }),
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
     projectId: t.exposeID('projectId'),
@@ -387,8 +387,9 @@ builder.queryFields((t) => ({
   task: t.prismaField({
     type: 'Task',
     nullable: true,
-    args: { number: t.arg.int({ required: true }) },
-    resolve: (query, _root, { number }) => prisma.task.findUnique({ ...query, where: { number } }),
+    description: 'A task, by its id (its number is only unique in its project).',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: (query, _root, { id }) => prisma.task.findUnique({ ...query, where: { id } }),
   }),
   matchingTaskIdsBySprint: t.field({
     type: [SprintMatchesRef],

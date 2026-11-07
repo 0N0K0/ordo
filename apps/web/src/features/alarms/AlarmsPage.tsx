@@ -240,13 +240,13 @@ export function AlarmsPage() {
                         component={Link}
                         to={
                           task
-                            ? `/projects/${task.projectId}?tab=tasks&task=${task.number}`
+                            ? `/projects/${task.projectId}?tab=tasks&task=${task.id}`
                             : `/projects/${project!.id}`
                         }
                         size="xs"
                       >
                         {task
-                          ? `#${task.number} ${task.title}`
+                          ? (context?.taskLabel(task) ?? task.title)
                           : project!.title}
                       </Anchor>
                     )}

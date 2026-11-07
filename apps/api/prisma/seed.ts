@@ -112,8 +112,6 @@ for (const model of [
 ] as unknown as { deleteMany: () => Promise<unknown> }[]) {
   await model.deleteMany();
 }
-// Task numbers are shared by the workspaces: they go on after the highest one left.
-await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Task"', 'number'), COALESCE((SELECT MAX("number") FROM "Task"), 0) + 1, false)`);
 await prisma.alarm.createMany({ data: alarms.map((alarm) => ({ ...alarm, projectId: null, taskId: null })) });
 await prisma.contributor.deleteMany({ where: { userId: null } });
 await prisma.icon.deleteMany({ where: { contributors: { none: {} } } });
