@@ -14,13 +14,14 @@ function maxWidth(): number {
 }
 
 /**
- * Sidebar width and open state, persisted, with a drag handle to resize it.
+ * Sidebar width and open state, persisted, with a drag handle to resize it. Each window keeps its own: the last
+ * change is what a new window starts with.
  * Dragging below the minimum hides the sidebar; dragging back reopens it.
  * @returns {object} Width, open state, toggles and the handle pointer handler.
  */
 export function useResizableSidebar() {
-  const [width, setWidth] = useLocalStorage({ key: 'ordo.sidebar.width', defaultValue: DEFAULT_WIDTH });
-  const [opened, setOpened] = useLocalStorage({ key: 'ordo.sidebar.opened', defaultValue: true });
+  const [width, setWidth] = useLocalStorage({ key: 'ordo.sidebar.width', sync: false, defaultValue: DEFAULT_WIDTH });
+  const [opened, setOpened] = useLocalStorage({ key: 'ordo.sidebar.opened', sync: false, defaultValue: true });
   const [resizing, setResizing] = useState(false);
   const frame = useRef(0);
 
