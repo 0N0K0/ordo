@@ -5,12 +5,23 @@ import * as linked from '../../services/mail/linked';
 import * as reader from '../../services/mail/reader';
 import * as organize from '../../services/mail/organize';
 import * as scheduled from '../../services/mail/scheduled';
+import * as searches from '../../services/mail/searches';
 import { sendMail } from '../../services/mail/sender';
 import { builder } from '../builder';
 
 builder.prismaObject('MailLabel', {
   description: 'Flag of mails (name, color).',
   fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), color: t.exposeString('color'), position: t.exposeInt('position') }),
+});
+
+builder.prismaObject('MailSearch', {
+  description: 'Search folder, kept in Ordo (not on the mail server).',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    criteria: t.field({ type: 'JSON', description: 'accountIds, scope, state, labelIds, unread, text.', resolve: (search) => searches.searchCriteria(search) }),
+    position: t.exposeInt('position'),
+  }),
 });
 
 builder.prismaObject('ScheduledMail', {
@@ -273,6 +284,45 @@ const MailDraft = builder.objectRef<drafts.DraftView>('MailDraft').implement({
   }),
 });
 
+const MailSearchHit = builder.objectRef<searches.MailSearchHit>('MailSearchHit').implement({
+  description: 'Mail found by a search folder, with its account and folder.',
+  fields: (t) => ({
+    accountId: t.exposeID('accountId'),
+    folder: t.exposeString('folder'),
+    folderName: t.exposeString('folderName'),
+    uid: t.exposeInt('uid'),
+    subject: t.exposeString('subject'),
+    from: t.field({ type: [MailAddress], resolve: (mail) => mail.from }),
+    to: t.field({ type: [MailAddress], resolve: (mail) => mail.to }),
+    date: t.expose('date', { type: 'DateTime' }),
+    seen: t.exposeBoolean('seen'),
+    flagged: t.exposeBoolean('flagged'),
+    hasAttachments: t.exposeBoolean('hasAttachments'),
+    labelIds: t.exposeIDList('labelIds'),
+    done: t.exposeBoolean('done'),
+  }),
+});
+
+const MailSearchPage = builder.objectRef<{ messages: searches.MailSearchHit[]; total: number }>('MailSearchPage').implement({
+  fields: (t) => ({
+    messages: t.field({ type: [MailSearchHit], resolve: (page) => page.messages }),
+    total: t.exposeInt('total'),
+    pageSize: t.int({ resolve: () => reader.PAGE_SIZE }),
+  }),
+});
+
+const MailSearchInput = builder.inputType('MailSearchInput', {
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    accountIds: t.idList({ required: true }),
+    scope: t.string({ required: true, description: 'inbox or all.' }),
+    state: t.string({ required: true, description: 'all, todo or done.' }),
+    labelIds: t.idList({ required: true }),
+    unread: t.boolean({ required: true }),
+    text: t.string({ required: true }),
+  }),
+});
+
 builder.queryFields((t) => ({
   mailAccounts: t.prismaField({
     type: ['MailAccount'],
@@ -296,6 +346,16 @@ builder.queryFields((t) => ({
     },
     resolve: (_root, { accountId, folder, page, search, unread, state }) =>
       reader.listMessages(accountId, folder, Math.max(0, page), search ?? '', unread ?? false, state === 'todo' || state === 'done' ? state : 'all'),
+  }),
+  mailSearches: t.prismaField({
+    type: ['MailSearch'],
+    resolve: (query) => prisma.mailSearch.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  mailSearchResults: t.field({
+    type: MailSearchPage,
+    description: 'A page of the mails of a search folder, latest first.',
+    args: { id: t.arg.id({ required: true }), page: t.arg.int({ required: true }) },
+    resolve: (_root, { id, page }) => searches.searchResults(id, Math.max(0, page)),
   }),
   mailLabels: t.prismaField({
     type: ['MailLabel'],
@@ -443,6 +503,24 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {
       await organize.deleteLabel(id);
+      return true;
+    },
+  }),
+  createMailSearch: t.id({
+    args: { input: t.arg({ type: MailSearchInput, required: true }) },
+    resolve: async (_root, { input }) => (await searches.createSearch(input as never)).id,
+  }),
+  updateMailSearch: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailSearchInput, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await searches.updateSearch(id, input as never);
+      return true;
+    },
+  }),
+  deleteMailSearch: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await searches.deleteSearch(id);
       return true;
     },
   }),

@@ -27,3 +27,20 @@ export const signatureSchema = z.string().max(100_000, 'Signature trop longue.')
 
 /** List of recipients: email addresses. */
 export const recipientsSchema = z.array(z.email({ error: 'Adresse email invalide.' })).max(100, '100 destinataires maximum.');
+
+/** Search folder: mails matching criteria across accounts and folders, kept in Ordo. */
+export const mailSearchSchema = z.object({
+  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+  /** Accounts searched; empty: every account. */
+  accountIds: z.array(z.string()).max(50),
+  /** The inboxes, or every folder but the trash, junk, drafts and sent ones. */
+  scope: z.enum(['inbox', 'all']),
+  state: z.enum(['all', 'todo', 'done']),
+  /** Mails with any of these flags; empty: any mail. */
+  labelIds: z.array(z.string()).max(50),
+  unread: z.boolean(),
+  /** Text in the subject, the addresses or the body. */
+  text: z.string().trim().max(200, '200 caractères maximum.'),
+});
+export type MailSearchInput = z.input<typeof mailSearchSchema>;
+export type MailSearchCriteria = Omit<z.infer<typeof mailSearchSchema>, 'name'>;

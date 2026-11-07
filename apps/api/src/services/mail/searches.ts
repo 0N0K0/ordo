@@ -1,0 +1,154 @@
+import { mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
+import { prisma } from '../../db';
+import type { MailSearch } from '../../generated/prisma/client';
+import { notFound, parseInput } from '../../graphql/errors';
+import { withImap } from './imap';
+import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
+import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
+
+/** Folders a search does not look into, with "every folder". */
+const SKIPPED = new Set(['\\Trash', '\\Junk', '\\Drafts', '\\Sent']);
+/** Latest mails looked at in each folder. */
+const PER_FOLDER = 200;
+
+/** Mail found by a search folder, with where it is. */
+export interface MailSearchHit extends MailSummary {
+  accountId: string;
+  folder: string;
+  folderName: string;
+}
+
+/**
+ * Criteria of a stored search (missing fields at their default).
+ * @param {MailSearch} search Stored search.
+ * @returns {MailSearchCriteria} Criteria.
+ */
+export function searchCriteria(search: MailSearch): MailSearchCriteria {
+  const parsed = mailSearchSchema.omit({ name: true }).safeParse(search.criteria);
+  return parsed.success ? parsed.data : { accountIds: [], scope: 'inbox', state: 'todo', labelIds: [], unread: false, text: '' };
+}
+
+/**
+ * Creates a search folder at the end of the list.
+ * @param {MailSearchInput} input Search.
+ * @returns {Promise<MailSearch>} Search.
+ */
+export async function createSearch(input: MailSearchInput): Promise<MailSearch> {
+  const { name, ...criteria } = parseInput(mailSearchSchema, input);
+  const { _max } = await prisma.mailSearch.aggregate({ _max: { position: true } });
+  return prisma.mailSearch.create({ data: { name, criteria, position: (_max.position ?? -1) + 1 } });
+}
+
+/**
+ * Updates a search folder.
+ * @param {string} id Search id.
+ * @param {MailSearchInput} input Search.
+ * @returns {Promise<MailSearch>} Search.
+ */
+export async function updateSearch(id: string, input: MailSearchInput): Promise<MailSearch> {
+  const { name, ...criteria } = parseInput(mailSearchSchema, input);
+  if (!(await prisma.mailSearch.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Dossier de recherche');
+  return prisma.mailSearch.update({ where: { id }, data: { name, criteria } });
+}
+
+/**
+ * Deletes a search folder (the mails are not touched).
+ * @param {string} id Search id.
+ * @returns {Promise<void>}
+ */
+export async function deleteSearch(id: string): Promise<void> {
+  const { count } = await prisma.mailSearch.deleteMany({ where: { id } });
+  if (!count) throw notFound('Dossier de recherche');
+}
+
+/**
+ * Mails of a folder matching criteria: the latest ones, with the IMAP keywords, or with the marks kept in Ordo
+ * for servers without keywords.
+ * @param {string} accountId Account.
+ * @param {string} folder Folder path.
+ * @param {string} folderName Folder name.
+ * @param {MailSearchCriteria} criteria Criteria.
+ * @param {ReadonlyMap<string, { labelIds: string[], done: boolean }>} marks Marks kept in Ordo for the account.
+ * @returns {Promise<MailSearchHit[]>} Mails found.
+ */
+async function searchFolder(
+  accountId: string,
+  folder: string,
+  folderName: string,
+  criteria: MailSearchCriteria,
+  marks: ReadonlyMap<string, { labelIds: string[]; done: boolean }>,
+): Promise<MailSearchHit[]> {
+  return withImap(accountId, async (client) => {
+    const lock = await client.getMailboxLock(folder);
+    try {
+      const keywords = takesKeywords(client);
+      const search = async (query: object) => new Set(((await client.search(Object.keys(query).length ? query : { all: true }, { uid: true })) || []) as number[]);
+      let uids = await search({
+        ...(criteria.unread ? { seen: false } : {}),
+        ...(keywords && criteria.state === 'done' ? { keyword: DONE_KEYWORD } : {}),
+        ...(keywords && criteria.state === 'todo' ? { unKeyword: DONE_KEYWORD } : {}),
+        ...(keywords && criteria.labelIds.length ? { or: criteria.labelIds.map((id) => ({ keyword: labelKeyword(id) })) } : {}),
+      });
+      // The text, searched apart (one "or" per search).
+      if (criteria.text && uids.size) {
+        const text = criteria.text;
+        const matching = await search({ or: [{ subject: text }, { from: text }, { to: text }, { body: text }] });
+        uids = new Set([...uids].filter((uid) => matching.has(uid)));
+      }
+      let latest = [...uids].sort((a, b) => b - a);
+      // Without keywords, the state and flags from the marks kept in Ordo.
+      if (!keywords && (criteria.state !== 'all' || criteria.labelIds.length)) {
+        const ids = await messageIdsOf(client, latest.slice(0, PER_FOLDER * 5));
+        latest = latest.filter((uid) => {
+          const mark = marks.get(ids.get(uid) ?? '');
+          const done = mark?.done ?? false;
+          if (criteria.state === 'done' && !done) return false;
+          if (criteria.state === 'todo' && done) return false;
+          return !criteria.labelIds.length || criteria.labelIds.some((id) => mark?.labelIds.includes(id));
+        });
+      }
+      latest = latest.slice(0, PER_FOLDER);
+      const hits: MailSearchHit[] = [];
+      if (!latest.length) return hits;
+      for await (const message of client.fetch(latest, SUMMARY_FETCH, { uid: true })) hits.push({ ...toSummary(message, keywords, marks), accountId, folder, folderName });
+      return hits;
+    } finally {
+      lock.release();
+    }
+  });
+}
+
+/**
+ * A page of the mails of a search folder, latest first, across its accounts and folders (the latest mails of
+ * each folder); unreachable accounts are left out.
+ * @param {string} id Search id.
+ * @param {number} page Page, from 0.
+ * @returns {Promise<{ messages: MailSearchHit[], total: number }>} Mails and total count.
+ */
+export async function searchResults(id: string, page: number): Promise<{ messages: MailSearchHit[]; total: number }> {
+  const search = await prisma.mailSearch.findUnique({ where: { id } });
+  if (!search) throw notFound('Dossier de recherche');
+  const criteria = searchCriteria(search);
+  const accounts = await prisma.mailAccount.findMany({ where: criteria.accountIds.length ? { id: { in: criteria.accountIds } } : {}, select: { id: true } });
+  const found = await Promise.all(
+    accounts.map(async ({ id: accountId }) => {
+      try {
+        const marks = new Map((await prisma.mailMark.findMany({ where: { accountId } })).map((mark) => [mark.messageId, mark]));
+        const folders = await withImap(accountId, async (client) =>
+          (await client.list())
+            .filter((folder) => !folder.flags.has('\\Noselect') && !folder.flags.has('\\NonExistent'))
+            .filter((folder) => (criteria.scope === 'inbox' ? folder.path.toUpperCase() === 'INBOX' : !SKIPPED.has(folder.specialUse ?? '')))
+            .map((folder) => ({ path: folder.path, name: folder.path.toUpperCase() === 'INBOX' ? 'Réception' : folder.name })),
+        );
+        const hits: MailSearchHit[] = [];
+        for (const folder of folders) hits.push(...(await searchFolder(accountId, folder.path, folder.name, criteria, marks)));
+        return hits;
+      } catch (error) {
+        console.warn('Dossier de recherche : boîte injoignable.', error);
+        return [];
+      }
+    }),
+  );
+  const all = found.flat().sort((a, b) => b.date.getTime() - a.date.getTime());
+  return { messages: all.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), total: all.length };
+}

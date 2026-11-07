@@ -359,6 +359,18 @@ export type MailLocationInput = {
   uid: number;
 };
 
+export type MailSearchInput = {
+  accountIds: Array<string | number>;
+  labelIds: Array<string | number>;
+  name: string;
+  /** inbox or all. */
+  scope: string;
+  /** all, todo or done. */
+  state: string;
+  text: string;
+  unread: boolean;
+};
+
 export type MilestoneInput = {
   description?: string | null | undefined;
   dueDate?: string | null | undefined;
@@ -1866,6 +1878,41 @@ export type CancelScheduledMailMutationVariables = Exact<{
 
 
 export type CancelScheduledMailMutation = { cancelScheduledMail: boolean };
+
+export type MailSearchesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MailSearchesQuery = { mailSearches: Array<{ id: string, name: string, criteria: unknown, position: number }> };
+
+export type MailSearchResultsQueryVariables = Exact<{
+  id: string | number;
+  page: number;
+}>;
+
+
+export type MailSearchResultsQuery = { mailSearchResults: { total: number, pageSize: number, messages: Array<{ accountId: string, folder: string, folderName: string, uid: number, subject: string, date: string, seen: boolean, flagged: boolean, hasAttachments: boolean, labelIds: Array<string>, done: boolean, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }> }> } };
+
+export type CreateMailSearchMutationVariables = Exact<{
+  input: MailSearchInput;
+}>;
+
+
+export type CreateMailSearchMutation = { createMailSearch: string };
+
+export type UpdateMailSearchMutationVariables = Exact<{
+  id: string | number;
+  input: MailSearchInput;
+}>;
+
+
+export type UpdateMailSearchMutation = { updateMailSearch: boolean };
+
+export type DeleteMailSearchMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 
 export type ContributorFieldsFragment = { id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> };
 
@@ -4798,6 +4845,60 @@ export const CancelScheduledMailDocument = new TypedDocumentString(`
   cancelScheduledMail(id: $id)
 }
     `) as unknown as TypedDocumentString<CancelScheduledMailMutation, CancelScheduledMailMutationVariables>;
+export const MailSearchesDocument = new TypedDocumentString(`
+    query MailSearches {
+  mailSearches {
+    id
+    name
+    criteria
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<MailSearchesQuery, MailSearchesQueryVariables>;
+export const MailSearchResultsDocument = new TypedDocumentString(`
+    query MailSearchResults($id: ID!, $page: Int!) {
+  mailSearchResults(id: $id, page: $page) {
+    total
+    pageSize
+    messages {
+      accountId
+      folder
+      folderName
+      uid
+      subject
+      from {
+        name
+        address
+      }
+      to {
+        name
+        address
+      }
+      date
+      seen
+      flagged
+      hasAttachments
+      labelIds
+      done
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<MailSearchResultsQuery, MailSearchResultsQueryVariables>;
+export const CreateMailSearchDocument = new TypedDocumentString(`
+    mutation CreateMailSearch($input: MailSearchInput!) {
+  createMailSearch(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateMailSearchMutation, CreateMailSearchMutationVariables>;
+export const UpdateMailSearchDocument = new TypedDocumentString(`
+    mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {
+  updateMailSearch(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateMailSearchMutation, UpdateMailSearchMutationVariables>;
+export const DeleteMailSearchDocument = new TypedDocumentString(`
+    mutation DeleteMailSearch($id: ID!) {
+  deleteMailSearch(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteMailSearchMutation, DeleteMailSearchMutationVariables>;
 export const TasksDataDocument = new TypedDocumentString(`
     query TasksData {
   tasks {

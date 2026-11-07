@@ -766,6 +766,16 @@ model MailLabel {
   createdAt DateTime @default(now())
 }
 
+/// Search folder: mails matching criteria across accounts and folders, kept in Ordo (not on the server).
+model MailSearch {
+  id        String   @id @default(cuid())
+  name      String
+  /// { accountIds, scope ('inbox' | 'all'), state ('all' | 'todo' | 'done'), labelIds, unread, text }
+  criteria  Json
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
 /// Flags and "done" state of a mail kept in Ordo, for servers that take no IMAP keywords.
 model MailMark {
   accountId String

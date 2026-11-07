@@ -14,13 +14,15 @@ import { MailLabelsManager } from './MailLabelsManager';
 import { MailOrganizeActions } from './MailOrganizeActions';
 import classes from './MailPage.module.css';
 import { MailReader } from './MailReader';
+import { MailSearchFolders, MailSearchList } from './MailSearchFolders';
 import { ScheduledMailsList } from './ScheduledMailsList';
 import { useMailComposer } from './use-mail-composer';
 
 type DoneFilter = 'all' | 'todo' | 'done';
 
 /**
- * Mail client: accounts and folders (managed, mails dropped in them), scheduled mails, messages of the selected
+ * Mail client: accounts and folders (managed, mails dropped in them), search folders (kept in Ordo), scheduled
+ * mails, messages of the selected
  * folder (latest first, searchable, filtered on the done state, paged, several selected for the organizing
  * actions and dragged to a folder), and the open message. Everything is read live on the servers. The
  * selection is kept in the URL.
@@ -38,8 +40,10 @@ export function MailPage() {
   const uid = params.get('uid') ? Number(params.get('uid')) : null;
   const page = Math.max(1, Number(params.get('page') ?? 1));
   const scheduledView = params.get('view') === 'scheduled';
+  // Search folder shown (its mails open in their account and folder).
+  const searchId = params.get('search');
   const doneFilter = (['todo', 'done'].includes(params.get('state') ?? '') ? params.get('state') : 'all') as DoneFilter;
-  const messages = useMailMessages(accountId && !scheduledView ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter } : null);
+  const messages = useMailMessages(accountId && !scheduledView && !searchId ? { accountId, folder, page: page - 1, search: debouncedSearch, state: doneFilter } : null);
   const { data: folders } = useMailFolders(accountId);
   const { data: labels } = useMailLabels();
   const { data: scheduled } = useScheduledMails();
@@ -122,8 +126,9 @@ export function MailPage() {
                 )
               }
               active={scheduledView}
-              onClick={() => update({ view: 'scheduled', uid: null, page: null })}
+              onClick={() => update({ view: 'scheduled', uid: null, page: null, search: null })}
             />
+            <MailSearchFolders selectedId={scheduledView ? null : searchId} onSelect={(id) => update({ search: id, view: null, uid: null, page: null })} />
             {isPending ? (
               <Skeleton height={120} />
             ) : (
@@ -131,8 +136,8 @@ export function MailPage() {
                 <AccountFolders
                   key={account.id}
                   account={account}
-                  selected={accountId && !scheduledView ? { accountId, folder } : null}
-                  onSelect={(next) => update({ account: next.accountId, folder: next.folder, uid: null, page: null, view: null })}
+                  selected={accountId && !scheduledView && !searchId ? { accountId, folder } : null}
+                  onSelect={(next) => update({ account: next.accountId, folder: next.folder, uid: null, page: null, view: null, search: null })}
                   dragged={dragged}
                   onDropped={() => {
                     setDragged(null);
@@ -148,6 +153,14 @@ export function MailPage() {
           <Paper withBorder radius="md">
             {scheduledView ? (
               <ScheduledMailsList />
+            ) : searchId ? (
+              <MailSearchList
+                searchId={searchId}
+                page={page}
+                onPage={(value) => update({ page: value > 1 ? String(value) : null, uid: null })}
+                open={accountId && uid !== null ? { accountId, folder, uid } : null}
+                onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
+              />
             ) : (
               <>
             <Stack gap={6} p="xs" className={classes.listHeader}>

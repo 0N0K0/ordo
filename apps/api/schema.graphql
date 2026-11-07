@@ -954,6 +954,52 @@ type MailPage {
   total: Int!
 }
 
+"""Search folder, kept in Ordo (not on the mail server)."""
+type MailSearch {
+  """accountIds, scope, state, labelIds, unread, text."""
+  criteria: JSON!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+"""Mail found by a search folder, with its account and folder."""
+type MailSearchHit {
+  accountId: ID!
+  date: DateTime!
+  done: Boolean!
+  flagged: Boolean!
+  folder: String!
+  folderName: String!
+  from: [MailAddress!]!
+  hasAttachments: Boolean!
+  labelIds: [ID!]!
+  seen: Boolean!
+  subject: String!
+  to: [MailAddress!]!
+  uid: Int!
+}
+
+input MailSearchInput {
+  accountIds: [ID!]!
+  labelIds: [ID!]!
+  name: String!
+
+  """inbox or all."""
+  scope: String!
+
+  """all, todo or done."""
+  state: String!
+  text: String!
+  unread: Boolean!
+}
+
+type MailSearchPage {
+  messages: [MailSearchHit!]!
+  pageSize: Int!
+  total: Int!
+}
+
 type MailSummary {
   date: DateTime!
 
@@ -1079,6 +1125,7 @@ type Mutation {
   """Creates a folder (under another one, or at the top); returns its path."""
   createMailFolder(accountId: ID!, name: String!, parent: String): String!
   createMailLabel(color: String!, name: String!): ID!
+  createMailSearch(input: MailSearchInput!): ID!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
@@ -1128,6 +1175,7 @@ type Mutation {
   """Deletes a folder and its mails."""
   deleteMailFolder(accountId: ID!, path: String!): Boolean!
   deleteMailLabel(id: ID!): Boolean!
+  deleteMailSearch(id: ID!): Boolean!
 
   """Moves mails to the trash (deletes them for good from the trash)."""
   deleteMails(accountId: ID!, folder: String!, uids: [Int!]!): Boolean!
@@ -1370,6 +1418,7 @@ type Mutation {
   updateLibraryDocument(file: File, id: ID!, note: String, title: String!, url: String): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
   updateMailLabel(color: String!, id: ID!, name: String!): Boolean!
+  updateMailSearch(id: ID!, input: MailSearchInput!): Boolean!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
@@ -1573,6 +1622,10 @@ type Query {
     state: String
     unread: Boolean
   ): MailPage!
+
+  """A page of the mails of a search folder, latest first."""
+  mailSearchResults(id: ID!, page: Int!): MailSearchPage!
+  mailSearches: [MailSearch!]!
 
   """Ids of the tasks matching a filter, in manual order."""
   matchingTaskIds(query: TaskQueryInput!): [ID!]!

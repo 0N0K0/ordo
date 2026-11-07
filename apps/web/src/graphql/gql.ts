@@ -178,6 +178,11 @@ type Documents = {
     "\n  mutation ScheduleMail($input: SendMailInput!, $sendAt: DateTime!) {\n    scheduleMail(input: $input, sendAt: $sendAt)\n  }\n": typeof types.ScheduleMailDocument,
     "\n  mutation SendScheduledMail($id: ID!) {\n    sendScheduledMail(id: $id)\n  }\n": typeof types.SendScheduledMailDocument,
     "\n  mutation CancelScheduledMail($id: ID!) {\n    cancelScheduledMail(id: $id)\n  }\n": typeof types.CancelScheduledMailDocument,
+    "\n  query MailSearches {\n    mailSearches {\n      id\n      name\n      criteria\n      position\n    }\n  }\n": typeof types.MailSearchesDocument,
+    "\n  query MailSearchResults($id: ID!, $page: Int!) {\n    mailSearchResults(id: $id, page: $page) {\n      total\n      pageSize\n      messages {\n        accountId\n        folder\n        folderName\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n        labelIds\n        done\n      }\n    }\n  }\n": typeof types.MailSearchResultsDocument,
+    "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": typeof types.CreateMailSearchDocument,
+    "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": typeof types.UpdateMailSearchDocument,
+    "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": typeof types.DeleteMailSearchDocument,
     "\n  fragment ContributorFields on Contributor {\n    id\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n  }\n": typeof types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
@@ -466,6 +471,11 @@ const documents: Documents = {
     "\n  mutation ScheduleMail($input: SendMailInput!, $sendAt: DateTime!) {\n    scheduleMail(input: $input, sendAt: $sendAt)\n  }\n": types.ScheduleMailDocument,
     "\n  mutation SendScheduledMail($id: ID!) {\n    sendScheduledMail(id: $id)\n  }\n": types.SendScheduledMailDocument,
     "\n  mutation CancelScheduledMail($id: ID!) {\n    cancelScheduledMail(id: $id)\n  }\n": types.CancelScheduledMailDocument,
+    "\n  query MailSearches {\n    mailSearches {\n      id\n      name\n      criteria\n      position\n    }\n  }\n": types.MailSearchesDocument,
+    "\n  query MailSearchResults($id: ID!, $page: Int!) {\n    mailSearchResults(id: $id, page: $page) {\n      total\n      pageSize\n      messages {\n        accountId\n        folder\n        folderName\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n        labelIds\n        done\n      }\n    }\n  }\n": types.MailSearchResultsDocument,
+    "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": types.CreateMailSearchDocument,
+    "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": types.UpdateMailSearchDocument,
+    "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": types.DeleteMailSearchDocument,
     "\n  fragment ContributorFields on Contributor {\n    id\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n  }\n": types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
@@ -1243,6 +1253,26 @@ export function graphql(source: "\n  mutation SendScheduledMail($id: ID!) {\n   
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CancelScheduledMail($id: ID!) {\n    cancelScheduledMail(id: $id)\n  }\n"): typeof import('./graphql').CancelScheduledMailDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MailSearches {\n    mailSearches {\n      id\n      name\n      criteria\n      position\n    }\n  }\n"): typeof import('./graphql').MailSearchesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MailSearchResults($id: ID!, $page: Int!) {\n    mailSearchResults(id: $id, page: $page) {\n      total\n      pageSize\n      messages {\n        accountId\n        folder\n        folderName\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n        labelIds\n        done\n      }\n    }\n  }\n"): typeof import('./graphql').MailSearchResultsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n"): typeof import('./graphql').CreateMailSearchDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateMailSearchDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n"): typeof import('./graphql').DeleteMailSearchDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

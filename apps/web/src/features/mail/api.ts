@@ -9,6 +9,7 @@ import type {
   MailViewFieldsFragment,
   SendMailInput,
 } from '../../graphql/graphql';
+import type { MailSearchInput } from '@ordo/shared';
 import { execute } from '../../lib/graphql-client';
 
 export type MailAccount = MailAccountFieldsFragment;
@@ -415,6 +416,75 @@ const CancelScheduledMailDocument = graphql(`
   }
 `);
 
+const MailSearchesDocument = graphql(`
+  query MailSearches {
+    mailSearches {
+      id
+      name
+      criteria
+      position
+    }
+  }
+`);
+
+const MailSearchResultsDocument = graphql(`
+  query MailSearchResults($id: ID!, $page: Int!) {
+    mailSearchResults(id: $id, page: $page) {
+      total
+      pageSize
+      messages {
+        accountId
+        folder
+        folderName
+        uid
+        subject
+        from {
+          name
+          address
+        }
+        to {
+          name
+          address
+        }
+        date
+        seen
+        flagged
+        hasAttachments
+        labelIds
+        done
+      }
+    }
+  }
+`);
+
+const CreateMailSearchDocument = graphql(`
+  mutation CreateMailSearch($input: MailSearchInput!) {
+    createMailSearch(input: $input)
+  }
+`);
+
+const UpdateMailSearchDocument = graphql(`
+  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {
+    updateMailSearch(id: $id, input: $input)
+  }
+`);
+
+const DeleteMailSearchDocument = graphql(`
+  mutation DeleteMailSearch($id: ID!) {
+    deleteMailSearch(id: $id)
+  }
+`);
+
+export type MailSearch = Awaited<ReturnType<typeof fetchSearches>>[number];
+
+/**
+ * Search folders.
+ * @returns {Promise<object[]>} Searches, in order.
+ */
+async function fetchSearches() {
+  return (await execute(MailSearchesDocument)).mailSearches;
+}
+
 export type MailLabel = Awaited<ReturnType<typeof fetchLabels>>[number];
 export type ScheduledMail = Awaited<ReturnType<typeof fetchScheduled>>[number];
 
@@ -435,6 +505,42 @@ async function fetchScheduled() {
 }
 
 export const mailQueryKey = ['mail'] as const;
+
+/**
+ * Search folders.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useMailSearches() {
+  return useQuery({ queryKey: [...mailQueryKey, 'searches'], queryFn: fetchSearches });
+}
+
+/**
+ * A page of the mails of a search folder (refreshed every two minutes).
+ * @param {{ id: string, page: number } | null} params Search and page; null when none is open.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useMailSearchResults(params: { id: string; page: number } | null) {
+  return useQuery({
+    queryKey: [...mailQueryKey, 'search-results', params],
+    queryFn: async () => (await execute(MailSearchResultsDocument, params!)).mailSearchResults,
+    enabled: params !== null,
+    placeholderData: keepPreviousData,
+    refetchInterval: 120_000,
+    retry: false,
+  });
+}
+
+/**
+ * Search folders: create, update, delete.
+ * @returns {object} Mutations.
+ */
+export function useMailSearchMutations() {
+  return {
+    create: useMailMutation(async (input: MailSearchInput) => (await execute(CreateMailSearchDocument, { input })).createMailSearch),
+    update: useMailMutation(async (variables: { id: string; input: MailSearchInput }) => (await execute(UpdateMailSearchDocument, variables)).updateMailSearch),
+    remove: useMailMutation(async (id: string) => (await execute(DeleteMailSearchDocument, { id })).deleteMailSearch),
+  };
+}
 
 /**
  * Flags of mails.

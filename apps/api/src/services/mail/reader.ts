@@ -182,6 +182,33 @@ export async function unreadInboxes(): Promise<number> {
   return counts.reduce((sum, count) => sum + count, 0);
 }
 
+/** Fields fetched for a summary of a message. */
+export const SUMMARY_FETCH = { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true } as const;
+
+/**
+ * Summary of a fetched message, with its flags and done state: its IMAP keywords, or the marks kept in Ordo.
+ * @param {FetchMessageObject} message Message fetched with SUMMARY_FETCH.
+ * @param {boolean} keywords Whether its folder takes keywords.
+ * @param {ReadonlyMap<string, { labelIds: string[], done: boolean }>} marks Marks kept in Ordo, by Message-ID.
+ * @returns {MailSummary} Summary.
+ */
+export function toSummary(message: FetchMessageObject, keywords: boolean, marks: ReadonlyMap<string, { labelIds: string[]; done: boolean }>): MailSummary {
+  const flags = [...(message.flags ?? [])];
+  const mark = keywords ? null : marks.get(bareMessageId(message.envelope?.messageId) ?? '');
+  return {
+    labelIds: keywords ? flags.map(keywordLabel).filter((id): id is string => id !== null) : (mark?.labelIds ?? []),
+    done: keywords ? flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) : (mark?.done ?? false),
+    uid: message.uid,
+    subject: message.envelope?.subject || '(sans objet)',
+    from: envelopeAddresses(message.envelope?.from),
+    to: envelopeAddresses(message.envelope?.to),
+    date: new Date(message.envelope?.date ?? message.internalDate ?? Date.now()),
+    seen: message.flags?.has('\\Seen') ?? false,
+    flagged: message.flags?.has('\\Flagged') ?? false,
+    hasAttachments: hasAttachment(message.bodyStructure),
+  };
+}
+
 /**
  * A page of a folder, latest first, optionally filtered by a text search (subject, sender, body), to the
  * unread messages and on the done state; with the flags and done state of each mail (IMAP keywords, or marks
@@ -231,25 +258,10 @@ export async function listMessages(
       const messages: MailSummary[] = [];
       const fetched: AsyncGenerator<FetchMessageObject, false | void> = client.fetch(
         pageUids,
-        { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true },
+        SUMMARY_FETCH,
         { uid: true },
       );
-      for await (const message of fetched) {
-        const flags = [...(message.flags ?? [])];
-        const mark = keywords ? null : marks.get(bareMessageId(message.envelope?.messageId) ?? '');
-        messages.push({
-          labelIds: keywords ? flags.map(keywordLabel).filter((id): id is string => id !== null) : (mark?.labelIds ?? []),
-          done: keywords ? flags.some((flag) => flag.toLowerCase() === DONE_KEYWORD.toLowerCase()) : (mark?.done ?? false),
-          uid: message.uid,
-          subject: message.envelope?.subject || '(sans objet)',
-          from: envelopeAddresses(message.envelope?.from),
-          to: envelopeAddresses(message.envelope?.to),
-          date: new Date(message.envelope?.date ?? message.internalDate ?? Date.now()),
-          seen: message.flags?.has('\\Seen') ?? false,
-          flagged: message.flags?.has('\\Flagged') ?? false,
-          hasAttachments: hasAttachment(message.bodyStructure),
-        });
-      }
+      for await (const message of fetched) messages.push(toSummary(message, keywords, marks));
       messages.sort((a, b) => b.uid - a.uid);
       return { messages, total: uids.length };
     } finally {
