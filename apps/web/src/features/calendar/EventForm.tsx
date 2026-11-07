@@ -423,7 +423,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
             data={categoryOptions(categories ?? [])}
             searchable
             clearable
-            nothingFoundMessage="Créez des catégories dans Paramètres › Agenda"
+            nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"
             {...form.getInputProps('categoryIds')}
           />
           <MultiSelect
