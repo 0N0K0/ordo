@@ -1,6 +1,6 @@
 import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Modal, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, TagSimpleIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -8,7 +8,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
-import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod } from './api';
+import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from './api';
 import { confirmDeletion } from './confirm-deletion';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -37,7 +37,9 @@ export function TeamMembers() {
     .filter((member) => !context || contributorById.has(member.id))
     .map((member) => ({ ...member, ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}) }));
   const memberIds = new Set(members.map((member) => member.id));
-  const others = (context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id));
+  // A relation is not a member too.
+  const relationContributors = new Set((settings?.treasuryRelations ?? []).map((relation) => relation.contributorId));
+  const others = (context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id) && !relationContributors.has(contributor.id));
   const onError = (error: Error) => notifyError(error.message);
   const team = perso ? 'Foyer' : 'Équipe';
 
@@ -380,5 +382,161 @@ export function TeamPanel() {
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
       <Contexts />
     </SimpleGrid>
+  );
+}
+
+/**
+ * Relation form: name and note.
+ * @param {{ relation?: TreasuryRelation, onDone: (createdId?: string) => void }} props Component props; the form closes with the id of the relation created.
+ * @returns {JSX.Element} Form.
+ */
+export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation; onDone: (createdId?: string) => void }) {
+  const { saveRelation } = useTreasuryTeamMutations();
+  const { data: settings } = useTreasurySettings();
+  const { context } = useTaskContext();
+  const form = useAppForm<{ name: string; note: string | null; contributorId: string | null }>({
+    initialValues: { name: relation?.name ?? '', note: relation?.note ?? null, contributorId: relation?.contributorId ?? null },
+    schema: treasuryRelationSchema,
+  });
+  // Contributors that are no member nor another relation already.
+  const members = new Set((settings?.treasuryMembers ?? []).map((member) => member.id));
+  const taken = new Set((settings?.treasuryRelations ?? []).filter((item) => item.id !== relation?.id).map((item) => item.contributorId));
+  const contributors = (context?.contributors ?? []).filter((contributor) => !members.has(contributor.id) && !taken.has(contributor.id));
+  return (
+    <form
+      noValidate
+      onSubmit={form.onSubmit((input) =>
+        saveRelation.mutate(
+          { id: relation?.id ?? null, input: { name: input.name, note: input.note || null, contributorId: input.contributorId ?? null } },
+          {
+            onSuccess: (id) => {
+              notifySuccess(relation ? 'Relation modifiée.' : 'Relation ajoutée.');
+              onDone(relation ? undefined : id);
+            },
+            onError: (error) => showFormError(form, error),
+          },
+        ),
+      )}
+    >
+      <Stack gap="sm">
+        <TextInput label="Nom" required data-autofocus placeholder="Paul, Mamie, Association du quartier…" {...form.getInputProps('name')} />
+        <Select
+          label="Contributeur"
+          description="Si cette personne intervient aussi sur des projets ou des tâches."
+          placeholder="Aucun"
+          clearable
+          searchable
+          data={contributors.map((contributor) => ({ value: contributor.id, label: contributor.name }))}
+          {...form.getInputProps('contributorId')}
+          onChange={(contributorId) => {
+            const chosen = contributors.find((contributor) => contributor.id === contributorId);
+            // Without a name yet, it takes the contributor's.
+            form.setValues({ contributorId, ...(chosen && !form.values.name.trim() ? { name: chosen.name } : {}) });
+          }}
+        />
+        <TextInput label="Note" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => onDone()}>
+            Annuler
+          </Button>
+          <Button type="submit" loading={saveRelation.isPending}>
+            Enregistrer
+          </Button>
+        </Group>
+      </Stack>
+    </form>
+  );
+}
+
+/**
+ * Relations: people out of the team or household (friends, family, partners…) lines and budgets can be for, to
+ * follow loans, gifts… One may also be a contributor (not a member); organizations stay counterparties.
+ * @returns {JSX.Element} Section.
+ */
+export function TeamRelations() {
+  const { data: settings } = useTreasurySettings();
+  const { deleteRelation } = useTreasuryTeamMutations();
+  const [editing, setEditing] = useState<{ relation?: TreasuryRelation } | null>(null);
+  const { context } = useTaskContext();
+  const contributorName = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.name]));
+  const relations = settings?.treasuryRelations ?? [];
+  const uses = (relation: TreasuryRelation) =>
+    [relation.lineCount ? `${relation.lineCount} ligne${relation.lineCount > 1 ? 's' : ''}` : '', relation.budgetCount ? `${relation.budgetCount} budget${relation.budgetCount > 1 ? 's' : ''}` : '']
+      .filter(Boolean)
+      .join(', ');
+
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Group justify="space-between" mb="xs">
+        <Title order={3} size="h5">
+          Relations
+        </Title>
+        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
+          Relation
+        </Button>
+      </Group>
+      <Text size="xs" c="dimmed" mb="xs">
+        Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers.
+      </Text>
+      {relations.length === 0 ? (
+        <Text size="sm" c="dimmed" py="xs">
+          Aucune relation.
+        </Text>
+      ) : (
+        <Table verticalSpacing={4}>
+          <Table.Tbody>
+            {relations.map((relation) => (
+              <Table.Tr key={relation.id}>
+                <Table.Td>
+                  <Group gap={6}>
+                    <Text size="sm">{relation.name}</Text>
+                    {relation.contributorId && (
+                      <Badge size="xs" variant="light" color="gray">
+                        Contributeur
+                        {contributorName.get(relation.contributorId) && contributorName.get(relation.contributorId) !== relation.name ? ` · ${contributorName.get(relation.contributorId)}` : ''}
+                      </Badge>
+                    )}
+                  </Group>
+                  {relation.note && (
+                    <Text size="xs" c="dimmed">
+                      {relation.note}
+                    </Text>
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs" c="dimmed">
+                    {uses(relation)}
+                  </Text>
+                </Table.Td>
+                <Table.Td w={1}>
+                  <Group gap={2} wrap="nowrap">
+                    <Button size="compact-xs" variant="subtle" onClick={() => setEditing({ relation })}>
+                      Modifier
+                    </Button>
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      color="red"
+                      onClick={() =>
+                        confirmDeletion(
+                          'Supprimer la relation',
+                          `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
+                          () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: (error) => notifyError(error.message) }),
+                        )
+                      }
+                    >
+                      Supprimer
+                    </Button>
+                  </Group>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
+      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing?.relation ? 'Modifier la relation' : 'Nouvelle relation'}>
+        {editing && <RelationForm relation={editing.relation} onDone={() => setEditing(null)} />}
+      </Modal>
+    </Paper>
   );
 }

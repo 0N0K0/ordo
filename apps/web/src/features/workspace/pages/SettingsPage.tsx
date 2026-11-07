@@ -7,7 +7,7 @@ import { GithubSettings } from "../../github/GithubSettings";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
 import { TaskSettings } from "../../tasks/settings/TaskSettings";
-import { TeamMembers } from "../../treasury/TeamPanel";
+import { TeamMembers, TeamRelations } from "../../treasury/TeamPanel";
 import { useActiveWorkspace } from "../../workspaces/api";
 import { WorkspacesManager } from "../../workspaces/WorkspacesManager";
 import {
@@ -22,7 +22,7 @@ import {
 } from "../api";
 
 /**
- * Settings, in tabs: projects (statuses, categories), team or household and contributors, tasks (statuses,
+ * Settings, in tabs: projects (statuses, categories), team or household, contributors and relations, tasks (statuses,
  * priorities, types), GitHub, company (not in a personal workspace) and the workspaces. The tab is kept in the URL (?tab=). The settings of
  * the document tracking, the calendar and the mail accounts are in their own views (old links lead there).
  * @returns {JSX.Element} Page.
@@ -137,6 +137,7 @@ export function SettingsPage() {
               contributors={taskData?.contributors ?? []}
               usage={assigneeUsage}
             />
+            <TeamRelations />
           </Stack>
         </Tabs.Panel>
         <Tabs.Panel value="company">

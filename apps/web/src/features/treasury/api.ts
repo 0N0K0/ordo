@@ -27,6 +27,7 @@ export type TreasuryPaymentMethod = TreasurySettingsQuery['treasuryPaymentMethod
 export type TreasuryCounterparty = TreasurySettingsQuery['treasuryCounterparties'][number];
 export type TreasuryMember = TreasurySettingsQuery['treasuryMembers'][number];
 export type TreasuryContext = TreasurySettingsQuery['treasuryContexts'][number];
+export type TreasuryRelation = TreasurySettingsQuery['treasuryRelations'][number];
 export type TreasuryContextPeriod = TreasurySettingsQuery['treasuryContextPeriods'][number];
 export type TreasuryEntryLine = TreasuryEntry['lines'][number];
 export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
@@ -67,6 +68,7 @@ graphql(`
       mode
       value
       memberId
+      relationId
       categoryId
       contextId
       projectId
@@ -224,6 +226,14 @@ const SettingsDocument = graphql(`
       name
       color
       position
+    }
+    treasuryRelations {
+      id
+      name
+      note
+      contributorId
+      lineCount
+      budgetCount
     }
     treasuryContextPeriods {
       id
@@ -474,6 +484,18 @@ const RemoveMember = graphql(`
   }
 `);
 
+const SaveRelation = graphql(`
+  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {
+    saveTreasuryRelation(id: $id, input: $input)
+  }
+`);
+
+const DeleteRelation = graphql(`
+  mutation DeleteTreasuryRelation($id: ID!) {
+    deleteTreasuryRelation(id: $id)
+  }
+`);
+
 const SaveContext = graphql(`
   mutation SaveTreasuryContext($id: ID, $input: TreasuryContextInput!) {
     saveTreasuryContext(id: $id, input: $input)
@@ -499,7 +521,7 @@ const DeleteContextPeriod = graphql(`
 `);
 
 /**
- * Members of the team or household, contexts and their planned periods. A member is a contributor: adding one
+ * Members of the team or household, relations, contexts and their planned periods. A member is a contributor: adding one
  * also refreshes the contributors of the tasks and projects.
  * @returns {object} Mutations.
  */
@@ -520,6 +542,8 @@ export function useTreasuryTeamMutations() {
       mutationFn: async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember,
       onSettled: contributorsChanged,
     }),
+    saveRelation: useTreasuryMutation(async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation),
+    deleteRelation: useTreasuryMutation(async (id: string) => (await execute(DeleteRelation, { id })).deleteTreasuryRelation),
     saveContext: useTreasuryMutation(async (variables: { id: string | null; input: { name: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext),
     deleteContext: useTreasuryMutation(async (id: string) => (await execute(DeleteContext, { id })).deleteTreasuryContext),
     saveContextPeriod: useTreasuryMutation(
@@ -536,6 +560,7 @@ const BudgetsDocument = graphql(`
       id
       month
       memberId
+      relationId
       contextId
       categoryId
       amount
@@ -545,6 +570,7 @@ const BudgetsDocument = graphql(`
     treasuryBudgetReport(from: $from, to: $to) {
       month
       memberId
+      relationId
       contextId
       categoryId
       budget
@@ -589,7 +615,16 @@ export function useTreasuryBudgetMutations() {
     save: useTreasuryMutation(
       async (variables: {
         id: string | null;
-        input: { month: string; memberId: string | null; contextId: string | null; categoryId: string; amount: number; repeatEvery: number | null; repeatUntil: string | null };
+        input: {
+          month: string;
+          memberId: string | null;
+          relationId: string | null;
+          contextId: string | null;
+          categoryId: string;
+          amount: number;
+          repeatEvery: number | null;
+          repeatUntil: string | null;
+        };
       }) => (await execute(SaveBudget, variables)).saveTreasuryBudget,
     ),
     remove: useTreasuryMutation(async (id: string) => (await execute(DeleteBudget, { id })).deleteTreasuryBudget),

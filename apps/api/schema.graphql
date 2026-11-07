@@ -1279,6 +1279,11 @@ type Mutation {
   deleteTreasuryCounterparty(id: ID!): Boolean!
   deleteTreasuryEntry(id: ID!): Boolean!
   deleteTreasuryPaymentMethod(id: ID!): Boolean!
+
+  """
+  Deletes a relation: its budgets go with it, its lines become the app user's.
+  """
+  deleteTreasuryRelation(id: ID!): Boolean!
   deleteWorkSchedule(id: ID!): Boolean!
 
   """Deletes a workspace and everything in it (not the last one)."""
@@ -1411,6 +1416,9 @@ type Mutation {
   Plans a context between two days (without id), or changes a period. Lines already saved keep their context.
   """
   saveTreasuryContextPeriod(id: ID, input: TreasuryContextPeriodInput!): ID!
+
+  """Creates a relation (without id) or changes one."""
+  saveTreasuryRelation(id: ID, input: TreasuryRelationInput!): ID!
 
   """Schedules a mail (built now, sent at its time); its draft is removed."""
   scheduleMail(input: SendMailInput!, sendAt: DateTime!): ID!
@@ -1869,6 +1877,9 @@ type Query {
   treasuryPaymentMethods: [TreasuryPaymentMethod!]!
   treasuryProjection(from: Date!, today: Date!, until: Date!): TreasuryProjection!
 
+  """People out of the team or household, by name."""
+  treasuryRelations: [TreasuryRelation!]!
+
   """Unread mails in the inbox of every account."""
   unreadMailCount: Int!
   workSchedules: [WorkSchedule!]!
@@ -2325,6 +2336,7 @@ type TreasuryBudget {
 
   """First month, YYYY-MM."""
   month: String!
+  relationId: ID
 
   """Every n months; none: that month only."""
   repeatEvery: Int
@@ -2341,6 +2353,7 @@ input TreasuryBudgetInput {
 
   """YYYY-MM."""
   month: String!
+  relationId: ID
   repeatEvery: Int
 
   """YYYY-MM."""
@@ -2364,8 +2377,11 @@ type TreasuryBudgetReportRow {
 
   """Signed sum of the forecast movements."""
   forecast: Float!
-  memberId: ID!
+
+  """None for a relation."""
+  memberId: ID
   month: String!
+  relationId: ID
 }
 
 type TreasuryCategory {
@@ -2532,6 +2548,9 @@ type TreasuryEntryLine {
   mode: TreasuryLineMode!
   projectId: ID
 
+  """Relation it is for, instead of a member."""
+  relationId: ID
+
   """Signed amount, or signed percentage of the entry amount."""
   value: Float!
 }
@@ -2554,6 +2573,9 @@ input TreasuryEntryLineInput {
   mode: TreasuryLineMode!
   projectId: ID
   projectResourceIds: [ID!]
+
+  """Relation it is for, instead of a member."""
+  relationId: ID
   value: Float!
 }
 
@@ -2622,6 +2644,26 @@ type TreasuryProjectionItem {
   overdue: Boolean!
   payerName: String
   recurringInvoiceId: ID
+}
+
+"""
+Person out of the team or household (friend, family, partner…) lines and budgets can be for.
+"""
+type TreasuryRelation {
+  budgetCount: Int!
+
+  """Contributor this person also is."""
+  contributorId: ID
+  id: ID!
+  lineCount: Int!
+  name: String!
+  note: String
+}
+
+input TreasuryRelationInput {
+  contributorId: ID
+  name: String!
+  note: String
 }
 
 type User {

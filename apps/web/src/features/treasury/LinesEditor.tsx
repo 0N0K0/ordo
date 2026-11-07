@@ -19,6 +19,8 @@ interface LinesEditorProps {
   errors: Record<string, unknown>;
   /** Opens the creation of a context for a line (it takes the context created). */
   onCreateContext: (index: number) => void;
+  /** Opens the creation of a relation for a line (it is then for it). */
+  onCreateRelation: (index: number) => void;
   /** Entry edited, null for a new one. */
   entryId: string | null;
   projects: { value: string; label: string }[];
@@ -35,7 +37,7 @@ interface LinesEditorProps {
  * @param {LinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function LinesEditor({ lines, onChange, amount, direction, date, settings, errors, onCreateContext, entryId, projects, documentGroups }: LinesEditorProps) {
+export function LinesEditor({ lines, onChange, amount, direction, date, settings, errors, onCreateContext, onCreateRelation, entryId, projects, documentGroups }: LinesEditorProps) {
   // Line whose attachments are edited.
   const [attaching, setAttaching] = useState<number | null>(null);
   const sign = direction === 'IN' ? 1 : -1;
@@ -93,7 +95,11 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   };
 
   const contextOptions = contexts.map((item) => ({ value: item.id, label: item.name }));
-  const memberOptions = members.map((member) => ({ value: member.id, label: member.isMe ? `${member.name} (moi)` : member.name }));
+  // For whom: a member (none: me), or a relation (loan, gift…).
+  const whomOptions = [
+    { group: 'Membres', items: members.map((member) => ({ value: `m:${member.id}`, label: member.isMe ? `${member.name} (moi)` : member.name })) },
+    { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
+  ].filter((group) => group.items.length);
 
   return (
     <Stack gap="xs">
@@ -107,7 +113,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
             <Table.Thead>
               <Table.Tr>
                 <Table.Th w="16%">Libellé</Table.Th>
-                <Table.Th w="15%">Membre</Table.Th>
+                <Table.Th w="17%">Pour</Table.Th>
                 <Table.Th w="20%">Catégorie</Table.Th>
                 <Table.Th w="18%">Contexte</Table.Th>
                 <Table.Th w={84}>Unité</Table.Th>
@@ -139,16 +145,25 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       />
                     </Table.Td>
                     <Table.Td>
-                      <Select
-                        size="xs"
-                        aria-label={`Membre de la ligne ${index + 1}`}
-                        placeholder="Sans membre"
-                        clearable
-                        data={memberOptions}
-                        value={line.memberId}
-                        onChange={(memberId) => change(index, { memberId })}
-                        error={error('memberId')}
-                      />
+                      <Group gap={4} wrap="nowrap">
+                        <Select
+                          size="xs"
+                          style={{ flex: 1, minWidth: 0 }}
+                          aria-label={`Pour qui, ligne ${index + 1}`}
+                          placeholder={me ? `${me.name} (moi)` : 'Moi'}
+                          clearable
+                          searchable
+                          data={whomOptions}
+                          value={line.relationId ? `r:${line.relationId}` : line.memberId ? `m:${line.memberId}` : null}
+                          onChange={(key) => change(index, { memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+                          error={error('memberId') ?? error('relationId')}
+                        />
+                        <Tooltip label="Nouvelle relation (ami, famille…)">
+                          <ActionIcon variant="default" size="input-xs" aria-label={`Nouvelle relation pour la ligne ${index + 1}`} onClick={() => onCreateRelation(index)}>
+                            <PlusIcon aria-hidden />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
                     </Table.Td>
                     <Table.Td>
                       <Select

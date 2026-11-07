@@ -87,6 +87,8 @@ export const treasuryEntryLineSchema = z
     mode: z.enum(TREASURY_LINE_MODES),
     value: z.number({ error: 'Valeur attendue.' }),
     memberId: z.string().nullable(),
+    /** A relation (out of the team or household) instead of a member: loan, gift… */
+    relationId: z.string().nullish(),
     categoryId: z.string().nullable(),
     contextId: z.string().nullable(),
     projectId: z.string().nullish(),
@@ -97,6 +99,7 @@ export const treasuryEntryLineSchema = z
   })
   .superRefine((line, context) => {
     if (line.value === 0) context.addIssue({ code: 'custom', path: ['value'], message: 'La valeur ne peut pas être nulle.' });
+    if (line.memberId && line.relationId) context.addIssue({ code: 'custom', path: ['memberId'], message: 'Un membre ou une relation, pas les deux.' });
     const limit = line.mode === 'PERCENT' ? 1000 : 99_999_999;
     if (Math.abs(line.value) > limit) context.addIssue({ code: 'custom', path: ['value'], message: line.mode === 'PERCENT' ? '1 000 % au plus.' : 'Montant trop grand.' });
   });
@@ -113,6 +116,15 @@ export function splitAmounts(entryAmount: number, lines: readonly { mode: Treasu
   const amounts = lines.map((line) => (line.mode === 'PERCENT' ? Math.round((total * line.value) / 100) : Math.round(line.value * 100)));
   return { amounts, remainder: total - amounts.reduce((sum, value) => sum + value, 0) };
 }
+
+/** Person out of the team or household (friend, family, partner…) a line or a budget can be for. */
+export const treasuryRelationSchema = z.object({
+  name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+  note: optionalText(500),
+  /** Contributor this person also is, if any (not a member). */
+  contributorId: z.string().nullish(),
+});
+export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;
 
 /** Context of spending, not in a tree; a line without context is everyday spending. */
 export const treasuryContextSchema = z.object({
@@ -153,8 +165,10 @@ export const treasuryBudgetSchema = z
   .object({
     /** YYYY-MM. */
     month: monthSchema,
-    /** None: the app user. */
+    /** None: the app user (unless for a relation). */
     memberId: z.string().nullable(),
+    /** A relation (out of the team or household) instead of a member. */
+    relationId: z.string().nullish(),
     /** None: everyday spending. */
     contextId: z.string().nullable(),
     categoryId: z.string({ error: 'La catégorie est requise.' }).min(1, 'La catégorie est requise.'),
@@ -164,7 +178,8 @@ export const treasuryBudgetSchema = z
     /** Last month (YYYY-MM), included; none: no end. */
     repeatUntil: monthSchema.nullable(),
   })
-  .refine((budget) => !budget.repeatUntil || !budget.repeatEvery || budget.repeatUntil >= budget.month, { path: ['repeatUntil'], message: 'La fin précède le début.' });
+  .refine((budget) => !budget.repeatUntil || !budget.repeatEvery || budget.repeatUntil >= budget.month, { path: ['repeatUntil'], message: 'La fin précède le début.' })
+  .refine((budget) => !budget.memberId || !budget.relationId, { path: ['memberId'], message: 'Un membre ou une relation, pas les deux.' });
 export type TreasuryBudgetInput = z.input<typeof treasuryBudgetSchema>;
 
 /**

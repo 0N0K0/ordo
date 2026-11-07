@@ -179,6 +179,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
           entries: entries.data,
           categories: treasurySettings.data.treasuryCategories,
           members: treasurySettings.data.treasuryMembers,
+          relations: treasurySettings.data.treasuryRelations,
           contexts: treasurySettings.data.treasuryContexts,
           periods: treasurySettings.data.treasuryContextPeriods,
           projection: projection.data ?? null,

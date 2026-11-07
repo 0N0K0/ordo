@@ -2,7 +2,7 @@ import { addDays, EVERYDAY_CONTEXT, offsetLinkedMovements, plannedContext, split
 import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
 import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
 import type { TaskContext } from '../tasks/use-task-context';
-import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection } from '../treasury/api';
+import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection, TreasuryRelation } from '../treasury/api';
 import { categoryLineage } from '../treasury/categories';
 import { aggregate, bucketLabel, bucketOf, localDay, nextBucket, none, periodRange, round, type ChartData, type ChartRecord, type Key } from './aggregate';
 
@@ -276,6 +276,8 @@ interface ChartMovement {
   projectId: string | null;
   /** Member of the line (split entries), null when none. */
   memberId: string | null;
+  /** Relation of the line (instead of a member), null when none. */
+  relationId?: string | null;
   /** Context of the line, null for everyday spending. */
   contextId: string | null;
   forecast: boolean;
@@ -291,6 +293,7 @@ interface ChartMovement {
  * @param {TreasuryEntry[]} input.entries Entries of the period.
  * @param {TreasuryCategory[]} input.categories Treasury categories.
  * @param {TreasuryMember[]} input.members Members of the team or household.
+ * @param {TreasuryRelation[]} input.relations Relations (people out of the team or household).
  * @param {TreasuryContext[]} input.contexts Contexts.
  * @param {TreasuryContextPeriod[]} input.periods Planned periods of the contexts.
  * @param {TreasuryProjection | null} input.projection Projection (expected movements and balance).
@@ -305,6 +308,7 @@ export function treasuryChartData({
   entries,
   categories,
   members,
+  relations,
   contexts,
   periods,
   projection,
@@ -317,6 +321,7 @@ export function treasuryChartData({
   entries: TreasuryEntry[];
   categories: TreasuryCategory[];
   members: TreasuryMember[];
+  relations: TreasuryRelation[];
   contexts: TreasuryContext[];
   periods: TreasuryContextPeriod[];
   projection: TreasuryProjection | null;
@@ -364,7 +369,7 @@ export function treasuryChartData({
     const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
     const own: Part[] = entry.lines.map((line, index) => ({
       id: `line:${line.id}`,
-      movement: { ...base, ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, contextId: line.contextId ?? null },
+      movement: { ...base, ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, relationId: line.relationId ?? null, contextId: line.contextId ?? null },
       linkedIds: [...line.linkedLines.map((linked) => `line:${linked.id}`), ...line.linkedEntries.map((linked) => `entry:${linked.id}`)],
     }));
     if (remainder !== 0 || !entry.lines.length) {
@@ -410,6 +415,7 @@ export function treasuryChartData({
   );
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const memberById = new Map(members.map((member) => [member.id, member]));
+  const relationById = new Map(relations.map((relation) => [relation.id, relation]));
   const contextById = new Map(contexts.map((item) => [item.id, item]));
   const records: ChartRecord[] = movements.map((movement) => ({
     day: () => movement.date,
@@ -442,6 +448,8 @@ export function treasuryChartData({
               ]
             : none('Sans projet');
         case 'member': {
+          const relation = movement.relationId ? relationById.get(movement.relationId) : undefined;
+          if (relation) return [{ key: `relation:${relation.id}`, label: relation.name, order: `~${relation.name}` }];
           const member = movement.memberId ? memberById.get(movement.memberId) : undefined;
           return member ? [{ key: member.id, label: member.name, order: member.isMe ? '' : member.name }] : none('Non réparti');
         }

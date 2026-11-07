@@ -11,6 +11,8 @@ export interface LineValues {
   mode: TreasuryLineMode;
   value: number;
   memberId: string | null;
+  /** Relation it is for, instead of a member. */
+  relationId: string | null;
   categoryId: string | null;
   contextId: string | null;
   projectId: string | null;
@@ -52,6 +54,7 @@ export function newLine(fields: Partial<LineValues>): LineValues {
     mode: 'AMOUNT',
     value: 0,
     memberId: null,
+    relationId: null,
     categoryId: null,
     contextId: null,
     projectId: null,
