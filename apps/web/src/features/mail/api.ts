@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useIsFetching, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type {
   LinkedMailFieldsFragment,
@@ -11,6 +11,7 @@ import type {
 } from '../../graphql/graphql';
 import type { MailSearchCriteria, MailSearchInput } from '@ordo/shared';
 import { execute } from '../../lib/graphql-client';
+import { MAIL_CHECK_MS, requestMailCheck } from './mail-check';
 
 export type MailAccount = MailAccountFieldsFragment;
 export type MailView = MailViewFieldsFragment;
@@ -558,7 +559,7 @@ export function useMailSearches() {
 }
 
 /**
- * A page of the mails of a search folder, or of an advanced search (refreshed every two minutes).
+ * A page of the mails of a search folder, or of an advanced search (fetched every 10 minutes).
  * @param {object | null} params Search (or criteria) and page; null when none is open.
  * @returns {UseQueryResult} Query state.
  */
@@ -571,7 +572,7 @@ export function useMailSearchResults(params: { id: string; page: number } | { cr
         : (await execute(MailSearchResultsDocument, params as { id: string; page: number })).mailSearchResults,
     enabled: params !== null,
     placeholderData: keepPreviousData,
-    refetchInterval: 120_000,
+    refetchInterval: MAIL_CHECK_MS,
     retry: false,
   });
 }
@@ -616,7 +617,7 @@ export function useMailAccounts() {
 }
 
 /**
- * Folders of an account, with their unread counts (refreshed every two minutes).
+ * Folders of an account, with their unread counts (fetched every 10 minutes).
  * @param {string | null} accountId Account.
  * @returns {UseQueryResult} Query state.
  */
@@ -625,13 +626,13 @@ export function useMailFolders(accountId: string | null) {
     queryKey: [...mailQueryKey, 'folders', accountId],
     queryFn: async () => (await execute(MailFoldersDocument, { accountId: accountId! })).mailFolders,
     enabled: accountId !== null,
-    refetchInterval: 120_000,
+    refetchInterval: MAIL_CHECK_MS,
     retry: false,
   });
 }
 
 /**
- * A page of a folder, latest first (refreshed every minute).
+ * A page of a folder, latest first (fetched every 10 minutes).
  * @param {object | null} params Account, folder, page and search; null when nothing is selected.
  * @returns {UseQueryResult} Query state.
  */
@@ -643,13 +644,13 @@ export function useMailMessages(
     queryFn: async () => (await execute(MailMessagesDocument, params!)).mailMessages,
     enabled: params !== null,
     placeholderData: keepPreviousData,
-    refetchInterval: 60_000,
+    refetchInterval: MAIL_CHECK_MS,
     retry: false,
   });
 }
 
 /**
- * Unread mails of the inbox of every account, latest first (refreshed every two minutes).
+ * Unread mails of the inbox of every account, latest first (fetched every 10 minutes).
  * @param {string[]} accountIds Accounts.
  * @returns {{ data: { accountId: string, message: object }[] | undefined, isPending: boolean, error: Error | null }} Mails, loading state and first error.
  */
@@ -658,7 +659,7 @@ export function useUnreadMails(accountIds: string[]) {
     queries: accountIds.map((accountId) => ({
       queryKey: [...mailQueryKey, 'unread-messages', accountId],
       queryFn: async () => (await execute(MailMessagesDocument, { accountId, folder: 'INBOX', page: 0, search: '', unread: true })).mailMessages,
-      refetchInterval: 120_000,
+      refetchInterval: MAIL_CHECK_MS,
       retry: false,
     })),
     combine: (results) => ({
@@ -690,7 +691,7 @@ export function useMailMessage(params: { accountId: string; folder: string; uid:
 }
 
 /**
- * Unread mails in every inbox, for the sidebar (refreshed every two minutes).
+ * Unread mails in every inbox, for the sidebar (fetched every 10 minutes).
  * @param {boolean} enabled Whether accounts exist.
  * @returns {UseQueryResult} Query state.
  */
@@ -699,14 +700,14 @@ export function useUnreadMailCount(enabled: boolean) {
     queryKey: [...mailQueryKey, 'unread'],
     queryFn: async () => (await execute(UnreadMailCountDocument)).unreadMailCount,
     enabled,
-    refetchInterval: 120_000,
+    refetchInterval: MAIL_CHECK_MS,
     retry: false,
   });
 }
 
 /**
  * Mails to do in every account (every folder but drafts, sent, archive, junk and trash), for the sidebar
- * (refreshed every two minutes).
+ * (fetched every 10 minutes).
  * @param {boolean} enabled Whether accounts exist.
  * @returns {UseQueryResult} Query state.
  */
@@ -715,7 +716,7 @@ export function useTodoMailCount(enabled: boolean) {
     queryKey: [...mailQueryKey, 'todo'],
     queryFn: async () => (await execute(TodoMailCountDocument)).todoMailCount,
     enabled,
-    refetchInterval: 120_000,
+    refetchInterval: MAIL_CHECK_MS,
     retry: false,
   });
 }
@@ -834,5 +835,21 @@ export function useMailLabelMutations() {
     create: useMailMutation(async (variables: { name: string; color: string }) => (await execute(CreateMailLabelDocument, variables)).createMailLabel),
     update: useMailMutation(async (variables: { id: string; name: string; color: string }) => (await execute(UpdateMailLabelDocument, variables)).updateMailLabel),
     remove: useMailMutation(async (id: string) => (await execute(DeleteMailLabelDocument, { id })).deleteMailLabel),
+  };
+}
+
+/**
+ * Fetches the mails now ("Relever"): the mail views reload (folders, lists, counts) and the new mails are announced.
+ * @returns {{ refresh: () => void, fetching: boolean }} Fetch, and whether mails are being fetched.
+ */
+export function useMailRefresh() {
+  const queryClient = useQueryClient();
+  const fetching = useIsFetching({ queryKey: mailQueryKey }) > 0;
+  return {
+    refresh: () => {
+      requestMailCheck();
+      void queryClient.invalidateQueries({ queryKey: mailQueryKey });
+    },
+    fetching,
   };
 }

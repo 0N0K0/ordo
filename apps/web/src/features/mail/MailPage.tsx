@@ -1,11 +1,11 @@
 import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
-import { CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, GearSixIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, GearSixIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
-import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from './api';
+import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useMailRefresh, useScheduledMails } from './api';
 import { AccountFolders, type DraggedMails } from './MailFolders';
 import { correspondent, listDate } from './mail-format';
 import { MailLabelsManager } from './MailLabelsManager';
@@ -88,6 +88,7 @@ export function MailPage() {
   const [managingLabels, setManagingLabels] = useState(false);
   // Management of the mail accounts, opened from the URL too (?accounts=1).
   const accountsOpen = params.get('accounts') === '1';
+  const { refresh, fetching } = useMailRefresh();
   const selectedMessages = (messages.data?.messages ?? []).filter((message) => selected.includes(message.uid));
 
   /**
@@ -141,6 +142,11 @@ export function MailPage() {
           Mails
         </Title>
         <Group gap="sm">
+          <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
+            <Button variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
+              Relever
+            </Button>
+          </Tooltip>
           <Tooltip label="Ajouter, modifier ou retirer une boîte mail">
             <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => update({ accounts: '1' })}>
               Boîtes mail

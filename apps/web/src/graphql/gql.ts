@@ -150,6 +150,8 @@ type Documents = {
     "\n  mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {\n    updateLibraryDocument(id: $id, title: $title, url: $url, note: $note, file: $file)\n  }\n": typeof types.UpdateLibraryDocumentDocument,
     "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n": typeof types.MoveLibraryDocumentsDocument,
     "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": typeof types.DeleteLibraryDocumentsDocument,
+    "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": typeof types.WatchedMailAccountsDocument,
+    "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": typeof types.WatchedUnreadMailsDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": typeof types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    labelIds\n    done\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": typeof types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": typeof types.LinkedMailFieldsFragmentDoc,
@@ -330,8 +332,6 @@ type Documents = {
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": typeof types.MoveProjectStatusDocument,
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
-    "\n  query ElsewhereMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": typeof types.ElsewhereMailAccountsDocument,
-    "\n  query ElsewhereUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": typeof types.ElsewhereUnreadMailsDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n    }\n    currentWorkspaceId\n  }\n": typeof types.WorkspacesDocument,
     "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateWorkspaceDocument,
     "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
@@ -476,6 +476,8 @@ const documents: Documents = {
     "\n  mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {\n    updateLibraryDocument(id: $id, title: $title, url: $url, note: $note, file: $file)\n  }\n": types.UpdateLibraryDocumentDocument,
     "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n": types.MoveLibraryDocumentsDocument,
     "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": types.DeleteLibraryDocumentsDocument,
+    "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": types.WatchedMailAccountsDocument,
+    "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": types.WatchedUnreadMailsDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    labelIds\n    done\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": types.LinkedMailFieldsFragmentDoc,
@@ -656,8 +658,6 @@ const documents: Documents = {
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": types.MoveProjectStatusDocument,
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
-    "\n  query ElsewhereMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": types.ElsewhereMailAccountsDocument,
-    "\n  query ElsewhereUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": types.ElsewhereUnreadMailsDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n    }\n    currentWorkspaceId\n  }\n": types.WorkspacesDocument,
     "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": types.CreateWorkspaceDocument,
     "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateWorkspaceDocument,
@@ -1207,6 +1207,14 @@ export function graphql(source: "\n  mutation MoveLibraryDocuments($ids: [ID!]!,
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n"): typeof import('./graphql').DeleteLibraryDocumentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n"): typeof import('./graphql').WatchedMailAccountsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n"): typeof import('./graphql').WatchedUnreadMailsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1927,14 +1935,6 @@ export function graphql(source: "\n  query ElsewhereAlarms {\n    alarms {\n    
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n"): typeof import('./graphql').ElsewhereMarkAlarmFiredDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query ElsewhereMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n"): typeof import('./graphql').ElsewhereMailAccountsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query ElsewhereUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n"): typeof import('./graphql').ElsewhereUnreadMailsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

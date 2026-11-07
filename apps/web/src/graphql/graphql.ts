@@ -1753,6 +1753,18 @@ export type DeleteLibraryDocumentsMutationVariables = Exact<{
 
 export type DeleteLibraryDocumentsMutation = { deleteLibraryDocuments: boolean };
 
+export type WatchedMailAccountsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type WatchedMailAccountsQuery = { mailAccounts: Array<{ id: string }> };
+
+export type WatchedUnreadMailsQueryVariables = Exact<{
+  accountId: string | number;
+}>;
+
+
+export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
+
 export type MailAccountFieldsFragment = { id: string, name: string, email: string, displayName: string | null, imapHost: string, imapPort: number, imapSecure: boolean, imapUser: string, smtpHost: string, smtpPort: number, smtpSecure: boolean, smtpUser: string, saveSent: boolean, signature: string | null };
 
 export type MailViewFieldsFragment = { accountId: string, folder: string, uid: number, labelIds: Array<string>, done: boolean, messageId: string | null, inReplyTo: string | null, references: Array<string>, subject: string, date: string, html: string | null, text: string | null, linkedProjectIds: Array<string>, from: Array<{ name: string | null, address: string }>, to: Array<{ name: string | null, address: string }>, cc: Array<{ name: string | null, address: string }>, replyTo: Array<{ name: string | null, address: string }>, attachments: Array<{ index: number, filename: string, contentType: string, size: number, inline: boolean }> };
@@ -3021,18 +3033,6 @@ export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
 
 
 export type ElsewhereMarkAlarmFiredMutation = { markAlarmFired: boolean };
-
-export type ElsewhereMailAccountsQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type ElsewhereMailAccountsQuery = { mailAccounts: Array<{ id: string }> };
-
-export type ElsewhereUnreadMailsQueryVariables = Exact<{
-  accountId: string | number;
-}>;
-
-
-export type ElsewhereUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
 
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4968,6 +4968,27 @@ export const DeleteLibraryDocumentsDocument = new TypedDocumentString(`
   deleteLibraryDocuments(ids: $ids)
 }
     `) as unknown as TypedDocumentString<DeleteLibraryDocumentsMutation, DeleteLibraryDocumentsMutationVariables>;
+export const WatchedMailAccountsDocument = new TypedDocumentString(`
+    query WatchedMailAccounts {
+  mailAccounts {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<WatchedMailAccountsQuery, WatchedMailAccountsQueryVariables>;
+export const WatchedUnreadMailsDocument = new TypedDocumentString(`
+    query WatchedUnreadMails($accountId: ID!) {
+  mailMessages(accountId: $accountId, folder: "INBOX", page: 0, unread: true) {
+    messages {
+      uid
+      subject
+      from {
+        name
+        address
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
 export const MailAccountsDocument = new TypedDocumentString(`
     query MailAccounts {
   mailAccounts {
@@ -6883,27 +6904,6 @@ export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
   markAlarmFired(id: $id, at: $at)
 }
     `) as unknown as TypedDocumentString<ElsewhereMarkAlarmFiredMutation, ElsewhereMarkAlarmFiredMutationVariables>;
-export const ElsewhereMailAccountsDocument = new TypedDocumentString(`
-    query ElsewhereMailAccounts {
-  mailAccounts {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<ElsewhereMailAccountsQuery, ElsewhereMailAccountsQueryVariables>;
-export const ElsewhereUnreadMailsDocument = new TypedDocumentString(`
-    query ElsewhereUnreadMails($accountId: ID!) {
-  mailMessages(accountId: $accountId, folder: "INBOX", page: 0, unread: true) {
-    messages {
-      uid
-      subject
-      from {
-        name
-        address
-      }
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<ElsewhereUnreadMailsQuery, ElsewhereUnreadMailsQueryVariables>;
 export const WorkspacesDocument = new TypedDocumentString(`
     query Workspaces {
   workspaces {
