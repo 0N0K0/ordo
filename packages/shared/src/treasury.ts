@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { recurrenceSchema } from './recurrence';
+import { colorSchema } from './workspace';
 
 export const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
 export type DocumentStatusScope = (typeof DOCUMENT_STATUS_SCOPES)[number];
@@ -70,6 +71,81 @@ export type TreasuryPaymentMethodInput = z.input<typeof treasuryPaymentMethodSch
 export const treasuryCounterpartySchema = z.object({ name, note: optionalText(2000), archived: z.boolean() });
 export type TreasuryCounterpartyInput = z.input<typeof treasuryCounterpartySchema>;
 
+export const TREASURY_LINE_MODES = ['AMOUNT', 'PERCENT'] as const;
+export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
+
+/**
+ * Part of an entry: a signed amount, or a signed percentage of the entry amount; for a member, in a category and a
+ * context, for a project, with its supporting documents and its links (lines of other entries, or whole entries
+ * without lines).
+ */
+export const treasuryEntryLineSchema = z
+  .object({
+    /** Line kept (its links from other entries stay); none for a new line. */
+    id: z.string().nullish(),
+    label: optionalText(200),
+    mode: z.enum(TREASURY_LINE_MODES),
+    value: z.number({ error: 'Valeur attendue.' }),
+    memberId: z.string().nullable(),
+    categoryId: z.string().nullable(),
+    contextId: z.string().nullable(),
+    projectId: z.string().nullish(),
+    libraryDocumentIds: z.array(z.string()).max(50, '50 documents maximum.').default([]),
+    projectResourceIds: z.array(z.string()).max(50, '50 documents maximum.').default([]),
+    linkedLineIds: z.array(z.string()).max(50, '50 liens maximum.').default([]),
+    linkedEntryIds: z.array(z.string()).max(50, '50 liens maximum.').default([]),
+  })
+  .superRefine((line, context) => {
+    if (line.value === 0) context.addIssue({ code: 'custom', path: ['value'], message: 'La valeur ne peut pas être nulle.' });
+    const limit = line.mode === 'PERCENT' ? 1000 : 99_999_999;
+    if (Math.abs(line.value) > limit) context.addIssue({ code: 'custom', path: ['value'], message: line.mode === 'PERCENT' ? '1 000 % au plus.' : 'Montant trop grand.' });
+  });
+export type TreasuryEntryLineInput = z.input<typeof treasuryEntryLineSchema>;
+
+/**
+ * Amounts of the lines of an entry, and what they leave ("not split"): a percentage is of the entry amount.
+ * @param {number} entryAmount Signed amount of the entry.
+ * @param {readonly { mode: TreasuryLineMode, value: number }[]} lines Lines.
+ * @returns {{ amounts: number[], remainder: number }} Signed amounts of the lines and remainder, in cents.
+ */
+export function splitAmounts(entryAmount: number, lines: readonly { mode: TreasuryLineMode; value: number }[]): { amounts: number[]; remainder: number } {
+  const total = Math.round(entryAmount * 100);
+  const amounts = lines.map((line) => (line.mode === 'PERCENT' ? Math.round((total * line.value) / 100) : Math.round(line.value * 100)));
+  return { amounts, remainder: total - amounts.reduce((sum, value) => sum + value, 0) };
+}
+
+/** Context of spending, not in a tree; a line without context is everyday spending. */
+export const treasuryContextSchema = z.object({
+  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+  color: colorSchema,
+});
+
+/** Name of the absence of context: everyday spending. */
+export const EVERYDAY_CONTEXT = 'Quotidien';
+export type TreasuryContextInput = z.input<typeof treasuryContextSchema>;
+
+/** Period a context is planned for (days included). */
+export const treasuryContextPeriodSchema = z
+  .object({
+    contextId: z.string().min(1, 'Le contexte est requis.'),
+    startDate: isoDate,
+    endDate: isoDate,
+    note: optionalText(200),
+  })
+  .refine((period) => period.endDate >= period.startDate, { path: ['endDate'], message: 'La fin précède le début.' });
+export type TreasuryContextPeriodInput = z.input<typeof treasuryContextPeriodSchema>;
+
+/**
+ * Context proposed on a day: the one planned then (the period started last wins when several overlap), or none
+ * (everyday spending).
+ * @param {readonly { contextId: string, startDate: string, endDate: string }[]} periods Planned periods.
+ * @param {string} date Day.
+ * @returns {string | null} Context id.
+ */
+export function plannedContext(periods: readonly { contextId: string; startDate: string; endDate: string }[], date: string): string | null {
+  return periods.filter((period) => period.startDate <= date && date <= period.endDate).sort((a, b) => b.startDate.localeCompare(a.startDate))[0]?.contextId ?? null;
+}
+
 export const treasuryEntrySchema = z
   .object({
     accountId: z.string().min(1, 'Le compte est requis.'),
@@ -95,6 +171,8 @@ export const treasuryEntrySchema = z
     /** Supporting documents: of the library, or of a project. */
     libraryDocumentIds: z.array(z.string()).max(50, '50 documents maximum.'),
     projectResourceIds: z.array(z.string()).max(50, '50 documents maximum.'),
+    /** Split of the amount; what the lines leave is "not split". */
+    lines: z.array(treasuryEntryLineSchema).max(50, '50 lignes maximum.').default([]),
   })
   .superRefine((entry, context) => {
     if (entry.status === 'ACTUAL' && entry.recurrence) {
@@ -105,6 +183,14 @@ export const treasuryEntrySchema = z
     }
     if (entry.clientId && entry.counterpartyId) {
       context.addIssue({ code: 'custom', path: ['counterpartyId'], message: 'Choisissez un client ou un tiers, pas les deux.' });
+    }
+    // A split entry carries its category, project, links and documents on its lines.
+    if (entry.lines.length) {
+      const onLines = 'Décomposé : à préciser sur les lignes.';
+      if (entry.categoryId) context.addIssue({ code: 'custom', path: ['categoryId'], message: onLines });
+      if (entry.projectId) context.addIssue({ code: 'custom', path: ['projectId'], message: onLines });
+      if (entry.linkedEntryIds.length) context.addIssue({ code: 'custom', path: ['linkedEntryIds'], message: onLines });
+      if (entry.libraryDocumentIds.length || entry.projectResourceIds.length) context.addIssue({ code: 'custom', path: ['libraryDocumentIds'], message: onLines });
     }
     const allocated = entry.allocations.reduce((sum, allocation) => sum + Math.round(allocation.amount * 100), 0);
     if (allocated > Math.abs(Math.round(entry.amount * 100))) {

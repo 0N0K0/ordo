@@ -11,7 +11,10 @@ import { useAccountingDocuments, useImportedDocuments } from '../accounting/docu
 import { useWorkspace } from '../workspace/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryEntrySearch, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from './api';
 import { categoryOptions } from './categories';
+import { LinesEditor } from './LinesEditor';
+import { describeLink, newLine, type LineValues } from './lines';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
+import { ContextForm } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -72,6 +75,8 @@ interface EntryValues extends Record<string, unknown> {
   linkedEntryIds: string[];
   libraryDocumentIds: string[];
   projectResourceIds: string[];
+  /** Split of the amount: values relative to the direction (signed when saved). */
+  lines: LineValues[];
 }
 
 interface EntryFormProps {
@@ -93,7 +98,9 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
   const { data: settings } = useTreasurySettings();
   const [search, setSearch] = useState('');
   // Category, method or counterparty created from the form.
-  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | null>(null);
+  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | 'context' | null>(null);
+  // Line a context is created for.
+  const [contextLine, setContextLine] = useState<number | null>(null);
   const { data: found } = useTreasuryEntrySearch(search);
   const { data: documentOptions } = useTreasuryDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: String(item.date) })));
@@ -128,10 +135,40 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       linkedEntryIds: (entry?.linkedEntries ?? []).map((item) => item.id),
       libraryDocumentIds: (entry?.documents ?? []).filter((document) => document.source === 'LIBRARY').map((document) => document.id),
       projectResourceIds: (entry?.documents ?? []).filter((document) => document.source === 'PROJECT').map((document) => document.id),
+      // A stored amount is signed; edited, it is relative to the direction of the entry.
+      lines: (entry?.lines ?? []).map((line) =>
+        newLine({
+          id: line.id,
+          label: line.label ?? null,
+          mode: line.mode,
+          value: line.mode === 'AMOUNT' && (entry?.amount ?? 0) < 0 ? -line.value : line.value,
+          memberId: line.memberId ?? null,
+          categoryId: line.categoryId ?? null,
+          contextId: line.contextId ?? null,
+          projectId: line.projectId ?? null,
+          libraryDocumentIds: line.documents.filter((document) => document.source === 'LIBRARY').map((document) => document.id),
+          projectResourceIds: line.documents.filter((document) => document.source === 'PROJECT').map((document) => document.id),
+          linkedLineIds: line.linkedLines.map((linked) => linked.id),
+          linkedEntryIds: line.linkedEntries.map((linked) => linked.id),
+          links: [
+            ...line.linkedLines.map((linked) => ({
+              kind: 'line' as const,
+              id: linked.id,
+              entryLabel: linked.entryLabel,
+              date: String(linked.date),
+              label: linked.label ?? null,
+              amount: linked.amount,
+            })),
+            ...line.linkedEntries.map((linked) => ({ kind: 'entry' as const, id: linked.id, entryLabel: linked.label, date: String(linked.date), label: null, amount: linked.amount })),
+          ],
+        }),
+      ),
     },
     schema: treasuryEntrySchema,
   });
   const values = form.values;
+  // Split: the category, project, documents and links are on the lines.
+  const split = values.lines.length > 0;
   const incoming = values.direction === 'IN';
   const forecast = values.status === 'FORECAST';
   // Key of the payer select: "client:<id>" or "tiers:<id>".
@@ -153,7 +190,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
   // Supporting documents, grouped by place: the library, then each project (the entry's project first).
   const documentGroups = new Map<string, { value: string; label: string }[]>();
   const documentKey = (document: { source: string; id: string }) => `${document.source === 'LIBRARY' ? 'lib' : 'res'}:${document.id}`;
-  for (const document of [...(documentOptions ?? []), ...(entry?.documents ?? [])].sort(
+  for (const document of [...(documentOptions ?? []), ...(entry?.documents ?? []), ...(entry?.lines ?? []).flatMap((line) => line.documents)].sort(
     (a, b) => Number(b.source === 'LIBRARY') - Number(a.source === 'LIBRARY') || Number(b.projectId === values.projectId) - Number(a.projectId === values.projectId),
   )) {
     const group = document.source === 'LIBRARY' ? `Bibliothèque` : `Projet ${document.place}`;
@@ -164,9 +201,13 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
     documentGroups.set(group, items);
   }
   const selectedDocuments = [...values.libraryDocumentIds.map((id) => `lib:${id}`), ...values.projectResourceIds.map((id) => `res:${id}`)];
-  // Entries found to link: not this one, nor those already linked.
+  const documentData = [...documentGroups].map(([group, items]) => ({ group, items }));
+  // Projects of the entry or of its lines, archived ones only when chosen already.
+  const chosenProjects = new Set([values.projectId, ...values.lines.map((line) => line.projectId)]);
+  const projectOptions = (workspace?.projects ?? []).filter((project) => !project.archived || chosenProjects.has(project.id)).map((project) => ({ value: project.id, label: project.title }));
+  // Entries found to link: not this one, nor those already linked, nor split ones (linked through their lines).
   const linkable = (found ?? [])
-    .filter((item) => item.id !== entry?.id && !values.linkedEntryIds.includes(item.id))
+    .filter((item) => item.id !== entry?.id && !values.linkedEntryIds.includes(item.id) && item.lines.length === 0)
     .map((item) => ({ value: item.id, label: `${describeLinked({ ...item, date: String(item.date) })} · ${item.accountName}` }));
 
   // Documents it can settle: still due, or already settled by this entry.
@@ -199,6 +240,8 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       amount: direction === 'IN' ? input.amount : -input.amount,
       recurrence: input.status === 'FORECAST' ? input.recurrence : null,
       allocations: input.status === 'ACTUAL' ? input.allocations : [],
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      lines: input.lines.map(({ links: _links, ...line }) => ({ ...line, value: line.mode === 'AMOUNT' && direction === 'OUT' ? -line.value : line.value })),
     };
     const callbacks = {
       onSuccess: () => {
@@ -258,33 +301,26 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
                 direction: direction as EntryValues['direction'],
                 allocations: [],
                 categoryId: null,
+                lines: values.lines.map((line) => ({ ...line, categoryId: null })),
                 methodId: method && (direction === 'IN' ? method.incoming : method.outgoing) ? method.id : null,
               });
             }}
           />
-          <NumberInput
-            label="Montant"
-            required
-            min={0}
-            decimalScale={2}
-            decimalSeparator=","
-            thousandSeparator=" "
-            suffix=" €"
-            style={{ flex: 1 }}
-            {...form.getInputProps('amount')}
-          />
+          <NumberInput label="Montant" required min={0} decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
         </Group>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <WithCreate label="Nouvelle catégorie" onCreate={() => setCreating('category')}>
-            <Select
-              label="Catégorie"
-              clearable
-              searchable
-              placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
-              data={categoryOptions(categories, values.direction)}
-              {...form.getInputProps('categoryId')}
-            />
-          </WithCreate>
+          {!split && (
+            <WithCreate label="Nouvelle catégorie" onCreate={() => setCreating('category')}>
+              <Select
+                label="Catégorie"
+                clearable
+                searchable
+                placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
+                data={categoryOptions(categories, values.direction)}
+                {...form.getInputProps('categoryId')}
+              />
+            </WithCreate>
+          )}
           <WithCreate label="Nouveau moyen de paiement" onCreate={() => setCreating('method')}>
             <Select
               label="Moyen de paiement"
@@ -313,91 +349,141 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
             error={form.errors.clientId ?? form.errors.counterpartyId}
           />
         </WithCreate>
-        <Select
-          label="Projet"
-          clearable
-          searchable
-          data={(workspace?.projects ?? []).filter((project) => !project.archived || project.id === values.projectId).map((project) => ({ value: project.id, label: project.title }))}
-          {...form.getInputProps('projectId')}
-        />
+        {!split && <Select label="Projet" clearable searchable data={projectOptions} {...form.getInputProps('projectId')} />}
         <Textarea label="Note" autosize minRows={1} {...form.getInputProps('note')} />
 
-        <MultiSelect
-          label="Pièces justificatives"
-          description="Documents de la bibliothèque ou des projets."
-          placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}
-          searchable
-          clearable
-          nothingFoundMessage="Aucun document"
-          data={[...documentGroups].map(([group, items]) => ({ group, items }))}
-          value={selectedDocuments}
-          onChange={(keys) =>
-            form.setValues({
-              libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-              projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
-            })
-          }
-          error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+        <Divider label="Répartition" labelPosition="left" />
+        <LinesEditor
+          lines={values.lines}
+          onChange={(lines) => {
+            if (split || !lines.length) {
+              form.setFieldValue('lines', lines);
+              return;
+            }
+            // Split now: the category and project of the entry go to its lines, its documents and links to the first.
+            const seeded = lines.map((line, index) => ({
+              ...line,
+              categoryId: line.categoryId ?? values.categoryId,
+              projectId: line.projectId ?? values.projectId,
+              ...(index === 0
+                ? {
+                    libraryDocumentIds: values.libraryDocumentIds,
+                    projectResourceIds: values.projectResourceIds,
+                    linkedEntryIds: values.linkedEntryIds,
+                    links: linked.map((item) => ({ kind: 'entry' as const, id: item.id, entryLabel: item.label, date: item.date, label: null, amount: item.amount })),
+                  }
+                : {}),
+            }));
+            form.setValues({ lines: seeded, categoryId: null, projectId: null, libraryDocumentIds: [], projectResourceIds: [], linkedEntryIds: [] });
+            setLinked([]);
+          }}
+          amount={values.amount}
+          direction={values.direction}
+          date={values.date}
+          settings={settings}
+          errors={form.errors}
+          entryId={entry?.id ?? null}
+          projects={projectOptions}
+          documentGroups={documentData}
+          onCreateContext={(index) => {
+            setContextLine(index);
+            setCreating('context');
+          }}
         />
 
-        <Divider label="Mouvements liés" labelPosition="left" />
-        <Text size="xs" c="dimmed">
-          Une entrée et une sortie liées sur une même période se compensent dans les graphiques d’entrées et de sorties (remboursement de frais, virement entre comptes…).
-        </Text>
-        {linked.length > 0 && (
-          <Group gap={6}>
-            {linked.map((item) => (
-              <Badge
-                key={item.id}
-                variant="light"
-                color={item.amount < 0 ? 'red' : 'green'}
-                leftSection={<LinkIcon aria-hidden />}
-                rightSection={
-                  <ActionIcon
-                    size="xs"
-                    variant="transparent"
-                    color="gray"
-                    aria-label={`Délier ${item.label}`}
-                    onClick={() => {
-                      setLinked((current) => current.filter((other) => other.id !== item.id));
-                      form.setFieldValue(
-                        'linkedEntryIds',
-                        values.linkedEntryIds.filter((id) => id !== item.id),
-                      );
-                    }}
+        {split ? (
+          <Text size="xs" c="dimmed">
+            Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne.
+          </Text>
+        ) : (
+          <>
+            <MultiSelect
+              label="Pièces justificatives"
+              description="Documents de la bibliothèque ou des projets."
+              placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}
+              searchable
+              clearable
+              nothingFoundMessage="Aucun document"
+              data={documentData}
+              value={selectedDocuments}
+              onChange={(keys) =>
+                form.setValues({
+                  libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
+                  projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
+                })
+              }
+              error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+            />
+
+            <Divider label="Mouvements liés" labelPosition="left" />
+            <Text size="xs" c="dimmed">
+              Une entrée et une sortie liées sur une même période se compensent dans les graphiques d’entrées et de sorties (remboursement de frais, virement entre comptes…).
+            </Text>
+            {linked.length > 0 && (
+              <Group gap={6}>
+                {linked.map((item) => (
+                  <Badge
+                    key={item.id}
+                    variant="light"
+                    color={item.amount < 0 ? 'red' : 'green'}
+                    leftSection={<LinkIcon aria-hidden />}
+                    rightSection={
+                      <ActionIcon
+                        size="xs"
+                        variant="transparent"
+                        color="gray"
+                        aria-label={`Délier ${item.label}`}
+                        onClick={() => {
+                          setLinked((current) => current.filter((other) => other.id !== item.id));
+                          form.setFieldValue(
+                            'linkedEntryIds',
+                            values.linkedEntryIds.filter((id) => id !== item.id),
+                          );
+                        }}
+                      >
+                        <XIcon aria-hidden />
+                      </ActionIcon>
+                    }
+                    tt="none"
                   >
-                    <XIcon aria-hidden />
-                  </ActionIcon>
-                }
-                tt="none"
-              >
-                {describeLinked(item)}
-              </Badge>
-            ))}
-          </Group>
+                    {describeLinked(item)}
+                  </Badge>
+                ))}
+              </Group>
+            )}
+            <Select
+              aria-label="Lier un mouvement"
+              placeholder="Rechercher un mouvement par son libellé…"
+              searchable
+              clearable={false}
+              leftSection={<LinkIcon aria-hidden />}
+              searchValue={search}
+              onSearchChange={setSearch}
+              // Filtered by the server.
+              filter={({ options }) => options}
+              nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
+              data={linkable}
+              value={null}
+              onChange={(id) => {
+                const item = found?.find((other) => other.id === id);
+                if (!item) return;
+                setLinked((current) => [...current, { id: item.id, date: String(item.date), label: item.label, amount: item.amount }]);
+                form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, item.id]);
+                setSearch('');
+              }}
+              error={form.errors.linkedEntryIds}
+            />
+            {(entry?.linkedByLines ?? []).length > 0 && (
+              <Group gap={6}>
+                {(entry?.linkedByLines ?? []).map((line) => (
+                  <Badge key={line.id} variant="outline" color={line.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
+                    {describeLink({ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: String(line.date), label: line.label ?? null, amount: line.amount })}
+                  </Badge>
+                ))}
+              </Group>
+            )}
+          </>
         )}
-        <Select
-          aria-label="Lier un mouvement"
-          placeholder="Rechercher un mouvement par son libellé…"
-          searchable
-          clearable={false}
-          leftSection={<LinkIcon aria-hidden />}
-          searchValue={search}
-          onSearchChange={setSearch}
-          // Filtered by the server.
-          filter={({ options }) => options}
-          nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
-          data={linkable}
-          value={null}
-          onChange={(id) => {
-            const item = found?.find((other) => other.id === id);
-            if (!item) return;
-            setLinked((current) => [...current, { id: item.id, date: String(item.date), label: item.label, amount: item.amount }]);
-            form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, item.id]);
-            setSearch('');
-          }}
-          error={form.errors.linkedEntryIds}
-        />
 
         {forecast && (
           <>
@@ -484,7 +570,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       <Modal
         opened={creating !== null}
         onClose={() => setCreating(null)}
-        title={creating === 'category' ? 'Nouvelle catégorie' : creating === 'method' ? 'Nouveau moyen de paiement' : 'Nouveau tiers'}
+        title={creating === 'category' ? 'Nouvelle catégorie' : creating === 'method' ? 'Nouveau moyen de paiement' : creating === 'context' ? 'Nouveau contexte' : 'Nouveau tiers'}
       >
         {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
         <div onSubmit={(event) => event.stopPropagation()}>
@@ -494,6 +580,15 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
               categories={categories}
               onDone={(id) => {
                 if (id) form.setFieldValue('categoryId', id);
+                setCreating(null);
+              }}
+            />
+          )}
+          {creating === 'context' && (
+            <ContextForm
+              onDone={(id) => {
+                if (id && contextLine !== null) form.setFieldValue(`lines.${contextLine}.contextId`, id);
+                setContextLine(null);
                 setCreating(null);
               }}
             />

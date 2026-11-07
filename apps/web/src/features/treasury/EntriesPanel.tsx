@@ -179,7 +179,13 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
                       <Table.Td>
                         <Text size="sm">{entry.label}</Text>
                         <Text size="xs" c="dimmed">
-                          {[entry.categoryId ? paths.get(entry.categoryId) : null, entry.methodName].filter(Boolean).join(' · ')}
+                          {[
+                            entry.categoryId ? paths.get(entry.categoryId) : null,
+                            entry.methodName,
+                            entry.lines.length ? `réparti en ${entry.lines.length} ligne${entry.lines.length > 1 ? 's' : ''}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </Text>
                       </Table.Td>
                       <Table.Td>

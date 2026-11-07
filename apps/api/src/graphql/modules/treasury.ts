@@ -5,6 +5,7 @@ import * as statuses from '../../services/document-statuses';
 import * as tracking from '../../services/document-tracking';
 import * as treasury from '../../services/treasury';
 import * as settings from '../../services/treasury-settings';
+import * as team from '../../services/treasury-team';
 import { builder } from '../builder';
 
 /**
@@ -41,6 +42,42 @@ const ScopeEnum = builder.enumType('DocumentStatusScope', { values: ['QUOTE', 'I
 const CategoryEnum = builder.enumType('DocumentStatusCategory', { values: ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID'] as const });
 const EntryStatusEnum = builder.enumType('TreasuryEntryStatus', { values: ['ACTUAL', 'FORECAST'] as const });
 const DirectionEnum = builder.enumType('TreasuryDirection', { values: ['IN', 'OUT'] as const });
+
+const LineModeEnum = builder.enumType('TreasuryLineMode', { values: ['AMOUNT', 'PERCENT'] as const });
+
+builder.prismaObject('TreasuryEntryLine', {
+  description: 'Part of a split entry: for a member, in a category and a context (none: everyday spending).',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    label: t.exposeString('label', { nullable: true }),
+    mode: t.field({ type: LineModeEnum, resolve: (line) => line.mode }),
+    value: t.float({ description: 'Signed amount, or signed percentage of the entry amount.', resolve: (line) => Number(line.value) }),
+    memberId: t.exposeID('memberId', { nullable: true }),
+    categoryId: t.exposeID('categoryId', { nullable: true }),
+    contextId: t.exposeID('contextId', { nullable: true }),
+  }),
+});
+
+builder.prismaObject('TreasuryContext', {
+  description: 'Context of spending (not in a tree); a line without context is everyday spending.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
+    position: t.exposeInt('position'),
+  }),
+});
+
+builder.prismaObject('TreasuryContextPeriod', {
+  description: 'Period a context is planned for: it is proposed to the lines of the entries dated in it.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    contextId: t.exposeID('contextId'),
+    startDate: t.expose('startDate', { type: 'Date' }),
+    endDate: t.expose('endDate', { type: 'Date' }),
+    note: t.exposeString('note', { nullable: true }),
+  }),
+});
 
 builder.prismaObject('TreasuryCategory', {
   fields: (t) => ({
@@ -130,6 +167,83 @@ const documentUrl = (document: { kind: string; url: string | null; attachment: {
 
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
+/** Line of another entry linked to a line or a whole entry. */
+interface LinkedLine {
+  id: string;
+  entryId: string;
+  entryLabel: string;
+  date: Date;
+  label: string | null;
+  /** Signed amount of the line. */
+  amount: number;
+  status: 'ACTUAL' | 'FORECAST';
+}
+
+const LinkedLineRef = builder.objectRef<LinkedLine>('TreasuryLinkedLine').implement({
+  description: 'Line of another entry linked to a line or a whole entry.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    entryId: t.exposeID('entryId'),
+    entryLabel: t.exposeString('entryLabel'),
+    date: t.expose('date', { type: 'Date' }),
+    label: t.exposeString('label', { nullable: true }),
+    amount: t.exposeFloat('amount'),
+    status: t.field({ type: EntryStatusEnum, resolve: (line) => line.status }),
+  }),
+});
+
+const lineLinkSelect = {
+  select: { id: true, label: true, mode: true, value: true, entry: { select: { id: true, label: true, date: true, amount: true, status: true } } },
+} as const;
+
+/**
+ * Linked line as shown: its entry, and its signed amount (a percentage is of the entry amount).
+ * @param {object} line Line with its entry.
+ * @returns {LinkedLine} Linked line.
+ */
+function linkedLine(line: {
+  id: string;
+  label: string | null;
+  mode: 'AMOUNT' | 'PERCENT';
+  value: { toString(): string };
+  entry: { id: string; label: string; date: Date; amount: { toString(): string }; status: 'ACTUAL' | 'FORECAST' };
+}): LinkedLine {
+  const value = Number(line.value);
+  const amount = line.mode === 'PERCENT' ? Math.round(Number(line.entry.amount) * value) / 100 : value;
+  return { id: line.id, entryId: line.entry.id, entryLabel: line.entry.label, date: line.entry.date, label: line.label, amount, status: line.entry.status };
+}
+
+/**
+ * Supporting documents of an entry or a line: of the library, then of projects.
+ * @param {object} owner Entry or line with its documents.
+ * @returns {EntryDocument[]} Documents.
+ */
+function supportingDocuments(owner: {
+  libraryDocuments: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; folder: { name: string } | null })[];
+  projectResources: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; project: { id: string; title: string } })[];
+}): EntryDocument[] {
+  return [
+    ...owner.libraryDocuments.map((document) => ({
+      id: document.id,
+      source: 'LIBRARY' as const,
+      kind: document.kind,
+      title: document.title,
+      url: documentUrl(document),
+      projectId: null,
+      place: document.folder?.name ?? 'Documents',
+    })),
+    ...owner.projectResources.map((resource) => ({
+      id: resource.id,
+      source: 'PROJECT' as const,
+      kind: resource.kind,
+      title: resource.title,
+      url: documentUrl(resource),
+      projectId: resource.project.id,
+      place: resource.project.title,
+    })),
+  ];
+}
+
 builder.prismaObject('DocumentStatus', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -197,6 +311,7 @@ builder.prismaObject('TreasuryEntry', {
     note: t.exposeString('note', { nullable: true }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (entry) => entry.recurrence }),
     allocations: t.relation('allocations'),
+    lines: t.relation('lines', { description: 'Split of the amount; what the lines leave is "not split".', query: { orderBy: { position: 'asc' } } }),
     documents: t.field({
       type: [EntryDocumentRef],
       description: 'Supporting documents: of the library, then of projects.',
@@ -204,29 +319,41 @@ builder.prismaObject('TreasuryEntry', {
         libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
         projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
       },
-      resolve: (entry) => [
-        ...entry.libraryDocuments.map((document) => ({
-          id: document.id,
-          source: 'LIBRARY' as const,
-          kind: document.kind,
-          title: document.title,
-          url: documentUrl(document),
-          projectId: null,
-          place: document.folder?.name ?? 'Documents',
-        })),
-        ...entry.projectResources.map((resource) => ({
-          id: resource.id,
-          source: 'PROJECT' as const,
-          kind: resource.kind,
-          title: resource.title,
-          url: documentUrl(resource),
-          projectId: resource.project.id,
-          place: resource.project.title,
-        })),
-      ],
+      resolve: (entry) => supportingDocuments(entry),
+    }),
+    linkedByLines: t.field({
+      type: [LinkedLineRef],
+      description: 'Lines of other entries linked to this whole entry.',
+      select: { linkedByLines: lineLinkSelect },
+      resolve: (entry) => entry.linkedByLines.map(linkedLine),
     }),
   }),
 });
+
+builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
+  projectId: t.exposeID('projectId', { nullable: true }),
+  documents: t.field({
+    type: [EntryDocumentRef],
+    description: 'Supporting documents: of the library, then of projects.',
+    select: {
+      libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
+      projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+    },
+    resolve: (line) => supportingDocuments(line),
+  }),
+  linkedLines: t.field({
+    type: [LinkedLineRef],
+    description: 'Lines of other entries linked to this one (both ways).',
+    select: { links: lineLinkSelect, linkedBy: lineLinkSelect },
+    resolve: (line) => [...line.links, ...line.linkedBy].map(linkedLine).sort((a, b) => a.date.getTime() - b.date.getTime()),
+  }),
+  linkedEntries: t.field({
+    type: [LinkedEntryRef],
+    description: 'Whole entries (without lines) linked to this line.',
+    select: { linkedEntries: linkedSelect },
+    resolve: (line) => line.linkedEntries.map((linked) => ({ ...linked, amount: Number(linked.amount) })),
+  }),
+}));
 
 builder.prismaObject('TreasuryAccount', {
   fields: (t) => ({
@@ -380,6 +507,36 @@ const AllocationInput = builder.inputType('TreasuryAllocationInput', {
   }),
 });
 
+const LineInput = builder.inputType('TreasuryEntryLineInput', {
+  fields: (t) => ({
+    id: t.id({ description: 'Line kept (its links from other entries stay); none for a new line.' }),
+    label: t.string(),
+    mode: t.field({ type: LineModeEnum, required: true }),
+    value: t.float({ required: true }),
+    memberId: t.id(),
+    categoryId: t.id(),
+    contextId: t.id(),
+    projectId: t.id(),
+    libraryDocumentIds: t.idList(),
+    projectResourceIds: t.idList(),
+    linkedLineIds: t.idList({ description: 'Lines of other entries.' }),
+    linkedEntryIds: t.idList({ description: 'Other entries, without lines.' }),
+  }),
+});
+
+const ContextInput = builder.inputType('TreasuryContextInput', {
+  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
+});
+
+const ContextPeriodInput = builder.inputType('TreasuryContextPeriodInput', {
+  fields: (t) => ({
+    contextId: t.id({ required: true }),
+    startDate: t.field({ type: 'Date', required: true }),
+    endDate: t.field({ type: 'Date', required: true }),
+    note: t.string(),
+  }),
+});
+
 const EntryInput = builder.inputType('TreasuryEntryInput', {
   fields: (t) => ({
     accountId: t.id({ required: true }),
@@ -399,6 +556,7 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
     linkedEntryIds: t.idList(),
     libraryDocumentIds: t.idList(),
     projectResourceIds: t.idList(),
+    lines: t.field({ type: [LineInput], description: 'Split of the amount (none when omitted).' }),
   }),
 });
 
@@ -449,6 +607,20 @@ const entryInput = (input: typeof EntryInput.$inferInput): TreasuryEntryInput =>
     importedDocumentId: allocation.importedDocumentId ?? null,
     amount: allocation.amount,
   })),
+  lines: (input.lines ?? []).map((line) => ({
+    id: line.id ?? null,
+    projectId: line.projectId ?? null,
+    libraryDocumentIds: line.libraryDocumentIds ?? [],
+    projectResourceIds: line.projectResourceIds ?? [],
+    linkedLineIds: line.linkedLineIds ?? [],
+    linkedEntryIds: line.linkedEntryIds ?? [],
+    label: line.label ?? null,
+    mode: line.mode,
+    value: line.value,
+    memberId: line.memberId ?? null,
+    categoryId: line.categoryId ?? null,
+    contextId: line.contextId ?? null,
+  })),
 });
 
 const PaymentInput = builder.inputType('DocumentPaymentInput', {
@@ -461,6 +633,23 @@ const PaymentInput = builder.inputType('DocumentPaymentInput', {
 });
 
 builder.queryFields((t) => ({
+  treasuryMembers: t.prismaField({
+    type: ['Contributor'],
+    description: 'Members of the team or household: the app user first.',
+    resolve: async (query) => {
+      const order = (await team.listMembers()).map((member) => member.id);
+      const members = await prisma.contributor.findMany({ ...query, where: { id: { in: order } } });
+      return members.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    },
+  }),
+  treasuryContexts: t.prismaField({
+    type: ['TreasuryContext'],
+    resolve: (query) => prisma.treasuryContext.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  treasuryContextPeriods: t.prismaField({
+    type: ['TreasuryContextPeriod'],
+    resolve: (query) => prisma.treasuryContextPeriod.findMany({ ...query, orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }] }),
+  }),
   overdueInvoices: t.prismaField({
     type: ['AccountingDocument'],
     description: 'Final invoices still due after their due date, oldest due first.',
@@ -569,6 +758,44 @@ builder.queryFields((t) => ({
 }));
 
 builder.mutationFields((t) => ({
+  addTreasuryMember: t.id({
+    description: 'Adds a member: an existing contributor, or a new contributor of this name.',
+    args: { contributorId: t.arg.id(), name: t.arg.string() },
+    resolve: async (_root, args) => (await team.addMember(args)).id,
+  }),
+  removeTreasuryMember: t.boolean({
+    description: 'Removes a member from the team or household (they stay a contributor).',
+    args: { contributorId: t.arg.id({ required: true }) },
+    resolve: async (_root, { contributorId }) => {
+      await team.removeMember(contributorId);
+      return true;
+    },
+  }),
+  saveTreasuryContext: t.id({
+    description: 'Creates a context (without id) or changes one.',
+    args: { id: t.arg.id(), input: t.arg({ type: ContextInput, required: true }) },
+    resolve: async (_root, { id, input }) => (await team.saveContext(id ?? null, input)).id,
+  }),
+  deleteTreasuryContext: t.boolean({
+    description: 'Deletes a context and its periods; its lines become everyday spending.',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await team.deleteContext(id);
+      return true;
+    },
+  }),
+  saveTreasuryContextPeriod: t.id({
+    description: 'Plans a context between two days (without id), or changes a period. Lines already saved keep their context.',
+    args: { id: t.arg.id(), input: t.arg({ type: ContextPeriodInput, required: true }) },
+    resolve: async (_root, { id, input }) => (await team.saveContextPeriod(id ?? null, { ...input, note: input.note ?? null })).id,
+  }),
+  deleteTreasuryContextPeriod: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await team.deleteContextPeriod(id);
+      return true;
+    },
+  }),
   createDocumentStatus: t.id({
     args: { scope: t.arg({ type: ScopeEnum, required: true }), name: t.arg.string({ required: true }), color: t.arg.string({ required: true }), category: t.arg({ type: CategoryEnum, required: true }) },
     resolve: async (_root, args) => (await statuses.createDocumentStatus(args)).id,

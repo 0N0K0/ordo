@@ -31,6 +31,8 @@ export const DIMENSION_LABELS: Record<ChartDimension, string> = {
   account: 'Compte',
   direction: 'Entrée / sortie',
   entryStatus: 'Réel / prévu',
+  member: 'Membre',
+  context: 'Contexte',
 };
 export const MEASURE_LABELS: Record<ChartMeasure, string> = {
   count: 'Nombre',

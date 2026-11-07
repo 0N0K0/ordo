@@ -12,6 +12,8 @@ import type {
 } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 import { accountingQueryKey } from '../accounting/api';
+import { tasksQueryKey } from '../tasks/api';
+import { workspaceQueryKey } from '../workspace/api';
 
 export type TreasuryAccount = TreasuryAccountsQuery['treasuryAccounts'][number];
 export type TreasuryEntry = TreasuryEntriesQuery['treasuryEntries'][number];
@@ -22,6 +24,10 @@ export type TreasurySettings = TreasurySettingsQuery;
 export type TreasuryCategory = TreasurySettingsQuery['treasuryCategories'][number];
 export type TreasuryPaymentMethod = TreasurySettingsQuery['treasuryPaymentMethods'][number];
 export type TreasuryCounterparty = TreasurySettingsQuery['treasuryCounterparties'][number];
+export type TreasuryMember = TreasurySettingsQuery['treasuryMembers'][number];
+export type TreasuryContext = TreasurySettingsQuery['treasuryContexts'][number];
+export type TreasuryContextPeriod = TreasurySettingsQuery['treasuryContextPeriods'][number];
+export type TreasuryEntryLine = TreasuryEntry['lines'][number];
 export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
 export type FoundEntry = TreasuryEntrySearchQuery['treasuryEntrySearch'][number];
 
@@ -54,6 +60,44 @@ graphql(`
     projectId
     note
     recurrence
+    lines {
+      id
+      label
+      mode
+      value
+      memberId
+      categoryId
+      contextId
+      projectId
+      documents {
+        ...TreasuryEntryDocumentFields
+      }
+      linkedLines {
+        id
+        entryId
+        entryLabel
+        date
+        label
+        amount
+        status
+      }
+      linkedEntries {
+        id
+        date
+        label
+        amount
+        status
+      }
+    }
+    linkedByLines {
+      id
+      entryId
+      entryLabel
+      date
+      label
+      amount
+      status
+    }
     allocations {
       id
       amount
@@ -167,6 +211,26 @@ const SettingsDocument = graphql(`
       archived
       entryCount
     }
+    treasuryMembers {
+      id
+      name
+      handle
+      avatarUrl
+      isMe
+    }
+    treasuryContexts {
+      id
+      name
+      color
+      position
+    }
+    treasuryContextPeriods {
+      id
+      contextId
+      startDate
+      endDate
+      note
+    }
   }
 `);
 
@@ -179,6 +243,12 @@ const EntrySearchDocument = graphql(`
       amount
       status
       accountName
+      lines {
+        id
+        label
+        mode
+        value
+      }
     }
   }
 `);
@@ -388,5 +458,73 @@ export function useTreasuryMutations() {
     realize: useTreasuryMutation(
       async (variables: { id: string; occurrence: string; date: string; amount: number }) => (await execute(RealizeForecast, variables)).realizeTreasuryForecast,
     ),
+  };
+}
+
+const AddMember = graphql(`
+  mutation AddTreasuryMember($contributorId: ID, $name: String) {
+    addTreasuryMember(contributorId: $contributorId, name: $name)
+  }
+`);
+
+const RemoveMember = graphql(`
+  mutation RemoveTreasuryMember($contributorId: ID!) {
+    removeTreasuryMember(contributorId: $contributorId)
+  }
+`);
+
+const SaveContext = graphql(`
+  mutation SaveTreasuryContext($id: ID, $input: TreasuryContextInput!) {
+    saveTreasuryContext(id: $id, input: $input)
+  }
+`);
+
+const DeleteContext = graphql(`
+  mutation DeleteTreasuryContext($id: ID!) {
+    deleteTreasuryContext(id: $id)
+  }
+`);
+
+const SaveContextPeriod = graphql(`
+  mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {
+    saveTreasuryContextPeriod(id: $id, input: $input)
+  }
+`);
+
+const DeleteContextPeriod = graphql(`
+  mutation DeleteTreasuryContextPeriod($id: ID!) {
+    deleteTreasuryContextPeriod(id: $id)
+  }
+`);
+
+/**
+ * Members of the team or household, contexts and their planned periods. A member is a contributor: adding one
+ * also refreshes the contributors of the tasks and projects.
+ * @returns {object} Mutations.
+ */
+export function useTreasuryTeamMutations() {
+  const queryClient = useQueryClient();
+  const contributorsChanged = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: accountingQueryKey }),
+      queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
+      queryClient.invalidateQueries({ queryKey: workspaceQueryKey }),
+    ]);
+  return {
+    addMember: useMutation({
+      mutationFn: async (variables: { contributorId?: string; name?: string }) => (await execute(AddMember, variables)).addTreasuryMember,
+      onSettled: contributorsChanged,
+    }),
+    removeMember: useMutation({
+      mutationFn: async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember,
+      onSettled: contributorsChanged,
+    }),
+    saveContext: useTreasuryMutation(async (variables: { id: string | null; input: { name: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext),
+    deleteContext: useTreasuryMutation(async (id: string) => (await execute(DeleteContext, { id })).deleteTreasuryContext),
+    saveContextPeriod: useTreasuryMutation(
+      async (variables: { id: string | null; input: { contextId: string; startDate: string; endDate: string; note: string | null } }) =>
+        (await execute(SaveContextPeriod, variables)).saveTreasuryContextPeriod,
+    ),
+    deleteContextPeriod: useTreasuryMutation(async (id: string) => (await execute(DeleteContextPeriod, { id })).deleteTreasuryContextPeriod),
   };
 }

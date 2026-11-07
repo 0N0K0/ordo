@@ -268,15 +268,15 @@ type Documents = {
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTimeEntryDocument,
     "\n  mutation DeleteTimeEntry($id: ID!) {\n    deleteTimeEntry(id: $id)\n  }\n": typeof types.DeleteTimeEntryDocument,
-    "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    recurrence\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": typeof types.TreasuryEntryFieldsFragmentDoc,
+    "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": typeof types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    title\n    url\n    projectId\n    place\n  }\n": typeof types.TreasuryEntryDocumentFieldsFragmentDoc,
     "\n  query TreasuryDocumentOptions {\n    treasuryDocumentOptions {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": typeof types.TreasuryDocumentOptionsDocument,
     "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      openingBalance\n      openingDate\n      archived\n      entryCount\n      balance\n    }\n  }\n": typeof types.TreasuryAccountsDocument,
     "\n  query TreasuryEntries($from: Date!, $to: Date!, $accountId: ID) {\n    treasuryEntries(from: $from, to: $to, accountId: $accountId) {\n      ...TreasuryEntryFields\n    }\n  }\n": typeof types.TreasuryEntriesDocument,
     "\n  query ForecastEntries {\n    forecastEntries {\n      ...TreasuryEntryFields\n    }\n  }\n": typeof types.ForecastEntriesDocument,
     "\n  query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {\n    treasuryProjection(today: $today, from: $from, until: $until) {\n      balance\n      series {\n        date\n        balance\n        forecast\n      }\n      items {\n        date\n        dueDate\n        label\n        payerName\n        amount\n        kind\n        overdue\n        entryId\n        documentId\n        importedDocumentId\n        recurringInvoiceId\n        accountId\n      }\n    }\n  }\n": typeof types.TreasuryProjectionDocument,
-    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n  }\n": typeof types.TreasurySettingsDocument,
-    "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n    }\n  }\n": typeof types.TreasuryEntrySearchDocument,
+    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": typeof types.TreasurySettingsDocument,
+    "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n      lines {\n        id\n        label\n        mode\n        value\n      }\n    }\n  }\n": typeof types.TreasuryEntrySearchDocument,
     "\n  mutation CreateTreasuryCategory($input: TreasuryCategoryInput!) {\n    createTreasuryCategory(input: $input)\n  }\n": typeof types.CreateTreasuryCategoryDocument,
     "\n  mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {\n    updateTreasuryCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateTreasuryCategoryDocument,
     "\n  mutation DeleteTreasuryCategory($id: ID!) {\n    deleteTreasuryCategory(id: $id)\n  }\n": typeof types.DeleteTreasuryCategoryDocument,
@@ -293,6 +293,12 @@ type Documents = {
     "\n  mutation UpdateTreasuryEntry($id: ID!, $input: TreasuryEntryInput!) {\n    updateTreasuryEntry(id: $id, input: $input)\n  }\n": typeof types.UpdateTreasuryEntryDocument,
     "\n  mutation DeleteTreasuryEntry($id: ID!) {\n    deleteTreasuryEntry(id: $id)\n  }\n": typeof types.DeleteTreasuryEntryDocument,
     "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n": typeof types.RealizeTreasuryForecastDocument,
+    "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": typeof types.AddTreasuryMemberDocument,
+    "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": typeof types.RemoveTreasuryMemberDocument,
+    "\n  mutation SaveTreasuryContext($id: ID, $input: TreasuryContextInput!) {\n    saveTreasuryContext(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryContextDocument,
+    "\n  mutation DeleteTreasuryContext($id: ID!) {\n    deleteTreasuryContext(id: $id)\n  }\n": typeof types.DeleteTreasuryContextDocument,
+    "\n  mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {\n    saveTreasuryContextPeriod(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryContextPeriodDocument,
+    "\n  mutation DeleteTreasuryContextPeriod($id: ID!) {\n    deleteTreasuryContextPeriod(id: $id)\n  }\n": typeof types.DeleteTreasuryContextPeriodDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": typeof types.ClientFieldsFragmentDoc,
     "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n  }\n": typeof types.LabelFieldsFragmentDoc,
     "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    position\n  }\n": typeof types.ProjectStatusFieldsFragmentDoc,
@@ -583,15 +589,15 @@ const documents: Documents = {
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTimeEntryDocument,
     "\n  mutation DeleteTimeEntry($id: ID!) {\n    deleteTimeEntry(id: $id)\n  }\n": types.DeleteTimeEntryDocument,
-    "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    recurrence\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": types.TreasuryEntryFieldsFragmentDoc,
+    "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    title\n    url\n    projectId\n    place\n  }\n": types.TreasuryEntryDocumentFieldsFragmentDoc,
     "\n  query TreasuryDocumentOptions {\n    treasuryDocumentOptions {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": types.TreasuryDocumentOptionsDocument,
     "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      openingBalance\n      openingDate\n      archived\n      entryCount\n      balance\n    }\n  }\n": types.TreasuryAccountsDocument,
     "\n  query TreasuryEntries($from: Date!, $to: Date!, $accountId: ID) {\n    treasuryEntries(from: $from, to: $to, accountId: $accountId) {\n      ...TreasuryEntryFields\n    }\n  }\n": types.TreasuryEntriesDocument,
     "\n  query ForecastEntries {\n    forecastEntries {\n      ...TreasuryEntryFields\n    }\n  }\n": types.ForecastEntriesDocument,
     "\n  query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {\n    treasuryProjection(today: $today, from: $from, until: $until) {\n      balance\n      series {\n        date\n        balance\n        forecast\n      }\n      items {\n        date\n        dueDate\n        label\n        payerName\n        amount\n        kind\n        overdue\n        entryId\n        documentId\n        importedDocumentId\n        recurringInvoiceId\n        accountId\n      }\n    }\n  }\n": types.TreasuryProjectionDocument,
-    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n  }\n": types.TreasurySettingsDocument,
-    "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n    }\n  }\n": types.TreasuryEntrySearchDocument,
+    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": types.TreasurySettingsDocument,
+    "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n      lines {\n        id\n        label\n        mode\n        value\n      }\n    }\n  }\n": types.TreasuryEntrySearchDocument,
     "\n  mutation CreateTreasuryCategory($input: TreasuryCategoryInput!) {\n    createTreasuryCategory(input: $input)\n  }\n": types.CreateTreasuryCategoryDocument,
     "\n  mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {\n    updateTreasuryCategory(id: $id, input: $input)\n  }\n": types.UpdateTreasuryCategoryDocument,
     "\n  mutation DeleteTreasuryCategory($id: ID!) {\n    deleteTreasuryCategory(id: $id)\n  }\n": types.DeleteTreasuryCategoryDocument,
@@ -608,6 +614,12 @@ const documents: Documents = {
     "\n  mutation UpdateTreasuryEntry($id: ID!, $input: TreasuryEntryInput!) {\n    updateTreasuryEntry(id: $id, input: $input)\n  }\n": types.UpdateTreasuryEntryDocument,
     "\n  mutation DeleteTreasuryEntry($id: ID!) {\n    deleteTreasuryEntry(id: $id)\n  }\n": types.DeleteTreasuryEntryDocument,
     "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n": types.RealizeTreasuryForecastDocument,
+    "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": types.AddTreasuryMemberDocument,
+    "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": types.RemoveTreasuryMemberDocument,
+    "\n  mutation SaveTreasuryContext($id: ID, $input: TreasuryContextInput!) {\n    saveTreasuryContext(id: $id, input: $input)\n  }\n": types.SaveTreasuryContextDocument,
+    "\n  mutation DeleteTreasuryContext($id: ID!) {\n    deleteTreasuryContext(id: $id)\n  }\n": types.DeleteTreasuryContextDocument,
+    "\n  mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {\n    saveTreasuryContextPeriod(id: $id, input: $input)\n  }\n": types.SaveTreasuryContextPeriodDocument,
+    "\n  mutation DeleteTreasuryContextPeriod($id: ID!) {\n    deleteTreasuryContextPeriod(id: $id)\n  }\n": types.DeleteTreasuryContextPeriodDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": types.ClientFieldsFragmentDoc,
     "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n  }\n": types.LabelFieldsFragmentDoc,
     "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    position\n  }\n": types.ProjectStatusFieldsFragmentDoc,
@@ -1660,7 +1672,7 @@ export function graphql(source: "\n  mutation DeleteTimeEntry($id: ID!) {\n    d
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    recurrence\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n"): typeof import('./graphql').TreasuryEntryFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n"): typeof import('./graphql').TreasuryEntryFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1688,11 +1700,11 @@ export function graphql(source: "\n  query TreasuryProjection($today: Date!, $fr
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n  }\n"): typeof import('./graphql').TreasurySettingsDocument;
+export function graphql(source: "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n"): typeof import('./graphql').TreasurySettingsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n    }\n  }\n"): typeof import('./graphql').TreasuryEntrySearchDocument;
+export function graphql(source: "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n      lines {\n        id\n        label\n        mode\n        value\n      }\n    }\n  }\n"): typeof import('./graphql').TreasuryEntrySearchDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1757,6 +1769,30 @@ export function graphql(source: "\n  mutation DeleteTreasuryEntry($id: ID!) {\n 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n"): typeof import('./graphql').RealizeTreasuryForecastDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n"): typeof import('./graphql').AddTreasuryMemberDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n"): typeof import('./graphql').RemoveTreasuryMemberDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveTreasuryContext($id: ID, $input: TreasuryContextInput!) {\n    saveTreasuryContext(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SaveTreasuryContextDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteTreasuryContext($id: ID!) {\n    deleteTreasuryContext(id: $id)\n  }\n"): typeof import('./graphql').DeleteTreasuryContextDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {\n    saveTreasuryContextPeriod(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SaveTreasuryContextPeriodDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteTreasuryContextPeriod($id: ID!) {\n    deleteTreasuryContextPeriod(id: $id)\n  }\n"): typeof import('./graphql').DeleteTreasuryContextPeriodDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

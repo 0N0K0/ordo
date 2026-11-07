@@ -599,6 +599,11 @@ type Contributor {
   Projects the contributor is directly attached to; their sub-projects inherit it.
   """
   projectIds: [ID!]!
+
+  """
+  Member of the team (professional workspace) or household (personal one); the app user always is.
+  """
+  teamMember: Boolean!
 }
 
 input ContributorInput {
@@ -1127,6 +1132,11 @@ type Mutation {
   addTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   addTaskComment(body: String!, taskId: ID!): TaskComment!
   addTaskRelation(otherId: ID!, taskId: ID!): Boolean!
+
+  """
+  Adds a member: an existing contributor, or a new contributor of this name.
+  """
+  addTreasuryMember(contributorId: ID, name: String): ID!
   bulkDeleteTasks(
     """false moves unselected sub-tasks up."""
     deleteSubtasks: Boolean!
@@ -1259,6 +1269,10 @@ type Mutation {
   deleteTimeEntry(id: ID!): Boolean!
   deleteTreasuryAccount(id: ID!): Boolean!
   deleteTreasuryCategory(id: ID!): Boolean!
+
+  """Deletes a context and its periods; its lines become everyday spending."""
+  deleteTreasuryContext(id: ID!): Boolean!
+  deleteTreasuryContextPeriod(id: ID!): Boolean!
   deleteTreasuryCounterparty(id: ID!): Boolean!
   deleteTreasuryEntry(id: ID!): Boolean!
   deleteTreasuryPaymentMethod(id: ID!): Boolean!
@@ -1353,6 +1367,9 @@ type Mutation {
   removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
+
+  """Removes a member from the team or household (they stay a contributor)."""
+  removeTreasuryMember(contributorId: ID!): Boolean!
   renameDashboard(id: ID!, name: String!): Boolean!
   renameDocumentFolder(id: ID!, name: String!): Boolean!
 
@@ -1380,6 +1397,14 @@ type Mutation {
   Saves a draft in the drafts folder of its account, replacing its previous version.
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
+
+  """Creates a context (without id) or changes one."""
+  saveTreasuryContext(id: ID, input: TreasuryContextInput!): ID!
+
+  """
+  Plans a context between two days (without id), or changes a period. Lines already saved keep their context.
+  """
+  saveTreasuryContextPeriod(id: ID, input: TreasuryContextPeriodInput!): ID!
 
   """Schedules a mail (built now, sent at its time); its draft is removed."""
   scheduleMail(input: SendMailInput!, sendAt: DateTime!): ID!
@@ -1812,6 +1837,8 @@ type Query {
   todoMailCount: Int!
   treasuryAccounts: [TreasuryAccount!]!
   treasuryCategories: [TreasuryCategory!]!
+  treasuryContextPeriods: [TreasuryContextPeriod!]!
+  treasuryContexts: [TreasuryContext!]!
   treasuryCounterparties: [TreasuryCounterparty!]!
 
   """
@@ -1824,6 +1851,9 @@ type Query {
 
   """Entries whose label contains a text (to link entries), latest first."""
   treasuryEntrySearch(limit: Int, text: String!): [TreasuryEntry!]!
+
+  """Members of the team or household: the app user first."""
+  treasuryMembers: [Contributor!]!
   treasuryPaymentMethods: [TreasuryPaymentMethod!]!
   treasuryProjection(from: Date!, today: Date!, until: Date!): TreasuryProjection!
 
@@ -2285,6 +2315,39 @@ input TreasuryCategoryInput {
   parentId: ID
 }
 
+"""
+Context of spending (not in a tree); a line without context is everyday spending.
+"""
+type TreasuryContext {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+input TreasuryContextInput {
+  color: String!
+  name: String!
+}
+
+"""
+Period a context is planned for: it is proposed to the lines of the entries dated in it.
+"""
+type TreasuryContextPeriod {
+  contextId: ID!
+  endDate: Date!
+  id: ID!
+  note: String
+  startDate: Date!
+}
+
+input TreasuryContextPeriodInput {
+  contextId: ID!
+  endDate: Date!
+  note: String
+  startDate: Date!
+}
+
 type TreasuryCounterparty {
   archived: Boolean!
   entryCount: Int!
@@ -2320,6 +2383,12 @@ type TreasuryEntry {
   documents: [TreasuryEntryDocument!]!
   id: ID!
   label: String!
+
+  """Split of the amount; what the lines leave is "not split"."""
+  lines: [TreasuryEntryLine!]!
+
+  """Lines of other entries linked to this whole entry."""
+  linkedByLines: [TreasuryLinkedLine!]!
   linkedEntries: [TreasuryLinkedEntry!]!
   methodId: ID
   methodName: String
@@ -2360,6 +2429,9 @@ input TreasuryEntryInput {
   date: Date!
   label: String!
   libraryDocumentIds: [ID!]
+
+  """Split of the amount (none when omitted)."""
+  lines: [TreasuryEntryLineInput!]
   linkedEntryIds: [ID!]
   methodId: ID
   note: String
@@ -2372,9 +2444,60 @@ input TreasuryEntryInput {
   valueDate: Date
 }
 
+"""
+Part of a split entry: for a member, in a category and a context (none: everyday spending).
+"""
+type TreasuryEntryLine {
+  categoryId: ID
+  contextId: ID
+
+  """Supporting documents: of the library, then of projects."""
+  documents: [TreasuryEntryDocument!]!
+  id: ID!
+  label: String
+
+  """Whole entries (without lines) linked to this line."""
+  linkedEntries: [TreasuryLinkedEntry!]!
+
+  """Lines of other entries linked to this one (both ways)."""
+  linkedLines: [TreasuryLinkedLine!]!
+  memberId: ID
+  mode: TreasuryLineMode!
+  projectId: ID
+
+  """Signed amount, or signed percentage of the entry amount."""
+  value: Float!
+}
+
+input TreasuryEntryLineInput {
+  categoryId: ID
+  contextId: ID
+
+  """Line kept (its links from other entries stay); none for a new line."""
+  id: ID
+  label: String
+  libraryDocumentIds: [ID!]
+
+  """Other entries, without lines."""
+  linkedEntryIds: [ID!]
+
+  """Lines of other entries."""
+  linkedLineIds: [ID!]
+  memberId: ID
+  mode: TreasuryLineMode!
+  projectId: ID
+  projectResourceIds: [ID!]
+  value: Float!
+}
+
 enum TreasuryEntryStatus {
   ACTUAL
   FORECAST
+}
+
+enum TreasuryLineMode {
+  AMOUNT
+  PERCENT
 }
 
 """Entry linked to another one (both ways)."""
@@ -2383,6 +2506,17 @@ type TreasuryLinkedEntry {
   date: Date!
   id: ID!
   label: String!
+  status: TreasuryEntryStatus!
+}
+
+"""Line of another entry linked to a line or a whole entry."""
+type TreasuryLinkedLine {
+  amount: Float!
+  date: Date!
+  entryId: ID!
+  entryLabel: String!
+  id: ID!
+  label: String
   status: TreasuryEntryStatus!
 }
 
