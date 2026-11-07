@@ -1,7 +1,7 @@
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../graphql/errors';
-import { FONTS } from './accounting-pdf';
+import { startReport } from './pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -66,36 +66,19 @@ function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth
 /**
  * PDF (A4 landscape) of a table: title, subtitle, header repeated on each page, group rows, tasks with a square
  * marker and events with a round one in the first column, indented by level, or plain rows of data (columns
- * aligned as asked); page numbers in the footer.
+ * aligned as asked); in the template shared by every export (logo, date, page numbers).
  * @param {TablePdfInput} input Table.
  * @returns {Promise<Buffer>} PDF.
  */
 export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
   const table = parseInput(tablePdfSchema, input);
-  const doc: Doc = new PDFDocument({
-    size: 'A4',
-    layout: 'landscape',
-    margins: { top: MARGIN, left: MARGIN, right: MARGIN, bottom: MARGIN + 14 },
-    bufferPages: true,
-    font: FONTS.regular,
-    lang: 'fr-FR',
-    displayTitle: true,
-    info: { Title: table.title, Creator: 'Ordo', Producer: 'Ordo' },
-  });
-  doc.registerFont('regular', FONTS.regular);
-  doc.registerFont('bold', FONTS.bold);
-  const chunks: Buffer[] = [];
-  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-  const done = new Promise<void>((resolve, reject) => {
-    doc.on('end', resolve);
-    doc.on('error', reject);
-  });
+  const { doc, top, finish } = await startReport({ title: table.title });
 
   const pageWidth = doc.page.width - 2 * MARGIN;
   const widths = columnWidths(doc, table, pageWidth);
   const xs = widths.map((_, index) => MARGIN + widths.slice(0, index).reduce((sum, width) => sum + width, 0));
   const bottom = () => doc.page.height - doc.page.margins.bottom;
-  let y = MARGIN;
+  let y = top;
 
   doc.font('bold').fontSize(14).fillColor(COLORS.text).text(table.title, MARGIN, y, { width: pageWidth });
   y = doc.y + 2;
@@ -126,7 +109,7 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
   const ensure = (height: number) => {
     if (y + height <= bottom()) return;
     doc.addPage();
-    y = MARGIN;
+    y = top;
     header();
   };
 
@@ -148,6 +131,8 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     const cellWidth = (index: number) => Math.max(10, widths[index] - 2 * PAD - (index === 0 ? indent : 0));
     const height = Math.max(...table.columns.map((_, index) => doc.heightOfString(row.cells[index] ?? '', { width: cellWidth(index) }))) + 2 * PAD;
     ensure(height);
+    // The header repeated on a new page leaves the bold font.
+    doc.font('regular').fontSize(FONT_SIZE);
     // Marker: square for a task, dot for an event.
     const markerX = MARGIN + PAD + row.depth * INDENT;
     const markerY = y + PAD + FONT_SIZE / 2;
@@ -161,15 +146,5 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     doc.moveTo(MARGIN, y).lineTo(MARGIN + pageWidth, y).lineWidth(0.4).strokeColor(COLORS.border).stroke();
   }
 
-  const range = doc.bufferedPageRange();
-  for (let index = range.start; index < range.start + range.count; index++) {
-    doc.switchToPage(index);
-    // Written in the bottom margin: no automatic page break.
-    doc.page.margins.bottom = 0;
-    doc.font('regular').fontSize(7).fillColor(COLORS.muted);
-    doc.text(`${index + 1} / ${range.count}`, MARGIN, doc.page.height - MARGIN, { width: pageWidth, align: 'right', lineBreak: false });
-  }
-  doc.end();
-  await done;
-  return Buffer.concat(chunks);
+  return finish();
 }

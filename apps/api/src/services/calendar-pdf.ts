@@ -2,7 +2,7 @@ import { addDays, daysBetween } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../graphql/errors';
-import { FONTS } from './accounting-pdf';
+import { startReport } from './pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -309,42 +309,24 @@ function drawMonth(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: { x:
 /**
  * PDF (A4 landscape) of a calendar view as displayed: month grid, or week / day hours with the all-day row
  * and the working hours in the background; cancelled events and done tasks struck through. Light colors,
- * for printing.
+ * for printing, in the template shared by every export (logo, date, page number).
  * @param {CalendarPdfInput} input View and its items.
  * @returns {Promise<Buffer>} PDF.
  */
 export async function calendarPdf(input: CalendarPdfInput): Promise<Buffer> {
   const view = parseInput(calendarPdfSchema, input);
   const { today } = view;
-  const doc: Doc = new PDFDocument({
-    size: 'A4',
-    layout: 'landscape',
-    margins: { top: MARGIN, left: MARGIN, right: MARGIN, bottom: MARGIN },
-    font: FONTS.regular,
-    lang: 'fr-FR',
-    displayTitle: true,
-    info: { Title: view.title, Creator: 'Ordo', Producer: 'Ordo' },
-  });
-  doc.registerFont('regular', FONTS.regular);
-  doc.registerFont('bold', FONTS.bold);
-  const chunks: Buffer[] = [];
-  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-  const done = new Promise<void>((resolve, reject) => {
-    doc.on('end', resolve);
-    doc.on('error', reject);
-  });
+  const { doc, top, finish } = await startReport({ title: view.title });
 
   const width = doc.page.width - 2 * MARGIN;
-  doc.font('bold').fontSize(14).fillColor(COLORS.text).text(view.title, MARGIN, MARGIN, { width, lineBreak: false });
-  let top = MARGIN + 20;
+  doc.font('bold').fontSize(14).fillColor(COLORS.text).text(view.title, MARGIN, top, { width, lineBreak: false });
+  let y = top + 20;
   if (view.subtitle) {
-    doc.font('regular').fontSize(8).fillColor(COLORS.muted).text(view.subtitle, MARGIN, top, { width, lineBreak: false, ellipsis: true });
-    top += 13;
+    doc.font('regular').fontSize(8).fillColor(COLORS.muted).text(view.subtitle, MARGIN, y, { width, lineBreak: false, ellipsis: true });
+    y += 13;
   }
-  const area = { x: MARGIN, y: top + 2, width, height: doc.page.height - MARGIN - top - 2 };
+  const area = { x: MARGIN, y: y + 2, width, height: doc.page.height - doc.page.margins.bottom - y - 2 };
   if (view.view === 'month') drawMonth(doc, view, area, today);
   else drawTimeGrid(doc, view, area, today);
-  doc.end();
-  await done;
-  return Buffer.concat(chunks);
+  return finish();
 }

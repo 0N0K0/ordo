@@ -3,9 +3,9 @@ import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
 import { clientError, notFound, parseInput } from '../graphql/errors';
-import { FONTS } from './accounting-pdf';
 import { accountBalance } from './treasury';
 import { currentWorkspaceId } from '../workspace-context';
+import { startReport } from './pdf-report';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -137,24 +137,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   );
   const offset = entries.reduce((sum, entry, index) => sum + (amounts[index] > 0 ? amounts[index] - Math.round(remaining.get(entry.id) ?? amounts[index]) : 0), 0);
 
-  const doc: Doc = new PDFDocument({
-    size: 'A4',
-    layout: 'landscape',
-    margins: { top: MARGIN, left: MARGIN, right: MARGIN, bottom: MARGIN + 14 },
-    bufferPages: true,
-    font: FONTS.regular,
-    lang: 'fr-FR',
-    displayTitle: true,
-    info: { Title: `Relevé des mouvements du ${printed(from)} au ${printed(to)}`, Creator: 'Ordo', Producer: 'Ordo' },
-  });
-  doc.registerFont('regular', FONTS.regular);
-  doc.registerFont('bold', FONTS.bold);
-  const chunks: Buffer[] = [];
-  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-  const done = new Promise<void>((resolve, reject) => {
-    doc.on('end', resolve);
-    doc.on('error', reject);
-  });
+  const { doc, top, finish } = await startReport({ title: `Relevé du ${printed(from)} au ${printed(to)}` });
 
   const pageWidth = doc.page.width - 2 * MARGIN;
   const several = accounts.length > 1;
@@ -174,7 +157,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   fixed[labelIndex].width = pageWidth - fixed.reduce((sum, column) => sum + column.width, 0);
   const xs = fixed.map((_, index) => MARGIN + fixed.slice(0, index).reduce((sum, column) => sum + column.width, 0));
   const bottom = () => doc.page.height - doc.page.margins.bottom;
-  let y = MARGIN;
+  let y = top;
 
   // Title and summary.
   doc.font('bold').fontSize(14).fillColor(COLORS.text).text('Relevé des mouvements', MARGIN, y, { width: pageWidth });
@@ -236,7 +219,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   const ensure = (height: number) => {
     if (y + height <= bottom()) return;
     doc.addPage();
-    y = MARGIN;
+    y = top;
     header();
   };
 
@@ -406,16 +389,6 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   y += 4;
   band(`Total de la période · Débit ${money(outgoing)} · Crédit ${money(incoming)}`, `Solde au ${printed(to)} : ${money(closing)}`, COLORS.month);
 
-  const range = doc.bufferedPageRange();
-  for (let index = range.start; index < range.start + range.count; index++) {
-    doc.switchToPage(index);
-    // Written in the bottom margin: no automatic page break.
-    doc.page.margins.bottom = 0;
-    doc.font('regular').fontSize(7).fillColor(COLORS.muted);
-    doc.text(`Relevé du ${printed(from)} au ${printed(to)} · ${scope}`, MARGIN, doc.page.height - MARGIN, { width: pageWidth / 2, lineBreak: false });
-    doc.text(`${index + 1} / ${range.count}`, MARGIN + pageWidth / 2, doc.page.height - MARGIN, { width: pageWidth / 2, align: 'right', lineBreak: false });
-  }
-  doc.end();
-  await done;
-  return { name: `Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), content: Buffer.concat(chunks) };
+  const content = await finish();
+  return { name: `Relevé ${several ? 'trésorerie' : accounts[0].name} du ${from} au ${to}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), content };
 }
