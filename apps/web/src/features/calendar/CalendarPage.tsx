@@ -38,6 +38,8 @@ import { categoryOptions, categorySubtree } from './category-tree';
 import { localParts, occurrenceInput } from './event-input';
 import { SubscribedEventModal } from './SubscribedEventModal';
 import { useEventForm } from './use-event-form';
+import { CalendarCategoriesManager } from './CalendarCategoriesManager';
+import { CalendarsManager } from './CalendarsManager';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
@@ -123,6 +125,20 @@ export function CalendarPage() {
   // A date to show (link to a postponed event…).
   const [params, setParams] = useSearchParams();
   const requestedDate = params.get('date');
+  // Settings of the calendar (calendars, subscriptions, categories), opened from the URL too (?settings=1).
+  const settingsOpen = params.get('settings') === '1';
+
+  /**
+   * Opens or closes the settings of the calendar (kept in the URL).
+   * @param {boolean} open Whether they are shown.
+   * @returns {void}
+   */
+  const showSettings = (open: boolean) => {
+    const next = new URLSearchParams(params);
+    if (open) next.set('settings', '1');
+    else next.delete('settings');
+    setParams(next, { replace: true });
+  };
 
   useEffect(() => {
     if (!requestedDate) return;
@@ -400,6 +416,11 @@ export function CalendarPage() {
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             Plages de travail
           </Button>
+          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories">
+            <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => showSettings(true)}>
+              Paramètres
+            </Button>
+          </Tooltip>
           <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
             Nouvel évènement
           </Button>
@@ -429,7 +450,7 @@ export function CalendarPage() {
           />
         ))}
         <Tooltip label="Gérer les calendriers et les abonnements aux autres espaces">
-          <ActionIcon variant="subtle" color="gray" aria-label="Gérer les calendriers" onClick={() => navigate('/settings?tab=calendar')}>
+          <ActionIcon variant="subtle" color="gray" aria-label="Gérer les calendriers" onClick={() => showSettings(true)}>
             <GearSixIcon aria-hidden />
           </ActionIcon>
         </Tooltip>
@@ -480,6 +501,14 @@ export function CalendarPage() {
         </Alert>
       )}
       <SubscribedEventModal opened={openedSubscribed} onClose={() => setOpenedSubscribed(null)} />
+      <Modal opened={settingsOpen} onClose={() => showSettings(false)} title="Paramètres de l’agenda" size="xl">
+        {settingsOpen && (
+          <Stack gap="md">
+            <CalendarsManager />
+            <CalendarCategoriesManager />
+          </Stack>
+        )}
+      </Modal>
       <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title="Plages de travail" size="xl">
         {managingSchedules && <WorkSchedulesManager />}
       </Modal>

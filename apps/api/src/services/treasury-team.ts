@@ -1,7 +1,15 @@
-import { parseDay, treasuryContextPeriodSchema, treasuryContextSchema, type TreasuryContextInput, type TreasuryContextPeriodInput } from '@ordo/shared';
+import {
+  parseDay,
+  treasuryContextPeriodSchema,
+  treasuryContextSchema,
+  treasuryRelationSchema,
+  type TreasuryContextInput,
+  type TreasuryContextPeriodInput,
+  type TreasuryRelationInput,
+} from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
-import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod } from '../generated/prisma/client';
+import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { createContributor } from './contributors';
 
@@ -54,6 +62,9 @@ async function freeHandle(name: string): Promise<string> {
 export async function addMember(input: { contributorId?: string | null; name?: string | null }): Promise<Contributor> {
   if (input.contributorId) {
     if (!(await prisma.contributor.findUnique({ where: { id: input.contributorId }, select: { id: true } }))) throw notFound('Contributeur');
+    // A contributor is a member or a relation, not both.
+    const relation = await prisma.treasuryRelation.findFirst({ where: { contributorId: input.contributorId }, select: { name: true } });
+    if (relation) throw clientError('BAD_USER_INPUT', `Ce contributeur est la relation « ${relation.name} » : il ne peut pas aussi être membre.`);
     return prisma.contributor.update({ where: { id: input.contributorId }, data: { teamMember: true } });
   }
   const { name } = parseInput(z.object({ name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.') }), { name: input.name ?? '' });
@@ -129,4 +140,45 @@ export async function saveContextPeriod(id: string | null, input: TreasuryContex
 export async function deleteContextPeriod(id: string): Promise<void> {
   const { count } = await prisma.treasuryContextPeriod.deleteMany({ where: { id } });
   if (!count) throw notFound('Période');
+}
+
+/**
+ * Saves a relation: a person out of the team or household (friend, family, partner…) lines and budgets can be for,
+ * possibly a contributor too (not a member).
+ * @param {string | null} id Relation to change, or null to create one.
+ * @param {TreasuryRelationInput} input Name and note.
+ * @returns {Promise<TreasuryRelation>} Relation.
+ */
+export async function saveRelation(id: string | null, input: TreasuryRelationInput): Promise<TreasuryRelation> {
+  const parsed = parseInput(treasuryRelationSchema, input);
+  if (id && !(await prisma.treasuryRelation.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Relation');
+  if (parsed.contributorId) {
+    const contributor = await prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } });
+    if (!contributor) throw notFound('Contributeur');
+    if (isMember(contributor)) {
+      const message = 'Ce contributeur est membre : il n’est pas une relation.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { contributorId: message } });
+    }
+  }
+  const data = { name: parsed.name, note: parsed.note, contributorId: parsed.contributorId ?? null };
+  try {
+    return id ? await prisma.treasuryRelation.update({ where: { id }, data }) : await prisma.treasuryRelation.create({ data });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const contributor = String(error.meta?.target ?? '').includes('contributorId') || JSON.stringify(error.meta ?? {}).includes('contributorId');
+      const message = contributor ? 'Ce contributeur est déjà une relation.' : 'Une relation porte déjà ce nom.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { [contributor ? 'contributorId' : 'name']: message } });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Deletes a relation: its budgets go with it, its lines become the app user's.
+ * @param {string} id Relation.
+ * @returns {Promise<void>}
+ */
+export async function deleteRelation(id: string): Promise<void> {
+  const { count } = await prisma.treasuryRelation.deleteMany({ where: { id } });
+  if (!count) throw notFound('Relation');
 }

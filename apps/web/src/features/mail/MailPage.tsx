@@ -1,9 +1,9 @@
 import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
-import { CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, GearSixIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from './api';
 import { AccountFolders, type DraggedMails } from './MailFolders';
@@ -16,6 +16,7 @@ import { AdvancedSearchPanel } from './AdvancedSearchPanel';
 import { MailSearchFolders, MailSearchList } from './MailSearchFolders';
 import { openSearchForm } from './open-search-form';
 import { ScheduledMailsList } from './ScheduledMailsList';
+import { MailAccountsManager } from './settings/MailAccountsManager';
 import { useMailComposer } from './use-mail-composer';
 
 type DoneFilter = 'all' | 'todo' | 'done';
@@ -32,7 +33,7 @@ const SORTS = [
 ];
 
 /**
- * Mail client: accounts and folders (managed, mails dropped in them), search folders (kept in Ordo), scheduled
+ * Mail client: accounts (managed in a dialog, or right in the page without any) and folders (managed, mails dropped in them), search folders (kept in Ordo), scheduled
  * mails, messages of the selected
  * folder (latest first, searchable, filtered on the done state, paged, several selected for the organizing
  * actions and dragged to a folder), and the open message. Everything is read live on the servers. The
@@ -85,6 +86,8 @@ export function MailPage() {
   const setSelected = (uids: number[]) => setSelection({ key: selectionKey, uids });
   const [dragged, setDragged] = useState<DraggedMails | null>(null);
   const [managingLabels, setManagingLabels] = useState(false);
+  // Management of the mail accounts, opened from the URL too (?accounts=1).
+  const accountsOpen = params.get('accounts') === '1';
   const selectedMessages = (messages.data?.messages ?? []).filter((message) => selected.includes(message.uid));
 
   /**
@@ -113,13 +116,11 @@ export function MailPage() {
               <EnvelopeSimpleIcon aria-hidden />
             </ThemeIcon>
             <Text size="sm" c="dimmed">
-              Aucune boîte mail configurée.
+              Aucune boîte mail configurée : ajoutez-en une.
             </Text>
-            <Button component={Link} to="/settings?tab=mail" variant="light">
-              Configurer une boîte mail
-            </Button>
           </Stack>
         </Paper>
+        <MailAccountsManager />
       </Stack>
     );
   }
@@ -132,13 +133,23 @@ export function MailPage() {
       <Modal opened={managingLabels} onClose={() => setManagingLabels(false)} title="Drapeaux">
         {managingLabels && <MailLabelsManager />}
       </Modal>
+      <Modal opened={accountsOpen} onClose={() => update({ accounts: null })} title="Boîtes mail" size="xl">
+        {accountsOpen && <MailAccountsManager />}
+      </Modal>
       <Group justify="space-between">
         <Title order={1} size="h2">
           Mails
         </Title>
-        <Button leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => compose({ accountId })}>
-          Nouveau mail
-        </Button>
+        <Group gap="sm">
+          <Tooltip label="Ajouter, modifier ou retirer une boîte mail">
+            <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => update({ accounts: '1' })}>
+              Boîtes mail
+            </Button>
+          </Tooltip>
+          <Button leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => compose({ accountId })}>
+            Nouveau mail
+          </Button>
+        </Group>
       </Group>
       <Grid gap="md" classNames={{ root: classes.grid, inner: classes.gridInner }}>
         <Grid.Col span={{ base: 12, md: 3, xl: 2 }} className={classes.column}>

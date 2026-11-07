@@ -373,7 +373,7 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
 }
 
 /**
- * Treasury settings: team or household and contexts (how entries are split), categories of money in and out
+ * Treasury settings: contexts (how entries are split), categories of money in and out
  * (with sub-categories), payment methods and the counterparties that are not clients.
  * @returns {JSX.Element} Panel.
  */

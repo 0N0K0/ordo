@@ -31,6 +31,7 @@ const monthLabel = (month: string) => monthFormat.format(new Date(`${month}-01T0
 interface BudgetValues extends Record<string, unknown> {
   month: string;
   memberId: string | null;
+  relationId: string | null;
   contextId: string | null;
   categoryId: string;
   amount: number;
@@ -52,6 +53,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
     initialValues: {
       month: budget?.month ?? localToday().slice(0, 7),
       memberId: budget?.memberId ?? null,
+      relationId: budget?.relationId ?? null,
       contextId: budget?.contextId ?? null,
       categoryId: budget?.categoryId ?? '',
       amount: budget?.amount ?? 0,
@@ -70,7 +72,10 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
       onSubmit={form.onSubmit((input) =>
         save.mutate(
           // "Moi" is no member at all.
-          { id: budget?.id ?? null, input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, repeatUntil: input.repeatEvery ? input.repeatUntil : null } },
+          {
+            id: budget?.id ?? null,
+            input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, relationId: input.relationId ?? null, repeatUntil: input.repeatEvery ? input.repeatUntil : null },
+          },
           { onSuccess: () => (notifySuccess(budget ? 'Budget modifié.' : 'Budget créé.'), onDone()), onError: (error) => showFormError(form, error) },
         ),
       )}
@@ -100,11 +105,17 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
         />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           <Select
-            label="Membre"
+            label="Pour"
             placeholder={me ? `${me.name} (moi)` : 'Moi'}
             clearable
-            data={members.filter((member) => !member.isMe).map((member) => ({ value: member.id, label: member.name }))}
-            {...form.getInputProps('memberId')}
+            searchable
+            data={[
+              { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })) },
+              { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
+            ].filter((group) => group.items.length)}
+            value={values.relationId ? `r:${values.relationId}` : values.memberId ? `m:${values.memberId}` : null}
+            onChange={(key) => form.setValues({ memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+            error={form.errors.memberId}
           />
           <Select
             label="Contexte"
@@ -169,6 +180,7 @@ export function BudgetsPanel() {
   const memberName = new Map((settings?.treasuryMembers ?? []).map((member) => [member.id, member.isMe ? `${member.name} (moi)` : member.name]));
   const me = settings?.treasuryMembers.find((member) => member.isMe);
   const contextName = new Map((settings?.treasuryContexts ?? []).map((item) => [item.id, item.name]));
+  const relationName = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
   const rows = data?.treasuryBudgetReport ?? [];
   const budgeted = rows.filter((row) => row.budgeted);
   const outside = rows.filter((row) => !row.budgeted);
@@ -182,9 +194,22 @@ export function BudgetsPanel() {
    */
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
   const money = (amount: number) => formatMoney(Math.round(amount * 100));
-  const keyCells = (row: { memberId: string | null; contextId: string | null; categoryId: string | null }) => (
+  const keyCells = (row: { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null }) => (
     <>
-      <Table.Td>{row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : `${me?.name ?? 'Moi'} (moi)`}</Table.Td>
+      <Table.Td>
+        {row.relationId ? (
+          <Group gap={6} wrap="nowrap">
+            {relationName.get(row.relationId) ?? ''}
+            <Badge size="xs" variant="light" color="grape">
+              Relation
+            </Badge>
+          </Group>
+        ) : row.memberId ? (
+          (memberName.get(row.memberId) ?? 'Ancien membre')
+        ) : (
+          `${me?.name ?? 'Moi'} (moi)`
+        )}
+      </Table.Td>
       <Table.Td>{row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT}</Table.Td>
       <Table.Td>{row.categoryId ? (paths.get(row.categoryId) ?? '') : <Text c="dimmed">Sans catégorie</Text>}</Table.Td>
     </>
@@ -217,7 +242,7 @@ export function BudgetsPanel() {
             <Table verticalSpacing={6}>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Membre</Table.Th>
+                  <Table.Th>Pour</Table.Th>
                   <Table.Th>Contexte</Table.Th>
                   <Table.Th>Catégorie</Table.Th>
                   <Table.Th ta="right">Budget</Table.Th>
@@ -234,7 +259,7 @@ export function BudgetsPanel() {
                   const left = row.budget - actual - forecast;
                   const ratio = row.budget ? ((actual + forecast) / row.budget) * 100 : 0;
                   return (
-                    <Table.Tr key={`${row.memberId}|${row.contextId}|${row.categoryId}`}>
+                    <Table.Tr key={`${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}>
                       {keyCells(row)}
                       <Table.Td ta="right">{money(row.budget)}</Table.Td>
                       <Table.Td ta="right">{money(actual)}</Table.Td>
@@ -276,7 +301,7 @@ export function BudgetsPanel() {
             <Table verticalSpacing={6}>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Membre</Table.Th>
+                  <Table.Th>Pour</Table.Th>
                   <Table.Th>Contexte</Table.Th>
                   <Table.Th>Catégorie</Table.Th>
                   <Table.Th ta="right">Réel</Table.Th>
@@ -286,7 +311,7 @@ export function BudgetsPanel() {
               </Table.Thead>
               <Table.Tbody>
                 {outside.map((row) => (
-                  <Table.Tr key={`${row.memberId}|${row.contextId}|${row.categoryId}`}>
+                  <Table.Tr key={`${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}>
                     {keyCells(row)}
                     <Table.Td ta="right">{money(row.actual)}</Table.Td>
                     <Table.Td ta="right" c="dimmed">
@@ -303,7 +328,8 @@ export function BudgetsPanel() {
                               setDialog({
                                 defaults: {
                                   month,
-                                  memberId: row.memberId === me?.id ? null : row.memberId,
+                                  memberId: row.memberId === me?.id ? null : (row.memberId ?? null),
+                                  relationId: row.relationId ?? null,
                                   contextId: row.contextId ?? null,
                                   categoryId: row.categoryId ?? '',
                                   amount: Math.abs(row.actual + row.forecast),
@@ -338,7 +364,7 @@ export function BudgetsPanel() {
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Période</Table.Th>
-                  <Table.Th>Membre</Table.Th>
+                  <Table.Th>Pour</Table.Th>
                   <Table.Th>Contexte</Table.Th>
                   <Table.Th>Catégorie</Table.Th>
                   <Table.Th ta="right">Montant</Table.Th>

@@ -14,7 +14,7 @@ import { categoryOptions } from './categories';
 import { LinesEditor } from './LinesEditor';
 import { describeLink, newLine, type LineValues } from './lines';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
-import { ContextForm } from './TeamPanel';
+import { ContextForm, RelationForm } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -98,8 +98,8 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
   const { data: settings } = useTreasurySettings();
   const [search, setSearch] = useState('');
   // Category, method or counterparty created from the form.
-  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | 'context' | null>(null);
-  // Line a context is created for.
+  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | 'context' | 'relation' | null>(null);
+  // Line a context or a relation is created for.
   const [contextLine, setContextLine] = useState<number | null>(null);
   const { data: found } = useTreasuryEntrySearch(search);
   const { data: documentOptions } = useTreasuryDocumentOptions();
@@ -143,6 +143,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
           mode: line.mode,
           value: line.mode === 'AMOUNT' && (entry?.amount ?? 0) < 0 ? -line.value : line.value,
           memberId: line.memberId ?? null,
+          relationId: line.relationId ?? null,
           categoryId: line.categoryId ?? null,
           contextId: line.contextId ?? null,
           projectId: line.projectId ?? null,
@@ -389,6 +390,10 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
             setContextLine(index);
             setCreating('context');
           }}
+          onCreateRelation={(index) => {
+            setContextLine(index);
+            setCreating('relation');
+          }}
         />
 
         {split ? (
@@ -570,7 +575,17 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       <Modal
         opened={creating !== null}
         onClose={() => setCreating(null)}
-        title={creating === 'category' ? 'Nouvelle catégorie' : creating === 'method' ? 'Nouveau moyen de paiement' : creating === 'context' ? 'Nouveau contexte' : 'Nouveau tiers'}
+        title={
+          creating === 'category'
+            ? 'Nouvelle catégorie'
+            : creating === 'method'
+              ? 'Nouveau moyen de paiement'
+              : creating === 'context'
+                ? 'Nouveau contexte'
+                : creating === 'relation'
+                  ? 'Nouvelle relation'
+                  : 'Nouveau tiers'
+        }
       >
         {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
         <div onSubmit={(event) => event.stopPropagation()}>
@@ -580,6 +595,18 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
               categories={categories}
               onDone={(id) => {
                 if (id) form.setFieldValue('categoryId', id);
+                setCreating(null);
+              }}
+            />
+          )}
+          {creating === 'relation' && (
+            <RelationForm
+              onDone={(id) => {
+                if (id && contextLine !== null) {
+                  form.setFieldValue(`lines.${contextLine}.relationId`, id);
+                  form.setFieldValue(`lines.${contextLine}.memberId`, null);
+                }
+                setContextLine(null);
                 setCreating(null);
               }}
             />

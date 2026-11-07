@@ -6,6 +6,9 @@ import { useWorkspace } from '../../workspace/api';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from './use-contributor-form';
+import { useTreasurySettings } from '../../treasury/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { accountingQueryKey } from '../../accounting/api';
 
 interface ContributorsManagerProps {
   contributors: Contributor[];
@@ -14,11 +17,17 @@ interface ContributorsManagerProps {
 }
 
 /**
- * List of the contributors that tasks can be assigned to.
+ * List of the contributors that tasks can be assigned to, with whether each is a member of the team or household, or a
+ * relation (never both).
  * @param {ContributorsManagerProps} props Component props.
  * @returns {JSX.Element} Manager.
  */
 export function ContributorsManager({ contributors, usage }: ContributorsManagerProps) {
+  const { data: treasury } = useTreasurySettings();
+  const queryClient = useQueryClient();
+  const memberIds = new Set((treasury?.treasuryMembers ?? []).map((member) => member.id));
+  // Contributor → name of the relation they are.
+  const relationOf = new Map((treasury?.treasuryRelations ?? []).filter((relation) => relation.contributorId).map((relation) => [relation.contributorId as string, relation.name]));
   const { remove } = useContributorMutations();
   const openForm = useContributorForm();
   const { data: workspace } = useWorkspace();
@@ -61,7 +70,11 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
               remove.mutate(
                 { id: contributor.id },
                 {
-                  onSuccess: () => notifySuccess(`${contributor.name} supprimé.`),
+                  onSuccess: () => {
+                    notifySuccess(`${contributor.name} supprimé.`);
+                    // Members and relations (treasury) follow: a relation loses its contributor.
+                    void queryClient.invalidateQueries({ queryKey: accountingQueryKey });
+                  },
                   onError: (error) => notifyError(error.message),
                 },
               );
@@ -112,6 +125,19 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                       <Badge size="xs" variant="light">
                         Moi
                       </Badge>
+                    )}
+                    {/* A member of the team or household, or a relation: never both. */}
+                    {!contributor.isMe && memberIds.has(contributor.id) && (
+                      <Badge size="xs" variant="light" color="blue">
+                        Membre
+                      </Badge>
+                    )}
+                    {relationOf.has(contributor.id) && (
+                      <Tooltip label={`Relation « ${relationOf.get(contributor.id)} »`}>
+                        <Badge size="xs" variant="light" color="grape">
+                          Relation
+                        </Badge>
+                      </Tooltip>
                     )}
                   </Group>
                   <Text size="xs" c="dimmed">

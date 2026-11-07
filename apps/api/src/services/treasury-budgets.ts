@@ -5,9 +5,11 @@ import { Prisma } from '../generated/prisma/client';
 import { notFound, parseInput } from '../graphql/errors';
 import { storedRecurrence } from './calendar-events';
 
-/** Key of a budget or of what it compares with: member, context (null: everyday), category. */
+/** Key of a budget or of what it compares with: member or relation, context (null: everyday), category. */
 interface Key {
-  memberId: string;
+  /** Null for a relation. */
+  memberId: string | null;
+  relationId: string | null;
   contextId: string | null;
   categoryId: string | null;
 }
@@ -34,10 +36,12 @@ async function budgetData(input: TreasuryBudgetInput) {
   const budget = parseInput(treasuryBudgetSchema, input);
   if (!(await prisma.treasuryCategory.findUnique({ where: { id: budget.categoryId }, select: { id: true } }))) throw notFound('Catégorie');
   if (budget.memberId && !(await prisma.contributor.findUnique({ where: { id: budget.memberId }, select: { id: true } }))) throw notFound('Membre');
+  if (budget.relationId && !(await prisma.treasuryRelation.findUnique({ where: { id: budget.relationId }, select: { id: true } }))) throw notFound('Relation');
   if (budget.contextId && !(await prisma.treasuryContext.findUnique({ where: { id: budget.contextId }, select: { id: true } }))) throw notFound('Contexte');
   return {
     month: parseDay(`${budget.month}-01`),
-    memberId: budget.memberId,
+    memberId: budget.relationId ? null : budget.memberId,
+    relationId: budget.relationId ?? null,
     contextId: budget.contextId,
     categoryId: budget.categoryId,
     amount: new Prisma.Decimal(budget.amount),
@@ -87,8 +91,8 @@ function lastDay(month: string): string {
 }
 
 /**
- * Budgets of a range of months compared with the actual and forecast movements: each line of a split entry (a
- * line without member is the app user's), and what the lines leave or a whole entry without lines (the app
+ * Budgets of a range of months compared with the actual and forecast movements: each line of a split entry (for
+ * its relation, or its member; a line without either is the app user's), and what the lines leave or a whole entry without lines (the app
  * user's, in the context planned on its day), counts in the budget of its month, member and context for its
  * category or the closest parent category that has one; without one, it is out of budget.
  * @param {string} from First month (YYYY-MM).
@@ -105,7 +109,13 @@ export async function budgetReport(from: string, to: string, meId: string | null
   ]);
   const parentOf = new Map(categories.map((category) => [category.id, category.parentId]));
   const planned = periods.map((period) => ({ contextId: period.contextId, startDate: formatDay(period.startDate), endDate: formatDay(period.endDate) }));
-  const keyOf = (month: string, key: Key) => `${month}|${key.memberId}|${key.contextId ?? ''}|${key.categoryId ?? ''}`;
+  const keyOf = (month: string, key: Key) => `${month}|${key.memberId ?? ''}|${key.relationId ?? ''}|${key.contextId ?? ''}|${key.categoryId ?? ''}`;
+  /**
+   * Who a budget or a line is for: its relation, or its member (the app user when none).
+   * @param {{ memberId: string | null, relationId: string | null }} row Budget or line.
+   * @returns {{ memberId: string | null, relationId: string | null }} Member or relation.
+   */
+  const whom = (row: { memberId: string | null; relationId: string | null }) => (row.relationId ? { memberId: null, relationId: row.relationId } : { memberId: row.memberId ?? me, relationId: null });
 
   const rows = new Map<string, BudgetReportRow>();
   for (const budget of budgets) {
@@ -115,7 +125,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
       to,
     );
     for (const month of months) {
-      const key = { memberId: budget.memberId ?? me, contextId: budget.contextId, categoryId: budget.categoryId };
+      const key = { ...whom(budget), contextId: budget.contextId, categoryId: budget.categoryId };
       const row = rows.get(keyOf(month, key)) ?? { month, ...key, budget: 0, actual: 0, forecast: 0, budgeted: true };
       row.budget += Math.round(Number(budget.amount) * 100);
       rows.set(keyOf(month, key), row);
@@ -167,9 +177,9 @@ export async function budgetReport(from: string, to: string, meId: string | null
     const { amounts, remainder } = splitAmounts(total, lines);
     const kind = entry.status === 'ACTUAL' ? 'actual' : 'forecast';
     for (const day of days) {
-      lines.forEach((line, index) => add(day, { memberId: line.memberId ?? me, contextId: line.contextId, categoryId: line.categoryId }, amounts[index], kind));
+      lines.forEach((line, index) => add(day, { ...whom(line), contextId: line.contextId, categoryId: line.categoryId }, amounts[index], kind));
       // What the lines leave, or the whole entry: the app user's, in the context planned that day.
-      add(day, { memberId: me, contextId: plannedContext(planned, day), categoryId: lines.length ? null : entry.categoryId }, remainder, kind);
+      add(day, { memberId: me, relationId: null, contextId: plannedContext(planned, day), categoryId: lines.length ? null : entry.categoryId }, remainder, kind);
     }
   }
   return [...rows.values()].sort((a, b) => a.month.localeCompare(b.month) || Number(b.budgeted) - Number(a.budgeted));

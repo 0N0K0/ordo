@@ -135,8 +135,8 @@ export function OverdueInvoicesPanel() {
       {accounts && accounts.length === 0 && (
         <Alert color="yellow">
           Aucune boîte mail : ajoutez-en une dans{' '}
-          <Anchor component={Link} to="/settings?tab=mail" size="sm">
-            les paramètres
+          <Anchor component={Link} to="/mail?accounts=1" size="sm">
+            les boîtes mail
           </Anchor>{' '}
           pour envoyer les relances.
         </Alert>

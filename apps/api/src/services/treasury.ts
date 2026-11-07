@@ -79,10 +79,11 @@ export async function deleteAccount(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 async function assertLines(amount: number, lines: ReturnType<typeof treasuryEntrySchema.parse>['lines'], entryId: string | null): Promise<void> {
-  const ids = (key: 'memberId' | 'categoryId' | 'contextId' | 'projectId') => [...new Set(lines.map((line) => line[key]).filter((id): id is string => typeof id === 'string'))];
+  const ids = (key: 'memberId' | 'relationId' | 'categoryId' | 'contextId' | 'projectId') => [...new Set(lines.map((line) => line[key]).filter((id): id is string => typeof id === 'string'))];
   const all = (key: 'libraryDocumentIds' | 'projectResourceIds' | 'linkedLineIds' | 'linkedEntryIds') => [...new Set(lines.flatMap((line) => line[key]))];
   if ((await prisma.contributor.count({ where: { id: { in: ids('memberId') } } })) !== ids('memberId').length) throw notFound('Membre');
   if ((await prisma.treasuryContext.count({ where: { id: { in: ids('contextId') } } })) !== ids('contextId').length) throw notFound('Contexte');
+  if ((await prisma.treasuryRelation.count({ where: { id: { in: ids('relationId') } } })) !== ids('relationId').length) throw notFound('Relation');
   if ((await prisma.project.count({ where: { id: { in: ids('projectId') } } })) !== ids('projectId').length) throw notFound('Projet');
   if ((await prisma.libraryDocument.count({ where: { id: { in: all('libraryDocumentIds') } } })) !== all('libraryDocumentIds').length) throw notFound('Document');
   if ((await prisma.projectResource.count({ where: { id: { in: all('projectResourceIds') } } })) !== all('projectResourceIds').length) throw notFound('Document du projet');
@@ -126,6 +127,7 @@ function lineFields(line: ParsedLine, position: number) {
     mode: line.mode,
     value: new Prisma.Decimal(line.value),
     memberId: line.memberId,
+    relationId: line.relationId ?? null,
     categoryId: line.categoryId,
     contextId: line.contextId,
     projectId: line.projectId ?? null,
@@ -383,6 +385,7 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
       memberId: line.memberId,
       categoryId: line.categoryId,
       contextId: line.contextId,
+      relationId: line.relationId,
       projectId: line.projectId,
       libraryDocumentIds: line.libraryDocuments.map((document) => document.id),
       projectResourceIds: line.projectResources.map((document) => document.id),

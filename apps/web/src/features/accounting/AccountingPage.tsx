@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Table, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
-import { ArrowsClockwiseIcon, BellRingingIcon, CaretDownIcon, FileArrowUpIcon, FileZipIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BellRingingIcon, CaretDownIcon, FileArrowUpIcon, FileZipIcon, FlagIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
@@ -16,6 +16,7 @@ import { DocumentsTable } from './DocumentsTable';
 import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from './labels';
 import { openDocumentsZip, openNewDocument } from './new-document';
 import { openRecurringForm } from './recurring-form';
+import { DocumentStatusSettings } from './DocumentStatusSettings';
 
 const TABS = [
   { value: 'QUOTE', label: 'Devis' },
@@ -142,7 +143,7 @@ function RecurringList() {
 
 /**
  * Accounting: quotes, invoices, deposit invoices and credit notes (imported ones listed with their type),
- * invoices to follow up, recurring invoices and catalogue.
+ * invoices to follow up, recurring invoices, catalogue and the tracking statuses of the documents.
  * @returns {JSX.Element} Page.
  */
 export function AccountingPage() {
@@ -209,6 +210,9 @@ export function AccountingPage() {
           <Tabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
             Catalogue
           </Tabs.Tab>
+          <Tabs.Tab value="tracking" leftSection={<FlagIcon aria-hidden />}>
+            Suivi des documents
+          </Tabs.Tab>
         </Tabs.List>
         {TABS.map((item) => (
           <Tabs.Panel key={item.value} value={item.value}>
@@ -231,6 +235,9 @@ export function AccountingPage() {
         </Tabs.Panel>
         <Tabs.Panel value="catalog">
           <CatalogPanel />
+        </Tabs.Panel>
+        <Tabs.Panel value="tracking">
+          <DocumentStatusSettings />
         </Tabs.Panel>
       </Tabs>
     </Stack>

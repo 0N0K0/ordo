@@ -55,9 +55,26 @@ builder.prismaObject('TreasuryEntryLine', {
     mode: t.field({ type: LineModeEnum, resolve: (line) => line.mode }),
     value: t.float({ description: 'Signed amount, or signed percentage of the entry amount.', resolve: (line) => Number(line.value) }),
     memberId: t.exposeID('memberId', { nullable: true }),
+    relationId: t.exposeID('relationId', { nullable: true, description: 'Relation it is for, instead of a member.' }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
   }),
+});
+
+builder.prismaObject('TreasuryRelation', {
+  description: 'Person out of the team or household (friend, family, partner…) lines and budgets can be for.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    note: t.exposeString('note', { nullable: true }),
+    contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor this person also is.' }),
+    lineCount: t.relationCount('lines'),
+    budgetCount: t.relationCount('budgets'),
+  }),
+});
+
+const RelationInput = builder.inputType('TreasuryRelationInput', {
+  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), contributorId: t.id() }),
 });
 
 builder.prismaObject('TreasuryContext', {
@@ -76,6 +93,7 @@ builder.prismaObject('TreasuryBudget', {
     id: t.exposeID('id'),
     month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => formatDay(budget.month).slice(0, 7) }),
     memberId: t.exposeID('memberId', { nullable: true }),
+    relationId: t.exposeID('relationId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
     categoryId: t.exposeID('categoryId'),
     amount: t.float({ resolve: (budget) => Number(budget.amount) }),
@@ -88,7 +106,8 @@ const BudgetReportRowRef = builder.objectRef<budgets.BudgetReportRow>('TreasuryB
   description: 'A budget of a month and the movements it covers, or what is out of budget.',
   fields: (t) => ({
     month: t.exposeString('month'),
-    memberId: t.exposeID('memberId'),
+    memberId: t.exposeID('memberId', { nullable: true, description: 'None for a relation.' }),
+    relationId: t.exposeID('relationId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     budget: t.float({ description: 'Positive.', resolve: (row) => fromCents(row.budget) }),
@@ -102,6 +121,7 @@ const BudgetInput = builder.inputType('TreasuryBudgetInput', {
   fields: (t) => ({
     month: t.string({ required: true, description: 'YYYY-MM.' }),
     memberId: t.id(),
+    relationId: t.id(),
     contextId: t.id(),
     categoryId: t.id({ required: true }),
     amount: t.float({ required: true }),
@@ -553,6 +573,7 @@ const LineInput = builder.inputType('TreasuryEntryLineInput', {
   fields: (t) => ({
     id: t.id({ description: 'Line kept (its links from other entries stay); none for a new line.' }),
     label: t.string(),
+    relationId: t.id({ description: 'Relation it is for, instead of a member.' }),
     mode: t.field({ type: LineModeEnum, required: true }),
     value: t.float({ required: true }),
     memberId: t.id(),
@@ -651,6 +672,7 @@ const entryInput = (input: typeof EntryInput.$inferInput): TreasuryEntryInput =>
   })),
   lines: (input.lines ?? []).map((line) => ({
     id: line.id ?? null,
+    relationId: line.relationId ?? null,
     projectId: line.projectId ?? null,
     libraryDocumentIds: line.libraryDocumentIds ?? [],
     projectResourceIds: line.projectResourceIds ?? [],
@@ -693,6 +715,11 @@ builder.queryFields((t) => ({
     description: 'Budgets of a range of months compared with the actual and forecast movements, and what is out of budget.',
     args: { from: t.arg.string({ required: true }), to: t.arg.string({ required: true }) },
     resolve: async (_root, { from, to }, ctx) => budgets.budgetReport(from, to, ctx.session ? await meContributorId(ctx.session.userId) : null),
+  }),
+  treasuryRelations: t.prismaField({
+    type: ['TreasuryRelation'],
+    description: 'People out of the team or household, by name.',
+    resolve: (query) => prisma.treasuryRelation.findMany({ ...query, orderBy: { name: 'asc' } }),
   }),
   treasuryContexts: t.prismaField({
     type: ['TreasuryContext'],
@@ -831,6 +858,7 @@ builder.mutationFields((t) => ({
         await budgets.saveBudget(id ?? null, {
           ...input,
           memberId: input.memberId ?? null,
+          relationId: input.relationId ?? null,
           contextId: input.contextId ?? null,
           repeatEvery: input.repeatEvery ?? null,
           repeatUntil: input.repeatUntil ?? null,
@@ -842,6 +870,19 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {
       await budgets.deleteBudget(id);
+      return true;
+    },
+  }),
+  saveTreasuryRelation: t.id({
+    description: 'Creates a relation (without id) or changes one.',
+    args: { id: t.arg.id(), input: t.arg({ type: RelationInput, required: true }) },
+    resolve: async (_root, { id, input }) => (await team.saveRelation(id ?? null, { name: input.name, note: input.note ?? null, contributorId: input.contributorId ?? null })).id,
+  }),
+  deleteTreasuryRelation: t.boolean({
+    description: 'Deletes a relation: its budgets go with it, its lines become the app user\'s.',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await team.deleteRelation(id);
       return true;
     },
   }),
