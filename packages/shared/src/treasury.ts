@@ -146,6 +146,47 @@ export function plannedContext(periods: readonly { contextId: string; startDate:
   return periods.filter((period) => period.startDate <= date && date <= period.endDate).sort((a, b) => b.startDate.localeCompare(a.startDate))[0]?.contextId ?? null;
 }
 
+const monthSchema = z.string().regex(/^\d{4}-\d{2}$/, 'Mois invalide.');
+
+/** Budget of a month (possibly repeated) for a member, a context and a category. */
+export const treasuryBudgetSchema = z
+  .object({
+    /** YYYY-MM. */
+    month: monthSchema,
+    /** None: the app user. */
+    memberId: z.string().nullable(),
+    /** None: everyday spending. */
+    contextId: z.string().nullable(),
+    categoryId: z.string({ error: 'La catégorie est requise.' }).min(1, 'La catégorie est requise.'),
+    amount: z.number({ error: 'Montant attendu.' }).positive('Montant positif attendu.').max(99_999_999, 'Montant trop grand.'),
+    /** Every n months; none: that month only. */
+    repeatEvery: z.number().int().min(1).max(24).nullable(),
+    /** Last month (YYYY-MM), included; none: no end. */
+    repeatUntil: monthSchema.nullable(),
+  })
+  .refine((budget) => !budget.repeatUntil || !budget.repeatEvery || budget.repeatUntil >= budget.month, { path: ['repeatUntil'], message: 'La fin précède le début.' });
+export type TreasuryBudgetInput = z.input<typeof treasuryBudgetSchema>;
+
+/**
+ * Months a budget applies to within a range.
+ * @param {{ month: string, repeatEvery: number | null, repeatUntil: string | null }} budget First month (YYYY-MM), repetition.
+ * @param {string} from First month of the range (YYYY-MM).
+ * @param {string} to Last month of the range (YYYY-MM).
+ * @returns {string[]} Months (YYYY-MM).
+ */
+export function budgetMonths(budget: { month: string; repeatEvery: number | null; repeatUntil: string | null }, from: string, to: string): string[] {
+  const index = (month: string) => Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1;
+  const label = (value: number) => `${Math.floor(value / 12)}-${String((value % 12) + 1).padStart(2, '0')}`;
+  const start = index(budget.month);
+  if (!budget.repeatEvery) return budget.month >= from && budget.month <= to ? [budget.month] : [];
+  const last = Math.min(index(to), budget.repeatUntil ? index(budget.repeatUntil) : Infinity);
+  const months: string[] = [];
+  // First repetition in the range.
+  let current = start + Math.max(0, Math.ceil((index(from) - start) / budget.repeatEvery)) * budget.repeatEvery;
+  for (; current <= last; current += budget.repeatEvery) months.push(label(current));
+  return months;
+}
+
 export const treasuryEntrySchema = z
   .object({
     accountId: z.string().min(1, 'Le compte est requis.'),

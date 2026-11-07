@@ -299,6 +299,9 @@ type Documents = {
     "\n  mutation DeleteTreasuryContext($id: ID!) {\n    deleteTreasuryContext(id: $id)\n  }\n": typeof types.DeleteTreasuryContextDocument,
     "\n  mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {\n    saveTreasuryContextPeriod(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryContextPeriodDocument,
     "\n  mutation DeleteTreasuryContextPeriod($id: ID!) {\n    deleteTreasuryContextPeriod(id: $id)\n  }\n": typeof types.DeleteTreasuryContextPeriodDocument,
+    "\n  query TreasuryBudgets($from: String!, $to: String!) {\n    treasuryBudgets {\n      id\n      month\n      memberId\n      contextId\n      categoryId\n      amount\n      repeatEvery\n      repeatUntil\n    }\n    treasuryBudgetReport(from: $from, to: $to) {\n      month\n      memberId\n      contextId\n      categoryId\n      budget\n      actual\n      forecast\n      budgeted\n    }\n  }\n": typeof types.TreasuryBudgetsDocument,
+    "\n  mutation SaveTreasuryBudget($id: ID, $input: TreasuryBudgetInput!) {\n    saveTreasuryBudget(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryBudgetDocument,
+    "\n  mutation DeleteTreasuryBudget($id: ID!) {\n    deleteTreasuryBudget(id: $id)\n  }\n": typeof types.DeleteTreasuryBudgetDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": typeof types.ClientFieldsFragmentDoc,
     "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n  }\n": typeof types.LabelFieldsFragmentDoc,
     "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    position\n  }\n": typeof types.ProjectStatusFieldsFragmentDoc,
@@ -620,6 +623,9 @@ const documents: Documents = {
     "\n  mutation DeleteTreasuryContext($id: ID!) {\n    deleteTreasuryContext(id: $id)\n  }\n": types.DeleteTreasuryContextDocument,
     "\n  mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {\n    saveTreasuryContextPeriod(id: $id, input: $input)\n  }\n": types.SaveTreasuryContextPeriodDocument,
     "\n  mutation DeleteTreasuryContextPeriod($id: ID!) {\n    deleteTreasuryContextPeriod(id: $id)\n  }\n": types.DeleteTreasuryContextPeriodDocument,
+    "\n  query TreasuryBudgets($from: String!, $to: String!) {\n    treasuryBudgets {\n      id\n      month\n      memberId\n      contextId\n      categoryId\n      amount\n      repeatEvery\n      repeatUntil\n    }\n    treasuryBudgetReport(from: $from, to: $to) {\n      month\n      memberId\n      contextId\n      categoryId\n      budget\n      actual\n      forecast\n      budgeted\n    }\n  }\n": types.TreasuryBudgetsDocument,
+    "\n  mutation SaveTreasuryBudget($id: ID, $input: TreasuryBudgetInput!) {\n    saveTreasuryBudget(id: $id, input: $input)\n  }\n": types.SaveTreasuryBudgetDocument,
+    "\n  mutation DeleteTreasuryBudget($id: ID!) {\n    deleteTreasuryBudget(id: $id)\n  }\n": types.DeleteTreasuryBudgetDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": types.ClientFieldsFragmentDoc,
     "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n  }\n": types.LabelFieldsFragmentDoc,
     "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    position\n  }\n": types.ProjectStatusFieldsFragmentDoc,
@@ -1793,6 +1799,18 @@ export function graphql(source: "\n  mutation SaveTreasuryContextPeriod($id: ID,
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteTreasuryContextPeriod($id: ID!) {\n    deleteTreasuryContextPeriod(id: $id)\n  }\n"): typeof import('./graphql').DeleteTreasuryContextPeriodDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TreasuryBudgets($from: String!, $to: String!) {\n    treasuryBudgets {\n      id\n      month\n      memberId\n      contextId\n      categoryId\n      amount\n      repeatEvery\n      repeatUntil\n    }\n    treasuryBudgetReport(from: $from, to: $to) {\n      month\n      memberId\n      contextId\n      categoryId\n      budget\n      actual\n      forecast\n      budgeted\n    }\n  }\n"): typeof import('./graphql').TreasuryBudgetsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveTreasuryBudget($id: ID, $input: TreasuryBudgetInput!) {\n    saveTreasuryBudget(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SaveTreasuryBudgetDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteTreasuryBudget($id: ID!) {\n    deleteTreasuryBudget(id: $id)\n  }\n"): typeof import('./graphql').DeleteTreasuryBudgetDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

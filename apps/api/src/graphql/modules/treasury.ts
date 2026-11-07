@@ -5,7 +5,9 @@ import * as statuses from '../../services/document-statuses';
 import * as tracking from '../../services/document-tracking';
 import * as treasury from '../../services/treasury';
 import * as settings from '../../services/treasury-settings';
+import * as budgets from '../../services/treasury-budgets';
 import * as team from '../../services/treasury-team';
+import { meContributorId } from '../../services/workspaces';
 import { builder } from '../builder';
 
 /**
@@ -65,6 +67,46 @@ builder.prismaObject('TreasuryContext', {
     name: t.exposeString('name'),
     color: t.exposeString('color'),
     position: t.exposeInt('position'),
+  }),
+});
+
+builder.prismaObject('TreasuryBudget', {
+  description: 'Budget of a month (possibly repeated) for a member (none: the app user), a context (none: everyday) and a category.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    month: t.string({ description: 'First month, YYYY-MM.', resolve: (budget) => formatDay(budget.month).slice(0, 7) }),
+    memberId: t.exposeID('memberId', { nullable: true }),
+    contextId: t.exposeID('contextId', { nullable: true }),
+    categoryId: t.exposeID('categoryId'),
+    amount: t.float({ resolve: (budget) => Number(budget.amount) }),
+    repeatEvery: t.exposeInt('repeatEvery', { nullable: true, description: 'Every n months; none: that month only.' }),
+    repeatUntil: t.string({ nullable: true, description: 'Last month, YYYY-MM; none: no end.', resolve: (budget) => (budget.repeatUntil ? formatDay(budget.repeatUntil).slice(0, 7) : null) }),
+  }),
+});
+
+const BudgetReportRowRef = builder.objectRef<budgets.BudgetReportRow>('TreasuryBudgetReportRow').implement({
+  description: 'A budget of a month and the movements it covers, or what is out of budget.',
+  fields: (t) => ({
+    month: t.exposeString('month'),
+    memberId: t.exposeID('memberId'),
+    contextId: t.exposeID('contextId', { nullable: true }),
+    categoryId: t.exposeID('categoryId', { nullable: true }),
+    budget: t.float({ description: 'Positive.', resolve: (row) => fromCents(row.budget) }),
+    actual: t.float({ description: 'Signed sum of the actual movements.', resolve: (row) => fromCents(row.actual) }),
+    forecast: t.float({ description: 'Signed sum of the forecast movements.', resolve: (row) => fromCents(row.forecast) }),
+    budgeted: t.exposeBoolean('budgeted', { description: 'False: out of budget.' }),
+  }),
+});
+
+const BudgetInput = builder.inputType('TreasuryBudgetInput', {
+  fields: (t) => ({
+    month: t.string({ required: true, description: 'YYYY-MM.' }),
+    memberId: t.id(),
+    contextId: t.id(),
+    categoryId: t.id({ required: true }),
+    amount: t.float({ required: true }),
+    repeatEvery: t.int(),
+    repeatUntil: t.string({ description: 'YYYY-MM.' }),
   }),
 });
 
@@ -642,6 +684,16 @@ builder.queryFields((t) => ({
       return members.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
     },
   }),
+  treasuryBudgets: t.prismaField({
+    type: ['TreasuryBudget'],
+    resolve: (query) => prisma.treasuryBudget.findMany({ ...query, orderBy: [{ month: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  treasuryBudgetReport: t.field({
+    type: [BudgetReportRowRef],
+    description: 'Budgets of a range of months compared with the actual and forecast movements, and what is out of budget.',
+    args: { from: t.arg.string({ required: true }), to: t.arg.string({ required: true }) },
+    resolve: async (_root, { from, to }, ctx) => budgets.budgetReport(from, to, ctx.session ? await meContributorId(ctx.session.userId) : null),
+  }),
   treasuryContexts: t.prismaField({
     type: ['TreasuryContext'],
     resolve: (query) => prisma.treasuryContext.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
@@ -768,6 +820,28 @@ builder.mutationFields((t) => ({
     args: { contributorId: t.arg.id({ required: true }) },
     resolve: async (_root, { contributorId }) => {
       await team.removeMember(contributorId);
+      return true;
+    },
+  }),
+  saveTreasuryBudget: t.id({
+    description: 'Creates a budget (without id), or changes one and its repetitions.',
+    args: { id: t.arg.id(), input: t.arg({ type: BudgetInput, required: true }) },
+    resolve: async (_root, { id, input }) =>
+      (
+        await budgets.saveBudget(id ?? null, {
+          ...input,
+          memberId: input.memberId ?? null,
+          contextId: input.contextId ?? null,
+          repeatEvery: input.repeatEvery ?? null,
+          repeatUntil: input.repeatUntil ?? null,
+        })
+      ).id,
+  }),
+  deleteTreasuryBudget: t.boolean({
+    description: 'Deletes a budget and its repetitions.',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await budgets.deleteBudget(id);
       return true;
     },
   }),

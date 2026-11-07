@@ -640,6 +640,18 @@ export type TreasuryAllocationInput = {
   importedDocumentId?: string | number | null | undefined;
 };
 
+export type TreasuryBudgetInput = {
+  amount: number;
+  categoryId: string | number;
+  contextId?: string | number | null | undefined;
+  memberId?: string | number | null | undefined;
+  /** YYYY-MM. */
+  month: string;
+  repeatEvery?: number | null | undefined;
+  /** YYYY-MM. */
+  repeatUntil?: string | null | undefined;
+};
+
 export type TreasuryCategoryInput = {
   direction: TreasuryDirection;
   name: string;
@@ -2789,6 +2801,29 @@ export type DeleteTreasuryContextPeriodMutationVariables = Exact<{
 
 
 export type DeleteTreasuryContextPeriodMutation = { deleteTreasuryContextPeriod: boolean };
+
+export type TreasuryBudgetsQueryVariables = Exact<{
+  from: string;
+  to: string;
+}>;
+
+
+export type TreasuryBudgetsQuery = { treasuryBudgets: Array<{ id: string, month: string, memberId: string | null, contextId: string | null, categoryId: string, amount: number, repeatEvery: number | null, repeatUntil: string | null }>, treasuryBudgetReport: Array<{ month: string, memberId: string, contextId: string | null, categoryId: string | null, budget: number, actual: number, forecast: number, budgeted: boolean }> };
+
+export type SaveTreasuryBudgetMutationVariables = Exact<{
+  id?: string | number | null | undefined;
+  input: TreasuryBudgetInput;
+}>;
+
+
+export type SaveTreasuryBudgetMutation = { saveTreasuryBudget: string };
+
+export type DeleteTreasuryBudgetMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTreasuryBudgetMutation = { deleteTreasuryBudget: boolean };
 
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
@@ -6410,6 +6445,40 @@ export const DeleteTreasuryContextPeriodDocument = new TypedDocumentString(`
   deleteTreasuryContextPeriod(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTreasuryContextPeriodMutation, DeleteTreasuryContextPeriodMutationVariables>;
+export const TreasuryBudgetsDocument = new TypedDocumentString(`
+    query TreasuryBudgets($from: String!, $to: String!) {
+  treasuryBudgets {
+    id
+    month
+    memberId
+    contextId
+    categoryId
+    amount
+    repeatEvery
+    repeatUntil
+  }
+  treasuryBudgetReport(from: $from, to: $to) {
+    month
+    memberId
+    contextId
+    categoryId
+    budget
+    actual
+    forecast
+    budgeted
+  }
+}
+    `) as unknown as TypedDocumentString<TreasuryBudgetsQuery, TreasuryBudgetsQueryVariables>;
+export const SaveTreasuryBudgetDocument = new TypedDocumentString(`
+    mutation SaveTreasuryBudget($id: ID, $input: TreasuryBudgetInput!) {
+  saveTreasuryBudget(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<SaveTreasuryBudgetMutation, SaveTreasuryBudgetMutationVariables>;
+export const DeleteTreasuryBudgetDocument = new TypedDocumentString(`
+    mutation DeleteTreasuryBudget($id: ID!) {
+  deleteTreasuryBudget(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTreasuryBudgetMutation, DeleteTreasuryBudgetMutationVariables>;
 export const WorkspaceDocument = new TypedDocumentString(`
     query Workspace {
   clients {
