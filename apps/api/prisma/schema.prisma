@@ -289,24 +289,26 @@ model Project {
   categories        ProjectCategory[]
   tasks             Task[]
 
-  milestones   Milestone[]
-  sprints      Sprint[]
-  githubLink   GithubProjectLink?
-  dashboards   Dashboard[]
-  taskViews    TaskView[]
+  milestones    Milestone[]
+  sprints       Sprint[]
+  githubLink    GithubProjectLink?
+  dashboards    Dashboard[]
+  taskViews     TaskView[]
   /// Contributors attached to the project (and, through it, to its sub-projects).
-  contributors Contributor[]        @relation("ProjectContributors")
-  timeEntries  TimeEntry[]
-  alarms       Alarm[]
-  mails        MailMessage[]
-  events       CalendarEvent[]
-  documents    AccountingDocument[]
-  resources    ProjectResource[]
-  imported     ImportedDocument[]
-  treasury     TreasuryEntry[]
+  contributors  Contributor[]        @relation("ProjectContributors")
+  timeEntries   TimeEntry[]
+  alarms        Alarm[]
+  mails         MailMessage[]
+  events        CalendarEvent[]
+  documents     AccountingDocument[]
+  resources     ProjectResource[]
+  imported      ImportedDocument[]
+  treasury      TreasuryEntry[]
+  /// Lines of split treasury entries attached to the project.
+  treasuryLines TreasuryEntryLine[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId  String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace    Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([parentId])
@@ -783,6 +785,7 @@ model LibraryDocument {
   updatedAt       DateTime            @updatedAt
   /// Treasury entries it supports.
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryLibraryDocuments")
+  treasuryLines   TreasuryEntryLine[] @relation("TreasuryLineLibraryDocuments")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1514,6 +1517,7 @@ model ProjectResource {
   createdAt       DateTime            @default(now())
   /// Treasury entries it supports.
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryProjectResources")
+  treasuryLines   TreasuryEntryLine[] @relation("TreasuryLineProjectResources")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1642,28 +1646,39 @@ enum TreasuryLineMode {
 /// Part of a treasury entry: for a member, in a category and a context. Its amount is signed whatever the
 /// direction of the entry (a refund inside a purchase…).
 model TreasuryEntryLine {
-  id          String            @id @default(cuid())
-  entryId     String
-  entry       TreasuryEntry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  position    Int               @default(0)
-  label       String?
-  mode        TreasuryLineMode  @default(AMOUNT)
+  id               String              @id @default(cuid())
+  entryId          String
+  entry            TreasuryEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  position         Int                 @default(0)
+  label            String?
+  mode             TreasuryLineMode    @default(AMOUNT)
   /// Signed amount (AMOUNT) or percentage of the entry amount (PERCENT).
-  value       Decimal           @db.Decimal(14, 4)
-  memberId    String?
-  member      Contributor?      @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  categoryId  String?
-  category    TreasuryCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  contextId   String?
-  context     TreasuryContext?  @relation(fields: [contextId], references: [id], onDelete: SetNull)
+  value            Decimal             @db.Decimal(14, 4)
+  memberId         String?
+  member           Contributor?        @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  categoryId       String?
+  category         TreasuryCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  contextId        String?
+  context          TreasuryContext?    @relation(fields: [contextId], references: [id], onDelete: SetNull)
+  projectId        String?
+  project          Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Supporting documents: of the library, or of a project.
+  libraryDocuments LibraryDocument[]   @relation("TreasuryLineLibraryDocuments")
+  projectResources ProjectResource[]   @relation("TreasuryLineProjectResources")
+  /// Linked lines of other entries, both ways (a link is stored once, from either side), and whole entries
+  /// without lines: linked money in and out of the same period offset each other in the charts.
+  links            TreasuryEntryLine[] @relation("TreasuryLineLinks")
+  linkedBy         TreasuryEntryLine[] @relation("TreasuryLineLinks")
+  linkedEntries    TreasuryEntry[]     @relation("TreasuryLineEntryLinks")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId      String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([entryId])
   @@index([memberId])
   @@index([categoryId])
   @@index([contextId])
+  @@index([projectId])
   @@index([workspaceId])
 }
 
@@ -1796,6 +1811,8 @@ model TreasuryEntry {
   allocations      TreasuryAllocation[]
   /// Split of the amount (by member, category, context); what the lines leave is "not split".
   lines            TreasuryEntryLine[]
+  /// Lines of other entries linked to this whole entry (it has no lines of its own).
+  linkedByLines    TreasuryEntryLine[]    @relation("TreasuryLineEntryLinks")
   /// Linked entries, both ways (a link is stored once, from either side): linked money in and out of the same
   /// period offset each other in the charts of money in and out.
   links            TreasuryEntry[]        @relation("TreasuryEntryLinks")

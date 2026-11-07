@@ -2386,6 +2386,9 @@ type TreasuryEntry {
 
   """Split of the amount; what the lines leave is "not split"."""
   lines: [TreasuryEntryLine!]!
+
+  """Lines of other entries linked to this whole entry."""
+  linkedByLines: [TreasuryLinkedLine!]!
   linkedEntries: [TreasuryLinkedEntry!]!
   methodId: ID
   methodName: String
@@ -2447,10 +2450,20 @@ Part of a split entry: for a member, in a category and a context (none: everyday
 type TreasuryEntryLine {
   categoryId: ID
   contextId: ID
+
+  """Supporting documents: of the library, then of projects."""
+  documents: [TreasuryEntryDocument!]!
   id: ID!
   label: String
+
+  """Whole entries (without lines) linked to this line."""
+  linkedEntries: [TreasuryLinkedEntry!]!
+
+  """Lines of other entries linked to this one (both ways)."""
+  linkedLines: [TreasuryLinkedLine!]!
   memberId: ID
   mode: TreasuryLineMode!
+  projectId: ID
 
   """Signed amount, or signed percentage of the entry amount."""
   value: Float!
@@ -2459,9 +2472,21 @@ type TreasuryEntryLine {
 input TreasuryEntryLineInput {
   categoryId: ID
   contextId: ID
+
+  """Line kept (its links from other entries stay); none for a new line."""
+  id: ID
   label: String
+  libraryDocumentIds: [ID!]
+
+  """Other entries, without lines."""
+  linkedEntryIds: [ID!]
+
+  """Lines of other entries."""
+  linkedLineIds: [ID!]
   memberId: ID
   mode: TreasuryLineMode!
+  projectId: ID
+  projectResourceIds: [ID!]
   value: Float!
 }
 
@@ -2481,6 +2506,17 @@ type TreasuryLinkedEntry {
   date: Date!
   id: ID!
   label: String!
+  status: TreasuryEntryStatus!
+}
+
+"""Line of another entry linked to a line or a whole entry."""
+type TreasuryLinkedLine {
+  amount: Float!
+  date: Date!
+  entryId: ID!
+  entryLabel: String!
+  id: ID!
+  label: String
   status: TreasuryEntryStatus!
 }
 

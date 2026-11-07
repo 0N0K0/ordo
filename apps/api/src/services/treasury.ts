@@ -78,10 +78,25 @@ export async function deleteAccount(id: string): Promise<void> {
  * @param {ReturnType<typeof treasuryEntrySchema.parse>['lines']} lines Lines.
  * @returns {Promise<void>}
  */
-async function assertLines(amount: number, lines: ReturnType<typeof treasuryEntrySchema.parse>['lines']): Promise<void> {
-  const ids = (key: 'memberId' | 'categoryId' | 'contextId') => [...new Set(lines.map((line) => line[key]).filter((id): id is string => id !== null))];
+async function assertLines(amount: number, lines: ReturnType<typeof treasuryEntrySchema.parse>['lines'], entryId: string | null): Promise<void> {
+  const ids = (key: 'memberId' | 'categoryId' | 'contextId' | 'projectId') => [...new Set(lines.map((line) => line[key]).filter((id): id is string => typeof id === 'string'))];
+  const all = (key: 'libraryDocumentIds' | 'projectResourceIds' | 'linkedLineIds' | 'linkedEntryIds') => [...new Set(lines.flatMap((line) => line[key]))];
   if ((await prisma.contributor.count({ where: { id: { in: ids('memberId') } } })) !== ids('memberId').length) throw notFound('Membre');
   if ((await prisma.treasuryContext.count({ where: { id: { in: ids('contextId') } } })) !== ids('contextId').length) throw notFound('Contexte');
+  if ((await prisma.project.count({ where: { id: { in: ids('projectId') } } })) !== ids('projectId').length) throw notFound('Projet');
+  if ((await prisma.libraryDocument.count({ where: { id: { in: all('libraryDocumentIds') } } })) !== all('libraryDocumentIds').length) throw notFound('Document');
+  if ((await prisma.projectResource.count({ where: { id: { in: all('projectResourceIds') } } })) !== all('projectResourceIds').length) throw notFound('Document du projet');
+  // Lines kept are lines of this entry.
+  const kept = lines.map((line) => line.id).filter((id): id is string => Boolean(id));
+  if (kept.length && (!entryId || (await prisma.treasuryEntryLine.count({ where: { id: { in: kept }, entryId } })) !== new Set(kept).size)) throw notFound('Ligne');
+  // Linked lines are of other entries; linked whole entries have no lines.
+  const linkedLines = await prisma.treasuryEntryLine.findMany({ where: { id: { in: all('linkedLineIds') } }, select: { entryId: true } });
+  if (linkedLines.length !== all('linkedLineIds').length) throw notFound('Ligne liée');
+  const otherEntry = 'Une ligne se lie à une ligne ou à un mouvement d’un autre mouvement.';
+  if (entryId && (linkedLines.some((line) => line.entryId === entryId) || all('linkedEntryIds').includes(entryId))) throw clientError('BAD_USER_INPUT', otherEntry);
+  const linkedEntries = await prisma.treasuryEntry.findMany({ where: { id: { in: all('linkedEntryIds') } }, select: { _count: { select: { lines: true } } } });
+  if (linkedEntries.length !== all('linkedEntryIds').length) throw notFound('Mouvement lié');
+  if (linkedEntries.some((linked) => linked._count.lines > 0)) throw clientError('BAD_USER_INPUT', 'Ce mouvement est décomposé : liez l’une de ses lignes.');
   const categories = new Map(
     (await prisma.treasuryCategory.findMany({ where: { id: { in: ids('categoryId') } }, select: { id: true, direction: true } })).map((category) => [category.id, category.direction]),
   );
@@ -96,13 +111,16 @@ async function assertLines(amount: number, lines: ReturnType<typeof treasuryEntr
   });
 }
 
+type ParsedLine = ReturnType<typeof treasuryEntrySchema.parse>['lines'][number];
+
 /**
- * Line rows of a split entry, in their order.
- * @param {object[]} lines Validated lines.
- * @returns {Prisma.TreasuryEntryLineUncheckedCreateWithoutEntryInput[]} Rows.
+ * Fields of a line row (relations apart).
+ * @param {ParsedLine} line Validated line.
+ * @param {number} position Position in the entry.
+ * @returns {object} Fields.
  */
-function linesData(lines: readonly ReturnType<typeof treasuryEntrySchema.parse>['lines'][number][]): Prisma.TreasuryEntryLineUncheckedCreateWithoutEntryInput[] {
-  return lines.map((line, position) => ({
+function lineFields(line: ParsedLine, position: number) {
+  return {
     position,
     label: line.label,
     mode: line.mode,
@@ -110,7 +128,52 @@ function linesData(lines: readonly ReturnType<typeof treasuryEntrySchema.parse>[
     memberId: line.memberId,
     categoryId: line.categoryId,
     contextId: line.contextId,
-  }));
+    projectId: line.projectId ?? null,
+  };
+}
+
+/**
+ * Relations of a line: documents and links, connected on creation or replacing the previous ones. A link is kept
+ * once, from the line saved.
+ * @param {ParsedLine} line Validated line.
+ * @param {'connect' | 'set'} mode Creation or update.
+ * @returns {object} Relation data.
+ */
+function lineRelations(line: ParsedLine, mode: 'connect' | 'set') {
+  const of = (ids: string[]) => [...new Set(ids)].map((id) => ({ id }));
+  return {
+    libraryDocuments: { [mode]: of(line.libraryDocumentIds) },
+    projectResources: { [mode]: of(line.projectResourceIds) },
+    links: { [mode]: of(line.linkedLineIds) },
+    linkedEntries: { [mode]: of(line.linkedEntryIds) },
+    ...(mode === 'set' ? { linkedBy: { set: [] } } : {}),
+  } as Pick<Prisma.TreasuryEntryLineCreateWithoutEntryInput, 'libraryDocuments' | 'projectResources' | 'links' | 'linkedEntries'>;
+}
+
+/**
+ * Line rows of a new split entry, in their order.
+ * @param {ParsedLine[]} lines Validated lines.
+ * @returns {Prisma.TreasuryEntryLineUncheckedCreateWithoutEntryInput[]} Rows.
+ */
+function linesData(lines: readonly ParsedLine[]): Prisma.TreasuryEntryLineUncheckedCreateWithoutEntryInput[] {
+  return lines.map((line, position) => ({ ...lineFields(line, position), ...lineRelations(line, 'connect') }));
+}
+
+/**
+ * Saves the lines of an entry in place: lines kept are updated (their links from other entries stay), the others
+ * are deleted, new ones created.
+ * @param {Prisma.TransactionClient} tx Transaction.
+ * @param {string} entryId Entry.
+ * @param {ParsedLine[]} lines Validated lines.
+ * @returns {Promise<void>}
+ */
+async function saveLines(tx: Prisma.TransactionClient, entryId: string, lines: readonly ParsedLine[]): Promise<void> {
+  const kept = lines.map((line) => line.id).filter((id): id is string => Boolean(id));
+  await tx.treasuryEntryLine.deleteMany({ where: { entryId, id: { notIn: kept } } });
+  for (const [position, line] of lines.entries()) {
+    if (line.id) await tx.treasuryEntryLine.update({ where: { id: line.id }, data: { ...lineFields(line, position), ...lineRelations(line, 'set') } });
+    else await tx.treasuryEntryLine.create({ data: { entryId, ...lineFields(line, position), ...lineRelations(line, 'connect') } });
+  }
 }
 
 /**
@@ -119,7 +182,7 @@ function linesData(lines: readonly ReturnType<typeof treasuryEntrySchema.parse>[
  * @param {TreasuryEntryInput} input Entry.
  * @returns {Promise<ReturnType<typeof treasuryEntrySchema.parse>>} Entry.
  */
-async function parseEntry(input: TreasuryEntryInput) {
+async function parseEntry(input: TreasuryEntryInput, id: string | null = null) {
   const entry = parseInput(treasuryEntrySchema, input);
   if (!(await prisma.treasuryAccount.findUnique({ where: { id: entry.accountId }, select: { id: true } }))) throw notFound('Compte');
   if (entry.projectId && !(await prisma.project.findUnique({ where: { id: entry.projectId }, select: { id: true } }))) throw notFound('Projet');
@@ -147,8 +210,14 @@ async function parseEntry(input: TreasuryEntryInput) {
   const resourceIds = [...new Set(entry.projectResourceIds)];
   if (resourceIds.length && (await prisma.projectResource.count({ where: { id: { in: resourceIds } } })) !== resourceIds.length) throw notFound('Document du projet');
   const linked = [...new Set(entry.linkedEntryIds)];
-  if (linked.length && (await prisma.treasuryEntry.count({ where: { id: { in: linked } } })) !== linked.length) throw notFound('Mouvement lié');
-  await assertLines(entry.amount, entry.lines);
+  const linkedEntries = await prisma.treasuryEntry.findMany({ where: { id: { in: linked } }, select: { _count: { select: { lines: true } } } });
+  if (linkedEntries.length !== linked.length) throw notFound('Mouvement lié');
+  // A split entry is linked through its lines.
+  if (linkedEntries.some((item) => item._count.lines > 0)) {
+    const message = 'Un mouvement décomposé se lie par ses lignes.';
+    throw clientError('BAD_USER_INPUT', message, { fields: { linkedEntryIds: message } });
+  }
+  await assertLines(entry.amount, entry.lines, id);
   const wrongWay = 'Une entrée règle des factures, une sortie rembourse des avoirs.';
   for (const allocation of entry.allocations) {
     const document = allocation.documentId
@@ -239,19 +308,24 @@ export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEn
 export async function updateEntry(id: string, input: TreasuryEntryInput): Promise<TreasuryEntry> {
   const previous = await prisma.treasuryEntry.findUnique({ where: { id }, include: { allocations: { select: { documentId: true } } } });
   if (!previous) throw notFound('Mouvement');
-  const entry = await parseEntry(input);
+  const entry = await parseEntry(input, id);
   if (entry.linkedEntryIds.includes(id)) throw clientError('BAD_USER_INPUT', 'Un mouvement ne peut pas être lié à lui-même.', { fields: { linkedEntryIds: 'Retirez ce mouvement de ses liens.' } });
-  const updated = await prisma.treasuryEntry.update({
-    where: { id },
-    data: {
-      ...entryData(entry),
-      ...documentsData(entry, 'set'),
-      allocations: { deleteMany: {}, create: allocationsData(entry) },
-      lines: { deleteMany: {}, create: linesData(entry.lines) },
-      // A link is kept once, from this side.
-      links: { set: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
-      linkedBy: { set: [] },
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const saved = await tx.treasuryEntry.update({
+      where: { id },
+      data: {
+        ...entryData(entry),
+        ...documentsData(entry, 'set'),
+        allocations: { deleteMany: {}, create: allocationsData(entry) },
+        // A link is kept once, from this side.
+        links: { set: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
+        linkedBy: { set: [] },
+        // Split, it is linked through its lines only.
+        ...(entry.lines.length ? { linkedByLines: { set: [] } } : {}),
+      },
+    });
+    await saveLines(tx, id, entry.lines);
+    return saved;
   });
   await syncPaymentStatus([...previous.allocations.map((allocation) => allocation.documentId), ...entry.allocations.map((allocation) => allocation.documentId)]);
   return updated;
@@ -280,7 +354,7 @@ export async function deleteEntry(id: string): Promise<void> {
  * @returns {Promise<TreasuryEntry>} Actual entry.
  */
 export async function realizeForecast(id: string, occurrence: string, actual: { date: string; amount: number }): Promise<TreasuryEntry> {
-  const forecast = await prisma.treasuryEntry.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' } } } });
+  const forecast = await prisma.treasuryEntry.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' }, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } } });
   if (!forecast || forecast.status !== 'FORECAST') throw notFound('Prévision');
   const rule = storedRecurrence(forecast.recurrence);
   const entry = await parseEntry({
@@ -301,7 +375,7 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
     linkedEntryIds: [],
     libraryDocumentIds: [],
     projectResourceIds: [],
-    // The split follows (percentages apply to the actual amount).
+    // The split follows (percentages apply to the actual amount), with the projects and documents of its lines.
     lines: forecast.lines.map((line) => ({
       label: line.label,
       mode: line.mode,
@@ -309,6 +383,10 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
       memberId: line.memberId,
       categoryId: line.categoryId,
       contextId: line.contextId,
+      projectId: line.projectId,
+      libraryDocumentIds: line.libraryDocuments.map((document) => document.id),
+      projectResourceIds: line.projectResources.map((document) => document.id),
+      // The links of the forecast stay with it.
     })),
   });
   return prisma.$transaction(async (tx) => {

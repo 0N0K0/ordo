@@ -167,6 +167,83 @@ const documentUrl = (document: { kind: string; url: string | null; attachment: {
 
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
+/** Line of another entry linked to a line or a whole entry. */
+interface LinkedLine {
+  id: string;
+  entryId: string;
+  entryLabel: string;
+  date: Date;
+  label: string | null;
+  /** Signed amount of the line. */
+  amount: number;
+  status: 'ACTUAL' | 'FORECAST';
+}
+
+const LinkedLineRef = builder.objectRef<LinkedLine>('TreasuryLinkedLine').implement({
+  description: 'Line of another entry linked to a line or a whole entry.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    entryId: t.exposeID('entryId'),
+    entryLabel: t.exposeString('entryLabel'),
+    date: t.expose('date', { type: 'Date' }),
+    label: t.exposeString('label', { nullable: true }),
+    amount: t.exposeFloat('amount'),
+    status: t.field({ type: EntryStatusEnum, resolve: (line) => line.status }),
+  }),
+});
+
+const lineLinkSelect = {
+  select: { id: true, label: true, mode: true, value: true, entry: { select: { id: true, label: true, date: true, amount: true, status: true } } },
+} as const;
+
+/**
+ * Linked line as shown: its entry, and its signed amount (a percentage is of the entry amount).
+ * @param {object} line Line with its entry.
+ * @returns {LinkedLine} Linked line.
+ */
+function linkedLine(line: {
+  id: string;
+  label: string | null;
+  mode: 'AMOUNT' | 'PERCENT';
+  value: { toString(): string };
+  entry: { id: string; label: string; date: Date; amount: { toString(): string }; status: 'ACTUAL' | 'FORECAST' };
+}): LinkedLine {
+  const value = Number(line.value);
+  const amount = line.mode === 'PERCENT' ? Math.round(Number(line.entry.amount) * value) / 100 : value;
+  return { id: line.id, entryId: line.entry.id, entryLabel: line.entry.label, date: line.entry.date, label: line.label, amount, status: line.entry.status };
+}
+
+/**
+ * Supporting documents of an entry or a line: of the library, then of projects.
+ * @param {object} owner Entry or line with its documents.
+ * @returns {EntryDocument[]} Documents.
+ */
+function supportingDocuments(owner: {
+  libraryDocuments: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; folder: { name: string } | null })[];
+  projectResources: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; project: { id: string; title: string } })[];
+}): EntryDocument[] {
+  return [
+    ...owner.libraryDocuments.map((document) => ({
+      id: document.id,
+      source: 'LIBRARY' as const,
+      kind: document.kind,
+      title: document.title,
+      url: documentUrl(document),
+      projectId: null,
+      place: document.folder?.name ?? 'Documents',
+    })),
+    ...owner.projectResources.map((resource) => ({
+      id: resource.id,
+      source: 'PROJECT' as const,
+      kind: resource.kind,
+      title: resource.title,
+      url: documentUrl(resource),
+      projectId: resource.project.id,
+      place: resource.project.title,
+    })),
+  ];
+}
+
 builder.prismaObject('DocumentStatus', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -242,29 +319,41 @@ builder.prismaObject('TreasuryEntry', {
         libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
         projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
       },
-      resolve: (entry) => [
-        ...entry.libraryDocuments.map((document) => ({
-          id: document.id,
-          source: 'LIBRARY' as const,
-          kind: document.kind,
-          title: document.title,
-          url: documentUrl(document),
-          projectId: null,
-          place: document.folder?.name ?? 'Documents',
-        })),
-        ...entry.projectResources.map((resource) => ({
-          id: resource.id,
-          source: 'PROJECT' as const,
-          kind: resource.kind,
-          title: resource.title,
-          url: documentUrl(resource),
-          projectId: resource.project.id,
-          place: resource.project.title,
-        })),
-      ],
+      resolve: (entry) => supportingDocuments(entry),
+    }),
+    linkedByLines: t.field({
+      type: [LinkedLineRef],
+      description: 'Lines of other entries linked to this whole entry.',
+      select: { linkedByLines: lineLinkSelect },
+      resolve: (entry) => entry.linkedByLines.map(linkedLine),
     }),
   }),
 });
+
+builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
+  projectId: t.exposeID('projectId', { nullable: true }),
+  documents: t.field({
+    type: [EntryDocumentRef],
+    description: 'Supporting documents: of the library, then of projects.',
+    select: {
+      libraryDocuments: { select: { ...documentSelect.select, folder: { select: { name: true } } } },
+      projectResources: { select: { ...documentSelect.select, project: { select: { id: true, title: true } } } },
+    },
+    resolve: (line) => supportingDocuments(line),
+  }),
+  linkedLines: t.field({
+    type: [LinkedLineRef],
+    description: 'Lines of other entries linked to this one (both ways).',
+    select: { links: lineLinkSelect, linkedBy: lineLinkSelect },
+    resolve: (line) => [...line.links, ...line.linkedBy].map(linkedLine).sort((a, b) => a.date.getTime() - b.date.getTime()),
+  }),
+  linkedEntries: t.field({
+    type: [LinkedEntryRef],
+    description: 'Whole entries (without lines) linked to this line.',
+    select: { linkedEntries: linkedSelect },
+    resolve: (line) => line.linkedEntries.map((linked) => ({ ...linked, amount: Number(linked.amount) })),
+  }),
+}));
 
 builder.prismaObject('TreasuryAccount', {
   fields: (t) => ({
@@ -420,12 +509,18 @@ const AllocationInput = builder.inputType('TreasuryAllocationInput', {
 
 const LineInput = builder.inputType('TreasuryEntryLineInput', {
   fields: (t) => ({
+    id: t.id({ description: 'Line kept (its links from other entries stay); none for a new line.' }),
     label: t.string(),
     mode: t.field({ type: LineModeEnum, required: true }),
     value: t.float({ required: true }),
     memberId: t.id(),
     categoryId: t.id(),
     contextId: t.id(),
+    projectId: t.id(),
+    libraryDocumentIds: t.idList(),
+    projectResourceIds: t.idList(),
+    linkedLineIds: t.idList({ description: 'Lines of other entries.' }),
+    linkedEntryIds: t.idList({ description: 'Other entries, without lines.' }),
   }),
 });
 
@@ -513,6 +608,12 @@ const entryInput = (input: typeof EntryInput.$inferInput): TreasuryEntryInput =>
     amount: allocation.amount,
   })),
   lines: (input.lines ?? []).map((line) => ({
+    id: line.id ?? null,
+    projectId: line.projectId ?? null,
+    libraryDocumentIds: line.libraryDocumentIds ?? [],
+    projectResourceIds: line.projectResourceIds ?? [],
+    linkedLineIds: line.linkedLineIds ?? [],
+    linkedEntryIds: line.linkedEntryIds ?? [],
     label: line.label ?? null,
     mode: line.mode,
     value: line.value,

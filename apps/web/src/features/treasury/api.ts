@@ -68,6 +68,35 @@ graphql(`
       memberId
       categoryId
       contextId
+      projectId
+      documents {
+        ...TreasuryEntryDocumentFields
+      }
+      linkedLines {
+        id
+        entryId
+        entryLabel
+        date
+        label
+        amount
+        status
+      }
+      linkedEntries {
+        id
+        date
+        label
+        amount
+        status
+      }
+    }
+    linkedByLines {
+      id
+      entryId
+      entryLabel
+      date
+      label
+      amount
+      status
     }
     allocations {
       id
@@ -214,6 +243,12 @@ const EntrySearchDocument = graphql(`
       amount
       status
       accountName
+      lines {
+        id
+        label
+        mode
+        value
+      }
     }
   }
 `);

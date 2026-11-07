@@ -284,8 +284,9 @@ interface ChartMovement {
 /**
  * Data of a treasury chart: actual movements (and expected ones when asked) measured in net amount, money in,
  * money out or number; or the balance over time. Linked money in and out of a same bucket of the period offset
- * each other (amounts only, not the number of movements). A split entry counts as its lines (member, category,
- * context of each) and what they leave (category of the entry, context planned on its day).
+ * each other (amounts only, not the number of movements), line by line for a split entry. A split entry counts as
+ * its lines (member, category, project, context of each) and what they leave (no category, context planned on its
+ * day).
  * @param {object} input Data.
  * @param {TreasuryEntry[]} input.entries Entries of the period.
  * @param {TreasuryCategory[]} input.categories Treasury categories.
@@ -347,41 +348,57 @@ export function treasuryChartData({
       : [];
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const actual = entries.filter((entry) => entry.status === 'ACTUAL');
-  // Linked money in and out of a same bucket (the whole period for a donut) offset each other.
+  /** A part of an actual entry: one of its lines, or what they leave (the whole entry when it has none). */
+  interface Part {
+    id: string;
+    movement: ChartMovement;
+    linkedIds: string[];
+  }
+  // Parts of each entry, by entry: a link to a whole entry links all its parts.
+  const partIds = new Map<string, string[]>();
+  const parts: Part[] = [];
+  for (const entry of actual) {
+    const date = String(entry.date);
+    const base = { date, accountId: entry.accountId, forecast: false };
+    const category = (categoryId: string | null) => ({ category: categoryId ? (categoryById.get(categoryId)?.name ?? null) : null, lineage: categoryLineage(categoryById, categoryId) });
+    const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
+    const own: Part[] = entry.lines.map((line, index) => ({
+      id: `line:${line.id}`,
+      movement: { ...base, ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, contextId: line.contextId ?? null },
+      linkedIds: [...line.linkedLines.map((linked) => `line:${linked.id}`), ...line.linkedEntries.map((linked) => `entry:${linked.id}`)],
+    }));
+    if (remainder !== 0 || !entry.lines.length) {
+      own.push({
+        id: `entry:${entry.id}`,
+        movement: { ...base, ...category(entry.categoryId ?? null), amount: remainder / 100, projectId: entry.projectId ?? null, memberId: null, contextId: plannedContext(plannedDays, date) },
+        linkedIds: [...entry.linkedEntries.map((linked) => `entry:${linked.id}`), ...entry.linkedByLines.map((linked) => `line:${linked.id}`)],
+      });
+    }
+    partIds.set(entry.id, own.map((part) => part.id));
+    parts.push(...own);
+  }
+  /**
+   * Parts a link points to: a line, or every part of a whole entry.
+   * @param {string} id "line:<id>" or "entry:<id>".
+   * @returns {string[]} Part ids.
+   */
+  const targets = (id: string) => (id.startsWith('entry:') ? (partIds.get(id.slice(6)) ?? [id]) : [id]);
+  // Linked money in and out of a same bucket (the whole period for a donut) offset each other, part by part.
   const remaining =
     config.measure === 'count'
       ? null
       : offsetLinkedMovements(
-          actual.map((entry) => ({
-            id: entry.id,
-            amount: entry.amount,
-            linkedIds: entry.linkedEntries.map((linked) => linked.id),
-            period: config.type === 'donut' ? 'all' : bucketOf(String(entry.date), config.bucket),
+          parts.map((part) => ({
+            id: part.id,
+            amount: part.movement.amount,
+            linkedIds: part.linkedIds.flatMap(targets),
+            period: config.type === 'donut' ? 'all' : bucketOf(part.movement.date, config.bucket),
           })),
         );
-  /**
-   * Movements of an actual entry: its lines and what they leave, scaled to what the linked entries left of it.
-   * @param {TreasuryEntry} entry Entry.
-   * @param {number} amount Amount left once offset.
-   * @returns {ChartMovement[]} Movements.
-   */
-  const partsOf = (entry: TreasuryEntry, amount: number): ChartMovement[] => {
-    const date = String(entry.date);
-    const base = { date, accountId: entry.accountId, projectId: entry.projectId ?? null, forecast: false };
-    const part = (categoryId: string | null) => ({ category: categoryId ? (categoryById.get(categoryId)?.name ?? null) : null, lineage: categoryLineage(categoryById, categoryId) });
-    const ratio = amount / entry.amount;
-    const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
-    return [
-      ...entry.lines.map((line, index) => ({ ...base, ...part(line.categoryId ?? null), amount: (amounts[index] / 100) * ratio, memberId: line.memberId ?? null, contextId: line.contextId ?? null })),
-      ...(remainder !== 0 ? [{ ...base, ...part(entry.categoryId ?? null), amount: (remainder / 100) * ratio, memberId: null, contextId: plannedContext(plannedDays, date) }] : []),
-    ];
-  };
   const movements: ChartMovement[] = [
-    ...actual
-      .map((entry) => ({ entry, amount: remaining?.get(entry.id) ?? entry.amount }))
+    ...parts
+      .map((part) => ({ ...part.movement, amount: remaining?.get(part.id) ?? part.movement.amount }))
       // Fully offset: left out of the charts.
-      .filter(({ amount }) => Math.abs(amount) >= 0.005)
-      .flatMap(({ entry, amount }) => partsOf(entry, amount))
       .filter((movement) => Math.abs(movement.amount) >= 0.005),
     ...expected,
   ].filter(

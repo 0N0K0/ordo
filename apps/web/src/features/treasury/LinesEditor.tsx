@@ -1,21 +1,11 @@
-import { ActionIcon, Button, Group, NumberInput, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Indicator, Modal, NumberInput, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, formatMoney, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
-import { PlusIcon, UsersThreeIcon, XIcon } from '@phosphor-icons/react';
+import { PaperclipIcon, PlusIcon, UsersThreeIcon, XIcon } from '@phosphor-icons/react';
+import { useState } from 'react';
 import type { TreasurySettings } from './api';
-import { categoryOptions, categoryPaths } from './categories';
-
-/**
- * Line of a split entry as edited: its value is relative to the entry (positive: in the direction of the entry,
- * negative: the other way), signed when saved.
- */
-export interface LineValues {
-  label: string | null;
-  mode: TreasuryLineMode;
-  value: number;
-  memberId: string | null;
-  categoryId: string | null;
-  contextId: string | null;
-}
+import { categoryOptions } from './categories';
+import { LineAttachments } from './LineAttachments';
+import { attachmentCount, newLine, type LineValues } from './lines';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -25,29 +15,35 @@ interface LinesEditorProps {
   direction: 'IN' | 'OUT';
   /** Day of the entry: the context planned then is proposed. */
   date: string;
-  categoryId: string | null;
   settings: TreasurySettings | undefined;
   errors: Record<string, unknown>;
   /** Opens the creation of a context for a line (it takes the context created). */
   onCreateContext: (index: number) => void;
+  /** Entry edited, null for a new one. */
+  entryId: string | null;
+  projects: { value: string; label: string }[];
+  /** Supporting documents, grouped by place. */
+  documentGroups: { group: string; items: { value: string; label: string }[] }[];
 }
 
 /**
  * Split of an entry into lines: amount (€) or percentage, positive (in the direction of the entry) or negative,
  * for a member, in a category of its direction and a context (none: everyday spending, the planned one proposed).
- * What the lines leave is "not split" (category of the entry). A table, one line per row; splits equally between
- * the members in one click; a context can be created from a line.
+ * Each line has its project, supporting documents and links (lines of other entries, whole entries without lines).
+ * What the lines leave is "not split" (no category). A table, one line per row; splits equally between the members
+ * in one click; a context can be created from a line.
  * @param {LinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function LinesEditor({ lines, onChange, amount, direction, date, categoryId, settings, errors, onCreateContext }: LinesEditorProps) {
+export function LinesEditor({ lines, onChange, amount, direction, date, settings, errors, onCreateContext, entryId, projects, documentGroups }: LinesEditorProps) {
+  // Line whose attachments are edited.
+  const [attaching, setAttaching] = useState<number | null>(null);
   const sign = direction === 'IN' ? 1 : -1;
   const members = settings?.treasuryMembers ?? [];
   const contexts = settings?.treasuryContexts ?? [];
   const categories = settings?.treasuryCategories ?? [];
   const periods = (settings?.treasuryContextPeriods ?? []).map((period) => ({ contextId: period.contextId, startDate: String(period.startDate), endDate: String(period.endDate) }));
   const planned = plannedContext(periods, date);
-  const paths = categoryPaths(categories);
   // Amounts relative to the entry (positive: its direction), in cents.
   const { amounts, remainder } = splitAmounts(amount, lines);
   const me = members.find((member) => member.isMe);
@@ -75,8 +71,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, category
    * New line: what is not split yet, for me, in the category of the entry and the planned context.
    * @returns {void}
    */
-  const add = () =>
-    onChange([...lines, { label: null, mode: 'AMOUNT', value: Math.max(remainder, 0) / 100 || 0, memberId: me?.id ?? null, categoryId: keepCategory(categoryId, 1), contextId: planned }]);
+  const add = () => onChange([...lines, newLine({ value: Math.max(remainder, 0) / 100 || 0, memberId: me?.id ?? null, contextId: planned })]);
 
   /**
    * Replaces the lines by an equal share for every member.
@@ -85,15 +80,15 @@ export function LinesEditor({ lines, onChange, amount, direction, date, category
   const splitEqually = () => {
     const share = Math.round(10_000 / members.length) / 100;
     onChange(
-      members.map((member, index) => ({
-        label: null,
-        mode: 'PERCENT',
-        // The last one takes what rounding leaves.
-        value: index === members.length - 1 ? Math.round((100 - share * (members.length - 1)) * 100) / 100 : share,
-        memberId: member.id,
-        categoryId: keepCategory(categoryId, 1),
-        contextId: planned,
-      })),
+      members.map((member, index) =>
+        newLine({
+          mode: 'PERCENT',
+          // The last one takes what rounding leaves.
+          value: index === members.length - 1 ? Math.round((100 - share * (members.length - 1)) * 100) / 100 : share,
+          memberId: member.id,
+          contextId: planned,
+        }),
+      ),
     );
   };
 
@@ -108,7 +103,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, category
       </Text>
       {lines.length > 0 && (
         <ScrollArea type="auto" offsetScrollbars>
-          <Table verticalSpacing={4} horizontalSpacing={6} miw={960} layout="fixed">
+          <Table verticalSpacing={4} horizontalSpacing={6} miw={1020} layout="fixed">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th w="16%">Libellé</Table.Th>
@@ -117,6 +112,11 @@ export function LinesEditor({ lines, onChange, amount, direction, date, category
                 <Table.Th w="18%">Contexte</Table.Th>
                 <Table.Th w={84}>Unité</Table.Th>
                 <Table.Th w={124}>Valeur</Table.Th>
+                <Table.Th w={56}>
+                  <Tooltip label="Projet, pièces justificatives, liens">
+                    <PaperclipIcon aria-label="Rattachements" />
+                  </Tooltip>
+                </Table.Th>
                 <Table.Th w={110} ta="right">
                   Montant
                 </Table.Th>
@@ -219,6 +219,15 @@ export function LinesEditor({ lines, onChange, amount, direction, date, category
                         error={error('value')}
                       />
                     </Table.Td>
+                    <Table.Td>
+                      <Tooltip label="Projet, pièces justificatives, liens">
+                        <Indicator label={attachmentCount(line)} size={16} disabled={!attachmentCount(line)} offset={4}>
+                          <ActionIcon variant={attachmentCount(line) ? 'light' : 'subtle'} color="gray" aria-label={`Rattachements de la ligne ${index + 1}`} onClick={() => setAttaching(index)}>
+                            <PaperclipIcon aria-hidden />
+                          </ActionIcon>
+                        </Indicator>
+                      </Tooltip>
+                    </Table.Td>
                     <Table.Td ta="right">
                       <Text size="sm" c={relative * sign < 0 ? 'red' : 'green'} aria-label={`Montant de la ligne ${index + 1}`}>
                         {formatMoney(Math.round(relative * sign * 100))}
@@ -237,9 +246,9 @@ export function LinesEditor({ lines, onChange, amount, direction, date, category
             </Table.Tbody>
             <Table.Tfoot>
               <Table.Tr>
-                <Table.Td colSpan={6}>
+                <Table.Td colSpan={7}>
                   <Text size="sm" c="dimmed">
-                    Non réparti{remainder !== 0 && categoryId ? ` · ${paths.get(categoryId) ?? ''}` : ''}
+                    Non réparti
                   </Text>
                 </Table.Td>
                 <Table.Td ta="right">
@@ -268,6 +277,18 @@ export function LinesEditor({ lines, onChange, amount, direction, date, category
           {errors.lines}
         </Text>
       )}
+      <Modal opened={attaching !== null && lines[attaching] !== undefined} onClose={() => setAttaching(null)} title={`Rattachements de la ligne ${(attaching ?? 0) + 1}`} size="lg">
+        {attaching !== null && lines[attaching] && (
+          <LineAttachments
+            line={lines[attaching]}
+            onChange={(changes) => change(attaching, changes)}
+            entryId={entryId}
+            projects={projects}
+            documentGroups={documentGroups}
+            onClose={() => setAttaching(null)}
+          />
+        )}
+      </Modal>
     </Stack>
   );
 }

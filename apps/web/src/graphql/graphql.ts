@@ -694,9 +694,18 @@ export type TreasuryEntryInput = {
 export type TreasuryEntryLineInput = {
   categoryId?: string | number | null | undefined;
   contextId?: string | number | null | undefined;
+  /** Line kept (its links from other entries stay); none for a new line. */
+  id?: string | number | null | undefined;
   label?: string | null | undefined;
+  libraryDocumentIds?: Array<string | number> | null | undefined;
+  /** Other entries, without lines. */
+  linkedEntryIds?: Array<string | number> | null | undefined;
+  /** Lines of other entries. */
+  linkedLineIds?: Array<string | number> | null | undefined;
   memberId?: string | number | null | undefined;
   mode: TreasuryLineMode;
+  projectId?: string | number | null | undefined;
+  projectResourceIds?: Array<string | number> | null | undefined;
   value: number;
 };
 
@@ -2567,7 +2576,7 @@ export type DeleteTimeEntryMutationVariables = Exact<{
 
 export type DeleteTimeEntryMutation = { deleteTimeEntry: boolean };
 
-export type TreasuryEntryFieldsFragment = { id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, categoryId: string | null, contextId: string | null }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> };
+export type TreasuryEntryFieldsFragment = { id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> };
 
 export type TreasuryEntryDocumentFieldsFragment = { id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string };
 
@@ -2588,12 +2597,12 @@ export type TreasuryEntriesQueryVariables = Exact<{
 }>;
 
 
-export type TreasuryEntriesQuery = { treasuryEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, categoryId: string | null, contextId: string | null }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
+export type TreasuryEntriesQuery = { treasuryEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
 
 export type ForecastEntriesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForecastEntriesQuery = { forecastEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, categoryId: string | null, contextId: string | null }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
+export type ForecastEntriesQuery = { forecastEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
 
 export type TreasuryProjectionQueryVariables = Exact<{
   today: string;
@@ -2614,7 +2623,7 @@ export type TreasuryEntrySearchQueryVariables = Exact<{
 }>;
 
 
-export type TreasuryEntrySearchQuery = { treasuryEntrySearch: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus, accountName: string }> };
+export type TreasuryEntrySearchQuery = { treasuryEntrySearch: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus, accountName: string, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number }> }> };
 
 export type CreateTreasuryCategoryMutationVariables = Exact<{
   input: TreasuryCategoryInput;
@@ -3526,6 +3535,35 @@ export const TreasuryEntryFieldsFragmentDoc = new TypedDocumentString(`
     memberId
     categoryId
     contextId
+    projectId
+    documents {
+      ...TreasuryEntryDocumentFields
+    }
+    linkedLines {
+      id
+      entryId
+      entryLabel
+      date
+      label
+      amount
+      status
+    }
+    linkedEntries {
+      id
+      date
+      label
+      amount
+      status
+    }
+  }
+  linkedByLines {
+    id
+    entryId
+    entryLabel
+    date
+    label
+    amount
+    status
   }
   allocations {
     id
@@ -6029,6 +6067,35 @@ export const TreasuryEntriesDocument = new TypedDocumentString(`
     memberId
     categoryId
     contextId
+    projectId
+    documents {
+      ...TreasuryEntryDocumentFields
+    }
+    linkedLines {
+      id
+      entryId
+      entryLabel
+      date
+      label
+      amount
+      status
+    }
+    linkedEntries {
+      id
+      date
+      label
+      amount
+      status
+    }
+  }
+  linkedByLines {
+    id
+    entryId
+    entryLabel
+    date
+    label
+    amount
+    status
   }
   allocations {
     id
@@ -6089,6 +6156,35 @@ export const ForecastEntriesDocument = new TypedDocumentString(`
     memberId
     categoryId
     contextId
+    projectId
+    documents {
+      ...TreasuryEntryDocumentFields
+    }
+    linkedLines {
+      id
+      entryId
+      entryLabel
+      date
+      label
+      amount
+      status
+    }
+    linkedEntries {
+      id
+      date
+      label
+      amount
+      status
+    }
+  }
+  linkedByLines {
+    id
+    entryId
+    entryLabel
+    date
+    label
+    amount
+    status
   }
   allocations {
     id
@@ -6190,6 +6286,12 @@ export const TreasuryEntrySearchDocument = new TypedDocumentString(`
     amount
     status
     accountName
+    lines {
+      id
+      label
+      mode
+      value
+    }
   }
 }
     `) as unknown as TypedDocumentString<TreasuryEntrySearchQuery, TreasuryEntrySearchQueryVariables>;

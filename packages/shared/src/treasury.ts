@@ -74,15 +74,26 @@ export type TreasuryCounterpartyInput = z.input<typeof treasuryCounterpartySchem
 export const TREASURY_LINE_MODES = ['AMOUNT', 'PERCENT'] as const;
 export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
 
-/** Part of an entry: a signed amount, or a signed percentage of the entry amount; for a member, in a category and a context. */
+/**
+ * Part of an entry: a signed amount, or a signed percentage of the entry amount; for a member, in a category and a
+ * context, for a project, with its supporting documents and its links (lines of other entries, or whole entries
+ * without lines).
+ */
 export const treasuryEntryLineSchema = z
   .object({
+    /** Line kept (its links from other entries stay); none for a new line. */
+    id: z.string().nullish(),
     label: optionalText(200),
     mode: z.enum(TREASURY_LINE_MODES),
     value: z.number({ error: 'Valeur attendue.' }),
     memberId: z.string().nullable(),
     categoryId: z.string().nullable(),
     contextId: z.string().nullable(),
+    projectId: z.string().nullish(),
+    libraryDocumentIds: z.array(z.string()).max(50, '50 documents maximum.').default([]),
+    projectResourceIds: z.array(z.string()).max(50, '50 documents maximum.').default([]),
+    linkedLineIds: z.array(z.string()).max(50, '50 liens maximum.').default([]),
+    linkedEntryIds: z.array(z.string()).max(50, '50 liens maximum.').default([]),
   })
   .superRefine((line, context) => {
     if (line.value === 0) context.addIssue({ code: 'custom', path: ['value'], message: 'La valeur ne peut pas être nulle.' });
@@ -172,6 +183,14 @@ export const treasuryEntrySchema = z
     }
     if (entry.clientId && entry.counterpartyId) {
       context.addIssue({ code: 'custom', path: ['counterpartyId'], message: 'Choisissez un client ou un tiers, pas les deux.' });
+    }
+    // A split entry carries its category, project, links and documents on its lines.
+    if (entry.lines.length) {
+      const onLines = 'Décomposé : à préciser sur les lignes.';
+      if (entry.categoryId) context.addIssue({ code: 'custom', path: ['categoryId'], message: onLines });
+      if (entry.projectId) context.addIssue({ code: 'custom', path: ['projectId'], message: onLines });
+      if (entry.linkedEntryIds.length) context.addIssue({ code: 'custom', path: ['linkedEntryIds'], message: onLines });
+      if (entry.libraryDocumentIds.length || entry.projectResourceIds.length) context.addIssue({ code: 'custom', path: ['libraryDocumentIds'], message: onLines });
     }
     const allocated = entry.allocations.reduce((sum, allocation) => sum + Math.round(allocation.amount * 100), 0);
     if (allocated > Math.abs(Math.round(entry.amount * 100))) {
