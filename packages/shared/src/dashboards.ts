@@ -33,6 +33,8 @@ export const CHART_GROUP_DIMENSIONS = [
   'account',
   'direction',
   'entryStatus',
+  'member',
+  'context',
 ] as const;
 export const CHART_DIMENSIONS = [...CHART_TIME_DIMENSIONS, ...CHART_GROUP_DIMENSIONS] as const;
 export type ChartDimension = (typeof CHART_DIMENSIONS)[number];
@@ -51,7 +53,7 @@ export const SOURCE_TIME_DIMENSIONS: Record<ChartSource, readonly ChartDimension
 export const SOURCE_GROUP_DIMENSIONS: Record<ChartSource, readonly ChartGroupDimension[]> = {
   tasks: ['sprint', 'milestone', 'project', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'tags', 'state'],
   documents: ['documentType', 'trackingStatus', 'client', 'project', 'payment', 'documentState', 'origin'],
-  treasury: ['category', 'account', 'direction', 'project', 'entryStatus'],
+  treasury: ['category', 'member', 'context', 'account', 'direction', 'project', 'entryStatus'],
 };
 export const SOURCE_MEASURES: Record<ChartSource, readonly ChartMeasure[]> = {
   tasks: ['count', 'effort', 'trackedTime'],

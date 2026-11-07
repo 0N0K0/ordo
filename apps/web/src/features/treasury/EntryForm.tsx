@@ -11,6 +11,7 @@ import { useAccountingDocuments, useImportedDocuments } from '../accounting/docu
 import { useWorkspace } from '../workspace/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryEntrySearch, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from './api';
 import { categoryOptions } from './categories';
+import { LinesEditor, type LineValues } from './LinesEditor';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 
@@ -72,6 +73,8 @@ interface EntryValues extends Record<string, unknown> {
   linkedEntryIds: string[];
   libraryDocumentIds: string[];
   projectResourceIds: string[];
+  /** Split of the amount: values relative to the direction (signed when saved). */
+  lines: LineValues[];
 }
 
 interface EntryFormProps {
@@ -128,6 +131,15 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       linkedEntryIds: (entry?.linkedEntries ?? []).map((item) => item.id),
       libraryDocumentIds: (entry?.documents ?? []).filter((document) => document.source === 'LIBRARY').map((document) => document.id),
       projectResourceIds: (entry?.documents ?? []).filter((document) => document.source === 'PROJECT').map((document) => document.id),
+      // A stored amount is signed; edited, it is relative to the direction of the entry.
+      lines: (entry?.lines ?? []).map((line) => ({
+        label: line.label ?? null,
+        mode: line.mode,
+        value: line.mode === 'AMOUNT' && (entry?.amount ?? 0) < 0 ? -line.value : line.value,
+        memberId: line.memberId ?? null,
+        categoryId: line.categoryId ?? null,
+        contextId: line.contextId ?? null,
+      })),
     },
     schema: treasuryEntrySchema,
   });
@@ -199,6 +211,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       amount: direction === 'IN' ? input.amount : -input.amount,
       recurrence: input.status === 'FORECAST' ? input.recurrence : null,
       allocations: input.status === 'ACTUAL' ? input.allocations : [],
+      lines: input.lines.map((line) => ({ ...line, value: line.mode === 'AMOUNT' && direction === 'OUT' ? -line.value : line.value })),
     };
     const callbacks = {
       onSuccess: () => {
@@ -258,6 +271,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
                 direction: direction as EntryValues['direction'],
                 allocations: [],
                 categoryId: null,
+                lines: values.lines.map((line) => ({ ...line, categoryId: null })),
                 methodId: method && (direction === 'IN' ? method.incoming : method.outgoing) ? method.id : null,
               });
             }}
@@ -321,6 +335,18 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
           {...form.getInputProps('projectId')}
         />
         <Textarea label="Note" autosize minRows={1} {...form.getInputProps('note')} />
+
+        <Divider label="Répartition" labelPosition="left" />
+        <LinesEditor
+          lines={values.lines}
+          onChange={(lines) => form.setFieldValue('lines', lines)}
+          amount={values.amount}
+          direction={values.direction}
+          date={values.date}
+          categoryId={values.categoryId}
+          settings={settings}
+          errors={form.errors}
+        />
 
         <MultiSelect
           label="Pièces justificatives"

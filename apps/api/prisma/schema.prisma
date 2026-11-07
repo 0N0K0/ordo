@@ -63,6 +63,9 @@ model Workspace {
   calendars               Calendar[]
   calendarSubscriptions   CalendarSubscription[]
   calendarCategories      CalendarCategory[]
+  treasuryEntryLines      TreasuryEntryLine[]
+  treasuryContexts        TreasuryContext[]
+  treasuryContextPeriods  TreasuryContextPeriod[]
   calendarEvents          CalendarEvent[]
   calendarEventExceptions CalendarEventException[]
   workSchedules           WorkSchedule[]
@@ -344,25 +347,30 @@ model ProjectStatus {
 
 /// Person who can be assigned to tasks.
 model Contributor {
-  id          String          @id @default(cuid())
-  name        String
+  id            String              @id @default(cuid())
+  name          String
   /// Unique identifier used in @mentions.
-  handle      String
-  iconId      String?
-  icon        Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  createdAt   DateTime        @default(now())
-  tasks       Task[]
+  handle        String
+  iconId        String?
+  icon          Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  createdAt     DateTime            @default(now())
+  tasks         Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
-  projects    Project[]       @relation("ProjectContributors")
-  events      CalendarEvent[]
+  projects      Project[]           @relation("ProjectContributors")
+  events        CalendarEvent[]
   /// Set when this contributor is the app user ("Moi").
-  userId      String?
-  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId        String?
+  user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
-  githubLogin String?
+  githubLogin   String?
+  /// Member of the team (professional workspace) or household (personal one): treasury entries are split
+  /// between members. The app user ("Moi") always is one.
+  teamMember    Boolean             @default(false)
+  /// Lines of treasury entries that are theirs.
+  treasuryLines TreasuryEntryLine[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, handle])
   @@unique([workspaceId, githubLogin])
@@ -1623,6 +1631,77 @@ model TreasuryAccount {
   @@index([workspaceId])
 }
 
+/// How a line of a split entry gives its amount.
+enum TreasuryLineMode {
+  /// Amount, signed.
+  AMOUNT
+  /// Percentage of the entry amount, signed.
+  PERCENT
+}
+
+/// Part of a treasury entry: for a member, in a category and a context. Its amount is signed whatever the
+/// direction of the entry (a refund inside a purchase…).
+model TreasuryEntryLine {
+  id          String            @id @default(cuid())
+  entryId     String
+  entry       TreasuryEntry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  position    Int               @default(0)
+  label       String?
+  mode        TreasuryLineMode  @default(AMOUNT)
+  /// Signed amount (AMOUNT) or percentage of the entry amount (PERCENT).
+  value       Decimal           @db.Decimal(14, 4)
+  memberId    String?
+  member      Contributor?      @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  categoryId  String?
+  category    TreasuryCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  contextId   String?
+  context     TreasuryContext?  @relation(fields: [contextId], references: [id], onDelete: SetNull)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
+  @@index([memberId])
+  @@index([categoryId])
+  @@index([contextId])
+  @@index([workspaceId])
+}
+
+/// Context of spending ("Vacances", "Rentrée"…), not in a tree: the same purchase does not mean the same in two
+/// contexts. A line without context is everyday spending ("Quotidien").
+model TreasuryContext {
+  id          String                  @id @default(cuid())
+  name        String
+  color       String
+  position    Int                     @default(0)
+  createdAt   DateTime                @default(now())
+  periods     TreasuryContextPeriod[]
+  lines       TreasuryEntryLine[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String                  @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+}
+
+/// Period a context is planned for: the lines of the entries dated in it get that context proposed.
+model TreasuryContextPeriod {
+  id          String          @id @default(cuid())
+  contextId   String
+  context     TreasuryContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
+  /// First and last days, included.
+  startDate   DateTime        @db.Date
+  endDate     DateTime        @db.Date
+  note        String?
+  createdAt   DateTime        @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([contextId])
+  @@index([workspaceId, startDate])
+}
+
 enum TreasuryEntryStatus {
   /// On the bank statement.
   ACTUAL
@@ -1638,17 +1717,18 @@ enum TreasuryDirection {
 
 /// Category of the treasury entries, for money in or out, possibly under a parent category of the same direction.
 model TreasuryCategory {
-  id          String             @id @default(cuid())
+  id          String              @id @default(cuid())
   name        String
   direction   TreasuryDirection
   parentId    String?
-  parent      TreasuryCategory?  @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    TreasuryCategory[] @relation("TreasuryCategoryTree")
-  createdAt   DateTime           @default(now())
+  parent      TreasuryCategory?   @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    TreasuryCategory[]  @relation("TreasuryCategoryTree")
+  createdAt   DateTime            @default(now())
   entries     TreasuryEntry[]
+  lines       TreasuryEntryLine[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
   @@index([workspaceId])
@@ -1714,6 +1794,8 @@ model TreasuryEntry {
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
   allocations      TreasuryAllocation[]
+  /// Split of the amount (by member, category, context); what the lines leave is "not split".
+  lines            TreasuryEntryLine[]
   /// Linked entries, both ways (a link is stored once, from either side): linked money in and out of the same
   /// period offset each other in the charts of money in and out.
   links            TreasuryEntry[]        @relation("TreasuryEntryLinks")

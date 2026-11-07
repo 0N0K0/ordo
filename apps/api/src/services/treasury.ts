@@ -4,6 +4,7 @@ import {
   formatDay,
   occurrenceDates,
   parseDay,
+  splitAmounts,
   toCents,
   treasuryAccountSchema,
   treasuryEntrySchema,
@@ -71,6 +72,48 @@ export async function deleteAccount(id: string): Promise<void> {
 }
 
 /**
+ * Checks the lines of a split entry: their members, contexts and categories exist, and a category is of the
+ * direction of its line (a positive line is money in, whatever the entry).
+ * @param {number} amount Signed amount of the entry.
+ * @param {ReturnType<typeof treasuryEntrySchema.parse>['lines']} lines Lines.
+ * @returns {Promise<void>}
+ */
+async function assertLines(amount: number, lines: ReturnType<typeof treasuryEntrySchema.parse>['lines']): Promise<void> {
+  const ids = (key: 'memberId' | 'categoryId' | 'contextId') => [...new Set(lines.map((line) => line[key]).filter((id): id is string => id !== null))];
+  if ((await prisma.contributor.count({ where: { id: { in: ids('memberId') } } })) !== ids('memberId').length) throw notFound('Membre');
+  if ((await prisma.treasuryContext.count({ where: { id: { in: ids('contextId') } } })) !== ids('contextId').length) throw notFound('Contexte');
+  const categories = new Map(
+    (await prisma.treasuryCategory.findMany({ where: { id: { in: ids('categoryId') } }, select: { id: true, direction: true } })).map((category) => [category.id, category.direction]),
+  );
+  if (categories.size !== ids('categoryId').length) throw notFound('Catégorie');
+  const { amounts } = splitAmounts(amount, lines);
+  lines.forEach((line, index) => {
+    if (!line.categoryId) return;
+    if ((categories.get(line.categoryId) === 'IN') !== amounts[index] > 0) {
+      const message = amounts[index] > 0 ? 'Choisissez une catégorie d’entrée pour une ligne positive.' : 'Choisissez une catégorie de sortie pour une ligne négative.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { [`lines.${index}.categoryId`]: message } });
+    }
+  });
+}
+
+/**
+ * Line rows of a split entry, in their order.
+ * @param {object[]} lines Validated lines.
+ * @returns {Prisma.TreasuryEntryLineUncheckedCreateWithoutEntryInput[]} Rows.
+ */
+function linesData(lines: readonly ReturnType<typeof treasuryEntrySchema.parse>['lines'][number][]): Prisma.TreasuryEntryLineUncheckedCreateWithoutEntryInput[] {
+  return lines.map((line, position) => ({
+    position,
+    label: line.label,
+    mode: line.mode,
+    value: new Prisma.Decimal(line.value),
+    memberId: line.memberId,
+    categoryId: line.categoryId,
+    contextId: line.contextId,
+  }));
+}
+
+/**
  * Validates an entry and the account, project and documents it points to. Money in settles invoices,
  * money out refunds credit notes.
  * @param {TreasuryEntryInput} input Entry.
@@ -105,6 +148,7 @@ async function parseEntry(input: TreasuryEntryInput) {
   if (resourceIds.length && (await prisma.projectResource.count({ where: { id: { in: resourceIds } } })) !== resourceIds.length) throw notFound('Document du projet');
   const linked = [...new Set(entry.linkedEntryIds)];
   if (linked.length && (await prisma.treasuryEntry.count({ where: { id: { in: linked } } })) !== linked.length) throw notFound('Mouvement lié');
+  await assertLines(entry.amount, entry.lines);
   const wrongWay = 'Une entrée règle des factures, une sortie rembourse des avoirs.';
   for (const allocation of entry.allocations) {
     const document = allocation.documentId
@@ -174,7 +218,13 @@ function allocationsData(entry: Awaited<ReturnType<typeof parseEntry>>): Prisma.
 export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEntry> {
   const entry = await parseEntry(input);
   const created = await prisma.treasuryEntry.create({
-    data: { ...entryData(entry), ...documentsData(entry, 'connect'), allocations: { create: allocationsData(entry) }, links: { connect: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) } },
+    data: {
+      ...entryData(entry),
+      ...documentsData(entry, 'connect'),
+      allocations: { create: allocationsData(entry) },
+      lines: { create: linesData(entry.lines) },
+      links: { connect: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
+    },
   });
   await syncPaymentStatus(entry.allocations.map((allocation) => allocation.documentId));
   return created;
@@ -197,6 +247,7 @@ export async function updateEntry(id: string, input: TreasuryEntryInput): Promis
       ...entryData(entry),
       ...documentsData(entry, 'set'),
       allocations: { deleteMany: {}, create: allocationsData(entry) },
+      lines: { deleteMany: {}, create: linesData(entry.lines) },
       // A link is kept once, from this side.
       links: { set: [...new Set(entry.linkedEntryIds)].map((linkedId) => ({ id: linkedId })) },
       linkedBy: { set: [] },
@@ -229,7 +280,7 @@ export async function deleteEntry(id: string): Promise<void> {
  * @returns {Promise<TreasuryEntry>} Actual entry.
  */
 export async function realizeForecast(id: string, occurrence: string, actual: { date: string; amount: number }): Promise<TreasuryEntry> {
-  const forecast = await prisma.treasuryEntry.findUnique({ where: { id } });
+  const forecast = await prisma.treasuryEntry.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' } } } });
   if (!forecast || forecast.status !== 'FORECAST') throw notFound('Prévision');
   const rule = storedRecurrence(forecast.recurrence);
   const entry = await parseEntry({
@@ -250,12 +301,21 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
     linkedEntryIds: [],
     libraryDocumentIds: [],
     projectResourceIds: [],
+    // The split follows (percentages apply to the actual amount).
+    lines: forecast.lines.map((line) => ({
+      label: line.label,
+      mode: line.mode,
+      value: Number(line.value),
+      memberId: line.memberId,
+      categoryId: line.categoryId,
+      contextId: line.contextId,
+    })),
   });
   return prisma.$transaction(async (tx) => {
     if (rule) {
       await tx.treasuryEntry.update({ where: { id }, data: { recurrence: { ...rule, exceptions: [...new Set([...rule.exceptions, occurrence])] } } });
     } else await tx.treasuryEntry.delete({ where: { id } });
-    return tx.treasuryEntry.create({ data: entryData(entry) });
+    return tx.treasuryEntry.create({ data: { ...entryData(entry), lines: { create: linesData(entry.lines) } } });
   });
 }
 

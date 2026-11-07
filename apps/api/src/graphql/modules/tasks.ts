@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { parseInput } from '../errors';
 import * as workspaces from '../../services/workspaces';
 import { builder } from '../builder';
+import { isMember } from '../../services/treasury-team';
 
 const byManualOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
@@ -28,6 +29,10 @@ builder.prismaObject('Contributor', {
       description: 'Whether this contributor is the app user.',
       select: { user: { select: { id: true } } },
       resolve: (contributor) => contributor.user !== null,
+    }),
+    teamMember: t.boolean({
+      description: 'Member of the team (professional workspace) or household (personal one); the app user always is.',
+      resolve: (contributor) => isMember(contributor),
     }),
     projectIds: t.idList({
       description: 'Projects the contributor is directly attached to; their sub-projects inherit it.',

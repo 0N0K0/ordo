@@ -1,8 +1,8 @@
-import { addDays, offsetLinkedMovements, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
+import { addDays, EVERYDAY_CONTEXT, offsetLinkedMovements, plannedContext, splitAmounts, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure } from '@ordo/shared';
 import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
 import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
 import type { TaskContext } from '../tasks/use-task-context';
-import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryEntry, TreasuryProjection } from '../treasury/api';
+import type { ProjectionItem, TreasuryAccount, TreasuryCategory, TreasuryContext, TreasuryContextPeriod, TreasuryEntry, TreasuryMember, TreasuryProjection } from '../treasury/api';
 import { categoryLineage } from '../treasury/categories';
 import { aggregate, bucketLabel, bucketOf, localDay, nextBucket, none, periodRange, round, type ChartData, type ChartRecord, type Key } from './aggregate';
 
@@ -274,16 +274,24 @@ interface ChartMovement {
   lineage: string[];
   accountId: string | null;
   projectId: string | null;
+  /** Member of the line (split entries), null when none. */
+  memberId: string | null;
+  /** Context of the line, null for everyday spending. */
+  contextId: string | null;
   forecast: boolean;
 }
 
 /**
  * Data of a treasury chart: actual movements (and expected ones when asked) measured in net amount, money in,
  * money out or number; or the balance over time. Linked money in and out of a same bucket of the period offset
- * each other (amounts only, not the number of movements).
+ * each other (amounts only, not the number of movements). A split entry counts as its lines (member, category,
+ * context of each) and what they leave (category of the entry, context planned on its day).
  * @param {object} input Data.
  * @param {TreasuryEntry[]} input.entries Entries of the period.
  * @param {TreasuryCategory[]} input.categories Treasury categories.
+ * @param {TreasuryMember[]} input.members Members of the team or household.
+ * @param {TreasuryContext[]} input.contexts Contexts.
+ * @param {TreasuryContextPeriod[]} input.periods Planned periods of the contexts.
  * @param {TreasuryProjection | null} input.projection Projection (expected movements and balance).
  * @param {TreasuryAccount[]} input.accounts Accounts.
  * @param {ChartConfig} input.config Configuration.
@@ -295,6 +303,9 @@ interface ChartMovement {
 export function treasuryChartData({
   entries,
   categories,
+  members,
+  contexts,
+  periods,
   projection,
   accounts,
   config,
@@ -304,6 +315,9 @@ export function treasuryChartData({
 }: {
   entries: TreasuryEntry[];
   categories: TreasuryCategory[];
+  members: TreasuryMember[];
+  contexts: TreasuryContext[];
+  periods: TreasuryContextPeriod[];
   projection: TreasuryProjection | null;
   accounts: TreasuryAccount[];
   config: ChartConfig;
@@ -313,6 +327,7 @@ export function treasuryChartData({
 }): ChartData {
   if (config.measure === 'balance') return balanceChartData(projection, config, today);
   const filter = config.treasury;
+  const plannedDays = periods.map((period) => ({ contextId: period.contextId, startDate: String(period.startDate), endDate: String(period.endDate) }));
   const expected: ChartMovement[] =
     filter.includeForecast && projection
       ? projection.items
@@ -325,6 +340,8 @@ export function treasuryChartData({
             lineage: PROJECTION_KINDS[item.kind] ? [PROJECTION_KINDS[item.kind]] : [],
             accountId: item.accountId ?? null,
             projectId: null,
+            memberId: null,
+            contextId: plannedContext(plannedDays, item.date),
             forecast: true,
           }))
       : [];
@@ -342,20 +359,30 @@ export function treasuryChartData({
             period: config.type === 'donut' ? 'all' : bucketOf(String(entry.date), config.bucket),
           })),
         );
+  /**
+   * Movements of an actual entry: its lines and what they leave, scaled to what the linked entries left of it.
+   * @param {TreasuryEntry} entry Entry.
+   * @param {number} amount Amount left once offset.
+   * @returns {ChartMovement[]} Movements.
+   */
+  const partsOf = (entry: TreasuryEntry, amount: number): ChartMovement[] => {
+    const date = String(entry.date);
+    const base = { date, accountId: entry.accountId, projectId: entry.projectId ?? null, forecast: false };
+    const part = (categoryId: string | null) => ({ category: categoryId ? (categoryById.get(categoryId)?.name ?? null) : null, lineage: categoryLineage(categoryById, categoryId) });
+    const ratio = amount / entry.amount;
+    const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
+    return [
+      ...entry.lines.map((line, index) => ({ ...base, ...part(line.categoryId ?? null), amount: (amounts[index] / 100) * ratio, memberId: line.memberId ?? null, contextId: line.contextId ?? null })),
+      ...(remainder !== 0 ? [{ ...base, ...part(entry.categoryId ?? null), amount: (remainder / 100) * ratio, memberId: null, contextId: plannedContext(plannedDays, date) }] : []),
+    ];
+  };
   const movements: ChartMovement[] = [
     ...actual
       .map((entry) => ({ entry, amount: remaining?.get(entry.id) ?? entry.amount }))
       // Fully offset: left out of the charts.
       .filter(({ amount }) => Math.abs(amount) >= 0.005)
-      .map(({ entry, amount }) => ({
-        date: String(entry.date),
-        amount,
-        category: entry.categoryId ? (categoryById.get(entry.categoryId)?.name ?? null) : null,
-        lineage: categoryLineage(categoryById, entry.categoryId),
-        accountId: entry.accountId,
-        projectId: entry.projectId ?? null,
-        forecast: false,
-      })),
+      .flatMap(({ entry, amount }) => partsOf(entry, amount))
+      .filter((movement) => Math.abs(movement.amount) >= 0.005),
     ...expected,
   ].filter(
     (movement) =>
@@ -365,6 +392,8 @@ export function treasuryChartData({
       (!projects || (movement.projectId !== null && projects.has(movement.projectId))),
   );
   const accountById = new Map(accounts.map((account) => [account.id, account]));
+  const memberById = new Map(members.map((member) => [member.id, member]));
+  const contextById = new Map(contexts.map((item) => [item.id, item]));
   const records: ChartRecord[] = movements.map((movement) => ({
     day: () => movement.date,
     keys: (dimension: ChartGroupDimension): Key[] => {
@@ -395,6 +424,16 @@ export function treasuryChartData({
                 },
               ]
             : none('Sans projet');
+        case 'member': {
+          const member = movement.memberId ? memberById.get(movement.memberId) : undefined;
+          return member ? [{ key: member.id, label: member.name, order: member.isMe ? '' : member.name }] : none('Non réparti');
+        }
+        case 'context': {
+          const item = movement.contextId ? contextById.get(movement.contextId) : undefined;
+          return item
+            ? [{ key: item.id, label: item.name, order: String(item.position).padStart(6, '0'), color: item.color }]
+            : [{ key: 'everyday', label: EVERYDAY_CONTEXT, order: '', color: 'gray.5' }];
+        }
         case 'entryStatus':
           return movement.forecast ? [{ key: 'forecast', label: 'Prévu', order: 1, color: 'grape.5' }] : [{ key: 'actual', label: 'Réel', order: 0, color: 'blue.6' }];
         default:

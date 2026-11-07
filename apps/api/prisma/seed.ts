@@ -83,6 +83,8 @@ for (const model of [
   prisma.importedDocument,
   prisma.documentSequence,
   prisma.catalogItem,
+  prisma.treasuryContextPeriod,
+  prisma.treasuryContext,
   prisma.treasuryAccount,
   prisma.treasuryCategory,
   prisma.treasuryPaymentMethod,

@@ -27,6 +27,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
 import { categoryOptions, categoryTree } from './categories';
 import { confirmDeletion } from './confirm-deletion';
+import { TeamPanel } from './TeamPanel';
 
 const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OUT: 'Sorties' };
 
@@ -372,8 +373,8 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
 }
 
 /**
- * Treasury settings: categories of money in and out (with sub-categories), payment methods and the
- * counterparties that are not clients.
+ * Treasury settings: team or household and contexts (how entries are split), categories of money in and out
+ * (with sub-categories), payment methods and the counterparties that are not clients.
  * @returns {JSX.Element} Panel.
  */
 export function SettingsPanel() {
@@ -387,6 +388,7 @@ export function SettingsPanel() {
 
   return (
     <Stack gap="md">
+      <TeamPanel />
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
         <CategoryList direction="IN" categories={categories} open={setDialog} />
         <CategoryList direction="OUT" categories={categories} open={setDialog} />
