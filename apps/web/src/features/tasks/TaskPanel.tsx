@@ -312,7 +312,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 )}
               </Group>
               {description === null ? (
-                <MarkdownView targets={context.targets}>{task.description}</MarkdownView>
+                <MarkdownView targets={context.targets} onChange={(next) => save({ description: next })}>
+                  {task.description}
+                </MarkdownView>
               ) : (
                 <Stack gap="xs">
                   <MarkdownEditor

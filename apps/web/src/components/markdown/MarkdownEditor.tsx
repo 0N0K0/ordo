@@ -499,7 +499,7 @@ export function MarkdownEditor({
           </Tabs.Panel>
           <Tabs.Panel value="preview" className={classes.panel}>
             <div className={classes.preview}>
-              <MarkdownView targets={targets} emptyText="Rien à prévisualiser.">
+              <MarkdownView targets={targets} emptyText="Rien à prévisualiser." onChange={onChange}>
                 {value}
               </MarkdownView>
             </div>

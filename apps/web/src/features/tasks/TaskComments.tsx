@@ -116,7 +116,9 @@ function Comment({ comment, context }: CommentProps) {
       </Group>
       <div style={{ padding: 'var(--mantine-spacing-sm)' }}>
         {draft === null ? (
-          <MarkdownView targets={context.targets}>{comment.body}</MarkdownView>
+          <MarkdownView targets={context.targets} onChange={(body) => update.mutate({ id: comment.id, body }, { onError: (error) => notifyError(error.message) })}>
+            {comment.body}
+          </MarkdownView>
         ) : (
           <Stack gap="xs">
             <MarkdownEditor
