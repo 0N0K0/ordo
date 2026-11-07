@@ -66,6 +66,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
           value={icon}
           onChange={setIcon}
           currentUrl={client?.iconUrl ?? null}
+          contain
           name={form.values.name}
           color={form.values.color || null}
           error={form.errors.icon as string | undefined}
