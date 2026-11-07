@@ -19,6 +19,7 @@ import { createRecurringInvoice, issueDueInvoices } from '../../src/services/rec
 import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury';
 import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury-settings';
 import { maybe } from './factories';
+import { currentWorkspaceId } from '../../src/workspace-context';
 
 /** Seller of the fixture documents: the seed only reloads a database whose final documents are its own. */
 export const DEMO_COMPANY = 'Atelier Ordo (démo)';
@@ -81,7 +82,7 @@ async function seedCompany(): Promise<void> {
     paymentMethods: 'Virement bancaire',
     lateInterest: 'Trois fois le taux d’intérêt légal',
   };
-  await prisma.companyProfile.upsert({ where: { id: 'company' }, create: data, update: data });
+  await prisma.companyProfile.upsert({ where: { workspaceId: currentWorkspaceId() }, create: data, update: data });
 }
 
 /**

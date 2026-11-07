@@ -5,6 +5,7 @@ import type { Client } from '../generated/prisma/client';
 import { notFound, parseInput } from '../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from './icons';
 import { moveInOrder } from './ordering';
+import { requirePro } from './workspaces';
 
 /**
  * Loads a client or throws NOT_FOUND.
@@ -35,6 +36,7 @@ async function nextClientPosition(): Promise<number> {
  * @returns {Promise<Client>} Created client.
  */
 export async function createClient(input: { name: string; color?: string | null; icon?: File | null }): Promise<Client> {
+  requirePro('clients');
   const { name, color } = parseInput(z.object({ name: entityNameSchema, color: optionalColorSchema.optional() }), {
     name: input.name,
     color: input.color ?? null,

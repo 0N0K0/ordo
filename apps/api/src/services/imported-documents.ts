@@ -3,6 +3,7 @@ import { prisma } from '../db';
 import { Prisma, type ImportedDocument } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachmentData } from './attachments';
+import { requirePro } from './workspaces';
 
 export type { ImportedDocumentInput } from '@ordo/shared';
 
@@ -62,6 +63,7 @@ async function storeFile(file: File): Promise<string> {
  * @returns {Promise<ImportedDocument>} Imported document.
  */
 export async function importDocument(input: ImportedDocumentInput, file: File | null): Promise<ImportedDocument> {
+  requirePro('facturation');
   const data = parseInput(importSchema, input);
   await assertRefs(data);
   const attachmentId = file ? await storeFile(file) : null;

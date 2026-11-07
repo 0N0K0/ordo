@@ -13,12 +13,14 @@ import {
   type AccountingLineInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
+import { currentWorkspaceId } from '../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachmentData } from './attachments';
 import { getCompanyProfile, usedCounter } from './company';
 import { scopeOf, statusOf } from './document-statuses';
 import { syncPaymentStatus } from './document-tracking';
+import { requirePro } from './workspaces';
 
 export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] };
 
@@ -214,6 +216,7 @@ export async function createDocument(
   input: AccountingDocumentInput,
   extra: { sourceId?: string | null; importedSourceId?: string | null; recurringId?: string | null; status?: 'DRAFT' | 'TEMPLATE' } = {},
 ): Promise<AccountingDocument> {
+  requirePro('facturation');
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
   const company = await getCompanyProfile();
@@ -333,12 +336,12 @@ export async function finalizeDocument(id: string): Promise<AccountingDocument> 
 
   const final = await prisma.$transaction(async (tx) => {
     // The sequence row is locked until the end of the transaction: two validations never get the same number.
-    await tx.$executeRaw`INSERT INTO "DocumentSequence" ("type", "year", "nextNumber") VALUES (${document.type}::"AccountingDocumentType", ${year}, 1) ON CONFLICT DO NOTHING`;
+    await tx.$executeRaw`INSERT INTO "DocumentSequence" ("workspaceId", "type", "year", "nextNumber") VALUES (${currentWorkspaceId()}, ${document.type}::"AccountingDocumentType", ${year}, 1) ON CONFLICT DO NOTHING`;
     const [sequence] = await tx.$queryRaw<{ nextNumber: number }[]>`
-      SELECT "nextNumber" FROM "DocumentSequence" WHERE "type" = ${document.type}::"AccountingDocumentType" AND "year" = ${year} FOR UPDATE`;
+      SELECT "nextNumber" FROM "DocumentSequence" WHERE "workspaceId" = ${currentWorkspaceId()} AND "type" = ${document.type}::"AccountingDocumentType" AND "year" = ${year} FOR UPDATE`;
     const counter = Math.max(sequence.nextNumber, (await usedCounter(document.type, year)) + 1);
     if (counter > 99_999) throw clientError('BAD_USER_INPUT', 'Numérotation épuisée pour cette année.');
-    await tx.documentSequence.update({ where: { type_year: { type: document.type, year } }, data: { nextNumber: counter + 1 } });
+    await tx.documentSequence.update({ where: { workspaceId_type_year: { workspaceId: currentWorkspaceId(), type: document.type, year } }, data: { nextNumber: counter + 1 } });
     return tx.accountingDocument.update({
       where: { id },
       data: {
@@ -404,6 +407,7 @@ export async function createFromDocument(
   type: AccountingDocumentType,
   options: { depositPercent?: number | null; issueDate: string },
 ): Promise<AccountingDocument> {
+  requirePro('facturation');
   const source = await findDocument(sourceId);
   if (source.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Validez d’abord le document d’origine.');
   const allowed =
@@ -507,6 +511,7 @@ const VAT_RATES = [20, 10, 8.5, 5.5, 2.1, 0];
  * @returns {Promise<AccountingDocument>} Draft.
  */
 export async function createDepositInvoice(input: { quoteId?: string | null; importedQuoteId?: string | null; percent: number; issueDate: string }): Promise<AccountingDocument> {
+  requirePro('facturation');
   const { percent, issueDate } = input;
   if (!(percent > 0 && percent <= 100)) throw clientError('BAD_USER_INPUT', 'Pourcentage d’acompte invalide (plus de 0 et jusqu’à 100 %).');
 

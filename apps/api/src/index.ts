@@ -17,6 +17,7 @@ import { scheduleConversationFollowUp } from './services/mail/linked';
 import { scheduleMailSending } from './services/mail/scheduled';
 import { scheduleGithubSync } from './services/github/sync';
 import { scheduleRecurringInvoices } from './services/recurring-invoices';
+import { workspaceMiddleware } from './services/workspaces';
 
 const disableIntrospection: Plugin = {
   /**
@@ -44,6 +45,8 @@ app.set('trust proxy', 'loopback');
 
 // GraphiQL loads its assets from a CDN: CSP only in production.
 app.use(helmet({ contentSecurityPolicy: isProd ? undefined : false }));
+// Every request works in one workspace: its data only.
+app.use(workspaceMiddleware);
 app.use('/api/icons', iconsRouter);
 app.use('/api/attachments', attachmentsRouter);
 app.use('/api/accounting', accountingRouter);

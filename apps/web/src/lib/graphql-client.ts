@@ -2,6 +2,18 @@ import type { TypedDocumentString } from '../graphql/graphql';
 
 const ENDPOINT = '/api/graphql';
 
+/** Workspace this tab shows: its requests stay in it, even when another tab switches (the cookie is shared). */
+let workspaceId: string | null = null;
+
+/**
+ * Pins the requests of this tab to a workspace.
+ * @param {string | null} id Workspace, or null to follow the cookie.
+ * @returns {void}
+ */
+export function pinWorkspace(id: string | null): void {
+  workspaceId = id;
+}
+
 interface GraphQLErrorPayload {
   message: string;
   extensions?: { code?: string; fields?: Record<string, string> };
@@ -86,7 +98,7 @@ export async function execute<TResult, TVariables>(
     response = await fetch(ENDPOINT, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { ...headers, accept: 'application/json' },
+      headers: { ...headers, accept: 'application/json', ...(workspaceId ? { 'x-ordo-workspace': workspaceId } : {}) },
       body,
     });
   } catch {

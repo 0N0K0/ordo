@@ -4,6 +4,7 @@ import { strongPasswordSchema } from '@ordo/shared/password-strength';
 import type { z } from 'zod';
 import { hashPassword } from '../auth/crypto';
 import { prisma } from '../db';
+import { ensureMeContributor, forEachWorkspace } from '../services/workspaces';
 
 /**
  * Turns a zod schema into an inquirer validator.
@@ -35,16 +36,8 @@ await passwordPrompt({
   validate: (value) => value === password || 'Les mots de passe ne correspondent pas.',
 });
 
-// The user gets a contributor profile ("Moi") so tasks can be assigned to them.
-const baseHandle = username.replace(/[^a-z0-9_-]/g, '-');
-const taken = await prisma.contributor.findUnique({ where: { handle: baseHandle } });
-await prisma.user.create({
-  data: {
-    username,
-    email,
-    passwordHash: await hashPassword(password),
-    contributor: { create: { name: username, handle: taken ? `${baseHandle}-moi` : baseHandle } },
-  },
-});
+const user = await prisma.user.create({ data: { username, email, passwordHash: await hashPassword(password) } });
+// The user gets a contributor profile ("Moi") in every workspace so tasks can be assigned to them.
+await forEachWorkspace(() => ensureMeContributor(user));
 await prisma.$disconnect();
 console.log(`Compte « ${username} » créé.`);

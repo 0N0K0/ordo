@@ -10,6 +10,7 @@ import { useMailComposer } from '../features/mail/use-mail-composer';
 import { useTaskActions } from '../features/tasks/use-task-actions';
 import { useTaskContext } from '../features/tasks/use-task-context';
 import { TimerWidget } from '../features/time/TimerWidget';
+import { useActiveWorkspace } from '../features/workspaces/api';
 
 interface QuickAction {
   label: string;
@@ -20,7 +21,8 @@ interface QuickAction {
 }
 
 /**
- * Creation buttons of the header, on every page: task, event, timer, alarm, mail and quote. On a project
+ * Creation buttons of the header, on every page: task, event, timer, alarm, mail and quote (not in a personal
+ * workspace). On a project
  * page, the project (and its client for a quote) is preselected. Labelled on large screens, icons with a
  * tooltip on medium ones, one « Créer » menu on phones (the timer staying next to it).
  * @returns {JSX.Element} Buttons.
@@ -35,6 +37,7 @@ export function QuickActions() {
   const openEvent = useEventForm(context);
   const openAlarm = useAlarmForm(context);
   const openMail = useMailComposer();
+  const { perso } = useActiveWorkspace();
 
   const before: QuickAction[] = [
     { label: 'Tâche', title: 'Nouvelle tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
@@ -43,7 +46,12 @@ export function QuickActions() {
   const after: QuickAction[] = [
     { label: 'Alarme', title: 'Nouvelle alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
     { label: 'Mail', title: 'Nouveau mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
-    { label: 'Devis', title: 'Nouveau devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) },
+    // No invoicing in a personal workspace.
+    ...(perso
+      ? []
+      : [
+          { label: 'Devis', title: 'Nouveau devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) },
+        ]),
   ];
 
   if (phone) {

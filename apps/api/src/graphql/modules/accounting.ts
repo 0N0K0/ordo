@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import * as parties from '../../services/client-parties';
 import * as company from '../../services/company';
 import { builder } from '../builder';
+import { currentWorkspaceId } from '../../workspace-context';
 
 export const AccountingDocumentTypeEnum = builder.enumType(
   'AccountingDocumentType',
@@ -208,7 +209,7 @@ builder.queryFields((t) => ({
       await company.getCompanyProfile();
       return prisma.companyProfile.findUniqueOrThrow({
         ...query,
-        where: { id: 'company' },
+        where: { workspaceId: currentWorkspaceId() },
       });
     },
   }),
@@ -231,7 +232,7 @@ builder.mutationFields((t) => ({
       });
       return prisma.companyProfile.findUniqueOrThrow({
         ...query,
-        where: { id: 'company' },
+        where: { workspaceId: currentWorkspaceId() },
       });
     },
   }),
@@ -243,7 +244,7 @@ builder.mutationFields((t) => ({
       await company.setCompanyLogo(file ?? null);
       return prisma.companyProfile.findUniqueOrThrow({
         ...query,
-        where: { id: 'company' },
+        where: { workspaceId: currentWorkspaceId() },
       });
     },
   }),

@@ -695,6 +695,16 @@ export type WorkSlotInput = {
   weekday: number;
 };
 
+export type WorkspaceInput = {
+  kind: WorkspaceKind;
+  name: string;
+};
+
+/** Professional (invoicing, clients, company) or personal workspace. */
+export type WorkspaceKind =
+  | 'PERSO'
+  | 'PRO';
+
 export type CompanyProfileFieldsFragment = { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
 
 export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
@@ -2783,6 +2793,41 @@ export type MoveProjectStatusMutationVariables = Exact<{
 
 
 export type MoveProjectStatusMutation = { moveProjectStatus: boolean };
+
+export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type WorkspacesQuery = { currentWorkspaceId: string, workspaces: Array<{ id: string, name: string, kind: WorkspaceKind, position: number }> };
+
+export type CreateWorkspaceMutationVariables = Exact<{
+  input: WorkspaceInput;
+}>;
+
+
+export type CreateWorkspaceMutation = { createWorkspace: { id: string } };
+
+export type UpdateWorkspaceMutationVariables = Exact<{
+  id: string | number;
+  input: WorkspaceInput;
+}>;
+
+
+export type UpdateWorkspaceMutation = { updateWorkspace: { id: string } };
+
+export type MoveWorkspaceMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveWorkspaceMutation = { moveWorkspace: boolean };
+
+export type DeleteWorkspaceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 
 export type UploadAttachmentMutationVariables = Exact<{
   file: File;
@@ -6196,6 +6241,41 @@ export const MoveProjectStatusDocument = new TypedDocumentString(`
   moveProjectStatus(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveProjectStatusMutation, MoveProjectStatusMutationVariables>;
+export const WorkspacesDocument = new TypedDocumentString(`
+    query Workspaces {
+  workspaces {
+    id
+    name
+    kind
+    position
+  }
+  currentWorkspaceId
+}
+    `) as unknown as TypedDocumentString<WorkspacesQuery, WorkspacesQueryVariables>;
+export const CreateWorkspaceDocument = new TypedDocumentString(`
+    mutation CreateWorkspace($input: WorkspaceInput!) {
+  createWorkspace(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateWorkspaceMutation, CreateWorkspaceMutationVariables>;
+export const UpdateWorkspaceDocument = new TypedDocumentString(`
+    mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {
+  updateWorkspace(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateWorkspaceMutation, UpdateWorkspaceMutationVariables>;
+export const MoveWorkspaceDocument = new TypedDocumentString(`
+    mutation MoveWorkspace($id: ID!, $index: Int!) {
+  moveWorkspace(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveWorkspaceMutation, MoveWorkspaceMutationVariables>;
+export const DeleteWorkspaceDocument = new TypedDocumentString(`
+    mutation DeleteWorkspace($id: ID!) {
+  deleteWorkspace(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteWorkspaceMutation, DeleteWorkspaceMutationVariables>;
 export const UploadAttachmentDocument = new TypedDocumentString(`
     mutation UploadAttachment($file: File!) {
   uploadAttachment(file: $file) {

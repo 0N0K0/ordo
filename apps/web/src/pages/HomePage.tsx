@@ -16,6 +16,7 @@ import { useMailAccounts, useUnreadMailCount } from '../features/mail/api';
 import { useTaskContext } from '../features/tasks/use-task-context';
 import { useTreasuryProjection } from '../features/treasury/api';
 import { useEntityActions } from '../features/workspace/use-entity-actions';
+import { useActiveWorkspace } from '../features/workspaces/api';
 import { localToday } from '../lib/dates';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -30,11 +31,14 @@ const DEFAULT_ORDER: CardId[] = ['tasks', 'agenda', 'chrono', 'billing', 'quotes
  */
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/** Cards a personal workspace does not have (no invoicing). */
+const PRO_CARDS = new Set<CardId>(['billing', 'quotes']);
+
 /**
  * Home page: everything at a glance. Quick creation of a client or a project, key figures (tasks, time,
  * mails, invoicing, treasury) linking to their pages, then condensed cards: tasks of the day, agenda, timer
  * and alarms, invoicing, quotes, treasury, unread mails, milestones and time, reordered by drag and drop
- * (order kept in the browser).
+ * (order kept in the browser). A personal workspace has no client, invoicing nor quotes.
  * @returns {JSX.Element} Home page.
  */
 export function HomePage() {
@@ -52,10 +56,12 @@ export function HomePage() {
   const hasMail = (accounts.data?.length ?? 0) > 0;
   const unread = useUnreadMailCount(hasMail);
   const actions = useEntityActions();
+  const { perso } = useActiveWorkspace();
   const [storedOrder, setStoredOrder] = useLocalStorage<CardId[]>({ key: 'ordo.home.cards', defaultValue: DEFAULT_ORDER });
   // Cards added since the order was saved go last; removed ones are dropped.
   const order = [...storedOrder.filter((id) => DEFAULT_ORDER.includes(id)), ...DEFAULT_ORDER.filter((id) => !storedOrder.includes(id))];
   const customized = order.join() !== DEFAULT_ORDER.join();
+  const shown = perso ? order.filter((id) => !PRO_CARDS.has(id)) : order;
   const cards: Record<CardId, ReactNode> = {
     tasks: <TasksCard context={context} tasks={myTasks.tasks} today={today} />,
     agenda: <AgendaCard today={today} />,
@@ -78,16 +84,18 @@ export function HomePage() {
           <Text c="dimmed">{capitalized(dateFormat.format(new Date(`${today}T00:00:00Z`)))}</Text>
         </Stack>
         <Group gap="sm">
-          <Button variant="default" leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
-            Nouveau client
-          </Button>
+          {!perso && (
+            <Button variant="default" leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
+              Nouveau client
+            </Button>
+          )}
           <Button leftSection={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
             Nouveau projet
           </Button>
         </Group>
       </Group>
 
-      <SimpleGrid cols={{ base: 2, sm: 3, xl: 6 }} spacing="md">
+      <SimpleGrid cols={{ base: 2, sm: 3, xl: perso ? 4 : 6 }} spacing="md">
         <StatTile
           label="Tâches du jour"
           value={myTasks.tasks?.length ?? 0}
@@ -104,15 +112,19 @@ export function HomePage() {
           to="/mail"
           loading={accounts.isPending || (hasMail && unread.isPending)}
         />
-        <StatTile
-          label="À encaisser"
-          value={money(summary?.receivable ?? 0)}
-          hint={summary && summary.overdue > 0 ? `${money(summary.overdue)} en retard` : 'Rien en retard'}
-          hintColor={summary && summary.overdue > 0 ? 'red' : 'dimmed'}
-          to="/accounting?tab=overdue"
-          loading={!summary}
-        />
-        <StatTile label="Devis en attente" value={summary?.pendingQuotes.length ?? 0} hint={`${money(summary?.pendingQuotesNet ?? 0)} HT`} to="/accounting" loading={!summary} />
+        {!perso && (
+          <>
+            <StatTile
+              label="À encaisser"
+              value={money(summary?.receivable ?? 0)}
+              hint={summary && summary.overdue > 0 ? `${money(summary.overdue)} en retard` : 'Rien en retard'}
+              hintColor={summary && summary.overdue > 0 ? 'red' : 'dimmed'}
+              to="/accounting?tab=overdue"
+              loading={!summary}
+            />
+            <StatTile label="Devis en attente" value={summary?.pendingQuotes.length ?? 0} hint={`${money(summary?.pendingQuotesNet ?? 0)} HT`} to="/accounting" loading={!summary} />
+          </>
+        )}
         <StatTile
           label="Trésorerie"
           value={money(projection.data?.balance ?? 0)}
@@ -123,7 +135,11 @@ export function HomePage() {
         />
       </SimpleGrid>
 
-      <SortableGrid items={order.map((id) => ({ id, node: cards[id] }))} onReorder={(ids) => setStoredOrder(ids as CardId[])} />
+      <SortableGrid
+        items={shown.map((id) => ({ id, node: cards[id] }))}
+        // Hidden cards go after the others.
+        onReorder={(ids) => setStoredOrder([...(ids as CardId[]), ...order.filter((id) => !ids.includes(id))])}
+      />
       {customized && (
         <Group justify="center">
           <Button variant="subtle" color="gray" size="xs" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => setStoredOrder(DEFAULT_ORDER)}>

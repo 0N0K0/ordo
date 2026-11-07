@@ -55,6 +55,7 @@ import {
 } from '../tree';
 import { useEntityActions, type EntityRef } from '../use-entity-actions';
 import { MailNavBadge } from '../../mail/MailNavBadge';
+import { useActiveWorkspace } from '../../workspaces/api';
 import { ActiveTree } from './ActiveTree';
 import { AgendaNavBadge, TasksNavBadge, TimeNavBadge, TreasuryNavBadge } from './NavBadges';
 import { SidebarSection } from './SidebarSection';
@@ -132,7 +133,8 @@ const MENU_LINKS: MenuLink[] = [
   { to: '/dashboards', label: 'Tableaux de bord', icon: <ChartBarIcon aria-hidden />, groupStart: true },
 ];
 const ALWAYS_SHOWN = 3;
-const MORE_LINKS = MENU_LINKS.slice(ALWAYS_SHOWN);
+/** Pages a personal workspace does not have. */
+const PRO_ONLY = new Set(['/accounting']);
 
 /**
  * Whether a menu link is the page open (or one of its sub-pages).
@@ -162,6 +164,10 @@ function MenuLinks({ links, pathname }: { links: MenuLink[]; pathname: string })
  */
 export function Sidebar() {
   const workspace = useWorkspace();
+  // A personal workspace has no clients nor invoicing.
+  const { perso } = useActiveWorkspace();
+  const links = perso ? MENU_LINKS.filter((item) => !PRO_ONLY.has(item.to)) : MENU_LINKS;
+  const moreLinks = links.slice(ALWAYS_SHOWN);
   const actions = useEntityActions();
   const { pathname } = useLocation();
   const touch = useMediaQuery('(hover: none), (max-width: 48em)');
@@ -178,7 +184,7 @@ export function Sidebar() {
     key: 'ordo.sidebar.more',
     defaultValue: false,
   });
-  const activeMore = MORE_LINKS.find((item) => isActive(item.to, pathname));
+  const activeMore = moreLinks.find((item) => isActive(item.to, pathname));
   const [collapsed, setCollapsed] = useLocalStorage<string[]>({
     key: 'ordo.sidebar.collapsed',
     defaultValue: [],
@@ -274,11 +280,11 @@ export function Sidebar() {
         leftSection={<HouseIcon aria-hidden />}
         active={pathname === '/'}
       />
-      <MenuLinks links={MENU_LINKS.slice(0, ALWAYS_SHOWN)} pathname={pathname} />
+      <MenuLinks links={links.slice(0, ALWAYS_SHOWN)} pathname={pathname} />
       {/* Collapsed: the page open stays reachable. */}
       {!moreOpen && activeMore && <MenuLinks links={[{ ...activeMore, groupStart: true }]} pathname={pathname} />}
       <Collapse expanded={moreOpen} transitionDuration={150}>
-        <MenuLinks links={MORE_LINKS} pathname={pathname} />
+        <MenuLinks links={moreLinks} pathname={pathname} />
       </Collapse>
       <NavLink
         component="button"
@@ -357,19 +363,21 @@ export function Sidebar() {
             <Tooltip label="Créer">
               <ActionIcon
                 size="input-xs"
-                aria-label="Créer un client ou un projet"
+                aria-label={perso ? 'Créer un projet' : 'Créer un client ou un projet'}
               >
                 <PlusIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item
-              leftSection={<UserPlusIcon aria-hidden />}
-              onClick={() => actions.openClientForm()}
-            >
-              Nouveau client
-            </Menu.Item>
+            {!perso && (
+              <Menu.Item
+                leftSection={<UserPlusIcon aria-hidden />}
+                onClick={() => actions.openClientForm()}
+              >
+                Nouveau client
+              </Menu.Item>
+            )}
             <Menu.Item
               leftSection={<FolderPlusIcon aria-hidden />}
               onClick={() => actions.openProjectForm()}
@@ -413,19 +421,21 @@ export function Sidebar() {
             )}
 
             <SidebarSection
-              title="Clients"
+              title={perso ? 'Projets' : 'Clients'}
               count={active.clients.length}
               opened={sections.active}
               onToggle={() => toggleSection('active')}
               onSetAllExpanded={allExpandedHandler(active, '')}
               actions={
                 <>
-                  <Menu.Item
-                    leftSection={<UserPlusIcon aria-hidden />}
-                    onClick={() => actions.openClientForm()}
-                  >
-                    Nouveau client
-                  </Menu.Item>
+                  {!perso && (
+                    <Menu.Item
+                      leftSection={<UserPlusIcon aria-hidden />}
+                      onClick={() => actions.openClientForm()}
+                    >
+                      Nouveau client
+                    </Menu.Item>
+                  )}
                   <Menu.Item
                     leftSection={<FolderPlusIcon aria-hidden />}
                     onClick={() => actions.openProjectForm()}
@@ -446,19 +456,21 @@ export function Sidebar() {
                 </TreeExpansionContext.Provider>
               ) : (
                 <SectionEmpty
-                  icon={<UsersThreeIcon aria-hidden />}
-                  message={noResult ?? 'Aucun client pour le moment.'}
+                  icon={perso ? <FolderOpenIcon aria-hidden /> : <UsersThreeIcon aria-hidden />}
+                  message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')}
                   action={
                     !searching && (
                       <Stack gap="xs" align="stretch">
-                        <Button
-                          size="xs"
-                          variant="light"
-                          leftSection={<UserPlusIcon aria-hidden />}
-                          onClick={() => actions.openClientForm()}
-                        >
-                          Ajouter un client
-                        </Button>
+                        {!perso && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            leftSection={<UserPlusIcon aria-hidden />}
+                            onClick={() => actions.openClientForm()}
+                          >
+                            Ajouter un client
+                          </Button>
+                        )}
                         <Button
                           size="xs"
                           variant="light"

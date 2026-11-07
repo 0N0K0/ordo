@@ -17,6 +17,7 @@ import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage';
 import { ClientPage } from './features/workspace/pages/ClientPage';
 import { ProjectPage } from './features/workspace/pages/ProjectPage';
 import { SettingsPage } from './features/workspace/pages/SettingsPage';
+import { ProOnly } from './features/workspaces/ProOnly';
 import { AppLayout } from './layouts/AppLayout';
 import { HomePage } from './pages/HomePage';
 import { TasksPage } from './pages/TasksPage';
@@ -37,13 +38,34 @@ export const router = createBrowserRouter([
           { path: 'alarms', element: <AlarmsPage /> },
           { path: 'mail', element: <MailPage /> },
           { path: 'calendar', element: <CalendarPage /> },
-          { path: 'accounting', element: <AccountingPage /> },
-          { path: 'accounting/:id', element: <DocumentPage /> },
+          {
+            path: 'accounting',
+            element: (
+              <ProOnly>
+                <AccountingPage />
+              </ProOnly>
+            ),
+          },
+          {
+            path: 'accounting/:id',
+            element: (
+              <ProOnly>
+                <DocumentPage />
+              </ProOnly>
+            ),
+          },
           { path: 'treasury', element: <TreasuryPage /> },
           { path: 'dashboards', element: <DashboardsPage /> },
           { path: 'documents', element: <LibraryPage /> },
           { path: 'settings', element: <SettingsPage /> },
-          { path: 'clients/:id', element: <ClientPage /> },
+          {
+            path: 'clients/:id',
+            element: (
+              <ProOnly>
+                <ClientPage />
+              </ProOnly>
+            ),
+          },
           { path: 'projects/:id', element: <ProjectPage /> },
         ],
       },

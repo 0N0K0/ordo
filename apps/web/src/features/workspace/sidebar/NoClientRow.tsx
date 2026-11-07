@@ -7,6 +7,7 @@ import {
   FolderPlusIcon,
 } from '@phosphor-icons/react';
 import { forwardRef, useState, type CSSProperties } from 'react';
+import { useActiveWorkspace } from '../../workspaces/api';
 import { useEntityActions } from '../use-entity-actions';
 import { useTreeExpansion } from './tree-expansion';
 import rowClasses from './TreeRow.module.css';
@@ -23,7 +24,8 @@ interface NoClientRowProps {
 }
 
 /**
- * Foldable "Sans client" group header (projects without client), with a menu on "⋯" and right-click.
+ * Foldable "Sans client" group header (projects without client; "Tous les projets" in a personal workspace), with
+ * a menu on "⋯" and right-click.
  * @param {NoClientRowProps} props Component props; the ref goes to the row, for drag and drop.
  * @returns {JSX.Element} Row.
  */
@@ -32,6 +34,8 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
   ref,
 ) {
   const actions = useEntityActions();
+  // Without clients (personal workspace), the group holds every project.
+  const { perso } = useActiveWorkspace();
   const expansion = useTreeExpansion();
   const [menuOpened, setMenuOpened] = useState(false);
   const foldable = expansion?.noClientFoldable ?? false;
@@ -59,7 +63,7 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
           )}
         </span>
         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          Sans client
+          {perso ? 'Tous les projets' : 'Sans client'}
         </Text>
       </UnstyledButton>
 

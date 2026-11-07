@@ -308,6 +308,11 @@ type Documents = {
     "\n  mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": typeof types.DeleteProjectStatusDocument,
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": typeof types.MoveProjectStatusDocument,
+    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n    }\n    currentWorkspaceId\n  }\n": typeof types.WorkspacesDocument,
+    "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateWorkspaceDocument,
+    "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
+    "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": typeof types.MoveWorkspaceDocument,
+    "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": typeof types.DeleteWorkspaceDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
 };
 const documents: Documents = {
@@ -604,6 +609,11 @@ const documents: Documents = {
     "\n  mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": types.DeleteProjectStatusDocument,
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": types.MoveProjectStatusDocument,
+    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n    }\n    currentWorkspaceId\n  }\n": types.WorkspacesDocument,
+    "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": types.CreateWorkspaceDocument,
+    "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateWorkspaceDocument,
+    "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": types.MoveWorkspaceDocument,
+    "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": types.DeleteWorkspaceDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": types.UploadAttachmentDocument,
 };
 
@@ -1779,6 +1789,26 @@ export function graphql(source: "\n  mutation DeleteProjectStatus($id: ID!) {\n 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveProjectStatusDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n    }\n    currentWorkspaceId\n  }\n"): typeof import('./graphql').WorkspacesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateWorkspaceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateWorkspaceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveWorkspaceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n"): typeof import('./graphql').DeleteWorkspaceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

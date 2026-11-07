@@ -2,6 +2,7 @@ import { catalogItemSchema, type CatalogItemInput } from '@ordo/shared';
 import { prisma } from '../db';
 import { Prisma, type CatalogItem } from '../generated/prisma/client';
 import { notFound, parseInput } from '../graphql/errors';
+import { requirePro } from './workspaces';
 
 /**
  * Prisma data of a validated catalogue item.
@@ -24,6 +25,7 @@ function itemData(input: CatalogItemInput) {
  * @returns {Promise<CatalogItem>} Item.
  */
 export function createCatalogItem(input: CatalogItemInput): Promise<CatalogItem> {
+  requirePro('catalogue');
   return prisma.catalogItem.create({ data: itemData(input) });
 }
 

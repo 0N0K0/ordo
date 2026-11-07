@@ -3,6 +3,7 @@ import { syncGithubProject } from '../../services/github/sync';
 import * as admin from '../../services/github/links-admin';
 import type { Board, BoardField } from '../../services/github/board';
 import { builder } from '../builder';
+import { currentWorkspaceId } from '../../workspace-context';
 
 const BoardOptionRef = builder.objectRef<{ id: string; name: string }>('GithubBoardOption').implement({
   fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name') }),
@@ -100,7 +101,7 @@ builder.queryFields((t) => ({
   githubLogin: t.string({
     nullable: true,
     description: 'Login of the connected GitHub account, or null.',
-    resolve: async () => (await prisma.githubConnection.findUnique({ where: { id: 'github' } }))?.login ?? null,
+    resolve: async () => (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? null,
   }),
   githubBoard: t.field({
     type: BoardRef,

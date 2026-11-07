@@ -1,10 +1,11 @@
 import { addDays, formatDay, formatMoney, offsetLinkedMovements, parseDay, toCents } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
-import { prisma } from '../db';
+import { prisma, unscopedPrisma } from '../db';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { FONTS } from './accounting-pdf';
 import { accountBalance } from './treasury';
+import { currentWorkspaceId } from '../workspace-context';
 
 type Doc = InstanceType<typeof PDFDocument>;
 
@@ -65,7 +66,9 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
   const accounts = await prisma.treasuryAccount.findMany({ where: accountId ? { id: accountId } : {}, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
   if (accountId && !accounts.length) throw notFound('Compte');
   if (!accounts.length) throw clientError('BAD_USER_INPUT', 'Aucun compte.');
-  const company = await prisma.companyProfile.findUnique({ where: { id: 'company' }, select: { name: true } });
+  const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true } });
+  // Without a company (personal workspace), the statement bears the name of the workspace.
+  const owner = company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { name: true } }))?.name;
   const entries = await prisma.treasuryEntry.findMany({
     where: { status: 'ACTUAL', accountId: { in: accounts.map((account) => account.id) }, date: { gte: parseDay(from), lte: parseDay(to) } },
     include: {
@@ -166,7 +169,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
     .font('regular')
     .fontSize(8.5)
     .fillColor(COLORS.muted)
-    .text([company?.name, scope, `Du ${longDate.format(parseDay(from))} au ${longDate.format(parseDay(to))}`].filter(Boolean).join(' · '), MARGIN, y, { width: pageWidth });
+    .text([owner, scope, `Du ${longDate.format(parseDay(from))} au ${longDate.format(parseDay(to))}`].filter(Boolean).join(' · '), MARGIN, y, { width: pageWidth });
   y = doc.y + 8;
   const figures = [
     { label: `Solde au ${printed(addDays(from, -1))}`, value: opening, color: COLORS.text },

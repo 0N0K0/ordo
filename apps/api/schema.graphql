@@ -1160,6 +1160,7 @@ type Mutation {
   createTreasuryEntry(input: TreasuryEntryInput!): ID!
   createTreasuryPaymentMethod(input: TreasuryPaymentMethodInput!): ID!
   createWorkSchedule(input: WorkScheduleInput!): ID!
+  createWorkspace(input: WorkspaceInput!): Workspace!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
   deleteCalendarCategory(id: ID!): Boolean!
@@ -1221,6 +1222,9 @@ type Mutation {
   deleteTreasuryEntry(id: ID!): Boolean!
   deleteTreasuryPaymentMethod(id: ID!): Boolean!
   deleteWorkSchedule(id: ID!): Boolean!
+
+  """Deletes a workspace and everything in it (not the last one)."""
+  deleteWorkspace(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateDashboardChart(id: ID!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
@@ -1292,6 +1296,7 @@ type Mutation {
   moveTaskTag(id: ID!, index: Int!): Boolean!
   moveTaskType(id: ID!, index: Int!): Boolean!
   moveTaskView(id: ID!, index: Int!): Boolean!
+  moveWorkspace(id: ID!, index: Int!): Boolean!
 
   """
   Cancels an event (or one occurrence) and creates its postponement, linked to it.
@@ -1461,6 +1466,11 @@ type Mutation {
   updateTreasuryPaymentMethod(id: ID!, input: TreasuryPaymentMethodInput!): Boolean!
   updateWorkSchedule(id: ID!, input: WorkScheduleInput!): Boolean!
 
+  """
+  Renames a workspace or changes its kind (it only becomes personal without clients nor invoicing documents).
+  """
+  updateWorkspace(id: ID!, input: WorkspaceInput!): Workspace!
+
   """Stores a file to link from a markdown text (10 MB maximum)."""
   uploadAttachment(file: File!): Attachment!
 }
@@ -1591,6 +1601,11 @@ type Query {
   clients: [Client!]!
   companyProfile: CompanyProfile!
   contributors: [Contributor!]!
+
+  """
+  Workspace the request works in (the one the app asks for, or the first one).
+  """
+  currentWorkspaceId: ID!
 
   """Dashboards of a project, or the global ones."""
   dashboards(projectId: ID): [Dashboard!]!
@@ -1740,6 +1755,9 @@ type Query {
   """Unread mails in the inbox of every account."""
   unreadMailCount: Int!
   workSchedules: [WorkSchedule!]!
+
+  """Workspaces, in the order of the switcher."""
+  workspaces: [Workspace!]!
 }
 
 type RecurringInvoice {
@@ -2322,7 +2340,7 @@ type TreasuryProjectionItem {
 }
 
 type User {
-  """Contributor profile ("Moi")."""
+  """Contributor profile ("Moi") in the current workspace."""
   contributorId: ID
   email: String!
   id: ID!
@@ -2376,4 +2394,22 @@ input WorkSlotInput {
   end: String!
   start: String!
   weekday: Int!
+}
+
+type Workspace {
+  id: ID!
+  kind: WorkspaceKind!
+  name: String!
+  position: Int!
+}
+
+input WorkspaceInput {
+  kind: WorkspaceKind!
+  name: String!
+}
+
+"""Professional (invoicing, clients, company) or personal workspace."""
+enum WorkspaceKind {
+  PERSO
+  PRO
 }

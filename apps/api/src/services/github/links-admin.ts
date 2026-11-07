@@ -4,6 +4,7 @@ import { clientError, notFound } from '../../graphql/errors';
 import { encryptSecret } from '../mail/secret';
 import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board';
 import { githubToken } from './client';
+import { currentWorkspaceId } from '../../workspace-context';
 
 /**
  * Saves the personal access token after checking it on GitHub.
@@ -15,7 +16,7 @@ export async function setGithubToken(token: string): Promise<string> {
   if (!value) throw clientError('BAD_USER_INPUT', 'Le jeton est requis.', { fields: { token: 'Le jeton est requis.' } });
   const login = await viewerLogin(value);
   const data = { token: encryptSecret(value), login };
-  await prisma.githubConnection.upsert({ where: { id: 'github' }, create: data, update: data });
+  await prisma.githubConnection.upsert({ where: { workspaceId: currentWorkspaceId() }, create: data, update: data });
   return login;
 }
 
@@ -24,7 +25,7 @@ export async function setGithubToken(token: string): Promise<string> {
  * @returns {Promise<void>}
  */
 export async function removeGithubToken(): Promise<void> {
-  await prisma.githubConnection.deleteMany({ where: { id: 'github' } });
+  await prisma.githubConnection.deleteMany({ where: { workspaceId: currentWorkspaceId() } });
 }
 
 /**
