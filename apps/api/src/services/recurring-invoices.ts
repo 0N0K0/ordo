@@ -5,6 +5,8 @@ import type { RecurringInvoice } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { createDocument, editableFields, finalizeDocument, findDocument } from './accounting-documents';
 import { storedRecurrence } from './calendar-events';
+import { forEachWorkspace } from './workspaces';
+import { requirePro } from './workspaces';
 
 const settingsSchema = z.object({
   name: z.string().trim().min(1, 'Le nom est requis.').max(200, '200 caractères maximum.'),
@@ -34,6 +36,7 @@ function nextIssueDate(rule: Recurrence, start: string, from: string): string | 
  * @returns {Promise<RecurringInvoice>} Recurring invoice.
  */
 export async function createRecurringInvoice(documentId: string, input: RecurringSettings): Promise<RecurringInvoice> {
+  requirePro('facturation');
   const settings = parseInput(settingsSchema, input);
   const source = await findDocument(documentId);
   if (source.type !== 'INVOICE') throw clientError('BAD_USER_INPUT', 'Seule une facture peut être rendue récurrente.');
@@ -120,7 +123,7 @@ export async function issueDueInvoices(today: string): Promise<number> {
  */
 export function scheduleRecurringInvoices(): void {
   const run = () =>
-    void issueDueInvoices(new Intl.DateTimeFormat('en-CA').format(new Date())).catch((error: unknown) =>
+    void forEachWorkspace(() => issueDueInvoices(new Intl.DateTimeFormat('en-CA').format(new Date())), { kind: 'PRO' }).catch((error: unknown) =>
       console.warn('Factures récurrentes en échec.', error),
     );
   setTimeout(run, 20_000);

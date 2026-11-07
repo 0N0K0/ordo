@@ -10,6 +10,7 @@ import { IconField, type IconValue } from './IconField';
 import { CategoriesInput, StatusInput } from './labels';
 import { projectDepth, projectHeight, projectPath } from './tree';
 import { useColorSwatches } from './use-color-swatches';
+import { useActiveWorkspace } from '../workspaces/api';
 
 interface ProjectFormProps {
   /** Project to edit; creates a new one when absent. */
@@ -29,6 +30,8 @@ interface ProjectFormProps {
  */
 export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   const { data: workspace } = useWorkspace();
+  // No clients in a personal workspace.
+  const { perso } = useActiveWorkspace();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const swatches = useColorSwatches();
@@ -108,7 +111,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
-        <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
+        <SimpleGrid cols={{ base: 1, xs: perso ? 1 : 2 }} spacing="md">
           <Select
             label="Projet parent"
             placeholder="Aucun (projet racine)"
@@ -117,17 +120,19 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
             clearable
             {...form.getInputProps('parentId')}
           />
-          <Select
-            label="Client"
-            placeholder="Sans client"
-            description={parent ? 'Hérité du projet parent.' : undefined}
-            data={clientOptions}
-            searchable
-            clearable
-            disabled={Boolean(parent)}
-            {...form.getInputProps('clientId')}
-            value={parent ? parent.clientId : form.values.clientId}
-          />
+          {!perso && (
+            <Select
+              label="Client"
+              placeholder="Sans client"
+              description={parent ? 'Hérité du projet parent.' : undefined}
+              data={clientOptions}
+              searchable
+              clearable
+              disabled={Boolean(parent)}
+              {...form.getInputProps('clientId')}
+              value={parent ? parent.clientId : form.values.clientId}
+            />
+          )}
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
           <StatusInput

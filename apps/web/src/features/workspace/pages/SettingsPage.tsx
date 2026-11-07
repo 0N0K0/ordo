@@ -1,5 +1,5 @@
 import { Stack, Tabs, Title } from "@mantine/core";
-import { BuildingsIcon, CalendarBlankIcon, EnvelopeSimpleIcon, FlagIcon, FoldersIcon, GithubLogoIcon, ListChecksIcon, UsersIcon } from "@phosphor-icons/react";
+import { BuildingsIcon, CalendarBlankIcon, EnvelopeSimpleIcon, FlagIcon, FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { CompanySettings } from "../../accounting/CompanySettings";
@@ -10,6 +10,8 @@ import { MailAccountsManager } from "../../mail/settings/MailAccountsManager";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
 import { TaskSettings } from "../../tasks/settings/TaskSettings";
+import { useActiveWorkspace } from "../../workspaces/api";
+import { WorkspacesManager } from "../../workspaces/WorkspacesManager";
 import {
   useCreateProjectCategory,
   useCreateProjectStatus,
@@ -22,8 +24,8 @@ import {
 } from "../api";
 
 /**
- * Settings, in tabs: projects (statuses, categories), tasks (statuses, priorities, types), contributors and
- * mail accounts.
+ * Settings, in tabs: projects (statuses, categories), tasks (statuses, priorities, types), contributors, company
+ * and document tracking (not in a personal workspace), calendar, mail accounts, GitHub and the workspaces.
  * The tab is kept in the URL (?tab=).
  * @returns {JSX.Element} Page.
  */
@@ -39,7 +41,10 @@ export function SettingsPage() {
 
   const { data: taskData } = useTasksData();
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") ?? "projects";
+  const { perso } = useActiveWorkspace();
+  const asked = params.get("tab") ?? "projects";
+  // A personal workspace has no company nor invoicing.
+  const tab = perso && (asked === "company" || asked === "tracking") ? "projects" : asked;
   const assigneeUsage = new Map<string, number>();
   for (const task of taskData?.tasks ?? []) {
     for (const id of task.assigneeIds)
@@ -84,12 +89,16 @@ export function SettingsPage() {
           >
             Contributeurs
           </Tabs.Tab>
-          <Tabs.Tab value="company" leftSection={<BuildingsIcon aria-hidden />}>
-            Société
-          </Tabs.Tab>
-          <Tabs.Tab value="tracking" leftSection={<FlagIcon aria-hidden />}>
-            Suivi des documents
-          </Tabs.Tab>
+          {!perso && (
+            <>
+              <Tabs.Tab value="company" leftSection={<BuildingsIcon aria-hidden />}>
+                Société
+              </Tabs.Tab>
+              <Tabs.Tab value="tracking" leftSection={<FlagIcon aria-hidden />}>
+                Suivi des documents
+              </Tabs.Tab>
+            </>
+          )}
           <Tabs.Tab value="calendar" leftSection={<CalendarBlankIcon aria-hidden />}>
             Agenda
           </Tabs.Tab>
@@ -98,6 +107,9 @@ export function SettingsPage() {
           </Tabs.Tab>
           <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
             GitHub
+          </Tabs.Tab>
+          <Tabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
+            Espaces
           </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="projects">
@@ -150,6 +162,9 @@ export function SettingsPage() {
         </Tabs.Panel>
         <Tabs.Panel value="mail">
           <MailAccountsManager />
+        </Tabs.Panel>
+        <Tabs.Panel value="workspaces">
+          <WorkspacesManager />
         </Tabs.Panel>
       </Tabs>
     </Stack>

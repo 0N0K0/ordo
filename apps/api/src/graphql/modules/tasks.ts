@@ -13,6 +13,7 @@ import * as tasks from '../../services/tasks';
 import { TASK_STATUS_CATEGORIES, taskFilterSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../errors';
+import * as workspaces from '../../services/workspaces';
 import { builder } from '../builder';
 
 const byManualOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
@@ -391,7 +392,7 @@ builder.queryFields((t) => ({
     args: { query: t.arg({ type: TaskQueryInput, required: true }) },
     resolve: async (_root, { query }, ctx) => {
       const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
-      const user = ctx.session ? await prisma.user.findUnique({ where: { id: ctx.session.userId }, select: { contributorId: true } }) : null;
+      const meId = ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null;
       const statuses = await sprints.sprintTaskStatuses(query.today);
       const categoryOf = new Map((await prisma.taskStatus.findMany({ select: { id: true, category: true } })).map((status) => [status.id, status.category]));
       const bySprint = new Map<string, Map<string, { statusId: string | null; closed: boolean }>>();
@@ -408,7 +409,7 @@ builder.queryFields((t) => ({
             search: query.search ?? '',
             includeArchived: query.includeArchived ?? false,
             clock: { today: query.today, utcOffset: query.utcOffset },
-            user: { contributorId: user?.contributorId ?? null },
+            user: { contributorId: meId },
             statusAt: { statuses: bySprint.get(id) ?? new Map(), categoryOf },
           });
           const tasks = await prisma.task.findMany({ where: { AND: [where, { sprints: { some: { id } } }] }, select: { id: true } });
@@ -422,15 +423,13 @@ builder.queryFields((t) => ({
     args: { query: t.arg({ type: TaskQueryInput, required: true }) },
     resolve: async (_root, { query }, ctx) => {
       const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
-      const user = ctx.session
-        ? await prisma.user.findUnique({ where: { id: ctx.session.userId }, select: { contributorId: true } })
-        : null;
+      const meId = ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null;
       const where = await taskFilters.buildTaskWhere({
         filter,
         search: query.search ?? '',
         includeArchived: query.includeArchived ?? false,
         clock: { today: query.today, utcOffset: query.utcOffset },
-        user: { contributorId: user?.contributorId ?? null },
+        user: { contributorId: meId },
       });
       const matches = await prisma.task.findMany({ where, orderBy: [...byManualOrder], select: { id: true } });
       return matches.map((task) => task.id);

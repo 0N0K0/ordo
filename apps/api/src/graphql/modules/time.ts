@@ -49,6 +49,8 @@ builder.prismaObject('Alarm', {
     minutes: t.exposeInt('minutes', { nullable: true }),
     projectId: t.exposeID('projectId', { nullable: true }),
     taskId: t.exposeID('taskId', { nullable: true }),
+    project: t.relation('project', { nullable: true }),
+    task: t.relation('task', { nullable: true }),
     enabled: t.exposeBoolean('enabled'),
     lastFiredAt: t.expose('lastFiredAt', { type: 'DateTime', nullable: true }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),

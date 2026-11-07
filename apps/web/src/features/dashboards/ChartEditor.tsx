@@ -24,6 +24,7 @@ import { useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
 import { DatasetsEditor } from './DatasetsEditor';
 import { DocumentFilters, TreasuryFilters } from './source-filters';
+import { useActiveWorkspace } from '../workspaces/api';
 
 const TYPE_LABELS: Record<ChartConfig['type'], string> = {
   bar: 'Barres',
@@ -60,6 +61,8 @@ interface ChartEditorProps {
  */
 export function ChartEditor({ dashboardId, chart, initial, scope, context, onDone }: ChartEditorProps) {
   const [title, setTitle] = useState(initial.title);
+  // No invoicing in a personal workspace.
+  const { perso } = useActiveWorkspace();
   const [wide, setWide] = useState(initial.wide);
   // Invoicing and treasury charts follow a calendar month, quarter or year (an older rolling period becomes the current year).
   const [config, setConfig] = useState<ChartConfig>(() =>
@@ -126,11 +129,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
         <Stack gap="sm">
           <SegmentedControl
             fullWidth
-            data={[
-              { value: 'tasks', label: 'Tâches' },
-              { value: 'documents', label: 'Facturation' },
-              { value: 'treasury', label: 'Trésorerie' },
-            ]}
+            data={[{ value: 'tasks', label: 'Tâches' }, ...(perso && source !== 'documents' ? [] : [{ value: 'documents', label: 'Facturation' }]), { value: 'treasury', label: 'Trésorerie' }]}
             value={source}
             // Another source starts from its own defaults (axes and measures differ).
             onChange={(value) => {

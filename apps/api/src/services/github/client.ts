@@ -2,6 +2,7 @@ import { prisma } from '../../db';
 import { env } from '../../env';
 import { clientError } from '../../graphql/errors';
 import { decryptSecret } from '../mail/secret';
+import { currentWorkspaceId } from '../../workspace-context';
 
 interface GraphqlResponse<T> {
   data?: T;
@@ -46,7 +47,7 @@ export async function githubRequest<T>(token: string, query: string, variables: 
  * @returns {Promise<string>} Token.
  */
 export async function githubToken(): Promise<string> {
-  const connection = await prisma.githubConnection.findUnique({ where: { id: 'github' } });
+  const connection = await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } });
   if (!connection) throw clientError('BAD_USER_INPUT', 'Connectez d’abord GitHub (Paramètres › GitHub).');
   return decryptSecret(connection.token);
 }

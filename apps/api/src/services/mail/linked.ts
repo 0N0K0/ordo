@@ -7,6 +7,7 @@ import { notFound } from '../../graphql/errors';
 import { attachmentData } from '../attachments';
 import { withImap } from './imap';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
+import { forEachWorkspace } from '../workspaces';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -218,7 +219,7 @@ export async function followConversations(): Promise<void> {
  * @returns {void}
  */
 export function scheduleConversationFollowUp(intervalMs = 5 * 60_000): void {
-  const run = () => void followConversations().catch((error: unknown) => console.warn('Suivi des conversations en échec.', error));
+  const run = () => void forEachWorkspace(() => followConversations()).catch((error: unknown) => console.warn('Suivi des conversations en échec.', error));
   setTimeout(run, 30_000);
   setInterval(run, intervalMs);
 }

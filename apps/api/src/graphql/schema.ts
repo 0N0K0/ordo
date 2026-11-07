@@ -3,6 +3,7 @@ import './modules/health';
 import './modules/user';
 import './modules/auth';
 import './modules/workspace';
+import './modules/workspaces';
 import './modules/tasks';
 import './modules/time';
 import './modules/mail';

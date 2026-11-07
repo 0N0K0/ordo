@@ -8,13 +8,17 @@ import { useLogout, useMe } from '../features/auth/api';
 import { TaskPanel } from '../features/tasks/TaskPanel';
 import { AlarmCenter } from '../features/alarms/AlarmCenter';
 import { Sidebar } from '../features/workspace/sidebar/Sidebar';
+import { ElsewhereNotifier } from '../features/workspaces/ElsewhereNotifier';
+import { WorkspaceGate } from '../features/workspaces/WorkspaceGate';
+import { WorkspaceSwitcher } from '../features/workspaces/WorkspaceSwitcher';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
 import { QuickActions } from './QuickActions';
 import { useResizableSidebar } from './use-resizable-sidebar';
 
 /**
- * Layout of the logged-in area: header, resizable client/project sidebar and page content.
+ * Layout of the logged-in area, once its workspace is known: header (with the workspace switcher), resizable
+ * client/project sidebar and page content.
  * @returns {JSX.Element} Layout wrapping the child route.
  */
 export function AppLayout() {
@@ -42,78 +46,82 @@ export function AppLayout() {
 
   return (
     <ModalsProvider modalProps={{ centered: true }}>
-      <AppShell
-        header={{ height: 56 }}
-        navbar={{
-          width: sidebar.width,
-          breakpoint: 'sm',
-          collapsed: { mobile: !mobileOpened, desktop: !sidebar.opened },
-        }}
-        padding="md"
-        data-resizing={sidebar.resizing || undefined}
-        className={classes.shell}
-      >
-        <AppShell.Header>
-          <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-            <Group gap="sm" wrap="nowrap">
-              <Burger
-                opened={sidebarOpened}
-                onClick={mobile ? mobileSidebar.toggle : sidebar.toggle}
-                size="sm"
-                aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
+      <WorkspaceGate>
+        <AppShell
+          header={{ height: 56 }}
+          navbar={{
+            width: sidebar.width,
+            breakpoint: 'sm',
+            collapsed: { mobile: !mobileOpened, desktop: !sidebar.opened },
+          }}
+          padding="md"
+          data-resizing={sidebar.resizing || undefined}
+          className={classes.shell}
+        >
+          <AppShell.Header>
+            <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+              <Group gap="sm" wrap="nowrap">
+                <Burger
+                  opened={sidebarOpened}
+                  onClick={mobile ? mobileSidebar.toggle : sidebar.toggle}
+                  size="sm"
+                  aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
+                />
+                <Anchor component={Link} to="/" fw={700} c="inherit" underline="never">
+                  Ordo
+                </Anchor>
+                <WorkspaceSwitcher />
+              </Group>
+              <Group gap="sm" wrap="nowrap">
+                <QuickActions />
+                <Button
+                  component={NavLink}
+                  to="/account"
+                  variant="subtle"
+                  size="xs"
+                  leftSection={<UserIcon aria-hidden />}
+                  aria-label="Mon compte"
+                >
+                  {user?.username ?? 'Mon compte'}
+                </Button>
+                <Button
+                  variant="default"
+                  size="xs"
+                  leftSection={<SignOutIcon aria-hidden />}
+                  onClick={handleLogout}
+                  loading={logout.isPending}
+                >
+                  Se déconnecter
+                </Button>
+              </Group>
+            </Group>
+          </AppShell.Header>
+
+          <AlarmCenter />
+          <ElsewhereNotifier />
+          <AppShell.Navbar aria-label="Clients et projets">
+            <Sidebar />
+            {!mobile && (
+              <div
+                className={classes.resizeHandle}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Redimensionner la barre latérale"
+                onPointerDown={sidebar.onResizeStart}
               />
-              <Anchor component={Link} to="/" fw={700} c="inherit" underline="never">
-                Ordo
-              </Anchor>
-            </Group>
-            <Group gap="sm" wrap="nowrap">
-              <QuickActions />
-              <Button
-                component={NavLink}
-                to="/account"
-                variant="subtle"
-                size="xs"
-                leftSection={<UserIcon aria-hidden />}
-                aria-label="Mon compte"
-              >
-                {user?.username ?? 'Mon compte'}
-              </Button>
-              <Button
-                variant="default"
-                size="xs"
-                leftSection={<SignOutIcon aria-hidden />}
-                onClick={handleLogout}
-                loading={logout.isPending}
-              >
-                Se déconnecter
-              </Button>
-            </Group>
-          </Group>
-        </AppShell.Header>
+            )}
+          </AppShell.Navbar>
 
-        <AlarmCenter />
-        <AppShell.Navbar aria-label="Clients et projets">
-          <Sidebar />
-          {!mobile && (
-            <div
-              className={classes.resizeHandle}
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Redimensionner la barre latérale"
-              onPointerDown={sidebar.onResizeStart}
-            />
-          )}
-        </AppShell.Navbar>
-
-        {/* Pages use the full available width. */}
-        <AppShell.Main>
-          <Stack gap="md">
-            <Outlet />
-          </Stack>
-          {/* Task of ?task=12, over any page. */}
-          <TaskPanel />
-        </AppShell.Main>
-      </AppShell>
+          {/* Pages use the full available width. */}
+          <AppShell.Main>
+            <Stack gap="md">
+              <Outlet />
+            </Stack>
+            {/* Task of ?task=12, over any page. */}
+            <TaskPanel />
+          </AppShell.Main>
+        </AppShell>
+      </WorkspaceGate>
     </ModalsProvider>
   );
 }

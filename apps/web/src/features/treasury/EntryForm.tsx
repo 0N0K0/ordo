@@ -12,6 +12,7 @@ import { useWorkspace } from '../workspace/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryEntrySearch, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from './api';
 import { categoryOptions } from './categories';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
+import { useActiveWorkspace } from '../workspaces/api';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -97,6 +98,8 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
   const { data: documentOptions } = useTreasuryDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: String(item.date) })));
   const { data: workspace } = useWorkspace();
+  // No invoicing in a personal workspace: no documents to settle.
+  const { perso } = useActiveWorkspace();
   const { data: documents } = useAccountingDocuments();
   const { data: imported } = useImportedDocuments();
   const { createEntry, updateEntry } = useTreasuryMutations();
@@ -403,7 +406,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
           </>
         )}
 
-        {!forecast && (
+        {!forecast && !perso && (
           <>
             <Divider label={incoming ? 'Factures réglées' : 'Avoirs remboursés'} labelPosition="left" />
             {values.allocations.map((allocation, index) => (

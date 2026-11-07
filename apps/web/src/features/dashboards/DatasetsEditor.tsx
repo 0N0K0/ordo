@@ -17,6 +17,7 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { FilterBuilder } from '../tasks/views/FilterBuilder';
 import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from './aggregate';
 import { DocumentFilters, TreasuryFilters } from './source-filters';
+import { useActiveWorkspace } from '../workspaces/api';
 
 const SOURCE_LABELS: Record<ChartSource, string> = { tasks: 'Tâches', documents: 'Facturation', treasury: 'Trésorerie' };
 const COMPARISON_LABELS: Record<ChartComparison['kind'], string> = { ratio: 'Pourcentage (A / B)', difference: 'Différence (A − B)' };
@@ -44,6 +45,8 @@ interface DatasetsEditorProps {
  * @returns {JSX.Element} Editor.
  */
 export function DatasetsEditor({ config, change, context }: DatasetsEditorProps) {
+  // No invoicing in a personal workspace.
+  const { perso } = useActiveWorkspace();
   const time = isTimeDimension(config.dimension);
   const mainName = config.name || MEASURE_LABELS[config.measure];
   const options = [{ value: MAIN_DATASET, label: mainName }, ...config.datasets.map((dataset) => ({ value: dataset.id, label: dataset.name }))];
@@ -156,7 +159,9 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                     <TextInput label="Nom" required value={dataset.name} onChange={(event) => setDataset(index, { name: event.currentTarget.value })} />
                     <SegmentedControl
                       fullWidth
-                      data={(Object.keys(SOURCE_LABELS) as ChartSource[]).map((value) => ({ value, label: SOURCE_LABELS[value] }))}
+                      data={(Object.keys(SOURCE_LABELS) as ChartSource[])
+                        .filter((value) => !perso || value !== 'documents' || dataset.source === 'documents')
+                        .map((value) => ({ value, label: SOURCE_LABELS[value] }))}
                       value={dataset.source}
                       // Another source starts from its defaults.
                       onChange={(value) => {

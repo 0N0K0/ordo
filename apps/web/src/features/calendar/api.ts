@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type { WorkScheduleInput } from '@ordo/shared';
 import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, WorkSchedulesQuery } from '../../graphql/graphql';
-import { execute } from '../../lib/graphql-client';
+import { execute, executeIn } from '../../lib/graphql-client';
 import { tasksQueryKey } from '../tasks/api';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
@@ -212,12 +212,13 @@ export function useCalendarEvents(range: { from: string; to: string } | null) {
 }
 
 /**
- * Event occurrences of a period, fetched once (reminders).
- * @param {{ from: string, to: string }} range Dates, included.
+ * Event occurrences of a period (reminders included), of the workspace of this tab or of another one.
+ * @param {{ from: string, to: string }} range First and last days.
+ * @param {string} [workspace] Another workspace (its notifications). Optional.
  * @returns {Promise<EventOccurrence[]>} Occurrences.
  */
-export async function fetchCalendarEvents(range: { from: string; to: string }): Promise<EventOccurrence[]> {
-  return (await execute(CalendarEventsDocument, range)).calendarEvents;
+export async function fetchCalendarEvents(range: { from: string; to: string }, workspace?: string): Promise<EventOccurrence[]> {
+  return (await (workspace ? executeIn(workspace, CalendarEventsDocument, range) : execute(CalendarEventsDocument, range))).calendarEvents;
 }
 
 /**

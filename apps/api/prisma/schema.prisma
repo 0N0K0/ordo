@@ -13,22 +13,103 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Separate space of the app (professional or personal): every row but the accounts belongs to one.
+model Workspace {
+  id                      String                   @id @default(cuid())
+  name                    String
+  kind                    WorkspaceKind            @default(PRO)
+  /// Order in the switcher.
+  position                Int                      @default(0)
+  /// Notifications this workspace still gives while another one is open.
+  notifyElsewhere         NotificationSource[]     @default([])
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  icons                   Icon[]
+  clients                 Client[]
+  clientServices          ClientService[]
+  clientContacts          ClientContact[]
+  projects                Project[]
+  projectCategories       ProjectCategory[]
+  projectStatuses         ProjectStatus[]
+  contributors            Contributor[]
+  taskStatuses            TaskStatus[]
+  taskPriorities          TaskPriority[]
+  taskTypes               TaskType[]
+  taskTags                TaskTag[]
+  tasks                   Task[]
+  taskStatusChanges       TaskStatusChange[]
+  taskBlocks              TaskBlock[]
+  taskRelations           TaskRelation[]
+  taskComments            TaskComment[]
+  taskViews               TaskView[]
+  milestones              Milestone[]
+  sprints                 Sprint[]
+  githubConnections       GithubConnection[]
+  githubProjectLinks      GithubProjectLink[]
+  dashboards              Dashboard[]
+  dashboardCharts         DashboardChart[]
+  documentFolders         DocumentFolder[]
+  libraryDocuments        LibraryDocument[]
+  attachments             Attachment[]
+  timeEntries             TimeEntry[]
+  alarms                  Alarm[]
+  mailAccounts            MailAccount[]
+  mailMessages            MailMessage[]
+  mailLabels              MailLabel[]
+  mailSearchs             MailSearch[]
+  mailMarks               MailMark[]
+  scheduledMails          ScheduledMail[]
+  mailFolderCursors       MailFolderCursor[]
+  calendarCategories      CalendarCategory[]
+  calendarEvents          CalendarEvent[]
+  calendarEventExceptions CalendarEventException[]
+  workSchedules           WorkSchedule[]
+  companyProfiles         CompanyProfile[]
+  documentSequences       DocumentSequence[]
+  accountingDocuments     AccountingDocument[]
+  accountingLines         AccountingLine[]
+  recurringInvoices       RecurringInvoice[]
+  catalogItems            CatalogItem[]
+  projectResources        ProjectResource[]
+  importedDocuments       ImportedDocument[]
+  documentStatuses        DocumentStatus[]
+  documentReminders       DocumentReminder[]
+  treasuryAccounts        TreasuryAccount[]
+  treasuryCategories      TreasuryCategory[]
+  treasuryPaymentMethods  TreasuryPaymentMethod[]
+  treasuryCounterparties  TreasuryCounterparty[]
+  treasuryEntries         TreasuryEntry[]
+  treasuryAllocations     TreasuryAllocation[]
+}
+
+/// Kind of notification a workspace can give while another one is open.
+enum NotificationSource {
+  ALARMS
+  CALENDAR
+  MAILS
+}
+
+/// A personal workspace has no invoicing, no clients and no company.
+enum WorkspaceKind {
+  PRO
+  PERSO
+}
+
 model User {
-  id            String       @id @default(cuid())
+  id           String        @id @default(cuid())
   /// Lowercase, unique login name.
-  username      String       @unique
+  username     String        @unique
   /// Lowercase, unique email address.
-  email         String       @unique
+  email        String        @unique
   /// New email address awaiting confirmation.
-  pendingEmail  String?
-  passwordHash  String
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  sessions      Session[]
-  authTokens    AuthToken[]
-  /// Contributor profile of the user: tasks can be assigned to them like to anyone else.
-  contributorId String?      @unique
-  contributor   Contributor? @relation(fields: [contributorId], references: [id], onDelete: SetNull)
+  pendingEmail String?
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  sessions     Session[]
+  authTokens   AuthToken[]
+  /// Contributor profile of the user in each workspace ("Moi"): tasks can be assigned to them like to anyone else.
+  contributors Contributor[]
 }
 
 model Session {
@@ -75,6 +156,11 @@ model Icon {
   clients      Client[]
   projects     Project[]
   contributors Contributor[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId  String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model Client {
@@ -113,6 +199,11 @@ model Client {
   documents    AccountingDocument[]
   imported     ImportedDocument[]
   treasury     TreasuryEntry[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId  String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 enum ClientKind {
@@ -122,37 +213,45 @@ enum ClientKind {
 
 /// Department or branch of a client, with its own address and contacts.
 model ClientService {
-  id        String               @id @default(cuid())
-  clientId  String
-  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name      String
-  address   Json?
-  email     String?
-  phones    Json                 @default("[]")
-  position  Int                  @default(0)
-  createdAt DateTime             @default(now())
-  contacts  ClientContact[]
-  documents AccountingDocument[]
+  id          String               @id @default(cuid())
+  clientId    String
+  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  address     Json?
+  email       String?
+  phones      Json                 @default("[]")
+  position    Int                  @default(0)
+  createdAt   DateTime             @default(now())
+  contacts    ClientContact[]
+  documents   AccountingDocument[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([workspaceId])
 }
 
 /// Person at a client, possibly in one of its services.
 model ClientContact {
-  id        String               @id @default(cuid())
-  clientId  String
-  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  serviceId String?
-  service   ClientService?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  firstName String
-  lastName  String
-  email     String?
-  jobTitle  String?
-  phones    Json                 @default("[]")
-  createdAt DateTime             @default(now())
-  documents AccountingDocument[]
+  id          String               @id @default(cuid())
+  clientId    String
+  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceId   String?
+  service     ClientService?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  firstName   String
+  lastName    String
+  email       String?
+  jobTitle    String?
+  phones      Json                 @default("[]")
+  createdAt   DateTime             @default(now())
+  documents   AccountingDocument[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+  @@index([workspaceId])
 }
 
 model Project {
@@ -200,31 +299,45 @@ model Project {
   resources    ProjectResource[]
   imported     ImportedDocument[]
   treasury     TreasuryEntry[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId  String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([parentId])
+  @@index([workspaceId])
 }
 
 /// Category of projects (other kinds of categories get their own table).
 model ProjectCategory {
-  id        String    @id @default(cuid())
-  name      String    @unique
+  id          String    @id @default(cuid())
+  name        String
   /// Hex color, e.g. #228be6.
-  color     String
-  createdAt DateTime  @default(now())
-  projects  Project[]
+  color       String
+  createdAt   DateTime  @default(now())
+  projects    Project[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }
 
 /// Configurable project status (e.g. Prospect, In progress, Done).
 model ProjectStatus {
-  id        String    @id @default(cuid())
-  name      String    @unique
+  id          String    @id @default(cuid())
+  name        String
   /// Hex color, e.g. #228be6.
-  color     String
+  color       String
   /// Display order in lists and selects.
-  position  Int       @default(0)
-  createdAt DateTime  @default(now())
-  projects  Project[]
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  projects    Project[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }
 
 /// Person who can be assigned to tasks.
@@ -232,7 +345,7 @@ model Contributor {
   id          String          @id @default(cuid())
   name        String
   /// Unique identifier used in @mentions.
-  handle      String          @unique
+  handle      String
   iconId      String?
   icon        Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
   createdAt   DateTime        @default(now())
@@ -241,9 +354,17 @@ model Contributor {
   projects    Project[]       @relation("ProjectContributors")
   events      CalendarEvent[]
   /// Set when this contributor is the app user ("Moi").
-  user        User?
+  userId      String?
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
-  githubLogin String?         @unique
+  githubLogin String?
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, handle])
+  @@unique([workspaceId, githubLogin])
+  @@unique([workspaceId, userId])
 }
 
 /// Fixed meaning of a task status, whatever its name: drives "open", "overdue" and progress.
@@ -255,45 +376,65 @@ enum TaskStatusCategory {
 }
 
 model TaskStatus {
-  id        String             @id @default(cuid())
-  name      String             @unique
+  id          String             @id @default(cuid())
+  name        String
   /// Hex color, e.g. #228be6.
-  color     String
-  category  TaskStatusCategory @default(TODO)
-  position  Int                @default(0)
-  createdAt DateTime           @default(now())
-  tasks     Task[]
+  color       String
+  category    TaskStatusCategory @default(TODO)
+  position    Int                @default(0)
+  createdAt   DateTime           @default(now())
+  tasks       Task[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }
 
 model TaskPriority {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id          String    @id @default(cuid())
+  name        String
   /// Hex color, e.g. #228be6.
-  color     String
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  tasks     Task[]
+  color       String
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  tasks       Task[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }
 
 model TaskType {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id          String    @id @default(cuid())
+  name        String
   /// Hex color, e.g. #228be6.
-  color     String
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  tasks     Task[]
+  color       String
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  tasks       Task[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }
 
 /// Tag of tasks (several per task), synchronized with the GitHub labels.
 model TaskTag {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id          String    @id @default(cuid())
+  name        String
   /// Hex color, e.g. #228be6.
-  color     String
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  tasks     Task[]   @relation("TaskTags")
+  color       String
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  tasks       Task[]    @relation("TaskTags")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }
 
 model Task {
@@ -367,6 +508,9 @@ model Task {
   occurrences       Task[]             @relation("TaskSeries")
   /// Date of the occurrence in its series (the first task: its own date).
   occurrenceDate    DateTime?          @db.Date
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId       String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([parentId])
@@ -374,75 +518,97 @@ model Task {
   @@index([deadline])
   @@index([closedAt])
   @@index([seriesId])
+  @@index([workspaceId])
 }
 
 /// Status (and open / closed state) of a task from a moment: written by a database trigger on each change of
 /// the task (and once with its first status), to know its status at the end of a past sprint.
 model TaskStatusChange {
-  id       String   @id @default(cuid())
-  taskId   String
-  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   /// Status from then (kept even if the status is deleted later).
-  statusId String?
-  closed   Boolean
-  at       DateTime
+  statusId    String?
+  closed      Boolean
+  at          DateTime
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([taskId, at])
+  @@index([workspaceId])
 }
 
 /// "blocker blocks blocked".
 model TaskBlock {
-  blockerId String
-  blocker   Task   @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
-  blockedId String
-  blocked   Task   @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  blockerId   String
+  blocker     Task      @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId   String
+  blocked     Task      @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@id([blockerId, blockedId])
   @@index([blockedId])
+  @@index([workspaceId])
 }
 
 /// "related to", symmetric.
 model TaskRelation {
-  taskAId String
-  taskA   Task   @relation("RelationA", fields: [taskAId], references: [id], onDelete: Cascade)
-  taskBId String
-  taskB   Task   @relation("RelationB", fields: [taskBId], references: [id], onDelete: Cascade)
+  taskAId     String
+  taskA       Task      @relation("RelationA", fields: [taskAId], references: [id], onDelete: Cascade)
+  taskBId     String
+  taskB       Task      @relation("RelationB", fields: [taskBId], references: [id], onDelete: Cascade)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@id([taskAId, taskBId])
   @@index([taskBId])
+  @@index([workspaceId])
 }
 
 model TaskComment {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   taskId          String
-  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   /// Markdown.
   body            String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   /// Comment of the GitHub issue it is synchronized with.
-  githubCommentId String?  @unique
+  githubCommentId String?   @unique
   /// Body at the last sync, for the three-way merge.
   githubBody      String?
   /// Author on GitHub, when someone else than the connected account wrote it there.
   githubAuthor    String?
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId     String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
+  @@index([workspaceId])
 }
 
 /// Saved task table view: filters, sorting, columns and grouping (JSON validated by @ordo/shared).
 model TaskView {
-  id        String   @id @default(cuid())
-  name      String
-  config    Json
+  id          String    @id @default(cuid())
+  name        String
+  config      Json
   /// Project whose task tab shows the view; null for the home page.
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// Opened first in its project (or on the home page); at most one per scope.
-  isDefault Boolean  @default(false)
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isDefault   Boolean   @default(false)
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Project milestone, usable by the tasks of the project and its sub-projects.
@@ -458,35 +624,46 @@ model Milestone {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tasks       Task[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([workspaceId])
 }
 
 /// Sprint of a project: a period the tasks of its project tree are planned in.
 model Sprint {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   projectId         String
-  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name              String
   /// Markdown.
   goal              String?
-  startDate         DateTime @db.Date
-  endDate           DateTime @db.Date
+  startDate         DateTime  @db.Date
+  endDate           DateTime  @db.Date
   /// Iteration of a GitHub board the sprint mirrors.
-  githubIterationId String?  @unique
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  tasks             Task[]   @relation("TaskSprints")
+  githubIterationId String?   @unique
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tasks             Task[]    @relation("TaskSprints")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId       String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([workspaceId])
 }
 
 /// GitHub access of the app: a personal access token (encrypted), single row.
 model GithubConnection {
-  id        String   @id @default("github")
-  token     String
-  login     String
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  token       String
+  login       String
+  updatedAt   DateTime  @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @unique @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 /// Project synchronized with a GitHub Projects (v2) board, both ways.
@@ -519,19 +696,28 @@ model GithubProjectLink {
   /// Counts of the last sync (created, updated… on each side).
   lastSyncSummary  Json?
   createdAt        DateTime  @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId      String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Dashboard of charts on the tasks: global (no project) or of a project tree.
 model Dashboard {
-  id        String           @id @default(cuid())
-  projectId String?
-  project   Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name      String
-  position  Int              @default(0)
-  createdAt DateTime         @default(now())
-  charts    DashboardChart[]
+  id          String           @id @default(cuid())
+  projectId   String?
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  position    Int              @default(0)
+  createdAt   DateTime         @default(now())
+  charts      DashboardChart[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String           @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([workspaceId])
 }
 
 /// Chart of a dashboard: type, axes, measure, series and filters (JSON, validated by the shared schema).
@@ -546,21 +732,29 @@ model DashboardChart {
   position    Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([dashboardId])
+  @@index([workspaceId])
 }
 
 /// Folder of the document library (folders nest).
 model DocumentFolder {
-  id        String            @id @default(cuid())
-  name      String
-  parentId  String?
-  parent    DocumentFolder?   @relation("DocumentFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  DocumentFolder[]  @relation("DocumentFolderTree")
-  documents LibraryDocument[]
-  createdAt DateTime          @default(now())
+  id          String            @id @default(cuid())
+  name        String
+  parentId    String?
+  parent      DocumentFolder?   @relation("DocumentFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    DocumentFolder[]  @relation("DocumentFolderTree")
+  documents   LibraryDocument[]
+  createdAt   DateTime          @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
+  @@index([workspaceId])
 }
 
 /// Document of the library (Kbis, logo, statutes, certificates…): a file, or a link to a cloud or a site.
@@ -579,8 +773,12 @@ model LibraryDocument {
   updatedAt       DateTime            @updatedAt
   /// Treasury entries it supports.
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryLibraryDocuments")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([folderId])
+  @@index([workspaceId])
 }
 
 /// File attached to a markdown text (description, comment…) and linked from it.
@@ -608,8 +806,12 @@ model Attachment {
   signedQuote          AccountingDocument? @relation("SignedQuote")
   /// Set for a document of the library.
   libraryDocument      LibraryDocument?
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId          String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace            Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([mailMessageId])
+  @@index([workspaceId])
 }
 
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
@@ -639,12 +841,16 @@ model TimeEntry {
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   tasks                  Task[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId            String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace              Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([calendarEventId])
   @@index([startedAt])
   @@index([endedAt])
   @@index([documentId])
+  @@index([workspaceId])
 }
 
 /// What triggers an alarm.
@@ -692,6 +898,11 @@ model Alarm {
   lastFiredAt DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String         @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Mailbox read over IMAP and sent from over SMTP. Passwords are encrypted (MAIL_ENCRYPTION_KEY).
@@ -723,6 +934,11 @@ model MailAccount {
   cursors      MailFolderCursor[]
   marks        MailMark[]
   scheduled    ScheduledMail[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId  String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Copy of a mail linked to a project (mails are otherwise read live from the server).
@@ -750,42 +966,60 @@ model MailMessage {
   sent        Boolean      @default(false)
   createdAt   DateTime     @default(now())
   attachments Attachment[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String       @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, messageId])
   @@index([messageId])
+  @@index([workspaceId])
 }
 
 /// Last mail checked in a folder, to link the new messages of conversations already linked to a project.
 /// Flag of mails, set by the user (name, color): an IMAP keyword on the mails, or a mark in Ordo when the server
 /// takes no keywords.
 model MailLabel {
-  id        String   @id @default(cuid())
-  name      String
-  color     String
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  name        String
+  color       String
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Search folder: mails matching criteria across accounts and folders, kept in Ordo (not on the server).
 model MailSearch {
-  id        String   @id @default(cuid())
-  name      String
+  id          String    @id @default(cuid())
+  name        String
   /// { accountIds, scope ('inbox' | 'all'), state ('all' | 'todo' | 'done'), labelIds, unread, text }
-  criteria  Json
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
+  criteria    Json
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Flags and "done" state of a mail kept in Ordo, for servers that take no IMAP keywords.
 model MailMark {
-  accountId String
-  account   MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   /// Message-ID of the mail, without angle brackets.
-  messageId String
-  labelIds  String[]
-  done      Boolean     @default(false)
+  messageId   String
+  labelIds    String[]
+  done        Boolean     @default(false)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String      @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@id([accountId, messageId])
+  @@index([workspaceId])
 }
 
 enum ScheduledMailStatus {
@@ -797,25 +1031,29 @@ enum ScheduledMailStatus {
 
 /// Mail to send later: the message is built when it is scheduled (files included), sent at its time.
 model ScheduledMail {
-  id         String              @id @default(cuid())
-  accountId  String
-  account    MailAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  sendAt     DateTime
-  subject    String
-  to         String[]
+  id          String              @id @default(cuid())
+  accountId   String
+  account     MailAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  sendAt      DateTime
+  subject     String
+  to          String[]
   /// Message to send (without the Bcc header) and the copy to keep (sent folder, projects, back to drafts).
-  raw        Bytes
-  copy       Bytes
-  recipients String[]
-  references String[]
+  raw         Bytes
+  copy        Bytes
+  recipients  String[]
+  references  String[]
   /// Project the mail was written from.
-  projectId  String?
-  status     ScheduledMailStatus @default(PENDING)
-  error      String?
-  sentAt     DateTime?
-  createdAt  DateTime            @default(now())
+  projectId   String?
+  status      ScheduledMailStatus @default(PENDING)
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime            @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([status, sendAt])
+  @@index([workspaceId])
 }
 
 model MailFolderCursor {
@@ -824,23 +1062,31 @@ model MailFolderCursor {
   folder      String
   uidValidity BigInt
   lastUid     Int
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String      @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@id([accountId, folder])
+  @@index([workspaceId])
 }
 
 /// Category of calendar events, in a tree.
 model CalendarCategory {
-  id        String             @id @default(cuid())
-  name      String
-  color     String
-  parentId  String?
-  parent    CalendarCategory?  @relation("CalendarCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  CalendarCategory[] @relation("CalendarCategoryTree")
-  position  Int                @default(0)
-  createdAt DateTime           @default(now())
-  events    CalendarEvent[]
+  id          String             @id @default(cuid())
+  name        String
+  color       String
+  parentId    String?
+  parent      CalendarCategory?  @relation("CalendarCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    CalendarCategory[] @relation("CalendarCategoryTree")
+  position    Int                @default(0)
+  createdAt   DateTime           @default(now())
+  events      CalendarEvent[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
+  @@index([workspaceId])
 }
 
 /// Calendar event, possibly recurring. Times are local to `timeZone`; all-day events have no times.
@@ -884,10 +1130,14 @@ model CalendarEvent {
   tasks             Task[]                   @relation("CalendarEventTasks")
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId       String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([startDate])
   @@index([projectId])
   @@index([postponedFromId])
+  @@index([workspaceId])
 }
 
 /// One occurrence of a recurring event changed or cancelled on its own.
@@ -910,8 +1160,12 @@ model CalendarEventException {
   startTime   String?
   endDate     DateTime?     @db.Date
   endTime     String?
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, date])
+  @@index([workspaceId])
 }
 
 /// Planned working hours: from a date (to another, or open-ended), every n weeks, time slots on weekdays;
@@ -929,12 +1183,17 @@ model WorkSchedule {
   pauses        Json      @default("[]")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId   String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// The user's business, shown on the accounting documents (a single row).
 model CompanyProfile {
-  id                String   @id @default("company")
-  name              String   @default("")
+  id                String    @id @default(cuid())
+  name              String    @default("")
   contact           String?
   /// Legal form (SASU, EURL, EI, micro-entreprise…).
   legalForm         String?
@@ -947,9 +1206,9 @@ model CompanyProfile {
   activityCode      String?
   vatNumber         String?
   /// Off: "TVA non applicable" (franchise), no VAT on the documents.
-  vatApplicable     Boolean  @default(true)
+  vatApplicable     Boolean   @default(true)
   /// Mention printed when VAT does not apply.
-  vatExemptionText  String   @default("TVA non applicable, art. 293 B du CGI")
+  vatExemptionText  String    @default("TVA non applicable, art. 293 B du CGI")
   address           Json?
   email             String?
   phone             String?
@@ -960,16 +1219,19 @@ model CompanyProfile {
   iban              String?
   bic               String?
   /// Defaults of new documents.
-  paymentTerms      String   @default("À 30 jours")
-  paymentDays       Int      @default(30)
-  paymentMethods    String   @default("Virement bancaire")
-  lateInterest      String   @default("Trois fois le taux d’intérêt légal")
+  paymentTerms      String    @default("À 30 jours")
+  paymentDays       Int       @default(30)
+  paymentMethods    String    @default("Virement bancaire")
+  lateInterest      String    @default("Trois fois le taux d’intérêt légal")
   /// Other mentions printed on every document.
-  otherMentions     String   @default("Pas d’escompte pour paiement anticipé.")
+  otherMentions     String    @default("Pas d’escompte pour paiement anticipé.")
   /// Label of the client's internal reference ("Référence dossier", "Bon de commande"…).
-  referenceLabel    String   @default("Référence dossier")
-  quoteValidityDays Int      @default(30)
-  updatedAt         DateTime @updatedAt
+  referenceLabel    String    @default("Référence dossier")
+  quoteValidityDays Int       @default(30)
+  updatedAt         DateTime  @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId       String    @unique @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 enum AccountingDocumentType {
@@ -981,11 +1243,14 @@ enum AccountingDocumentType {
 
 /// Next number of a document type for a year (D/F/FA/A + YY + 5 digits).
 model DocumentSequence {
-  type       AccountingDocumentType
-  year       Int
-  nextNumber Int                    @default(1)
+  type        AccountingDocumentType
+  year        Int
+  nextNumber  Int                    @default(1)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@id([type, year])
+  @@id([workspaceId, type, year])
 }
 
 enum AccountingDocumentStatus {
@@ -1010,7 +1275,7 @@ model AccountingDocument {
   /// Given when the document becomes final.
   year                Int?
   counter             Int?
-  number              String?                  @unique
+  number              String?
   /// Date printed on the document (it may be set in the past or the future).
   issueDate           DateTime                 @db.Date
   /// Payment due date (invoices) or end of validity (quotes).
@@ -1082,7 +1347,11 @@ model AccountingDocument {
   recurring           RecurringInvoice?        @relation("RecurringTemplate")
   recurringId         String?
   generatedBy         RecurringInvoice?        @relation("RecurringGenerated", fields: [recurringId], references: [id], onDelete: SetNull)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId         String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace           Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@unique([workspaceId, number])
   @@index([clientId])
   @@index([projectId])
   @@index([sourceId])
@@ -1125,8 +1394,12 @@ model AccountingLine {
   vatRate       Decimal            @default(0) @db.Decimal(5, 2)
   discountType  DiscountType?
   discountValue Decimal?           @db.Decimal(14, 2)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId   String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
+  @@index([workspaceId])
 }
 
 /// Invoice issued on a schedule from a model document.
@@ -1145,6 +1418,11 @@ model RecurringInvoice {
   active       Boolean              @default(true)
   createdAt    DateTime             @default(now())
   generated    AccountingDocument[] @relation("RecurringGenerated")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId  String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Product or service of the catalogue: default title, description, unit, price and VAT of a line.
@@ -1163,6 +1441,11 @@ model CatalogItem {
   archived    Boolean            @default(false)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 enum ProjectResourceKind {
@@ -1185,8 +1468,12 @@ model ProjectResource {
   createdAt       DateTime            @default(now())
   /// Treasury entries it supports.
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryProjectResources")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([workspaceId])
 }
 
 /// Quote or invoice issued before Ordo (or elsewhere): its main information and its PDF, not its lines.
@@ -1217,8 +1504,11 @@ model ImportedDocument {
   allocations  TreasuryAllocation[]
   /// Deposit invoices made in Ordo from this imported quote.
   derived      AccountingDocument[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId  String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([type, number])
+  @@unique([workspaceId, type, number])
   @@index([clientId])
   @@index([projectId])
 }
@@ -1244,30 +1534,37 @@ enum DocumentStatusCategory {
 
 /// Configurable tracking status of the final documents ("Envoyé", "En négociation", "Payée"…).
 model DocumentStatus {
-  id        String                 @id @default(cuid())
-  scope     DocumentStatusScope
-  name      String
+  id          String                 @id @default(cuid())
+  scope       DocumentStatusScope
+  name        String
   /// Hex color, e.g. #228be6.
-  color     String
-  category  DocumentStatusCategory
-  position  Int                    @default(0)
-  createdAt DateTime               @default(now())
-  documents AccountingDocument[]
+  color       String
+  category    DocumentStatusCategory
+  position    Int                    @default(0)
+  createdAt   DateTime               @default(now())
+  documents   AccountingDocument[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([scope, name])
+  @@unique([workspaceId, scope, name])
 }
 
 /// Reminder of an unpaid invoice (mail sent from Ordo, call…).
 model DocumentReminder {
-  id         String             @id @default(cuid())
-  documentId String
-  document   AccountingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  date       DateTime           @default(now())
+  id          String             @id @default(cuid())
+  documentId  String
+  document    AccountingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  date        DateTime           @default(now())
   /// "Mail", "Téléphone"… with an optional note.
-  note       String?
-  createdAt  DateTime           @default(now())
+  note        String?
+  createdAt   DateTime           @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
+  @@index([workspaceId])
 }
 
 /// Bank account (or cash box) of the treasury.
@@ -1281,6 +1578,11 @@ model TreasuryAccount {
   archived       Boolean         @default(false)
   createdAt      DateTime        @default(now())
   entries        TreasuryEntry[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId    String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 enum TreasuryEntryStatus {
@@ -1298,36 +1600,50 @@ enum TreasuryDirection {
 
 /// Category of the treasury entries, for money in or out, possibly under a parent category of the same direction.
 model TreasuryCategory {
-  id        String             @id @default(cuid())
-  name      String
-  direction TreasuryDirection
-  parentId  String?
-  parent    TreasuryCategory?  @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children  TreasuryCategory[] @relation("TreasuryCategoryTree")
-  createdAt DateTime           @default(now())
-  entries   TreasuryEntry[]
+  id          String             @id @default(cuid())
+  name        String
+  direction   TreasuryDirection
+  parentId    String?
+  parent      TreasuryCategory?  @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    TreasuryCategory[] @relation("TreasuryCategoryTree")
+  createdAt   DateTime           @default(now())
+  entries     TreasuryEntry[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
+  @@index([workspaceId])
 }
 
 /// Payment method (transfer, card, cheque…), usable for money in, out or both.
 model TreasuryPaymentMethod {
-  id        String          @id @default(cuid())
-  name      String
-  incoming  Boolean         @default(true)
-  outgoing  Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  entries   TreasuryEntry[]
+  id          String          @id @default(cuid())
+  name        String
+  incoming    Boolean         @default(true)
+  outgoing    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  entries     TreasuryEntry[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Payer or payee of entries that is not a client: supplier, administration, bank…
 model TreasuryCounterparty {
-  id        String          @id @default(cuid())
-  name      String
-  note      String?
-  archived  Boolean         @default(false)
-  createdAt DateTime        @default(now())
-  entries   TreasuryEntry[]
+  id          String          @id @default(cuid())
+  name        String
+  note        String?
+  archived    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  entries     TreasuryEntry[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 /// Money in (positive) or out (negative) of an account, actual or expected.
@@ -1367,6 +1683,9 @@ model TreasuryEntry {
   /// Supporting documents: of the library, or of a project.
   libraryDocuments LibraryDocument[]      @relation("TreasuryEntryLibraryDocuments")
   projectResources ProjectResource[]      @relation("TreasuryEntryProjectResources")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId      String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace        Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([accountId, date])
   @@index([status, date])
@@ -1374,6 +1693,7 @@ model TreasuryEntry {
   @@index([methodId])
   @@index([clientId])
   @@index([counterpartyId])
+  @@index([workspaceId])
 }
 
 /// Part of an actual entry settling a document: payment of an invoice, refund of a credit note.
@@ -1387,8 +1707,12 @@ model TreasuryAllocation {
   importedDocument   ImportedDocument?   @relation(fields: [importedDocumentId], references: [id], onDelete: Cascade)
   /// Positive amount settled on the document.
   amount             Decimal             @db.Decimal(14, 2)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId        String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([entryId])
   @@index([documentId])
   @@index([importedDocumentId])
+  @@index([workspaceId])
 }

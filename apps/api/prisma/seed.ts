@@ -1,6 +1,8 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { confirm } from '@inquirer/prompts';
-import { prisma } from '../src/db';
+import { prisma, unscopedPrisma } from '../src/db';
+import { ensureMeContributor, meContributorId } from '../src/services/workspaces';
+import { enterWorkspace } from '../src/workspace-context';
 import type { Project, TaskStatusCategory } from '../src/generated/prisma/client';
 import {
   clientFactory,
@@ -32,11 +34,19 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
+// The fixtures fill the first professional workspace; the other workspaces are not touched.
+const workspace = await unscopedPrisma.workspace.findFirst({ where: { kind: 'PRO' }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+if (!workspace) {
+  console.error('Aucun espace professionnel : les fixtures ne sont pas chargées.');
+  process.exit(1);
+}
+enterWorkspace(workspace);
+
 // Final accounting documents are legal records: the purge would delete them with their clients. Only those
 // issued by the demo company of the fixtures can be reloaded.
 const [{ finalDocuments }] = await prisma.$queryRaw<{ finalDocuments: number }[]>`
   SELECT count(*)::int AS "finalDocuments" FROM "AccountingDocument"
-  WHERE "status" = 'FINAL' AND coalesce("seller"->>'name', '') <> ${DEMO_COMPANY}`;
+  WHERE "workspaceId" = ${workspace.id} AND "status" = 'FINAL' AND coalesce("seller"->>'name', '') <> ${DEMO_COMPANY}`;
 if (finalDocuments > 0) {
   console.error(`La base contient ${finalDocuments} document(s) comptable(s) définitif(s) : les fixtures ne sont pas chargées.`);
   process.exit(1);
@@ -46,7 +56,7 @@ const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
     message:
-      'Les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, sprints, tableaux de bord, documents comptables, catalogue et trésorerie vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail et les alarmes sont conservés). Continuer ?',
+      `Dans l’espace « ${workspace.name} », les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, sprints, tableaux de bord, documents comptables, catalogue et trésorerie vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail, les alarmes et les autres espaces sont conservés). Continuer ?`,
     default: false,
   });
   if (!ok) process.exit(0);
@@ -55,23 +65,51 @@ if (!force && process.stdin.isTTY) {
 // Same data on every run.
 faker.seed(2026);
 
-const user = await prisma.user.findFirst({ select: { contributorId: true } });
+const user = await unscopedPrisma.user.findFirst({ select: { id: true, username: true } });
 if (!user) console.warn('Aucun compte : créez-le avec `npm run user:create` pour avoir des tâches assignées à « Moi ».');
-const meId = user?.contributorId ?? null;
+if (user) await ensureMeContributor(user);
+const meId = user ? await meContributorId(user.id) : null;
 
 // --- Purge ----------------------------------------------------------------------------------------
 // Alarms are not fixtures: they are kept, without their project or task (purged below).
 const alarms = await prisma.alarm.findMany();
-await prisma.$executeRawUnsafe(`
-  TRUNCATE "TaskComment", "TaskBlock", "TaskRelation", "Task", "Milestone", "TaskView", "Project", "Client",
-    "ProjectCategory", "ProjectStatus", "TaskStatus", "TaskPriority", "TaskType", "TaskTag", "Attachment", "TimeEntry",
-    "CalendarEventException", "CalendarEvent", "CalendarCategory", "WorkSchedule", "TreasuryAllocation", "TreasuryEntry",
-    "TreasuryAccount", "TreasuryCategory", "TreasuryPaymentMethod", "TreasuryCounterparty", "DocumentReminder", "RecurringInvoice", "AccountingLine", "AccountingDocument", "DocumentSequence",
-    "ImportedDocument", "CatalogItem", "ClientContact", "ClientService", "ProjectResource", "Sprint", "DashboardChart", "Dashboard"
-  RESTART IDENTITY CASCADE
-`);
+// Rows other rows forbid to delete go first.
+await prisma.alarm.deleteMany();
+await prisma.treasuryAllocation.deleteMany();
+await prisma.treasuryEntry.deleteMany();
+await prisma.accountingDocument.updateMany({ data: { sourceId: null } });
+await prisma.accountingDocument.deleteMany();
+for (const model of [
+  prisma.importedDocument,
+  prisma.documentSequence,
+  prisma.catalogItem,
+  prisma.treasuryAccount,
+  prisma.treasuryCategory,
+  prisma.treasuryPaymentMethod,
+  prisma.treasuryCounterparty,
+  prisma.calendarEvent,
+  prisma.calendarCategory,
+  prisma.workSchedule,
+  prisma.timeEntry,
+  prisma.task,
+  prisma.taskView,
+  prisma.dashboard,
+  prisma.project,
+  prisma.client,
+  prisma.projectCategory,
+  prisma.projectStatus,
+  prisma.taskStatus,
+  prisma.taskPriority,
+  prisma.taskType,
+  prisma.taskTag,
+  prisma.attachment,
+] as unknown as { deleteMany: () => Promise<unknown> }[]) {
+  await model.deleteMany();
+}
+// Task numbers are shared by the workspaces: they go on after the highest one left.
+await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Task"', 'number'), COALESCE((SELECT MAX("number") FROM "Task"), 0) + 1, false)`);
 await prisma.alarm.createMany({ data: alarms.map((alarm) => ({ ...alarm, projectId: null, taskId: null })) });
-await prisma.contributor.deleteMany({ where: { user: { is: null } } });
+await prisma.contributor.deleteMany({ where: { userId: null } });
 await prisma.icon.deleteMany({ where: { contributors: { none: {} } } });
 
 // --- Labels ---------------------------------------------------------------------------------------

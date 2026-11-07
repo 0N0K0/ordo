@@ -3,13 +3,15 @@ import { prisma } from '../db';
 import type { CompanyProfile } from '../generated/prisma/client';
 import { clientError, parseInput } from '../graphql/errors';
 import { storeAttachment } from './attachments';
+import { currentWorkspaceId } from '../workspace-context';
+import { requirePro } from './workspaces';
 
 /**
  * The user's business profile (created empty on first access).
  * @returns {Promise<CompanyProfile>} Profile.
  */
 export async function getCompanyProfile(): Promise<CompanyProfile> {
-  return prisma.companyProfile.upsert({ where: { id: 'company' }, create: {}, update: {} });
+  return prisma.companyProfile.upsert({ where: { workspaceId: currentWorkspaceId() }, create: {}, update: {} });
 }
 
 /**
@@ -18,9 +20,10 @@ export async function getCompanyProfile(): Promise<CompanyProfile> {
  * @returns {Promise<CompanyProfile>} Profile.
  */
 export async function updateCompanyProfile(input: CompanyProfileInput): Promise<CompanyProfile> {
+  requirePro('société');
   const data = parseInput(companyProfileSchema, input);
   await getCompanyProfile();
-  return prisma.companyProfile.update({ where: { id: 'company' }, data: { ...data, address: data.address ?? undefined } });
+  return prisma.companyProfile.update({ where: { workspaceId: currentWorkspaceId() }, data: { ...data, address: data.address ?? undefined } });
 }
 
 /**
@@ -29,6 +32,7 @@ export async function updateCompanyProfile(input: CompanyProfileInput): Promise<
  * @returns {Promise<CompanyProfile>} Profile.
  */
 export async function setCompanyLogo(file: File | null): Promise<CompanyProfile> {
+  requirePro('société');
   const profile = await getCompanyProfile();
   let logoId: string | null = null;
   if (file) {
@@ -39,7 +43,7 @@ export async function setCompanyLogo(file: File | null): Promise<CompanyProfile>
     }
     logoId = stored.id;
   }
-  const updated = await prisma.companyProfile.update({ where: { id: 'company' }, data: { logoId } });
+  const updated = await prisma.companyProfile.update({ where: { workspaceId: currentWorkspaceId() }, data: { logoId } });
   if (profile.logoId) await prisma.attachment.delete({ where: { id: profile.logoId } }).catch(() => undefined);
   return updated;
 }
@@ -60,7 +64,7 @@ export interface SequenceInfo {
  */
 export async function usedCounter(type: AccountingDocumentType, year: number): Promise<number> {
   const rows = await prisma.$queryRaw<{ max: number | null }[]>`
-    SELECT MAX("counter") AS max FROM "AccountingDocument" WHERE "type"::text = ${type} AND "year" = ${year} AND "counter" IS NOT NULL`;
+    SELECT MAX("counter") AS max FROM "AccountingDocument" WHERE "workspaceId" = ${currentWorkspaceId()} AND "type"::text = ${type} AND "year" = ${year} AND "counter" IS NOT NULL`;
   // Imported documents numbered in the same format count too: Ordo goes on after them.
   const prefix = documentNumber(type, year, 0).slice(0, -5);
   const imported = await prisma.importedDocument.findMany({ where: { type, number: { startsWith: prefix } }, select: { number: true } });
@@ -93,13 +97,14 @@ export async function documentSequences(year: number): Promise<SequenceInfo[]> {
  * @returns {Promise<void>}
  */
 export async function setSequenceStart(type: AccountingDocumentType, year: number, nextNumber: number): Promise<void> {
+  requirePro('facturation');
   if (!Number.isInteger(nextNumber) || nextNumber < 1 || nextNumber > 99_999) {
     throw clientError('BAD_USER_INPUT', 'Numéro invalide (1 à 99 999).');
   }
   const minimum = (await usedCounter(type, year)) + 1;
   if (nextNumber < minimum) throw clientError('BAD_USER_INPUT', `Les numéros jusqu’à ${minimum - 1} sont déjà attribués.`);
   await prisma.documentSequence.upsert({
-    where: { type_year: { type, year } },
+    where: { workspaceId_type_year: { workspaceId: currentWorkspaceId(), type, year } },
     create: { type, year, nextNumber },
     update: { nextNumber },
   });

@@ -20,6 +20,8 @@ import {
 } from './board';
 import { githubToken } from './client';
 import { isUnmapped, mergeFields, type SyncFields } from './merge';
+import { currentWorkspaceId } from '../../workspace-context';
+import { forEachWorkspace } from '../workspaces';
 
 export interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
@@ -402,7 +404,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
   const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, comments: 0 };
   try {
     const token = await githubToken();
-    const login = (await prisma.githubConnection.findUnique({ where: { id: 'github' } }))?.login ?? '';
+    const login = (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? '';
     const board = await boardById(token, link.githubProjectId);
     summary.sprints = await syncIterations(board, link);
     const items = await boardItems(token, link.githubProjectId);
@@ -561,12 +563,13 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
  * @returns {void}
  */
 export function scheduleGithubSync(): void {
-  const run = async () => {
-    if (!(await prisma.githubConnection.findUnique({ where: { id: 'github' }, select: { id: true } }))) return;
-    for (const link of await prisma.githubProjectLink.findMany({ where: { enabled: true }, select: { projectId: true } })) {
-      await syncGithubProject(link.projectId).catch((error: unknown) => console.warn('Synchronisation GitHub en échec.', error));
-    }
-  };
+  const run = () =>
+    forEachWorkspace(async () => {
+      if (!(await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { id: true } }))) return;
+      for (const link of await prisma.githubProjectLink.findMany({ where: { enabled: true }, select: { projectId: true } })) {
+        await syncGithubProject(link.projectId).catch((error: unknown) => console.warn('Synchronisation GitHub en échec.', error));
+      }
+    });
   setTimeout(() => void run(), 30_000);
   setInterval(() => void run(), 10 * 60_000);
 }

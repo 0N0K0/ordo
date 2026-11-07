@@ -13,6 +13,7 @@ import { ProjectResourcesPanel } from '../../accounting/ProjectResourcesPanel';
 import { ProjectMailsPanel } from '../../mail/ProjectMailsPanel';
 import { ProjectTimePanel } from '../../time/ProjectTimePanel';
 import { TaskBoard } from '../../tasks/TaskBoard';
+import { useActiveWorkspace } from '../../workspaces/api';
 import { descendantIds, useWorkspace } from '../api';
 import { canHaveChildren } from '../tree';
 import { useEntityActions } from '../use-entity-actions';
@@ -101,12 +102,14 @@ export function ProjectPage() {
   const { id } = useParams();
   const { data, isPending } = useWorkspace();
   const actions = useEntityActions();
+  // No invoicing nor clients in a personal workspace.
+  const { perso } = useActiveWorkspace();
   const [params, setParams] = useSearchParams();
   // The former tabs of the settings (links, bookmarks) open their section.
   const requested = params.get('tab') ?? 'overview';
   const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
   // The dashboards are in the overview.
-  const tab = legacy ? 'settings' : requested === 'dashboards' ? 'overview' : requested;
+  const tab = legacy ? 'settings' : requested === 'dashboards' || (perso && requested === 'billing') ? 'overview' : requested;
   const sectionParam = legacy ? requested : params.get('section');
   const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : 'milestones';
   // Tasks of the project and of its sub-projects.
@@ -150,9 +153,11 @@ export function ProjectPage() {
                 {client.name}
               </Anchor>
             ) : (
-              <Text size="sm" c="dimmed">
-                Sans client
-              </Text>
+              !perso && (
+                <Text size="sm" c="dimmed">
+                  Sans client
+                </Text>
+              )
             )}
             {ancestors.map((ancestor) => (
               <Anchor key={ancestor.id} component={Link} to={`/projects/${ancestor.id}`} size="sm">
@@ -192,9 +197,11 @@ export function ProjectPage() {
           <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
           </Tabs.Tab>
-          <Tabs.Tab value="billing" leftSection={<ReceiptIcon aria-hidden />}>
-            Facturation
-          </Tabs.Tab>
+          {!perso && (
+            <Tabs.Tab value="billing" leftSection={<ReceiptIcon aria-hidden />}>
+              Facturation
+            </Tabs.Tab>
+          )}
           <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
             Mails
           </Tabs.Tab>
