@@ -25,13 +25,17 @@ const formatDay = (day: unknown) => dayFormat.format(new Date(`${String(day)}T00
  * contributor (an existing one, or a new one created with their name). A member removed stays a contributor.
  * @returns {JSX.Element} Section.
  */
-function Members() {
+export function TeamMembers() {
   const { data: settings } = useTreasurySettings();
   const { context } = useTaskContext();
   const { perso } = useActiveWorkspace();
   const { addMember, removeMember } = useTreasuryTeamMutations();
   const [name, setName] = useState('');
-  const members = settings?.treasuryMembers ?? [];
+  // Names and avatars as the contributors have them now (renamed or removed in the list of contributors).
+  const contributorById = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor]));
+  const members = (settings?.treasuryMembers ?? [])
+    .filter((member) => !context || contributorById.has(member.id))
+    .map((member) => ({ ...member, ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}) }));
   const memberIds = new Set(members.map((member) => member.id));
   const others = (context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id));
   const onError = (error: Error) => notifyError(error.message);
@@ -368,13 +372,12 @@ function Contexts() {
 }
 
 /**
- * Team or household, contexts and their planned periods: how the entries are split.
+ * Contexts and their planned periods (the team or household is in the settings, with the contributors).
  * @returns {JSX.Element} Sections.
  */
 export function TeamPanel() {
   return (
-    <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-      <Members />
+    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
       <Contexts />
     </SimpleGrid>
   );

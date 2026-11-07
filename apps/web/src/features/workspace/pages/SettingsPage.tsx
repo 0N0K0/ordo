@@ -7,6 +7,7 @@ import { GithubSettings } from "../../github/GithubSettings";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
 import { TaskSettings } from "../../tasks/settings/TaskSettings";
+import { TeamMembers } from "../../treasury/TeamPanel";
 import { useActiveWorkspace } from "../../workspaces/api";
 import { WorkspacesManager } from "../../workspaces/WorkspacesManager";
 import {
@@ -21,8 +22,8 @@ import {
 } from "../api";
 
 /**
- * Settings, in tabs: projects (statuses, categories), tasks (statuses, priorities, types), contributors, company
- * (not in a personal workspace), GitHub and the workspaces. The tab is kept in the URL (?tab=). The settings of
+ * Settings, in tabs: projects (statuses, categories), team or household and contributors, tasks (statuses,
+ * priorities, types), GitHub, company (not in a personal workspace) and the workspaces. The tab is kept in the URL (?tab=). The settings of
  * the document tracking, the calendar and the mail accounts are in their own views (old links lead there).
  * @returns {JSX.Element} Page.
  */
@@ -81,23 +82,20 @@ export function SettingsPage() {
           <Tabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>
             Projets
           </Tabs.Tab>
+          <Tabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
+            {perso ? "Foyer et contributeurs" : "Équipe et contributeurs"}
+          </Tabs.Tab>
           <Tabs.Tab value="tasks" leftSection={<ListChecksIcon aria-hidden />}>
             Tâches
           </Tabs.Tab>
-          <Tabs.Tab
-            value="contributors"
-            leftSection={<UsersIcon aria-hidden />}
-          >
-            Contributeurs
+          <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
+            GitHub
           </Tabs.Tab>
           {!perso && (
             <Tabs.Tab value="company" leftSection={<BuildingsIcon aria-hidden />}>
               Société
             </Tabs.Tab>
           )}
-          <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
-            GitHub
-          </Tabs.Tab>
           <Tabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
             Espaces
           </Tabs.Tab>
@@ -133,10 +131,13 @@ export function SettingsPage() {
           <TaskSettings />
         </Tabs.Panel>
         <Tabs.Panel value="contributors">
-          <ContributorsManager
-            contributors={taskData?.contributors ?? []}
-            usage={assigneeUsage}
-          />
+          <Stack gap="lg">
+            <TeamMembers />
+            <ContributorsManager
+              contributors={taskData?.contributors ?? []}
+              usage={assigneeUsage}
+            />
+          </Stack>
         </Tabs.Panel>
         <Tabs.Panel value="company">
           <CompanySettings />
