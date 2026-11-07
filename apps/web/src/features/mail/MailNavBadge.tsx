@@ -1,17 +1,33 @@
-import { Badge } from '@mantine/core';
-import { useMailAccounts, useUnreadMailCount } from './api';
+import { Badge, Group, Tooltip } from '@mantine/core';
+import { useMailAccounts, useTodoMailCount, useUnreadMailCount } from './api';
 
 /**
- * Unread count of the inboxes, on the "Mails" entry of the sidebar.
- * @returns {JSX.Element | null} Badge.
+ * Counts on the "Mails" entry of the sidebar: mails to do (every folder but drafts, sent, archive, junk and
+ * trash), and unread ones (inboxes).
+ * @returns {JSX.Element | null} Badges.
  */
 export function MailNavBadge() {
   const { data: accounts } = useMailAccounts();
-  const { data: unread } = useUnreadMailCount((accounts?.length ?? 0) > 0);
-  if (!unread) return null;
+  const enabled = (accounts?.length ?? 0) > 0;
+  const { data: unread } = useUnreadMailCount(enabled);
+  const { data: todo } = useTodoMailCount(enabled);
+  if (!unread && !todo) return null;
   return (
-    <Badge size="sm" variant="filled" aria-label={`${unread} non lus`}>
-      {unread}
-    </Badge>
+    <Group gap={4} wrap="nowrap">
+      {!!todo && (
+        <Tooltip label={`${todo} à traiter`}>
+          <Badge size="sm" variant="light" color="orange" aria-label={`${todo} à traiter`}>
+            {todo}
+          </Badge>
+        </Tooltip>
+      )}
+      {!!unread && (
+        <Tooltip label={`${unread} non lu${unread > 1 ? 's' : ''}`}>
+          <Badge size="sm" variant="filled" aria-label={`${unread} non lus`}>
+            {unread}
+          </Badge>
+        </Tooltip>
+      )}
+    </Group>
   );
 }

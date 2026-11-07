@@ -13,6 +13,9 @@
     /* Agencement */
     display: block;
 
+    /* Interaction */
+    cursor: pointer;
+
     /* Dimension */
     width: 100%;
 
@@ -34,6 +37,20 @@
     &[data-unread] {
       border-left-color: var(--mantine-primary-color-filled);
     }
+
+    &[data-selected] {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    /* Done: still readable, set back. */
+    &[data-done] {
+      opacity: 0.6;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: -2px;
+    }
   }
 
   .sender {
@@ -51,4 +68,56 @@
       font-weight: 600;
     }
   }
+
+  /* On wide screens (three columns side by side), the page is the height of the window: folders, list and
+     reader take the height left, each scrolling on its own. Below, the page scrolls as usual. */
+  .page {
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: calc(100dvh - var(--app-shell-header-offset, 56px) - 2 * var(--mantine-spacing-md));
+    }
+  }
+
+  .grid {
+    @media (min-width: 88em) {
+      /* Dimension */
+      flex: 1;
+      min-height: 0;
+    }
+  }
+
+  .gridInner,
+  .column {
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: 100%;
+    }
+  }
+
+  .pane {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: 100%;
+
+      /* Débordement */
+      overflow: hidden;
+    }
+  }
+
+  .paneScroll {
+    @media (min-width: 88em) {
+      /* Dimension */
+      flex: 1;
+      min-height: 0;
+
+      /* Débordement */
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+  }
 }
+

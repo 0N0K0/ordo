@@ -928,9 +928,23 @@ type MailDraft {
 type MailFolder {
   depth: Int!
   name: String!
+  parent: String
   path: String!
   specialUse: String
+
+  """
+  Mails to do; null for the sent, drafts, archive, trash and junk folders.
+  """
+  todo: Int
   unseen: Int!
+}
+
+"""Flag of mails (name, color)."""
+type MailLabel {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
 }
 
 input MailLocationInput {
@@ -945,11 +959,73 @@ type MailPage {
   total: Int!
 }
 
+"""Search folder, kept in Ordo (not on the mail server)."""
+type MailSearch {
+  """accountIds, scope, state, labelIds, unread, text."""
+  criteria: JSON!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+"""Mail found by a search folder, with its account and folder."""
+type MailSearchHit {
+  accountId: ID!
+  date: DateTime!
+  done: Boolean!
+  flagged: Boolean!
+  folder: String!
+  folderName: String!
+  from: [MailAddress!]!
+  hasAttachments: Boolean!
+  labelIds: [ID!]!
+  seen: Boolean!
+  subject: String!
+  to: [MailAddress!]!
+  uid: Int!
+}
+
+input MailSearchInput {
+  accountIds: [ID!]!
+  attachments: Boolean
+  body: String
+
+  """Folder path, with the folder scope."""
+  folder: String
+  from: String
+  labelIds: [ID!]!
+  name: String!
+
+  """inbox, all or folder."""
+  scope: String!
+  since: Date
+
+  """all, todo or done."""
+  state: String!
+  subject: String
+  text: String!
+  to: String
+  unread: Boolean!
+  until: Date
+}
+
+type MailSearchPage {
+  messages: [MailSearchHit!]!
+  pageSize: Int!
+  total: Int!
+}
+
 type MailSummary {
   date: DateTime!
+
+  """Marked as done."""
+  done: Boolean!
   flagged: Boolean!
   from: [MailAddress!]!
   hasAttachments: Boolean!
+
+  """Flags set by the user."""
+  labelIds: [ID!]!
   seen: Boolean!
   subject: String!
   to: [MailAddress!]!
@@ -962,10 +1038,12 @@ type MailView {
   attachments: [MailAttachmentInfo!]!
   cc: [MailAddress!]!
   date: DateTime!
+  done: Boolean!
   folder: String!
   from: [MailAddress!]!
   html: String
   inReplyTo: String
+  labelIds: [ID!]!
 
   """Projects this message is linked to."""
   linkedProjectIds: [ID!]!
@@ -1026,6 +1104,9 @@ type Mutation {
   bulkUpdateTasks(changes: BulkTaskInput!, ids: [ID!]!): Boolean!
   cancelEmailChange: User!
 
+  """Cancels a scheduled mail: it goes back to the drafts."""
+  cancelScheduledMail(id: ID!): Boolean!
+
   """Closes every other session."""
   changePassword(currentPassword: String!, password: String!): Boolean!
   changeUsername(currentPassword: String!, username: String!): User!
@@ -1055,6 +1136,11 @@ type Mutation {
   createDocumentFrom(depositPercent: Float, issueDate: Date!, sourceId: ID!, type: AccountingDocumentType!): ID!
   createDocumentStatus(category: DocumentStatusCategory!, color: String!, name: String!, scope: DocumentStatusScope!): ID!
   createMailAccount(input: MailAccountInput!): MailAccount!
+
+  """Creates a folder (under another one, or at the top); returns its path."""
+  createMailFolder(accountId: ID!, name: String!, parent: String): String!
+  createMailLabel(color: String!, name: String!): ID!
+  createMailSearch(input: MailSearchInput!): ID!
   createMilestone(input: MilestoneInput!): Milestone!
   createProject(input: ProjectInput!): Project!
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
@@ -1100,6 +1186,11 @@ type Mutation {
 
   """Deletes a draft for good."""
   deleteMailDraft(location: MailLocationInput!): Boolean!
+
+  """Deletes a folder and its mails."""
+  deleteMailFolder(accountId: ID!, path: String!): Boolean!
+  deleteMailLabel(id: ID!): Boolean!
+  deleteMailSearch(id: ID!): Boolean!
 
   """Moves mails to the trash (deletes them for good from the trash)."""
   deleteMails(accountId: ID!, folder: String!, uids: [Int!]!): Boolean!
@@ -1153,6 +1244,11 @@ type Mutation {
   markDocumentSent(id: ID!): Boolean!
 
   """
+  Adds or removes a flag (labelId and on), or sets the done state (done), on mails.
+  """
+  markMails(accountId: ID!, done: Boolean, folder: String!, labelId: ID, on: Boolean, uids: [Int!]!): Boolean!
+
+  """
   Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.
   """
   materializeTaskOccurrences(from: Date!, to: Date!): Int!
@@ -1164,6 +1260,12 @@ type Mutation {
   moveDocumentStatus(id: ID!, index: Int!): Boolean!
   moveLibraryDocuments(folderId: ID, ids: [ID!]!): Boolean!
   moveMailAccount(id: ID!, index: Int!): Boolean!
+
+  """
+  Moves a folder (and its sub-folders) under another one, or to the top; returns its new path.
+  """
+  moveMailFolder(accountId: ID!, parent: String, path: String!): String!
+  moveMails(accountId: ID!, folder: String!, target: String!, uids: [Int!]!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
 
   """Moves a project with its sub-projects."""
@@ -1207,6 +1309,14 @@ type Mutation {
   renameDashboard(id: ID!, name: String!): Boolean!
   renameDocumentFolder(id: ID!, name: String!): Boolean!
 
+  """Renames a folder; returns its new path."""
+  renameMailFolder(accountId: ID!, name: String!, path: String!): String!
+
+  """
+  Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.
+  """
+  reportMailSpam(accountId: ID!, folder: String!, spam: Boolean!, uids: [Int!]!): String!
+
   """
   Sends a confirmation link to the new address; the email changes once confirmed.
   """
@@ -1224,6 +1334,9 @@ type Mutation {
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
 
+  """Schedules a mail (built now, sent at its time); its draft is removed."""
+  scheduleMail(input: SendMailInput!, sendAt: DateTime!): ID!
+
   """
   Mails the reminder of several unpaid invoices (one mail each, with the PDF), noted as reminders.
   """
@@ -1231,6 +1344,9 @@ type Mutation {
 
   """Sends a mail; returns the projects it was linked to."""
   sendMail(input: SendMailInput!): [ID!]!
+
+  """Sends a scheduled (or failed) mail now."""
+  sendScheduledMail(id: ID!): Boolean!
 
   """
   Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.
@@ -1321,6 +1437,8 @@ type Mutation {
   updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
   updateLibraryDocument(file: File, id: ID!, note: String, title: String!, url: String): Boolean!
   updateMailAccount(id: ID!, input: MailAccountInput!): MailAccount!
+  updateMailLabel(color: String!, id: ID!, name: String!): Boolean!
+  updateMailSearch(id: ID!, input: MailSearchInput!): Boolean!
   updateMilestone(id: ID!, input: MilestoneUpdateInput!): Milestone!
   updateProject(id: ID!, input: ProjectUpdateInput!): Project!
   updateProjectCategory(id: ID!, input: ProjectCategoryUpdateInput!): ProjectCategory!
@@ -1503,9 +1621,15 @@ type Query {
   libraryDocuments: [LibraryDocument!]!
   mailAccounts: [MailAccount!]!
 
+  """
+  A page of the mails matching criteria (shared mail search criteria), latest first; not saved.
+  """
+  mailAdvancedSearch(criteria: JSON!, page: Int!): MailSearchPage!
+
   """Opens a draft to go on writing it."""
   mailDraft(accountId: ID!, folder: String!, uid: Int!): MailDraft!
   mailFolders(accountId: ID!): [MailFolder!]!
+  mailLabels: [MailLabel!]!
 
   """Opens a message (and marks it as read)."""
   mailMessage(accountId: ID!, folder: String!, uid: Int!): MailView!
@@ -1513,7 +1637,26 @@ type Query {
   """
   A page of a folder, latest first (optionally the unread messages only).
   """
-  mailMessages(accountId: ID!, folder: String!, page: Int!, search: String, unread: Boolean): MailPage!
+  mailMessages(
+    accountId: ID!
+
+    """Ascending order (descending by default)."""
+    ascending: Boolean
+    folder: String!
+    page: Int!
+    search: String
+
+    """date (default), correspondent, subject or size."""
+    sort: String
+
+    """all (default), todo or done."""
+    state: String
+    unread: Boolean
+  ): MailPage!
+
+  """A page of the mails of a search folder, latest first."""
+  mailSearchResults(id: ID!, page: Int!): MailSearchPage!
+  mailSearches: [MailSearch!]!
 
   """Ids of the tasks matching a filter, in manual order."""
   matchingTaskIds(query: TaskQueryInput!): [ID!]!
@@ -1544,6 +1687,9 @@ type Query {
   recurringInvoices: [RecurringInvoice!]!
   runningTimeEntry: TimeEntry
 
+  """Mails waiting to be sent, and those that failed."""
+  scheduledMails: [ScheduledMail!]!
+
   """
   Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).
   """
@@ -1569,6 +1715,11 @@ type Query {
   Time entries, latest first: those of a project and its sub-projects, or every entry; optionally only those started since a moment.
   """
   timeEntries(projectId: ID, since: DateTime): [TimeEntry!]!
+
+  """
+  Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
+  """
+  todoMailCount: Int!
   treasuryAccounts: [TreasuryAccount!]!
   treasuryCategories: [TreasuryCategory!]!
   treasuryCounterparties: [TreasuryCounterparty!]!
@@ -1642,6 +1793,19 @@ type SavedMailDraft {
   attachments: [MailAttachmentInfo!]!
   folder: String!
   uid: Int!
+}
+
+"""Mail waiting to be sent at its time (or failed)."""
+type ScheduledMail {
+  accountId: ID!
+  error: String
+  id: ID!
+  sendAt: DateTime!
+
+  """PENDING, SENDING or FAILED."""
+  status: String!
+  subject: String!
+  to: [String!]!
 }
 
 input SendMailInput {

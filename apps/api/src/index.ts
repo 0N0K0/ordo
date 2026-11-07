@@ -14,6 +14,7 @@ import { iconsRouter } from './routes/icons';
 import { mailRouter } from './routes/mail';
 import { treasuryRouter } from './routes/treasury';
 import { scheduleConversationFollowUp } from './services/mail/linked';
+import { scheduleMailSending } from './services/mail/scheduled';
 import { scheduleGithubSync } from './services/github/sync';
 import { scheduleRecurringInvoices } from './services/recurring-invoices';
 
@@ -58,6 +59,7 @@ if (!isProd) await writeSchemaFile();
 
 // Mails replying to conversations linked to projects join them.
 scheduleConversationFollowUp();
+scheduleMailSending();
 // Recurring invoices are issued on their dates.
 scheduleRecurringInvoices();
 scheduleGithubSync();

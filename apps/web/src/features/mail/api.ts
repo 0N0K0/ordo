@@ -9,6 +9,7 @@ import type {
   MailViewFieldsFragment,
   SendMailInput,
 } from '../../graphql/graphql';
+import type { MailSearchCriteria, MailSearchInput } from '@ordo/shared';
 import { execute } from '../../lib/graphql-client';
 
 export type MailAccount = MailAccountFieldsFragment;
@@ -50,6 +51,8 @@ graphql(`
     accountId
     folder
     uid
+    labelIds
+    done
     messageId
     inReplyTo
     references
@@ -135,13 +138,15 @@ const MailFoldersDocument = graphql(`
       specialUse
       unseen
       depth
+      parent
+      todo
     }
   }
 `);
 
 const MailMessagesDocument = graphql(`
-  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean) {
-    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread) {
+  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String, $sort: String, $ascending: Boolean) {
+    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread, state: $state, sort: $sort, ascending: $ascending) {
       total
       pageSize
       messages {
@@ -159,6 +164,8 @@ const MailMessagesDocument = graphql(`
         seen
         flagged
         hasAttachments
+        labelIds
+        done
       }
     }
   }
@@ -175,6 +182,12 @@ const MailMessageDocument = graphql(`
 const UnreadMailCountDocument = graphql(`
   query UnreadMailCount {
     unreadMailCount
+  }
+`);
+
+const TodoMailCountDocument = graphql(`
+  query TodoMailCount {
+    todoMailCount
   }
 `);
 
@@ -313,7 +326,283 @@ const SendMailDocument = graphql(`
   }
 `);
 
+const MailLabelsDocument = graphql(`
+  query MailLabels {
+    mailLabels {
+      id
+      name
+      color
+      position
+    }
+  }
+`);
+
+const ScheduledMailsDocument = graphql(`
+  query ScheduledMails {
+    scheduledMails {
+      id
+      accountId
+      sendAt
+      subject
+      to
+      status
+      error
+    }
+  }
+`);
+
+const MarkMailsDocument = graphql(`
+  mutation MarkMails($accountId: ID!, $folder: String!, $uids: [Int!]!, $labelId: ID, $on: Boolean, $done: Boolean) {
+    markMails(accountId: $accountId, folder: $folder, uids: $uids, labelId: $labelId, on: $on, done: $done)
+  }
+`);
+
+const ReportMailSpamDocument = graphql(`
+  mutation ReportMailSpam($accountId: ID!, $folder: String!, $uids: [Int!]!, $spam: Boolean!) {
+    reportMailSpam(accountId: $accountId, folder: $folder, uids: $uids, spam: $spam)
+  }
+`);
+
+const MoveMailsDocument = graphql(`
+  mutation MoveMails($accountId: ID!, $folder: String!, $uids: [Int!]!, $target: String!) {
+    moveMails(accountId: $accountId, folder: $folder, uids: $uids, target: $target)
+  }
+`);
+
+const CreateMailFolderDocument = graphql(`
+  mutation CreateMailFolder($accountId: ID!, $parent: String, $name: String!) {
+    createMailFolder(accountId: $accountId, parent: $parent, name: $name)
+  }
+`);
+
+const RenameMailFolderDocument = graphql(`
+  mutation RenameMailFolder($accountId: ID!, $path: String!, $name: String!) {
+    renameMailFolder(accountId: $accountId, path: $path, name: $name)
+  }
+`);
+
+const DeleteMailFolderDocument = graphql(`
+  mutation DeleteMailFolder($accountId: ID!, $path: String!) {
+    deleteMailFolder(accountId: $accountId, path: $path)
+  }
+`);
+
+const CreateMailLabelDocument = graphql(`
+  mutation CreateMailLabel($name: String!, $color: String!) {
+    createMailLabel(name: $name, color: $color)
+  }
+`);
+
+const UpdateMailLabelDocument = graphql(`
+  mutation UpdateMailLabel($id: ID!, $name: String!, $color: String!) {
+    updateMailLabel(id: $id, name: $name, color: $color)
+  }
+`);
+
+const DeleteMailLabelDocument = graphql(`
+  mutation DeleteMailLabel($id: ID!) {
+    deleteMailLabel(id: $id)
+  }
+`);
+
+const ScheduleMailDocument = graphql(`
+  mutation ScheduleMail($input: SendMailInput!, $sendAt: DateTime!) {
+    scheduleMail(input: $input, sendAt: $sendAt)
+  }
+`);
+
+const SendScheduledMailDocument = graphql(`
+  mutation SendScheduledMail($id: ID!) {
+    sendScheduledMail(id: $id)
+  }
+`);
+
+const CancelScheduledMailDocument = graphql(`
+  mutation CancelScheduledMail($id: ID!) {
+    cancelScheduledMail(id: $id)
+  }
+`);
+
+const MailSearchesDocument = graphql(`
+  query MailSearches {
+    mailSearches {
+      id
+      name
+      criteria
+      position
+    }
+  }
+`);
+
+const MailSearchResultsDocument = graphql(`
+  query MailSearchResults($id: ID!, $page: Int!) {
+    mailSearchResults(id: $id, page: $page) {
+      total
+      pageSize
+      messages {
+        accountId
+        folder
+        folderName
+        uid
+        subject
+        from {
+          name
+          address
+        }
+        to {
+          name
+          address
+        }
+        date
+        seen
+        flagged
+        hasAttachments
+        labelIds
+        done
+      }
+    }
+  }
+`);
+
+const MailAdvancedSearchDocument = graphql(`
+  query MailAdvancedSearch($criteria: JSON!, $page: Int!) {
+    mailAdvancedSearch(criteria: $criteria, page: $page) {
+      total
+      pageSize
+      messages {
+        accountId
+        folder
+        folderName
+        uid
+        subject
+        from {
+          name
+          address
+        }
+        to {
+          name
+          address
+        }
+        date
+        seen
+        flagged
+        hasAttachments
+        labelIds
+        done
+      }
+    }
+  }
+`);
+
+const MoveMailFolderDocument = graphql(`
+  mutation MoveMailFolder($accountId: ID!, $path: String!, $parent: String) {
+    moveMailFolder(accountId: $accountId, path: $path, parent: $parent)
+  }
+`);
+
+const CreateMailSearchDocument = graphql(`
+  mutation CreateMailSearch($input: MailSearchInput!) {
+    createMailSearch(input: $input)
+  }
+`);
+
+const UpdateMailSearchDocument = graphql(`
+  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {
+    updateMailSearch(id: $id, input: $input)
+  }
+`);
+
+const DeleteMailSearchDocument = graphql(`
+  mutation DeleteMailSearch($id: ID!) {
+    deleteMailSearch(id: $id)
+  }
+`);
+
+export type MailSearch = Awaited<ReturnType<typeof fetchSearches>>[number];
+
+/**
+ * Search folders.
+ * @returns {Promise<object[]>} Searches, in order.
+ */
+async function fetchSearches() {
+  return (await execute(MailSearchesDocument)).mailSearches;
+}
+
+export type MailLabel = Awaited<ReturnType<typeof fetchLabels>>[number];
+export type ScheduledMail = Awaited<ReturnType<typeof fetchScheduled>>[number];
+
+/**
+ * Flags of mails.
+ * @returns {Promise<object[]>} Flags, in order.
+ */
+async function fetchLabels() {
+  return (await execute(MailLabelsDocument)).mailLabels;
+}
+
+/**
+ * Scheduled mails (waiting or failed).
+ * @returns {Promise<object[]>} Mails, by time.
+ */
+async function fetchScheduled() {
+  return (await execute(ScheduledMailsDocument)).scheduledMails;
+}
+
 export const mailQueryKey = ['mail'] as const;
+
+/**
+ * Search folders.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useMailSearches() {
+  return useQuery({ queryKey: [...mailQueryKey, 'searches'], queryFn: fetchSearches });
+}
+
+/**
+ * A page of the mails of a search folder, or of an advanced search (refreshed every two minutes).
+ * @param {object | null} params Search (or criteria) and page; null when none is open.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useMailSearchResults(params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number } | null) {
+  return useQuery({
+    queryKey: [...mailQueryKey, 'search-results', params],
+    queryFn: async () =>
+      params && 'criteria' in params
+        ? (await execute(MailAdvancedSearchDocument, { criteria: params.criteria, page: params.page })).mailAdvancedSearch
+        : (await execute(MailSearchResultsDocument, params as { id: string; page: number })).mailSearchResults,
+    enabled: params !== null,
+    placeholderData: keepPreviousData,
+    refetchInterval: 120_000,
+    retry: false,
+  });
+}
+
+/**
+ * Search folders: create, update, delete.
+ * @returns {object} Mutations.
+ */
+export function useMailSearchMutations() {
+  return {
+    create: useMailMutation(async (input: MailSearchInput) => (await execute(CreateMailSearchDocument, { input })).createMailSearch),
+    update: useMailMutation(async (variables: { id: string; input: MailSearchInput }) => (await execute(UpdateMailSearchDocument, variables)).updateMailSearch),
+    remove: useMailMutation(async (id: string) => (await execute(DeleteMailSearchDocument, { id })).deleteMailSearch),
+  };
+}
+
+/**
+ * Flags of mails.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useMailLabels() {
+  return useQuery({ queryKey: [...mailQueryKey, 'labels'], queryFn: fetchLabels });
+}
+
+/**
+ * Scheduled mails (refreshed every minute: they leave once sent).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useScheduledMails() {
+  return useQuery({ queryKey: [...mailQueryKey, 'scheduled'], queryFn: fetchScheduled, refetchInterval: 60_000 });
+}
 
 /**
  * Configured mail accounts.
@@ -346,7 +635,9 @@ export function useMailFolders(accountId: string | null) {
  * @param {object | null} params Account, folder, page and search; null when nothing is selected.
  * @returns {UseQueryResult} Query state.
  */
-export function useMailMessages(params: { accountId: string; folder: string; page: number; search: string } | null) {
+export function useMailMessages(
+  params: { accountId: string; folder: string; page: number; search: string; state?: 'all' | 'todo' | 'done'; sort?: string; ascending?: boolean } | null,
+) {
   return useQuery({
     queryKey: [...mailQueryKey, 'messages', params],
     queryFn: async () => (await execute(MailMessagesDocument, params!)).mailMessages,
@@ -407,6 +698,22 @@ export function useUnreadMailCount(enabled: boolean) {
   return useQuery({
     queryKey: [...mailQueryKey, 'unread'],
     queryFn: async () => (await execute(UnreadMailCountDocument)).unreadMailCount,
+    enabled,
+    refetchInterval: 120_000,
+    retry: false,
+  });
+}
+
+/**
+ * Mails to do in every account (every folder but drafts, sent, archive, junk and trash), for the sidebar
+ * (refreshed every two minutes).
+ * @param {boolean} enabled Whether accounts exist.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTodoMailCount(enabled: boolean) {
+  return useQuery({
+    queryKey: [...mailQueryKey, 'todo'],
+    queryFn: async () => (await execute(TodoMailCountDocument)).todoMailCount,
     enabled,
     refetchInterval: 120_000,
     retry: false,
@@ -483,5 +790,49 @@ export function useMailActions() {
       async (location: { accountId: string; folder: string; uid: number }) =>
         (await execute(DeleteMailDraftDocument, { location })).deleteMailDraft,
     ),
+    mark: useMailMutation(
+      async (variables: { accountId: string; folder: string; uids: number[]; labelId?: string; on?: boolean; done?: boolean }) =>
+        (await execute(MarkMailsDocument, variables)).markMails,
+    ),
+    spam: useMailMutation(
+      async (variables: { accountId: string; folder: string; uids: number[]; spam: boolean }) => (await execute(ReportMailSpamDocument, variables)).reportMailSpam,
+    ),
+    move: useMailMutation(
+      async (variables: { accountId: string; folder: string; uids: number[]; target: string }) => (await execute(MoveMailsDocument, variables)).moveMails,
+    ),
+    schedule: useMailMutation(async (variables: { input: SendMailInput; sendAt: string }) => (await execute(ScheduleMailDocument, variables)).scheduleMail),
+    sendScheduled: useMailMutation(async (id: string) => (await execute(SendScheduledMailDocument, { id })).sendScheduledMail),
+    cancelScheduled: useMailMutation(async (id: string) => (await execute(CancelScheduledMailDocument, { id })).cancelScheduledMail),
+  };
+}
+
+/**
+ * Folders of an account: create, rename, delete.
+ * @returns {object} Mutations.
+ */
+export function useMailFolderMutations() {
+  return {
+    create: useMailMutation(
+      async (variables: { accountId: string; parent: string | null; name: string }) => (await execute(CreateMailFolderDocument, variables)).createMailFolder,
+    ),
+    rename: useMailMutation(
+      async (variables: { accountId: string; path: string; name: string }) => (await execute(RenameMailFolderDocument, variables)).renameMailFolder,
+    ),
+    remove: useMailMutation(async (variables: { accountId: string; path: string }) => (await execute(DeleteMailFolderDocument, variables)).deleteMailFolder),
+    move: useMailMutation(
+      async (variables: { accountId: string; path: string; parent: string | null }) => (await execute(MoveMailFolderDocument, variables)).moveMailFolder,
+    ),
+  };
+}
+
+/**
+ * Flags of mails: create, update, delete.
+ * @returns {object} Mutations.
+ */
+export function useMailLabelMutations() {
+  return {
+    create: useMailMutation(async (variables: { name: string; color: string }) => (await execute(CreateMailLabelDocument, variables)).createMailLabel),
+    update: useMailMutation(async (variables: { id: string; name: string; color: string }) => (await execute(UpdateMailLabelDocument, variables)).updateMailLabel),
+    remove: useMailMutation(async (id: string) => (await execute(DeleteMailLabelDocument, { id })).deleteMailLabel),
   };
 }
