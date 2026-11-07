@@ -13,6 +13,7 @@ import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryEntrySearch
 import { categoryOptions } from './categories';
 import { LinesEditor, type LineValues } from './LinesEditor';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
+import { ContextForm } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -96,7 +97,9 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
   const { data: settings } = useTreasurySettings();
   const [search, setSearch] = useState('');
   // Category, method or counterparty created from the form.
-  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | null>(null);
+  const [creating, setCreating] = useState<'category' | 'method' | 'counterparty' | 'context' | null>(null);
+  // Line a context is created for.
+  const [contextLine, setContextLine] = useState<number | null>(null);
   const { data: found } = useTreasuryEntrySearch(search);
   const { data: documentOptions } = useTreasuryDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: String(item.date) })));
@@ -346,6 +349,10 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
           categoryId={values.categoryId}
           settings={settings}
           errors={form.errors}
+          onCreateContext={(index) => {
+            setContextLine(index);
+            setCreating('context');
+          }}
         />
 
         <MultiSelect
@@ -510,7 +517,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       <Modal
         opened={creating !== null}
         onClose={() => setCreating(null)}
-        title={creating === 'category' ? 'Nouvelle catégorie' : creating === 'method' ? 'Nouveau moyen de paiement' : 'Nouveau tiers'}
+        title={creating === 'category' ? 'Nouvelle catégorie' : creating === 'method' ? 'Nouveau moyen de paiement' : creating === 'context' ? 'Nouveau contexte' : 'Nouveau tiers'}
       >
         {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
         <div onSubmit={(event) => event.stopPropagation()}>
@@ -520,6 +527,15 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
               categories={categories}
               onDone={(id) => {
                 if (id) form.setFieldValue('categoryId', id);
+                setCreating(null);
+              }}
+            />
+          )}
+          {creating === 'context' && (
+            <ContextForm
+              onDone={(id) => {
+                if (id && contextLine !== null) form.setFieldValue(`lines.${contextLine}.contextId`, id);
+                setContextLine(null);
                 setCreating(null);
               }}
             />

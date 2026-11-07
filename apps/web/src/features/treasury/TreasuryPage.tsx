@@ -263,7 +263,8 @@ export function TreasuryPage() {
     <Modal
       opened={dialog !== null}
       onClose={close}
-      size={dialog?.kind === 'entry' ? 'lg' : 'md'}
+      // An entry has a table of lines (its split).
+      size={dialog?.kind === 'entry' ? '72rem' : 'md'}
       title={
         dialog?.kind === 'account'
           ? dialog.account

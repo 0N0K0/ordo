@@ -115,10 +115,10 @@ function Members() {
 
 /**
  * Context form: name and color.
- * @param {{ context?: TreasuryContext, onDone: () => void }} props Component props.
+ * @param {{ context?: TreasuryContext, onDone: (createdId?: string) => void }} props Component props; the form closes with the id of the context created.
  * @returns {JSX.Element} Form.
  */
-function ContextForm({ context, onDone }: { context?: TreasuryContext; onDone: () => void }) {
+export function ContextForm({ context, onDone }: { context?: TreasuryContext; onDone: (createdId?: string) => void }) {
   const { saveContext } = useTreasuryTeamMutations();
   const swatches = useColorSwatches();
   const form = useAppForm<{ name: string; color: string }>({ initialValues: { name: context?.name ?? '', color: context?.color ?? swatches[0] }, schema: treasuryContextSchema });
@@ -128,7 +128,13 @@ function ContextForm({ context, onDone }: { context?: TreasuryContext; onDone: (
       onSubmit={form.onSubmit((input) =>
         saveContext.mutate(
           { id: context?.id ?? null, input },
-          { onSuccess: () => (notifySuccess(context ? 'Contexte modifié.' : 'Contexte créé.'), onDone()), onError: (error) => showFormError(form, error) },
+          {
+            onSuccess: (id) => {
+              notifySuccess(context ? 'Contexte modifié.' : 'Contexte créé.');
+              onDone(context ? undefined : id);
+            },
+            onError: (error) => showFormError(form, error),
+          },
         ),
       )}
     >
@@ -136,7 +142,7 @@ function ContextForm({ context, onDone }: { context?: TreasuryContext; onDone: (
         <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('name')} />
         <ColorInput label="Couleur" required format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
         <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
+          <Button variant="default" onClick={() => onDone()}>
             Annuler
           </Button>
           <Button type="submit" loading={saveContext.isPending}>
