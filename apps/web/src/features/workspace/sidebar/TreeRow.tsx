@@ -149,7 +149,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
             startEditing();
           }}
         >
-          <EntityAvatar name={label} iconUrl={item.iconUrl} color={item.color} size={22} radius="sm" />
+          <EntityAvatar name={label} iconUrl={item.iconUrl} color={item.color} size={22} radius="sm" contain={!isProject} />
           <span className={classes.name}>
             <span>{label}</span>
             {subtitle && <span className={classes.subtitle}>{subtitle}</span>}

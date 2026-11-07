@@ -28,7 +28,7 @@ export function EntityHeader({
   return (
     <Group justify="space-between" align="flex-start" gap="md">
       <Group gap="md" wrap="nowrap" style={{ minWidth: 0 }}>
-        <EntityAvatar name={label} iconUrl={item.iconUrl} color={item.color} size="xl" radius="md" />
+        <EntityAvatar name={label} iconUrl={item.iconUrl} color={item.color} size="xl" radius="md" contain={entity.type === 'client'} />
         <Stack gap={4} style={{ minWidth: 0 }}>
           <Group gap="xs">
             <Title order={1} size="h2">

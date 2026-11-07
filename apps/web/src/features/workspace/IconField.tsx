@@ -12,6 +12,8 @@ export interface IconValue {
 }
 
 interface IconFieldProps {
+  /** Whole image shown, not cropped (client logos). */
+  contain?: boolean;
   value: IconValue;
   onChange: (value: IconValue) => void;
   /** Icon currently stored. */
@@ -27,7 +29,7 @@ interface IconFieldProps {
  * @param {IconFieldProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function IconField({ value, onChange, currentUrl, name, color, error }: IconFieldProps) {
+export function IconField({ value, onChange, currentUrl, name, color, error, contain }: IconFieldProps) {
   const [localError, setLocalError] = useState<string | null>(null);
   const previewUrl = useMemo(() => (value.file ? URL.createObjectURL(value.file) : null), [value.file]);
 
@@ -59,7 +61,7 @@ export function IconField({ value, onChange, currentUrl, name, color, error }: I
   return (
     <Input.Wrapper label="Icône" error={localError ?? error}>
       <Group gap="md" mt={4}>
-        <EntityAvatar name={name || '?'} iconUrl={shownUrl} color={color} size="lg" radius="md" />
+        <EntityAvatar name={name || '?'} iconUrl={shownUrl} color={color} size="lg" radius="md" contain={contain} />
         <Stack gap={4}>
           <Group gap="xs">
             <FileButton onChange={handleFile} accept={ICON_MIME_TYPES.join(',')}>

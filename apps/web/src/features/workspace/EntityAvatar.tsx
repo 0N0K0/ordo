@@ -4,6 +4,8 @@ interface EntityAvatarProps extends Omit<AvatarProps, 'src' | 'name' | 'color'> 
   name: string;
   iconUrl: string | null;
   color?: string | null;
+  /** Whole image shown, fitted (client logos), rather than cropped to fill. */
+  contain?: boolean;
 }
 
 /**
@@ -12,9 +14,10 @@ interface EntityAvatarProps extends Omit<AvatarProps, 'src' | 'name' | 'color'> 
  * @param {string} props.name Entity name.
  * @param {string | null} props.iconUrl Uploaded icon URL.
  * @param {string | null} [props.color] Entity color. Optional.
+ * @param {boolean} [props.contain] Whole image shown, not cropped. Optional.
  * @returns {JSX.Element} Avatar.
  */
-export function EntityAvatar({ name, iconUrl, color, ...props }: EntityAvatarProps) {
+export function EntityAvatar({ name, iconUrl, color, contain, ...props }: EntityAvatarProps) {
   return (
     <Avatar
       src={iconUrl}
@@ -22,6 +25,7 @@ export function EntityAvatar({ name, iconUrl, color, ...props }: EntityAvatarPro
       color={color ?? 'initials'}
       alt=""
       imageProps={{ draggable: false }}
+      styles={contain ? { image: { objectFit: 'contain' } } : undefined}
       {...props}
     />
   );
