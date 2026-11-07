@@ -47,6 +47,7 @@ import { confirmDeletion } from './confirm-deletion';
 import { EntriesPanel } from './EntriesPanel';
 import { EntryForm } from './EntryForm';
 import { SettingsPanel } from './SettingsPanel';
+import { BudgetsPanel } from './BudgetsPanel';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -421,6 +422,7 @@ export function TreasuryPage() {
         <Tabs.List>
           <Tabs.Tab value="forecast">Prévisionnel</Tabs.Tab>
           <Tabs.Tab value="entries">Mouvements</Tabs.Tab>
+          <Tabs.Tab value="budgets">Budgets</Tabs.Tab>
           <Tabs.Tab value="accounts">Comptes</Tabs.Tab>
           <Tabs.Tab value="settings" leftSection={<GearIcon aria-hidden />}>
             Paramètres
@@ -555,6 +557,10 @@ export function TreasuryPage() {
 
         <Tabs.Panel value="entries" pt="md">
           <EntriesPanel accounts={accounts} onEdit={(entry) => setDialog({ kind: 'entry', entry })} />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="budgets" pt="md">
+          <BudgetsPanel />
         </Tabs.Panel>
 
         <Tabs.Panel value="accounts" pt="md">

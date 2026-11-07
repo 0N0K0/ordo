@@ -9,6 +9,7 @@ import type {
   TreasuryDocumentOptionsQuery,
   TreasuryProjectionQuery,
   TreasurySettingsQuery,
+  TreasuryBudgetsQuery,
 } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 import { accountingQueryKey } from '../accounting/api';
@@ -526,5 +527,71 @@ export function useTreasuryTeamMutations() {
         (await execute(SaveContextPeriod, variables)).saveTreasuryContextPeriod,
     ),
     deleteContextPeriod: useTreasuryMutation(async (id: string) => (await execute(DeleteContextPeriod, { id })).deleteTreasuryContextPeriod),
+  };
+}
+
+const BudgetsDocument = graphql(`
+  query TreasuryBudgets($from: String!, $to: String!) {
+    treasuryBudgets {
+      id
+      month
+      memberId
+      contextId
+      categoryId
+      amount
+      repeatEvery
+      repeatUntil
+    }
+    treasuryBudgetReport(from: $from, to: $to) {
+      month
+      memberId
+      contextId
+      categoryId
+      budget
+      actual
+      forecast
+      budgeted
+    }
+  }
+`);
+
+const SaveBudget = graphql(`
+  mutation SaveTreasuryBudget($id: ID, $input: TreasuryBudgetInput!) {
+    saveTreasuryBudget(id: $id, input: $input)
+  }
+`);
+
+const DeleteBudget = graphql(`
+  mutation DeleteTreasuryBudget($id: ID!) {
+    deleteTreasuryBudget(id: $id)
+  }
+`);
+
+export type TreasuryBudget = TreasuryBudgetsQuery['treasuryBudgets'][number];
+export type BudgetReportRow = TreasuryBudgetsQuery['treasuryBudgetReport'][number];
+
+/**
+ * Budgets, and their comparison with the movements of a range of months.
+ * @param {string} from First month (YYYY-MM).
+ * @param {string} to Last month (YYYY-MM).
+ * @returns {UseQueryResult<TreasuryBudgetsQuery>} Query state.
+ */
+export function useTreasuryBudgets(from: string, to: string) {
+  return useQuery({ queryKey: [...treasuryKey, 'budgets', from, to], queryFn: () => execute(BudgetsDocument, { from, to }), placeholderData: (previous) => previous });
+}
+
+/**
+ * Budgets creation, change and deletion.
+ * @returns {object} Mutations.
+ */
+export function useTreasuryBudgetMutations() {
+  return {
+    save: useTreasuryMutation(
+      async (variables: {
+        id: string | null;
+        input: { month: string; memberId: string | null; contextId: string | null; categoryId: string; amount: number; repeatEvery: number | null; repeatUntil: string | null };
+      }) => (await execute(SaveBudget, variables)).saveTreasuryBudget,
+    ),
+    remove: useTreasuryMutation(async (id: string) => (await execute(DeleteBudget, { id })).deleteTreasuryBudget),
   };
 }

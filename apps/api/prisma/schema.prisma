@@ -66,6 +66,7 @@ model Workspace {
   treasuryEntryLines      TreasuryEntryLine[]
   treasuryContexts        TreasuryContext[]
   treasuryContextPeriods  TreasuryContextPeriod[]
+  treasuryBudgets         TreasuryBudget[]
   calendarEvents          CalendarEvent[]
   calendarEventExceptions CalendarEventException[]
   workSchedules           WorkSchedule[]
@@ -349,30 +350,31 @@ model ProjectStatus {
 
 /// Person who can be assigned to tasks.
 model Contributor {
-  id            String              @id @default(cuid())
-  name          String
+  id              String              @id @default(cuid())
+  name            String
   /// Unique identifier used in @mentions.
-  handle        String
-  iconId        String?
-  icon          Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  createdAt     DateTime            @default(now())
-  tasks         Task[]
+  handle          String
+  iconId          String?
+  icon            Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  createdAt       DateTime            @default(now())
+  tasks           Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
-  projects      Project[]           @relation("ProjectContributors")
-  events        CalendarEvent[]
+  projects        Project[]           @relation("ProjectContributors")
+  events          CalendarEvent[]
   /// Set when this contributor is the app user ("Moi").
-  userId        String?
-  user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId          String?
+  user            User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
-  githubLogin   String?
+  githubLogin     String?
   /// Member of the team (professional workspace) or household (personal one): treasury entries are split
   /// between members. The app user ("Moi") always is one.
-  teamMember    Boolean             @default(false)
+  teamMember      Boolean             @default(false)
   /// Lines of treasury entries that are theirs.
-  treasuryLines TreasuryEntryLine[]
+  treasuryLines   TreasuryEntryLine[]
+  treasuryBudgets TreasuryBudget[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId   String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, handle])
   @@unique([workspaceId, githubLogin])
@@ -1692,11 +1694,40 @@ model TreasuryContext {
   createdAt   DateTime                @default(now())
   periods     TreasuryContextPeriod[]
   lines       TreasuryEntryLine[]
+  budgets     TreasuryBudget[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String                  @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, name])
+}
+
+/// Budget of a month for a member (none: the app user), a context (none: everyday spending) and a category (it
+/// covers its sub-categories that have none of their own); possibly repeated every n months.
+model TreasuryBudget {
+  id          String           @id @default(cuid())
+  /// First day of its (first) month.
+  month       DateTime         @db.Date
+  memberId    String?
+  member      Contributor?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  contextId   String?
+  context     TreasuryContext? @relation(fields: [contextId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    TreasuryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  /// Positive: money out (or in) allowed for the category, each month.
+  amount      Decimal          @db.Decimal(14, 2)
+  /// Repeated every n months (none: that month only), until a month included (none: no end).
+  repeatEvery Int?
+  repeatUntil DateTime?        @db.Date
+  createdAt   DateTime         @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String           @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, month])
+  @@index([memberId])
+  @@index([contextId])
+  @@index([categoryId])
 }
 
 /// Period a context is planned for: the lines of the entries dated in it get that context proposed.
@@ -1741,6 +1772,7 @@ model TreasuryCategory {
   createdAt   DateTime            @default(now())
   entries     TreasuryEntry[]
   lines       TreasuryEntryLine[]
+  budgets     TreasuryBudget[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

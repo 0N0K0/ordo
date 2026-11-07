@@ -1268,6 +1268,9 @@ type Mutation {
   deleteTaskView(id: ID!): Boolean!
   deleteTimeEntry(id: ID!): Boolean!
   deleteTreasuryAccount(id: ID!): Boolean!
+
+  """Deletes a budget and its repetitions."""
+  deleteTreasuryBudget(id: ID!): Boolean!
   deleteTreasuryCategory(id: ID!): Boolean!
 
   """Deletes a context and its periods; its lines become everyday spending."""
@@ -1397,6 +1400,9 @@ type Mutation {
   Saves a draft in the drafts folder of its account, replacing its previous version.
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
+
+  """Creates a budget (without id), or changes one and its repetitions."""
+  saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
 
   """Creates a context (without id) or changes one."""
   saveTreasuryContext(id: ID, input: TreasuryContextInput!): ID!
@@ -1836,6 +1842,12 @@ type Query {
   """
   todoMailCount: Int!
   treasuryAccounts: [TreasuryAccount!]!
+
+  """
+  Budgets of a range of months compared with the actual and forecast movements, and what is out of budget.
+  """
+  treasuryBudgetReport(from: String!, to: String!): [TreasuryBudgetReportRow!]!
+  treasuryBudgets: [TreasuryBudget!]!
   treasuryCategories: [TreasuryCategory!]!
   treasuryContextPeriods: [TreasuryContextPeriod!]!
   treasuryContexts: [TreasuryContext!]!
@@ -2299,6 +2311,61 @@ type TreasuryBalancePoint {
   balance: Float!
   date: String!
   forecast: Boolean!
+}
+
+"""
+Budget of a month (possibly repeated) for a member (none: the app user), a context (none: everyday) and a category.
+"""
+type TreasuryBudget {
+  amount: Float!
+  categoryId: ID!
+  contextId: ID
+  id: ID!
+  memberId: ID
+
+  """First month, YYYY-MM."""
+  month: String!
+
+  """Every n months; none: that month only."""
+  repeatEvery: Int
+
+  """Last month, YYYY-MM; none: no end."""
+  repeatUntil: String
+}
+
+input TreasuryBudgetInput {
+  amount: Float!
+  categoryId: ID!
+  contextId: ID
+  memberId: ID
+
+  """YYYY-MM."""
+  month: String!
+  repeatEvery: Int
+
+  """YYYY-MM."""
+  repeatUntil: String
+}
+
+"""
+A budget of a month and the movements it covers, or what is out of budget.
+"""
+type TreasuryBudgetReportRow {
+  """Signed sum of the actual movements."""
+  actual: Float!
+
+  """Positive."""
+  budget: Float!
+
+  """False: out of budget."""
+  budgeted: Boolean!
+  categoryId: ID
+  contextId: ID
+
+  """Signed sum of the forecast movements."""
+  forecast: Float!
+  memberId: ID!
+  month: String!
 }
 
 type TreasuryCategory {
