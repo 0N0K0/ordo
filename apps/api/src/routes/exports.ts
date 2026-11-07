@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
+import { calendarIcs } from '../services/calendar-ics';
 import { calendarPdf } from '../services/calendar-pdf';
 import { chartsPdf } from '../services/charts-pdf';
 import { tablePdf } from '../services/table-pdf';
@@ -52,6 +53,32 @@ exportsRouter.post('/charts.pdf', express.json({ limit: '50mb' }), async (req, r
     if (error instanceof GraphQLError && error.extensions.code === 'BAD_USER_INPUT') res.status(400).json({ error: error.message });
     else {
       console.error('Export PDF impossible.', error);
+      res.sendStatus(500);
+    }
+  }
+});
+
+// iCalendar file of a calendar of the workspace (?calendar=<id>), or of all of them, downloaded.
+exportsRouter.get('/calendar.ics', async (req, res) => {
+  if (!(await getSession(req, res))) {
+    res.sendStatus(401);
+    return;
+  }
+  try {
+    const calendarId = typeof req.query.calendar === 'string' && req.query.calendar ? req.query.calendar : null;
+    const { name, content } = await calendarIcs(calendarId);
+    const filename = `${name.replace(/[\\/:*?"<>|]/g, '-')}.ics`;
+    res.set({
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.send(content);
+  } catch (error) {
+    if (error instanceof GraphQLError && error.extensions.code === 'NOT_FOUND') res.sendStatus(404);
+    else {
+      console.error('Export ICS impossible.', error);
       res.sendStatus(500);
     }
   }

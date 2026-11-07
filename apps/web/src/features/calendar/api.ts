@@ -460,3 +460,12 @@ export function useMaterializeTaskOccurrences() {
     },
   });
 }
+
+/**
+ * Address of the iCalendar file of a calendar of the workspace, or of all of them (downloaded with the session).
+ * @param {string | null} calendarId Calendar, or null for every calendar.
+ * @returns {string} URL.
+ */
+export function calendarIcsUrl(calendarId: string | null): string {
+  return `/api/exports/calendar.ics${calendarId ? `?calendar=${encodeURIComponent(calendarId)}` : ''}`;
+}

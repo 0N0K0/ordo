@@ -7,7 +7,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Checkbox, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, plannedSlots } from '@ordo/shared';
-import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
@@ -20,6 +20,7 @@ import { useTimeEntriesSince } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useTimeEntryDialogs } from '../time/use-time-dialogs';
 import {
+  calendarIcsUrl,
   scheduleRules,
   useCalendarCategories,
   useCalendarEventMutations,
@@ -412,6 +413,11 @@ export function CalendarPage() {
           <Tooltip label="Exporter la vue en PDF (pour l’imprimer)">
             <ActionIcon variant="default" size="lg" aria-label="Exporter la vue en PDF" loading={exporting} disabled={!range} onClick={() => void exportPdf()}>
               <FilePdfIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Exporter les calendriers de l’espace (.ics), pour un autre agenda">
+            <ActionIcon component="a" href={calendarIcsUrl(null)} download variant="default" size="lg" aria-label="Exporter les calendriers (.ics)">
+              <DownloadSimpleIcon aria-hidden />
             </ActionIcon>
           </Tooltip>
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
