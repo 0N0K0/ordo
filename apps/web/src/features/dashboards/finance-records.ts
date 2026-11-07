@@ -369,7 +369,8 @@ export function treasuryChartData({
     const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
     const own: Part[] = entry.lines.map((line, index) => ({
       id: `line:${line.id}`,
-      movement: { ...base, ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, relationId: line.relationId ?? null, contextId: line.contextId ?? null },
+      // A line of its own day (deferred debit card) counts that day.
+      movement: { ...base, ...(line.date ? { date: String(line.date) } : {}), ...category(line.categoryId ?? null), amount: amounts[index] / 100, projectId: line.projectId ?? null, memberId: line.memberId ?? null, relationId: line.relationId ?? null, contextId: line.contextId ?? null },
       linkedIds: [...line.linkedLines.map((linked) => `line:${linked.id}`), ...line.linkedEntries.map((linked) => `entry:${linked.id}`)],
     }));
     if (remainder !== 0 || !entry.lines.length) {

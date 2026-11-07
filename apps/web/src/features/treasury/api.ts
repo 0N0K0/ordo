@@ -10,6 +10,7 @@ import type {
   TreasuryProjectionQuery,
   TreasurySettingsQuery,
   TreasuryBudgetsQuery,
+  TreasuryLoansQuery,
 } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 import { accountingQueryKey } from '../accounting/api';
@@ -69,6 +70,8 @@ graphql(`
       value
       memberId
       relationId
+      loan
+      date
       categoryId
       contextId
       projectId
@@ -142,6 +145,7 @@ const AccountsDocument = graphql(`
       openingBalance
       openingDate
       archived
+      csvMapping
       entryCount
       balance
     }
@@ -629,4 +633,49 @@ export function useTreasuryBudgetMutations() {
     ),
     remove: useTreasuryMutation(async (id: string) => (await execute(DeleteBudget, { id })).deleteTreasuryBudget),
   };
+}
+
+const LoansDocument = graphql(`
+  query TreasuryLoans {
+    treasuryLoans {
+      relationId
+      balance
+      out
+      in
+      items {
+        lineId
+        entryId
+        date
+        label
+        amount
+      }
+    }
+  }
+`);
+
+const ImportStatement = graphql(`
+  mutation ImportTreasuryStatement($accountId: ID!, $mapping: JSON, $rows: [TreasuryStatementRowInput!]!) {
+    importTreasuryStatement(accountId: $accountId, mapping: $mapping, rows: $rows)
+  }
+`);
+
+export type RelationLoans = TreasuryLoansQuery['treasuryLoans'][number];
+
+/**
+ * Loans with the relations, both ways.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTreasuryLoans() {
+  return useQuery({ queryKey: [...treasuryKey, 'loans'], queryFn: async () => (await execute(LoansDocument)).treasuryLoans });
+}
+
+/**
+ * Import of the operations of a bank statement (new entries, or forecasts realized).
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useImportStatement() {
+  return useTreasuryMutation(
+    async (variables: { accountId: string; mapping: unknown; rows: { date: string; label: string; amount: number; forecastId: string | null; occurrence: string | null }[] }) =>
+      (await execute(ImportStatement, variables)).importTreasuryStatement as { created: number; realized: number },
+  );
 }

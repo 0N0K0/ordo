@@ -13,6 +13,10 @@ export interface LineValues {
   memberId: string | null;
   /** Relation it is for, instead of a member. */
   relationId: string | null;
+  /** Loan with the relation (money out lends or repays, money in borrows or is repaid). */
+  loan: boolean;
+  /** Own day (a purchase paid by a deferred debit card); none: the day of the entry. */
+  date: string | null;
   categoryId: string | null;
   contextId: string | null;
   projectId: string | null;
@@ -40,7 +44,8 @@ export interface LineLink {
  * @param {LineValues} line Line.
  * @returns {number} Count.
  */
-export const attachmentCount = (line: LineValues) => (line.projectId ? 1 : 0) + line.libraryDocumentIds.length + line.projectResourceIds.length + line.links.length;
+export const attachmentCount = (line: LineValues) =>
+  (line.projectId ? 1 : 0) + (line.loan ? 1 : 0) + (line.date ? 1 : 0) + line.libraryDocumentIds.length + line.projectResourceIds.length + line.links.length;
 
 /**
  * New line.
@@ -55,6 +60,8 @@ export function newLine(fields: Partial<LineValues>): LineValues {
     value: 0,
     memberId: null,
     relationId: null,
+    loan: false,
+    date: null,
     categoryId: null,
     contextId: null,
     projectId: null,

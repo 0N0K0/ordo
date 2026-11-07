@@ -155,7 +155,14 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                           searchable
                           data={whomOptions}
                           value={line.relationId ? `r:${line.relationId}` : line.memberId ? `m:${line.memberId}` : null}
-                          onChange={(key) => change(index, { memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+                          onChange={(key) =>
+                            // A loan is with a relation only.
+                            change(index, {
+                              memberId: key?.startsWith('m:') ? key.slice(2) : null,
+                              relationId: key?.startsWith('r:') ? key.slice(2) : null,
+                              loan: key?.startsWith('r:') ? line.loan : false,
+                            })
+                          }
                           error={error('memberId') ?? error('relationId')}
                         />
                         <Tooltip label="Nouvelle relation (ami, famille…)">

@@ -6,6 +6,8 @@ import * as tracking from '../../services/document-tracking';
 import * as treasury from '../../services/treasury';
 import * as settings from '../../services/treasury-settings';
 import * as budgets from '../../services/treasury-budgets';
+import * as statements from '../../services/treasury-import';
+import * as loans from '../../services/treasury-loans';
 import * as team from '../../services/treasury-team';
 import { meContributorId } from '../../services/workspaces';
 import { builder } from '../builder';
@@ -56,6 +58,8 @@ builder.prismaObject('TreasuryEntryLine', {
     value: t.float({ description: 'Signed amount, or signed percentage of the entry amount.', resolve: (line) => Number(line.value) }),
     memberId: t.exposeID('memberId', { nullable: true }),
     relationId: t.exposeID('relationId', { nullable: true, description: 'Relation it is for, instead of a member.' }),
+    loan: t.exposeBoolean('loan', { description: 'Loan with the relation: money out lends (or repays), money in borrows (or is repaid).' }),
+    date: t.expose('date', { type: 'Date', nullable: true, description: 'Own day of the line (deferred debit card); none: the day of the entry.' }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     contextId: t.exposeID('contextId', { nullable: true }),
   }),
@@ -114,6 +118,37 @@ const BudgetReportRowRef = builder.objectRef<budgets.BudgetReportRow>('TreasuryB
     actual: t.float({ description: 'Signed sum of the actual movements.', resolve: (row) => fromCents(row.actual) }),
     forecast: t.float({ description: 'Signed sum of the forecast movements.', resolve: (row) => fromCents(row.forecast) }),
     budgeted: t.exposeBoolean('budgeted', { description: 'False: out of budget.' }),
+  }),
+});
+
+const LoanItemRef = builder.objectRef<loans.LoanItem>('TreasuryLoanItem').implement({
+  fields: (t) => ({
+    lineId: t.exposeID('lineId'),
+    entryId: t.exposeID('entryId'),
+    date: t.exposeString('date'),
+    label: t.exposeString('label'),
+    amount: t.exposeFloat('amount', { description: 'Negative: money out (lent, or a debt repaid).' }),
+  }),
+});
+
+const RelationLoansRef = builder.objectRef<loans.RelationLoans>('TreasuryRelationLoans').implement({
+  description: 'Loans with a relation, both ways.',
+  fields: (t) => ({
+    relationId: t.exposeID('relationId'),
+    balance: t.exposeFloat('balance', { description: 'What the relation owes (positive) or is owed (negative).' }),
+    out: t.exposeFloat('out', { description: 'Money out to them: lent, or debts repaid.' }),
+    in: t.exposeFloat('in', { description: 'Money in from them: borrowed, or loans repaid back.' }),
+    items: t.field({ type: [LoanItemRef], resolve: (row) => row.items }),
+  }),
+});
+
+const StatementRowInput = builder.inputType('TreasuryStatementRowInput', {
+  fields: (t) => ({
+    date: t.field({ type: 'Date', required: true }),
+    label: t.string({ required: true }),
+    amount: t.float({ required: true }),
+    forecastId: t.id({ description: 'Forecast it realizes.' }),
+    occurrence: t.field({ type: 'Date', description: 'Occurrence of a repeated forecast it realizes.' }),
   }),
 });
 
@@ -424,6 +459,7 @@ builder.prismaObject('TreasuryAccount', {
     openingBalance: t.float({ resolve: (account) => Number(account.openingBalance) }),
     openingDate: t.expose('openingDate', { type: 'Date' }),
     archived: t.exposeBoolean('archived'),
+    csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
     entryCount: t.relationCount('entries'),
     balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, today())) }),
   }),
@@ -574,6 +610,8 @@ const LineInput = builder.inputType('TreasuryEntryLineInput', {
     id: t.id({ description: 'Line kept (its links from other entries stay); none for a new line.' }),
     label: t.string(),
     relationId: t.id({ description: 'Relation it is for, instead of a member.' }),
+    loan: t.boolean(),
+    date: t.field({ type: 'Date' }),
     mode: t.field({ type: LineModeEnum, required: true }),
     value: t.float({ required: true }),
     memberId: t.id(),
@@ -673,6 +711,8 @@ const entryInput = (input: typeof EntryInput.$inferInput): TreasuryEntryInput =>
   lines: (input.lines ?? []).map((line) => ({
     id: line.id ?? null,
     relationId: line.relationId ?? null,
+    loan: line.loan ?? false,
+    date: line.date ?? null,
     projectId: line.projectId ?? null,
     libraryDocumentIds: line.libraryDocumentIds ?? [],
     projectResourceIds: line.projectResourceIds ?? [],
@@ -720,6 +760,11 @@ builder.queryFields((t) => ({
     type: ['TreasuryRelation'],
     description: 'People out of the team or household, by name.',
     resolve: (query) => prisma.treasuryRelation.findMany({ ...query, orderBy: { name: 'asc' } }),
+  }),
+  treasuryLoans: t.field({
+    type: [RelationLoansRef],
+    description: 'Loans with the relations, both ways (actual lines marked as loans).',
+    resolve: () => loans.relationLoans(),
   }),
   treasuryContexts: t.prismaField({
     type: ['TreasuryContext'],
@@ -885,6 +930,17 @@ builder.mutationFields((t) => ({
       await team.deleteRelation(id);
       return true;
     },
+  }),
+  importTreasuryStatement: t.field({
+    type: 'JSON',
+    description: 'Creates the operations of a bank statement in an account (or realizes their forecasts); keeps the column mapping.',
+    args: { accountId: t.arg.id({ required: true }), mapping: t.arg({ type: 'JSON' }), rows: t.arg({ type: [StatementRowInput], required: true }) },
+    resolve: (_root, { accountId, mapping, rows }) =>
+      statements.importStatement({
+        accountId,
+        mapping: (mapping ?? null) as never,
+        rows: rows.map((row) => ({ ...row, forecastId: row.forecastId ?? null, occurrence: row.occurrence ?? null })),
+      }),
   }),
   saveTreasuryContext: t.id({
     description: 'Creates a context (without id) or changes one.',

@@ -1,4 +1,4 @@
-import { addDays, formatDay, formatMoney, offsetLinkedMovements, parseDay, toCents } from '@ordo/shared';
+import { addDays, formatDay, formatMoney, offsetLinkedMovements, parseDay, splitAmounts, toCents } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
@@ -54,7 +54,7 @@ interface Column {
 /**
  * PDF (A4 landscape) statement of the actual entries of a period, of one account or all: opening balance,
  * entries by execution date with payer or payee, category, method, documents settled, linked entries and
- * supporting documents,
+ * supporting documents, their split under them (a muted row per line, and what the lines leave),
  * money out, money in and running balance, a subtotal per month over several months, and the closing balance.
  * Forecasts are left out. The running balance only counts an entry from the opening date of its account, and
  * an account opened during the period adds its opening balance that day.
@@ -82,6 +82,21 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
       linkedBy: { select: { id: true, label: true } },
       libraryDocuments: { select: { title: true } },
       projectResources: { select: { title: true } },
+      lines: {
+        orderBy: { position: 'asc' },
+        select: {
+          label: true,
+          mode: true,
+          value: true,
+          categoryId: true,
+          loan: true,
+          date: true,
+          member: { select: { name: true } },
+          relation: { select: { name: true } },
+          context: { select: { name: true } },
+          project: { select: { title: true } },
+        },
+      },
     },
     orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
   });
@@ -327,6 +342,55 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
         .text(details, xs[labelIndex] + PAD, labelTop, { width: fixed[labelIndex].width - 2 * PAD });
     }
     y += height;
+    // Split: one muted row per line (and what they leave), under the entry, without balance.
+    if (entry.lines.length) {
+      const split = splitAmounts(
+        Number(entry.amount),
+        entry.lines.map((line) => ({ mode: line.mode, value: Number(line.value) })),
+      );
+      const parts = [
+        ...entry.lines.map((line, lineIndex) => ({
+          text:
+            [
+              line.label ?? '',
+              line.relation ? `pour ${line.relation.name}` : line.member ? `pour ${line.member.name}` : '',
+              line.context?.name ?? '',
+              line.project ? `projet ${line.project.title}` : '',
+              line.loan ? 'prêt' : '',
+              line.date ? `le ${printed(formatDay(line.date))}` : '',
+            ]
+              .filter(Boolean)
+              .join(' · ') || 'Ligne',
+          category: categoryPath(line.categoryId),
+          amount: split.amounts[lineIndex],
+        })),
+        ...(split.remainder ? [{ text: 'Non réparti', category: '', amount: split.remainder }] : []),
+      ];
+      for (const part of parts) {
+        const subCells = cells.map((_, cellIndex) => {
+          const column = fixed[cellIndex];
+          if (cellIndex === labelIndex) return `↳ ${part.text}`;
+          if (column.label === 'Catégorie') return part.category;
+          if (column.label === 'Débit') return part.amount < 0 ? money(-part.amount) : '';
+          if (column.label === 'Crédit') return part.amount > 0 ? money(part.amount) : '';
+          return '';
+        });
+        doc.font('regular').fontSize(FONT_SIZE - 1);
+        const subHeight = Math.max(...subCells.map((text, cellIndex) => doc.heightOfString(text, { width: fixed[cellIndex].width - 2 * PAD - (cellIndex === labelIndex ? 8 : 0) }))) + PAD;
+        ensure(subHeight);
+        subCells.forEach((text, cellIndex) => {
+          if (!text) return;
+          const column = fixed[cellIndex];
+          const indent = cellIndex === labelIndex ? 8 : 0;
+          doc
+            .font('regular')
+            .fontSize(FONT_SIZE - 1)
+            .fillColor(COLORS.muted)
+            .text(text, xs[cellIndex] + PAD + indent, y + PAD / 2, { width: column.width - 2 * PAD - indent, align: column.align });
+        });
+        y += subHeight;
+      }
+    }
     doc
       .moveTo(MARGIN, y)
       .lineTo(MARGIN + pageWidth, y)
