@@ -398,6 +398,10 @@ builder.queryFields((t) => ({
     args: { accountId: t.arg.id({ required: true }), folder: t.arg.string({ required: true }), uid: t.arg.int({ required: true }) },
     resolve: (_root, { accountId, folder, uid }) => drafts.readDraft(accountId, folder, uid),
   }),
+  todoMailCount: t.int({
+    description: 'Mails to do (not marked as done) in the inbox of every account.',
+    resolve: () => reader.todoInboxes(),
+  }),
   unreadMailCount: t.int({
     description: 'Unread mails in the inbox of every account.',
     resolve: () => reader.unreadInboxes(),

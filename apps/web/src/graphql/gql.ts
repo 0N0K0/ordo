@@ -149,6 +149,7 @@ type Documents = {
     "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String, $sort: String, $ascending: Boolean) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread, state: $state, sort: $sort, ascending: $ascending) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n        labelIds\n        done\n      }\n    }\n  }\n": typeof types.MailMessagesDocument,
     "\n  query MailMessage($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailMessage(accountId: $accountId, folder: $folder, uid: $uid) {\n      ...MailViewFields\n    }\n  }\n": typeof types.MailMessageDocument,
     "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n": typeof types.UnreadMailCountDocument,
+    "\n  query TodoMailCount {\n    todoMailCount\n  }\n": typeof types.TodoMailCountDocument,
     "\n  query ProjectMails($projectId: ID!) {\n    projectMails(projectId: $projectId) {\n      ...LinkedMailFields\n    }\n  }\n": typeof types.ProjectMailsDocument,
     "\n  mutation TestMailAccount($input: MailAccountInput!, $id: ID) {\n    testMailAccount(input: $input, id: $id)\n  }\n": typeof types.TestMailAccountDocument,
     "\n  mutation CreateMailAccount($input: MailAccountInput!) {\n    createMailAccount(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateMailAccountDocument,
@@ -444,6 +445,7 @@ const documents: Documents = {
     "\n  query MailMessages($accountId: ID!, $folder: String!, $page: Int!, $search: String, $unread: Boolean, $state: String, $sort: String, $ascending: Boolean) {\n    mailMessages(accountId: $accountId, folder: $folder, page: $page, search: $search, unread: $unread, state: $state, sort: $sort, ascending: $ascending) {\n      total\n      pageSize\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n        to {\n          name\n          address\n        }\n        date\n        seen\n        flagged\n        hasAttachments\n        labelIds\n        done\n      }\n    }\n  }\n": types.MailMessagesDocument,
     "\n  query MailMessage($accountId: ID!, $folder: String!, $uid: Int!) {\n    mailMessage(accountId: $accountId, folder: $folder, uid: $uid) {\n      ...MailViewFields\n    }\n  }\n": types.MailMessageDocument,
     "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n": types.UnreadMailCountDocument,
+    "\n  query TodoMailCount {\n    todoMailCount\n  }\n": types.TodoMailCountDocument,
     "\n  query ProjectMails($projectId: ID!) {\n    projectMails(projectId: $projectId) {\n      ...LinkedMailFields\n    }\n  }\n": types.ProjectMailsDocument,
     "\n  mutation TestMailAccount($input: MailAccountInput!, $id: ID) {\n    testMailAccount(input: $input, id: $id)\n  }\n": types.TestMailAccountDocument,
     "\n  mutation CreateMailAccount($input: MailAccountInput!) {\n    createMailAccount(input: $input) {\n      id\n    }\n  }\n": types.CreateMailAccountDocument,
@@ -1141,6 +1143,10 @@ export function graphql(source: "\n  query MailMessage($accountId: ID!, $folder:
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query UnreadMailCount {\n    unreadMailCount\n  }\n"): typeof import('./graphql').UnreadMailCountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TodoMailCount {\n    todoMailCount\n  }\n"): typeof import('./graphql').TodoMailCountDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -1657,6 +1657,11 @@ export type UnreadMailCountQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type UnreadMailCountQuery = { unreadMailCount: number };
 
+export type TodoMailCountQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TodoMailCountQuery = { todoMailCount: number };
+
 export type ProjectMailsQueryVariables = Exact<{
   projectId: string | number;
 }>;
@@ -4630,6 +4635,11 @@ export const UnreadMailCountDocument = new TypedDocumentString(`
   unreadMailCount
 }
     `) as unknown as TypedDocumentString<UnreadMailCountQuery, UnreadMailCountQueryVariables>;
+export const TodoMailCountDocument = new TypedDocumentString(`
+    query TodoMailCount {
+  todoMailCount
+}
+    `) as unknown as TypedDocumentString<TodoMailCountQuery, TodoMailCountQueryVariables>;
 export const ProjectMailsDocument = new TypedDocumentString(`
     query ProjectMails($projectId: ID!) {
   projectMails(projectId: $projectId) {

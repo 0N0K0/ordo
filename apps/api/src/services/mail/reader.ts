@@ -191,6 +191,31 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
 }
 
 /**
+ * Mails to do (not marked as done) in the inbox of every account, for the sidebar.
+ * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
+ */
+export async function todoInboxes(): Promise<number> {
+  const accounts = await prisma.mailAccount.findMany({ select: { id: true } });
+  const counts = await Promise.all(
+    accounts.map(async ({ id }) => {
+      const marks = new Set((await prisma.mailMark.findMany({ where: { accountId: id, done: true }, select: { messageId: true } })).map((mark) => mark.messageId));
+      return withImap(id, async (client) => {
+        const lock = await client.getMailboxLock('INBOX');
+        try {
+          if (takesKeywords(client)) return (((await client.search({ unKeyword: DONE_KEYWORD }, { uid: true })) || []) as number[]).length;
+          const uids = ((await client.search({ all: true }, { uid: true })) || []) as number[];
+          const ids = marks.size ? await messageIdsOf(client, uids) : new Map<number, string>();
+          return uids.filter((uid) => !marks.has(ids.get(uid) ?? '')).length;
+        } finally {
+          lock.release();
+        }
+      }).catch(() => 0);
+    }),
+  );
+  return counts.reduce((sum, count) => sum + count, 0);
+}
+
+/**
  * Unread messages in the inbox of every account, for the sidebar.
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */

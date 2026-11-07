@@ -185,6 +185,12 @@ const UnreadMailCountDocument = graphql(`
   }
 `);
 
+const TodoMailCountDocument = graphql(`
+  query TodoMailCount {
+    todoMailCount
+  }
+`);
+
 const ProjectMailsDocument = graphql(`
   query ProjectMails($projectId: ID!) {
     projectMails(projectId: $projectId) {
@@ -692,6 +698,21 @@ export function useUnreadMailCount(enabled: boolean) {
   return useQuery({
     queryKey: [...mailQueryKey, 'unread'],
     queryFn: async () => (await execute(UnreadMailCountDocument)).unreadMailCount,
+    enabled,
+    refetchInterval: 120_000,
+    retry: false,
+  });
+}
+
+/**
+ * Mails to do in every inbox, for the sidebar (refreshed every two minutes).
+ * @param {boolean} enabled Whether accounts exist.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useTodoMailCount(enabled: boolean) {
+  return useQuery({
+    queryKey: [...mailQueryKey, 'todo'],
+    queryFn: async () => (await execute(TodoMailCountDocument)).todoMailCount,
     enabled,
     refetchInterval: 120_000,
     retry: false,

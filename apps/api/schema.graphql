@@ -1713,6 +1713,9 @@ type Query {
   Time entries, latest first: those of a project and its sub-projects, or every entry; optionally only those started since a moment.
   """
   timeEntries(projectId: ID, since: DateTime): [TimeEntry!]!
+
+  """Mails to do (not marked as done) in the inbox of every account."""
+  todoMailCount: Int!
   treasuryAccounts: [TreasuryAccount!]!
   treasuryCategories: [TreasuryCategory!]!
   treasuryCounterparties: [TreasuryCounterparty!]!
