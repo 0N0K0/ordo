@@ -174,19 +174,27 @@ export function Sidebar() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useLocalStorage<SortMode>({
     key: 'ordo.sidebar.sort',
+    // Each window keeps its own (the last change is what a new window starts with).
+    sync: false,
     defaultValue: 'manual',
   });
   const [sections, setSections] = useLocalStorage<Record<SectionKey, boolean>>({
     key: 'ordo.sidebar.sections',
+    // Each window keeps its own (the last change is what a new window starts with).
+    sync: false,
     defaultValue: { favorites: true, active: true, archives: false },
   });
   const [moreOpen, setMoreOpen] = useLocalStorage<boolean>({
     key: 'ordo.sidebar.more',
+    // Each window keeps its own (the last change is what a new window starts with).
+    sync: false,
     defaultValue: false,
   });
   const activeMore = moreLinks.find((item) => isActive(item.to, pathname));
   const [collapsed, setCollapsed] = useLocalStorage<string[]>({
     key: 'ordo.sidebar.collapsed',
+    // Each window keeps its own (the last change is what a new window starts with).
+    sync: false,
     defaultValue: [],
   });
 
