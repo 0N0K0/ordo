@@ -35,6 +35,9 @@ export const calendarEventInputSchema = z
     /** Minutes before the start. */
     reminders: z.array(z.number().int().min(0).max(60 * 24 * 30)).max(10),
     /** Travel time to the event and back from it, in minutes (timed events). */
+    /** Point of the location, when chosen from the map or a search. */
+    locationLat: z.number().min(-90).max(90).nullable().default(null),
+    locationLon: z.number().min(-180).max(180).nullable().default(null),
     travelBefore: z.number().int().min(0, 'Durée positive attendue.').max(24 * 60, '24 h maximum.').default(0),
     travelAfter: z.number().int().min(0, 'Durée positive attendue.').max(24 * 60, '24 h maximum.').default(0),
     projectId: z.string().nullable(),

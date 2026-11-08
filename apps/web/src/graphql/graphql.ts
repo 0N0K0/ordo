@@ -136,6 +136,9 @@ export type CalendarEventInput = {
   endTime?: string | null | undefined;
   links: Array<CalendarLinkInput>;
   location?: string | null | undefined;
+  /** Point of the location; none: unknown. */
+  locationLat?: number | null | undefined;
+  locationLon?: number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   /** Relations without contributor taking part; none: none. */
@@ -313,6 +316,11 @@ export type DocumentStatusScope =
   | 'INVOICE'
   | 'QUOTE';
 
+export type GeoPointInput = {
+  lat: number;
+  lon: number;
+};
+
 export type GithubLinkInput = {
   effortFieldId?: string | null | undefined;
   enabled: boolean;
@@ -421,6 +429,13 @@ export type NotificationSource =
   | 'ALARMS'
   | 'CALENDAR'
   | 'MAILS';
+
+export type PlaceInput = {
+  address: string;
+  lat: number;
+  lon: number;
+  name: string;
+};
 
 export type ProjectCategoryInput = {
   color: string;
@@ -657,6 +672,11 @@ export type TimerInput = {
   projectId: string | number;
   taskIds: Array<string | number>;
 };
+
+export type TravelMode =
+  | 'BIKE'
+  | 'CAR'
+  | 'FOOT';
 
 export type TreasuryAccountInput = {
   archived: boolean;
@@ -1697,6 +1717,50 @@ export type MoveDashboardChartMutationVariables = Exact<{
 
 
 export type MoveDashboardChartMutation = { moveDashboardChart: boolean };
+
+export type PlacesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, lat: number, lon: number }> };
+
+export type SearchAddressesQueryVariables = Exact<{
+  text: string;
+  near?: GeoPointInput | null | undefined;
+}>;
+
+
+export type SearchAddressesQuery = { searchAddresses: Array<{ label: string, name: string | null, lat: number, lon: number }> };
+
+export type ReverseAddressQueryVariables = Exact<{
+  point: GeoPointInput;
+}>;
+
+
+export type ReverseAddressQuery = { reverseAddress: { label: string, name: string | null, lat: number, lon: number } | null };
+
+export type TravelTimeQueryVariables = Exact<{
+  from: GeoPointInput;
+  to: GeoPointInput;
+  mode: TravelMode;
+}>;
+
+
+export type TravelTimeQuery = { travelTime: { seconds: number, meters: number } };
+
+export type SavePlaceMutationVariables = Exact<{
+  id?: string | number | null | undefined;
+  input: PlaceInput;
+}>;
+
+
+export type SavePlaceMutation = { savePlace: string };
+
+export type DeletePlaceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeletePlaceMutation = { deletePlace: boolean };
 
 export type GithubLoginQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4997,6 +5061,55 @@ export const MoveDashboardChartDocument = new TypedDocumentString(`
   moveDashboardChart(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveDashboardChartMutation, MoveDashboardChartMutationVariables>;
+export const PlacesDocument = new TypedDocumentString(`
+    query Places {
+  places {
+    id
+    name
+    address
+    lat
+    lon
+  }
+}
+    `) as unknown as TypedDocumentString<PlacesQuery, PlacesQueryVariables>;
+export const SearchAddressesDocument = new TypedDocumentString(`
+    query SearchAddresses($text: String!, $near: GeoPointInput) {
+  searchAddresses(text: $text, near: $near) {
+    label
+    name
+    lat
+    lon
+  }
+}
+    `) as unknown as TypedDocumentString<SearchAddressesQuery, SearchAddressesQueryVariables>;
+export const ReverseAddressDocument = new TypedDocumentString(`
+    query ReverseAddress($point: GeoPointInput!) {
+  reverseAddress(point: $point) {
+    label
+    name
+    lat
+    lon
+  }
+}
+    `) as unknown as TypedDocumentString<ReverseAddressQuery, ReverseAddressQueryVariables>;
+export const TravelTimeDocument = new TypedDocumentString(`
+    query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {
+  travelTime(from: $from, to: $to, mode: $mode) {
+    seconds
+    meters
+  }
+}
+    `) as unknown as TypedDocumentString<TravelTimeQuery, TravelTimeQueryVariables>;
+export const SavePlaceDocument = new TypedDocumentString(`
+    mutation SavePlace($id: ID, $input: PlaceInput!) {
+  savePlace(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<SavePlaceMutation, SavePlaceMutationVariables>;
+export const DeletePlaceDocument = new TypedDocumentString(`
+    mutation DeletePlace($id: ID!) {
+  deletePlace(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeletePlaceMutation, DeletePlaceMutationVariables>;
 export const GithubLoginDocument = new TypedDocumentString(`
     query GithubLogin {
   githubLogin

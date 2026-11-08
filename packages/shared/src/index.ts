@@ -12,3 +12,4 @@ export * from './accounting-documents';
 export * from './treasury';
 export * from './dashboards';
 export * from './work-schedules';
+export * from './geo';

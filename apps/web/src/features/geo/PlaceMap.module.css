@@ -1,0 +1,52 @@
+@layer app {
+  /* Map in the app: rounded, bordered, under the dialogs and menus. */
+  .root {
+    /* Position */
+    position: relative;
+    z-index: 0;
+
+    /* Dimension */
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+
+    /* Bordures */
+    border: 1px solid var(--mantine-color-default-border);
+
+    /* A click picks a point. */
+    &[data-picking] :global(.leaflet-container) {
+      /* Interaction */
+      cursor: crosshair;
+    }
+  }
+
+  .map {
+    /* Dimension */
+    width: 100%;
+    height: 100%;
+
+    /* Typographie */
+    font-family: inherit;
+  }
+
+  /* Saved place. */
+  .point {
+    /* Arrière-Plan */
+    fill: var(--mantine-primary-color-filled);
+    fill-opacity: 0.8;
+
+    /* Bordures */
+    stroke: var(--mantine-color-white);
+    stroke-width: 2;
+  }
+
+  /* Point being edited. */
+  .activePoint {
+    /* Arrière-Plan */
+    fill: var(--mantine-color-red-6);
+    fill-opacity: 0.9;
+
+    /* Bordures */
+    stroke: var(--mantine-color-white);
+    stroke-width: 3;
+  }
+}

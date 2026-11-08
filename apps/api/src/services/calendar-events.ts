@@ -36,6 +36,9 @@ export interface EventOccurrence {
   title: string;
   description: string | null;
   location: string | null;
+  /** Point of the location, when known. */
+  locationLat: number | null;
+  locationLon: number | null;
   links: CalendarLink[];
   allDay: boolean;
   startDate: string;
@@ -124,6 +127,11 @@ async function parseEvent(input: CalendarEventInput) {
     throw notFound('Catégorie');
   }
   if ((await prisma.task.count({ where: { id: { in: event.taskIds } } })) !== new Set(event.taskIds).size) throw notFound('Tâche');
+  // A point goes with a location, both coordinates or none.
+  if (!event.location || event.locationLat === null || event.locationLon === null) {
+    event.locationLat = null;
+    event.locationLon = null;
+  }
   if (event.allDay) {
     event.startTime = null;
     event.endTime = null;
@@ -144,6 +152,8 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     title: event.title,
     description: event.description,
     location: event.location,
+    locationLat: event.locationLat,
+    locationLon: event.locationLon,
     links: event.links,
     allDay: event.allDay,
     startDate: parseDay(event.startDate),
@@ -256,6 +266,8 @@ export async function updateCalendarEvent(
       title: fields.title,
       description: fields.description,
       location: fields.location,
+      locationLat: fields.locationLat,
+      locationLon: fields.locationLon,
       links: fields.links,
       allDay: fields.allDay,
       startDate: parseDay(fields.startDate),
@@ -362,6 +374,8 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     title: change?.title ?? event.title,
     description: change ? change.description : event.description,
     location: change ? change.location : event.location,
+    locationLat: change ? change.locationLat : event.locationLat,
+    locationLon: change ? change.locationLon : event.locationLon,
     links: ((change?.links ?? event.links) as unknown as CalendarLink[]) ?? [],
     allDay,
     startDate,
@@ -470,6 +484,8 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     title: event.title,
     description: event.description,
     location: event.location,
+    locationLat: event.locationLat,
+    locationLon: event.locationLon,
     links: (event.links as unknown as CalendarLink[]) ?? [],
     allDay: event.allDay,
     startDate: date,
@@ -538,6 +554,8 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
         title: current.title,
         description: current.description,
         location: current.location,
+        locationLat: current.locationLat,
+        locationLon: current.locationLon,
         links: current.links as unknown as Prisma.InputJsonValue,
         allDay: current.allDay,
         startDate: parseDay(current.startDate),

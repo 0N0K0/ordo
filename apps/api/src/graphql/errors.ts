@@ -8,7 +8,8 @@ export type ErrorCode =
   | 'INVALID_TOKEN'
   | 'CONFLICT'
   | 'NOT_FOUND'
-  | 'TOO_MANY_REQUESTS';
+  | 'TOO_MANY_REQUESTS'
+  | 'SERVICE_UNAVAILABLE';
 
 /**
  * Error thrown when a requested record does not exist.

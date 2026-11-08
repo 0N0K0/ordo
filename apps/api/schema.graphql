@@ -182,6 +182,16 @@ enum AccountingUnit {
   UNIT
 }
 
+"""Address found by a search (OpenStreetMap)."""
+type AddressSuggestion {
+  label: String!
+  lat: Float!
+  lon: Float!
+
+  """Name of the place, when it has one (a station, a shop…)."""
+  name: String
+}
+
 type Alarm {
   createdAt: DateTime!
   enabled: Boolean!
@@ -299,6 +309,10 @@ input CalendarEventInput {
   endTime: String
   links: [CalendarLinkInput!]!
   location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   projectId: ID
   recurrence: JSON
 
@@ -339,6 +353,8 @@ type CalendarEventOccurrence {
   key: String!
   links: [CalendarLink!]!
   location: String
+  locationLat: Float
+  locationLon: Float
   modified: Boolean!
   occurrenceDate: String
   postponedFrom: CalendarPostponedFrom
@@ -799,6 +815,11 @@ type ForeignWorkSchedule {
   typeName: String
   workspaceId: ID!
   workspaceName: String!
+}
+
+input GeoPointInput {
+  lat: Float!
+  lon: Float!
 }
 
 """GitHub Projects (v2) board."""
@@ -1333,6 +1354,9 @@ type Mutation {
   deleteMails(accountId: ID!, folder: String!, uids: [Int!]!): Boolean!
   deleteMilestone(id: ID!): Boolean!
 
+  """Deletes a saved place (events keep their address)."""
+  deletePlace(id: ID!): Boolean!
+
   """Deletes the project and all its sub-projects."""
   deleteProject(id: ID!): Boolean!
   deleteProjectCategory(id: ID!): Boolean!
@@ -1499,6 +1523,7 @@ type Mutation {
   Saves a draft in the drafts folder of its account, replacing its previous version.
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
+  savePlace(id: ID, input: PlaceInput!): ID!
   saveScheduleType(id: ID, input: ScheduleTypeInput!): ID!
 
   """Creates a budget (without id), or changes one and its repetitions."""
@@ -1679,6 +1704,22 @@ enum NotificationSource {
   ALARMS
   CALENDAR
   MAILS
+}
+
+"""Saved place ("Maison", "Bureau"…): an address and its point."""
+type Place {
+  address: String!
+  id: ID!
+  lat: Float!
+  lon: Float!
+  name: String!
+}
+
+input PlaceInput {
+  address: String!
+  lat: Float!
+  lon: Float!
+  name: String!
 }
 
 type Project {
@@ -1910,6 +1951,7 @@ type Query {
 
   """Final invoices still due after their due date, oldest due first."""
   overdueInvoices(today: Date!): [AccountingDocument!]!
+  places: [Place!]!
   projectCategories: [ProjectCategory!]!
 
   """Mails linked to a project, latest first."""
@@ -1920,11 +1962,19 @@ type Query {
   """Every project, archived ones included, in manual order."""
   projects: [Project!]!
   recurringInvoices: [RecurringInvoice!]!
+
+  """Address of a point (a click on the map)."""
+  reverseAddress(point: GeoPointInput!): AddressSuggestion
   runningTimeEntry: TimeEntry
   scheduleTypes: [ScheduleType!]!
 
   """Mails waiting to be sent, and those that failed."""
   scheduledMails: [ScheduledMail!]!
+
+  """
+  Addresses and places matching a text (3 characters at least), the closest to `near` first.
+  """
+  searchAddresses(near: GeoPointInput, text: String!): [AddressSuggestion!]!
 
   """
   Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).
@@ -1969,6 +2019,9 @@ type Query {
   Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
   """
   todoMailCount: Int!
+
+  """Travel time between two points by car, bike or foot."""
+  travelTime(from: GeoPointInput!, mode: TravelMode!, to: GeoPointInput!): TravelTime!
   treasuryAccounts: [TreasuryAccount!]!
 
   """
@@ -2446,6 +2499,17 @@ input TimerInput {
   event: TimeEventInput
   projectId: ID!
   taskIds: [ID!]!
+}
+
+enum TravelMode {
+  BIKE
+  CAR
+  FOOT
+}
+
+type TravelTime {
+  meters: Int!
+  seconds: Int!
 }
 
 type TreasuryAccount {

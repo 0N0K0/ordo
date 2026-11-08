@@ -22,6 +22,7 @@ model Workspace {
   position                  Int                        @default(0)
   /// Notifications this workspace still gives while another one is open.
   notifyElsewhere           NotificationSource[]       @default([])
+  places                    Place[]
   /// Schedules without kind: their name (none: "Travail"), color (none: the green of working hours) and display.
   scheduleName              String?
   scheduleColor             String?
@@ -1158,6 +1159,9 @@ model CalendarEvent {
   /// Markdown.
   description       String?
   location          String?
+  /// Point of the location, when chosen from the map or a search.
+  locationLat       Float?
+  locationLon       Float?
   /// [{ url, label }]
   links             Json                     @default("[]")
   allDay            Boolean                  @default(false)
@@ -1225,6 +1229,8 @@ model CalendarEventException {
   title        String?
   description  String?
   location     String?
+  locationLat  Float?
+  locationLon  Float?
   links        Json?
   allDay       Boolean?
   startDate    DateTime?     @db.Date
@@ -1998,4 +2004,19 @@ model TreasuryAllocation {
   @@index([documentId])
   @@index([importedDocumentId])
   @@index([workspaceId])
+}
+
+/// Saved place ("Maison", "Bureau"…): an address and its point, to locate events and compute travel times.
+model Place {
+  id          String    @id @default(cuid())
+  name        String
+  address     String    @default("")
+  lat         Float
+  lon         Float
+  createdAt   DateTime  @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }

@@ -23,6 +23,10 @@ const envSchema = z.object({
   ),
   /** GitHub GraphQL endpoint (tests point it to a fake server). */
   GITHUB_GRAPHQL_URL: z.url().default('https://api.github.com/graphql'),
+  /** Photon geocoder (OpenStreetMap addresses and places), without trailing slash. */
+  PHOTON_URL: z.url().default('https://photon.komoot.io'),
+  /** OSRM routing servers, one per mode (`{profile}`: car, bike or foot), without trailing slash. */
+  ROUTING_URL: z.string().default('https://routing.openstreetmap.de/routed-{profile}'),
 });
 
 const parsed = envSchema.safeParse(process.env);

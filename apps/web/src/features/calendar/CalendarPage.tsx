@@ -44,6 +44,7 @@ import { SubscribedEventModal } from './SubscribedEventModal';
 import { useEventForm } from './use-event-form';
 import { CalendarCategoriesManager } from './CalendarCategoriesManager';
 import { CalendarsManager } from './CalendarsManager';
+import { PlacesManager } from '../geo/PlacesManager';
 import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
@@ -541,7 +542,7 @@ export function CalendarPage() {
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             {perso ? 'Plages' : 'Plages de travail'}
           </Button>
-          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories, types de plages">
+          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories, types de plages, lieux">
             <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => showSettings(true)}>
               Paramètres
             </Button>
@@ -632,6 +633,7 @@ export function CalendarPage() {
             <CalendarsManager />
             <CalendarCategoriesManager />
             <ScheduleSettings />
+            <PlacesManager />
           </Stack>
         )}
       </Modal>

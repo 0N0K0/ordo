@@ -1,7 +1,7 @@
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, TimerIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -14,6 +14,8 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence } from './api';
 import { useTimeMutations } from '../time/api';
+import { EventLocation } from '../geo/EventLocation';
+import { TravelCalculator } from '../geo/TravelCalculator';
 import { useTreasurySettings } from '../treasury/api';
 import { useScopeQuestion } from './ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
@@ -141,6 +143,8 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         title: '',
         description: '',
         location: '',
+        locationLat: null,
+        locationLon: null,
         links: [],
         allDay: false,
         startDate: today,
@@ -375,6 +379,12 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
               allowDecimal={false}
               {...form.getInputProps('travelAfter')}
             />
+            <div>
+              <TravelCalculator
+                eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}
+                onResult={({ before, after }) => form.setValues({ travelBefore: before, travelAfter: after })}
+              />
+            </div>
           </SimpleGrid>
         )}
         <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
@@ -385,7 +395,11 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
           start={ruleStart}
         />
 
-        <TextInput label="Lieu" leftSection={<MapPinIcon aria-hidden />} placeholder="Adresse, salle, visio…" {...form.getInputProps('location')} />
+        <EventLocation
+          value={{ text: values.location ?? '', point: values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null }}
+          error={form.errors.location}
+          onChange={(value) => form.setValues({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
+        />
 
         <Stack gap={4}>
           <Group gap="xs">

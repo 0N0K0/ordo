@@ -138,6 +138,12 @@ type Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": typeof types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": typeof types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": typeof types.MoveDashboardChartDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n": typeof types.PlacesDocument,
+    "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.SearchAddressesDocument,
+    "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.ReverseAddressDocument,
+    "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": typeof types.TravelTimeDocument,
+    "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n": typeof types.SavePlaceDocument,
+    "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": typeof types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": typeof types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": typeof types.GithubContributorsDocument,
     "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.GithubBoardDocument,
@@ -474,6 +480,12 @@ const documents: Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": types.MoveDashboardChartDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n": types.PlacesDocument,
+    "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.SearchAddressesDocument,
+    "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.ReverseAddressDocument,
+    "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": types.TravelTimeDocument,
+    "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n": types.SavePlaceDocument,
+    "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": types.GithubContributorsDocument,
     "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.GithubBoardDocument,
@@ -1179,6 +1191,30 @@ export function graphql(source: "\n  mutation DeleteDashboardChart($id: ID!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveDashboardChartDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n"): typeof import('./graphql').PlacesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n"): typeof import('./graphql').SearchAddressesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n"): typeof import('./graphql').ReverseAddressDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n"): typeof import('./graphql').TravelTimeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SavePlaceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n"): typeof import('./graphql').DeletePlaceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
