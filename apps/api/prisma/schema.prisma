@@ -1180,6 +1180,8 @@ model CalendarEvent {
   /// Deleting a calendar deletes its events.
   calendar          Calendar                 @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   contributors      Contributor[]
+  /// Relations without contributor taking part (those with one are among the contributors).
+  relations         TreasuryRelation[]
   categories        CalendarCategory[]
   exceptions        CalendarEventException[]
   /// Cancelled but kept in the calendar (struck through); can be restored.
@@ -1794,6 +1796,8 @@ model TreasuryRelation {
   createdAt     DateTime            @default(now())
   lines         TreasuryEntryLine[]
   budgets       TreasuryBudget[]
+  /// Events it takes part in.
+  events        CalendarEvent[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId   String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

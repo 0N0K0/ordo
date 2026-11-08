@@ -38,6 +38,8 @@ export const calendarEventInputSchema = z
     /** Calendar of the event; the first one of the workspace when omitted. */
     calendarId: z.string().nullish(),
     contributorIds: z.array(z.string()).max(200),
+    /** Relations without contributor taking part. */
+    relationIds: z.array(z.string()).max(200).default([]),
     categoryIds: z.array(z.string()).max(50),
     /** Tasks the event is about. */
     taskIds: z.array(z.string()).max(50, '50 tâches maximum.'),

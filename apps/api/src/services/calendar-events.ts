@@ -54,6 +54,8 @@ export interface EventOccurrence {
   /** Calendar of the event (of its series). */
   calendarId: string;
   contributorIds: string[];
+  /** Relations without contributor taking part. */
+  relationIds: string[];
   categoryIds: string[];
   /** Tasks the event is about. */
   taskIds: string[];
@@ -70,6 +72,7 @@ export interface EventOccurrence {
 type EventWithRelations = CalendarEvent & {
   exceptions: CalendarEventException[];
   contributors: { id: string }[];
+  relations: { id: string }[];
   categories: { id: string }[];
   tasks: { id: string }[];
   postponedFrom: { title: string } | null;
@@ -80,6 +83,7 @@ type EventWithRelations = CalendarEvent & {
 const occurrenceInclude = {
   exceptions: true,
   contributors: { select: { id: true } },
+  relations: { select: { id: true } },
   categories: { select: { id: true } },
   tasks: { select: { id: true } },
   postponedFrom: { select: { title: true } },
@@ -98,7 +102,7 @@ export function storedRecurrence(value: unknown): Recurrence | null {
 }
 
 /**
- * Validates event fields and the project, contributors and categories they point to.
+ * Validates event fields and the project, contributors, relations and categories they point to.
  * @param {CalendarEventInput} input Event fields.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
@@ -109,6 +113,9 @@ async function parseEvent(input: CalendarEventInput) {
   }
   if ((await prisma.contributor.count({ where: { id: { in: event.contributorIds } } })) !== new Set(event.contributorIds).size) {
     throw notFound('Contributeur');
+  }
+  if ((await prisma.treasuryRelation.count({ where: { id: { in: event.relationIds } } })) !== new Set(event.relationIds).size) {
+    throw notFound('Relation');
   }
   if ((await prisma.calendarCategory.count({ where: { id: { in: event.categoryIds } } })) !== new Set(event.categoryIds).size) {
     throw notFound('Catégorie');
@@ -168,6 +175,7 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
       ...eventData(event),
       recurrence: event.recurrence ?? undefined,
       contributors: { connect: event.contributorIds.map((id) => ({ id })) },
+      relations: { connect: [...new Set(event.relationIds)].map((id) => ({ id })) },
       categories: { connect: event.categoryIds.map((id) => ({ id })) },
       tasks: { connect: [...new Set(event.taskIds)].map((id) => ({ id })) },
     },
@@ -224,6 +232,7 @@ export async function updateCalendarEvent(
   const occurrence = occurrenceOf(event, occurrenceDate);
   const relations = {
     contributors: { set: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
+    relations: { set: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
     categories: { set: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
     tasks: { set: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
   };
@@ -286,6 +295,7 @@ export async function updateCalendarEvent(
         ...eventData(fields),
         recurrence: rule ?? undefined,
         contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
+        relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
         categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
         tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
       },
@@ -357,6 +367,7 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     projectId: event.projectId,
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
+    relationIds: event.relations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
     calledOff: event.calledOff || (change?.calledOff ?? false),
@@ -459,6 +470,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     projectId: event.projectId,
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
+    relationIds: event.relations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
   };
@@ -546,6 +558,7 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       postponedFromId: id,
       postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
       contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
+      relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
       categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
       tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
     },

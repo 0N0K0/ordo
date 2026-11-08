@@ -302,6 +302,9 @@ input CalendarEventInput {
   projectId: ID
   recurrence: JSON
 
+  """Relations without contributor taking part; none: none."""
+  relationIds: [ID!]
+
   """Minutes before the start."""
   reminders: [Int!]!
   startDate: Date!
@@ -336,6 +339,9 @@ type CalendarEventOccurrence {
   postponedTo: [CalendarPostponedTo!]!
   projectId: ID
   recurrence: JSON
+
+  """Relations without contributor taking part."""
+  relationIds: [ID!]!
   reminders: [Int!]!
   seriesStartDate: String!
   start: DateTime!

@@ -14,6 +14,7 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence } from './api';
 import { useTimeMutations } from '../time/api';
+import { useTreasurySettings } from '../treasury/api';
 import { useScopeQuestion } from './ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from './category-tree';
@@ -126,6 +127,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
     );
   };
   const { data: categories } = useCalendarCategories();
+  const { data: treasury } = useTreasurySettings();
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
   const colorOfCalendar = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
@@ -151,12 +153,17 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         projectId: null,
         calendarId: null,
         contributorIds: [],
+        relationIds: [],
         categoryIds: [],
         taskIds: [],
         ...defaults,
       };
   const form = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
   const values = form.values;
+  // Relations with a contributor take part as that contributor; one already chosen stays offered.
+  const relationOptions = (treasury?.treasuryRelations ?? [])
+    .filter((relation) => !relation.contributorId || (values.relationIds ?? []).includes(relation.id))
+    .map((relation) => ({ value: relation.id, label: relation.name }));
   const recurring = occurrence?.occurrenceDate != null;
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
@@ -416,6 +423,16 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
             searchable
             clearable
             {...form.getInputProps('contributorIds')}
+          />
+          <MultiSelect
+            label="Relations"
+            description="Personnes hors de l’équipe, sans contributeur"
+            placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
+            data={relationOptions}
+            searchable
+            clearable
+            nothingFoundMessage="Ajoutez des relations dans Paramètres › Équipe (ou Foyer) et contributeurs"
+            {...form.getInputProps('relationIds')}
           />
           <MultiSelect
             label="Catégories"

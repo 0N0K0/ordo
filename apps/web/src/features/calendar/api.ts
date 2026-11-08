@@ -37,6 +37,7 @@ graphql(`
     projectId
     calendarId
     contributorIds
+    relationIds
     categoryIds
     taskIds
     calledOff

@@ -106,6 +106,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     projectId: t.exposeID('projectId', { nullable: true }),
     calendarId: t.exposeID('calendarId'),
     contributorIds: t.exposeIDList('contributorIds'),
+    relationIds: t.exposeIDList('relationIds', { description: 'Relations without contributor taking part.' }),
     categoryIds: t.exposeIDList('categoryIds'),
     taskIds: t.exposeIDList('taskIds'),
     calledOff: t.exposeBoolean('calledOff', { description: 'Cancelled, kept in the calendar.' }),
@@ -261,6 +262,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     projectId: t.id(),
     calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),
     contributorIds: t.idList({ required: true }),
+    relationIds: t.idList({ description: 'Relations without contributor taking part; none: none.' }),
     categoryIds: t.idList({ required: true }),
     taskIds: t.idList({ description: 'Tasks the event is about (none when omitted).' }),
   }),
@@ -289,6 +291,7 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   projectId: input.projectId ?? null,
   calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
+  relationIds: input.relationIds ?? [],
 });
 
 builder.queryFields((t) => ({
