@@ -1,6 +1,16 @@
 import { ActionIcon, Badge, Button, Checkbox, Collapse, ColorInput, ColorSwatch, Divider, Group, Paper, Select, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_SCHEDULE_DISPLAY, periodRhythm, readScheduleCases, readScheduleDisplay, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
+import {
+  DEFAULT_SCHEDULE_DISPLAY,
+  DEFAULT_SCHEDULE_KIND_NAME,
+  periodRhythm,
+  readScheduleCases,
+  readScheduleDisplay,
+  readScheduleExceptions,
+  workScheduleSchema,
+  type ScheduleCase,
+  type ScheduleException,
+} from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, ClockIcon, PencilSimpleIcon, PlusIcon, SlidersHorizontalIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
@@ -9,10 +19,13 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
-import { useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
+import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
 import { ScheduleCasesEditor } from './ScheduleCasesEditor';
 import { ScheduleLookEditor } from './ScheduleLookEditor';
 import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
+
+/** Key of the default kind among the kinds whose display is open. */
+const DEFAULT_KEY = 'default';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
@@ -39,7 +52,7 @@ const exceptionPeriod = (exception: ScheduleException) => (exception.from === ex
 function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: () => void }) {
   const { create, update } = useWorkScheduleMutations();
   const { data: types } = useScheduleTypes();
-  const { perso } = useActiveWorkspace();
+  const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
       name: schedule?.name ?? 'Semaine type',
@@ -107,7 +120,7 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
           <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
           <Select
             label="Type"
-            placeholder={perso ? 'Sans type' : 'Horaires de travail'}
+            placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
             clearable
             data={(types ?? []).map((type) => ({ value: type.id, label: type.name }))}
             {...form.getInputProps('typeId')}
@@ -210,12 +223,14 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
 }
 
 /**
- * Kinds of time slots ("Travail", "Garde des enfants"…): name and color (their slots in the calendar).
+ * Kinds of time slots ("Travail", "Garde des enfants"…) and the default kind (the schedules without kind): name,
+ * color and display in the calendar.
  * @returns {JSX.Element} Section.
  */
 function ScheduleTypes() {
   const { data: types } = useScheduleTypes();
-  const { saveType, removeType } = useWorkScheduleMutations();
+  const { saveType, removeType, saveDefaultKind } = useWorkScheduleMutations();
+  const { data: defaultKind } = useDefaultScheduleKind();
   const swatches = useColorSwatches();
   const [name, setName] = useState('');
   const [color, setColor] = useState(swatches[0]);
@@ -226,8 +241,62 @@ function ScheduleTypes() {
       <Stack gap="xs">
         <Text fw={600}>Types de plages</Text>
         <Text size="xs" c="dimmed">
-          Pour distinguer vos plages (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda.
+          Pour distinguer vos plages (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda. Les plages sans type prennent ceux de la première ligne.
         </Text>
+        {defaultKind && (
+          <Stack gap={6}>
+            <Group gap="xs" wrap="nowrap">
+              <ColorInput
+                key={defaultKind.color ?? 'none'}
+                size="xs"
+                w={120}
+                format="hex"
+                swatches={swatches}
+                placeholder="Vert"
+                aria-label="Couleur des plages sans type"
+                defaultValue={defaultKind.color ?? ''}
+                onChangeEnd={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, { onError })}
+              />
+              <TextInput
+                key={defaultKind.name}
+                size="xs"
+                style={{ flex: 1 }}
+                aria-label="Nom des plages sans type"
+                placeholder={DEFAULT_SCHEDULE_KIND_NAME}
+                defaultValue={defaultKind.name}
+                rightSectionWidth={80}
+                rightSection={
+                  <Badge size="xs" variant="light" color="gray">
+                    Par défaut
+                  </Badge>
+                }
+                onBlur={(event) =>
+                  event.currentTarget.value.trim() !== defaultKind.name && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), name: event.currentTarget.value }, { onError })
+                }
+              />
+              <Tooltip label="Affichage dans l’agenda">
+                <ActionIcon
+                  variant={opened === DEFAULT_KEY ? 'light' : 'subtle'}
+                  color="gray"
+                  aria-label="Affichage des plages sans type"
+                  aria-expanded={opened === DEFAULT_KEY}
+                  onClick={() => setOpened(opened === DEFAULT_KEY ? null : DEFAULT_KEY)}
+                >
+                  <SlidersHorizontalIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              {/* Keeps the column of the delete buttons of the kinds. */}
+              <ActionIcon variant="transparent" aria-hidden tabIndex={-1} style={{ visibility: 'hidden' }}>
+                <TrashIcon />
+              </ActionIcon>
+            </Group>
+            <Collapse expanded={opened === DEFAULT_KEY}>
+              <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
+                <ScheduleLookEditor name={defaultKind.name} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, { onError })} />
+              </Paper>
+            </Collapse>
+          </Stack>
+        )}
         {(types ?? []).map((type) => {
           const input = { name: type.name, color: type.color, ...readScheduleDisplay(type) };
           return (
@@ -377,7 +446,7 @@ function ForeignSchedules() {
                             w={140}
                             format="hex"
                             swatches={swatches}
-                            placeholder="Vert des horaires"
+                            placeholder="Vert"
                             aria-label={`Couleur de ${kind.name} dans cet agenda`}
                             defaultValue={kind.color ?? ''}
                             onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, { onError })}

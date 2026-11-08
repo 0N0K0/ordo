@@ -359,6 +359,17 @@ export const scheduleTypeSchema = z.object({
   ...scheduleDisplayFields,
 });
 
+/** Name of the schedules without kind, unless the workspace names them. */
+export const DEFAULT_SCHEDULE_KIND_NAME = 'Travail';
+
+/** Schedules without kind of a workspace: their name (empty: "Travail"), color (none: the green of working hours) and display. */
+export const defaultScheduleKindSchema = z.object({
+  name: z.string().trim().max(60, '60 caractères maximum.'),
+  color: colorSchema.nullable(),
+  ...scheduleDisplayFields,
+});
+export type DefaultScheduleKindInput = z.input<typeof defaultScheduleKindSchema>;
+
 /** Color and display of a kind of schedules subscribed to, in the subscribing workspace; none: those of the kind. */
 export const scheduleSubscriptionLookSchema = z.object({
   color: colorSchema.nullable(),

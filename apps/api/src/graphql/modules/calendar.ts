@@ -151,6 +151,27 @@ const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
   }),
 });
 
+const DefaultScheduleKindRef = builder.objectRef<schedules.DefaultScheduleKind>('DefaultScheduleKind').implement({
+  description: 'Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.',
+  fields: (t) => ({
+    name: t.exposeString('name'),
+    color: t.exposeString('color', { nullable: true }),
+    dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
+    dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
+    monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay }),
+  }),
+});
+
+const DefaultScheduleKindInput = builder.inputType('DefaultScheduleKindInput', {
+  fields: (t) => ({
+    name: t.string({ required: true, description: 'Empty: "Travail".' }),
+    color: t.string(),
+    dayDisplay: t.string({ required: true }),
+    dayBar: t.boolean({ required: true }),
+    monthDisplay: t.string({ required: true }),
+  }),
+});
+
 const ScheduleSubscriptionLookInput = builder.inputType('ScheduleSubscriptionLookInput', {
   description: 'Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.',
   fields: (t) => ({ color: t.string(), dayDisplay: t.string(), dayBar: t.boolean(), monthDisplay: t.string() }),
@@ -299,6 +320,11 @@ builder.queryFields((t) => ({
   scheduleTypes: t.prismaField({
     type: ['ScheduleType'],
     resolve: (query) => prisma.scheduleType.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  defaultScheduleKind: t.field({
+    type: DefaultScheduleKindRef,
+    description: 'Schedules without kind of this workspace: name, color and display.',
+    resolve: () => schedules.defaultScheduleKind(),
   }),
   foreignScheduleKinds: t.field({
     type: [ForeignScheduleKindRef],
@@ -449,6 +475,12 @@ builder.mutationFields((t) => ({
       await schedules.subscribeScheduleKind(workspaceId, typeId ?? null);
       return true;
     },
+  }),
+  saveDefaultScheduleKind: t.field({
+    type: DefaultScheduleKindRef,
+    args: { input: t.arg({ type: DefaultScheduleKindInput, required: true }) },
+    // Display values are checked by the service.
+    resolve: (_root, { input }) => schedules.saveDefaultScheduleKind({ ...input, color: input.color ?? null } as never),
   }),
   setScheduleSubscriptionLook: t.boolean({
     description: 'Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).',

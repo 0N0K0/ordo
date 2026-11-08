@@ -22,6 +22,12 @@ model Workspace {
   position                  Int                        @default(0)
   /// Notifications this workspace still gives while another one is open.
   notifyElsewhere           NotificationSource[]       @default([])
+  /// Schedules without kind: their name (none: "Travail"), color (none: the green of working hours) and display.
+  scheduleName              String?
+  scheduleColor             String?
+  scheduleDayDisplay        String                     @default("SLOT_BACKGROUND")
+  scheduleDayBar            Boolean                    @default(true)
+  scheduleMonthDisplay      String                     @default("BACKGROUND")
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   icons                     Icon[]

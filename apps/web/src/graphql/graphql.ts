@@ -276,6 +276,15 @@ export type DashboardChartInput = {
   wide: boolean;
 };
 
+export type DefaultScheduleKindInput = {
+  color?: string | null | undefined;
+  dayBar: boolean;
+  dayDisplay: string;
+  monthDisplay: string;
+  /** Empty: "Travail". */
+  name: string;
+};
+
 export type DiscountType =
   | 'AMOUNT'
   | 'PERCENT';
@@ -1352,7 +1361,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }> };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { name: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1386,6 +1395,13 @@ export type SubscribeScheduleKindMutationVariables = Exact<{
 
 
 export type SubscribeScheduleKindMutation = { subscribeScheduleKind: boolean };
+
+export type SaveDefaultScheduleKindMutationVariables = Exact<{
+  input: DefaultScheduleKindInput;
+}>;
+
+
+export type SaveDefaultScheduleKindMutation = { saveDefaultScheduleKind: { name: string } };
 
 export type SetScheduleSubscriptionLookMutationVariables = Exact<{
   workspaceId: string | number;
@@ -4546,6 +4562,13 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     monthDisplay
     position
   }
+  defaultScheduleKind {
+    name
+    color
+    dayDisplay
+    dayBar
+    monthDisplay
+  }
 }
     `) as unknown as TypedDocumentString<WorkSchedulesQuery, WorkSchedulesQueryVariables>;
 export const ForeignScheduleKindsDocument = new TypedDocumentString(`
@@ -4600,6 +4623,13 @@ export const SubscribeScheduleKindDocument = new TypedDocumentString(`
   subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
 }
     `) as unknown as TypedDocumentString<SubscribeScheduleKindMutation, SubscribeScheduleKindMutationVariables>;
+export const SaveDefaultScheduleKindDocument = new TypedDocumentString(`
+    mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {
+  saveDefaultScheduleKind(input: $input) {
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<SaveDefaultScheduleKindMutation, SaveDefaultScheduleKindMutationVariables>;
 export const SetScheduleSubscriptionLookDocument = new TypedDocumentString(`
     mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {
   setScheduleSubscriptionLook(

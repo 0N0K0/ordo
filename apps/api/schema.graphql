@@ -656,6 +656,27 @@ scalar Date
 """Instant, ISO 8601."""
 scalar DateTime
 
+"""
+Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.
+"""
+type DefaultScheduleKind {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+  name: String!
+}
+
+input DefaultScheduleKindInput {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+
+  """Empty: "Travail"."""
+  name: String!
+}
+
 enum DiscountType {
   AMOUNT
   PERCENT
@@ -1451,6 +1472,7 @@ type Mutation {
   """Always returns true, whether or not the account exists."""
   requestPasswordReset(identifier: String!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+  saveDefaultScheduleKind(input: DefaultScheduleKindInput!): DefaultScheduleKind!
 
   """Links a project to a board, or changes the settings of its link."""
   saveGithubLink(input: GithubLinkInput!, projectId: ID!): Boolean!
@@ -1781,6 +1803,9 @@ type Query {
 
   """Dashboards of a project, or the global ones."""
   dashboards(projectId: ID): [Dashboard!]!
+
+  """Schedules without kind of this workspace: name, color and display."""
+  defaultScheduleKind: DefaultScheduleKind!
   documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!

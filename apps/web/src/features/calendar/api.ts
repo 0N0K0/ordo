@@ -75,6 +75,13 @@ const WorkSchedulesDocument = graphql(`
       monthDisplay
       position
     }
+    defaultScheduleKind {
+      name
+      color
+      dayDisplay
+      dayBar
+      monthDisplay
+    }
   }
 `);
 
@@ -132,6 +139,14 @@ const DeleteScheduleTypeDocument = graphql(`
 const SubscribeScheduleKindDocument = graphql(`
   mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
     subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
+  }
+`);
+
+const SaveDefaultScheduleKindDocument = graphql(`
+  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {
+    saveDefaultScheduleKind(input: $input) {
+      name
+    }
   }
 `);
 
@@ -505,6 +520,14 @@ export function useScheduleTypes() {
 }
 
 /**
+ * Schedules without kind of this workspace: their name, color and display.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useDefaultScheduleKind() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.defaultScheduleKind });
+}
+
+/**
  * Kinds of schedules of the other workspaces, with whether this one shows them.
  * @returns {UseQueryResult} Query state.
  */
@@ -533,6 +556,9 @@ export function useWorkScheduleMutations() {
     removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
     subscribe: useCalendarMutation(
       async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind,
+    ),
+    saveDefaultKind: useCalendarMutation(
+      async (input: { name: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
     ),
     setLook: useCalendarMutation(
       async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) =>

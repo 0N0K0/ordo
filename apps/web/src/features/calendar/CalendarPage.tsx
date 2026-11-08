@@ -29,6 +29,7 @@ import {
   useMaterializeTaskOccurrences,
   useSubscribedCalendarEvents,
   useScheduleTypes,
+  useDefaultScheduleKind,
   useSubscribedSchedules,
   useWorkSchedules,
   type CalendarSubscription,
@@ -118,6 +119,7 @@ export function CalendarPage() {
   const taskLink = useTaskLink();
   const { data: schedules } = useWorkSchedules();
   const { data: scheduleTypes } = useScheduleTypes();
+  const { data: defaultKind } = useDefaultScheduleKind();
   const { data: foreignSchedules } = useSubscribedSchedules();
   const { perso } = useActiveWorkspace();
   const [managingSchedules, setManagingSchedules] = useState(false);
@@ -279,7 +281,9 @@ export function CalendarPage() {
       const typeOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
       const own = schedules.map((schedule) => {
         const type = schedule.typeId ? typeOf.get(schedule.typeId) : undefined;
-        return { rule: scheduleRules([schedule])[0], color: type?.color ?? null, name: type?.name ?? schedule.name, foreign: false, display: readScheduleDisplay(type) };
+        // Without kind: the default kind of the workspace.
+        const kind = type ?? defaultKind;
+        return { rule: scheduleRules([schedule])[0], color: kind?.color ?? null, name: kind?.name ?? schedule.name, foreign: false, display: readScheduleDisplay(kind) };
       });
       const subscribed = (foreignSchedules ?? []).map((schedule) => ({
         rule: scheduleRules([schedule])[0],
@@ -384,6 +388,7 @@ export function CalendarPage() {
     range,
     schedules,
     scheduleTypes,
+    defaultKind,
     foreignSchedules,
     view,
     showTimers,
