@@ -1,31 +1,36 @@
-import { ActionIcon, Badge, Button, Checkbox, Collapse, ColorInput, ColorSwatch, Divider, Group, Paper, Select, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
 import {
-  DEFAULT_SCHEDULE_DISPLAY,
-  DEFAULT_SCHEDULE_KIND_NAME,
-  periodRhythm,
-  readScheduleCases,
-  readScheduleDisplay,
-  readScheduleExceptions,
-  workScheduleSchema,
-  type ScheduleCase,
-  type ScheduleException,
-} from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, ClockIcon, PencilSimpleIcon, PlusIcon, SlidersHorizontalIcon, TrashIcon } from '@phosphor-icons/react';
+  ActionIcon,
+  Badge,
+  Button,
+  Checkbox,
+  ColorSwatch,
+  Divider,
+  Group,
+  MultiSelect,
+  Paper,
+  SegmentedControl,
+  Select,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Title,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import { DEFAULT_SCHEDULE_KIND_NAME, periodRhythm, readScheduleCases, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
+import { CaretDownIcon, CaretUpDownIcon, CaretUpIcon, ClockIcon, FunnelSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
-import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
+import { useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
 import { ScheduleCasesEditor } from './ScheduleCasesEditor';
-import { ScheduleLookEditor } from './ScheduleLookEditor';
 import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
-
-/** Key of the default kind among the kinds whose display is open. */
-const DEFAULT_KEY = 'default';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
@@ -222,276 +227,82 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
   );
 }
 
+/** State of a schedule today. */
+type ScheduleState = 'CURRENT' | 'UPCOMING' | 'PAST';
+const STATE_LABELS: Record<ScheduleState, string> = { CURRENT: 'En cours', UPCOMING: 'À venir', PAST: 'Passée' };
+const STATE_COLORS: Record<ScheduleState, string> = { CURRENT: 'green', UPCOMING: 'blue', PAST: 'gray' };
+const STATE_ORDER: Record<ScheduleState, number> = { CURRENT: 0, UPCOMING: 1, PAST: 2 };
+/** Kind filter value of the schedules without kind. */
+const NO_KIND = 'none';
+
+type SortKey = 'name' | 'type' | 'start' | 'end' | 'state';
+interface Sort {
+  key: SortKey;
+  descending: boolean;
+}
+
 /**
- * Kinds of time slots ("Travail", "Garde des enfants"…) and the default kind (the schedules without kind): name,
- * color and display in the calendar.
- * @returns {JSX.Element} Section.
+ * State of a schedule on a day: current, upcoming or past.
+ * @param {WorkSchedule} schedule Schedule.
+ * @param {string} today YYYY-MM-DD.
+ * @returns {ScheduleState} State.
  */
-function ScheduleTypes() {
-  const { data: types } = useScheduleTypes();
-  const { saveType, removeType, saveDefaultKind } = useWorkScheduleMutations();
-  const { data: defaultKind } = useDefaultScheduleKind();
-  const swatches = useColorSwatches();
-  const [name, setName] = useState('');
-  const [color, setColor] = useState(swatches[0]);
-  const [opened, setOpened] = useState<string | null>(null);
-  const onError = (error: Error) => notifyError(error.message);
+function stateOf(schedule: WorkSchedule, today: string): ScheduleState {
+  if (String(schedule.startDate) > today) return 'UPCOMING';
+  if (schedule.endDate && String(schedule.endDate) < today) return 'PAST';
+  return 'CURRENT';
+}
+
+interface SortHeaderProps {
+  label: string;
+  sortKey: SortKey;
+  sort: Sort;
+  onSort: (sort: Sort) => void;
+}
+
+/**
+ * Column header sorting the table: once ascending, again descending.
+ * @param {SortHeaderProps} props Component props.
+ * @returns {JSX.Element} Header.
+ */
+function SortHeader({ label, sortKey, sort, onSort }: SortHeaderProps) {
+  const active = sort.key === sortKey;
+  const Icon = !active ? CaretUpDownIcon : sort.descending ? CaretDownIcon : CaretUpIcon;
   return (
-    <Paper withBorder radius="md" p="md">
-      <Stack gap="xs">
-        <Text fw={600}>Types de plages</Text>
-        <Text size="xs" c="dimmed">
-          Pour distinguer vos plages (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda. Les plages sans type prennent ceux de la première ligne.
-        </Text>
-        {defaultKind && (
-          <Stack gap={6}>
-            <Group gap="xs" wrap="nowrap">
-              <ColorInput
-                key={defaultKind.color ?? 'none'}
-                size="xs"
-                w={120}
-                format="hex"
-                swatches={swatches}
-                placeholder="Vert"
-                aria-label="Couleur des plages sans type"
-                defaultValue={defaultKind.color ?? ''}
-                onChangeEnd={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, { onError })}
-              />
-              <TextInput
-                key={defaultKind.name}
-                size="xs"
-                style={{ flex: 1 }}
-                aria-label="Nom des plages sans type"
-                placeholder={DEFAULT_SCHEDULE_KIND_NAME}
-                defaultValue={defaultKind.name}
-                rightSectionWidth={80}
-                rightSection={
-                  <Badge size="xs" variant="light" color="gray">
-                    Par défaut
-                  </Badge>
-                }
-                onBlur={(event) =>
-                  event.currentTarget.value.trim() !== defaultKind.name && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), name: event.currentTarget.value }, { onError })
-                }
-              />
-              <Tooltip label="Affichage dans l’agenda">
-                <ActionIcon
-                  variant={opened === DEFAULT_KEY ? 'light' : 'subtle'}
-                  color="gray"
-                  aria-label="Affichage des plages sans type"
-                  aria-expanded={opened === DEFAULT_KEY}
-                  onClick={() => setOpened(opened === DEFAULT_KEY ? null : DEFAULT_KEY)}
-                >
-                  <SlidersHorizontalIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              {/* Keeps the column of the delete buttons of the kinds. */}
-              <ActionIcon variant="transparent" aria-hidden tabIndex={-1} style={{ visibility: 'hidden' }}>
-                <TrashIcon />
-              </ActionIcon>
-            </Group>
-            <Collapse expanded={opened === DEFAULT_KEY}>
-              <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
-                <ScheduleLookEditor name={defaultKind.name} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, { onError })} />
-              </Paper>
-            </Collapse>
-          </Stack>
-        )}
-        {(types ?? []).map((type) => {
-          const input = { name: type.name, color: type.color, ...readScheduleDisplay(type) };
-          return (
-            <Stack key={type.id} gap={6}>
-              <Group gap="xs" wrap="nowrap">
-                <ColorInput
-                  size="xs"
-                  w={120}
-                  format="hex"
-                  swatches={swatches}
-                  aria-label={`Couleur de ${type.name}`}
-                  defaultValue={type.color}
-                  onChangeEnd={(value) => saveType.mutate({ id: type.id, input: { ...input, color: value } }, { onError })}
-                />
-                <TextInput
-                  size="xs"
-                  style={{ flex: 1 }}
-                  aria-label="Nom du type"
-                  defaultValue={type.name}
-                  onBlur={(event) =>
-                    event.currentTarget.value.trim() && event.currentTarget.value !== type.name && saveType.mutate({ id: type.id, input: { ...input, name: event.currentTarget.value } }, { onError })
-                  }
-                />
-                <Tooltip label="Affichage dans l’agenda">
-                  <ActionIcon
-                    variant={opened === type.id ? 'light' : 'subtle'}
-                    color="gray"
-                    aria-label={`Affichage de ${type.name}`}
-                    aria-expanded={opened === type.id}
-                    onClick={() => setOpened(opened === type.id ? null : type.id)}
-                  >
-                    <SlidersHorizontalIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Supprimer (ses plages restent, sans type)">
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    aria-label={`Supprimer ${type.name}`}
-                    onClick={() => removeType.mutate(type.id, { onSuccess: () => notifySuccess('Type supprimé.'), onError })}
-                  >
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-              <Collapse expanded={opened === type.id}>
-                <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
-                  <ScheduleLookEditor name={type.name} value={type} onChange={(display) => saveType.mutate({ id: type.id, input: { ...input, ...display } }, { onError })} />
-                </Paper>
-              </Collapse>
-            </Stack>
-          );
-        })}
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!name.trim()) return;
-            saveType.mutate({ id: null, input: { name: name.trim(), color, ...DEFAULT_SCHEDULE_DISPLAY } }, { onSuccess: () => setName(''), onError });
-          }}
-        >
-          <Group gap="xs" wrap="nowrap">
-            <ColorInput size="xs" w={120} format="hex" swatches={swatches} aria-label="Couleur du nouveau type" value={color} onChange={setColor} />
-            <TextInput size="xs" style={{ flex: 1 }} aria-label="Nom du nouveau type" placeholder="Nouveau type…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-            <Button type="submit" size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim()} loading={saveType.isPending}>
-              Ajouter
-            </Button>
-          </Group>
-        </form>
-      </Stack>
-    </Paper>
+    <Table.Th aria-sort={active ? (sort.descending ? 'descending' : 'ascending') : undefined}>
+      <UnstyledButton onClick={() => onSort({ key: sortKey, descending: active && !sort.descending })}>
+        <Group gap={4} wrap="nowrap">
+          <Text size="sm" fw={600}>
+            {label}
+          </Text>
+          <Icon aria-hidden opacity={active ? 1 : 0.4} />
+        </Group>
+      </UnstyledButton>
+    </Table.Th>
   );
 }
 
 /**
- * Kinds of schedules of the other workspaces (and their working hours, schedules without kind), by workspace:
- * subscribing to one shows all its schedules, those added later too, read only in this calendar, in the color and
- * display of the kind, or those set here.
- * @returns {JSX.Element | null} Section, nothing without other workspaces with schedules.
- */
-function ForeignSchedules() {
-  const { data: kinds } = useForeignScheduleKinds();
-  const { subscribe, unsubscribe, setLook } = useWorkScheduleMutations();
-  const swatches = useColorSwatches();
-  const [opened, setOpened] = useState<string | null>(null);
-  if (!kinds?.length) return null;
-  const onError = (error: Error) => notifyError(error.message);
-  const byWorkspace = new Map<string, typeof kinds>();
-  for (const kind of kinds) byWorkspace.set(kind.workspaceId, [...(byWorkspace.get(kind.workspaceId) ?? []), kind]);
-  return (
-    <Paper withBorder radius="md" p="md">
-      <Stack gap="xs">
-        <Text fw={600}>Plages des autres espaces</Text>
-        <Text size="xs" c="dimmed">
-          Abonné à un type de plage, cet espace affiche toutes ses plages (même celles ajoutées ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici.
-        </Text>
-        {[...byWorkspace.values()].map((items) => (
-          <Stack key={items[0].workspaceId} gap={4}>
-            <Text size="sm" fw={600}>
-              {items[0].workspaceName}
-            </Text>
-            {items.map((kind) => {
-              const key = `${kind.workspaceId}|${kind.typeId ?? ''}`;
-              const target = { workspaceId: kind.workspaceId, typeId: kind.typeId ?? null };
-              const look = { color: kind.color ?? null, ...readScheduleDisplay(kind) };
-              return (
-                <Stack key={key} gap={6} pl="md">
-                  <Group gap="sm" wrap="nowrap">
-                    <ColorSwatch size={12} color={kind.color ?? 'var(--mantine-color-green-4)'} />
-                    <Text size="sm" style={{ flex: 1 }}>
-                      {kind.name}
-                      <Text span size="xs" c="dimmed">
-                        {' '}
-                        · {kind.scheduleCount} plage{kind.scheduleCount > 1 ? 's' : ''}
-                        {kind.customized ? ' · affichage personnalisé' : ''}
-                      </Text>
-                    </Text>
-                    {kind.subscribed && (
-                      <Tooltip label="Couleur et affichage dans cet agenda">
-                        <ActionIcon
-                          variant={opened === key ? 'light' : 'subtle'}
-                          color="gray"
-                          aria-label={`Affichage de ${kind.name} (${kind.workspaceName})`}
-                          aria-expanded={opened === key}
-                          onClick={() => setOpened(opened === key ? null : key)}
-                        >
-                          <SlidersHorizontalIcon aria-hidden />
-                        </ActionIcon>
-                      </Tooltip>
-                    )}
-                    <Switch
-                      label="Abonné"
-                      aria-label={`Abonnement à ${kind.name} (${kind.workspaceName})`}
-                      checked={kind.subscribed}
-                      onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(target, { onError })}
-                    />
-                  </Group>
-                  <Collapse expanded={kind.subscribed && opened === key}>
-                    <Paper p="xs" radius="sm" bg="var(--mantine-color-default-hover)">
-                      <Stack gap={6}>
-                        <Group gap="xs" align="center">
-                          <Text size="xs" w={120}>
-                            Couleur
-                          </Text>
-                          <ColorInput
-                            key={kind.color ?? 'none'}
-                            size="xs"
-                            w={140}
-                            format="hex"
-                            swatches={swatches}
-                            placeholder="Vert"
-                            aria-label={`Couleur de ${kind.name} dans cet agenda`}
-                            defaultValue={kind.color ?? ''}
-                            onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, { onError })}
-                          />
-                        </Group>
-                        <ScheduleLookEditor name={kind.name} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, { onError })} />
-                        {kind.customized && (
-                          <div>
-                            <Button
-                              size="compact-xs"
-                              variant="subtle"
-                              leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
-                              onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, { onError })}
-                            >
-                              Reprendre ceux du type
-                            </Button>
-                          </div>
-                        )}
-                      </Stack>
-                    </Paper>
-                  </Collapse>
-                </Stack>
-              );
-            })}
-          </Stack>
-        ))}
-      </Stack>
-    </Paper>
-  );
-}
-
-/**
- * Planned time slots: the schedules with their kind, slots (or whole days) and pauses; create, edit, delete; the
- * kinds; the subscriptions to kinds of schedules of other workspaces. They show in the calendar; in a professional
- * workspace, they are the working hours (compared with the timers, events outside them told).
+ * Planned time slots: the schedules in a table to search, filter (kind, state) and sort; create, edit, delete.
+ * Their kinds and the subscriptions are in the settings of the calendar. They show in the calendar; in a
+ * professional workspace, they are the working hours (compared with the timers, events outside them told).
  * @returns {JSX.Element} Manager.
  */
 export function WorkSchedulesManager() {
   const { data: schedules } = useWorkSchedules();
   const { data: types } = useScheduleTypes();
+  const { data: defaultKind } = useDefaultScheduleKind();
   const { remove } = useWorkScheduleMutations();
   const { perso } = useActiveWorkspace();
   const [editing, setEditing] = useState<WorkSchedule | 'new' | null>(null);
   const [deleting, setDeleting] = useState<WorkSchedule | null>(null);
+  const [search, setSearch] = useState('');
+  const [kinds, setKinds] = useState<string[]>([]);
+  const [state, setState] = useState<ScheduleState | 'ALL'>('ALL');
+  const [sort, setSort] = useState<Sort>({ key: 'start', descending: true });
   const typeById = new Map((types ?? []).map((type) => [type.id, type]));
+  const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
+  const today = localToday();
 
   if (editing) return <ScheduleForm schedule={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />;
   if (deleting) {
@@ -521,15 +332,43 @@ export function WorkSchedulesManager() {
     );
   }
 
+  const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
+  const needle = search.trim().toLocaleLowerCase('fr');
+  const rows = (schedules ?? [])
+    .map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }))
+    .filter(({ schedule, state: rowState, exceptions }) => {
+      if (state !== 'ALL' && rowState !== state) return false;
+      if (kinds.length && !kinds.includes(schedule.typeId ?? NO_KIND)) return false;
+      if (!needle) return true;
+      return [schedule.name, kindName(schedule), ...exceptions.map((exception) => exception.label)].some((text) => text.toLocaleLowerCase('fr').includes(needle));
+    })
+    .sort((a, b) => {
+      const end = (schedule: WorkSchedule) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31');
+      const order =
+        sort.key === 'name'
+          ? a.schedule.name.localeCompare(b.schedule.name, 'fr')
+          : sort.key === 'type'
+            ? kindName(a.schedule).localeCompare(kindName(b.schedule), 'fr')
+            : sort.key === 'end'
+              ? end(a.schedule).localeCompare(end(b.schedule))
+              : sort.key === 'state'
+                ? STATE_ORDER[a.state] - STATE_ORDER[b.state]
+                : 0;
+      // Ties (and the start column) by start date.
+      const result = order || String(a.schedule.startDate).localeCompare(String(b.schedule.startDate));
+      return sort.descending ? -result : result;
+    });
+  const filtered = Boolean(needle) || kinds.length > 0 || state !== 'ALL';
+
   return (
     <Stack gap="md">
-      <Group justify="space-between">
+      <Group justify="space-between" wrap="nowrap" align="flex-start">
         <Text size="sm" c="dimmed">
           {perso
-            ? 'Vos plages prévues, par type : affichées dans l’agenda.'
+            ? 'Vos plages prévues, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
             : 'Vos horaires de travail prévus : affichés dans l’agenda, comparés au temps chronométré, et signalés quand un évènement tombe en dehors.'}
         </Text>
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setEditing('new')}>
+        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setEditing('new')} style={{ flexShrink: 0 }}>
           Plages
         </Button>
       </Group>
@@ -545,53 +384,151 @@ export function WorkSchedulesManager() {
           </Stack>
         </Paper>
       ) : (
-        schedules.map((schedule) => {
-          const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
-          return (
-            <Paper key={schedule.id} withBorder radius="md" p="md">
-              <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Stack gap={4}>
-                  <Group gap="xs">
-                    <Text fw={600}>{schedule.name}</Text>
-                    {type && (
-                      <Badge size="sm" variant="light" color={type.color} leftSection={<ColorSwatch size={8} color={type.color} />}>
-                        {type.name}
-                      </Badge>
-                    )}
-                  </Group>
-                  <Text size="xs" c="dimmed">
-                    {schedule.endDate ? `Du ${printedDate(String(schedule.startDate))} au ${printedDate(String(schedule.endDate))}` : `À partir du ${printedDate(String(schedule.startDate))}`}
-                  </Text>
-                  {readScheduleCases(schedule.cases).map((item, index) => (
-                    <Text key={index} size="sm">
-                      {describeCase(item)}
-                    </Text>
-                  ))}
-                  {readScheduleExceptions(schedule.exceptions).map((exception, index) => (
-                    <Text key={index} size="xs" c="dimmed">
-                      {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
-                    </Text>
-                  ))}
-                </Stack>
-                <Group gap={2} wrap="nowrap">
-                  <Tooltip label="Modifier">
-                    <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${schedule.name}`} onClick={() => setEditing(schedule)}>
-                      <PencilSimpleIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Supprimer">
-                    <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${schedule.name}`} onClick={() => setDeleting(schedule)}>
-                      <TrashIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
-              </Group>
+        <>
+          <Group gap="xs" align="flex-end">
+            <TextInput
+              size="xs"
+              style={{ flex: 1, minWidth: 160 }}
+              aria-label="Rechercher une plage"
+              placeholder="Rechercher (nom, type, exception)…"
+              leftSection={<MagnifyingGlassIcon aria-hidden />}
+              value={search}
+              onChange={(event) => setSearch(event.currentTarget.value)}
+            />
+            <MultiSelect
+              size="xs"
+              w={220}
+              aria-label="Types"
+              placeholder={kinds.length ? undefined : 'Tous les types'}
+              clearable
+              data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name }))]}
+              value={kinds}
+              onChange={setKinds}
+            />
+            <SegmentedControl
+              size="xs"
+              aria-label="État"
+              data={[{ value: 'ALL', label: 'Toutes' }, ...(['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] }))]}
+              value={state}
+              onChange={(value) => setState(value as ScheduleState | 'ALL')}
+            />
+          </Group>
+          <Text size="xs" c="dimmed">
+            {filtered ? `${rows.length} plage${rows.length > 1 ? 's' : ''} sur ${schedules.length}` : `${schedules.length} plage${schedules.length > 1 ? 's' : ''}`}
+          </Text>
+          {rows.length === 0 ? (
+            <Paper withBorder radius="md" p="xl">
+              <Stack align="center" gap="sm">
+                <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
+                  <FunnelSimpleIcon aria-hidden />
+                </ThemeIcon>
+                <Text size="sm" c="dimmed">
+                  Aucune plage ne correspond.
+                </Text>
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={() => {
+                    setSearch('');
+                    setKinds([]);
+                    setState('ALL');
+                  }}
+                >
+                  Effacer les filtres
+                </Button>
+              </Stack>
             </Paper>
-          );
-        })
+          ) : (
+            <Table.ScrollContainer minWidth={640}>
+              <Table highlightOnHover verticalSpacing="xs">
+                <Table.Thead>
+                  <Table.Tr>
+                    <SortHeader label="Nom" sortKey="name" sort={sort} onSort={setSort} />
+                    <SortHeader label="Type" sortKey="type" sort={sort} onSort={setSort} />
+                    <SortHeader label="Début" sortKey="start" sort={sort} onSort={setSort} />
+                    <SortHeader label="Fin" sortKey="end" sort={sort} onSort={setSort} />
+                    <Table.Th>Horaires</Table.Th>
+                    <SortHeader label="État" sortKey="state" sort={sort} onSort={setSort} />
+                    <Table.Th />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {rows.map(({ schedule, state: rowState, exceptions }) => {
+                    const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
+                    const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
+                    return (
+                      <Table.Tr key={schedule.id}>
+                        <Table.Td>
+                          <Text size="sm" fw={600}>
+                            {schedule.name}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap={6} wrap="nowrap">
+                            <ColorSwatch size={10} color={color} />
+                            <Text size="sm">{kindName(schedule)}</Text>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{printedDate(String(schedule.startDate))}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" c={schedule.endDate ? undefined : 'dimmed'}>
+                            {schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Stack gap={0}>
+                            {readScheduleCases(schedule.cases).map((item, index) => (
+                              <Text key={index} size="xs">
+                                {describeCase(item)}
+                              </Text>
+                            ))}
+                            {exceptions.length > 0 && (
+                              <Tooltip
+                                multiline
+                                w={360}
+                                label={exceptions.map((exception, index) => (
+                                  <Text key={index} size="xs">
+                                    {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
+                                  </Text>
+                                ))}
+                              >
+                                <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
+                                  {exceptions.length} exception{exceptions.length > 1 ? 's' : ''}
+                                </Text>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
+                            {STATE_LABELS[rowState]}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap={2} wrap="nowrap" justify="flex-end">
+                            <Tooltip label="Modifier">
+                              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${schedule.name}`} onClick={() => setEditing(schedule)}>
+                                <PencilSimpleIcon aria-hidden />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Supprimer">
+                              <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${schedule.name}`} onClick={() => setDeleting(schedule)}>
+                                <TrashIcon aria-hidden />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  })}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          )}
+        </>
       )}
-      <ScheduleTypes />
-      <ForeignSchedules />
     </Stack>
   );
 }

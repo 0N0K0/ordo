@@ -44,6 +44,7 @@ import { SubscribedEventModal } from './SubscribedEventModal';
 import { useEventForm } from './use-event-form';
 import { CalendarCategoriesManager } from './CalendarCategoriesManager';
 import { CalendarsManager } from './CalendarsManager';
+import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
 
@@ -516,7 +517,7 @@ export function CalendarPage() {
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             {perso ? 'Plages' : 'Plages de travail'}
           </Button>
-          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories">
+          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories, types de plages">
             <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => showSettings(true)}>
               Paramètres
             </Button>
@@ -606,10 +607,11 @@ export function CalendarPage() {
           <Stack gap="md">
             <CalendarsManager />
             <CalendarCategoriesManager />
+            <ScheduleSettings />
           </Stack>
         )}
       </Modal>
-      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="xl">
+      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="min(72rem, 100%)">
         {managingSchedules && <WorkSchedulesManager />}
       </Modal>
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
