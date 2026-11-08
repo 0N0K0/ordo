@@ -130,11 +130,30 @@ builder.prismaObject('WorkSchedule', {
 
 builder.prismaObject('ScheduleType', {
   description: 'Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.',
-  fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), color: t.exposeString('color'), position: t.exposeInt('position') }),
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
+    dayDisplay: t.exposeString('dayDisplay', { description: 'Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.' }),
+    dayBar: t.exposeBoolean('dayBar', { description: 'A bar at the top of the week and the day on each day with slots.' }),
+    monthDisplay: t.exposeString('monthDisplay', { description: 'Its days in the month: BACKGROUND, BORDER or NONE.' }),
+    position: t.exposeInt('position'),
+  }),
 });
 
 const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    color: t.string({ required: true }),
+    dayDisplay: t.string({ required: true }),
+    dayBar: t.boolean({ required: true }),
+    monthDisplay: t.string({ required: true }),
+  }),
+});
+
+const ScheduleSubscriptionLookInput = builder.inputType('ScheduleSubscriptionLookInput', {
+  description: 'Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.',
+  fields: (t) => ({ color: t.string(), dayDisplay: t.string(), dayBar: t.boolean(), monthDisplay: t.string() }),
 });
 
 const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
@@ -147,7 +166,10 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
     cases: t.field({ type: 'JSON', resolve: (item) => item.rule.cases }),
     exceptions: t.field({ type: 'JSON', resolve: (item) => item.rule.exceptions }),
     typeName: t.exposeString('typeName', { nullable: true }),
-    color: t.exposeString('color', { nullable: true }),
+    color: t.exposeString('color', { nullable: true, description: 'In this workspace.' }),
+    dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
+    dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
+    monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay }),
     workspaceId: t.id({ resolve: (item) => item.workspace.id }),
     workspaceName: t.string({ resolve: (item) => item.workspace.name }),
   }),
@@ -160,7 +182,12 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
     workspaceName: t.string({ resolve: (item) => item.workspace.name }),
     typeId: t.exposeID('typeId', { nullable: true, description: 'None: the schedules without kind (working hours).' }),
     name: t.exposeString('name'),
-    color: t.exposeString('color', { nullable: true }),
+    color: t.exposeString('color', { nullable: true, description: 'In this workspace: the subscription’s, or the kind’s.' }),
+    sourceColor: t.exposeString('sourceColor', { nullable: true, description: 'Of the kind, in its workspace.' }),
+    dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
+    dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
+    monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay }),
+    customized: t.exposeBoolean('customized', { description: 'The subscription sets a color or a display of its own.' }),
     scheduleCount: t.exposeInt('scheduleCount'),
     subscribed: t.exposeBoolean('subscribed'),
   }),
@@ -404,7 +431,8 @@ builder.mutationFields((t) => ({
   }),
   saveScheduleType: t.id({
     args: { id: t.arg.id(), input: t.arg({ type: ScheduleTypeInput, required: true }) },
-    resolve: async (_root, { id, input }) => (await schedules.saveScheduleType(id ?? null, input)).id,
+    // Display values are checked by the service.
+    resolve: async (_root, { id, input }) => (await schedules.saveScheduleType(id ?? null, input as never)).id,
   }),
   deleteScheduleType: t.boolean({
     description: 'Deletes a kind of time slots (its schedules stay, without kind).',
@@ -419,6 +447,19 @@ builder.mutationFields((t) => ({
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
     resolve: async (_root, { workspaceId, typeId }) => {
       await schedules.subscribeScheduleKind(workspaceId, typeId ?? null);
+      return true;
+    },
+  }),
+  setScheduleSubscriptionLook: t.boolean({
+    description: 'Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).',
+    args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id(), input: t.arg({ type: ScheduleSubscriptionLookInput, required: true }) },
+    resolve: async (_root, { workspaceId, typeId, input }) => {
+      await schedules.setScheduleSubscriptionLook(workspaceId, typeId ?? null, {
+        color: input.color ?? null,
+        dayDisplay: (input.dayDisplay ?? null) as never,
+        dayBar: input.dayBar ?? null,
+        monthDisplay: (input.monthDisplay ?? null) as never,
+      });
       return true;
     },
   }),

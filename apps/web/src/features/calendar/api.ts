@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import { readScheduleCases, readScheduleExceptions, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
+import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../graphql/graphql';
 import { execute, executeIn } from '../../lib/graphql-client';
 import { tasksQueryKey } from '../tasks/api';
@@ -70,6 +70,9 @@ const WorkSchedulesDocument = graphql(`
       id
       name
       color
+      dayDisplay
+      dayBar
+      monthDisplay
       position
     }
   }
@@ -83,6 +86,11 @@ const ForeignScheduleKindsDocument = graphql(`
       typeId
       name
       color
+      sourceColor
+      dayDisplay
+      dayBar
+      monthDisplay
+      customized
       scheduleCount
       subscribed
     }
@@ -100,6 +108,9 @@ const SubscribedSchedulesDocument = graphql(`
       exceptions
       typeName
       color
+      dayDisplay
+      dayBar
+      monthDisplay
       workspaceId
       workspaceName
     }
@@ -121,6 +132,12 @@ const DeleteScheduleTypeDocument = graphql(`
 const SubscribeScheduleKindDocument = graphql(`
   mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
     subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
+  }
+`);
+
+const SetScheduleSubscriptionLookDocument = graphql(`
+  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {
+    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)
   }
 `);
 
@@ -512,10 +529,14 @@ export function useWorkScheduleMutations() {
     create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
     update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
-    saveType: useCalendarMutation(async (variables: { id: string | null; input: { name: string; color: string } }) => (await execute(SaveScheduleTypeDocument, variables)).saveScheduleType),
+    saveType: useCalendarMutation(async (variables: { id: string | null; input: { name: string; color: string } & ScheduleDisplay }) => (await execute(SaveScheduleTypeDocument, variables)).saveScheduleType),
     removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
     subscribe: useCalendarMutation(
       async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind,
+    ),
+    setLook: useCalendarMutation(
+      async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) =>
+        (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,
     ),
     unsubscribe: useCalendarMutation(
       async (kind: { workspaceId: string; typeId: string | null }) => (await execute(UnsubscribeScheduleKindDocument, kind)).unsubscribeScheduleKind,

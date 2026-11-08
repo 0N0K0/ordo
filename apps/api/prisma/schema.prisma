@@ -1235,6 +1235,12 @@ model ScheduleType {
   id            String                     @id @default(cuid())
   name          String
   color         String
+  /// Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.
+  dayDisplay    String                     @default("SLOT_BACKGROUND")
+  /// A bar at the top of the week and the day on each day with slots.
+  dayBar        Boolean                    @default(true)
+  /// Its days in the month: BACKGROUND, BORDER or NONE.
+  monthDisplay  String                     @default("BACKGROUND")
   position      Int                        @default(0)
   createdAt     DateTime                   @default(now())
   schedules     WorkSchedule[]
@@ -1257,6 +1263,11 @@ model WorkScheduleSubscription {
   /// Kind of its schedules shown; none: its schedules without kind (working hours).
   typeId            String?
   type              ScheduleType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  /// Color and display in this workspace; none: those of the kind.
+  color             String?
+  dayDisplay        String?
+  dayBar            Boolean?
+  monthDisplay      String?
   createdAt         DateTime      @default(now())
   /// Workspace subscribing.
   workspaceId       String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))

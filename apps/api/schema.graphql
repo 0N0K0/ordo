@@ -720,9 +720,19 @@ scalar File
 Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.
 """
 type ForeignScheduleKind {
+  """In this workspace: the subscription’s, or the kind’s."""
   color: String
+
+  """The subscription sets a color or a display of its own."""
+  customized: Boolean!
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
   name: String!
   scheduleCount: Int!
+
+  """Of the kind, in its workspace."""
+  sourceColor: String
   subscribed: Boolean!
 
   """None: the schedules without kind (working hours)."""
@@ -736,10 +746,15 @@ Schedule of a kind of another workspace this one subscribes to, shown read only.
 """
 type ForeignWorkSchedule {
   cases: JSON!
+
+  """In this workspace."""
   color: String
+  dayBar: Boolean!
+  dayDisplay: String!
   endDate: String
   exceptions: JSON!
   id: ID!
+  monthDisplay: String!
   name: String!
   startDate: String!
   typeName: String
@@ -1509,6 +1524,11 @@ type Mutation {
   setProjectFavorite(favorite: Boolean!, id: ID!): Project!
 
   """
+  Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).
+  """
+  setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
+
+  """
   Archiving cascades to sub-tasks; restoring restores them and the archived parents.
   """
   setTaskArchived(archived: Boolean!, id: ID!): Task!
@@ -2002,17 +2022,41 @@ type SavedMailDraft {
 }
 
 """
+Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.
+"""
+input ScheduleSubscriptionLookInput {
+  color: String
+  dayBar: Boolean
+  dayDisplay: String
+  monthDisplay: String
+}
+
+"""
 Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.
 """
 type ScheduleType {
   color: String!
+
+  """A bar at the top of the week and the day on each day with slots."""
+  dayBar: Boolean!
+
+  """
+  Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.
+  """
+  dayDisplay: String!
   id: ID!
+
+  """Its days in the month: BACKGROUND, BORDER or NONE."""
+  monthDisplay: String!
   name: String!
   position: Int!
 }
 
 input ScheduleTypeInput {
   color: String!
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
   name: String!
 }
 

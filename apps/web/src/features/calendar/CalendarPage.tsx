@@ -6,7 +6,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Checkbox, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, plannedSlots } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -270,48 +270,62 @@ export function CalendarPage() {
         );
       }
     }
-    // Planned slots, in the color of their kind (working hours without one); paused days simply have none. Each
-    // day with slots shows it: the day colored in the month, a bar at the top (all-day row) in the week and the
-    // day, where the hours of the slots are in the background of the time grid. Slots of other workspaces
-    // subscribed to are hatched.
+    // Planned slots, in the color of their kind (working hours without one), shown as the kind (or the subscription
+    // to it) asks: in the week and the day, a bar at the top (all-day row) and, in the time grid, their hours (the
+    // whole day for an all-day slot) or the whole day in the background, or a thin line on the left of their hours;
+    // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
+    // other workspaces subscribed to are hatched.
     if (range && schedules && filters.workHours !== false) {
       const typeOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
       const own = schedules.map((schedule) => {
         const type = schedule.typeId ? typeOf.get(schedule.typeId) : undefined;
-        return { rule: scheduleRules([schedule])[0], color: type?.color ?? null, name: type?.name ?? schedule.name, foreign: false };
+        return { rule: scheduleRules([schedule])[0], color: type?.color ?? null, name: type?.name ?? schedule.name, foreign: false, display: readScheduleDisplay(type) };
       });
       const subscribed = (foreignSchedules ?? []).map((schedule) => ({
         rule: scheduleRules([schedule])[0],
         color: schedule.color ?? null,
         name: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}`,
         foreign: true,
+        display: readScheduleDisplay(schedule),
       }));
       const month = view === 'dayGridMonth';
-      for (const { rule, color, name, foreign } of [...own, ...subscribed]) {
+      for (const { rule, color, name, foreign, display } of [...own, ...subscribed]) {
         const hatched = foreign ? [classes.subscribedSlot] : [];
         const background = { display: 'background', ...(color ? { backgroundColor: color } : {}), classNames: [color ? classes.typedSlot : classes.workHours, ...hatched] };
+        /**
+         * Thin line of planned slots: a background event narrowed, in the full color.
+         * @param {string} className Line on the left or at the bottom.
+         * @returns {EventInput} Event props.
+         */
+        const line = (className: string) => ({ display: 'background', backgroundColor: color ?? 'var(--mantine-color-green-6)', classNames: [className] });
         const days = new Set<string>();
         for (const slot of plannedSlots([rule], range.from, range.to)) {
+          const wholeDay = { start: `${slot.date}T00:00:00`, end: `${addDays(slot.date, 1)}T00:00:00` };
           if (!days.has(slot.date)) {
             days.add(slot.date);
             const day = { id: `work-day:${slot.scheduleId}:${slot.date}`, start: slot.date, end: addDays(slot.date, 1), allDay: true };
-            result.push(
-              month
-                ? { ...day, ...background }
-                : {
-                    ...day,
-                    title: name,
-                    editable: false,
-                    backgroundColor: color ?? 'var(--mantine-color-green-light)',
-                    borderColor: color ?? 'var(--mantine-color-green-light)',
-                    textColor: 'var(--mantine-color-text)',
-                    extendedProps: { kind: 'slot' },
-                    classNames: [classes.slotBar, ...hatched],
-                  },
-            );
+            if (month) {
+              if (display.monthDisplay === 'BACKGROUND') result.push({ ...day, ...background });
+              else if (display.monthDisplay === 'BORDER') result.push({ ...day, ...line(classes.slotBorderBottom) });
+            } else {
+              if (display.dayBar) {
+                result.push({
+                  ...day,
+                  title: name,
+                  editable: false,
+                  backgroundColor: color ?? 'var(--mantine-color-green-light)',
+                  borderColor: color ?? 'var(--mantine-color-green-light)',
+                  textColor: 'var(--mantine-color-text)',
+                  extendedProps: { kind: 'slot' },
+                  classNames: [classes.slotBar, ...hatched],
+                });
+              }
+              if (display.dayDisplay === 'DAY_BACKGROUND') result.push({ id: `work-whole:${slot.scheduleId}:${slot.date}`, ...wholeDay, ...background });
+            }
           }
-          if (slot.allDay) continue;
-          result.push({ id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`, start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00`, ...background });
+          if (month || (display.dayDisplay !== 'SLOT_BACKGROUND' && display.dayDisplay !== 'SLOT_BORDER')) continue;
+          const hours = slot.allDay ? wholeDay : { start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00` };
+          result.push({ id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`, ...hours, ...(display.dayDisplay === 'SLOT_BORDER' ? line(classes.slotBorderLeft) : background) });
         }
       }
     }

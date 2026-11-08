@@ -327,9 +327,57 @@ export function fromLegacySchedule(legacy: { startDate: string; intervalWeeks: n
   };
 }
 
-/** Kind of time slots ("Travail", "Garde des enfants"…), with its color. */
+/**
+ * How slots show in the week and the day: their hours in the background, the whole day in the background, a thin
+ * line on the left of their hours, or nothing (the bar at the top aside).
+ */
+export const SCHEDULE_DAY_DISPLAYS = ['SLOT_BACKGROUND', 'DAY_BACKGROUND', 'SLOT_BORDER', 'NONE'] as const;
+export type ScheduleDayDisplay = (typeof SCHEDULE_DAY_DISPLAYS)[number];
+/** How a day with slots shows in the month: in the background, a thin line at the bottom, or nothing. */
+export const SCHEDULE_MONTH_DISPLAYS = ['BACKGROUND', 'BORDER', 'NONE'] as const;
+export type ScheduleMonthDisplay = (typeof SCHEDULE_MONTH_DISPLAYS)[number];
+
+/** Display of slots in the calendar. */
+export interface ScheduleDisplay {
+  dayDisplay: ScheduleDayDisplay;
+  /** A bar at the top of the week and the day (all-day row) on each day with slots. */
+  dayBar: boolean;
+  monthDisplay: ScheduleMonthDisplay;
+}
+export const DEFAULT_SCHEDULE_DISPLAY: ScheduleDisplay = { dayDisplay: 'SLOT_BACKGROUND', dayBar: true, monthDisplay: 'BACKGROUND' };
+
+const scheduleDisplayFields = {
+  dayDisplay: z.enum(SCHEDULE_DAY_DISPLAYS),
+  dayBar: z.boolean(),
+  monthDisplay: z.enum(SCHEDULE_MONTH_DISPLAYS),
+};
+
+/** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
 export const scheduleTypeSchema = z.object({
   name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
   color: colorSchema,
+  ...scheduleDisplayFields,
 });
+
+/** Color and display of a kind of schedules subscribed to, in the subscribing workspace; none: those of the kind. */
+export const scheduleSubscriptionLookSchema = z.object({
+  color: colorSchema.nullable(),
+  dayDisplay: scheduleDisplayFields.dayDisplay.nullable(),
+  dayBar: z.boolean().nullable(),
+  monthDisplay: scheduleDisplayFields.monthDisplay.nullable(),
+});
+export type ScheduleSubscriptionLook = z.infer<typeof scheduleSubscriptionLookSchema>;
+
+/**
+ * Display read from stored values: unknown ones fall back to the default.
+ * @param {{ dayDisplay?: string | null, dayBar?: boolean | null, monthDisplay?: string | null } | null | undefined} value Stored display.
+ * @returns {ScheduleDisplay} Display.
+ */
+export function readScheduleDisplay(value: { dayDisplay?: string | null; dayBar?: boolean | null; monthDisplay?: string | null } | null | undefined): ScheduleDisplay {
+  return {
+    dayDisplay: (SCHEDULE_DAY_DISPLAYS as readonly string[]).includes(value?.dayDisplay ?? '') ? (value!.dayDisplay as ScheduleDayDisplay) : DEFAULT_SCHEDULE_DISPLAY.dayDisplay,
+    dayBar: value?.dayBar ?? DEFAULT_SCHEDULE_DISPLAY.dayBar,
+    monthDisplay: (SCHEDULE_MONTH_DISPLAYS as readonly string[]).includes(value?.monthDisplay ?? '') ? (value!.monthDisplay as ScheduleMonthDisplay) : DEFAULT_SCHEDULE_DISPLAY.monthDisplay,
+  };
+}
 export type ScheduleTypeInput = z.input<typeof scheduleTypeSchema>;

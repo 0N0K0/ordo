@@ -486,8 +486,19 @@ export type SaveMailDraftInput = {
   to: Array<string>;
 };
 
+/** Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind. */
+export type ScheduleSubscriptionLookInput = {
+  color?: string | null | undefined;
+  dayBar?: boolean | null | undefined;
+  dayDisplay?: string | null | undefined;
+  monthDisplay?: string | null | undefined;
+};
+
 export type ScheduleTypeInput = {
   color: string;
+  dayBar: boolean;
+  dayDisplay: string;
+  monthDisplay: string;
   name: string;
 };
 
@@ -1341,17 +1352,17 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, position: number }> };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }> };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceName: string, typeId: string | null, name: string, color: string | null, scheduleCount: number, subscribed: boolean }> };
+export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceName: string, typeId: string | null, name: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean }> };
 
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeName: string | null, color: string | null, workspaceId: string, workspaceName: string }> };
+export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeName: string | null, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceName: string }> };
 
 export type SaveScheduleTypeMutationVariables = Exact<{
   id?: string | number | null | undefined;
@@ -1375,6 +1386,15 @@ export type SubscribeScheduleKindMutationVariables = Exact<{
 
 
 export type SubscribeScheduleKindMutation = { subscribeScheduleKind: boolean };
+
+export type SetScheduleSubscriptionLookMutationVariables = Exact<{
+  workspaceId: string | number;
+  typeId?: string | number | null | undefined;
+  input: ScheduleSubscriptionLookInput;
+}>;
+
+
+export type SetScheduleSubscriptionLookMutation = { setScheduleSubscriptionLook: boolean };
 
 export type UnsubscribeScheduleKindMutationVariables = Exact<{
   workspaceId: string | number;
@@ -4521,6 +4541,9 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     id
     name
     color
+    dayDisplay
+    dayBar
+    monthDisplay
     position
   }
 }
@@ -4533,6 +4556,11 @@ export const ForeignScheduleKindsDocument = new TypedDocumentString(`
     typeId
     name
     color
+    sourceColor
+    dayDisplay
+    dayBar
+    monthDisplay
+    customized
     scheduleCount
     subscribed
   }
@@ -4549,6 +4577,9 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
     exceptions
     typeName
     color
+    dayDisplay
+    dayBar
+    monthDisplay
     workspaceId
     workspaceName
   }
@@ -4569,6 +4600,15 @@ export const SubscribeScheduleKindDocument = new TypedDocumentString(`
   subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
 }
     `) as unknown as TypedDocumentString<SubscribeScheduleKindMutation, SubscribeScheduleKindMutationVariables>;
+export const SetScheduleSubscriptionLookDocument = new TypedDocumentString(`
+    mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {
+  setScheduleSubscriptionLook(
+    workspaceId: $workspaceId
+    typeId: $typeId
+    input: $input
+  )
+}
+    `) as unknown as TypedDocumentString<SetScheduleSubscriptionLookMutation, SetScheduleSubscriptionLookMutationVariables>;
 export const UnsubscribeScheduleKindDocument = new TypedDocumentString(`
     mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
   unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)

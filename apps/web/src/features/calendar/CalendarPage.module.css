@@ -116,6 +116,30 @@
     cursor: default;
   }
 
+  /* Planned slots as a thin line on the left of their hours (week and day): the background event narrowed. */
+  .slotBorderLeft {
+    /* Position */
+    right: auto !important;
+
+    /* Dimension */
+    width: 3px;
+
+    /* Effets */
+    opacity: 1 !important;
+  }
+
+  /* Day of planned slots as a thin line at its bottom (month). */
+  .slotBorderBottom {
+    /* Position */
+    top: auto !important;
+
+    /* Dimension */
+    height: 3px;
+
+    /* Effets */
+    opacity: 1 !important;
+  }
+
   /* Planned slots of another workspace: hatched. */
   .subscribedSlot {
     /* Arrière-Plan */
