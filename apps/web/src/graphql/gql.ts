@@ -93,7 +93,12 @@ type Documents = {
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": typeof types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": typeof types.CancelEmailChangeDocument,
     "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    calendarId\n    contributorIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
-    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n": typeof types.WorkSchedulesDocument,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      typeId\n      slots {\n        weekday\n        start\n        end\n        allDay\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      position\n    }\n  }\n": typeof types.WorkSchedulesDocument,
+    "\n  query ForeignWorkSchedules($subscribed: Boolean) {\n    foreignWorkSchedules(subscribed: $subscribed) {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n        allDay\n      }\n      pauses {\n        from\n        to\n        label\n      }\n      typeName\n      color\n      workspaceId\n      workspaceName\n      subscribed\n    }\n  }\n": typeof types.ForeignWorkSchedulesDocument,
+    "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": typeof types.SaveScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": typeof types.DeleteScheduleTypeDocument,
+    "\n  mutation SubscribeWorkSchedule($scheduleId: ID!) {\n    subscribeWorkSchedule(scheduleId: $scheduleId)\n  }\n": typeof types.SubscribeWorkScheduleDocument,
+    "\n  mutation UnsubscribeWorkSchedule($scheduleId: ID!) {\n    unsubscribeWorkSchedule(scheduleId: $scheduleId)\n  }\n": typeof types.UnsubscribeWorkScheduleDocument,
     "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": typeof types.CreateWorkScheduleDocument,
     "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": typeof types.UpdateWorkScheduleDocument,
     "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": typeof types.DeleteWorkScheduleDocument,
@@ -421,7 +426,12 @@ const documents: Documents = {
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": types.CancelEmailChangeDocument,
     "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    calendarId\n    contributorIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
-    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n": types.WorkSchedulesDocument,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      typeId\n      slots {\n        weekday\n        start\n        end\n        allDay\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      position\n    }\n  }\n": types.WorkSchedulesDocument,
+    "\n  query ForeignWorkSchedules($subscribed: Boolean) {\n    foreignWorkSchedules(subscribed: $subscribed) {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n        allDay\n      }\n      pauses {\n        from\n        to\n        label\n      }\n      typeName\n      color\n      workspaceId\n      workspaceName\n      subscribed\n    }\n  }\n": types.ForeignWorkSchedulesDocument,
+    "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": types.SaveScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": types.DeleteScheduleTypeDocument,
+    "\n  mutation SubscribeWorkSchedule($scheduleId: ID!) {\n    subscribeWorkSchedule(scheduleId: $scheduleId)\n  }\n": types.SubscribeWorkScheduleDocument,
+    "\n  mutation UnsubscribeWorkSchedule($scheduleId: ID!) {\n    unsubscribeWorkSchedule(scheduleId: $scheduleId)\n  }\n": types.UnsubscribeWorkScheduleDocument,
     "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": types.CreateWorkScheduleDocument,
     "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": types.UpdateWorkScheduleDocument,
     "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": types.DeleteWorkScheduleDocument,
@@ -986,7 +996,27 @@ export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on C
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n"): typeof import('./graphql').WorkSchedulesDocument;
+export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      typeId\n      slots {\n        weekday\n        start\n        end\n        allDay\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      position\n    }\n  }\n"): typeof import('./graphql').WorkSchedulesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ForeignWorkSchedules($subscribed: Boolean) {\n    foreignWorkSchedules(subscribed: $subscribed) {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n        allDay\n      }\n      pauses {\n        from\n        to\n        label\n      }\n      typeName\n      color\n      workspaceId\n      workspaceName\n      subscribed\n    }\n  }\n"): typeof import('./graphql').ForeignWorkSchedulesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SaveScheduleTypeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n"): typeof import('./graphql').DeleteScheduleTypeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SubscribeWorkSchedule($scheduleId: ID!) {\n    subscribeWorkSchedule(scheduleId: $scheduleId)\n  }\n"): typeof import('./graphql').SubscribeWorkScheduleDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UnsubscribeWorkSchedule($scheduleId: ID!) {\n    unsubscribeWorkSchedule(scheduleId: $scheduleId)\n  }\n"): typeof import('./graphql').UnsubscribeWorkScheduleDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -101,6 +101,18 @@
     opacity: 0.6 !important;
   }
 
+  /* Planned slots of a kind: its color, light. */
+  .typedSlot {
+    /* Effets */
+    opacity: 0.25 !important;
+  }
+
+  /* Planned slots of another workspace: hatched. */
+  .subscribedSlot {
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.5) 0 4px, transparent 4px 8px) !important;
+  }
+
   /* Tracked time: hatched, to tell it from events. */
   .timer {
     /* Bordures */

@@ -486,6 +486,11 @@ export type SaveMailDraftInput = {
   to: Array<string>;
 };
 
+export type ScheduleTypeInput = {
+  color: string;
+  name: string;
+};
+
 export type SendMailInput = {
   accountId: string | number;
   attachments?: Array<File> | null | undefined;
@@ -769,9 +774,12 @@ export type WorkScheduleInput = {
   pauses: Array<WorkPauseInput>;
   slots: Array<WorkSlotInput>;
   startDate: string;
+  /** Kind of time it plans; none: working hours. */
+  typeId?: string | number | null | undefined;
 };
 
 export type WorkSlotInput = {
+  allDay?: boolean | null | undefined;
   end: string;
   start: string;
   weekday: number;
@@ -1345,7 +1353,43 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, slots: Array<{ weekday: number, start: string, end: string }>, pauses: Array<{ from: string, to: string, label: string }> }> };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, typeId: string | null, slots: Array<{ weekday: number, start: string, end: string, allDay: boolean }>, pauses: Array<{ from: string, to: string, label: string }> }>, scheduleTypes: Array<{ id: string, name: string, color: string, position: number }> };
+
+export type ForeignWorkSchedulesQueryVariables = Exact<{
+  subscribed?: boolean | null | undefined;
+}>;
+
+
+export type ForeignWorkSchedulesQuery = { foreignWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, typeName: string | null, color: string | null, workspaceId: string, workspaceName: string, subscribed: boolean, slots: Array<{ weekday: number, start: string, end: string, allDay: boolean }>, pauses: Array<{ from: string, to: string, label: string }> }> };
+
+export type SaveScheduleTypeMutationVariables = Exact<{
+  id?: string | number | null | undefined;
+  input: ScheduleTypeInput;
+}>;
+
+
+export type SaveScheduleTypeMutation = { saveScheduleType: string };
+
+export type DeleteScheduleTypeMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteScheduleTypeMutation = { deleteScheduleType: boolean };
+
+export type SubscribeWorkScheduleMutationVariables = Exact<{
+  scheduleId: string | number;
+}>;
+
+
+export type SubscribeWorkScheduleMutation = { subscribeWorkSchedule: boolean };
+
+export type UnsubscribeWorkScheduleMutationVariables = Exact<{
+  scheduleId: string | number;
+}>;
+
+
+export type UnsubscribeWorkScheduleMutation = { unsubscribeWorkSchedule: boolean };
 
 export type CreateWorkScheduleMutationVariables = Exact<{
   input: WorkScheduleInput;
@@ -4477,10 +4521,12 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     startDate
     endDate
     intervalWeeks
+    typeId
     slots {
       weekday
       start
       end
+      allDay
     }
     pauses {
       from
@@ -4488,8 +4534,61 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
       label
     }
   }
+  scheduleTypes {
+    id
+    name
+    color
+    position
+  }
 }
     `) as unknown as TypedDocumentString<WorkSchedulesQuery, WorkSchedulesQueryVariables>;
+export const ForeignWorkSchedulesDocument = new TypedDocumentString(`
+    query ForeignWorkSchedules($subscribed: Boolean) {
+  foreignWorkSchedules(subscribed: $subscribed) {
+    id
+    name
+    startDate
+    endDate
+    intervalWeeks
+    slots {
+      weekday
+      start
+      end
+      allDay
+    }
+    pauses {
+      from
+      to
+      label
+    }
+    typeName
+    color
+    workspaceId
+    workspaceName
+    subscribed
+  }
+}
+    `) as unknown as TypedDocumentString<ForeignWorkSchedulesQuery, ForeignWorkSchedulesQueryVariables>;
+export const SaveScheduleTypeDocument = new TypedDocumentString(`
+    mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {
+  saveScheduleType(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<SaveScheduleTypeMutation, SaveScheduleTypeMutationVariables>;
+export const DeleteScheduleTypeDocument = new TypedDocumentString(`
+    mutation DeleteScheduleType($id: ID!) {
+  deleteScheduleType(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteScheduleTypeMutation, DeleteScheduleTypeMutationVariables>;
+export const SubscribeWorkScheduleDocument = new TypedDocumentString(`
+    mutation SubscribeWorkSchedule($scheduleId: ID!) {
+  subscribeWorkSchedule(scheduleId: $scheduleId)
+}
+    `) as unknown as TypedDocumentString<SubscribeWorkScheduleMutation, SubscribeWorkScheduleMutationVariables>;
+export const UnsubscribeWorkScheduleDocument = new TypedDocumentString(`
+    mutation UnsubscribeWorkSchedule($scheduleId: ID!) {
+  unsubscribeWorkSchedule(scheduleId: $scheduleId)
+}
+    `) as unknown as TypedDocumentString<UnsubscribeWorkScheduleMutation, UnsubscribeWorkScheduleMutationVariables>;
 export const CreateWorkScheduleDocument = new TypedDocumentString(`
     mutation CreateWorkSchedule($input: WorkScheduleInput!) {
   createWorkSchedule(input: $input)

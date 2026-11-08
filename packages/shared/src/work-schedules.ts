@@ -1,18 +1,21 @@
 import { z } from 'zod';
 import { addDays, daysBetween, parseDay } from './recurrence';
+import { colorSchema } from './workspace';
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).');
 
-/** Working time slot on a weekday, in local time. */
+/** Time slot on a weekday, in local time, or the whole day. */
 export const workSlotSchema = z
   .object({
     /** 1 (Monday) to 7 (Sunday). */
     weekday: z.number().int().min(1).max(7),
     start: timeSchema,
     end: timeSchema,
+    /** The whole day (its times are not used). */
+    allDay: z.boolean().default(false),
   })
-  .refine((slot) => slot.end > slot.start, { path: ['end'], message: 'La fin doit suivre le début.' });
+  .refine((slot) => slot.allDay || slot.end > slot.start, { path: ['end'], message: 'La fin doit suivre le début.' });
 export type WorkSlot = z.infer<typeof workSlotSchema>;
 
 /** Paused period (holidays…), dates included. */
@@ -34,6 +37,8 @@ export const workScheduleSchema = z
     intervalWeeks: z.number().int().min(1, 'Au moins 1.').max(52, '52 maximum.'),
     slots: z.array(workSlotSchema).min(1, 'Ajoutez au moins une plage.').max(70, '70 plages maximum.'),
     pauses: z.array(workPauseSchema).max(200, '200 pauses maximum.'),
+    /** Kind of time it plans; none: working hours. */
+    typeId: z.string().nullish(),
   })
   .superRefine((schedule, context) => {
     if (schedule.endDate && schedule.endDate < schedule.startDate) {
@@ -41,7 +46,10 @@ export const workScheduleSchema = z
     }
     // Slots of a same day must not overlap.
     schedule.slots.forEach((slot, index) => {
-      const overlapping = schedule.slots.some((other, otherIndex) => otherIndex < index && other.weekday === slot.weekday && other.start < slot.end && slot.start < other.end);
+      // A whole day overlaps any other slot of that day.
+      const overlapping = schedule.slots.some(
+        (other, otherIndex) => otherIndex < index && other.weekday === slot.weekday && (other.allDay || slot.allDay || (other.start < slot.end && slot.start < other.end)),
+      );
       if (overlapping) context.addIssue({ code: 'custom', path: ['slots', index, 'start'], message: 'Chevauche une autre plage du même jour.' });
     });
   });
@@ -56,6 +64,8 @@ export interface WorkScheduleRule {
   intervalWeeks: number;
   slots: readonly WorkSlot[];
   pauses: readonly WorkPause[];
+  /** Kind of time it plans; none: working hours. */
+  typeId?: string | null;
 }
 
 /** Planned working time slot on a date. */
@@ -63,6 +73,8 @@ export interface PlannedSlot {
   date: string;
   start: string;
   end: string;
+  /** The whole day ("00:00" to "24:00"). */
+  allDay: boolean;
   scheduleId: string;
 }
 
@@ -126,7 +138,10 @@ export function plannedSlots(schedules: readonly WorkScheduleRule[], from: strin
     const weekday = weekdayOf(date);
     for (const schedule of schedules) {
       if (!activeOn(schedule, date)) continue;
-      for (const slot of schedule.slots) if (slot.weekday === weekday) result.push({ date, start: slot.start, end: slot.end, scheduleId: schedule.id });
+      for (const slot of schedule.slots) {
+        if (slot.weekday !== weekday) continue;
+        result.push(slot.allDay ? { date, start: '00:00', end: '24:00', allDay: true, scheduleId: schedule.id } : { date, start: slot.start, end: slot.end, allDay: false, scheduleId: schedule.id });
+      }
     }
   }
   return result.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
@@ -144,13 +159,13 @@ export function plannedPauses(schedules: readonly WorkScheduleRule[], from: stri
 }
 
 /**
- * Minutes of time slots.
- * @param {readonly { start: string, end: string }[]} slots Slots.
+ * Minutes of time slots (whole days are no planned working time: left out).
+ * @param {readonly { start: string, end: string, allDay?: boolean }[]} slots Slots.
  * @returns {number} Minutes.
  */
-export function slotMinutes(slots: readonly { start: string; end: string }[]): number {
+export function slotMinutes(slots: readonly { start: string; end: string; allDay?: boolean }[]): number {
   const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-  return slots.reduce((sum, slot) => sum + minutes(slot.end) - minutes(slot.start), 0);
+  return slots.filter((slot) => !slot.allDay).reduce((sum, slot) => sum + minutes(slot.end) - minutes(slot.start), 0);
 }
 
 /**
@@ -164,3 +179,10 @@ export function slotMinutes(slots: readonly { start: string; end: string }[]): n
 export function withinSlots(slots: readonly PlannedSlot[], date: string, start: string, end: string): boolean {
   return slots.some((slot) => slot.date === date && slot.start <= start && end <= slot.end);
 }
+
+/** Kind of time slots ("Travail", "Garde des enfants"…), with its color. */
+export const scheduleTypeSchema = z.object({
+  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+  color: colorSchema,
+});
+export type ScheduleTypeInput = z.input<typeof scheduleTypeSchema>;

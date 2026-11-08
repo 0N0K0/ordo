@@ -7,6 +7,7 @@ import { tasksQueryKey } from '../tasks/api';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
 export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
+export type ScheduleType = WorkSchedulesQuery['scheduleTypes'][number];
 export type { CalendarEventInput, CalendarEventScope };
 
 graphql(`
@@ -62,10 +63,12 @@ const WorkSchedulesDocument = graphql(`
       startDate
       endDate
       intervalWeeks
+      typeId
       slots {
         weekday
         start
         end
+        allDay
       }
       pauses {
         from
@@ -73,6 +76,64 @@ const WorkSchedulesDocument = graphql(`
         label
       }
     }
+    scheduleTypes {
+      id
+      name
+      color
+      position
+    }
+  }
+`);
+
+const ForeignSchedulesDocument = graphql(`
+  query ForeignWorkSchedules($subscribed: Boolean) {
+    foreignWorkSchedules(subscribed: $subscribed) {
+      id
+      name
+      startDate
+      endDate
+      intervalWeeks
+      slots {
+        weekday
+        start
+        end
+        allDay
+      }
+      pauses {
+        from
+        to
+        label
+      }
+      typeName
+      color
+      workspaceId
+      workspaceName
+      subscribed
+    }
+  }
+`);
+
+const SaveScheduleTypeDocument = graphql(`
+  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {
+    saveScheduleType(id: $id, input: $input)
+  }
+`);
+
+const DeleteScheduleTypeDocument = graphql(`
+  mutation DeleteScheduleType($id: ID!) {
+    deleteScheduleType(id: $id)
+  }
+`);
+
+const SubscribeWorkScheduleDocument = graphql(`
+  mutation SubscribeWorkSchedule($scheduleId: ID!) {
+    subscribeWorkSchedule(scheduleId: $scheduleId)
+  }
+`);
+
+const UnsubscribeWorkScheduleDocument = graphql(`
+  mutation UnsubscribeWorkSchedule($scheduleId: ID!) {
+    unsubscribeWorkSchedule(scheduleId: $scheduleId)
   }
 `);
 
@@ -422,7 +483,27 @@ export function useCalendarEventMutations() {
  * @returns {UseQueryResult} Query state.
  */
 export function useWorkSchedules() {
-  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: async () => (await execute(WorkSchedulesDocument)).workSchedules });
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.workSchedules });
+}
+
+/**
+ * Kinds of time slots ("Travail", "Garde des enfants"…).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useScheduleTypes() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.scheduleTypes });
+}
+
+/**
+ * Time slots of the other workspaces (only those this one shows, with `subscribed`).
+ * @param {boolean} subscribed Only those subscribed to.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useForeignSchedules(subscribed: boolean) {
+  return useQuery({
+    queryKey: [...calendarQueryKey, 'foreign-schedules', subscribed],
+    queryFn: async () => (await execute(ForeignSchedulesDocument, { subscribed })).foreignWorkSchedules,
+  });
 }
 
 /**
@@ -434,15 +515,19 @@ export function useWorkScheduleMutations() {
     create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
     update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
+    saveType: useCalendarMutation(async (variables: { id: string | null; input: { name: string; color: string } }) => (await execute(SaveScheduleTypeDocument, variables)).saveScheduleType),
+    removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
+    subscribe: useCalendarMutation(async (scheduleId: string) => (await execute(SubscribeWorkScheduleDocument, { scheduleId })).subscribeWorkSchedule),
+    unsubscribe: useCalendarMutation(async (scheduleId: string) => (await execute(UnsubscribeWorkScheduleDocument, { scheduleId })).unsubscribeWorkSchedule),
   };
 }
 
 /**
- * Schedules as the shared functions read them.
- * @param {WorkSchedule[]} schedules Schedules.
+ * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to).
+ * @param {object[]} schedules Schedules.
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
-export function scheduleRules(schedules: readonly WorkSchedule[]) {
+export function scheduleRules<S extends Omit<WorkSchedule, 'typeId' | 'startDate' | 'endDate'> & { startDate: unknown; endDate?: unknown }>(schedules: readonly S[]) {
   return schedules.map((schedule) => ({ ...schedule, startDate: String(schedule.startDate), endDate: schedule.endDate ? String(schedule.endDate) : null }));
 }
 

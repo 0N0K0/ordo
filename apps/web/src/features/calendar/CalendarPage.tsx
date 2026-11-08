@@ -28,6 +28,8 @@ import {
   useCalendars,
   useMaterializeTaskOccurrences,
   useSubscribedCalendarEvents,
+  useForeignSchedules,
+  useScheduleTypes,
   useWorkSchedules,
   type CalendarSubscription,
   type EventOccurrence,
@@ -42,6 +44,7 @@ import { useEventForm } from './use-event-form';
 import { CalendarCategoriesManager } from './CalendarCategoriesManager';
 import { CalendarsManager } from './CalendarsManager';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
+import { useActiveWorkspace } from '../workspaces/api';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -114,6 +117,9 @@ export function CalendarPage() {
   const navigate = useNavigate();
   const taskLink = useTaskLink();
   const { data: schedules } = useWorkSchedules();
+  const { data: scheduleTypes } = useScheduleTypes();
+  const { data: foreignSchedules } = useForeignSchedules(true);
+  const { perso } = useActiveWorkspace();
   const [managingSchedules, setManagingSchedules] = useState(false);
   // Tracked times of the displayed period (from its first day, local midnight).
   const showTimers = filters.timers === true;
@@ -264,17 +270,22 @@ export function CalendarPage() {
         );
       }
     }
-    // Working hours in the background (week and day); paused days simply have none.
+    // Planned slots in the background, in the color of their kind (working hours without one); paused days
+    // simply have none; whole days cover the day. The slots of other workspaces subscribed to are hatched.
     if (range && schedules && filters.workHours !== false) {
-      const rules = scheduleRules(schedules);
-      for (const slot of plannedSlots(rules, range.from, range.to)) {
-        result.push({
-          id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`,
-          start: `${slot.date}T${slot.start}:00`,
-          end: `${slot.date}T${slot.end}:00`,
-          display: 'background',
-          classNames: [classes.workHours],
-        });
+      const colorOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type.color]));
+      const own = schedules.map((schedule) => ({ rule: scheduleRules([schedule])[0], color: schedule.typeId ? (colorOf.get(schedule.typeId) ?? null) : null, foreign: false }));
+      const subscribed = (foreignSchedules ?? []).map((schedule) => ({ rule: scheduleRules([schedule])[0], color: schedule.color ?? null, foreign: true }));
+      for (const { rule, color, foreign } of [...own, ...subscribed]) {
+        for (const slot of plannedSlots([rule], range.from, range.to)) {
+          result.push({
+            id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`,
+            ...(slot.allDay ? { start: slot.date, end: addDays(slot.date, 1), allDay: true } : { start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00` }),
+            display: 'background',
+            ...(color ? { backgroundColor: color } : {}),
+            classNames: [color ? classes.typedSlot : classes.workHours, ...(foreign ? [classes.subscribedSlot] : [])],
+          });
+        }
       }
     }
     if (filters.tasks) {
@@ -301,7 +312,24 @@ export function CalendarPage() {
       }
     }
     return result;
-  }, [context, events.data, subscribedEvents.data, ownCalendars, subscriptions, hidden, filters, categoryFilter, categoryById, range, schedules, showTimers, timeEntries.data, minute]);
+  }, [
+    context,
+    events.data,
+    subscribedEvents.data,
+    ownCalendars,
+    subscriptions,
+    hidden,
+    filters,
+    categoryFilter,
+    categoryById,
+    range,
+    schedules,
+    scheduleTypes,
+    foreignSchedules,
+    showTimers,
+    timeEntries.data,
+    minute,
+  ]);
 
   /**
    * Saves an event or a task moved or stretched in the calendar (cancelled: back in place).
@@ -421,7 +449,7 @@ export function CalendarPage() {
             </ActionIcon>
           </Tooltip>
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
-            Plages de travail
+            {perso ? 'Plages' : 'Plages de travail'}
           </Button>
           <Tooltip label="Calendriers, abonnements aux autres espaces, catégories">
             <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => showSettings(true)}>
@@ -465,7 +493,7 @@ export function CalendarPage() {
 
       <Group gap="sm" wrap="wrap" align="flex-end">
         <Switch label="Tâches" checked={filters.tasks} onChange={(event) => setFilters({ ...filters, tasks: event.currentTarget.checked })} />
-        <Switch label="Plages de travail" checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
+        <Switch label={perso ? 'Plages' : 'Plages de travail'} checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
         <Switch label="Chronos" checked={showTimers} onChange={(event) => setFilters({ ...filters, timers: event.currentTarget.checked })} />
         <MultiSelect
           size="xs"
@@ -516,7 +544,7 @@ export function CalendarPage() {
           </Stack>
         )}
       </Modal>
-      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title="Plages de travail" size="xl">
+      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="xl">
         {managingSchedules && <WorkSchedulesManager />}
       </Modal>
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>

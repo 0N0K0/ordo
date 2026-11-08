@@ -115,8 +115,13 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
   }),
 });
 
-const WorkSlotRef = builder.objectRef<{ weekday: number; start: string; end: string }>('WorkSlot').implement({
-  fields: (t) => ({ weekday: t.exposeInt('weekday', { description: '1 (Monday) to 7.' }), start: t.exposeString('start'), end: t.exposeString('end') }),
+const WorkSlotRef = builder.objectRef<{ weekday: number; start: string; end: string; allDay?: boolean }>('WorkSlot').implement({
+  fields: (t) => ({
+    weekday: t.exposeInt('weekday', { description: '1 (Monday) to 7.' }),
+    start: t.exposeString('start'),
+    end: t.exposeString('end'),
+    allDay: t.boolean({ description: 'The whole day (its times are not used).', resolve: (slot) => slot.allDay ?? false }),
+  }),
 });
 
 const WorkPauseRef = builder.objectRef<{ from: string; to: string; label: string }>('WorkPause').implement({
@@ -133,11 +138,39 @@ builder.prismaObject('WorkSchedule', {
     intervalWeeks: t.exposeInt('intervalWeeks'),
     slots: t.field({ type: [WorkSlotRef], resolve: (schedule) => [...schedules.scheduleRule(schedule).slots] }),
     pauses: t.field({ type: [WorkPauseRef], resolve: (schedule) => [...schedules.scheduleRule(schedule).pauses] }),
+    typeId: t.exposeID('typeId', { nullable: true, description: 'Kind of time it plans; none: working hours.' }),
+  }),
+});
+
+builder.prismaObject('ScheduleType', {
+  description: 'Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.',
+  fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), color: t.exposeString('color'), position: t.exposeInt('position') }),
+});
+
+const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
+  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
+});
+
+const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
+  description: 'Time slots of another workspace, shown read only when subscribed to.',
+  fields: (t) => ({
+    id: t.id({ resolve: (item) => item.rule.id }),
+    name: t.string({ resolve: (item) => item.rule.name }),
+    startDate: t.string({ resolve: (item) => item.rule.startDate }),
+    endDate: t.string({ nullable: true, resolve: (item) => item.rule.endDate }),
+    intervalWeeks: t.int({ resolve: (item) => item.rule.intervalWeeks }),
+    slots: t.field({ type: [WorkSlotRef], resolve: (item) => [...item.rule.slots] }),
+    pauses: t.field({ type: [WorkPauseRef], resolve: (item) => [...item.rule.pauses] }),
+    typeName: t.exposeString('typeName', { nullable: true }),
+    color: t.exposeString('color', { nullable: true }),
+    workspaceId: t.id({ resolve: (item) => item.workspace.id }),
+    workspaceName: t.string({ resolve: (item) => item.workspace.name }),
+    subscribed: t.exposeBoolean('subscribed'),
   }),
 });
 
 const WorkSlotInput = builder.inputType('WorkSlotInput', {
-  fields: (t) => ({ weekday: t.int({ required: true }), start: t.string({ required: true }), end: t.string({ required: true }) }),
+  fields: (t) => ({ weekday: t.int({ required: true }), start: t.string({ required: true }), end: t.string({ required: true }), allDay: t.boolean() }),
 });
 
 const WorkPauseInput = builder.inputType('WorkPauseInput', {
@@ -152,7 +185,20 @@ const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
     intervalWeeks: t.int({ required: true }),
     slots: t.field({ type: [WorkSlotInput], required: true }),
     pauses: t.field({ type: [WorkPauseInput], required: true }),
+    typeId: t.id({ description: 'Kind of time it plans; none: working hours.' }),
   }),
+});
+
+/**
+ * Schedule input with omitted optional fields as null.
+ * @param {typeof WorkScheduleInput.$inferInput} input GraphQL input.
+ * @returns {import('@ordo/shared').WorkScheduleInput} Service input.
+ */
+const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
+  ...input,
+  endDate: input.endDate ?? null,
+  typeId: input.typeId ?? null,
+  slots: input.slots.map((slot) => ({ ...slot, allDay: slot.allDay ?? false })),
 });
 
 const CalendarLinkInput = builder.inputType('CalendarLinkInput', {
@@ -232,6 +278,16 @@ builder.queryFields((t) => ({
   calendarCategories: t.prismaField({
     type: ['CalendarCategory'],
     resolve: (query) => prisma.calendarCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  scheduleTypes: t.prismaField({
+    type: ['ScheduleType'],
+    resolve: (query) => prisma.scheduleType.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  foreignWorkSchedules: t.field({
+    type: [ForeignScheduleRef],
+    description: 'Time slots of the other workspaces (only those this one shows, with `subscribed`).',
+    args: { subscribed: t.arg.boolean() },
+    resolve: (_root, args) => schedules.foreignSchedules(args.subscribed ?? false),
   }),
   workSchedules: t.prismaField({
     type: ['WorkSchedule'],
@@ -352,14 +408,40 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), occurrenceDate: t.arg({ type: 'Date' }), input: t.arg({ type: CalendarEventInput, required: true }) },
     resolve: async (_root, { id, occurrenceDate, input }) => (await events.postponeCalendarEvent(id, occurrenceDate, eventInput(input))).id,
   }),
+  saveScheduleType: t.id({
+    args: { id: t.arg.id(), input: t.arg({ type: ScheduleTypeInput, required: true }) },
+    resolve: async (_root, { id, input }) => (await schedules.saveScheduleType(id ?? null, input)).id,
+  }),
+  deleteScheduleType: t.boolean({
+    description: 'Deletes a kind of time slots (its schedules stay, without kind).',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await schedules.deleteScheduleType(id);
+      return true;
+    },
+  }),
+  subscribeWorkSchedule: t.boolean({
+    args: { scheduleId: t.arg.id({ required: true }) },
+    resolve: async (_root, { scheduleId }) => {
+      await schedules.subscribeSchedule(scheduleId);
+      return true;
+    },
+  }),
+  unsubscribeWorkSchedule: t.boolean({
+    args: { scheduleId: t.arg.id({ required: true }) },
+    resolve: async (_root, { scheduleId }) => {
+      await schedules.unsubscribeSchedule(scheduleId);
+      return true;
+    },
+  }),
   createWorkSchedule: t.id({
     args: { input: t.arg({ type: WorkScheduleInput, required: true }) },
-    resolve: async (_root, { input }) => (await schedules.createWorkSchedule({ ...input, endDate: input.endDate ?? null })).id,
+    resolve: async (_root, { input }) => (await schedules.createWorkSchedule(scheduleInput(input))).id,
   }),
   updateWorkSchedule: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await schedules.updateWorkSchedule(id, { ...input, endDate: input.endDate ?? null });
+      await schedules.updateWorkSchedule(id, scheduleInput(input));
       return true;
     },
   }),

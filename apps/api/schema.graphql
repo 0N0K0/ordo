@@ -716,6 +716,22 @@ enum DocumentStatusScope {
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
 
+"""Time slots of another workspace, shown read only when subscribed to."""
+type ForeignWorkSchedule {
+  color: String
+  endDate: String
+  id: ID!
+  intervalWeeks: Int!
+  name: String!
+  pauses: [WorkPause!]!
+  slots: [WorkSlot!]!
+  startDate: String!
+  subscribed: Boolean!
+  typeName: String
+  workspaceId: ID!
+  workspaceName: String!
+}
+
 """GitHub Projects (v2) board."""
 type GithubBoard {
   fields: [GithubBoardField!]!
@@ -1254,6 +1270,9 @@ type Mutation {
   deleteProjectResource(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
   deleteRecurringInvoice(id: ID!): Boolean!
+
+  """Deletes a kind of time slots (its schedules stay, without kind)."""
+  deleteScheduleType(id: ID!): Boolean!
   deleteSprint(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
@@ -1410,6 +1429,7 @@ type Mutation {
   Saves a draft in the drafts folder of its account, replacing its previous version.
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
+  saveScheduleType(id: ID, input: ScheduleTypeInput!): ID!
 
   """Creates a budget (without id), or changes one and its repetitions."""
   saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
@@ -1500,6 +1520,7 @@ type Mutation {
 
   """Shows a calendar of another workspace in this one (read only)."""
   subscribeCalendar(calendarId: ID!): Boolean!
+  subscribeWorkSchedule(scheduleId: ID!): Boolean!
   syncGithubProject(projectId: ID!): GithubSyncSummary!
 
   """
@@ -1519,6 +1540,7 @@ type Mutation {
 
   """Stops showing a calendar of another workspace."""
   unsubscribeCalendar(calendarId: ID!): Boolean!
+  unsubscribeWorkSchedule(scheduleId: ID!): Boolean!
   updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
   updateCalendar(id: ID!, input: CalendarInput!): Calendar!
@@ -1729,6 +1751,11 @@ type Query {
   """
   forecastEntries: [TreasuryEntry!]!
 
+  """
+  Time slots of the other workspaces (only those this one shows, with `subscribed`).
+  """
+  foreignWorkSchedules(subscribed: Boolean): [ForeignWorkSchedule!]!
+
   """Board of a URL with its fields, to configure a link."""
   githubBoard(url: String!): GithubBoard!
   githubContributors: [GithubContributor!]!
@@ -1812,6 +1839,7 @@ type Query {
   projects: [Project!]!
   recurringInvoices: [RecurringInvoice!]!
   runningTimeEntry: TimeEntry
+  scheduleTypes: [ScheduleType!]!
 
   """Mails waiting to be sent, and those that failed."""
   scheduledMails: [ScheduledMail!]!
@@ -1949,6 +1977,21 @@ type SavedMailDraft {
   attachments: [MailAttachmentInfo!]!
   folder: String!
   uid: Int!
+}
+
+"""
+Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.
+"""
+type ScheduleType {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+input ScheduleTypeInput {
+  color: String!
+  name: String!
 }
 
 """Mail waiting to be sent at its time (or failed)."""
@@ -2758,6 +2801,9 @@ type WorkSchedule {
   pauses: [WorkPause!]!
   slots: [WorkSlot!]!
   startDate: Date!
+
+  """Kind of time it plans; none: working hours."""
+  typeId: ID
 }
 
 input WorkScheduleInput {
@@ -2767,9 +2813,14 @@ input WorkScheduleInput {
   pauses: [WorkPauseInput!]!
   slots: [WorkSlotInput!]!
   startDate: Date!
+
+  """Kind of time it plans; none: working hours."""
+  typeId: ID
 }
 
 type WorkSlot {
+  """The whole day (its times are not used)."""
+  allDay: Boolean!
   end: String!
   start: String!
 
@@ -2778,6 +2829,7 @@ type WorkSlot {
 }
 
 input WorkSlotInput {
+  allDay: Boolean
   end: String!
   start: String!
   weekday: Int!
