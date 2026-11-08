@@ -106,56 +106,110 @@ export async function deleteScheduleType(id: string): Promise<void> {
   if (!count) throw notFound('Type de plage');
 }
 
-/** Schedule of another workspace, with its kind and workspace. */
+/** Schedule of another workspace shown in this one, with its kind and workspace. */
 export interface ForeignSchedule {
   rule: WorkScheduleRule;
   typeName: string | null;
   color: string | null;
   workspace: { id: string; name: string };
+}
+
+/** Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it. */
+export interface ForeignScheduleKind {
+  workspace: { id: string; name: string };
+  /** None: the schedules without kind (working hours). */
+  typeId: string | null;
+  name: string;
+  color: string | null;
+  scheduleCount: number;
   subscribed: boolean;
 }
 
+/** Name of the schedules without kind. */
+const UNTYPED = 'Horaires de travail';
+
 /**
- * Schedules of the other workspaces, with whether this one shows them (`only`: those it shows).
- * @param {boolean} only Only the schedules subscribed to.
- * @returns {Promise<ForeignSchedule[]>} Schedules, by workspace and name.
+ * Kinds of schedules of the other workspaces (with their schedules without kind, when there are), by workspace,
+ * with whether this one shows them.
+ * @returns {Promise<ForeignScheduleKind[]>} Kinds.
  */
-export async function foreignSchedules(only: boolean): Promise<ForeignSchedule[]> {
-  const subscribed = new Set((await prisma.workScheduleSubscription.findMany({ select: { scheduleId: true } })).map((item) => item.scheduleId));
-  const schedules = await unscopedPrisma.workSchedule.findMany({
-    where: { workspaceId: { not: currentWorkspaceId() }, ...(only ? { id: { in: [...subscribed] } } : {}) },
-    include: { type: { select: { name: true, color: true } }, workspace: { select: { id: true, name: true, position: true } } },
-    orderBy: [{ name: 'asc' }],
+export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
+  const subscriptions = await prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true } });
+  const subscribed = new Set(subscriptions.map((item) => `${item.sourceWorkspaceId}|${item.typeId ?? ''}`));
+  const workspaces = await unscopedPrisma.workspace.findMany({
+    where: { id: { not: currentWorkspaceId() } },
+    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    select: {
+      id: true,
+      name: true,
+      scheduleTypes: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true, name: true, color: true, _count: { select: { schedules: true } } } },
+      workSchedules: { where: { typeId: null }, select: { id: true } },
+    },
   });
-  return schedules
-    .sort((a, b) => a.workspace.position - b.workspace.position || a.name.localeCompare(b.name))
-    .map((schedule) => ({
-      rule: scheduleRule(schedule),
-      typeName: schedule.type?.name ?? null,
-      color: schedule.type?.color ?? null,
-      workspace: { id: schedule.workspace.id, name: schedule.workspace.name },
-      subscribed: subscribed.has(schedule.id),
-    }));
+  return workspaces.flatMap((workspace) => [
+    ...(workspace.workSchedules.length
+      ? [
+          {
+            workspace: { id: workspace.id, name: workspace.name },
+            typeId: null,
+            name: UNTYPED,
+            color: null,
+            scheduleCount: workspace.workSchedules.length,
+            subscribed: subscribed.has(`${workspace.id}|`),
+          },
+        ]
+      : []),
+    ...workspace.scheduleTypes.map((type) => ({
+      workspace: { id: workspace.id, name: workspace.name },
+      typeId: type.id,
+      name: type.name,
+      color: type.color,
+      scheduleCount: type._count.schedules,
+      subscribed: subscribed.has(`${workspace.id}|${type.id}`),
+    })),
+  ]);
 }
 
 /**
- * Shows a schedule of another workspace in this one (read only).
- * @param {string} scheduleId Schedule.
- * @returns {Promise<void>}
+ * Schedules of the kinds of other workspaces this one shows (those added later too).
+ * @returns {Promise<ForeignSchedule[]>} Schedules.
  */
-export async function subscribeSchedule(scheduleId: string): Promise<void> {
-  const schedule = await unscopedPrisma.workSchedule.findUnique({ where: { id: scheduleId }, select: { workspaceId: true } });
-  if (!schedule) throw notFound('Plage');
-  if (schedule.workspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Cette plage appartient déjà à cet espace.');
-  if (await prisma.workScheduleSubscription.findFirst({ where: { scheduleId }, select: { id: true } })) return;
-  await prisma.workScheduleSubscription.create({ data: { scheduleId } });
+export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
+  const subscriptions = await prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true } });
+  if (!subscriptions.length) return [];
+  const schedules = await unscopedPrisma.workSchedule.findMany({
+    where: { OR: subscriptions.map((item) => ({ workspaceId: item.sourceWorkspaceId, typeId: item.typeId })) },
+    include: { type: { select: { name: true, color: true } }, workspace: { select: { id: true, name: true } } },
+  });
+  return schedules.map((schedule) => ({
+    rule: scheduleRule(schedule),
+    typeName: schedule.type?.name ?? UNTYPED,
+    color: schedule.type?.color ?? null,
+    workspace: { id: schedule.workspace.id, name: schedule.workspace.name },
+  }));
 }
 
 /**
- * Stops showing a schedule of another workspace.
- * @param {string} scheduleId Schedule.
+ * Shows a kind of schedules of another workspace (or its schedules without kind) in this one, read only.
+ * @param {string} sourceWorkspaceId Workspace of the schedules.
+ * @param {string | null} typeId Kind; none: the schedules without kind.
  * @returns {Promise<void>}
  */
-export async function unsubscribeSchedule(scheduleId: string): Promise<void> {
-  await prisma.workScheduleSubscription.deleteMany({ where: { scheduleId } });
+export async function subscribeScheduleKind(sourceWorkspaceId: string, typeId: string | null): Promise<void> {
+  if (sourceWorkspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ces plages appartiennent déjà à cet espace.');
+  if (!(await unscopedPrisma.workspace.findUnique({ where: { id: sourceWorkspaceId }, select: { id: true } }))) throw notFound('Espace');
+  if (typeId && !(await unscopedPrisma.scheduleType.findFirst({ where: { id: typeId, workspaceId: sourceWorkspaceId }, select: { id: true } }))) throw notFound('Type de plage');
+  // A null kind is not unique for the database: checked here.
+  if (await prisma.workScheduleSubscription.findFirst({ where: { sourceWorkspaceId, typeId }, select: { id: true } })) return;
+  await prisma.workScheduleSubscription.create({ data: { sourceWorkspaceId, typeId } });
+}
+
+/**
+ * Stops showing a kind of schedules of another workspace.
+ * @param {string} sourceWorkspaceId Workspace of the schedules.
+ * @param {string | null} typeId Kind; none: the schedules without kind.
+ * @returns {Promise<void>}
+ */
+export async function unsubscribeScheduleKind(sourceWorkspaceId: string, typeId: string | null): Promise<void> {
+  await prisma.workScheduleSubscription.deleteMany({ where: { sourceWorkspaceId, typeId } });
 }

@@ -85,9 +85,23 @@ const WorkSchedulesDocument = graphql(`
   }
 `);
 
-const ForeignSchedulesDocument = graphql(`
-  query ForeignWorkSchedules($subscribed: Boolean) {
-    foreignWorkSchedules(subscribed: $subscribed) {
+const ForeignScheduleKindsDocument = graphql(`
+  query ForeignScheduleKinds {
+    foreignScheduleKinds {
+      workspaceId
+      workspaceName
+      typeId
+      name
+      color
+      scheduleCount
+      subscribed
+    }
+  }
+`);
+
+const SubscribedSchedulesDocument = graphql(`
+  query SubscribedWorkSchedules {
+    subscribedWorkSchedules {
       id
       name
       startDate
@@ -108,7 +122,6 @@ const ForeignSchedulesDocument = graphql(`
       color
       workspaceId
       workspaceName
-      subscribed
     }
   }
 `);
@@ -125,15 +138,15 @@ const DeleteScheduleTypeDocument = graphql(`
   }
 `);
 
-const SubscribeWorkScheduleDocument = graphql(`
-  mutation SubscribeWorkSchedule($scheduleId: ID!) {
-    subscribeWorkSchedule(scheduleId: $scheduleId)
+const SubscribeScheduleKindDocument = graphql(`
+  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
   }
 `);
 
-const UnsubscribeWorkScheduleDocument = graphql(`
-  mutation UnsubscribeWorkSchedule($scheduleId: ID!) {
-    unsubscribeWorkSchedule(scheduleId: $scheduleId)
+const UnsubscribeScheduleKindDocument = graphql(`
+  mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+    unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
   }
 `);
 
@@ -495,15 +508,19 @@ export function useScheduleTypes() {
 }
 
 /**
- * Time slots of the other workspaces (only those this one shows, with `subscribed`).
- * @param {boolean} subscribed Only those subscribed to.
+ * Kinds of schedules of the other workspaces, with whether this one shows them.
  * @returns {UseQueryResult} Query state.
  */
-export function useForeignSchedules(subscribed: boolean) {
-  return useQuery({
-    queryKey: [...calendarQueryKey, 'foreign-schedules', subscribed],
-    queryFn: async () => (await execute(ForeignSchedulesDocument, { subscribed })).foreignWorkSchedules,
-  });
+export function useForeignScheduleKinds() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'foreign-schedule-kinds'], queryFn: async () => (await execute(ForeignScheduleKindsDocument)).foreignScheduleKinds });
+}
+
+/**
+ * Schedules of the kinds of other workspaces this one shows (read only).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useSubscribedSchedules() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'subscribed-schedules'], queryFn: async () => (await execute(SubscribedSchedulesDocument)).subscribedWorkSchedules });
 }
 
 /**
@@ -517,8 +534,12 @@ export function useWorkScheduleMutations() {
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
     saveType: useCalendarMutation(async (variables: { id: string | null; input: { name: string; color: string } }) => (await execute(SaveScheduleTypeDocument, variables)).saveScheduleType),
     removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
-    subscribe: useCalendarMutation(async (scheduleId: string) => (await execute(SubscribeWorkScheduleDocument, { scheduleId })).subscribeWorkSchedule),
-    unsubscribe: useCalendarMutation(async (scheduleId: string) => (await execute(UnsubscribeWorkScheduleDocument, { scheduleId })).unsubscribeWorkSchedule),
+    subscribe: useCalendarMutation(
+      async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind,
+    ),
+    unsubscribe: useCalendarMutation(
+      async (kind: { workspaceId: string; typeId: string | null }) => (await execute(UnsubscribeScheduleKindDocument, kind)).unsubscribeScheduleKind,
+    ),
   };
 }
 

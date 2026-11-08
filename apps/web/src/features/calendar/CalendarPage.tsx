@@ -28,8 +28,8 @@ import {
   useCalendars,
   useMaterializeTaskOccurrences,
   useSubscribedCalendarEvents,
-  useForeignSchedules,
   useScheduleTypes,
+  useSubscribedSchedules,
   useWorkSchedules,
   type CalendarSubscription,
   type EventOccurrence,
@@ -118,7 +118,7 @@ export function CalendarPage() {
   const taskLink = useTaskLink();
   const { data: schedules } = useWorkSchedules();
   const { data: scheduleTypes } = useScheduleTypes();
-  const { data: foreignSchedules } = useForeignSchedules(true);
+  const { data: foreignSchedules } = useSubscribedSchedules();
   const { perso } = useActiveWorkspace();
   const [managingSchedules, setManagingSchedules] = useState(false);
   // Tracked times of the displayed period (from its first day, local midnight).

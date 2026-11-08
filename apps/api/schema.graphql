@@ -716,7 +716,24 @@ enum DocumentStatusScope {
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
 
-"""Time slots of another workspace, shown read only when subscribed to."""
+"""
+Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.
+"""
+type ForeignScheduleKind {
+  color: String
+  name: String!
+  scheduleCount: Int!
+  subscribed: Boolean!
+
+  """None: the schedules without kind (working hours)."""
+  typeId: ID
+  workspaceId: ID!
+  workspaceName: String!
+}
+
+"""
+Schedule of a kind of another workspace this one subscribes to, shown read only.
+"""
 type ForeignWorkSchedule {
   color: String
   endDate: String
@@ -726,7 +743,6 @@ type ForeignWorkSchedule {
   pauses: [WorkPause!]!
   slots: [WorkSlot!]!
   startDate: String!
-  subscribed: Boolean!
   typeName: String
   workspaceId: ID!
   workspaceName: String!
@@ -1520,7 +1536,11 @@ type Mutation {
 
   """Shows a calendar of another workspace in this one (read only)."""
   subscribeCalendar(calendarId: ID!): Boolean!
-  subscribeWorkSchedule(scheduleId: ID!): Boolean!
+
+  """
+  Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.
+  """
+  subscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   syncGithubProject(projectId: ID!): GithubSyncSummary!
 
   """
@@ -1540,7 +1560,7 @@ type Mutation {
 
   """Stops showing a calendar of another workspace."""
   unsubscribeCalendar(calendarId: ID!): Boolean!
-  unsubscribeWorkSchedule(scheduleId: ID!): Boolean!
+  unsubscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
   updateCalendar(id: ID!, input: CalendarInput!): Calendar!
@@ -1752,9 +1772,9 @@ type Query {
   forecastEntries: [TreasuryEntry!]!
 
   """
-  Time slots of the other workspaces (only those this one shows, with `subscribed`).
+  Kinds of schedules of the other workspaces, with whether this one shows them.
   """
-  foreignWorkSchedules(subscribed: Boolean): [ForeignWorkSchedule!]!
+  foreignScheduleKinds: [ForeignScheduleKind!]!
 
   """Board of a URL with its fields, to configure a link."""
   githubBoard(url: String!): GithubBoard!
@@ -1859,6 +1879,9 @@ type Query {
   Occurrences, in a period, of the calendars of other workspaces shown in this one (read only).
   """
   subscribedCalendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
+
+  """Schedules of the kinds of other workspaces this one shows (read only)."""
+  subscribedWorkSchedules: [ForeignWorkSchedule!]!
 
   """A task, by its id (its number is only unique in its project)."""
   task(id: ID!): Task

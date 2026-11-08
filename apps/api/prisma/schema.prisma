@@ -69,7 +69,9 @@ model Workspace {
   treasuryBudgets           TreasuryBudget[]
   treasuryRelations         TreasuryRelation[]
   scheduleTypes             ScheduleType[]
-  workScheduleSubscriptions WorkScheduleSubscription[]
+  workScheduleSubscriptions WorkScheduleSubscription[] @relation("ScheduleSubscriptions")
+  /// Subscriptions of other workspaces to its schedules.
+  scheduleSubscribers       WorkScheduleSubscription[] @relation("ScheduleSubscriptionSources")
   calendarEvents            CalendarEvent[]
   calendarEventExceptions   CalendarEventException[]
   workSchedules             WorkSchedule[]
@@ -1230,54 +1232,60 @@ model CalendarEventException {
 /// paused periods (holidays…) have none.
 /// Kind of time slots ("Travail", "Garde des enfants", "Sport"…), with its color in the calendar.
 model ScheduleType {
-  id          String         @id @default(cuid())
-  name        String
-  color       String
-  position    Int            @default(0)
-  createdAt   DateTime       @default(now())
-  schedules   WorkSchedule[]
+  id            String                     @id @default(cuid())
+  name          String
+  color         String
+  position      Int                        @default(0)
+  createdAt     DateTime                   @default(now())
+  schedules     WorkSchedule[]
+  /// Other workspaces showing its schedules.
+  subscriptions WorkScheduleSubscription[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String         @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String                     @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, name])
 }
 
-/// Time slots of another workspace shown, read only, in the calendar of this one.
+/// Kind of schedules of another workspace (or its schedules without kind) shown, read only, in the calendar of
+/// this one: every schedule of that kind, those added later too.
 model WorkScheduleSubscription {
-  id          String       @id @default(cuid())
-  scheduleId  String
-  schedule    WorkSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  createdAt   DateTime     @default(now())
-  /// Workspace subscribing (the schedule belongs to another one).
-  workspaceId String       @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                String        @id @default(cuid())
+  /// Workspace whose schedules of the kind are shown.
+  sourceWorkspaceId String
+  sourceWorkspace   Workspace     @relation("ScheduleSubscriptionSources", fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
+  /// Kind of its schedules shown; none: its schedules without kind (working hours).
+  typeId            String?
+  type              ScheduleType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  createdAt         DateTime      @default(now())
+  /// Workspace subscribing.
+  workspaceId       String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace     @relation("ScheduleSubscriptions", fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, scheduleId])
-  @@index([scheduleId])
+  @@unique([workspaceId, sourceWorkspaceId, typeId])
+  @@index([sourceWorkspaceId])
+  @@index([typeId])
 }
 
 model WorkSchedule {
-  id            String                     @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
   /// Kind of time it plans ("Travail", "Garde des enfants"…); none: working hours.
   typeId        String?
-  type          ScheduleType?              @relation(fields: [typeId], references: [id], onDelete: SetNull)
-  /// Other workspaces showing it (read only).
-  subscriptions WorkScheduleSubscription[]
-  startDate     DateTime                   @db.Date
-  endDate       DateTime?                  @db.Date
+  type          ScheduleType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  startDate     DateTime      @db.Date
+  endDate       DateTime?     @db.Date
   /// Every n weeks, counted from the week of `startDate`.
-  intervalWeeks Int                        @default(1)
+  intervalWeeks Int           @default(1)
   /// [{ weekday: 1 (Monday) to 7, start: "HH:MM", end: "HH:MM" }], local times.
-  slots         Json                       @default("[]")
+  slots         Json          @default("[]")
   /// [{ from, to, label }], dates included.
-  pauses        Json                       @default("[]")
-  createdAt     DateTime                   @default(now())
-  updatedAt     DateTime                   @updatedAt
+  pauses        Json          @default("[]")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId   String                     @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace     Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
 }

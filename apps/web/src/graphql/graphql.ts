@@ -1355,12 +1355,15 @@ export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, typeId: string | null, slots: Array<{ weekday: number, start: string, end: string, allDay: boolean }>, pauses: Array<{ from: string, to: string, label: string }> }>, scheduleTypes: Array<{ id: string, name: string, color: string, position: number }> };
 
-export type ForeignWorkSchedulesQueryVariables = Exact<{
-  subscribed?: boolean | null | undefined;
-}>;
+export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForeignWorkSchedulesQuery = { foreignWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, typeName: string | null, color: string | null, workspaceId: string, workspaceName: string, subscribed: boolean, slots: Array<{ weekday: number, start: string, end: string, allDay: boolean }>, pauses: Array<{ from: string, to: string, label: string }> }> };
+export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceName: string, typeId: string | null, name: string, color: string | null, scheduleCount: number, subscribed: boolean }> };
+
+export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, typeName: string | null, color: string | null, workspaceId: string, workspaceName: string, slots: Array<{ weekday: number, start: string, end: string, allDay: boolean }>, pauses: Array<{ from: string, to: string, label: string }> }> };
 
 export type SaveScheduleTypeMutationVariables = Exact<{
   id?: string | number | null | undefined;
@@ -1377,19 +1380,21 @@ export type DeleteScheduleTypeMutationVariables = Exact<{
 
 export type DeleteScheduleTypeMutation = { deleteScheduleType: boolean };
 
-export type SubscribeWorkScheduleMutationVariables = Exact<{
-  scheduleId: string | number;
+export type SubscribeScheduleKindMutationVariables = Exact<{
+  workspaceId: string | number;
+  typeId?: string | number | null | undefined;
 }>;
 
 
-export type SubscribeWorkScheduleMutation = { subscribeWorkSchedule: boolean };
+export type SubscribeScheduleKindMutation = { subscribeScheduleKind: boolean };
 
-export type UnsubscribeWorkScheduleMutationVariables = Exact<{
-  scheduleId: string | number;
+export type UnsubscribeScheduleKindMutationVariables = Exact<{
+  workspaceId: string | number;
+  typeId?: string | number | null | undefined;
 }>;
 
 
-export type UnsubscribeWorkScheduleMutation = { unsubscribeWorkSchedule: boolean };
+export type UnsubscribeScheduleKindMutation = { unsubscribeScheduleKind: boolean };
 
 export type CreateWorkScheduleMutationVariables = Exact<{
   input: WorkScheduleInput;
@@ -4542,9 +4547,22 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<WorkSchedulesQuery, WorkSchedulesQueryVariables>;
-export const ForeignWorkSchedulesDocument = new TypedDocumentString(`
-    query ForeignWorkSchedules($subscribed: Boolean) {
-  foreignWorkSchedules(subscribed: $subscribed) {
+export const ForeignScheduleKindsDocument = new TypedDocumentString(`
+    query ForeignScheduleKinds {
+  foreignScheduleKinds {
+    workspaceId
+    workspaceName
+    typeId
+    name
+    color
+    scheduleCount
+    subscribed
+  }
+}
+    `) as unknown as TypedDocumentString<ForeignScheduleKindsQuery, ForeignScheduleKindsQueryVariables>;
+export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
+    query SubscribedWorkSchedules {
+  subscribedWorkSchedules {
     id
     name
     startDate
@@ -4565,10 +4583,9 @@ export const ForeignWorkSchedulesDocument = new TypedDocumentString(`
     color
     workspaceId
     workspaceName
-    subscribed
   }
 }
-    `) as unknown as TypedDocumentString<ForeignWorkSchedulesQuery, ForeignWorkSchedulesQueryVariables>;
+    `) as unknown as TypedDocumentString<SubscribedWorkSchedulesQuery, SubscribedWorkSchedulesQueryVariables>;
 export const SaveScheduleTypeDocument = new TypedDocumentString(`
     mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {
   saveScheduleType(id: $id, input: $input)
@@ -4579,16 +4596,16 @@ export const DeleteScheduleTypeDocument = new TypedDocumentString(`
   deleteScheduleType(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteScheduleTypeMutation, DeleteScheduleTypeMutationVariables>;
-export const SubscribeWorkScheduleDocument = new TypedDocumentString(`
-    mutation SubscribeWorkSchedule($scheduleId: ID!) {
-  subscribeWorkSchedule(scheduleId: $scheduleId)
+export const SubscribeScheduleKindDocument = new TypedDocumentString(`
+    mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+  subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
 }
-    `) as unknown as TypedDocumentString<SubscribeWorkScheduleMutation, SubscribeWorkScheduleMutationVariables>;
-export const UnsubscribeWorkScheduleDocument = new TypedDocumentString(`
-    mutation UnsubscribeWorkSchedule($scheduleId: ID!) {
-  unsubscribeWorkSchedule(scheduleId: $scheduleId)
+    `) as unknown as TypedDocumentString<SubscribeScheduleKindMutation, SubscribeScheduleKindMutationVariables>;
+export const UnsubscribeScheduleKindDocument = new TypedDocumentString(`
+    mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+  unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
 }
-    `) as unknown as TypedDocumentString<UnsubscribeWorkScheduleMutation, UnsubscribeWorkScheduleMutationVariables>;
+    `) as unknown as TypedDocumentString<UnsubscribeScheduleKindMutation, UnsubscribeScheduleKindMutationVariables>;
 export const CreateWorkScheduleDocument = new TypedDocumentString(`
     mutation CreateWorkSchedule($input: WorkScheduleInput!) {
   createWorkSchedule(input: $input)

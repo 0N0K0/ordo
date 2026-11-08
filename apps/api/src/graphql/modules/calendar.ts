@@ -152,7 +152,7 @@ const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
 });
 
 const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
-  description: 'Time slots of another workspace, shown read only when subscribed to.',
+  description: 'Schedule of a kind of another workspace this one subscribes to, shown read only.',
   fields: (t) => ({
     id: t.id({ resolve: (item) => item.rule.id }),
     name: t.string({ resolve: (item) => item.rule.name }),
@@ -165,6 +165,18 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
     color: t.exposeString('color', { nullable: true }),
     workspaceId: t.id({ resolve: (item) => item.workspace.id }),
     workspaceName: t.string({ resolve: (item) => item.workspace.name }),
+  }),
+});
+
+const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>('ForeignScheduleKind').implement({
+  description: 'Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.',
+  fields: (t) => ({
+    workspaceId: t.id({ resolve: (item) => item.workspace.id }),
+    workspaceName: t.string({ resolve: (item) => item.workspace.name }),
+    typeId: t.exposeID('typeId', { nullable: true, description: 'None: the schedules without kind (working hours).' }),
+    name: t.exposeString('name'),
+    color: t.exposeString('color', { nullable: true }),
+    scheduleCount: t.exposeInt('scheduleCount'),
     subscribed: t.exposeBoolean('subscribed'),
   }),
 });
@@ -283,11 +295,15 @@ builder.queryFields((t) => ({
     type: ['ScheduleType'],
     resolve: (query) => prisma.scheduleType.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
   }),
-  foreignWorkSchedules: t.field({
+  foreignScheduleKinds: t.field({
+    type: [ForeignScheduleKindRef],
+    description: 'Kinds of schedules of the other workspaces, with whether this one shows them.',
+    resolve: () => schedules.foreignScheduleKinds(),
+  }),
+  subscribedWorkSchedules: t.field({
     type: [ForeignScheduleRef],
-    description: 'Time slots of the other workspaces (only those this one shows, with `subscribed`).',
-    args: { subscribed: t.arg.boolean() },
-    resolve: (_root, args) => schedules.foreignSchedules(args.subscribed ?? false),
+    description: 'Schedules of the kinds of other workspaces this one shows (read only).',
+    resolve: () => schedules.subscribedSchedules(),
   }),
   workSchedules: t.prismaField({
     type: ['WorkSchedule'],
@@ -420,17 +436,18 @@ builder.mutationFields((t) => ({
       return true;
     },
   }),
-  subscribeWorkSchedule: t.boolean({
-    args: { scheduleId: t.arg.id({ required: true }) },
-    resolve: async (_root, { scheduleId }) => {
-      await schedules.subscribeSchedule(scheduleId);
+  subscribeScheduleKind: t.boolean({
+    description: 'Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.',
+    args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
+    resolve: async (_root, { workspaceId, typeId }) => {
+      await schedules.subscribeScheduleKind(workspaceId, typeId ?? null);
       return true;
     },
   }),
-  unsubscribeWorkSchedule: t.boolean({
-    args: { scheduleId: t.arg.id({ required: true }) },
-    resolve: async (_root, { scheduleId }) => {
-      await schedules.unsubscribeSchedule(scheduleId);
+  unsubscribeScheduleKind: t.boolean({
+    args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
+    resolve: async (_root, { workspaceId, typeId }) => {
+      await schedules.unsubscribeScheduleKind(workspaceId, typeId ?? null);
       return true;
     },
   }),

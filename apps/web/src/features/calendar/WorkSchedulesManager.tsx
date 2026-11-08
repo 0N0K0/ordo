@@ -9,7 +9,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
-import { useForeignSchedules, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
+import { useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
 
 const WEEKDAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -310,39 +310,45 @@ function ScheduleTypes() {
 }
 
 /**
- * Time slots of the other workspaces, by workspace: subscribing shows them, read only, in this calendar.
- * @returns {JSX.Element | null} Section, nothing without other workspaces with slots.
+ * Kinds of schedules of the other workspaces (and their working hours, schedules without kind), by workspace:
+ * subscribing to one shows all its schedules, those added later too, read only in this calendar.
+ * @returns {JSX.Element | null} Section, nothing without other workspaces with schedules.
  */
 function ForeignSchedules() {
-  const { data: foreign } = useForeignSchedules(false);
+  const { data: kinds } = useForeignScheduleKinds();
   const { subscribe, unsubscribe } = useWorkScheduleMutations();
-  if (!foreign?.length) return null;
-  const byWorkspace = new Map<string, typeof foreign>();
-  for (const schedule of foreign) byWorkspace.set(schedule.workspaceId, [...(byWorkspace.get(schedule.workspaceId) ?? []), schedule]);
+  if (!kinds?.length) return null;
+  const byWorkspace = new Map<string, typeof kinds>();
+  for (const kind of kinds) byWorkspace.set(kind.workspaceId, [...(byWorkspace.get(kind.workspaceId) ?? []), kind]);
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="xs">
         <Text fw={600}>Plages des autres espaces</Text>
         <Text size="xs" c="dimmed">
-          Une plage à laquelle cet espace est abonné s’affiche dans son agenda, en lecture seule.
+          Abonné à un type de plage, cet espace affiche toutes ses plages (même celles ajoutées ensuite) dans son agenda, en lecture seule.
         </Text>
         {[...byWorkspace.values()].map((items) => (
           <Stack key={items[0].workspaceId} gap={4}>
             <Text size="sm" fw={600}>
               {items[0].workspaceName}
             </Text>
-            {items.map((schedule) => (
-              <Group key={schedule.id} gap="sm" wrap="nowrap" pl="md">
-                <ColorSwatch size={12} color={schedule.color ?? 'var(--mantine-color-green-4)'} />
+            {items.map((kind) => (
+              <Group key={kind.typeId ?? 'untyped'} gap="sm" wrap="nowrap" pl="md">
+                <ColorSwatch size={12} color={kind.color ?? 'var(--mantine-color-green-4)'} />
                 <Text size="sm" style={{ flex: 1 }}>
-                  {schedule.name}
-                  {schedule.typeName ? ` · ${schedule.typeName}` : ''}
+                  {kind.name}
+                  <Text span size="xs" c="dimmed">
+                    {' '}
+                    · {kind.scheduleCount} plage{kind.scheduleCount > 1 ? 's' : ''}
+                  </Text>
                 </Text>
                 <Switch
                   label="Abonné"
-                  aria-label={`Abonnement à ${schedule.name} (${schedule.workspaceName})`}
-                  checked={schedule.subscribed}
-                  onChange={(event) => (event.currentTarget.checked ? subscribe : unsubscribe).mutate(schedule.id, { onError: (error) => notifyError(error.message) })}
+                  aria-label={`Abonnement à ${kind.name} (${kind.workspaceName})`}
+                  checked={kind.subscribed}
+                  onChange={(event) =>
+                    (event.currentTarget.checked ? subscribe : unsubscribe).mutate({ workspaceId: kind.workspaceId, typeId: kind.typeId ?? null }, { onError: (error) => notifyError(error.message) })
+                  }
                 />
               </Group>
             ))}
@@ -355,7 +361,7 @@ function ForeignSchedules() {
 
 /**
  * Planned time slots: the schedules with their kind, slots (or whole days) and pauses; create, edit, delete; the
- * kinds; the subscriptions to the slots of other workspaces. They show in the calendar; in a professional
+ * kinds; the subscriptions to kinds of schedules of other workspaces. They show in the calendar; in a professional
  * workspace, they are the working hours (compared with the timers, events outside them told).
  * @returns {JSX.Element} Manager.
  */
