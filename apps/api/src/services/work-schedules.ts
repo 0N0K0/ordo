@@ -1,4 +1,15 @@
-import { formatDay, parseDay, scheduleTypeSchema, workPauseSchema, workScheduleSchema, workSlotSchema, type ScheduleTypeInput, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
+import {
+  formatDay,
+  fromLegacySchedule,
+  parseDay,
+  scheduleCaseSchema,
+  scheduleExceptionSchema,
+  scheduleTypeSchema,
+  workScheduleSchema,
+  type ScheduleTypeInput,
+  type WorkScheduleInput,
+  type WorkScheduleRule,
+} from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
 import { Prisma, type ScheduleType, type WorkSchedule } from '../generated/prisma/client';
@@ -6,27 +17,28 @@ import { clientError, notFound, parseInput } from '../graphql/errors';
 import { currentWorkspaceId } from '../workspace-context';
 
 /**
- * Schedule as the shared functions read it (invalid stored slots or pauses left out).
+ * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
+ * and pauses converted (invalid stored items left out).
  * @param {WorkSchedule} schedule Stored schedule.
  * @returns {WorkScheduleRule} Rule.
  */
 export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
-  const slots = z.array(workSlotSchema).safeParse(schedule.slots);
-  const pauses = z.array(workPauseSchema).safeParse(schedule.pauses);
+  const startDate = formatDay(schedule.startDate);
+  const cases = z.array(scheduleCaseSchema).safeParse(schedule.cases);
+  const exceptions = z.array(scheduleExceptionSchema).safeParse(schedule.exceptions);
+  const current = cases.success && cases.data.length ? { cases: cases.data, exceptions: exceptions.success ? exceptions.data : [] } : null;
   return {
     id: schedule.id,
     name: schedule.name,
-    startDate: formatDay(schedule.startDate),
+    startDate,
     endDate: schedule.endDate ? formatDay(schedule.endDate) : null,
-    intervalWeeks: schedule.intervalWeeks,
-    slots: slots.success ? slots.data : [],
-    pauses: pauses.success ? pauses.data : [],
+    ...(current ?? fromLegacySchedule({ startDate, intervalWeeks: schedule.intervalWeeks, slots: schedule.slots, pauses: schedule.pauses })),
     typeId: schedule.typeId,
   };
 }
 
 /**
- * Prisma data of a schedule, slots sorted by day and time and pauses by date.
+ * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it).
  * @param {WorkScheduleInput} input Schedule.
  * @returns {Promise<object>} Data.
  */
@@ -38,9 +50,11 @@ async function scheduleData(input: WorkScheduleInput) {
     name: schedule.name,
     startDate: parseDay(schedule.startDate),
     endDate: schedule.endDate ? parseDay(schedule.endDate) : null,
-    intervalWeeks: schedule.intervalWeeks,
-    slots: [...schedule.slots].sort((a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start)),
-    pauses: [...schedule.pauses].sort((a, b) => a.from.localeCompare(b.from)),
+    cases: schedule.cases as Prisma.InputJsonValue,
+    exceptions: [...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from)) as Prisma.InputJsonValue,
+    intervalWeeks: 1,
+    slots: [],
+    pauses: [],
   };
 }
 

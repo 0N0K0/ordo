@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { WorkScheduleInput } from '@ordo/shared';
+import { readScheduleCases, readScheduleExceptions, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../graphql/graphql';
 import { execute, executeIn } from '../../lib/graphql-client';
 import { tasksQueryKey } from '../tasks/api';
@@ -62,19 +62,9 @@ const WorkSchedulesDocument = graphql(`
       name
       startDate
       endDate
-      intervalWeeks
       typeId
-      slots {
-        weekday
-        start
-        end
-        allDay
-      }
-      pauses {
-        from
-        to
-        label
-      }
+      cases
+      exceptions
     }
     scheduleTypes {
       id
@@ -106,18 +96,8 @@ const SubscribedSchedulesDocument = graphql(`
       name
       startDate
       endDate
-      intervalWeeks
-      slots {
-        weekday
-        start
-        end
-        allDay
-      }
-      pauses {
-        from
-        to
-        label
-      }
+      cases
+      exceptions
       typeName
       color
       workspaceId
@@ -544,12 +524,23 @@ export function useWorkScheduleMutations() {
 }
 
 /**
- * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to).
+ * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to): their
+ * cases and exceptions validated (invalid ones left out).
  * @param {object[]} schedules Schedules.
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
-export function scheduleRules<S extends Omit<WorkSchedule, 'typeId' | 'startDate' | 'endDate'> & { startDate: unknown; endDate?: unknown }>(schedules: readonly S[]) {
-  return schedules.map((schedule) => ({ ...schedule, startDate: String(schedule.startDate), endDate: schedule.endDate ? String(schedule.endDate) : null }));
+export function scheduleRules(
+  schedules: readonly { id: string; name: string; startDate: unknown; endDate?: unknown; cases: unknown; exceptions: unknown; typeId?: string | null }[],
+): WorkScheduleRule[] {
+  return schedules.map((schedule) => ({
+    id: schedule.id,
+    name: schedule.name,
+    startDate: String(schedule.startDate),
+    endDate: schedule.endDate ? String(schedule.endDate) : null,
+    cases: readScheduleCases(schedule.cases),
+    exceptions: readScheduleExceptions(schedule.exceptions),
+    typeId: schedule.typeId ?? null,
+  }));
 }
 
 /**

@@ -1,7 +1,7 @@
-import { ActionIcon, Badge, Button, Checkbox, ColorInput, ColorSwatch, Divider, Group, NumberInput, Paper, Select, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { slotMinutes, workScheduleSchema, type WorkPause, type WorkSlot } from '@ordo/shared';
-import { ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ActionIcon, Badge, Button, Checkbox, ColorInput, ColorSwatch, Divider, Group, Paper, Select, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import { periodRhythm, readScheduleCases, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
+import { ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -10,44 +10,28 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
-
-const WEEKDAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-
-/**
- * Printed calendar date.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Date.
- */
-const printed = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`));
-
-/**
- * Duration in hours and minutes.
- * @param {number} minutes Minutes.
- * @returns {string} "7 h 30".
- */
-const hours = (minutes: number) => `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${String(minutes % 60).padStart(2, '0')}` : ''}`;
+import { ScheduleCasesEditor } from './ScheduleCasesEditor';
+import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
   startDate: string;
   endDate: string | null;
-  intervalWeeks: number;
-  slots: WorkSlot[];
-  pauses: WorkPause[];
+  cases: ScheduleCase[];
+  exceptions: ScheduleException[];
   typeId: string | null;
 }
 
 /**
- * Slots of a day in words.
- * @param {readonly { start: string, end: string, allDay?: boolean }[]} slots Slots of the day.
- * @returns {string} "09:00–12:30, 14:00–18:00" or "toute la journée".
+ * Period of an exception in words.
+ * @param {ScheduleException} exception Exception.
+ * @returns {string} "le 12 nov. 2026" or "du 1 août 2026 au 15 août 2026".
  */
-const slotsText = (slots: readonly { start: string; end: string; allDay?: boolean }[]) =>
-  slots.some((slot) => slot.allDay) ? 'toute la journée' : slots.map((slot) => `${slot.start}–${slot.end}`).join(', ');
+const exceptionPeriod = (exception: ScheduleException) => (exception.from === exception.to ? `le ${printedDate(exception.from)}` : `du ${printedDate(exception.from)} au ${printedDate(exception.to)}`);
 
 /**
- * Schedule form: name, kind, dates, every n weeks, time slots of each weekday (or the whole day), paused periods.
+ * Schedule form: name, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
+ * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
  * @param {{ schedule?: WorkSchedule, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -60,42 +44,39 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
       name: schedule?.name ?? 'Semaine type',
       startDate: schedule ? String(schedule.startDate) : localToday(),
       endDate: schedule?.endDate ? String(schedule.endDate) : null,
-      intervalWeeks: schedule?.intervalWeeks ?? 1,
-      slots: schedule?.slots.map(({ weekday, start, end, allDay }) => ({ weekday, start, end, allDay })) ?? [
-        { weekday: 1, start: '09:00', end: '12:30', allDay: false },
-        { weekday: 1, start: '14:00', end: '18:00', allDay: false },
-      ],
-      pauses: schedule?.pauses.map(({ from, to, label }) => ({ from, to, label })) ?? [],
+      cases: schedule ? readScheduleCases(schedule.cases) : [newCase(false)],
+      exceptions: schedule ? readScheduleExceptions(schedule.exceptions) : [],
       typeId: schedule?.typeId ?? null,
     },
     schema: workScheduleSchema,
   });
   const values = form.values;
+  const rhythm = periodRhythm(values.startDate, values.endDate);
 
   /**
-   * Adds a slot to a weekday, after its last one.
-   * @param {number} weekday 1 (Monday) to 7.
+   * Changes the period of the schedule, its cases fitted to the rhythms it allows.
+   * @param {Partial<{ startDate: string, endDate: string | null }>} period New dates.
    * @returns {void}
    */
-  const addSlot = (weekday: number) => {
-    const last = values.slots
-      .filter((slot) => slot.weekday === weekday)
-      .sort((a, b) => a.start.localeCompare(b.start))
-      .at(-1);
-    const start = last ? (last.end < '13:00' ? '14:00' : last.end) : '09:00';
-    const end = last ? (start < '18:00' ? '18:00' : '23:59') : '12:30';
-    form.setFieldValue('slots', [...values.slots, { weekday, start, end, allDay: false }]);
+  const setPeriod = (period: Partial<{ startDate: string; endDate: string | null }>) => {
+    const next = { startDate: values.startDate, endDate: values.endDate, ...period };
+    form.setValues({ ...next, cases: fitCases(values.cases, periodRhythm(next.startDate, next.endDate)) });
   };
 
   /**
-   * Makes a weekday a whole day (its slots replaced), or back to time slots.
-   * @param {number} weekday 1 (Monday) to 7.
-   * @param {boolean} allDay Whole day.
+   * Changes an exception; new dates fit its cases to the rhythms its period allows.
+   * @param {number} index Exception.
+   * @param {Partial<ScheduleException>} changes Changes.
    * @returns {void}
    */
-  const setWholeDay = (weekday: number, allDay: boolean) => {
-    const others = values.slots.filter((slot) => slot.weekday !== weekday);
-    form.setFieldValue('slots', [...others, allDay ? { weekday, start: '00:00', end: '23:59', allDay: true } : { weekday, start: '09:00', end: '12:30', allDay: false }]);
+  const setException = (index: number, changes: Partial<ScheduleException>) => {
+    const next = { ...values.exceptions[index], ...changes };
+    if (next.to < next.from) next.to = next.from;
+    next.cases = fitCases(next.cases, periodRhythm(next.from, next.to));
+    form.setFieldValue(
+      'exceptions',
+      values.exceptions.map((other, otherIndex) => (otherIndex === index ? next : other)),
+    );
   };
 
   return (
@@ -113,7 +94,7 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
           if (schedule) update.mutate({ id: schedule.id, input }, callbacks);
           else create.mutate(input, callbacks);
         },
-        // An error on a field without input (a slot list…) is told.
+        // An error on a field without input (a case, an exception…) is told.
         (errors) => {
           const message = Object.values(errors).find(Boolean);
           if (message) notifyError(String(message));
@@ -132,99 +113,84 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
           />
         </Group>
         <Group grow align="flex-start">
-          <DatePickerInput label="À partir du" required valueFormat="D MMM YYYY" {...form.getInputProps('startDate')} />
-          <DatePickerInput label="Jusqu’au" clearable placeholder="Sans fin" valueFormat="D MMM YYYY" minDate={values.startDate} {...form.getInputProps('endDate')} />
-          <NumberInput label="Toutes les" suffix={values.intervalWeeks > 1 ? ' semaines' : ' semaine'} min={1} max={52} {...form.getInputProps('intervalWeeks')} />
+          <DatePickerInput
+            label="À partir du"
+            required
+            valueFormat="D MMM YYYY"
+            value={values.startDate}
+            error={form.errors.startDate}
+            onChange={(date) => date && setPeriod({ startDate: String(date) })}
+          />
+          <DatePickerInput
+            label="Jusqu’au"
+            clearable
+            placeholder="Sans fin"
+            valueFormat="D MMM YYYY"
+            minDate={values.startDate}
+            value={values.endDate}
+            error={form.errors.endDate}
+            onChange={(date) => setPeriod({ endDate: date ? String(date) : null })}
+          />
         </Group>
 
-        <Divider label="Plages horaires" labelPosition="left" />
-        <Stack gap={6}>
-          {WEEKDAYS.map((label, index) => {
-            const weekday = index + 1;
-            const slots = values.slots.map((slot, position) => ({ slot, position })).filter(({ slot }) => slot.weekday === weekday);
-            const wholeDay = slots.some(({ slot }) => slot.allDay);
+        <Divider label="Cas" labelPosition="left" />
+        <ScheduleCasesEditor cases={values.cases} rhythm={rhythm} periodStart={values.startDate} onChange={(cases) => form.setFieldValue('cases', cases)} />
+
+        <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
+        <Text size="xs" c="dimmed">
+          Pendant une exception, ses propres cas remplacent ceux de la plage ; sans cas, c’est une pause.
+        </Text>
+        <Stack gap="sm">
+          {values.exceptions.map((exception, index) => {
+            const exceptionRhythm = periodRhythm(exception.from, exception.to);
+            const pause = exception.cases.length === 0;
             return (
-              <Group key={weekday} gap="sm" align="flex-start" wrap="nowrap">
-                <Text size="sm" w={80} pt={6} fw={slots.length ? 600 : undefined} c={slots.length ? undefined : 'dimmed'}>
-                  {label}
-                </Text>
-                <Stack gap={4} style={{ flex: 1 }}>
-                  {wholeDay && (
-                    <Text size="sm" pt={4}>
-                      Toute la journée
-                    </Text>
-                  )}
-                  {!wholeDay &&
-                    slots.map(({ slot, position }) => (
-                      <Group key={position} gap={6} wrap="nowrap" align="flex-start">
-                        <TimeInput aria-label={`${label} : début de la plage`} size="xs" {...form.getInputProps(`slots.${position}.start`)} />
-                        <Text size="sm" pt={4}>
-                          à
-                        </Text>
-                        <TimeInput aria-label={`${label} : fin de la plage`} size="xs" {...form.getInputProps(`slots.${position}.end`)} />
-                        <Tooltip label="Retirer la plage">
-                          <ActionIcon variant="subtle" color="gray" aria-label={`Retirer la plage de ${slot.start} du ${label.toLowerCase()}`} onClick={() => form.removeListItem('slots', position)}>
-                            <XIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    ))}
-                  <Group gap="xs">
-                    {!wholeDay && (
-                      <Button size="compact-xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={() => addSlot(weekday)}>
-                        Ajouter une plage
-                      </Button>
-                    )}
-                    <Checkbox size="xs" label="Toute la journée" checked={wholeDay} onChange={(event) => setWholeDay(weekday, event.currentTarget.checked)} />
-                    {slots.length > 0 && !wholeDay && (
-                      <Text size="xs" c="dimmed">
-                        {hours(slotMinutes(slots.map(({ slot }) => slot)))}
-                      </Text>
-                    )}
+              <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
+                <Stack gap="xs">
+                  <Group gap={6} wrap="nowrap" align="flex-end">
+                    <DatePickerInput label="Du" size="xs" valueFormat="D MMM YYYY" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
+                    <DatePickerInput
+                      label="Au"
+                      size="xs"
+                      valueFormat="D MMM YYYY"
+                      w={140}
+                      minDate={exception.from}
+                      value={exception.to}
+                      onChange={(date) => date && setException(index, { to: String(date) })}
+                    />
+                    <TextInput
+                      label="Motif"
+                      size="xs"
+                      placeholder="Congés, formation…"
+                      style={{ flex: 1 }}
+                      value={exception.label}
+                      onChange={(event) => setException(index, { label: event.currentTarget.value })}
+                    />
+                    <Tooltip label="Retirer l’exception">
+                      <ActionIcon variant="subtle" color="gray" mb={4} aria-label={`Retirer l’exception ${index + 1}`} onClick={() => form.removeListItem('exceptions', index)}>
+                        <TrashIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
                   </Group>
+                  <Checkbox
+                    size="xs"
+                    label="Pause (aucune plage pendant cette période)"
+                    checked={pause}
+                    onChange={(event) => setException(index, { cases: event.currentTarget.checked ? [] : [newCase(exceptionRhythm === 'DAY')] })}
+                  />
+                  {!pause && <ScheduleCasesEditor cases={exception.cases} rhythm={exceptionRhythm} periodStart={exception.from} onChange={(cases) => setException(index, { cases })} />}
                 </Stack>
-              </Group>
+              </Paper>
             );
           })}
-          {typeof form.errors.slots === 'string' && (
-            <Text size="xs" c="red">
-              {form.errors.slots}
-            </Text>
-          )}
-          {!perso && (
-            <Text size="xs" c="dimmed">
-              {hours(slotMinutes(values.slots))} par semaine travaillée (les journées entières ne comptent pas).
-            </Text>
-          )}
-        </Stack>
-
-        <Divider label="Pauses (congés…)" labelPosition="left" />
-        <Stack gap={6}>
-          {values.pauses.map((_, index) => (
-            <Group key={index} gap={6} wrap="nowrap" align="flex-start">
-              <DatePickerInput aria-label={`Début de la pause ${index + 1}`} size="xs" valueFormat="D MMM YYYY" w={130} {...form.getInputProps(`pauses.${index}.from`)} />
-              <Text size="sm" pt={4}>
-                au
-              </Text>
-              <DatePickerInput
-                aria-label={`Fin de la pause ${index + 1}`}
-                size="xs"
-                valueFormat="D MMM YYYY"
-                w={130}
-                minDate={values.pauses[index].from}
-                {...form.getInputProps(`pauses.${index}.to`)}
-              />
-              <TextInput aria-label={`Motif de la pause ${index + 1}`} size="xs" placeholder="Congés, formation…" style={{ flex: 1 }} {...form.getInputProps(`pauses.${index}.label`)} />
-              <Tooltip label="Retirer la pause">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Retirer la pause ${index + 1}`} onClick={() => form.removeListItem('pauses', index)}>
-                  <XIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          ))}
           <div>
-            <Button size="compact-xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={() => form.insertListItem('pauses', { from: localToday(), to: localToday(), label: 'Congés' })}>
-              Ajouter une pause
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              leftSection={<PlusIcon aria-hidden />}
+              onClick={() => form.insertListItem('exceptions', { from: localToday(), to: localToday(), label: 'Congés', cases: [] } satisfies ScheduleException)}
+            >
+              Ajouter une exception
             </Button>
           </div>
         </Stack>
@@ -382,8 +348,8 @@ export function WorkSchedulesManager() {
           Supprimer « {deleting.name} »
         </Title>
         <Text size="sm">
-          Ces plages et leurs pauses seront supprimées définitivement{perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne
-          sont pas touchés.
+          Ces plages et leurs exceptions seront supprimées définitivement{perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les
+          évènements ne sont pas touchés.
         </Text>
         <DestructiveActions
           loading={remove.isPending}
@@ -439,27 +405,20 @@ export function WorkSchedulesManager() {
                         {type.name}
                       </Badge>
                     )}
-                    <Badge size="sm" variant="light" color="gray">
-                      {schedule.intervalWeeks > 1 ? `Toutes les ${schedule.intervalWeeks} semaines` : 'Chaque semaine'}
-                    </Badge>
                   </Group>
                   <Text size="xs" c="dimmed">
-                    {schedule.endDate ? `Du ${printed(String(schedule.startDate))} au ${printed(String(schedule.endDate))}` : `À partir du ${printed(String(schedule.startDate))}`}
-                    {perso ? '' : ` · ${hours(slotMinutes(schedule.slots))} par semaine travaillée`}
+                    {schedule.endDate ? `Du ${printedDate(String(schedule.startDate))} au ${printedDate(String(schedule.endDate))}` : `À partir du ${printedDate(String(schedule.startDate))}`}
                   </Text>
-                  {WEEKDAYS.map((label, index) => {
-                    const slots = schedule.slots.filter((slot) => slot.weekday === index + 1);
-                    return slots.length ? (
-                      <Text key={label} size="sm">
-                        {label} : {slotsText(slots)}
-                      </Text>
-                    ) : null;
-                  })}
-                  {schedule.pauses.length > 0 && (
-                    <Text size="xs" c="dimmed">
-                      Pauses : {schedule.pauses.map((pause) => `${pause.label || 'Pause'} du ${printed(pause.from)} au ${printed(pause.to)}`).join(' · ')}
+                  {readScheduleCases(schedule.cases).map((item, index) => (
+                    <Text key={index} size="sm">
+                      {describeCase(item)}
                     </Text>
-                  )}
+                  ))}
+                  {readScheduleExceptions(schedule.exceptions).map((exception, index) => (
+                    <Text key={index} size="xs" c="dimmed">
+                      {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
+                    </Text>
+                  ))}
                 </Stack>
                 <Group gap={2} wrap="nowrap">
                   <Tooltip label="Modifier">

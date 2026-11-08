@@ -270,23 +270,48 @@ export function CalendarPage() {
         );
       }
     }
-    // Planned slots in the background, in the color of their kind (working hours without one); paused days
-    // simply have none; each day with slots is colored whole in the all-day row (week, day) and the month. The slots of other workspaces subscribed to are hatched.
+    // Planned slots, in the color of their kind (working hours without one); paused days simply have none. Each
+    // day with slots shows it: the day colored in the month, a bar at the top (all-day row) in the week and the
+    // day, where the hours of the slots are in the background of the time grid. Slots of other workspaces
+    // subscribed to are hatched.
     if (range && schedules && filters.workHours !== false) {
-      const colorOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type.color]));
-      const own = schedules.map((schedule) => ({ rule: scheduleRules([schedule])[0], color: schedule.typeId ? (colorOf.get(schedule.typeId) ?? null) : null, foreign: false }));
-      const subscribed = (foreignSchedules ?? []).map((schedule) => ({ rule: scheduleRules([schedule])[0], color: schedule.color ?? null, foreign: true }));
-      for (const { rule, color, foreign } of [...own, ...subscribed]) {
-        const look = { display: 'background', ...(color ? { backgroundColor: color } : {}), classNames: [color ? classes.typedSlot : classes.workHours, ...(foreign ? [classes.subscribedSlot] : [])] };
-        // Each day of the schedule is colored whole too: the all-day row of the week and the day of the month.
+      const typeOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
+      const own = schedules.map((schedule) => {
+        const type = schedule.typeId ? typeOf.get(schedule.typeId) : undefined;
+        return { rule: scheduleRules([schedule])[0], color: type?.color ?? null, name: type?.name ?? schedule.name, foreign: false };
+      });
+      const subscribed = (foreignSchedules ?? []).map((schedule) => ({
+        rule: scheduleRules([schedule])[0],
+        color: schedule.color ?? null,
+        name: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}`,
+        foreign: true,
+      }));
+      const month = view === 'dayGridMonth';
+      for (const { rule, color, name, foreign } of [...own, ...subscribed]) {
+        const hatched = foreign ? [classes.subscribedSlot] : [];
+        const background = { display: 'background', ...(color ? { backgroundColor: color } : {}), classNames: [color ? classes.typedSlot : classes.workHours, ...hatched] };
         const days = new Set<string>();
         for (const slot of plannedSlots([rule], range.from, range.to)) {
           if (!days.has(slot.date)) {
             days.add(slot.date);
-            result.push({ id: `work-day:${slot.scheduleId}:${slot.date}`, start: slot.date, end: addDays(slot.date, 1), allDay: true, ...look });
+            const day = { id: `work-day:${slot.scheduleId}:${slot.date}`, start: slot.date, end: addDays(slot.date, 1), allDay: true };
+            result.push(
+              month
+                ? { ...day, ...background }
+                : {
+                    ...day,
+                    title: name,
+                    editable: false,
+                    backgroundColor: color ?? 'var(--mantine-color-green-light)',
+                    borderColor: color ?? 'var(--mantine-color-green-light)',
+                    textColor: 'var(--mantine-color-text)',
+                    extendedProps: { kind: 'slot' },
+                    classNames: [classes.slotBar, ...hatched],
+                  },
+            );
           }
           if (slot.allDay) continue;
-          result.push({ id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`, start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00`, ...look });
+          result.push({ id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`, start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00`, ...background });
         }
       }
     }
@@ -328,6 +353,7 @@ export function CalendarPage() {
     schedules,
     scheduleTypes,
     foreignSchedules,
+    view,
     showTimers,
     timeEntries.data,
     minute,
@@ -607,6 +633,8 @@ export function CalendarPage() {
           }}
           eventClick={(info: EventClickArg) => {
             info.jsEvent.preventDefault();
+            // A bar of planned slots opens nothing.
+            if (info.event.extendedProps.kind === 'slot') return;
             if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else if (info.event.extendedProps.kind === 'subscribed')

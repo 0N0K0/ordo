@@ -107,6 +107,15 @@
     opacity: 0.25 !important;
   }
 
+  /* Day of planned slots, at the top of the week and the day: a light bar, under the events. */
+  .slotBar {
+    /* Effets */
+    opacity: 0.6;
+
+    /* Interactions */
+    cursor: default;
+  }
+
   /* Planned slots of another workspace: hatched. */
   .subscribedSlot {
     /* Arrière-Plan */

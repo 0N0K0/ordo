@@ -1275,12 +1275,16 @@ model WorkSchedule {
   type          ScheduleType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
   startDate     DateTime      @db.Date
   endDate       DateTime?     @db.Date
-  /// Every n weeks, counted from the week of `startDate`.
+  /// Former format (until cases): every n weeks, counted from the week of `startDate`.
   intervalWeeks Int           @default(1)
-  /// [{ weekday: 1 (Monday) to 7, start: "HH:MM", end: "HH:MM" }], local times.
+  /// Former format: [{ weekday, start, end, allDay }], read to convert a schedule saved before cases.
   slots         Json          @default("[]")
-  /// [{ from, to, label }], dates included.
+  /// Former format: [{ from, to, label }], pauses become exceptions without cases.
   pauses        Json          @default("[]")
+  /// Cases: which days (every day, weekdays every n weeks, every n days, monthly, yearly) and which hours.
+  cases         Json          @default("[]")
+  /// Periods with cases of their own instead of the general ones (none: a pause), dates included.
+  exceptions    Json          @default("[]")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   /// Workspace the row belongs to (always given by the app; the default fails outside one).

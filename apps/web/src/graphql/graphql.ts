@@ -761,28 +761,16 @@ export type TreasuryStatementRowInput = {
   occurrence?: string | null | undefined;
 };
 
-export type WorkPauseInput = {
-  from: string;
-  label: string;
-  to: string;
-};
-
 export type WorkScheduleInput = {
+  /** Cases (shared schedule case shape). */
+  cases: unknown;
   endDate?: string | null | undefined;
-  intervalWeeks: number;
+  /** Exceptions: { from, to, label, cases }. */
+  exceptions: unknown;
   name: string;
-  pauses: Array<WorkPauseInput>;
-  slots: Array<WorkSlotInput>;
   startDate: string;
   /** Kind of time it plans; none: working hours. */
   typeId?: string | number | null | undefined;
-};
-
-export type WorkSlotInput = {
-  allDay?: boolean | null | undefined;
-  end: string;
-  start: string;
-  weekday: number;
 };
 
 export type WorkspaceInput = {
@@ -1353,7 +1341,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, typeId: string | null, slots: Array<{ weekday: number, start: string, end: string, allDay: boolean }>, pauses: Array<{ from: string, to: string, label: string }> }>, scheduleTypes: Array<{ id: string, name: string, color: string, position: number }> };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, position: number }> };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1363,7 +1351,7 @@ export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspac
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, typeName: string | null, color: string | null, workspaceId: string, workspaceName: string, slots: Array<{ weekday: number, start: string, end: string, allDay: boolean }>, pauses: Array<{ from: string, to: string, label: string }> }> };
+export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeName: string | null, color: string | null, workspaceId: string, workspaceName: string }> };
 
 export type SaveScheduleTypeMutationVariables = Exact<{
   id?: string | number | null | undefined;
@@ -4525,19 +4513,9 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     name
     startDate
     endDate
-    intervalWeeks
     typeId
-    slots {
-      weekday
-      start
-      end
-      allDay
-    }
-    pauses {
-      from
-      to
-      label
-    }
+    cases
+    exceptions
   }
   scheduleTypes {
     id
@@ -4567,18 +4545,8 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
     name
     startDate
     endDate
-    intervalWeeks
-    slots {
-      weekday
-      start
-      end
-      allDay
-    }
-    pauses {
-      from
-      to
-      label
-    }
+    cases
+    exceptions
     typeName
     color
     workspaceId

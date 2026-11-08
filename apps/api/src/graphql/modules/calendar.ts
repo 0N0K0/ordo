@@ -115,29 +115,15 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
   }),
 });
 
-const WorkSlotRef = builder.objectRef<{ weekday: number; start: string; end: string; allDay?: boolean }>('WorkSlot').implement({
-  fields: (t) => ({
-    weekday: t.exposeInt('weekday', { description: '1 (Monday) to 7.' }),
-    start: t.exposeString('start'),
-    end: t.exposeString('end'),
-    allDay: t.boolean({ description: 'The whole day (its times are not used).', resolve: (slot) => slot.allDay ?? false }),
-  }),
-});
-
-const WorkPauseRef = builder.objectRef<{ from: string; to: string; label: string }>('WorkPause').implement({
-  fields: (t) => ({ from: t.exposeString('from'), to: t.exposeString('to'), label: t.exposeString('label') }),
-});
-
 builder.prismaObject('WorkSchedule', {
-  description: 'Planned working hours: every n weeks from a date, time slots on weekdays, paused periods.',
+  description: 'Planned time slots: a period, its cases (which days, which hours) and exceptions (periods with cases of their own).',
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
     startDate: t.expose('startDate', { type: 'Date' }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
-    intervalWeeks: t.exposeInt('intervalWeeks'),
-    slots: t.field({ type: [WorkSlotRef], resolve: (schedule) => [...schedules.scheduleRule(schedule).slots] }),
-    pauses: t.field({ type: [WorkPauseRef], resolve: (schedule) => [...schedules.scheduleRule(schedule).pauses] }),
+    cases: t.field({ type: 'JSON', description: 'Cases (shared schedule case shape).', resolve: (schedule) => schedules.scheduleRule(schedule).cases }),
+    exceptions: t.field({ type: 'JSON', description: 'Exceptions: { from, to, label, cases }.', resolve: (schedule) => schedules.scheduleRule(schedule).exceptions }),
     typeId: t.exposeID('typeId', { nullable: true, description: 'Kind of time it plans; none: working hours.' }),
   }),
 });
@@ -158,9 +144,8 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
     name: t.string({ resolve: (item) => item.rule.name }),
     startDate: t.string({ resolve: (item) => item.rule.startDate }),
     endDate: t.string({ nullable: true, resolve: (item) => item.rule.endDate }),
-    intervalWeeks: t.int({ resolve: (item) => item.rule.intervalWeeks }),
-    slots: t.field({ type: [WorkSlotRef], resolve: (item) => [...item.rule.slots] }),
-    pauses: t.field({ type: [WorkPauseRef], resolve: (item) => [...item.rule.pauses] }),
+    cases: t.field({ type: 'JSON', resolve: (item) => item.rule.cases }),
+    exceptions: t.field({ type: 'JSON', resolve: (item) => item.rule.exceptions }),
     typeName: t.exposeString('typeName', { nullable: true }),
     color: t.exposeString('color', { nullable: true }),
     workspaceId: t.id({ resolve: (item) => item.workspace.id }),
@@ -181,22 +166,13 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
   }),
 });
 
-const WorkSlotInput = builder.inputType('WorkSlotInput', {
-  fields: (t) => ({ weekday: t.int({ required: true }), start: t.string({ required: true }), end: t.string({ required: true }), allDay: t.boolean() }),
-});
-
-const WorkPauseInput = builder.inputType('WorkPauseInput', {
-  fields: (t) => ({ from: t.field({ type: 'Date', required: true }), to: t.field({ type: 'Date', required: true }), label: t.string({ required: true }) }),
-});
-
 const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
     startDate: t.field({ type: 'Date', required: true }),
     endDate: t.field({ type: 'Date' }),
-    intervalWeeks: t.int({ required: true }),
-    slots: t.field({ type: [WorkSlotInput], required: true }),
-    pauses: t.field({ type: [WorkPauseInput], required: true }),
+    cases: t.field({ type: 'JSON', required: true, description: 'Cases (shared schedule case shape).' }),
+    exceptions: t.field({ type: 'JSON', required: true, description: 'Exceptions: { from, to, label, cases }.' }),
     typeId: t.id({ description: 'Kind of time it plans; none: working hours.' }),
   }),
 });
@@ -210,7 +186,9 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
   ...input,
   endDate: input.endDate ?? null,
   typeId: input.typeId ?? null,
-  slots: input.slots.map((slot) => ({ ...slot, allDay: slot.allDay ?? false })),
+  // Validated by the service.
+  cases: input.cases as never,
+  exceptions: input.exceptions as never,
 });
 
 const CalendarLinkInput = builder.inputType('CalendarLinkInput', {

@@ -735,13 +735,12 @@ type ForeignScheduleKind {
 Schedule of a kind of another workspace this one subscribes to, shown read only.
 """
 type ForeignWorkSchedule {
+  cases: JSON!
   color: String
   endDate: String
+  exceptions: JSON!
   id: ID!
-  intervalWeeks: Int!
   name: String!
-  pauses: [WorkPause!]!
-  slots: [WorkSlot!]!
   startDate: String!
   typeName: String
   workspaceId: ID!
@@ -2801,28 +2800,18 @@ type User {
   username: String!
 }
 
-type WorkPause {
-  from: String!
-  label: String!
-  to: String!
-}
-
-input WorkPauseInput {
-  from: Date!
-  label: String!
-  to: Date!
-}
-
 """
-Planned working hours: every n weeks from a date, time slots on weekdays, paused periods.
+Planned time slots: a period, its cases (which days, which hours) and exceptions (periods with cases of their own).
 """
 type WorkSchedule {
+  """Cases (shared schedule case shape)."""
+  cases: JSON!
   endDate: Date
+
+  """Exceptions: { from, to, label, cases }."""
+  exceptions: JSON!
   id: ID!
-  intervalWeeks: Int!
   name: String!
-  pauses: [WorkPause!]!
-  slots: [WorkSlot!]!
   startDate: Date!
 
   """Kind of time it plans; none: working hours."""
@@ -2830,32 +2819,17 @@ type WorkSchedule {
 }
 
 input WorkScheduleInput {
+  """Cases (shared schedule case shape)."""
+  cases: JSON!
   endDate: Date
-  intervalWeeks: Int!
+
+  """Exceptions: { from, to, label, cases }."""
+  exceptions: JSON!
   name: String!
-  pauses: [WorkPauseInput!]!
-  slots: [WorkSlotInput!]!
   startDate: Date!
 
   """Kind of time it plans; none: working hours."""
   typeId: ID
-}
-
-type WorkSlot {
-  """The whole day (its times are not used)."""
-  allDay: Boolean!
-  end: String!
-  start: String!
-
-  """1 (Monday) to 7."""
-  weekday: Int!
-}
-
-input WorkSlotInput {
-  allDay: Boolean
-  end: String!
-  start: String!
-  weekday: Int!
 }
 
 type Workspace {
