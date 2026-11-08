@@ -1,0 +1,12 @@
+@layer app {
+  /*
+   * Password managers (NordPass…) set `overflow: visible` in the inline style of the ancestors of a field when they
+   * offer to autofill, so their menu is not clipped: the content of a modal or drawer then spilled out of it and no
+   * longer scrolled. Only an important declaration wins over an inline style.
+   */
+  .mantine-Modal-content,
+  .mantine-Drawer-content {
+    /* Dimension */
+    overflow-y: auto !important;
+  }
+}

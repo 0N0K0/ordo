@@ -5,6 +5,7 @@ import '@mantine/tiptap/styles.layer.css';
 import '@mantine/charts/styles.layer.css';
 import 'dayjs/locale/fr';
 import './styles/layers.css';
+import './styles/dialogs.css';
 
 import { MantineProvider } from '@mantine/core';
 import { DatesProvider } from '@mantine/dates';
