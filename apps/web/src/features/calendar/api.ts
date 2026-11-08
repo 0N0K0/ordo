@@ -34,6 +34,8 @@ graphql(`
     recurrence
     seriesStartDate
     reminders
+    travelBefore
+    travelAfter
     projectId
     calendarId
     contributorIds

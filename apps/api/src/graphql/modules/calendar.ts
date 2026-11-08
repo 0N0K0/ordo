@@ -103,6 +103,8 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (occurrence) => occurrence.recurrence }),
     seriesStartDate: t.exposeString('seriesStartDate'),
     reminders: t.exposeIntList('reminders'),
+    travelBefore: t.exposeInt('travelBefore', { description: 'Travel time to the event, in minutes.' }),
+    travelAfter: t.exposeInt('travelAfter', { description: 'Travel time back from the event, in minutes.' }),
     projectId: t.exposeID('projectId', { nullable: true }),
     calendarId: t.exposeID('calendarId'),
     contributorIds: t.exposeIDList('contributorIds'),
@@ -259,6 +261,8 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     timeZone: t.string({ required: true }),
     recurrence: t.field({ type: 'JSON' }),
     reminders: t.intList({ required: true, description: 'Minutes before the start.' }),
+    travelBefore: t.int({ description: 'Travel time to the event, in minutes; none: 0.' }),
+    travelAfter: t.int({ description: 'Travel time back from the event, in minutes; none: 0.' }),
     projectId: t.id(),
     calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),
     contributorIds: t.idList({ required: true }),
@@ -292,6 +296,8 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
   relationIds: input.relationIds ?? [],
+  travelBefore: input.travelBefore ?? 0,
+  travelAfter: input.travelAfter ?? 0,
 });
 
 builder.queryFields((t) => ({

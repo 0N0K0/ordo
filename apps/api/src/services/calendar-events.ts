@@ -50,6 +50,9 @@ export interface EventOccurrence {
   /** First date of the series. */
   seriesStartDate: string;
   reminders: number[];
+  /** Travel time to the event and back from it, in minutes. */
+  travelBefore: number;
+  travelAfter: number;
   projectId: string | null;
   /** Calendar of the event (of its series). */
   calendarId: string;
@@ -124,6 +127,9 @@ async function parseEvent(input: CalendarEventInput) {
   if (event.allDay) {
     event.startTime = null;
     event.endTime = null;
+    // No travel time to a whole day.
+    event.travelBefore = 0;
+    event.travelAfter = 0;
   }
   return { ...event, calendarId: await resolveCalendarId(event.calendarId) };
 }
@@ -147,6 +153,8 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     timeZone: event.timeZone,
     recurrence: (event.recurrence ?? undefined) as Prisma.InputJsonValue | undefined,
     reminders: [...new Set(event.reminders)].sort((a, b) => a - b),
+    travelBefore: event.travelBefore,
+    travelAfter: event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
   };
@@ -254,6 +262,8 @@ export async function updateCalendarEvent(
       startTime: fields.startTime,
       endDate: parseDay(fields.endDate),
       endTime: fields.endTime,
+      travelBefore: fields.travelBefore,
+      travelAfter: fields.travelAfter,
     };
     await prisma.calendarEventException.upsert({
       where: { eventId_date: { eventId: id, date: parseDay(occurrence.date) } },
@@ -364,6 +374,8 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     recurrence: storedRecurrence(event.recurrence),
     seriesStartDate: seriesStart,
     reminders: event.reminders,
+    travelBefore: change?.travelBefore ?? event.travelBefore,
+    travelAfter: change?.travelAfter ?? event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
@@ -467,6 +479,8 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     timeZone: event.timeZone,
     recurrence: storedRecurrence(event.recurrence),
     reminders: event.reminders,
+    travelBefore: event.travelBefore,
+    travelAfter: event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
@@ -530,6 +544,8 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
         startTime: current.startTime,
         endDate: parseDay(current.endDate),
         endTime: current.endTime,
+        travelBefore: current.travelBefore,
+        travelAfter: current.travelAfter,
       },
     });
     return;

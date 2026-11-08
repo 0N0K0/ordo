@@ -1,7 +1,7 @@
-import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TimerIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, TimerIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -150,6 +150,8 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         timeZone: LOCAL_TIME_ZONE,
         recurrence: null,
         reminders: [15],
+        travelBefore: 0,
+        travelAfter: 0,
         projectId: null,
         calendarId: null,
         contributorIds: [],
@@ -349,6 +351,32 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
           <DatePickerInput label="Fin" required valueFormat="ddd D MMM YYYY" minDate={values.startDate} {...form.getInputProps('endDate')} />
           {!values.allDay && <TimeInput label="Heure de fin" required {...form.getInputProps('endTime')} />}
         </SimpleGrid>
+        {!values.allDay && (
+          <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
+            <NumberInput
+              label="Trajet aller"
+              description="Avant le début"
+              leftSection={<CarIcon aria-hidden />}
+              suffix=" min"
+              min={0}
+              max={24 * 60}
+              step={5}
+              allowDecimal={false}
+              {...form.getInputProps('travelBefore')}
+            />
+            <NumberInput
+              label="Trajet retour"
+              description="Après la fin"
+              leftSection={<CarIcon aria-hidden />}
+              suffix=" min"
+              min={0}
+              max={24 * 60}
+              step={5}
+              allowDecimal={false}
+              {...form.getInputProps('travelAfter')}
+            />
+          </SimpleGrid>
+        )}
         <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
         <RecurrenceEditor

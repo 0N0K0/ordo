@@ -314,6 +314,12 @@ input CalendarEventInput {
   taskIds: [ID!]
   timeZone: String!
   title: String!
+
+  """Travel time back from the event, in minutes; none: 0."""
+  travelAfter: Int
+
+  """Travel time to the event, in minutes; none: 0."""
+  travelBefore: Int
 }
 
 """One occurrence of an event in a period."""
@@ -353,6 +359,12 @@ type CalendarEventOccurrence {
 
   """Time tracked on the occurrence."""
   trackedSeconds: Int!
+
+  """Travel time back from the event, in minutes."""
+  travelAfter: Int!
+
+  """Travel time to the event, in minutes."""
+  travelBefore: Int!
 }
 
 """Scope of a change to a recurring event."""

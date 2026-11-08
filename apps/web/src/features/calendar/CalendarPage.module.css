@@ -144,6 +144,22 @@
     opacity: 1 !important;
   }
 
+  /* Travel to an event and back: hatched in its color (the border), dashed. */
+  .travel {
+    /* Typographie */
+    font-size: var(--mantine-font-size-xs);
+    font-style: italic;
+
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, color-mix(in srgb, currentColor 12%, transparent) 0 4px, transparent 4px 8px) !important;
+
+    /* Bordures */
+    border-style: dashed !important;
+
+    /* Interactions */
+    cursor: pointer;
+  }
+
   /* Planned slots of another workspace: hatched. */
   .subscribedSlot {
     /* Arrière-Plan */

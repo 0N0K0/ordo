@@ -207,6 +207,30 @@ export function CalendarPage() {
           ...(occurrence.calledOff ? [classes.closed] : []),
         ],
       });
+      // Travel to the event and back, in the week and the day: hatched blocks in its color, against it, opening it.
+      if (!occurrence.allDay && view !== 'dayGridMonth') {
+        const start = new Date(String(occurrence.start)).getTime();
+        const end = new Date(String(occurrence.end)).getTime();
+        const legs = [
+          { key: 'before', minutes: occurrence.travelBefore, from: start - occurrence.travelBefore * 60_000, to: start, title: 'Trajet aller' },
+          { key: 'after', minutes: occurrence.travelAfter, from: end, to: end + occurrence.travelAfter * 60_000, title: 'Trajet retour' },
+        ];
+        for (const leg of legs) {
+          if (leg.minutes <= 0) continue;
+          result.push({
+            id: `travel:${leg.key}:${occurrence.key}`,
+            title: `${leg.title} · ${formatDuration(leg.minutes * 60)}`,
+            start: new Date(leg.from).toISOString(),
+            end: new Date(leg.to).toISOString(),
+            editable: false,
+            backgroundColor: 'transparent',
+            borderColor: color,
+            textColor: 'var(--mantine-color-dimmed)',
+            extendedProps: { kind: 'travel', occurrence },
+            classNames: [classes.travel, ...(occurrence.calledOff ? [classes.closed] : [])],
+          });
+        }
+      }
     }
     // Calendars of other workspaces, read only: their projects, categories and contributors are not those of
     // this workspace, so a filter on them leaves them out.

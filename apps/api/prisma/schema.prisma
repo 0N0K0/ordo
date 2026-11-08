@@ -1174,6 +1174,9 @@ model CalendarEvent {
   recurrence        Json?
   /// Reminders, in minutes before the start.
   reminders         Int[]
+  /// Travel time to the event and back from it, in minutes (timed events).
+  travelBefore      Int                      @default(0)
+  travelAfter       Int                      @default(0)
   projectId         String?
   project           Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
   calendarId        String
@@ -1210,27 +1213,30 @@ model CalendarEvent {
 
 /// One occurrence of a recurring event changed or cancelled on its own.
 model CalendarEventException {
-  id          String        @id @default(cuid())
-  eventId     String
-  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id           String        @id @default(cuid())
+  eventId      String
+  event        CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Date of the occurrence in the series.
-  date        DateTime      @db.Date
+  date         DateTime      @db.Date
   /// Deleted from the series (not shown).
-  cancelled   Boolean       @default(false)
+  cancelled    Boolean       @default(false)
   /// Cancelled but kept in the calendar (struck through).
-  calledOff   Boolean       @default(false)
-  title       String?
-  description String?
-  location    String?
-  links       Json?
-  allDay      Boolean?
-  startDate   DateTime?     @db.Date
-  startTime   String?
-  endDate     DateTime?     @db.Date
-  endTime     String?
+  calledOff    Boolean       @default(false)
+  title        String?
+  description  String?
+  location     String?
+  links        Json?
+  allDay       Boolean?
+  startDate    DateTime?     @db.Date
+  startTime    String?
+  endDate      DateTime?     @db.Date
+  endTime      String?
+  /// Travel times of the occurrence, in minutes; none: those of the series.
+  travelBefore Int?
+  travelAfter  Int?
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, date])
   @@index([workspaceId])

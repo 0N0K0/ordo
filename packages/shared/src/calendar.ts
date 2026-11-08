@@ -34,6 +34,9 @@ export const calendarEventInputSchema = z
     recurrence: recurrenceSchema.nullable(),
     /** Minutes before the start. */
     reminders: z.array(z.number().int().min(0).max(60 * 24 * 30)).max(10),
+    /** Travel time to the event and back from it, in minutes (timed events). */
+    travelBefore: z.number().int().min(0, 'Durée positive attendue.').max(24 * 60, '24 h maximum.').default(0),
+    travelAfter: z.number().int().min(0, 'Durée positive attendue.').max(24 * 60, '24 h maximum.').default(0),
     projectId: z.string().nullable(),
     /** Calendar of the event; the first one of the workspace when omitted. */
     calendarId: z.string().nullish(),

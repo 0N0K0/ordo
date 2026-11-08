@@ -38,6 +38,8 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     timeZone: occurrence.timeZone,
     recurrence: (occurrence.recurrence as CalendarEventInput['recurrence']) ?? null,
     reminders: occurrence.reminders,
+    travelBefore: occurrence.travelBefore,
+    travelAfter: occurrence.travelAfter,
     projectId: occurrence.projectId,
     calendarId: occurrence.calendarId,
     contributorIds: occurrence.contributorIds,
