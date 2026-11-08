@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_SCHEDULE_KIND_NAME, periodRhythm, readScheduleCases, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
-import { CaretDownIcon, CaretUpDownIcon, CaretUpIcon, ClockIcon, FunnelSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CopyIcon, CaretUpDownIcon, CaretUpIcon, ClockIcon, FunnelSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -51,26 +51,30 @@ const exceptionPeriod = (exception: ScheduleException) => (exception.from === ex
 /**
  * Schedule form: name, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
- * @param {{ schedule?: WorkSchedule, onDone: () => void }} props Component props.
+ * A copy starts with the cases and the kind of its schedule, without dates nor exceptions, saved as a new one.
+ * @param {{ schedule?: WorkSchedule, copyOf?: WorkSchedule, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: () => void }) {
+function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; copyOf?: WorkSchedule; onDone: () => void }) {
   const { create, update } = useWorkScheduleMutations();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
-      name: schedule?.name ?? 'Semaine type',
-      startDate: schedule ? String(schedule.startDate) : localToday(),
+      name: schedule?.name ?? (copyOf ? `${copyOf.name} (copie)` : 'Semaine type'),
+      // A copy has no dates: to choose.
+      startDate: schedule ? String(schedule.startDate) : copyOf ? '' : localToday(),
       endDate: schedule?.endDate ? String(schedule.endDate) : null,
-      cases: schedule ? readScheduleCases(schedule.cases) : [newCase(false)],
+      cases: schedule ? readScheduleCases(schedule.cases) : copyOf ? readScheduleCases(copyOf.cases) : [newCase(false)],
       exceptions: schedule ? readScheduleExceptions(schedule.exceptions) : [],
-      typeId: schedule?.typeId ?? null,
+      typeId: schedule?.typeId ?? copyOf?.typeId ?? null,
     },
     schema: workScheduleSchema,
   });
   const values = form.values;
-  const rhythm = periodRhythm(values.startDate, values.endDate);
+  // Every rhythm until the start is chosen (a copy has none); rhythms count from today meanwhile.
+  const rhythm = values.startDate ? periodRhythm(values.startDate, values.endDate) : 'ANY';
+  const periodStart = values.startDate || localToday();
 
   /**
    * Changes the period of the schedule, its cases fitted to the rhythms it allows.
@@ -79,7 +83,7 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
    */
   const setPeriod = (period: Partial<{ startDate: string; endDate: string | null }>) => {
     const next = { startDate: values.startDate, endDate: values.endDate, ...period };
-    form.setValues({ ...next, cases: fitCases(values.cases, periodRhythm(next.startDate, next.endDate)) });
+    form.setValues({ ...next, cases: next.startDate ? fitCases(values.cases, periodRhythm(next.startDate, next.endDate)) : values.cases });
   };
 
   /**
@@ -121,6 +125,11 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
       )}
     >
       <Stack gap="md">
+        {copyOf && (
+          <Text size="sm" c="dimmed">
+            Copie de « {copyOf.name} », sans ses dates ni ses exceptions : choisissez ses dates.
+          </Text>
+        )}
         <Group grow align="flex-start">
           <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
           <Select
@@ -136,7 +145,8 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
             label="À partir du"
             required
             valueFormat="D MMM YYYY"
-            value={values.startDate}
+            placeholder="À choisir"
+            value={values.startDate || null}
             error={form.errors.startDate}
             onChange={(date) => date && setPeriod({ startDate: String(date) })}
           />
@@ -145,7 +155,7 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
             clearable
             placeholder="Sans fin"
             valueFormat="D MMM YYYY"
-            minDate={values.startDate}
+            minDate={values.startDate || undefined}
             value={values.endDate}
             error={form.errors.endDate}
             onChange={(date) => setPeriod({ endDate: date ? String(date) : null })}
@@ -153,7 +163,7 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
         </Group>
 
         <Divider label="Cas" labelPosition="left" />
-        <ScheduleCasesEditor cases={values.cases} rhythm={rhythm} periodStart={values.startDate} onChange={(cases) => form.setFieldValue('cases', cases)} />
+        <ScheduleCasesEditor cases={values.cases} rhythm={rhythm} periodStart={periodStart} onChange={(cases) => form.setFieldValue('cases', cases)} />
 
         <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
         <Text size="xs" c="dimmed">
@@ -294,7 +304,7 @@ export function WorkSchedulesManager() {
   const { data: defaultKind } = useDefaultScheduleKind();
   const { remove } = useWorkScheduleMutations();
   const { perso } = useActiveWorkspace();
-  const [editing, setEditing] = useState<WorkSchedule | 'new' | null>(null);
+  const [editing, setEditing] = useState<WorkSchedule | 'new' | { copyOf: WorkSchedule } | null>(null);
   const [deleting, setDeleting] = useState<WorkSchedule | null>(null);
   const [search, setSearch] = useState('');
   const [kinds, setKinds] = useState<string[]>([]);
@@ -304,7 +314,15 @@ export function WorkSchedulesManager() {
   const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
   const today = localToday();
 
-  if (editing) return <ScheduleForm schedule={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />;
+  if (editing) {
+    return editing === 'new' ? (
+      <ScheduleForm onDone={() => setEditing(null)} />
+    ) : 'copyOf' in editing ? (
+      <ScheduleForm copyOf={editing.copyOf} onDone={() => setEditing(null)} />
+    ) : (
+      <ScheduleForm schedule={editing} onDone={() => setEditing(null)} />
+    );
+  }
   if (deleting) {
     return (
       <Stack gap="md">
@@ -511,6 +529,11 @@ export function WorkSchedulesManager() {
                             <Tooltip label="Modifier">
                               <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${schedule.name}`} onClick={() => setEditing(schedule)}>
                                 <PencilSimpleIcon aria-hidden />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Dupliquer (sans dates ni exceptions)">
+                              <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${schedule.name}`} onClick={() => setEditing({ copyOf: schedule })}>
+                                <CopyIcon aria-hidden />
                               </ActionIcon>
                             </Tooltip>
                             <Tooltip label="Supprimer">
