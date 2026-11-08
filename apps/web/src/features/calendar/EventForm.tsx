@@ -1,7 +1,7 @@
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -92,6 +92,8 @@ interface EventFormProps {
   /** Fields of a new event (dates selected in the calendar…). */
   defaults?: Partial<CalendarEventInput>;
   onDone: () => void;
+  /** Duplicates the event: the fields of its copy (not saved yet). */
+  onDuplicate?: (fields: CalendarEventInput) => void;
 }
 
 /**
@@ -103,7 +105,7 @@ interface EventFormProps {
  * @param {EventFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function EventForm({ context, occurrence, defaults, onDone }: EventFormProps) {
+export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
   const { create, update, remove, setCalledOff, postpone } = useCalendarEventMutations();
   const [postponing, setPostponing] = useState(false);
   const { start: startTimer } = useTimeMutations();
@@ -542,6 +544,21 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
               <Button variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
                 Supprimer
               </Button>
+              {onDuplicate && (
+                <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
+                  <Button
+                    variant="subtle"
+                    color="gray"
+                    leftSection={<CopyIcon aria-hidden />}
+                    onClick={() =>
+                      // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
+                      onDuplicate({ ...values, title: `${values.title} (copie)`, recurrence: recurring ? null : (values.recurrence ?? null) })
+                    }
+                  >
+                    Dupliquer
+                  </Button>
+                </Tooltip>
+              )}
               {occurrence.calledOff ? (
                 <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
                   Rétablir
