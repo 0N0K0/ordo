@@ -289,6 +289,9 @@ export function CalendarPage() {
         display: readScheduleDisplay(schedule),
       }));
       const month = view === 'dayGridMonth';
+      // Lines of several schedules on a day stand side by side (week, day) or one above the other (month): each
+      // schedule with a line that day takes the next lane.
+      const lanes = new Map<string, number>();
       for (const { rule, color, name, foreign, display } of [...own, ...subscribed]) {
         const hatched = foreign ? [classes.subscribedSlot] : [];
         const background = { display: 'background', ...(color ? { backgroundColor: color } : {}), classNames: [color ? classes.typedSlot : classes.workHours, ...hatched] };
@@ -297,16 +300,26 @@ export function CalendarPage() {
          * @param {string} className Line on the left or at the bottom.
          * @returns {EventInput} Event props.
          */
-        const line = (className: string) => ({ display: 'background', backgroundColor: color ?? 'var(--mantine-color-green-6)', classNames: [className] });
+        const line = (className: string, lane: number) => ({
+          display: 'background',
+          backgroundColor: color ?? 'var(--mantine-color-green-6)',
+          classNames: [className],
+          extendedProps: { slotLane: lane },
+        });
         const days = new Set<string>();
+        let lane = 0;
         for (const slot of plannedSlots([rule], range.from, range.to)) {
           const wholeDay = { start: `${slot.date}T00:00:00`, end: `${addDays(slot.date, 1)}T00:00:00` };
           if (!days.has(slot.date)) {
             days.add(slot.date);
+            if ((month && display.monthDisplay === 'BORDER') || (!month && display.dayDisplay === 'SLOT_BORDER')) {
+              lane = lanes.get(slot.date) ?? 0;
+              lanes.set(slot.date, lane + 1);
+            }
             const day = { id: `work-day:${slot.scheduleId}:${slot.date}`, start: slot.date, end: addDays(slot.date, 1), allDay: true };
             if (month) {
               if (display.monthDisplay === 'BACKGROUND') result.push({ ...day, ...background });
-              else if (display.monthDisplay === 'BORDER') result.push({ ...day, ...line(classes.slotBorderBottom) });
+              else if (display.monthDisplay === 'BORDER') result.push({ ...day, id: `${day.id}:${lane}`, ...line(classes.slotBorderBottom, lane) });
             } else {
               if (display.dayBar) {
                 result.push({
@@ -325,7 +338,12 @@ export function CalendarPage() {
           }
           if (month || (display.dayDisplay !== 'SLOT_BACKGROUND' && display.dayDisplay !== 'SLOT_BORDER')) continue;
           const hours = slot.allDay ? wholeDay : { start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00` };
-          result.push({ id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`, ...hours, ...(display.dayDisplay === 'SLOT_BORDER' ? line(classes.slotBorderLeft) : background) });
+          result.push({
+            // The lane in the id: a line moved to another lane is drawn again (see eventDidMount).
+            id: `work:${slot.scheduleId}:${slot.date}:${slot.start}:${lane}`,
+            ...hours,
+            ...(display.dayDisplay === 'SLOT_BORDER' ? line(classes.slotBorderLeft, lane) : background),
+          });
         }
       }
     }
@@ -593,6 +611,11 @@ export function CalendarPage() {
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          // Lane of a line of planned slots, beside (or above) those of the other schedules that day.
+          eventDidMount={(info) => {
+            const lane: unknown = info.event.extendedProps.slotLane;
+            if (typeof lane === 'number') info.el.style.setProperty('--slot-lane', String(lane));
+          }}
           initialView={view}
           initialDate={requestedDate ?? undefined}
           locale={frLocale}

@@ -9,6 +9,8 @@
       --fc-now-indicator-color: var(--mantine-color-red-6);
       --fc-highlight-color: var(--mantine-primary-color-light);
       --fc-event-text-color: #fff;
+      /* Thickness of the lines of planned slots. */
+      --slot-line: 3px;
 
       /* Typographie */
       font-size: var(--mantine-font-size-sm);
@@ -120,9 +122,10 @@
   .slotBorderLeft {
     /* Position */
     right: auto !important;
+    left: calc(var(--slot-lane, 0) * (var(--slot-line) + 1px)) !important;
 
     /* Dimension */
-    width: 3px;
+    width: var(--slot-line);
 
     /* Effets */
     opacity: 1 !important;
@@ -132,9 +135,10 @@
   .slotBorderBottom {
     /* Position */
     top: auto !important;
+    bottom: calc(var(--slot-lane, 0) * (var(--slot-line) + 1px)) !important;
 
     /* Dimension */
-    height: 3px;
+    height: var(--slot-line);
 
     /* Effets */
     opacity: 1 !important;
