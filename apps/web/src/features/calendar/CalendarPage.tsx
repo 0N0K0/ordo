@@ -271,20 +271,22 @@ export function CalendarPage() {
       }
     }
     // Planned slots in the background, in the color of their kind (working hours without one); paused days
-    // simply have none; whole days cover the day. The slots of other workspaces subscribed to are hatched.
+    // simply have none; each day with slots is colored whole in the all-day row (week, day) and the month. The slots of other workspaces subscribed to are hatched.
     if (range && schedules && filters.workHours !== false) {
       const colorOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type.color]));
       const own = schedules.map((schedule) => ({ rule: scheduleRules([schedule])[0], color: schedule.typeId ? (colorOf.get(schedule.typeId) ?? null) : null, foreign: false }));
       const subscribed = (foreignSchedules ?? []).map((schedule) => ({ rule: scheduleRules([schedule])[0], color: schedule.color ?? null, foreign: true }));
       for (const { rule, color, foreign } of [...own, ...subscribed]) {
+        const look = { display: 'background', ...(color ? { backgroundColor: color } : {}), classNames: [color ? classes.typedSlot : classes.workHours, ...(foreign ? [classes.subscribedSlot] : [])] };
+        // Each day of the schedule is colored whole too: the all-day row of the week and the day of the month.
+        const days = new Set<string>();
         for (const slot of plannedSlots([rule], range.from, range.to)) {
-          result.push({
-            id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`,
-            ...(slot.allDay ? { start: slot.date, end: addDays(slot.date, 1), allDay: true } : { start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00` }),
-            display: 'background',
-            ...(color ? { backgroundColor: color } : {}),
-            classNames: [color ? classes.typedSlot : classes.workHours, ...(foreign ? [classes.subscribedSlot] : [])],
-          });
+          if (!days.has(slot.date)) {
+            days.add(slot.date);
+            result.push({ id: `work-day:${slot.scheduleId}:${slot.date}`, start: slot.date, end: addDays(slot.date, 1), allDay: true, ...look });
+          }
+          if (slot.allDay) continue;
+          result.push({ id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`, start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00`, ...look });
         }
       }
     }
