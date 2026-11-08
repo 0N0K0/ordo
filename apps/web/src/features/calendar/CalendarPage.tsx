@@ -6,7 +6,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Checkbox, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, plannedSlots } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -28,6 +28,9 @@ import {
   useCalendars,
   useMaterializeTaskOccurrences,
   useSubscribedCalendarEvents,
+  useScheduleTypes,
+  useDefaultScheduleKind,
+  useSubscribedSchedules,
   useWorkSchedules,
   type CalendarSubscription,
   type EventOccurrence,
@@ -41,7 +44,10 @@ import { SubscribedEventModal } from './SubscribedEventModal';
 import { useEventForm } from './use-event-form';
 import { CalendarCategoriesManager } from './CalendarCategoriesManager';
 import { CalendarsManager } from './CalendarsManager';
+import { PlacesManager } from '../geo/PlacesManager';
+import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
+import { useActiveWorkspace } from '../workspaces/api';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -114,6 +120,10 @@ export function CalendarPage() {
   const navigate = useNavigate();
   const taskLink = useTaskLink();
   const { data: schedules } = useWorkSchedules();
+  const { data: scheduleTypes } = useScheduleTypes();
+  const { data: defaultKind } = useDefaultScheduleKind();
+  const { data: foreignSchedules } = useSubscribedSchedules();
+  const { perso } = useActiveWorkspace();
   const [managingSchedules, setManagingSchedules] = useState(false);
   // Tracked times of the displayed period (from its first day, local midnight).
   const showTimers = filters.timers === true;
@@ -198,6 +208,30 @@ export function CalendarPage() {
           ...(occurrence.calledOff ? [classes.closed] : []),
         ],
       });
+      // Travel to the event and back, in the week and the day: hatched blocks in its color, against it, opening it.
+      if (!occurrence.allDay && view !== 'dayGridMonth') {
+        const start = new Date(String(occurrence.start)).getTime();
+        const end = new Date(String(occurrence.end)).getTime();
+        const legs = [
+          { key: 'before', minutes: occurrence.travelBefore, from: start - occurrence.travelBefore * 60_000, to: start, title: 'Trajet aller' },
+          { key: 'after', minutes: occurrence.travelAfter, from: end, to: end + occurrence.travelAfter * 60_000, title: 'Trajet retour' },
+        ];
+        for (const leg of legs) {
+          if (leg.minutes <= 0) continue;
+          result.push({
+            id: `travel:${leg.key}:${occurrence.key}`,
+            title: `${leg.title} · ${formatDuration(leg.minutes * 60)}`,
+            start: new Date(leg.from).toISOString(),
+            end: new Date(leg.to).toISOString(),
+            editable: false,
+            backgroundColor: 'transparent',
+            borderColor: color,
+            textColor: 'var(--mantine-color-dimmed)',
+            extendedProps: { kind: 'travel', occurrence },
+            classNames: [classes.travel, ...(occurrence.calledOff ? [classes.closed] : [])],
+          });
+        }
+      }
     }
     // Calendars of other workspaces, read only: their projects, categories and contributors are not those of
     // this workspace, so a filter on them leaves them out.
@@ -264,17 +298,83 @@ export function CalendarPage() {
         );
       }
     }
-    // Working hours in the background (week and day); paused days simply have none.
+    // Planned slots, in the color of their kind (working hours without one), shown as the kind (or the subscription
+    // to it) asks: in the week and the day, a bar at the top (all-day row) and, in the time grid, their hours (the
+    // whole day for an all-day slot) or the whole day in the background, or a thin line on the left of their hours;
+    // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
+    // other workspaces subscribed to are hatched.
     if (range && schedules && filters.workHours !== false) {
-      const rules = scheduleRules(schedules);
-      for (const slot of plannedSlots(rules, range.from, range.to)) {
-        result.push({
-          id: `work:${slot.scheduleId}:${slot.date}:${slot.start}`,
-          start: `${slot.date}T${slot.start}:00`,
-          end: `${slot.date}T${slot.end}:00`,
+      const typeOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
+      const own = schedules.map((schedule) => {
+        const type = schedule.typeId ? typeOf.get(schedule.typeId) : undefined;
+        // Without kind: the default kind of the workspace.
+        const kind = type ?? defaultKind;
+        return { rule: scheduleRules([schedule])[0], color: kind?.color ?? null, name: kind?.name ?? schedule.name, foreign: false, display: readScheduleDisplay(kind) };
+      });
+      const subscribed = (foreignSchedules ?? []).map((schedule) => ({
+        rule: scheduleRules([schedule])[0],
+        color: schedule.color ?? null,
+        name: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}`,
+        foreign: true,
+        display: readScheduleDisplay(schedule),
+      }));
+      const month = view === 'dayGridMonth';
+      // Lines of several schedules on a day stand side by side (week, day) or one above the other (month): each
+      // schedule with a line that day takes the next lane.
+      const lanes = new Map<string, number>();
+      for (const { rule, color, name, foreign, display } of [...own, ...subscribed]) {
+        const hatched = foreign ? [classes.subscribedSlot] : [];
+        const background = { display: 'background', ...(color ? { backgroundColor: color } : {}), classNames: [color ? classes.typedSlot : classes.workHours, ...hatched] };
+        /**
+         * Thin line of planned slots: a background event narrowed, in the full color.
+         * @param {string} className Line on the left or at the bottom.
+         * @returns {EventInput} Event props.
+         */
+        const line = (className: string, lane: number) => ({
           display: 'background',
-          classNames: [classes.workHours],
+          backgroundColor: color ?? 'var(--mantine-color-green-6)',
+          classNames: [className],
+          extendedProps: { slotLane: lane },
         });
+        const days = new Set<string>();
+        let lane = 0;
+        for (const slot of plannedSlots([rule], range.from, range.to)) {
+          const wholeDay = { start: `${slot.date}T00:00:00`, end: `${addDays(slot.date, 1)}T00:00:00` };
+          if (!days.has(slot.date)) {
+            days.add(slot.date);
+            if ((month && display.monthDisplay === 'BORDER') || (!month && display.dayDisplay === 'SLOT_BORDER')) {
+              lane = lanes.get(slot.date) ?? 0;
+              lanes.set(slot.date, lane + 1);
+            }
+            const day = { id: `work-day:${slot.scheduleId}:${slot.date}`, start: slot.date, end: addDays(slot.date, 1), allDay: true };
+            if (month) {
+              if (display.monthDisplay === 'BACKGROUND') result.push({ ...day, ...background });
+              else if (display.monthDisplay === 'BORDER') result.push({ ...day, id: `${day.id}:${lane}`, ...line(classes.slotBorderBottom, lane) });
+            } else {
+              if (display.dayBar) {
+                result.push({
+                  ...day,
+                  title: name,
+                  editable: false,
+                  backgroundColor: color ?? 'var(--mantine-color-green-light)',
+                  borderColor: color ?? 'var(--mantine-color-green-light)',
+                  textColor: 'var(--mantine-color-text)',
+                  extendedProps: { kind: 'slot' },
+                  classNames: [classes.slotBar, ...hatched],
+                });
+              }
+              if (display.dayDisplay === 'DAY_BACKGROUND') result.push({ id: `work-whole:${slot.scheduleId}:${slot.date}`, ...wholeDay, ...background });
+            }
+          }
+          if (month || (display.dayDisplay !== 'SLOT_BACKGROUND' && display.dayDisplay !== 'SLOT_BORDER')) continue;
+          const hours = slot.allDay ? wholeDay : { start: `${slot.date}T${slot.start}:00`, end: `${slot.date}T${slot.end}:00` };
+          result.push({
+            // The lane in the id: a line moved to another lane is drawn again (see eventDidMount).
+            id: `work:${slot.scheduleId}:${slot.date}:${slot.start}:${lane}`,
+            ...hours,
+            ...(display.dayDisplay === 'SLOT_BORDER' ? line(classes.slotBorderLeft, lane) : background),
+          });
+        }
       }
     }
     if (filters.tasks) {
@@ -301,7 +401,26 @@ export function CalendarPage() {
       }
     }
     return result;
-  }, [context, events.data, subscribedEvents.data, ownCalendars, subscriptions, hidden, filters, categoryFilter, categoryById, range, schedules, showTimers, timeEntries.data, minute]);
+  }, [
+    context,
+    events.data,
+    subscribedEvents.data,
+    ownCalendars,
+    subscriptions,
+    hidden,
+    filters,
+    categoryFilter,
+    categoryById,
+    range,
+    schedules,
+    scheduleTypes,
+    defaultKind,
+    foreignSchedules,
+    view,
+    showTimers,
+    timeEntries.data,
+    minute,
+  ]);
 
   /**
    * Saves an event or a task moved or stretched in the calendar (cancelled: back in place).
@@ -421,9 +540,9 @@ export function CalendarPage() {
             </ActionIcon>
           </Tooltip>
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
-            Plages de travail
+            {perso ? 'Plages' : 'Plages de travail'}
           </Button>
-          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories">
+          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories, types de plages, lieux">
             <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => showSettings(true)}>
               Paramètres
             </Button>
@@ -465,7 +584,7 @@ export function CalendarPage() {
 
       <Group gap="sm" wrap="wrap" align="flex-end">
         <Switch label="Tâches" checked={filters.tasks} onChange={(event) => setFilters({ ...filters, tasks: event.currentTarget.checked })} />
-        <Switch label="Plages de travail" checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
+        <Switch label={perso ? 'Plages' : 'Plages de travail'} checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
         <Switch label="Chronos" checked={showTimers} onChange={(event) => setFilters({ ...filters, timers: event.currentTarget.checked })} />
         <MultiSelect
           size="xs"
@@ -513,16 +632,23 @@ export function CalendarPage() {
           <Stack gap="md">
             <CalendarsManager />
             <CalendarCategoriesManager />
+            <ScheduleSettings />
+            <PlacesManager />
           </Stack>
         )}
       </Modal>
-      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title="Plages de travail" size="xl">
+      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="min(72rem, 100%)">
         {managingSchedules && <WorkSchedulesManager />}
       </Modal>
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          // Lane of a line of planned slots, beside (or above) those of the other schedules that day.
+          eventDidMount={(info) => {
+            const lane: unknown = info.event.extendedProps.slotLane;
+            if (typeof lane === 'number') info.el.style.setProperty('--slot-lane', String(lane));
+          }}
           initialView={view}
           initialDate={requestedDate ?? undefined}
           locale={frLocale}
@@ -577,6 +703,8 @@ export function CalendarPage() {
           }}
           eventClick={(info: EventClickArg) => {
             info.jsEvent.preventDefault();
+            // A bar of planned slots opens nothing.
+            if (info.event.extendedProps.kind === 'slot') return;
             if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else if (info.event.extendedProps.kind === 'subscribed')

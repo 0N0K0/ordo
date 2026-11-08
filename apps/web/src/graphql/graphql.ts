@@ -136,8 +136,13 @@ export type CalendarEventInput = {
   endTime?: string | null | undefined;
   links: Array<CalendarLinkInput>;
   location?: string | null | undefined;
+  /** Point of the location; none: unknown. */
+  locationLat?: number | null | undefined;
+  locationLon?: number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
+  /** Relations without contributor taking part; none: none. */
+  relationIds?: Array<string | number> | null | undefined;
   /** Minutes before the start. */
   reminders: Array<number>;
   startDate: string;
@@ -146,6 +151,10 @@ export type CalendarEventInput = {
   taskIds?: Array<string | number> | null | undefined;
   timeZone: string;
   title: string;
+  /** Travel time back from the event, in minutes; none: 0. */
+  travelAfter?: number | null | undefined;
+  /** Travel time to the event, in minutes; none: 0. */
+  travelBefore?: number | null | undefined;
 };
 
 /** Scope of a change to a recurring event. */
@@ -276,6 +285,15 @@ export type DashboardChartInput = {
   wide: boolean;
 };
 
+export type DefaultScheduleKindInput = {
+  color?: string | null | undefined;
+  dayBar: boolean;
+  dayDisplay: string;
+  monthDisplay: string;
+  /** Empty: "Travail". */
+  name: string;
+};
+
 export type DiscountType =
   | 'AMOUNT'
   | 'PERCENT';
@@ -297,6 +315,11 @@ export type DocumentStatusCategory =
 export type DocumentStatusScope =
   | 'INVOICE'
   | 'QUOTE';
+
+export type GeoPointInput = {
+  lat: number;
+  lon: number;
+};
 
 export type GithubLinkInput = {
   effortFieldId?: string | null | undefined;
@@ -407,6 +430,13 @@ export type NotificationSource =
   | 'CALENDAR'
   | 'MAILS';
 
+export type PlaceInput = {
+  address: string;
+  lat: number;
+  lon: number;
+  name: string;
+};
+
 export type ProjectCategoryInput = {
   color: string;
   name: string;
@@ -484,6 +514,22 @@ export type SaveMailDraftInput = {
   replace?: MailLocationInput | null | undefined;
   subject: string;
   to: Array<string>;
+};
+
+/** Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind. */
+export type ScheduleSubscriptionLookInput = {
+  color?: string | null | undefined;
+  dayBar?: boolean | null | undefined;
+  dayDisplay?: string | null | undefined;
+  monthDisplay?: string | null | undefined;
+};
+
+export type ScheduleTypeInput = {
+  color: string;
+  dayBar: boolean;
+  dayDisplay: string;
+  monthDisplay: string;
+  name: string;
 };
 
 export type SendMailInput = {
@@ -627,6 +673,11 @@ export type TimerInput = {
   taskIds: Array<string | number>;
 };
 
+export type TravelMode =
+  | 'BIKE'
+  | 'CAR'
+  | 'FOOT';
+
 export type TreasuryAccountInput = {
   archived: boolean;
   name: string;
@@ -756,25 +807,16 @@ export type TreasuryStatementRowInput = {
   occurrence?: string | null | undefined;
 };
 
-export type WorkPauseInput = {
-  from: string;
-  label: string;
-  to: string;
-};
-
 export type WorkScheduleInput = {
+  /** Cases (shared schedule case shape). */
+  cases: unknown;
   endDate?: string | null | undefined;
-  intervalWeeks: number;
+  /** Exceptions: { from, to, label, cases }. */
+  exceptions: unknown;
   name: string;
-  pauses: Array<WorkPauseInput>;
-  slots: Array<WorkSlotInput>;
   startDate: string;
-};
-
-export type WorkSlotInput = {
-  end: string;
-  start: string;
-  weekday: number;
+  /** Kind of time it plans; none: working hours. */
+  typeId?: string | number | null | undefined;
 };
 
 export type WorkspaceInput = {
@@ -1340,12 +1382,69 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
-export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, calendarId: string, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, contributorIds: Array<string>, relationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
 
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, intervalWeeks: number, slots: Array<{ weekday: number, start: string, end: string }>, pauses: Array<{ from: string, to: string, label: string }> }> };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { name: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+
+export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceName: string, typeId: string | null, name: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean }> };
+
+export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeName: string | null, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceName: string }> };
+
+export type SaveScheduleTypeMutationVariables = Exact<{
+  id?: string | number | null | undefined;
+  input: ScheduleTypeInput;
+}>;
+
+
+export type SaveScheduleTypeMutation = { saveScheduleType: string };
+
+export type DeleteScheduleTypeMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteScheduleTypeMutation = { deleteScheduleType: boolean };
+
+export type SubscribeScheduleKindMutationVariables = Exact<{
+  workspaceId: string | number;
+  typeId?: string | number | null | undefined;
+}>;
+
+
+export type SubscribeScheduleKindMutation = { subscribeScheduleKind: boolean };
+
+export type SaveDefaultScheduleKindMutationVariables = Exact<{
+  input: DefaultScheduleKindInput;
+}>;
+
+
+export type SaveDefaultScheduleKindMutation = { saveDefaultScheduleKind: { name: string } };
+
+export type SetScheduleSubscriptionLookMutationVariables = Exact<{
+  workspaceId: string | number;
+  typeId?: string | number | null | undefined;
+  input: ScheduleSubscriptionLookInput;
+}>;
+
+
+export type SetScheduleSubscriptionLookMutation = { setScheduleSubscriptionLook: boolean };
+
+export type UnsubscribeScheduleKindMutationVariables = Exact<{
+  workspaceId: string | number;
+  typeId?: string | number | null | undefined;
+}>;
+
+
+export type UnsubscribeScheduleKindMutation = { unsubscribeScheduleKind: boolean };
 
 export type CreateWorkScheduleMutationVariables = Exact<{
   input: WorkScheduleInput;
@@ -1399,7 +1498,7 @@ export type CalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, calendarId: string, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, contributorIds: Array<string>, relationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
 
 export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1417,7 +1516,7 @@ export type SubscribedCalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, projectId: string | null, calendarId: string, contributorIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
+export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, contributorIds: Array<string>, relationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> }> };
 
 export type CreateCalendarMutationVariables = Exact<{
   input: CalendarInput;
@@ -1618,6 +1717,50 @@ export type MoveDashboardChartMutationVariables = Exact<{
 
 
 export type MoveDashboardChartMutation = { moveDashboardChart: boolean };
+
+export type PlacesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, lat: number, lon: number }> };
+
+export type SearchAddressesQueryVariables = Exact<{
+  text: string;
+  near?: GeoPointInput | null | undefined;
+}>;
+
+
+export type SearchAddressesQuery = { searchAddresses: Array<{ label: string, name: string | null, lat: number, lon: number }> };
+
+export type ReverseAddressQueryVariables = Exact<{
+  point: GeoPointInput;
+}>;
+
+
+export type ReverseAddressQuery = { reverseAddress: { label: string, name: string | null, lat: number, lon: number } | null };
+
+export type TravelTimeQueryVariables = Exact<{
+  from: GeoPointInput;
+  to: GeoPointInput;
+  mode: TravelMode;
+}>;
+
+
+export type TravelTimeQuery = { travelTime: { seconds: number, meters: number } };
+
+export type SavePlaceMutationVariables = Exact<{
+  id?: string | number | null | undefined;
+  input: PlaceInput;
+}>;
+
+
+export type SavePlaceMutation = { savePlace: string };
+
+export type DeletePlaceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeletePlaceMutation = { deletePlace: boolean };
 
 export type GithubLoginQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -3361,9 +3504,12 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
   recurrence
   seriesStartDate
   reminders
+  travelBefore
+  travelAfter
   projectId
   calendarId
   contributorIds
+  relationIds
   categoryIds
   taskIds
   calledOff
@@ -4476,20 +4622,101 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     name
     startDate
     endDate
-    intervalWeeks
-    slots {
-      weekday
-      start
-      end
-    }
-    pauses {
-      from
-      to
-      label
-    }
+    typeId
+    cases
+    exceptions
+  }
+  scheduleTypes {
+    id
+    name
+    color
+    dayDisplay
+    dayBar
+    monthDisplay
+    position
+  }
+  defaultScheduleKind {
+    name
+    color
+    dayDisplay
+    dayBar
+    monthDisplay
   }
 }
     `) as unknown as TypedDocumentString<WorkSchedulesQuery, WorkSchedulesQueryVariables>;
+export const ForeignScheduleKindsDocument = new TypedDocumentString(`
+    query ForeignScheduleKinds {
+  foreignScheduleKinds {
+    workspaceId
+    workspaceName
+    typeId
+    name
+    color
+    sourceColor
+    dayDisplay
+    dayBar
+    monthDisplay
+    customized
+    scheduleCount
+    subscribed
+  }
+}
+    `) as unknown as TypedDocumentString<ForeignScheduleKindsQuery, ForeignScheduleKindsQueryVariables>;
+export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
+    query SubscribedWorkSchedules {
+  subscribedWorkSchedules {
+    id
+    name
+    startDate
+    endDate
+    cases
+    exceptions
+    typeName
+    color
+    dayDisplay
+    dayBar
+    monthDisplay
+    workspaceId
+    workspaceName
+  }
+}
+    `) as unknown as TypedDocumentString<SubscribedWorkSchedulesQuery, SubscribedWorkSchedulesQueryVariables>;
+export const SaveScheduleTypeDocument = new TypedDocumentString(`
+    mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {
+  saveScheduleType(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<SaveScheduleTypeMutation, SaveScheduleTypeMutationVariables>;
+export const DeleteScheduleTypeDocument = new TypedDocumentString(`
+    mutation DeleteScheduleType($id: ID!) {
+  deleteScheduleType(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteScheduleTypeMutation, DeleteScheduleTypeMutationVariables>;
+export const SubscribeScheduleKindDocument = new TypedDocumentString(`
+    mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+  subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
+}
+    `) as unknown as TypedDocumentString<SubscribeScheduleKindMutation, SubscribeScheduleKindMutationVariables>;
+export const SaveDefaultScheduleKindDocument = new TypedDocumentString(`
+    mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {
+  saveDefaultScheduleKind(input: $input) {
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<SaveDefaultScheduleKindMutation, SaveDefaultScheduleKindMutationVariables>;
+export const SetScheduleSubscriptionLookDocument = new TypedDocumentString(`
+    mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {
+  setScheduleSubscriptionLook(
+    workspaceId: $workspaceId
+    typeId: $typeId
+    input: $input
+  )
+}
+    `) as unknown as TypedDocumentString<SetScheduleSubscriptionLookMutation, SetScheduleSubscriptionLookMutationVariables>;
+export const UnsubscribeScheduleKindDocument = new TypedDocumentString(`
+    mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+  unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
+}
+    `) as unknown as TypedDocumentString<UnsubscribeScheduleKindMutation, UnsubscribeScheduleKindMutationVariables>;
 export const CreateWorkScheduleDocument = new TypedDocumentString(`
     mutation CreateWorkSchedule($input: WorkScheduleInput!) {
   createWorkSchedule(input: $input)
@@ -4560,9 +4787,12 @@ export const CalendarEventsDocument = new TypedDocumentString(`
   recurrence
   seriesStartDate
   reminders
+  travelBefore
+  travelAfter
   projectId
   calendarId
   contributorIds
+  relationIds
   categoryIds
   taskIds
   calledOff
@@ -4644,9 +4874,12 @@ export const SubscribedCalendarEventsDocument = new TypedDocumentString(`
   recurrence
   seriesStartDate
   reminders
+  travelBefore
+  travelAfter
   projectId
   calendarId
   contributorIds
+  relationIds
   categoryIds
   taskIds
   calledOff
@@ -4828,6 +5061,55 @@ export const MoveDashboardChartDocument = new TypedDocumentString(`
   moveDashboardChart(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveDashboardChartMutation, MoveDashboardChartMutationVariables>;
+export const PlacesDocument = new TypedDocumentString(`
+    query Places {
+  places {
+    id
+    name
+    address
+    lat
+    lon
+  }
+}
+    `) as unknown as TypedDocumentString<PlacesQuery, PlacesQueryVariables>;
+export const SearchAddressesDocument = new TypedDocumentString(`
+    query SearchAddresses($text: String!, $near: GeoPointInput) {
+  searchAddresses(text: $text, near: $near) {
+    label
+    name
+    lat
+    lon
+  }
+}
+    `) as unknown as TypedDocumentString<SearchAddressesQuery, SearchAddressesQueryVariables>;
+export const ReverseAddressDocument = new TypedDocumentString(`
+    query ReverseAddress($point: GeoPointInput!) {
+  reverseAddress(point: $point) {
+    label
+    name
+    lat
+    lon
+  }
+}
+    `) as unknown as TypedDocumentString<ReverseAddressQuery, ReverseAddressQueryVariables>;
+export const TravelTimeDocument = new TypedDocumentString(`
+    query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {
+  travelTime(from: $from, to: $to, mode: $mode) {
+    seconds
+    meters
+  }
+}
+    `) as unknown as TypedDocumentString<TravelTimeQuery, TravelTimeQueryVariables>;
+export const SavePlaceDocument = new TypedDocumentString(`
+    mutation SavePlace($id: ID, $input: PlaceInput!) {
+  savePlace(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<SavePlaceMutation, SavePlaceMutationVariables>;
+export const DeletePlaceDocument = new TypedDocumentString(`
+    mutation DeletePlace($id: ID!) {
+  deletePlace(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeletePlaceMutation, DeletePlaceMutationVariables>;
 export const GithubLoginDocument = new TypedDocumentString(`
     query GithubLogin {
   githubLogin

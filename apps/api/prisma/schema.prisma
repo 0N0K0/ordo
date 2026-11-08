@@ -15,78 +15,89 @@ datasource db {
 
 /// Separate space of the app (professional or personal): every row but the accounts belongs to one.
 model Workspace {
-  id                      String                   @id @default(cuid())
-  name                    String
-  kind                    WorkspaceKind            @default(PRO)
+  id                        String                     @id @default(cuid())
+  name                      String
+  kind                      WorkspaceKind              @default(PRO)
   /// Order in the switcher.
-  position                Int                      @default(0)
+  position                  Int                        @default(0)
   /// Notifications this workspace still gives while another one is open.
-  notifyElsewhere         NotificationSource[]     @default([])
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  icons                   Icon[]
-  clients                 Client[]
-  clientServices          ClientService[]
-  clientContacts          ClientContact[]
-  projects                Project[]
-  projectCategories       ProjectCategory[]
-  projectStatuses         ProjectStatus[]
-  contributors            Contributor[]
-  taskStatuses            TaskStatus[]
-  taskPriorities          TaskPriority[]
-  taskTypes               TaskType[]
-  taskTags                TaskTag[]
-  tasks                   Task[]
-  taskStatusChanges       TaskStatusChange[]
-  taskBlocks              TaskBlock[]
-  taskRelations           TaskRelation[]
-  taskComments            TaskComment[]
-  taskViews               TaskView[]
-  milestones              Milestone[]
-  sprints                 Sprint[]
-  githubConnections       GithubConnection[]
-  githubProjectLinks      GithubProjectLink[]
-  dashboards              Dashboard[]
-  dashboardCharts         DashboardChart[]
-  documentFolders         DocumentFolder[]
-  libraryDocuments        LibraryDocument[]
-  attachments             Attachment[]
-  timeEntries             TimeEntry[]
-  alarms                  Alarm[]
-  mailAccounts            MailAccount[]
-  mailMessages            MailMessage[]
-  mailLabels              MailLabel[]
-  mailSearchs             MailSearch[]
-  mailMarks               MailMark[]
-  scheduledMails          ScheduledMail[]
-  mailFolderCursors       MailFolderCursor[]
-  calendars               Calendar[]
-  calendarSubscriptions   CalendarSubscription[]
-  calendarCategories      CalendarCategory[]
-  treasuryEntryLines      TreasuryEntryLine[]
-  treasuryContexts        TreasuryContext[]
-  treasuryContextPeriods  TreasuryContextPeriod[]
-  treasuryBudgets         TreasuryBudget[]
-  treasuryRelations       TreasuryRelation[]
-  calendarEvents          CalendarEvent[]
-  calendarEventExceptions CalendarEventException[]
-  workSchedules           WorkSchedule[]
-  companyProfiles         CompanyProfile[]
-  documentSequences       DocumentSequence[]
-  accountingDocuments     AccountingDocument[]
-  accountingLines         AccountingLine[]
-  recurringInvoices       RecurringInvoice[]
-  catalogItems            CatalogItem[]
-  projectResources        ProjectResource[]
-  importedDocuments       ImportedDocument[]
-  documentStatuses        DocumentStatus[]
-  documentReminders       DocumentReminder[]
-  treasuryAccounts        TreasuryAccount[]
-  treasuryCategories      TreasuryCategory[]
-  treasuryPaymentMethods  TreasuryPaymentMethod[]
-  treasuryCounterparties  TreasuryCounterparty[]
-  treasuryEntries         TreasuryEntry[]
-  treasuryAllocations     TreasuryAllocation[]
+  notifyElsewhere           NotificationSource[]       @default([])
+  places                    Place[]
+  /// Schedules without kind: their name (none: "Travail"), color (none: the green of working hours) and display.
+  scheduleName              String?
+  scheduleColor             String?
+  scheduleDayDisplay        String                     @default("SLOT_BACKGROUND")
+  scheduleDayBar            Boolean                    @default(true)
+  scheduleMonthDisplay      String                     @default("BACKGROUND")
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  icons                     Icon[]
+  clients                   Client[]
+  clientServices            ClientService[]
+  clientContacts            ClientContact[]
+  projects                  Project[]
+  projectCategories         ProjectCategory[]
+  projectStatuses           ProjectStatus[]
+  contributors              Contributor[]
+  taskStatuses              TaskStatus[]
+  taskPriorities            TaskPriority[]
+  taskTypes                 TaskType[]
+  taskTags                  TaskTag[]
+  tasks                     Task[]
+  taskStatusChanges         TaskStatusChange[]
+  taskBlocks                TaskBlock[]
+  taskRelations             TaskRelation[]
+  taskComments              TaskComment[]
+  taskViews                 TaskView[]
+  milestones                Milestone[]
+  sprints                   Sprint[]
+  githubConnections         GithubConnection[]
+  githubProjectLinks        GithubProjectLink[]
+  dashboards                Dashboard[]
+  dashboardCharts           DashboardChart[]
+  documentFolders           DocumentFolder[]
+  libraryDocuments          LibraryDocument[]
+  attachments               Attachment[]
+  timeEntries               TimeEntry[]
+  alarms                    Alarm[]
+  mailAccounts              MailAccount[]
+  mailMessages              MailMessage[]
+  mailLabels                MailLabel[]
+  mailSearchs               MailSearch[]
+  mailMarks                 MailMark[]
+  scheduledMails            ScheduledMail[]
+  mailFolderCursors         MailFolderCursor[]
+  calendars                 Calendar[]
+  calendarSubscriptions     CalendarSubscription[]
+  calendarCategories        CalendarCategory[]
+  treasuryEntryLines        TreasuryEntryLine[]
+  treasuryContexts          TreasuryContext[]
+  treasuryContextPeriods    TreasuryContextPeriod[]
+  treasuryBudgets           TreasuryBudget[]
+  treasuryRelations         TreasuryRelation[]
+  scheduleTypes             ScheduleType[]
+  workScheduleSubscriptions WorkScheduleSubscription[] @relation("ScheduleSubscriptions")
+  /// Subscriptions of other workspaces to its schedules.
+  scheduleSubscribers       WorkScheduleSubscription[] @relation("ScheduleSubscriptionSources")
+  calendarEvents            CalendarEvent[]
+  calendarEventExceptions   CalendarEventException[]
+  workSchedules             WorkSchedule[]
+  companyProfiles           CompanyProfile[]
+  documentSequences         DocumentSequence[]
+  accountingDocuments       AccountingDocument[]
+  accountingLines           AccountingLine[]
+  recurringInvoices         RecurringInvoice[]
+  catalogItems              CatalogItem[]
+  projectResources          ProjectResource[]
+  importedDocuments         ImportedDocument[]
+  documentStatuses          DocumentStatus[]
+  documentReminders         DocumentReminder[]
+  treasuryAccounts          TreasuryAccount[]
+  treasuryCategories        TreasuryCategory[]
+  treasuryPaymentMethods    TreasuryPaymentMethod[]
+  treasuryCounterparties    TreasuryCounterparty[]
+  treasuryEntries           TreasuryEntry[]
+  treasuryAllocations       TreasuryAllocation[]
 }
 
 /// Kind of notification a workspace can give while another one is open.
@@ -1148,6 +1159,9 @@ model CalendarEvent {
   /// Markdown.
   description       String?
   location          String?
+  /// Point of the location, when chosen from the map or a search.
+  locationLat       Float?
+  locationLon       Float?
   /// [{ url, label }]
   links             Json                     @default("[]")
   allDay            Boolean                  @default(false)
@@ -1164,12 +1178,17 @@ model CalendarEvent {
   recurrence        Json?
   /// Reminders, in minutes before the start.
   reminders         Int[]
+  /// Travel time to the event and back from it, in minutes (timed events).
+  travelBefore      Int                      @default(0)
+  travelAfter       Int                      @default(0)
   projectId         String?
   project           Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
   calendarId        String
   /// Deleting a calendar deletes its events.
   calendar          Calendar                 @relation(fields: [calendarId], references: [id], onDelete: Cascade)
   contributors      Contributor[]
+  /// Relations without contributor taking part (those with one are among the contributors).
+  relations         TreasuryRelation[]
   categories        CalendarCategory[]
   exceptions        CalendarEventException[]
   /// Cancelled but kept in the calendar (struck through); can be restored.
@@ -1198,27 +1217,32 @@ model CalendarEvent {
 
 /// One occurrence of a recurring event changed or cancelled on its own.
 model CalendarEventException {
-  id          String        @id @default(cuid())
-  eventId     String
-  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id           String        @id @default(cuid())
+  eventId      String
+  event        CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /// Date of the occurrence in the series.
-  date        DateTime      @db.Date
+  date         DateTime      @db.Date
   /// Deleted from the series (not shown).
-  cancelled   Boolean       @default(false)
+  cancelled    Boolean       @default(false)
   /// Cancelled but kept in the calendar (struck through).
-  calledOff   Boolean       @default(false)
-  title       String?
-  description String?
-  location    String?
-  links       Json?
-  allDay      Boolean?
-  startDate   DateTime?     @db.Date
-  startTime   String?
-  endDate     DateTime?     @db.Date
-  endTime     String?
+  calledOff    Boolean       @default(false)
+  title        String?
+  description  String?
+  location     String?
+  locationLat  Float?
+  locationLon  Float?
+  links        Json?
+  allDay       Boolean?
+  startDate    DateTime?     @db.Date
+  startTime    String?
+  endDate      DateTime?     @db.Date
+  endTime      String?
+  /// Travel times of the occurrence, in minutes; none: those of the series.
+  travelBefore Int?
+  travelAfter  Int?
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, date])
   @@index([workspaceId])
@@ -1226,22 +1250,77 @@ model CalendarEventException {
 
 /// Planned working hours: from a date (to another, or open-ended), every n weeks, time slots on weekdays;
 /// paused periods (holidays…) have none.
-model WorkSchedule {
-  id            String    @id @default(cuid())
+/// Kind of time slots ("Travail", "Garde des enfants", "Sport"…), with its color in the calendar.
+model ScheduleType {
+  id            String                     @id @default(cuid())
   name          String
-  startDate     DateTime  @db.Date
-  endDate       DateTime? @db.Date
-  /// Every n weeks, counted from the week of `startDate`.
-  intervalWeeks Int       @default(1)
-  /// [{ weekday: 1 (Monday) to 7, start: "HH:MM", end: "HH:MM" }], local times.
-  slots         Json      @default("[]")
-  /// [{ from, to, label }], dates included.
-  pauses        Json      @default("[]")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  color         String
+  /// Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.
+  dayDisplay    String                     @default("SLOT_BACKGROUND")
+  /// A bar at the top of the week and the day on each day with slots.
+  dayBar        Boolean                    @default(true)
+  /// Its days in the month: BACKGROUND, BORDER or NONE.
+  monthDisplay  String                     @default("BACKGROUND")
+  position      Int                        @default(0)
+  createdAt     DateTime                   @default(now())
+  schedules     WorkSchedule[]
+  /// Other workspaces showing its schedules.
+  subscriptions WorkScheduleSubscription[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId   String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String                     @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+}
+
+/// Kind of schedules of another workspace (or its schedules without kind) shown, read only, in the calendar of
+/// this one: every schedule of that kind, those added later too.
+model WorkScheduleSubscription {
+  id                String        @id @default(cuid())
+  /// Workspace whose schedules of the kind are shown.
+  sourceWorkspaceId String
+  sourceWorkspace   Workspace     @relation("ScheduleSubscriptionSources", fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
+  /// Kind of its schedules shown; none: its schedules without kind (working hours).
+  typeId            String?
+  type              ScheduleType? @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  /// Color and display in this workspace; none: those of the kind.
+  color             String?
+  dayDisplay        String?
+  dayBar            Boolean?
+  monthDisplay      String?
+  createdAt         DateTime      @default(now())
+  /// Workspace subscribing.
+  workspaceId       String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace     @relation("ScheduleSubscriptions", fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sourceWorkspaceId, typeId])
+  @@index([sourceWorkspaceId])
+  @@index([typeId])
+}
+
+model WorkSchedule {
+  id            String        @id @default(cuid())
+  name          String
+  /// Kind of time it plans ("Travail", "Garde des enfants"…); none: working hours.
+  typeId        String?
+  type          ScheduleType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  startDate     DateTime      @db.Date
+  endDate       DateTime?     @db.Date
+  /// Former format (until cases): every n weeks, counted from the week of `startDate`.
+  intervalWeeks Int           @default(1)
+  /// Former format: [{ weekday, start, end, allDay }], read to convert a schedule saved before cases.
+  slots         Json          @default("[]")
+  /// Former format: [{ from, to, label }], pauses become exceptions without cases.
+  pauses        Json          @default("[]")
+  /// Cases: which days (every day, weekdays every n weeks, every n days, monthly, yearly) and which hours.
+  cases         Json          @default("[]")
+  /// Periods with cases of their own instead of the general ones (none: a pause), dates included.
+  exceptions    Json          @default("[]")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId   String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
 }
@@ -1729,6 +1808,8 @@ model TreasuryRelation {
   createdAt     DateTime            @default(now())
   lines         TreasuryEntryLine[]
   budgets       TreasuryBudget[]
+  /// Events it takes part in.
+  events        CalendarEvent[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId   String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1923,4 +2004,19 @@ model TreasuryAllocation {
   @@index([documentId])
   @@index([importedDocumentId])
   @@index([workspaceId])
+}
+
+/// Saved place ("Maison", "Bureau"…): an address and its point, to locate events and compute travel times.
+model Place {
+  id          String    @id @default(cuid())
+  name        String
+  address     String    @default("")
+  lat         Float
+  lon         Float
+  createdAt   DateTime  @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }

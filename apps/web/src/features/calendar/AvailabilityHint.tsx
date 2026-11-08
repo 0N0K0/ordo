@@ -2,6 +2,7 @@ import { Alert } from '@mantine/core';
 import { plannedPauses, plannedSlots, withinSlots } from '@ordo/shared';
 import { WarningIcon } from '@phosphor-icons/react';
 import { scheduleRules, useWorkSchedules } from './api';
+import { useActiveWorkspace } from '../workspaces/api';
 
 interface AvailabilityHintProps {
   allDay: boolean;
@@ -20,7 +21,9 @@ interface AvailabilityHintProps {
  */
 export function AvailabilityHint({ allDay, startDate, startTime, endDate, endTime }: AvailabilityHintProps) {
   const { data: schedules } = useWorkSchedules();
-  if (!schedules?.length || allDay || !startTime || !endTime || !startDate || startDate !== endDate) return null;
+  // In a personal workspace, slots are no working hours: nothing to warn about.
+  const { perso } = useActiveWorkspace();
+  if (perso || !schedules?.length || allDay || !startTime || !endTime || !startDate || startDate !== endDate) return null;
   const rules = scheduleRules(schedules);
   const slots = plannedSlots(rules, startDate, startDate);
   // Within the slots of a schedule working that day (another one may be paused): fine.

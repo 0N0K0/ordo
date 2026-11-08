@@ -36,6 +36,9 @@ export interface EventOccurrence {
   title: string;
   description: string | null;
   location: string | null;
+  /** Point of the location, when known. */
+  locationLat: number | null;
+  locationLon: number | null;
   links: CalendarLink[];
   allDay: boolean;
   startDate: string;
@@ -50,10 +53,15 @@ export interface EventOccurrence {
   /** First date of the series. */
   seriesStartDate: string;
   reminders: number[];
+  /** Travel time to the event and back from it, in minutes. */
+  travelBefore: number;
+  travelAfter: number;
   projectId: string | null;
   /** Calendar of the event (of its series). */
   calendarId: string;
   contributorIds: string[];
+  /** Relations without contributor taking part. */
+  relationIds: string[];
   categoryIds: string[];
   /** Tasks the event is about. */
   taskIds: string[];
@@ -70,6 +78,7 @@ export interface EventOccurrence {
 type EventWithRelations = CalendarEvent & {
   exceptions: CalendarEventException[];
   contributors: { id: string }[];
+  relations: { id: string }[];
   categories: { id: string }[];
   tasks: { id: string }[];
   postponedFrom: { title: string } | null;
@@ -80,6 +89,7 @@ type EventWithRelations = CalendarEvent & {
 const occurrenceInclude = {
   exceptions: true,
   contributors: { select: { id: true } },
+  relations: { select: { id: true } },
   categories: { select: { id: true } },
   tasks: { select: { id: true } },
   postponedFrom: { select: { title: true } },
@@ -98,7 +108,7 @@ export function storedRecurrence(value: unknown): Recurrence | null {
 }
 
 /**
- * Validates event fields and the project, contributors and categories they point to.
+ * Validates event fields and the project, contributors, relations and categories they point to.
  * @param {CalendarEventInput} input Event fields.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
@@ -110,13 +120,24 @@ async function parseEvent(input: CalendarEventInput) {
   if ((await prisma.contributor.count({ where: { id: { in: event.contributorIds } } })) !== new Set(event.contributorIds).size) {
     throw notFound('Contributeur');
   }
+  if ((await prisma.treasuryRelation.count({ where: { id: { in: event.relationIds } } })) !== new Set(event.relationIds).size) {
+    throw notFound('Relation');
+  }
   if ((await prisma.calendarCategory.count({ where: { id: { in: event.categoryIds } } })) !== new Set(event.categoryIds).size) {
     throw notFound('Catégorie');
   }
   if ((await prisma.task.count({ where: { id: { in: event.taskIds } } })) !== new Set(event.taskIds).size) throw notFound('Tâche');
+  // A point goes with a location, both coordinates or none.
+  if (!event.location || event.locationLat === null || event.locationLon === null) {
+    event.locationLat = null;
+    event.locationLon = null;
+  }
   if (event.allDay) {
     event.startTime = null;
     event.endTime = null;
+    // No travel time to a whole day.
+    event.travelBefore = 0;
+    event.travelAfter = 0;
   }
   return { ...event, calendarId: await resolveCalendarId(event.calendarId) };
 }
@@ -131,6 +152,8 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     title: event.title,
     description: event.description,
     location: event.location,
+    locationLat: event.locationLat,
+    locationLon: event.locationLon,
     links: event.links,
     allDay: event.allDay,
     startDate: parseDay(event.startDate),
@@ -140,6 +163,8 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     timeZone: event.timeZone,
     recurrence: (event.recurrence ?? undefined) as Prisma.InputJsonValue | undefined,
     reminders: [...new Set(event.reminders)].sort((a, b) => a - b),
+    travelBefore: event.travelBefore,
+    travelAfter: event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
   };
@@ -168,6 +193,7 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
       ...eventData(event),
       recurrence: event.recurrence ?? undefined,
       contributors: { connect: event.contributorIds.map((id) => ({ id })) },
+      relations: { connect: [...new Set(event.relationIds)].map((id) => ({ id })) },
       categories: { connect: event.categoryIds.map((id) => ({ id })) },
       tasks: { connect: [...new Set(event.taskIds)].map((id) => ({ id })) },
     },
@@ -224,6 +250,7 @@ export async function updateCalendarEvent(
   const occurrence = occurrenceOf(event, occurrenceDate);
   const relations = {
     contributors: { set: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
+    relations: { set: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
     categories: { set: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
     tasks: { set: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
   };
@@ -239,12 +266,16 @@ export async function updateCalendarEvent(
       title: fields.title,
       description: fields.description,
       location: fields.location,
+      locationLat: fields.locationLat,
+      locationLon: fields.locationLon,
       links: fields.links,
       allDay: fields.allDay,
       startDate: parseDay(fields.startDate),
       startTime: fields.startTime,
       endDate: parseDay(fields.endDate),
       endTime: fields.endTime,
+      travelBefore: fields.travelBefore,
+      travelAfter: fields.travelAfter,
     };
     await prisma.calendarEventException.upsert({
       where: { eventId_date: { eventId: id, date: parseDay(occurrence.date) } },
@@ -286,6 +317,7 @@ export async function updateCalendarEvent(
         ...eventData(fields),
         recurrence: rule ?? undefined,
         contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
+        relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
         categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
         tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
       },
@@ -342,6 +374,8 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     title: change?.title ?? event.title,
     description: change ? change.description : event.description,
     location: change ? change.location : event.location,
+    locationLat: change ? change.locationLat : event.locationLat,
+    locationLon: change ? change.locationLon : event.locationLon,
     links: ((change?.links ?? event.links) as unknown as CalendarLink[]) ?? [],
     allDay,
     startDate,
@@ -354,9 +388,12 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     recurrence: storedRecurrence(event.recurrence),
     seriesStartDate: seriesStart,
     reminders: event.reminders,
+    travelBefore: change?.travelBefore ?? event.travelBefore,
+    travelAfter: change?.travelAfter ?? event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
+    relationIds: event.relations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
     calledOff: event.calledOff || (change?.calledOff ?? false),
@@ -447,6 +484,8 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     title: event.title,
     description: event.description,
     location: event.location,
+    locationLat: event.locationLat,
+    locationLon: event.locationLon,
     links: (event.links as unknown as CalendarLink[]) ?? [],
     allDay: event.allDay,
     startDate: date,
@@ -456,9 +495,12 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     timeZone: event.timeZone,
     recurrence: storedRecurrence(event.recurrence),
     reminders: event.reminders,
+    travelBefore: event.travelBefore,
+    travelAfter: event.travelAfter,
     projectId: event.projectId,
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
+    relationIds: event.relations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
   };
@@ -512,12 +554,16 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
         title: current.title,
         description: current.description,
         location: current.location,
+        locationLat: current.locationLat,
+        locationLon: current.locationLon,
         links: current.links as unknown as Prisma.InputJsonValue,
         allDay: current.allDay,
         startDate: parseDay(current.startDate),
         startTime: current.startTime,
         endDate: parseDay(current.endDate),
         endTime: current.endTime,
+        travelBefore: current.travelBefore,
+        travelAfter: current.travelAfter,
       },
     });
     return;
@@ -546,6 +592,7 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       postponedFromId: id,
       postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
       contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
+      relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
       categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
       tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
     },

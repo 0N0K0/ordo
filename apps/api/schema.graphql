@@ -182,6 +182,16 @@ enum AccountingUnit {
   UNIT
 }
 
+"""Address found by a search (OpenStreetMap)."""
+type AddressSuggestion {
+  label: String!
+  lat: Float!
+  lon: Float!
+
+  """Name of the place, when it has one (a station, a shop…)."""
+  name: String
+}
+
 type Alarm {
   createdAt: DateTime!
   enabled: Boolean!
@@ -299,8 +309,15 @@ input CalendarEventInput {
   endTime: String
   links: [CalendarLinkInput!]!
   location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   projectId: ID
   recurrence: JSON
+
+  """Relations without contributor taking part; none: none."""
+  relationIds: [ID!]
 
   """Minutes before the start."""
   reminders: [Int!]!
@@ -311,6 +328,12 @@ input CalendarEventInput {
   taskIds: [ID!]
   timeZone: String!
   title: String!
+
+  """Travel time back from the event, in minutes; none: 0."""
+  travelAfter: Int
+
+  """Travel time to the event, in minutes; none: 0."""
+  travelBefore: Int
 }
 
 """One occurrence of an event in a period."""
@@ -330,12 +353,17 @@ type CalendarEventOccurrence {
   key: String!
   links: [CalendarLink!]!
   location: String
+  locationLat: Float
+  locationLon: Float
   modified: Boolean!
   occurrenceDate: String
   postponedFrom: CalendarPostponedFrom
   postponedTo: [CalendarPostponedTo!]!
   projectId: ID
   recurrence: JSON
+
+  """Relations without contributor taking part."""
+  relationIds: [ID!]!
   reminders: [Int!]!
   seriesStartDate: String!
   start: DateTime!
@@ -347,6 +375,12 @@ type CalendarEventOccurrence {
 
   """Time tracked on the occurrence."""
   trackedSeconds: Int!
+
+  """Travel time back from the event, in minutes."""
+  travelAfter: Int!
+
+  """Travel time to the event, in minutes."""
+  travelBefore: Int!
 }
 
 """Scope of a change to a recurring event."""
@@ -656,6 +690,27 @@ scalar Date
 """Instant, ISO 8601."""
 scalar DateTime
 
+"""
+Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.
+"""
+type DefaultScheduleKind {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+  name: String!
+}
+
+input DefaultScheduleKindInput {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+
+  """Empty: "Travail"."""
+  name: String!
+}
+
 enum DiscountType {
   AMOUNT
   PERCENT
@@ -715,6 +770,57 @@ enum DocumentStatusScope {
 
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
+
+"""
+Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.
+"""
+type ForeignScheduleKind {
+  """In this workspace: the subscription’s, or the kind’s."""
+  color: String
+
+  """The subscription sets a color or a display of its own."""
+  customized: Boolean!
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+  name: String!
+  scheduleCount: Int!
+
+  """Of the kind, in its workspace."""
+  sourceColor: String
+  subscribed: Boolean!
+
+  """None: the schedules without kind (working hours)."""
+  typeId: ID
+  workspaceId: ID!
+  workspaceName: String!
+}
+
+"""
+Schedule of a kind of another workspace this one subscribes to, shown read only.
+"""
+type ForeignWorkSchedule {
+  cases: JSON!
+
+  """In this workspace."""
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+  endDate: String
+  exceptions: JSON!
+  id: ID!
+  monthDisplay: String!
+  name: String!
+  startDate: String!
+  typeName: String
+  workspaceId: ID!
+  workspaceName: String!
+}
+
+input GeoPointInput {
+  lat: Float!
+  lon: Float!
+}
 
 """GitHub Projects (v2) board."""
 type GithubBoard {
@@ -1248,12 +1354,18 @@ type Mutation {
   deleteMails(accountId: ID!, folder: String!, uids: [Int!]!): Boolean!
   deleteMilestone(id: ID!): Boolean!
 
+  """Deletes a saved place (events keep their address)."""
+  deletePlace(id: ID!): Boolean!
+
   """Deletes the project and all its sub-projects."""
   deleteProject(id: ID!): Boolean!
   deleteProjectCategory(id: ID!): Boolean!
   deleteProjectResource(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
   deleteRecurringInvoice(id: ID!): Boolean!
+
+  """Deletes a kind of time slots (its schedules stay, without kind)."""
+  deleteScheduleType(id: ID!): Boolean!
   deleteSprint(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
@@ -1402,6 +1514,7 @@ type Mutation {
   """Always returns true, whether or not the account exists."""
   requestPasswordReset(identifier: String!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+  saveDefaultScheduleKind(input: DefaultScheduleKindInput!): DefaultScheduleKind!
 
   """Links a project to a board, or changes the settings of its link."""
   saveGithubLink(input: GithubLinkInput!, projectId: ID!): Boolean!
@@ -1410,6 +1523,8 @@ type Mutation {
   Saves a draft in the drafts folder of its account, replacing its previous version.
   """
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
+  savePlace(id: ID, input: PlaceInput!): ID!
+  saveScheduleType(id: ID, input: ScheduleTypeInput!): ID!
 
   """Creates a budget (without id), or changes one and its repetitions."""
   saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
@@ -1474,6 +1589,11 @@ type Mutation {
   setProjectFavorite(favorite: Boolean!, id: ID!): Project!
 
   """
+  Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).
+  """
+  setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
+
+  """
   Archiving cascades to sub-tasks; restoring restores them and the archived parents.
   """
   setTaskArchived(archived: Boolean!, id: ID!): Task!
@@ -1500,6 +1620,11 @@ type Mutation {
 
   """Shows a calendar of another workspace in this one (read only)."""
   subscribeCalendar(calendarId: ID!): Boolean!
+
+  """
+  Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.
+  """
+  subscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   syncGithubProject(projectId: ID!): GithubSyncSummary!
 
   """
@@ -1519,6 +1644,7 @@ type Mutation {
 
   """Stops showing a calendar of another workspace."""
   unsubscribeCalendar(calendarId: ID!): Boolean!
+  unsubscribeScheduleKind(typeId: ID, workspaceId: ID!): Boolean!
   updateAccountingDocument(id: ID!, input: AccountingDocumentInput!): ID!
   updateAlarm(id: ID!, input: AlarmInput!): Alarm!
   updateCalendar(id: ID!, input: CalendarInput!): Calendar!
@@ -1578,6 +1704,22 @@ enum NotificationSource {
   ALARMS
   CALENDAR
   MAILS
+}
+
+"""Saved place ("Maison", "Bureau"…): an address and its point."""
+type Place {
+  address: String!
+  id: ID!
+  lat: Float!
+  lon: Float!
+  name: String!
+}
+
+input PlaceInput {
+  address: String!
+  lat: Float!
+  lon: Float!
+  name: String!
 }
 
 type Project {
@@ -1720,6 +1862,9 @@ type Query {
 
   """Dashboards of a project, or the global ones."""
   dashboards(projectId: ID): [Dashboard!]!
+
+  """Schedules without kind of this workspace: name, color and display."""
+  defaultScheduleKind: DefaultScheduleKind!
   documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
@@ -1728,6 +1873,11 @@ type Query {
   Forecasts (repeated ones once) and actual entries dated after today: the entries of the forecast.
   """
   forecastEntries: [TreasuryEntry!]!
+
+  """
+  Kinds of schedules of the other workspaces, with whether this one shows them.
+  """
+  foreignScheduleKinds: [ForeignScheduleKind!]!
 
   """Board of a URL with its fields, to configure a link."""
   githubBoard(url: String!): GithubBoard!
@@ -1801,6 +1951,7 @@ type Query {
 
   """Final invoices still due after their due date, oldest due first."""
   overdueInvoices(today: Date!): [AccountingDocument!]!
+  places: [Place!]!
   projectCategories: [ProjectCategory!]!
 
   """Mails linked to a project, latest first."""
@@ -1811,10 +1962,19 @@ type Query {
   """Every project, archived ones included, in manual order."""
   projects: [Project!]!
   recurringInvoices: [RecurringInvoice!]!
+
+  """Address of a point (a click on the map)."""
+  reverseAddress(point: GeoPointInput!): AddressSuggestion
   runningTimeEntry: TimeEntry
+  scheduleTypes: [ScheduleType!]!
 
   """Mails waiting to be sent, and those that failed."""
   scheduledMails: [ScheduledMail!]!
+
+  """
+  Addresses and places matching a text (3 characters at least), the closest to `near` first.
+  """
+  searchAddresses(near: GeoPointInput, text: String!): [AddressSuggestion!]!
 
   """
   Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).
@@ -1831,6 +1991,9 @@ type Query {
   Occurrences, in a period, of the calendars of other workspaces shown in this one (read only).
   """
   subscribedCalendarEvents(from: Date!, to: Date!): [CalendarEventOccurrence!]!
+
+  """Schedules of the kinds of other workspaces this one shows (read only)."""
+  subscribedWorkSchedules: [ForeignWorkSchedule!]!
 
   """A task, by its id (its number is only unique in its project)."""
   task(id: ID!): Task
@@ -1856,6 +2019,9 @@ type Query {
   Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
   """
   todoMailCount: Int!
+
+  """Travel time between two points by car, bike or foot."""
+  travelTime(from: GeoPointInput!, mode: TravelMode!, to: GeoPointInput!): TravelTime!
   treasuryAccounts: [TreasuryAccount!]!
 
   """
@@ -1949,6 +2115,45 @@ type SavedMailDraft {
   attachments: [MailAttachmentInfo!]!
   folder: String!
   uid: Int!
+}
+
+"""
+Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.
+"""
+input ScheduleSubscriptionLookInput {
+  color: String
+  dayBar: Boolean
+  dayDisplay: String
+  monthDisplay: String
+}
+
+"""
+Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.
+"""
+type ScheduleType {
+  color: String!
+
+  """A bar at the top of the week and the day on each day with slots."""
+  dayBar: Boolean!
+
+  """
+  Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.
+  """
+  dayDisplay: String!
+  id: ID!
+
+  """Its days in the month: BACKGROUND, BORDER or NONE."""
+  monthDisplay: String!
+  name: String!
+  position: Int!
+}
+
+input ScheduleTypeInput {
+  color: String!
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+  name: String!
 }
 
 """Mail waiting to be sent at its time (or failed)."""
@@ -2294,6 +2499,17 @@ input TimerInput {
   event: TimeEventInput
   projectId: ID!
   taskIds: [ID!]!
+}
+
+enum TravelMode {
+  BIKE
+  CAR
+  FOOT
+}
+
+type TravelTime {
+  meters: Int!
+  seconds: Int!
 }
 
 type TreasuryAccount {
@@ -2735,52 +2951,36 @@ type User {
   username: String!
 }
 
-type WorkPause {
-  from: String!
-  label: String!
-  to: String!
-}
-
-input WorkPauseInput {
-  from: Date!
-  label: String!
-  to: Date!
-}
-
 """
-Planned working hours: every n weeks from a date, time slots on weekdays, paused periods.
+Planned time slots: a period, its cases (which days, which hours) and exceptions (periods with cases of their own).
 """
 type WorkSchedule {
+  """Cases (shared schedule case shape)."""
+  cases: JSON!
   endDate: Date
+
+  """Exceptions: { from, to, label, cases }."""
+  exceptions: JSON!
   id: ID!
-  intervalWeeks: Int!
   name: String!
-  pauses: [WorkPause!]!
-  slots: [WorkSlot!]!
   startDate: Date!
+
+  """Kind of time it plans; none: working hours."""
+  typeId: ID
 }
 
 input WorkScheduleInput {
+  """Cases (shared schedule case shape)."""
+  cases: JSON!
   endDate: Date
-  intervalWeeks: Int!
+
+  """Exceptions: { from, to, label, cases }."""
+  exceptions: JSON!
   name: String!
-  pauses: [WorkPauseInput!]!
-  slots: [WorkSlotInput!]!
   startDate: Date!
-}
 
-type WorkSlot {
-  end: String!
-  start: String!
-
-  """1 (Monday) to 7."""
-  weekday: Int!
-}
-
-input WorkSlotInput {
-  end: String!
-  start: String!
-  weekday: Int!
+  """Kind of time it plans; none: working hours."""
+  typeId: ID
 }
 
 type Workspace {

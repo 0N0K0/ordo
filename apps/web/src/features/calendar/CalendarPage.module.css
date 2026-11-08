@@ -9,6 +9,8 @@
       --fc-now-indicator-color: var(--mantine-color-red-6);
       --fc-highlight-color: var(--mantine-primary-color-light);
       --fc-event-text-color: #fff;
+      /* Thickness of the lines of planned slots. */
+      --slot-line: 3px;
 
       /* Typographie */
       font-size: var(--mantine-font-size-sm);
@@ -99,6 +101,69 @@
 
     /* Effets */
     opacity: 0.6 !important;
+  }
+
+  /* Planned slots of a kind: its color, light. */
+  .typedSlot {
+    /* Effets */
+    opacity: 0.25 !important;
+  }
+
+  /* Day of planned slots, at the top of the week and the day: a light bar, under the events. */
+  .slotBar {
+    /* Effets */
+    opacity: 0.6;
+
+    /* Interactions */
+    cursor: default;
+  }
+
+  /* Planned slots as a thin line on the left of their hours (week and day): the background event narrowed. */
+  .slotBorderLeft {
+    /* Position */
+    right: auto !important;
+    left: calc(var(--slot-lane, 0) * (var(--slot-line) + 1px)) !important;
+
+    /* Dimension */
+    width: var(--slot-line);
+
+    /* Effets */
+    opacity: 1 !important;
+  }
+
+  /* Day of planned slots as a thin line at its bottom (month). */
+  .slotBorderBottom {
+    /* Position */
+    top: auto !important;
+    bottom: calc(var(--slot-lane, 0) * (var(--slot-line) + 1px)) !important;
+
+    /* Dimension */
+    height: var(--slot-line);
+
+    /* Effets */
+    opacity: 1 !important;
+  }
+
+  /* Travel to an event and back: hatched in its color (the border), dashed. */
+  .travel {
+    /* Typographie */
+    font-size: var(--mantine-font-size-xs);
+    font-style: italic;
+
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, color-mix(in srgb, currentColor 12%, transparent) 0 4px, transparent 4px 8px) !important;
+
+    /* Bordures */
+    border-style: dashed !important;
+
+    /* Interactions */
+    cursor: pointer;
+  }
+
+  /* Planned slots of another workspace: hatched. */
+  .subscribedSlot {
+    /* Arrière-Plan */
+    background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.5) 0 4px, transparent 4px 8px) !important;
   }
 
   /* Tracked time: hatched, to tell it from events. */

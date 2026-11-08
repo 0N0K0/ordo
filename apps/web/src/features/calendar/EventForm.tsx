@@ -1,7 +1,7 @@
-import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, TimerIcon, LinkIcon, MapPinIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -14,6 +14,9 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence } from './api';
 import { useTimeMutations } from '../time/api';
+import { EventLocation } from '../geo/EventLocation';
+import { TravelCalculator } from '../geo/TravelCalculator';
+import { useTreasurySettings } from '../treasury/api';
 import { useScopeQuestion } from './ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from './category-tree';
@@ -89,6 +92,8 @@ interface EventFormProps {
   /** Fields of a new event (dates selected in the calendar…). */
   defaults?: Partial<CalendarEventInput>;
   onDone: () => void;
+  /** Duplicates the event: the fields of its copy (not saved yet). */
+  onDuplicate?: (fields: CalendarEventInput) => void;
 }
 
 /**
@@ -100,7 +105,7 @@ interface EventFormProps {
  * @param {EventFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function EventForm({ context, occurrence, defaults, onDone }: EventFormProps) {
+export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
   const { create, update, remove, setCalledOff, postpone } = useCalendarEventMutations();
   const [postponing, setPostponing] = useState(false);
   const { start: startTimer } = useTimeMutations();
@@ -126,6 +131,7 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
     );
   };
   const { data: categories } = useCalendarCategories();
+  const { data: treasury } = useTreasurySettings();
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
   const colorOfCalendar = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
@@ -139,6 +145,8 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         title: '',
         description: '',
         location: '',
+        locationLat: null,
+        locationLon: null,
         links: [],
         allDay: false,
         startDate: today,
@@ -148,15 +156,22 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
         timeZone: LOCAL_TIME_ZONE,
         recurrence: null,
         reminders: [15],
+        travelBefore: 0,
+        travelAfter: 0,
         projectId: null,
         calendarId: null,
         contributorIds: [],
+        relationIds: [],
         categoryIds: [],
         taskIds: [],
         ...defaults,
       };
   const form = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
   const values = form.values;
+  // Relations with a contributor take part as that contributor; one already chosen stays offered.
+  const relationOptions = (treasury?.treasuryRelations ?? [])
+    .filter((relation) => !relation.contributorId || (values.relationIds ?? []).includes(relation.id))
+    .map((relation) => ({ value: relation.id, label: relation.name }));
   const recurring = occurrence?.occurrenceDate != null;
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
@@ -342,6 +357,38 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
           <DatePickerInput label="Fin" required valueFormat="ddd D MMM YYYY" minDate={values.startDate} {...form.getInputProps('endDate')} />
           {!values.allDay && <TimeInput label="Heure de fin" required {...form.getInputProps('endTime')} />}
         </SimpleGrid>
+        {!values.allDay && (
+          <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
+            <NumberInput
+              label="Trajet aller"
+              description="Avant le début"
+              leftSection={<CarIcon aria-hidden />}
+              suffix=" min"
+              min={0}
+              max={24 * 60}
+              step={5}
+              allowDecimal={false}
+              {...form.getInputProps('travelBefore')}
+            />
+            <NumberInput
+              label="Trajet retour"
+              description="Après la fin"
+              leftSection={<CarIcon aria-hidden />}
+              suffix=" min"
+              min={0}
+              max={24 * 60}
+              step={5}
+              allowDecimal={false}
+              {...form.getInputProps('travelAfter')}
+            />
+            <div>
+              <TravelCalculator
+                eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}
+                onResult={({ before, after }) => form.setValues({ travelBefore: before, travelAfter: after })}
+              />
+            </div>
+          </SimpleGrid>
+        )}
         <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
         <RecurrenceEditor
@@ -350,7 +397,11 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
           start={ruleStart}
         />
 
-        <TextInput label="Lieu" leftSection={<MapPinIcon aria-hidden />} placeholder="Adresse, salle, visio…" {...form.getInputProps('location')} />
+        <EventLocation
+          value={{ text: values.location ?? '', point: values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null }}
+          error={form.errors.location}
+          onChange={(value) => form.setValues({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
+        />
 
         <Stack gap={4}>
           <Group gap="xs">
@@ -418,6 +469,16 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
             {...form.getInputProps('contributorIds')}
           />
           <MultiSelect
+            label="Relations"
+            description="Personnes hors de l’équipe, sans contributeur"
+            placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
+            data={relationOptions}
+            searchable
+            clearable
+            nothingFoundMessage="Ajoutez des relations dans Paramètres › Équipe (ou Foyer) et contributeurs"
+            {...form.getInputProps('relationIds')}
+          />
+          <MultiSelect
             label="Catégories"
             placeholder={values.categoryIds.length ? undefined : 'Aucune'}
             data={categoryOptions(categories ?? [])}
@@ -483,6 +544,21 @@ export function EventForm({ context, occurrence, defaults, onDone }: EventFormPr
               <Button variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
                 Supprimer
               </Button>
+              {onDuplicate && (
+                <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
+                  <Button
+                    variant="subtle"
+                    color="gray"
+                    leftSection={<CopyIcon aria-hidden />}
+                    onClick={() =>
+                      // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
+                      onDuplicate({ ...values, title: `${values.title} (copie)`, recurrence: recurring ? null : (values.recurrence ?? null) })
+                    }
+                  >
+                    Dupliquer
+                  </Button>
+                </Tooltip>
+              )}
               {occurrence.calledOff ? (
                 <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
                   Rétablir

@@ -92,8 +92,16 @@ type Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": typeof types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": typeof types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": typeof types.CancelEmailChangeDocument,
-    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    calendarId\n    contributorIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
-    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n": typeof types.WorkSchedulesDocument,
+    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    contributorIds\n    relationIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": typeof types.WorkSchedulesDocument,
+    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceName\n      typeId\n      name\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": typeof types.ForeignScheduleKindsDocument,
+    "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      name\n      startDate\n      endDate\n      cases\n      exceptions\n      typeName\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceName\n    }\n  }\n": typeof types.SubscribedWorkSchedulesDocument,
+    "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": typeof types.SaveScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": typeof types.DeleteScheduleTypeDocument,
+    "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": typeof types.SubscribeScheduleKindDocument,
+    "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      name\n    }\n  }\n": typeof types.SaveDefaultScheduleKindDocument,
+    "\n  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {\n    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)\n  }\n": typeof types.SetScheduleSubscriptionLookDocument,
+    "\n  mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": typeof types.UnsubscribeScheduleKindDocument,
     "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": typeof types.CreateWorkScheduleDocument,
     "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": typeof types.UpdateWorkScheduleDocument,
     "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": typeof types.DeleteWorkScheduleDocument,
@@ -130,6 +138,12 @@ type Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": typeof types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": typeof types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": typeof types.MoveDashboardChartDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n": typeof types.PlacesDocument,
+    "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.SearchAddressesDocument,
+    "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.ReverseAddressDocument,
+    "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": typeof types.TravelTimeDocument,
+    "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n": typeof types.SavePlaceDocument,
+    "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": typeof types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": typeof types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": typeof types.GithubContributorsDocument,
     "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.GithubBoardDocument,
@@ -420,8 +434,16 @@ const documents: Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": types.CancelEmailChangeDocument,
-    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    calendarId\n    contributorIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
-    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n": types.WorkSchedulesDocument,
+    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    contributorIds\n    relationIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": types.WorkSchedulesDocument,
+    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceName\n      typeId\n      name\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": types.ForeignScheduleKindsDocument,
+    "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      name\n      startDate\n      endDate\n      cases\n      exceptions\n      typeName\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceName\n    }\n  }\n": types.SubscribedWorkSchedulesDocument,
+    "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": types.SaveScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": types.DeleteScheduleTypeDocument,
+    "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": types.SubscribeScheduleKindDocument,
+    "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      name\n    }\n  }\n": types.SaveDefaultScheduleKindDocument,
+    "\n  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {\n    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)\n  }\n": types.SetScheduleSubscriptionLookDocument,
+    "\n  mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": types.UnsubscribeScheduleKindDocument,
     "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": types.CreateWorkScheduleDocument,
     "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": types.UpdateWorkScheduleDocument,
     "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": types.DeleteWorkScheduleDocument,
@@ -458,6 +480,12 @@ const documents: Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": types.MoveDashboardChartDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n": types.PlacesDocument,
+    "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.SearchAddressesDocument,
+    "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.ReverseAddressDocument,
+    "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": types.TravelTimeDocument,
+    "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n": types.SavePlaceDocument,
+    "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": types.GithubContributorsDocument,
     "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.GithubBoardDocument,
@@ -982,11 +1010,43 @@ export function graphql(source: "\n  mutation CancelEmailChange {\n    cancelEma
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    projectId\n    calendarId\n    contributorIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n"): typeof import('./graphql').CalendarEventOccurrenceFieldsFragmentDoc;
+export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    contributorIds\n    relationIds\n    categoryIds\n    taskIds\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n"): typeof import('./graphql').CalendarEventOccurrenceFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      intervalWeeks\n      slots {\n        weekday\n        start\n        end\n      }\n      pauses {\n        from\n        to\n        label\n      }\n    }\n  }\n"): typeof import('./graphql').WorkSchedulesDocument;
+export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n"): typeof import('./graphql').WorkSchedulesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceName\n      typeId\n      name\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n"): typeof import('./graphql').ForeignScheduleKindsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      name\n      startDate\n      endDate\n      cases\n      exceptions\n      typeName\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceName\n    }\n  }\n"): typeof import('./graphql').SubscribedWorkSchedulesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SaveScheduleTypeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n"): typeof import('./graphql').DeleteScheduleTypeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n"): typeof import('./graphql').SubscribeScheduleKindDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      name\n    }\n  }\n"): typeof import('./graphql').SaveDefaultScheduleKindDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {\n    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)\n  }\n"): typeof import('./graphql').SetScheduleSubscriptionLookDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n"): typeof import('./graphql').UnsubscribeScheduleKindDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1131,6 +1191,30 @@ export function graphql(source: "\n  mutation DeleteDashboardChart($id: ID!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveDashboardChartDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n"): typeof import('./graphql').PlacesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n"): typeof import('./graphql').SearchAddressesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n"): typeof import('./graphql').ReverseAddressDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n"): typeof import('./graphql').TravelTimeDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SavePlaceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n"): typeof import('./graphql').DeletePlaceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

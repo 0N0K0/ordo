@@ -136,6 +136,15 @@ function excludedDates(rule: Recurrence, start: string, cancelled: string[]): st
 }
 
 /**
+ * Travel time to an event, as Apple Calendar reads it (others ignore it; the way back has no property).
+ * @param {number} minutes Travel time to the event.
+ * @returns {string[]} Content lines, none without travel.
+ */
+function travel(minutes: number): string[] {
+  return minutes > 0 ? [`X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT${minutes}M`] : [];
+}
+
+/**
  * Alarms of an event: one per reminder.
  * @param {number[]} reminders Minutes before the start.
  * @param {string} summary Title.
@@ -219,7 +228,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     );
     for (const date of excluded) series.push(moment('EXDATE', date, time, event.timeZone));
   }
-  series.push(...alarms(event.reminders, event.title), 'END:VEVENT');
+  series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.title), 'END:VEVENT');
 
   // Occurrences changed on their own: the same event at its original date (RECURRENCE-ID).
   const changed = rule
@@ -245,6 +254,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
               endTime: allDay ? null : change.endTime,
               calledOff: event.calledOff || change.calledOff,
             }),
+            ...travel((change.allDay ?? event.allDay) ? 0 : (change.travelBefore ?? event.travelBefore)),
             ...alarms(event.reminders, change.title ?? event.title),
             'END:VEVENT',
           ];

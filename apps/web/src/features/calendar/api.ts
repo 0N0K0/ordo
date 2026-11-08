@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { WorkScheduleInput } from '@ordo/shared';
+import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type { CalendarEventInput, CalendarEventOccurrenceFieldsFragment, CalendarEventScope, CalendarsQuery, SubscribableCalendarsQuery, WorkSchedulesQuery } from '../../graphql/graphql';
 import { execute, executeIn } from '../../lib/graphql-client';
 import { tasksQueryKey } from '../tasks/api';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
 export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
+export type ScheduleType = WorkSchedulesQuery['scheduleTypes'][number];
 export type { CalendarEventInput, CalendarEventScope };
 
 graphql(`
@@ -33,9 +34,12 @@ graphql(`
     recurrence
     seriesStartDate
     reminders
+    travelBefore
+    travelAfter
     projectId
     calendarId
     contributorIds
+    relationIds
     categoryIds
     taskIds
     calledOff
@@ -61,18 +65,103 @@ const WorkSchedulesDocument = graphql(`
       name
       startDate
       endDate
-      intervalWeeks
-      slots {
-        weekday
-        start
-        end
-      }
-      pauses {
-        from
-        to
-        label
-      }
+      typeId
+      cases
+      exceptions
     }
+    scheduleTypes {
+      id
+      name
+      color
+      dayDisplay
+      dayBar
+      monthDisplay
+      position
+    }
+    defaultScheduleKind {
+      name
+      color
+      dayDisplay
+      dayBar
+      monthDisplay
+    }
+  }
+`);
+
+const ForeignScheduleKindsDocument = graphql(`
+  query ForeignScheduleKinds {
+    foreignScheduleKinds {
+      workspaceId
+      workspaceName
+      typeId
+      name
+      color
+      sourceColor
+      dayDisplay
+      dayBar
+      monthDisplay
+      customized
+      scheduleCount
+      subscribed
+    }
+  }
+`);
+
+const SubscribedSchedulesDocument = graphql(`
+  query SubscribedWorkSchedules {
+    subscribedWorkSchedules {
+      id
+      name
+      startDate
+      endDate
+      cases
+      exceptions
+      typeName
+      color
+      dayDisplay
+      dayBar
+      monthDisplay
+      workspaceId
+      workspaceName
+    }
+  }
+`);
+
+const SaveScheduleTypeDocument = graphql(`
+  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {
+    saveScheduleType(id: $id, input: $input)
+  }
+`);
+
+const DeleteScheduleTypeDocument = graphql(`
+  mutation DeleteScheduleType($id: ID!) {
+    deleteScheduleType(id: $id)
+  }
+`);
+
+const SubscribeScheduleKindDocument = graphql(`
+  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
+  }
+`);
+
+const SaveDefaultScheduleKindDocument = graphql(`
+  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {
+    saveDefaultScheduleKind(input: $input) {
+      name
+    }
+  }
+`);
+
+const SetScheduleSubscriptionLookDocument = graphql(`
+  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {
+    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)
+  }
+`);
+
+const UnsubscribeScheduleKindDocument = graphql(`
+  mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
+    unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)
   }
 `);
 
@@ -422,7 +511,39 @@ export function useCalendarEventMutations() {
  * @returns {UseQueryResult} Query state.
  */
 export function useWorkSchedules() {
-  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: async () => (await execute(WorkSchedulesDocument)).workSchedules });
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.workSchedules });
+}
+
+/**
+ * Kinds of time slots ("Travail", "Garde des enfants"…).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useScheduleTypes() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.scheduleTypes });
+}
+
+/**
+ * Schedules without kind of this workspace: their name, color and display.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useDefaultScheduleKind() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.defaultScheduleKind });
+}
+
+/**
+ * Kinds of schedules of the other workspaces, with whether this one shows them.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useForeignScheduleKinds() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'foreign-schedule-kinds'], queryFn: async () => (await execute(ForeignScheduleKindsDocument)).foreignScheduleKinds });
+}
+
+/**
+ * Schedules of the kinds of other workspaces this one shows (read only).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useSubscribedSchedules() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'subscribed-schedules'], queryFn: async () => (await execute(SubscribedSchedulesDocument)).subscribedWorkSchedules });
 }
 
 /**
@@ -434,16 +555,42 @@ export function useWorkScheduleMutations() {
     create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
     update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
+    saveType: useCalendarMutation(async (variables: { id: string | null; input: { name: string; color: string } & ScheduleDisplay }) => (await execute(SaveScheduleTypeDocument, variables)).saveScheduleType),
+    removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
+    subscribe: useCalendarMutation(
+      async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind,
+    ),
+    saveDefaultKind: useCalendarMutation(
+      async (input: { name: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
+    ),
+    setLook: useCalendarMutation(
+      async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) =>
+        (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,
+    ),
+    unsubscribe: useCalendarMutation(
+      async (kind: { workspaceId: string; typeId: string | null }) => (await execute(UnsubscribeScheduleKindDocument, kind)).unsubscribeScheduleKind,
+    ),
   };
 }
 
 /**
- * Schedules as the shared functions read them.
- * @param {WorkSchedule[]} schedules Schedules.
+ * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to): their
+ * cases and exceptions validated (invalid ones left out).
+ * @param {object[]} schedules Schedules.
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
-export function scheduleRules(schedules: readonly WorkSchedule[]) {
-  return schedules.map((schedule) => ({ ...schedule, startDate: String(schedule.startDate), endDate: schedule.endDate ? String(schedule.endDate) : null }));
+export function scheduleRules(
+  schedules: readonly { id: string; name: string; startDate: unknown; endDate?: unknown; cases: unknown; exceptions: unknown; typeId?: string | null }[],
+): WorkScheduleRule[] {
+  return schedules.map((schedule) => ({
+    id: schedule.id,
+    name: schedule.name,
+    startDate: String(schedule.startDate),
+    endDate: schedule.endDate ? String(schedule.endDate) : null,
+    cases: readScheduleCases(schedule.cases),
+    exceptions: readScheduleExceptions(schedule.exceptions),
+    typeId: schedule.typeId ?? null,
+  }));
 }
 
 /**

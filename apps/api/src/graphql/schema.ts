@@ -8,6 +8,7 @@ import './modules/tasks';
 import './modules/time';
 import './modules/mail';
 import './modules/calendar';
+import './modules/geo';
 import './modules/accounting';
 import './modules/accounting-documents';
 import './modules/treasury';

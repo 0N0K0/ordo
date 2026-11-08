@@ -91,6 +91,8 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
     location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
     links: t.field({ type: [CalendarLink], resolve: (occurrence) => occurrence.links }),
     allDay: t.exposeBoolean('allDay'),
     startDate: t.exposeString('startDate'),
@@ -103,9 +105,12 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (occurrence) => occurrence.recurrence }),
     seriesStartDate: t.exposeString('seriesStartDate'),
     reminders: t.exposeIntList('reminders'),
+    travelBefore: t.exposeInt('travelBefore', { description: 'Travel time to the event, in minutes.' }),
+    travelAfter: t.exposeInt('travelAfter', { description: 'Travel time back from the event, in minutes.' }),
     projectId: t.exposeID('projectId', { nullable: true }),
     calendarId: t.exposeID('calendarId'),
     contributorIds: t.exposeIDList('contributorIds'),
+    relationIds: t.exposeIDList('relationIds', { description: 'Relations without contributor taking part.' }),
     categoryIds: t.exposeIDList('categoryIds'),
     taskIds: t.exposeIDList('taskIds'),
     calledOff: t.exposeBoolean('calledOff', { description: 'Cancelled, kept in the calendar.' }),
@@ -115,33 +120,103 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
   }),
 });
 
-const WorkSlotRef = builder.objectRef<{ weekday: number; start: string; end: string }>('WorkSlot').implement({
-  fields: (t) => ({ weekday: t.exposeInt('weekday', { description: '1 (Monday) to 7.' }), start: t.exposeString('start'), end: t.exposeString('end') }),
-});
-
-const WorkPauseRef = builder.objectRef<{ from: string; to: string; label: string }>('WorkPause').implement({
-  fields: (t) => ({ from: t.exposeString('from'), to: t.exposeString('to'), label: t.exposeString('label') }),
-});
-
 builder.prismaObject('WorkSchedule', {
-  description: 'Planned working hours: every n weeks from a date, time slots on weekdays, paused periods.',
+  description: 'Planned time slots: a period, its cases (which days, which hours) and exceptions (periods with cases of their own).',
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
     startDate: t.expose('startDate', { type: 'Date' }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
-    intervalWeeks: t.exposeInt('intervalWeeks'),
-    slots: t.field({ type: [WorkSlotRef], resolve: (schedule) => [...schedules.scheduleRule(schedule).slots] }),
-    pauses: t.field({ type: [WorkPauseRef], resolve: (schedule) => [...schedules.scheduleRule(schedule).pauses] }),
+    cases: t.field({ type: 'JSON', description: 'Cases (shared schedule case shape).', resolve: (schedule) => schedules.scheduleRule(schedule).cases }),
+    exceptions: t.field({ type: 'JSON', description: 'Exceptions: { from, to, label, cases }.', resolve: (schedule) => schedules.scheduleRule(schedule).exceptions }),
+    typeId: t.exposeID('typeId', { nullable: true, description: 'Kind of time it plans; none: working hours.' }),
   }),
 });
 
-const WorkSlotInput = builder.inputType('WorkSlotInput', {
-  fields: (t) => ({ weekday: t.int({ required: true }), start: t.string({ required: true }), end: t.string({ required: true }) }),
+builder.prismaObject('ScheduleType', {
+  description: 'Kind of time slots ("Travail", "Garde des enfants"…), with its color in the calendar.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
+    dayDisplay: t.exposeString('dayDisplay', { description: 'Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.' }),
+    dayBar: t.exposeBoolean('dayBar', { description: 'A bar at the top of the week and the day on each day with slots.' }),
+    monthDisplay: t.exposeString('monthDisplay', { description: 'Its days in the month: BACKGROUND, BORDER or NONE.' }),
+    position: t.exposeInt('position'),
+  }),
 });
 
-const WorkPauseInput = builder.inputType('WorkPauseInput', {
-  fields: (t) => ({ from: t.field({ type: 'Date', required: true }), to: t.field({ type: 'Date', required: true }), label: t.string({ required: true }) }),
+const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    color: t.string({ required: true }),
+    dayDisplay: t.string({ required: true }),
+    dayBar: t.boolean({ required: true }),
+    monthDisplay: t.string({ required: true }),
+  }),
+});
+
+const DefaultScheduleKindRef = builder.objectRef<schedules.DefaultScheduleKind>('DefaultScheduleKind').implement({
+  description: 'Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.',
+  fields: (t) => ({
+    name: t.exposeString('name'),
+    color: t.exposeString('color', { nullable: true }),
+    dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
+    dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
+    monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay }),
+  }),
+});
+
+const DefaultScheduleKindInput = builder.inputType('DefaultScheduleKindInput', {
+  fields: (t) => ({
+    name: t.string({ required: true, description: 'Empty: "Travail".' }),
+    color: t.string(),
+    dayDisplay: t.string({ required: true }),
+    dayBar: t.boolean({ required: true }),
+    monthDisplay: t.string({ required: true }),
+  }),
+});
+
+const ScheduleSubscriptionLookInput = builder.inputType('ScheduleSubscriptionLookInput', {
+  description: 'Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.',
+  fields: (t) => ({ color: t.string(), dayDisplay: t.string(), dayBar: t.boolean(), monthDisplay: t.string() }),
+});
+
+const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
+  description: 'Schedule of a kind of another workspace this one subscribes to, shown read only.',
+  fields: (t) => ({
+    id: t.id({ resolve: (item) => item.rule.id }),
+    name: t.string({ resolve: (item) => item.rule.name }),
+    startDate: t.string({ resolve: (item) => item.rule.startDate }),
+    endDate: t.string({ nullable: true, resolve: (item) => item.rule.endDate }),
+    cases: t.field({ type: 'JSON', resolve: (item) => item.rule.cases }),
+    exceptions: t.field({ type: 'JSON', resolve: (item) => item.rule.exceptions }),
+    typeName: t.exposeString('typeName', { nullable: true }),
+    color: t.exposeString('color', { nullable: true, description: 'In this workspace.' }),
+    dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
+    dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
+    monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay }),
+    workspaceId: t.id({ resolve: (item) => item.workspace.id }),
+    workspaceName: t.string({ resolve: (item) => item.workspace.name }),
+  }),
+});
+
+const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>('ForeignScheduleKind').implement({
+  description: 'Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.',
+  fields: (t) => ({
+    workspaceId: t.id({ resolve: (item) => item.workspace.id }),
+    workspaceName: t.string({ resolve: (item) => item.workspace.name }),
+    typeId: t.exposeID('typeId', { nullable: true, description: 'None: the schedules without kind (working hours).' }),
+    name: t.exposeString('name'),
+    color: t.exposeString('color', { nullable: true, description: 'In this workspace: the subscription’s, or the kind’s.' }),
+    sourceColor: t.exposeString('sourceColor', { nullable: true, description: 'Of the kind, in its workspace.' }),
+    dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
+    dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
+    monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay }),
+    customized: t.exposeBoolean('customized', { description: 'The subscription sets a color or a display of its own.' }),
+    scheduleCount: t.exposeInt('scheduleCount'),
+    subscribed: t.exposeBoolean('subscribed'),
+  }),
 });
 
 const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
@@ -149,10 +224,24 @@ const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
     name: t.string({ required: true }),
     startDate: t.field({ type: 'Date', required: true }),
     endDate: t.field({ type: 'Date' }),
-    intervalWeeks: t.int({ required: true }),
-    slots: t.field({ type: [WorkSlotInput], required: true }),
-    pauses: t.field({ type: [WorkPauseInput], required: true }),
+    cases: t.field({ type: 'JSON', required: true, description: 'Cases (shared schedule case shape).' }),
+    exceptions: t.field({ type: 'JSON', required: true, description: 'Exceptions: { from, to, label, cases }.' }),
+    typeId: t.id({ description: 'Kind of time it plans; none: working hours.' }),
   }),
+});
+
+/**
+ * Schedule input with omitted optional fields as null.
+ * @param {typeof WorkScheduleInput.$inferInput} input GraphQL input.
+ * @returns {import('@ordo/shared').WorkScheduleInput} Service input.
+ */
+const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
+  ...input,
+  endDate: input.endDate ?? null,
+  typeId: input.typeId ?? null,
+  // Validated by the service.
+  cases: input.cases as never,
+  exceptions: input.exceptions as never,
 });
 
 const CalendarLinkInput = builder.inputType('CalendarLinkInput', {
@@ -165,6 +254,8 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     title: t.string({ required: true }),
     description: t.string(),
     location: t.string(),
+    locationLat: t.float({ description: 'Point of the location; none: unknown.' }),
+    locationLon: t.float(),
     links: t.field({ type: [CalendarLinkInput], required: true }),
     allDay: t.boolean({ required: true }),
     startDate: t.field({ type: 'Date', required: true }),
@@ -174,9 +265,12 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     timeZone: t.string({ required: true }),
     recurrence: t.field({ type: 'JSON' }),
     reminders: t.intList({ required: true, description: 'Minutes before the start.' }),
+    travelBefore: t.int({ description: 'Travel time to the event, in minutes; none: 0.' }),
+    travelAfter: t.int({ description: 'Travel time back from the event, in minutes; none: 0.' }),
     projectId: t.id(),
     calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),
     contributorIds: t.idList({ required: true }),
+    relationIds: t.idList({ description: 'Relations without contributor taking part; none: none.' }),
     categoryIds: t.idList({ required: true }),
     taskIds: t.idList({ description: 'Tasks the event is about (none when omitted).' }),
   }),
@@ -199,12 +293,17 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   ...input,
   description: input.description ?? null,
   location: input.location ?? null,
+  locationLat: input.locationLat ?? null,
+  locationLon: input.locationLon ?? null,
   startTime: input.startTime ?? null,
   endTime: input.endTime ?? null,
   recurrence: (input.recurrence ?? null) as never,
   projectId: input.projectId ?? null,
   calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
+  relationIds: input.relationIds ?? [],
+  travelBefore: input.travelBefore ?? 0,
+  travelAfter: input.travelAfter ?? 0,
 });
 
 builder.queryFields((t) => ({
@@ -232,6 +331,25 @@ builder.queryFields((t) => ({
   calendarCategories: t.prismaField({
     type: ['CalendarCategory'],
     resolve: (query) => prisma.calendarCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  scheduleTypes: t.prismaField({
+    type: ['ScheduleType'],
+    resolve: (query) => prisma.scheduleType.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  defaultScheduleKind: t.field({
+    type: DefaultScheduleKindRef,
+    description: 'Schedules without kind of this workspace: name, color and display.',
+    resolve: () => schedules.defaultScheduleKind(),
+  }),
+  foreignScheduleKinds: t.field({
+    type: [ForeignScheduleKindRef],
+    description: 'Kinds of schedules of the other workspaces, with whether this one shows them.',
+    resolve: () => schedules.foreignScheduleKinds(),
+  }),
+  subscribedWorkSchedules: t.field({
+    type: [ForeignScheduleRef],
+    description: 'Schedules of the kinds of other workspaces this one shows (read only).',
+    resolve: () => schedules.subscribedSchedules(),
   }),
   workSchedules: t.prismaField({
     type: ['WorkSchedule'],
@@ -352,14 +470,61 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), occurrenceDate: t.arg({ type: 'Date' }), input: t.arg({ type: CalendarEventInput, required: true }) },
     resolve: async (_root, { id, occurrenceDate, input }) => (await events.postponeCalendarEvent(id, occurrenceDate, eventInput(input))).id,
   }),
+  saveScheduleType: t.id({
+    args: { id: t.arg.id(), input: t.arg({ type: ScheduleTypeInput, required: true }) },
+    // Display values are checked by the service.
+    resolve: async (_root, { id, input }) => (await schedules.saveScheduleType(id ?? null, input as never)).id,
+  }),
+  deleteScheduleType: t.boolean({
+    description: 'Deletes a kind of time slots (its schedules stay, without kind).',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await schedules.deleteScheduleType(id);
+      return true;
+    },
+  }),
+  subscribeScheduleKind: t.boolean({
+    description: 'Shows a kind of schedules of another workspace (without typeId: its schedules without kind), read only.',
+    args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
+    resolve: async (_root, { workspaceId, typeId }) => {
+      await schedules.subscribeScheduleKind(workspaceId, typeId ?? null);
+      return true;
+    },
+  }),
+  saveDefaultScheduleKind: t.field({
+    type: DefaultScheduleKindRef,
+    args: { input: t.arg({ type: DefaultScheduleKindInput, required: true }) },
+    // Display values are checked by the service.
+    resolve: (_root, { input }) => schedules.saveDefaultScheduleKind({ ...input, color: input.color ?? null } as never),
+  }),
+  setScheduleSubscriptionLook: t.boolean({
+    description: 'Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).',
+    args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id(), input: t.arg({ type: ScheduleSubscriptionLookInput, required: true }) },
+    resolve: async (_root, { workspaceId, typeId, input }) => {
+      await schedules.setScheduleSubscriptionLook(workspaceId, typeId ?? null, {
+        color: input.color ?? null,
+        dayDisplay: (input.dayDisplay ?? null) as never,
+        dayBar: input.dayBar ?? null,
+        monthDisplay: (input.monthDisplay ?? null) as never,
+      });
+      return true;
+    },
+  }),
+  unsubscribeScheduleKind: t.boolean({
+    args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
+    resolve: async (_root, { workspaceId, typeId }) => {
+      await schedules.unsubscribeScheduleKind(workspaceId, typeId ?? null);
+      return true;
+    },
+  }),
   createWorkSchedule: t.id({
     args: { input: t.arg({ type: WorkScheduleInput, required: true }) },
-    resolve: async (_root, { input }) => (await schedules.createWorkSchedule({ ...input, endDate: input.endDate ?? null })).id,
+    resolve: async (_root, { input }) => (await schedules.createWorkSchedule(scheduleInput(input))).id,
   }),
   updateWorkSchedule: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await schedules.updateWorkSchedule(id, { ...input, endDate: input.endDate ?? null });
+      await schedules.updateWorkSchedule(id, scheduleInput(input));
       return true;
     },
   }),

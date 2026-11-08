@@ -12,6 +12,7 @@ import { TimerCard } from '../features/time/TimerCard';
 import { useTimeEntryDialogs } from '../features/time/use-time-dialogs';
 import { descendantIds } from '../features/workspace/api';
 import { localToday } from '../lib/dates';
+import { useActiveWorkspace } from '../features/workspaces/api';
 
 type Period = 'week' | 'month' | 'quarter' | 'all';
 
@@ -42,6 +43,7 @@ function periodStart(period: Period, today: string): string | null {
  * @returns {JSX.Element} Page.
  */
 export function TimePage() {
+  const { perso } = useActiveWorkspace();
   const { context } = useTaskContext();
   const [params, setParams] = useSearchParams();
   const period = (PERIODS.find((item) => item.value === params.get('period'))?.value ?? 'week') as Period;
@@ -82,7 +84,8 @@ export function TimePage() {
         Chronos
       </Title>
       <TimerCard />
-      <PlannedTime />
+      {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
+      {!perso && <PlannedTime />}
       <Group justify="space-between" align="flex-end" gap="sm">
         <Stack gap={2}>
           <Title order={2} size="h4">

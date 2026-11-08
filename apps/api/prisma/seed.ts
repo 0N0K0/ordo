@@ -95,7 +95,9 @@ for (const model of [
   prisma.calendarSubscription,
   prisma.calendar,
   prisma.calendarCategory,
+  prisma.workScheduleSubscription,
   prisma.workSchedule,
+  prisma.scheduleType,
   prisma.timeEntry,
   prisma.task,
   prisma.taskView,
@@ -604,20 +606,19 @@ await prisma.calendarEvent.create({
   },
 });
 
-// Working hours: Monday to Thursday 9–12:30 and 14–18, Friday morning; a week of holidays.
+// Working hours: Monday to Thursday 9–12:30 and 14–18, Friday morning; a week of holidays, and a day of training
+// with its own hours.
+const range = (start: string, end: string) => ({ start, end });
+const weekly = (weekdays: number[], ranges: { start: string; end: string }[], every = 1) => ({ pattern: 'WEEKLY', weekdays, every, from: null, allDay: false, ranges });
 await prisma.workSchedule.create({
   data: {
     name: 'Semaine type',
     startDate: new Date(`${addDays(monday, -56)}T00:00:00.000Z`),
-    intervalWeeks: 1,
-    slots: [
-      ...[1, 2, 3, 4].flatMap((weekday) => [
-        { weekday, start: '09:00', end: '12:30' },
-        { weekday, start: '14:00', end: '18:00' },
-      ]),
-      { weekday: 5, start: '09:00', end: '12:30' },
+    cases: [weekly([1, 2, 3, 4], [range('09:00', '12:30'), range('14:00', '18:00')]), weekly([5], [range('09:00', '12:30')])],
+    exceptions: [
+      { from: addDays(monday, 38), to: addDays(monday, 42), label: 'Congés', cases: [] },
+      { from: addDays(monday, 9), to: addDays(monday, 9), label: 'Formation', cases: [{ pattern: 'DAILY', allDay: false, ranges: [range('08:00', '17:00')] }] },
     ],
-    pauses: [{ from: addDays(monday, 38), to: addDays(monday, 42), label: 'Congés' }],
   },
 });
 // Every other week, Saturday morning.
@@ -625,9 +626,8 @@ await prisma.workSchedule.create({
   data: {
     name: 'Samedis matin',
     startDate: new Date(`${addDays(monday, -14)}T00:00:00.000Z`),
-    intervalWeeks: 2,
-    slots: [{ weekday: 6, start: '09:00', end: '12:00' }],
-    pauses: [],
+    cases: [weekly([6], [range('09:00', '12:00')], 2)],
+    exceptions: [],
   },
 });
 
