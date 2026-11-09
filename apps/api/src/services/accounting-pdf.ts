@@ -703,8 +703,25 @@ function writeSection(
 
   flow.y = y + 5;
 }
+/** Points per millimetre. */
+const MM = 72 / 25.4;
+
 /**
- * Writes the header: logo and seller on the left, title, number and dates on the right, then the buyer.
+ * Where the address of the buyer goes, to show through the window of a standard DL envelope (110 × 220 mm,
+ * window 100 × 45 mm at 20 mm from the right and 15 mm from the bottom) holding the page folded in three: the
+ * window spans 100–200 mm across and 50–95 mm down the page, less the play of the letter in the envelope.
+ */
+const ENVELOPE_WINDOW = { x: 116 * MM, y: 55 * MM, width: 78 * MM, bottom: 90 * MM };
+/** Below the window, whatever the play of the letter in the envelope. */
+const BELOW_WINDOW = 98 * MM;
+
+/** Spacing of the seller block: between its lines, and between its groups (address, identifiers, contact). */
+const SELLER_SPACING = { line: 2.5, group: 8 };
+
+/**
+ * Writes the header: logo and seller on the left (address, identifiers and contact in airy groups), title,
+ * number and dates on the right, then the buyer on a white background where the window of an envelope shows it
+ * (its identifiers under it, out of the window).
  * @param {Doc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {object} data Data.
@@ -732,10 +749,10 @@ function writeHeader(
     sourceNumber: string | null;
   },
 ): void {
-  console.log(seller);
-
   const left = PAGE.margin;
-  const right = 330;
+  // Left of the window: the seller never shows through it.
+  const leftWidth = 220;
+  const right = ENVELOPE_WINDOW.x;
   const rightWidth = doc.page.width - PAGE.margin - right;
   const top = flow.y;
 
@@ -744,7 +761,7 @@ function writeHeader(
   if (logo) {
     try {
       doc.image(logo, left, y, { fit: [150, 56] });
-      y += 64;
+      y += 66;
     } catch {
       // An unreadable logo is left out.
     }
@@ -753,98 +770,106 @@ function writeHeader(
     .font('bold')
     .fontSize(12)
     .fillColor(COLORS.text)
-    .text(seller.name, left, y, { width: 250 });
-  y = doc.y + 2;
+    .text(seller.name, left, y, { width: leftWidth });
+  y = doc.y + 4;
 
   type SellerLine =
     | { type: 'text'; text: string; url?: string }
     | { type: 'rich'; runs: { text: string; bold?: boolean }[] };
 
-  const sellerLines: SellerLine[] = [
-    ...(seller.siret
-      ? [{ type: 'text' as const, text: `SIRET ${seller.siret}` }]
-      : seller.siren
-        ? [{ type: 'text' as const, text: `SIREN ${seller.siren}` }]
-        : []),
+  /**
+   * Link of a website, with its scheme.
+   * @param {string} website Website as entered.
+   * @returns {string} URL.
+   */
+  const websiteUrl = (website: string) =>
+    /^https?:\/\//i.test(website) ? website : `https://${website}`;
 
-    ...(seller.vatNumber
-      ? [{ type: 'text' as const, text: `TVA ${seller.vatNumber}` }]
-      : []),
-
-    ...printedAddress(seller.address).map((text) => ({
+  // Groups apart from each other: address, identifiers, contact.
+  const sellerGroups: SellerLine[][] = [
+    printedAddress(seller.address).map((text) => ({
       type: 'text' as const,
       text,
     })),
+    [
+      ...(seller.siret
+        ? [{ type: 'text' as const, text: `SIRET ${seller.siret}` }]
+        : seller.siren
+          ? [{ type: 'text' as const, text: `SIREN ${seller.siren}` }]
+          : []),
+      ...(seller.vatNumber
+        ? [{ type: 'text' as const, text: `TVA ${seller.vatNumber}` }]
+        : []),
+    ],
+    [
+      ...(seller.contact
+        ? [
+            {
+              type: 'rich' as const,
+              runs: [
+                { text: 'Contact : ', bold: true },
+                { text: seller.contact },
+              ],
+            },
+          ]
+        : []),
+      ...(seller.phone
+        ? [
+            {
+              type: 'text' as const,
+              text: seller.phone,
+              url: `tel:${seller.phone}`,
+            },
+          ]
+        : []),
+      ...(seller.email
+        ? [
+            {
+              type: 'text' as const,
+              text: seller.email,
+              url: `mailto:${seller.email}`,
+            },
+          ]
+        : []),
+      ...(seller.website
+        ? [
+            {
+              type: 'text' as const,
+              text: seller.website,
+              url: websiteUrl(seller.website),
+            },
+          ]
+        : []),
+    ],
+  ].filter((group) => group.length > 0);
 
-    {
-      type: 'rich',
-      runs: [
-        { text: 'Contact : ', bold: true },
-        { text: seller.contact ?? 'null' },
-      ],
-    },
-
-    ...(seller.phone
-      ? [
-          {
-            type: 'text' as const,
-            text: seller.phone,
-            url: `tel:${seller.phone}`,
-          },
-        ]
-      : []),
-
-    ...(seller.email
-      ? [
-          {
-            type: 'text' as const,
-            text: seller.email,
-            url: `mailto:${seller.email}`,
-          },
-        ]
-      : []),
-
-    ...(seller.website
-      ? [
-          {
-            type: 'text' as const,
-            text: seller.website,
-            url: /^https?:\/\//i.test(seller.website)
-              ? seller.website
-              : `https://${seller.website}`,
-          },
-        ]
-      : []),
-  ];
-  doc.font('regular').fontSize(8.5).fillColor(COLORS.muted);
   doc.fontSize(8.5).fillColor(COLORS.muted);
-
-  sellerLines.forEach((line) => {
-    if (line.type === 'rich') {
-      line.runs.forEach((run, index) => {
-        doc.font(run.bold ? 'bold' : 'regular');
-
-        doc.text(run.text, left, y, {
-          width: 250,
-          lineGap: 1,
-          continued: index < line.runs.length - 1,
+  sellerGroups.forEach((group, groupIndex) => {
+    if (groupIndex > 0) y += SELLER_SPACING.group;
+    for (const line of group) {
+      if (line.type === 'rich') {
+        line.runs.forEach((run, index) => {
+          doc
+            .font(run.bold ? 'bold' : 'regular')
+            .text(run.text, left, y, {
+              width: leftWidth,
+              lineGap: SELLER_SPACING.line,
+              continued: index < line.runs.length - 1,
+            });
         });
-      });
-    } else {
-      doc.font('regular');
-
-      doc.text(line.text, left, y, {
-        width: 250,
-        lineGap: 1,
-        link: line.url,
-      });
+      } else {
+        doc.font('regular').text(line.text, left, y, {
+          width: leftWidth,
+          lineGap: SELLER_SPACING.line,
+          link: line.url,
+        });
+      }
+      y = doc.y;
     }
-
-    y = doc.y;
   });
-  const sellerBottom = doc.y;
+  const sellerBottom = y;
 
-  // Title, number and dates.
+  // Title, number and dates, above the window.
   doc
     .font('bold')
     .fontSize(20)
@@ -899,7 +924,7 @@ function writeHeader(
     y = doc.y + 2;
   }
 
-  // Buyer.
+  // Buyer, in the window of the envelope (lower when the facts above reach it), on the white of the page.
   const contact = buyer.contact
     ? [
         `${buyer.contact.firstName} ${buyer.contact.lastName}`,
@@ -908,41 +933,47 @@ function writeHeader(
         .filter(Boolean)
         .join(', ')
     : null;
-  const buyerLines = [
+  const postalLines = [
     buyer.service?.name ?? null,
     contact ? `À l’attention de ${contact}` : null,
     ...printedAddress(buyer.address),
+  ].filter((line): line is string => Boolean(line?.trim()));
+  const identifiers = [
     buyer.siret
       ? `SIRET ${buyer.siret}`
       : buyer.siren
         ? `SIREN ${buyer.siren}`
         : null,
     buyer.vatNumber ? `TVA ${buyer.vatNumber}` : null,
-  ].filter((line): line is string => Boolean(line?.trim()));
-  const boxTop = Math.max(y, sellerBottom) + 14;
-  doc.font('regular').fontSize(8.5);
-  const buyerText = buyerLines.join('\n');
-  const boxHeight =
-    40 +
-    (buyerText
-      ? doc.heightOfString(buyerText, { width: rightWidth - 24, lineGap: 1 })
-      : 0);
-  doc.roundedRect(right, boxTop, rightWidth, boxHeight, 4).fill(COLORS.fill);
+  ].filter((line): line is string => Boolean(line));
+  const addressTop = Math.max(ENVELOPE_WINDOW.y, y + 10);
   doc
     .font('bold')
     .fontSize(10.5)
     .fillColor(COLORS.text)
-    .text(buyer.name, right + 12, boxTop + 12, { width: rightWidth - 24 });
-  if (buyerText)
+    .text(buyer.name, right, addressTop, { width: ENVELOPE_WINDOW.width });
+  if (postalLines.length)
     doc
       .font('regular')
-      .fontSize(8.5)
+      .fontSize(9.5)
       .fillColor(COLORS.text)
-      .text(buyerText, right + 12, doc.y + 2, {
-        width: rightWidth - 24,
-        lineGap: 1,
+      .text(postalLines.join('\n'), right, doc.y + 2, {
+        width: ENVELOPE_WINDOW.width,
+        lineGap: 1.5,
       });
-  flow.y = Math.max(boxTop + boxHeight, doc.y) + 24;
+  // Identifiers under the window: they are not part of the postal address.
+  if (identifiers.length)
+    doc
+      .font('regular')
+      .fontSize(8)
+      .fillColor(COLORS.muted)
+      .text(
+        identifiers.join('  ·  '),
+        right,
+        Math.max(doc.y + 6, BELOW_WINDOW),
+        { width: rightWidth },
+      );
+  flow.y = Math.max(doc.y, sellerBottom) + 24;
 }
 
 /**
