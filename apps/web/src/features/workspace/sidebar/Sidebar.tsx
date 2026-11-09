@@ -3,8 +3,7 @@ import {
   Alert,
   Button,
   CloseButton,
-  Collapse,
-  Divider,
+  Box,
   Group,
   Menu,
   NavLink,
@@ -19,9 +18,10 @@ import {
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
   AlarmIcon,
+  ArchiveIcon,
   BankIcon,
   CalendarBlankIcon,
-  CaretDownIcon,
+  CaretRightIcon,
   ChartBarIcon,
   CheckIcon,
   CheckSquareOffsetIcon,
@@ -34,11 +34,13 @@ import {
   PlusIcon,
   ReceiptIcon,
   SortAscendingIcon,
+  SquaresFourIcon,
   TimerIcon,
   UserPlusIcon,
   UsersThreeIcon,
+  WalletIcon,
 } from '@phosphor-icons/react';
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { ErrorIcon } from '../../../components/feedback-icons';
 import { useWorkspace } from '../api';
@@ -116,23 +118,44 @@ interface MenuLink {
   label: string;
   icon: ReactNode;
   badge?: ReactNode;
-  /** First of its group: a separator above it. */
-  groupStart?: boolean;
 }
 
-/** Menu below « Accueil », in groups; the first ones always show, the others fold behind « Plus ». */
-const MENU_LINKS: MenuLink[] = [
-  { to: '/tasks', label: 'Mes tâches', icon: <CheckSquareOffsetIcon aria-hidden />, badge: <TasksNavBadge />, groupStart: true },
-  { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
-  { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge />, groupStart: true },
-  { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },
-  { to: '/mail', label: 'Mails', icon: <EnvelopeSimpleIcon aria-hidden />, badge: <MailNavBadge />, groupStart: true },
-  { to: '/accounting', label: 'Facturation', icon: <ReceiptIcon aria-hidden />, groupStart: true },
-  { to: '/treasury', label: 'Trésorerie', icon: <BankIcon aria-hidden />, badge: <TreasuryNavBadge /> },
-  { to: '/documents', label: 'Documents', icon: <FolderOpenIcon aria-hidden />, groupStart: true },
-  { to: '/dashboards', label: 'Tableaux de bord', icon: <ChartBarIcon aria-hidden />, groupStart: true },
+interface MenuGroup {
+  label: string;
+  icon: ReactNode;
+  links: MenuLink[];
+}
+
+/** Menu below « Accueil »: groups opening their pages in sub-menus. */
+const MENU_GROUPS: MenuGroup[] = [
+  {
+    label: 'Organisation',
+    icon: <SquaresFourIcon aria-hidden />,
+    links: [
+      { to: '/tasks', label: 'Mes tâches', icon: <CheckSquareOffsetIcon aria-hidden />, badge: <TasksNavBadge /> },
+      { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
+      { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge /> },
+      { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },
+    ],
+  },
+  {
+    label: 'Finances',
+    icon: <WalletIcon aria-hidden />,
+    links: [
+      { to: '/accounting', label: 'Facturation', icon: <ReceiptIcon aria-hidden /> },
+      { to: '/treasury', label: 'Trésorerie', icon: <BankIcon aria-hidden />, badge: <TreasuryNavBadge /> },
+    ],
+  },
+  {
+    label: 'Ressources',
+    icon: <ArchiveIcon aria-hidden />,
+    links: [
+      { to: '/mail', label: 'Mails', icon: <EnvelopeSimpleIcon aria-hidden />, badge: <MailNavBadge /> },
+      { to: '/documents', label: 'Documents', icon: <FolderOpenIcon aria-hidden /> },
+      { to: '/dashboards', label: 'Tableaux de bord', icon: <ChartBarIcon aria-hidden /> },
+    ],
+  },
 ];
-const ALWAYS_SHOWN = 3;
 /** Pages a personal workspace does not have. */
 const PRO_ONLY = new Set(['/accounting']);
 
@@ -145,16 +168,42 @@ const PRO_ONLY = new Set(['/accounting']);
 const isActive = (to: string, pathname: string) => pathname === to || pathname.startsWith(`${to}/`);
 
 /**
- * Entries of the menu, with a separator above the first of each group.
- * @param {{ links: MenuLink[], pathname: string }} props Component props.
- * @returns {JSX.Element} Entries.
+ * Groups of the menu: each opens its pages in a sub-menu beside the sidebar, on hover (or a click, by touch or
+ * keyboard); the group of the page open is highlighted.
+ * @param {{ groups: MenuGroup[], pathname: string }} props Component props.
+ * @returns {JSX.Element} Groups.
  */
-function MenuLinks({ links, pathname }: { links: MenuLink[]; pathname: string }) {
-  return links.map((item) => (
-    <Fragment key={item.to}>
-      {item.groupStart && <Divider my={4} />}
-      <NavLink component={Link} to={item.to} label={item.label} leftSection={item.icon} rightSection={item.badge} active={isActive(item.to, pathname)} />
-    </Fragment>
+function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: string }) {
+  return groups.map((group) => (
+    <Menu key={group.label} trigger="click-hover" openDelay={60} closeDelay={150} position="right-start" offset={4} shadow="md" withinPortal>
+      <Menu.Target>
+        <NavLink
+          component="button"
+          label={group.label}
+          leftSection={group.icon}
+          rightSection={<CaretRightIcon aria-hidden size={12} />}
+          active={group.links.some((item) => isActive(item.to, pathname))}
+          aria-haspopup="menu"
+        />
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>{group.label}</Menu.Label>
+        {group.links.map((item) => (
+          <Menu.Item
+            key={item.to}
+            component={Link}
+            to={item.to}
+            leftSection={item.icon}
+            rightSection={item.badge}
+            // The page open stands out.
+            bg={isActive(item.to, pathname) ? 'var(--mantine-primary-color-light)' : undefined}
+            fw={isActive(item.to, pathname) ? 600 : undefined}
+          >
+            {item.label}
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
   ));
 }
 
@@ -166,8 +215,7 @@ export function Sidebar() {
   const workspace = useWorkspace();
   // A personal workspace has no clients nor invoicing.
   const { perso } = useActiveWorkspace();
-  const links = perso ? MENU_LINKS.filter((item) => !PRO_ONLY.has(item.to)) : MENU_LINKS;
-  const moreLinks = links.slice(ALWAYS_SHOWN);
+  const groups = MENU_GROUPS.map((group) => ({ ...group, links: perso ? group.links.filter((item) => !PRO_ONLY.has(item.to)) : group.links })).filter((group) => group.links.length > 0);
   const actions = useEntityActions();
   const { pathname } = useLocation();
   const touch = useMediaQuery('(hover: none), (max-width: 48em)');
@@ -184,13 +232,6 @@ export function Sidebar() {
     sync: false,
     defaultValue: { favorites: true, active: true, archives: false },
   });
-  const [moreOpen, setMoreOpen] = useLocalStorage<boolean>({
-    key: 'ordo.sidebar.more',
-    // Each window keeps its own (the last change is what a new window starts with).
-    sync: false,
-    defaultValue: false,
-  });
-  const activeMore = moreLinks.find((item) => isActive(item.to, pathname));
   const [collapsed, setCollapsed] = useLocalStorage<string[]>({
     key: 'ordo.sidebar.collapsed',
     // Each window keeps its own (the last change is what a new window starts with).
@@ -288,29 +329,9 @@ export function Sidebar() {
         leftSection={<HouseIcon aria-hidden />}
         active={pathname === '/'}
       />
-      <MenuLinks links={links.slice(0, ALWAYS_SHOWN)} pathname={pathname} />
-      {/* Collapsed: the page open stays reachable. */}
-      {!moreOpen && activeMore && <MenuLinks links={[{ ...activeMore, groupStart: true }]} pathname={pathname} />}
-      <Collapse expanded={moreOpen} transitionDuration={150}>
-        <MenuLinks links={moreLinks} pathname={pathname} />
-      </Collapse>
-      <NavLink
-        component="button"
-        label={moreOpen ? 'Moins' : 'Plus'}
-        leftSection={
-          <CaretDownIcon
-            aria-hidden
-            style={{
-              transform: moreOpen ? 'rotate(180deg)' : undefined,
-              transition: 'transform 150ms ease',
-            }}
-          />
-        }
-        aria-expanded={moreOpen}
-        onClick={() => setMoreOpen(!moreOpen)}
-        c="dimmed"
-        style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}
-      />
+      <Box pb="xs" style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}>
+        <MenuGroups groups={groups} pathname={pathname} />
+      </Box>
       <Group gap="xs" p="sm" wrap="nowrap">
         <TextInput
           size="xs"
