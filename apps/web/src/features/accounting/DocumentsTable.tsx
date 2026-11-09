@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney } from '@ordo/shared';
-import { ArrowsClockwiseIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
@@ -10,6 +10,8 @@ import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openDepositForm } from './new-document';
 import { handleFileClick } from '../files/open-file';
+import { downloadUrl } from '../files/viewable';
+import { pdfUrl } from './document-pdf';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
 import { openSentDialog } from './sent-dialog';
 
@@ -99,20 +101,13 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
             <Table.Th>Suivi</Table.Th>
             <Table.Th ta="right">Total HT</Table.Th>
             <Table.Th ta="right">Total</Table.Th>
-            {imported.length > 0 && <Table.Th />}
+            <Table.Th />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {rows.map((row) =>
             row.kind === 'ordo' ? (
-              <OrdoRow
-                key={row.document.id}
-                document={row.document}
-                showType={showType}
-                showClient={showClient}
-                actions={imported.length > 0}
-                onOpen={() => void navigate(`/accounting/${row.document.id}`)}
-              />
+              <OrdoRow key={row.document.id} document={row.document} showType={showType} showClient={showClient} onOpen={() => void navigate(`/accounting/${row.document.id}`)} />
             ) : (
               <ImportedRow key={row.document.id} document={row.document} showType={showType} showClient={showClient} onDelete={() => confirmDelete(row.document)} />
             ),
@@ -127,17 +122,15 @@ interface OrdoRowProps {
   document: AccountingDocumentSummary;
   showType?: boolean;
   showClient: boolean;
-  /** Empty actions cell (the table has imported documents). */
-  actions: boolean;
   onOpen: () => void;
 }
 
 /**
- * Row of a document made in Ordo; it opens the document.
+ * Row of a document made in Ordo; it opens the document, and a final one downloads its PDF.
  * @param {OrdoRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function OrdoRow({ document, showType, showClient, actions, onOpen }: OrdoRowProps) {
+function OrdoRow({ document, showType, showClient, onOpen }: OrdoRowProps) {
   return (
     <Table.Tr style={{ cursor: 'pointer' }} onClick={onOpen}>
       <Table.Td>
@@ -190,7 +183,18 @@ function OrdoRow({ document, showType, showClient, actions, onOpen }: OrdoRowPro
           </Text>
         )}
       </Table.Td>
-      {actions && <Table.Td />}
+      <Table.Td>
+        {/* A final document downloads its PDF; drafts have none yet. */}
+        {document.status === 'FINAL' && (
+          <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
+            <Tooltip label="Télécharger le PDF">
+              <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="subtle" color="gray" aria-label={`Télécharger ${document.number}`}>
+                <DownloadSimpleIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        )}
+      </Table.Td>
     </Table.Tr>
   );
 }
@@ -294,6 +298,13 @@ function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowPr
                 }}
               >
                 <FilePdfIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          {document.fileUrl && (
+            <Tooltip label="Télécharger le fichier">
+              <ActionIcon component="a" href={downloadUrl(document.fileUrl)} variant="subtle" color="gray" aria-label={`Télécharger ${document.fileName ?? document.number}`}>
+                <DownloadSimpleIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
           )}

@@ -10,6 +10,7 @@ import {
   FileZipIcon,
   FlagIcon,
   PackageIcon,
+  PaperPlaneTiltIcon,
   PencilSimpleIcon,
   PlusIcon,
   TrashIcon,
@@ -154,7 +155,8 @@ function RecurringList() {
 }
 
 /**
- * Accounting: quotes, invoices, deposit invoices and credit notes (imported ones listed with their type),
+ * Accounting: quotes, invoices, deposit invoices and credit notes (imported ones listed with their type), the
+ * documents to send (or deposit),
  * invoices to follow up, recurring invoices, catalogue and the tracking statuses of the documents.
  * @returns {JSX.Element} Page.
  */
@@ -172,6 +174,11 @@ export function AccountingPage() {
     .sort()
     .reverse();
   const inYear = (date: unknown) => !year || yearOf(date) === year;
+  // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
+  // of every type and year.
+  const toSend = (documents ?? []).filter((document) => document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
+  const importedToSend = (imported.data ?? []).filter((document) => document.trackingStatus?.category === 'TO_SEND');
+  const toSendCount = toSend.length + importedToSend.length;
   /**
    * Changes a parameter of the address, the others kept.
    * @param {string} key Parameter.
@@ -224,6 +231,19 @@ export function AccountingPage() {
               </Tabs.Tab>
             ))}
             <Tabs.Tab
+              value="toSend"
+              leftSection={<PaperPlaneTiltIcon aria-hidden />}
+              rightSection={
+                toSendCount ? (
+                  <Badge size="xs" circle color="blue">
+                    {toSendCount}
+                  </Badge>
+                ) : undefined
+              }
+            >
+              À envoyer
+            </Tabs.Tab>
+            <Tabs.Tab
               value="overdue"
               leftSection={<BellRingingIcon aria-hidden />}
               rightSection={
@@ -271,6 +291,9 @@ export function AccountingPage() {
             )}
           </Tabs.Panel>
         ))}
+        <Tabs.Panel value="toSend">
+          {isPending || imported.isPending ? <Skeleton height={200} /> : <DocumentsTable documents={toSend} imported={importedToSend} showType empty="Aucun document à envoyer ni à déposer." />}
+        </Tabs.Panel>
         <Tabs.Panel value="overdue">
           <OverdueInvoicesPanel />
         </Tabs.Panel>
