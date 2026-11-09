@@ -11,6 +11,7 @@ import { categoryPaths } from './categories';
 import { confirmDeletion } from './confirm-deletion';
 import { StatementForm } from './StatementForm';
 import { StatementImport } from './StatementImport';
+import { handleFileClick } from '../files/open-file';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -275,6 +276,8 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
                                 href={document.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                // A file of the app (PDF, image) opens in its viewer.
+                                onClick={(event: React.MouseEvent) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
                                 style={{ cursor: 'pointer' }}
                                 tt="none"
                               >

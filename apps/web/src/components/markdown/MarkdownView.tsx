@@ -6,6 +6,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { remarkReferences, type ReferenceTargets } from './remark-references';
 import { remarkTaskOffsets, toggleTask } from './task-list';
+import { FileLink } from '../../features/files/FileLink';
 
 /**
  * Markdown link: task references ("?task=12") open the task over the current page, internal paths use
@@ -26,12 +27,12 @@ function MarkdownLink({ href = '', children }: { href?: string; children?: React
       </Anchor>
     );
   }
-  // Attachments: downloaded, or opened in a new tab for images.
+  // Attachments: PDFs and images open in the app's viewer, other files download.
   if (href.startsWith('/api/attachments/')) {
     return (
-      <Anchor href={href} target="_blank" rel="noopener">
+      <FileLink url={href} name={decodeURIComponent(href.split('/').pop() ?? '')}>
         {children}
-      </Anchor>
+      </FileLink>
     );
   }
   if (href.startsWith('/')) {

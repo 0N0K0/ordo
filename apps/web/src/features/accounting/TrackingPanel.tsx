@@ -11,6 +11,7 @@ import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type Tr
 import type { AccountingDocument } from './documents-api';
 import { Section } from './EditorSection';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
+import { FileLink } from '../files/FileLink';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
@@ -313,11 +314,11 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           {document.acceptedAt && <Text size="sm">Accepté le {printedDate(String(document.acceptedAt))}</Text>}
           {document.signedFileUrl && (
             <Group justify="space-between" wrap="nowrap">
-              <Anchor href={document.signedFileUrl} target="_blank" rel="noopener" size="sm" truncate>
+              <FileLink url={document.signedFileUrl} name={document.signedFileName ?? 'Devis signé'} size="sm" truncate>
                 <Group gap={4} wrap="nowrap">
                   <PaperclipIcon aria-hidden /> {document.signedFileName}
                 </Group>
-              </Anchor>
+              </FileLink>
               <Tooltip label="Retirer le devis signé">
                 <ActionIcon variant="subtle" color="gray" aria-label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, { onError })}>
                   <XIcon aria-hidden />

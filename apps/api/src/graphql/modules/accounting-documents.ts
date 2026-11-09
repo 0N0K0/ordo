@@ -144,6 +144,7 @@ builder.prismaObject('ImportedDocument', {
       resolve: (document) => (document.attachment ? `/api/attachments/${document.attachment.id}/${encodeURIComponent(document.attachment.name)}` : null),
     }),
     fileName: t.string({ nullable: true, select: { attachment: { select: { name: true } } }, resolve: (document) => document.attachment?.name ?? null }),
+    fileMimeType: t.string({ nullable: true, select: { attachment: { select: { mimeType: true } } }, resolve: (document) => document.attachment?.mimeType ?? null }),
   }),
 });
 
@@ -360,6 +361,12 @@ builder.queryFields((t) => ({
   recurringInvoices: t.prismaField({
     type: ['RecurringInvoice'],
     resolve: (query) => prisma.recurringInvoice.findMany({ ...query, orderBy: { createdAt: 'asc' } }),
+  }),
+  importedDocument: t.prismaField({
+    type: 'ImportedDocument',
+    nullable: true,
+    args: { id: t.arg.id({ required: true }) },
+    resolve: (query, _root, { id }) => prisma.importedDocument.findUnique({ ...query, where: { id } }),
   }),
   importedDocuments: t.prismaField({
     type: ['ImportedDocument'],

@@ -938,6 +938,7 @@ type ImportedDocument {
   clientName: String!
   currency: String!
   dueDate: Date
+  fileMimeType: String
   fileName: String
   fileUrl: String
   id: ID!
@@ -1931,6 +1932,7 @@ type Query {
   githubLogin: String
   githubProjectLink(projectId: ID!): GithubProjectLink
   health: String!
+  importedDocument(id: ID!): ImportedDocument
 
   """
   Imported quotes and invoices, latest first, optionally of a client or a project.

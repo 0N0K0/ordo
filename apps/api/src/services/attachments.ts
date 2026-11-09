@@ -7,6 +7,25 @@ import { clientError } from '../graphql/errors';
 export const INLINE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 /**
+ * Whether a file is a PDF, by its first bytes (the declared type is not trusted).
+ * @param {Uint8Array} data File content.
+ * @returns {boolean} PDF.
+ */
+export function isPdf(data: Uint8Array): boolean {
+  return Buffer.from(data.subarray(0, 5)).toString('latin1') === '%PDF-';
+}
+
+/**
+ * Security policy of a file served by the app: none of its content runs, and a PDF shown in place may be framed
+ * by the app (browsers do not show PDFs in a sandboxed frame; their viewer isolates them).
+ * @param {boolean} pdfInPlace A PDF shown in place.
+ * @returns {string} Content-Security-Policy.
+ */
+export function fileSecurityPolicy(pdfInPlace: boolean): string {
+  return pdfInPlace ? "default-src 'none'; frame-ancestors 'self'" : "default-src 'none'; sandbox";
+}
+
+/**
  * Detects the image types shown in place from their first bytes (the declared type is not trusted).
  * @param {Buffer} buffer File content.
  * @returns {string | null} Image type, or null for any other file.

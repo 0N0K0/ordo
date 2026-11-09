@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getSession } from '../auth/session';
 import { prisma } from '../db';
-import { INLINE_TYPES } from '../services/attachments';
+import { fileSecurityPolicy, INLINE_TYPES, isPdf } from '../services/attachments';
 
 export const attachmentsRouter: Router = Router();
 
@@ -19,13 +19,14 @@ attachmentsRouter.get('/:id{/:name}', async (req, res) => {
     return;
   }
 
-  // ?download=1 always downloads (an image too).
-  const inline = INLINE_TYPES.includes(attachment.mimeType) && !req.query.download;
+  // Images and PDFs are shown in place (in the viewer of the app); ?download=1 always downloads.
+  const pdf = attachment.mimeType === 'application/pdf' && isPdf(attachment.data);
+  const inline = (INLINE_TYPES.includes(attachment.mimeType) || pdf) && !req.query.download;
   res.set({
     'Content-Type': attachment.mimeType,
     'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(attachment.name)}`,
     'Cache-Control': 'private, max-age=31536000, immutable',
-    'Content-Security-Policy': "default-src 'none'; sandbox",
+    'Content-Security-Policy': fileSecurityPolicy(inline && pdf),
     'X-Content-Type-Options': 'nosniff',
   });
   res.send(Buffer.from(attachment.data));

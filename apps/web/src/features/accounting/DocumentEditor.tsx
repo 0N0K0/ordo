@@ -10,6 +10,7 @@ import {
   Grid,
   Group,
   NumberInput,
+  Paper,
   SegmentedControl,
   Select,
   SimpleGrid,
@@ -62,6 +63,8 @@ import { useTrackingMutations } from './tracking-api';
 import { TimeBillingForm } from './TimeBillingForm';
 import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from './recurring-form';
+import { FileLink } from '../files/FileLink';
+import { FilePreview } from '../files/FilePreview';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -124,6 +127,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   const form = useAppForm<FormValues>({ initialValues: toValues(document), schema: accountingDocumentInputSchema });
   const values = form.values;
   const { data: client } = useClientBilling(values.clientId);
+  const [finalView, setFinalView] = useState<'preview' | 'details'>('preview');
   const { data: latestDate } = useLatestDocumentDate(document.type, document.id, document.status === 'DRAFT');
   const { data: company } = useCompanyProfile();
   const openComposer = useMailComposer();
@@ -376,9 +380,12 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
         </Stack>
         <Group gap="xs">
-          <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
-            Aperçu
-          </Button>
+          {/* A final document shows its PDF in the page. */}
+          {!readOnly && (
+            <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
+              Aperçu
+            </Button>
+          )}
           <Tooltip label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'}>
             <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="default" size="lg" aria-label="Télécharger le PDF">
               <DownloadSimpleIcon aria-hidden />
@@ -468,6 +475,23 @@ function Editor({ document }: { document: AccountingDocument }) {
 
       <Grid gap="md">
         <Grid.Col span={{ base: 12, lg: 8 }}>
+          {/* A final document shows its PDF in place; its fields stay a click away. */}
+          {readOnly && (
+            <SegmentedControl
+              mb="sm"
+              data={[
+                { value: 'preview', label: 'Aperçu' },
+                { value: 'details', label: 'Détails' },
+              ]}
+              value={finalView}
+              onChange={(value) => setFinalView(value as 'preview' | 'details')}
+            />
+          )}
+          {readOnly && finalView === 'preview' ? (
+            <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+              <FilePreview url={pdfUrl(document.id)} name={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height="max(36rem, calc(100dvh - 16rem))" />
+            </Paper>
+          ) : (
           <Stack gap="md">
             <Section title="Client et dates">
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
@@ -664,6 +688,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               </Group>
             </Section>
           </Stack>
+          )}
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, lg: 4 }}>
@@ -799,11 +824,11 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
       ) : (
         document.attachments.map((attachment) => (
           <Group key={attachment.id} justify="space-between" wrap="nowrap">
-            <Anchor href={attachment.url} target="_blank" rel="noopener" size="sm" truncate>
+            <FileLink url={attachment.url} name={attachment.name} size="sm" truncate>
               <Group gap={4} wrap="nowrap">
                 <PaperclipIcon aria-hidden /> {attachment.name}
               </Group>
-            </Anchor>
+            </FileLink>
             <Tooltip label="Retirer">
               <ActionIcon
                 variant="subtle"

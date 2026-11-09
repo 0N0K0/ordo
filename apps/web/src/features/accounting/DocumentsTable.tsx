@@ -9,6 +9,7 @@ import { useImportedDocumentMutations, type AccountingDocumentSummary, type Impo
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openDepositForm } from './new-document';
+import { handleFileClick } from '../files/open-file';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -202,13 +203,17 @@ interface ImportedRowProps {
  */
 function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowProps) {
   const { setStatus } = useImportedDocumentMutations();
+  const navigate = useNavigate();
+  const open = () => navigate(`/accounting/imported/${document.id}`);
   return (
-    <Table.Tr>
+    <Table.Tr style={{ cursor: 'pointer' }} onClick={open}>
       <Table.Td>
         <Group gap={6} wrap="nowrap">
-          <Text size="sm" ff="monospace" fw={600}>
-            {document.number}
-          </Text>
+          <UnstyledButton onClick={open} aria-label={`Ouvrir ${document.number}`}>
+            <Text size="sm" ff="monospace" fw={600}>
+              {document.number}
+            </Text>
+          </UnstyledButton>
           <Badge size="xs" variant="light" color="cyan">
             Importé
           </Badge>
@@ -244,10 +249,23 @@ function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowPr
         {formatMoney(Math.round(document.totalGross * 100), document.currency)}
       </Table.Td>
       <Table.Td>
-        <Group gap={2} justify="flex-end" wrap="nowrap">
+        {/* Actions of the row, apart from opening it. */}
+        <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
           {document.fileUrl && (
             <Tooltip label={document.fileName ?? 'Document'}>
-              <ActionIcon component="a" href={document.fileUrl} target="_blank" rel="noopener" variant="subtle" color="gray" aria-label={`Ouvrir ${document.fileName ?? 'le document'}`}>
+              <ActionIcon
+                component="a"
+                href={document.fileUrl}
+                target="_blank"
+                rel="noopener"
+                variant="subtle"
+                color="gray"
+                aria-label={`Ouvrir ${document.fileName ?? 'le document'}`}
+                onClick={(event: React.MouseEvent) => {
+                  event.stopPropagation();
+                  handleFileClick(event, { url: document.fileUrl!, name: document.fileName ?? document.number, mimeType: document.fileMimeType });
+                }}
+              >
                 <FilePdfIcon aria-hidden />
               </ActionIcon>
             </Tooltip>

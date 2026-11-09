@@ -6,7 +6,7 @@ import type {
   AccountingDocumentListFieldsFragment,
   AccountingDocumentType,
   ImportedDocumentInput,
-  ImportedDocumentsQuery,
+  ImportedDocumentFieldsFragment,
   ProjectResourcesQuery,
   RecurringInvoicesQuery,
 } from '../../graphql/graphql';
@@ -472,34 +472,49 @@ export function useProjectResourceMutations() {
 }
 
 
+graphql(`
+  fragment ImportedDocumentFields on ImportedDocument {
+    id
+    type
+    number
+    issueDate
+    dueDate
+    clientId
+    clientName
+    projectId
+    title
+    totalNet
+    totalVat
+    totalGross
+    currency
+    note
+    fileUrl
+    fileName
+    settled
+    paid
+    balance
+    trackingStatus {
+      id
+      name
+      color
+      category
+    }
+    fileMimeType
+  }
+`);
+
 const ImportedDocumentsDocument = graphql(`
   query ImportedDocuments($clientId: ID, $projectId: ID) {
     importedDocuments(clientId: $clientId, projectId: $projectId) {
-      id
-      type
-      number
-      issueDate
-      dueDate
-      clientId
-      clientName
-      projectId
-      title
-      totalNet
-      totalVat
-      totalGross
-      currency
-      note
-      fileUrl
-      fileName
-      settled
-      paid
-      balance
-      trackingStatus {
-        id
-        name
-        color
-        category
-      }
+      ...ImportedDocumentFields
+    }
+  }
+`);
+
+const ImportedDocumentDocument = graphql(`
+  query ImportedDocument($id: ID!) {
+    importedDocument(id: $id) {
+      ...ImportedDocumentFields
     }
   }
 `);
@@ -524,11 +539,20 @@ const DeleteImportedDocument = graphql(`
   }
 `);
 
-export type ImportedDocument = ImportedDocumentsQuery['importedDocuments'][number];
+export type ImportedDocument = ImportedDocumentFieldsFragment;
 export type { ImportedDocumentInput };
 
 /**
- * Imported quotes and invoices, optionally of a client or a project.
+ * One imported document.
+ * @param {string} id Imported document.
+ * @returns {UseQueryResult} Query state (null when not found).
+ */
+export function useImportedDocument(id: string) {
+  return useQuery({ queryKey: [...accountingQueryKey, 'imported', 'one', id], queryFn: async () => (await execute(ImportedDocumentDocument, { id })).importedDocument ?? null });
+}
+
+/**
+ * Imported documents, latest first, optionally of a client or a project.
  * @param {{ clientId?: string, projectId?: string }} [filter] Filter. Optional.
  * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
