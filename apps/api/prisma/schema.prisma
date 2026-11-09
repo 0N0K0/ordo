@@ -1622,35 +1622,38 @@ model ProjectResource {
 
 /// Quote or invoice issued before Ordo (or elsewhere): its main information and its PDF, not its lines.
 model ImportedDocument {
-  id           String                 @id @default(cuid())
-  type         AccountingDocumentType
+  id               String                 @id @default(cuid())
+  type             AccountingDocumentType
   /// Number as issued.
-  number       String
-  issueDate    DateTime               @db.Date
-  dueDate      DateTime?              @db.Date
-  clientId     String?
-  client       Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  number           String
+  issueDate        DateTime               @db.Date
+  dueDate          DateTime?              @db.Date
+  clientId         String?
+  client           Client?                @relation(fields: [clientId], references: [id], onDelete: SetNull)
   /// Client name when it is not (or no longer) a client in Ordo.
-  clientName   String?
-  projectId    String?
-  project      Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  title        String?
-  totalNet     Decimal                @db.Decimal(14, 2)
-  totalVat     Decimal                @default(0) @db.Decimal(14, 2)
-  totalGross   Decimal                @db.Decimal(14, 2)
-  currency     String                 @default("EUR")
-  attachmentId String?                @unique
-  attachment   Attachment?            @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
-  note         String?
+  clientName       String?
+  projectId        String?
+  project          Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title            String?
+  totalNet         Decimal                @db.Decimal(14, 2)
+  totalVat         Decimal                @default(0) @db.Decimal(14, 2)
+  totalGross       Decimal                @db.Decimal(14, 2)
+  currency         String                 @default("EUR")
+  attachmentId     String?                @unique
+  attachment       Attachment?            @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  note             String?
   /// Paid (or refunded) outside the treasury of Ordo: not expected any more.
-  settled      Boolean                @default(true)
-  createdAt    DateTime               @default(now())
-  allocations  TreasuryAllocation[]
+  settled          Boolean                @default(true)
+  /// Tracking status, set by hand (its payments are not followed by Ordo).
+  trackingStatusId String?
+  trackingStatus   DocumentStatus?        @relation(fields: [trackingStatusId], references: [id], onDelete: SetNull)
+  createdAt        DateTime               @default(now())
+  allocations      TreasuryAllocation[]
   /// Deposit invoices made in Ordo from this imported quote.
-  derived      AccountingDocument[]
+  derived          AccountingDocument[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId  String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId      String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace        Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, type, number])
   @@index([clientId])
@@ -1680,18 +1683,20 @@ enum DocumentStatusCategory {
 
 /// Configurable tracking status of the final documents ("Envoyé", "En négociation", "Payée"…).
 model DocumentStatus {
-  id          String                 @id @default(cuid())
-  scope       DocumentStatusScope
-  name        String
+  id                String                 @id @default(cuid())
+  scope             DocumentStatusScope
+  name              String
   /// Hex color, e.g. #228be6.
-  color       String
-  category    DocumentStatusCategory
-  position    Int                    @default(0)
-  createdAt   DateTime               @default(now())
-  documents   AccountingDocument[]
+  color             String
+  category          DocumentStatusCategory
+  position          Int                    @default(0)
+  createdAt         DateTime               @default(now())
+  documents         AccountingDocument[]
+  /// Imported documents with this status.
+  importedDocuments ImportedDocument[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId       String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, scope, name])
 }

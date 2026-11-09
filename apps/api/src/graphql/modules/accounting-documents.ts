@@ -121,6 +121,7 @@ builder.prismaObject('ImportedDocument', {
   description: 'Quote or invoice issued before Ordo: main information and file.',
   fields: (t) => ({
     id: t.exposeID('id'),
+    trackingStatus: t.relation('trackingStatus', { nullable: true, description: 'Tracking status, set by hand.' }),
     type: t.field({ type: AccountingDocumentTypeEnum, resolve: (document) => document.type }),
     number: t.exposeString('number'),
     issueDate: t.expose('issueDate', { type: 'Date' }),
@@ -477,6 +478,14 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ImportedDocumentInput, required: true }), file: t.arg({ type: 'File' }) },
     resolve: async (_root, { id, input, file }) => {
       await imported.updateImportedDocument(id, importedInput(input), file ?? null);
+      return true;
+    },
+  }),
+  setImportedDocumentTrackingStatus: t.boolean({
+    description: 'Sets the tracking status of an imported document by hand (none: clears it).',
+    args: { id: t.arg.id({ required: true }), statusId: t.arg.id() },
+    resolve: async (_root, { id, statusId }) => {
+      await imported.setImportedTrackingStatus(id, statusId ?? null);
       return true;
     },
   }),

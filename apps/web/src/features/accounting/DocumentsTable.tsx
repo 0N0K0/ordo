@@ -9,7 +9,7 @@ import { useImportedDocumentMutations, type AccountingDocumentSummary, type Impo
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openDepositForm } from './new-document';
-import { TrackingBadge } from './TrackingBadge';
+import { StatusMenu, TrackingBadge } from './TrackingBadge';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -195,11 +195,13 @@ interface ImportedRowProps {
 }
 
 /**
- * Row of a document issued before Ordo: its file, a deposit invoice from it (quotes), edit and delete.
+ * Row of a document issued before Ordo: its tracking status (set by hand), its settlement, its file, a deposit
+ * invoice from it (quotes), edit and delete.
  * @param {ImportedRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
 function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowProps) {
+  const { setStatus } = useImportedDocumentMutations();
   return (
     <Table.Tr>
       <Table.Td>
@@ -221,11 +223,19 @@ function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowPr
         </Text>
       </Table.Td>
       <Table.Td>
-        {document.type !== 'QUOTE' && (
-          <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
-            {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglé'}
-          </Badge>
-        )}
+        <Group gap={4} wrap="nowrap">
+          <StatusMenu
+            type={document.type}
+            current={document.trackingStatus}
+            pending={setStatus.isPending}
+            onSelect={(statusId) => setStatus.mutate({ id: document.id, statusId }, { onError: (error) => notifyError(error.message) })}
+          />
+          {document.type !== 'QUOTE' && (
+            <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
+              {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglé'}
+            </Badge>
+          )}
+        </Group>
       </Table.Td>
       <Table.Td ta="right" ff="monospace">
         {formatMoney(Math.round(document.totalNet * 100), document.currency)}

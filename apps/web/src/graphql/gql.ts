@@ -59,7 +59,8 @@ type Documents = {
     "\n  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {\n    updateProjectResource(id: $id, title: $title, url: $url, note: $note)\n  }\n": typeof types.UpdateProjectResourceDocument,
     "\n  mutation DeleteProjectResource($id: ID!) {\n    deleteProjectResource(id: $id)\n  }\n": typeof types.DeleteProjectResourceDocument,
     "\n  mutation MoveProjectResource($id: ID!, $index: Int!) {\n    moveProjectResource(id: $id, index: $index)\n  }\n": typeof types.MoveProjectResourceDocument,
-    "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n      settled\n      paid\n      balance\n    }\n  }\n": typeof types.ImportedDocumentsDocument,
+    "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n      settled\n      paid\n      balance\n      trackingStatus {\n        id\n        name\n        color\n        category\n      }\n    }\n  }\n": typeof types.ImportedDocumentsDocument,
+    "\n  mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {\n    setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)\n  }\n": typeof types.SetImportedDocumentTrackingStatusDocument,
     "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": typeof types.ImportDocumentDocument,
     "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": typeof types.UpdateImportedDocumentDocument,
     "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": typeof types.DeleteImportedDocumentDocument,
@@ -403,7 +404,8 @@ const documents: Documents = {
     "\n  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {\n    updateProjectResource(id: $id, title: $title, url: $url, note: $note)\n  }\n": types.UpdateProjectResourceDocument,
     "\n  mutation DeleteProjectResource($id: ID!) {\n    deleteProjectResource(id: $id)\n  }\n": types.DeleteProjectResourceDocument,
     "\n  mutation MoveProjectResource($id: ID!, $index: Int!) {\n    moveProjectResource(id: $id, index: $index)\n  }\n": types.MoveProjectResourceDocument,
-    "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n      settled\n      paid\n      balance\n    }\n  }\n": types.ImportedDocumentsDocument,
+    "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n      settled\n      paid\n      balance\n      trackingStatus {\n        id\n        name\n        color\n        category\n      }\n    }\n  }\n": types.ImportedDocumentsDocument,
+    "\n  mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {\n    setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)\n  }\n": types.SetImportedDocumentTrackingStatusDocument,
     "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": types.ImportDocumentDocument,
     "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": types.UpdateImportedDocumentDocument,
     "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": types.DeleteImportedDocumentDocument,
@@ -882,7 +884,11 @@ export function graphql(source: "\n  mutation MoveProjectResource($id: ID!, $ind
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n      settled\n      paid\n      balance\n    }\n  }\n"): typeof import('./graphql').ImportedDocumentsDocument;
+export function graphql(source: "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      id\n      type\n      number\n      issueDate\n      dueDate\n      clientId\n      clientName\n      projectId\n      title\n      totalNet\n      totalVat\n      totalGross\n      currency\n      note\n      fileUrl\n      fileName\n      settled\n      paid\n      balance\n      trackingStatus {\n        id\n        name\n        color\n        category\n      }\n    }\n  }\n"): typeof import('./graphql').ImportedDocumentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {\n    setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)\n  }\n"): typeof import('./graphql').SetImportedDocumentTrackingStatusDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

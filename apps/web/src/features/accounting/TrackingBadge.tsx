@@ -1,4 +1,5 @@
 import { Badge, ColorSwatch, Group, Menu, UnstyledButton } from '@mantine/core';
+import type { AccountingDocumentType } from '@ordo/shared';
 import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react';
 import { notifyError } from '../../lib/notify';
 import type { AccountingDocumentSummary } from './documents-api';
@@ -6,20 +7,25 @@ import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
 
 type TrackedDocument = Pick<AccountingDocumentSummary, 'id' | 'status' | 'type' | 'trackingStatus' | 'overdue'>;
 
+interface StatusMenuProps {
+  type: AccountingDocumentType;
+  current: { id: string; name: string; color: string } | null | undefined;
+  onSelect: (statusId: string) => void;
+  pending?: boolean;
+}
+
 /**
- * Tracking status of a final document, changed from a list: a menu of the statuses of its scope.
- * @param {{ document: TrackedDocument }} props Component props.
+ * Tracking status of a document, changed from a list: a menu of the statuses of its scope (quotes, or invoices
+ * with deposit invoices and credit notes). The click stays in the menu (rows open their document).
+ * @param {StatusMenuProps} props Component props.
  * @returns {JSX.Element} Badge and its menu.
  */
-function StatusMenu({ document }: { document: TrackedDocument }) {
+export function StatusMenu({ type, current, onSelect, pending }: StatusMenuProps) {
   const { data: statuses } = useDocumentStatuses();
-  const { setStatus } = useTrackingMutations();
-  const scoped = (statuses ?? []).filter((status) => status.scope === (document.type === 'QUOTE' ? 'QUOTE' : 'INVOICE'));
-  const current = document.trackingStatus;
+  const scoped = (statuses ?? []).filter((status) => status.scope === (type === 'QUOTE' ? 'QUOTE' : 'INVOICE'));
   return (
     <Menu position="bottom-start" withinPortal>
       <Menu.Target>
-        {/* In a row that opens the document: the click stays here. */}
         <UnstyledButton aria-label={`Statut : ${current?.name ?? 'aucun'} (changer)`} onClick={(event) => event.stopPropagation()}>
           <Badge size="sm" variant="light" color={current?.color ?? 'gray'} rightSection={<CaretDownIcon aria-hidden size={10} />} style={{ cursor: 'pointer' }}>
             {current?.name ?? 'Sans statut'}
@@ -33,14 +39,31 @@ function StatusMenu({ document }: { document: TrackedDocument }) {
             key={status.id}
             leftSection={<ColorSwatch color={status.color} size={12} />}
             rightSection={status.id === current?.id ? <CheckIcon aria-hidden /> : undefined}
-            disabled={setStatus.isPending}
-            onClick={() => status.id !== current?.id && setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })}
+            disabled={pending}
+            onClick={() => status.id !== current?.id && onSelect(status.id)}
           >
             {status.name}
           </Menu.Item>
         ))}
       </Menu.Dropdown>
     </Menu>
+  );
+}
+
+/**
+ * Status menu of a final document of Ordo.
+ * @param {{ document: TrackedDocument }} props Component props.
+ * @returns {JSX.Element} Menu.
+ */
+function DocumentStatusMenu({ document }: { document: TrackedDocument }) {
+  const { setStatus } = useTrackingMutations();
+  return (
+    <StatusMenu
+      type={document.type}
+      current={document.trackingStatus}
+      pending={setStatus.isPending}
+      onSelect={(statusId) => setStatus.mutate({ id: document.id, statusId }, { onError: (error) => notifyError(error.message) })}
+    />
   );
 }
 
@@ -61,7 +84,7 @@ export function TrackingBadge({ document, editable = false }: { document: Tracke
   return (
     <Group gap={4} wrap="nowrap">
       {editable ? (
-        <StatusMenu document={document} />
+        <DocumentStatusMenu document={document} />
       ) : (
         document.trackingStatus && (
           <Badge size="sm" variant="light" color={document.trackingStatus.color}>

@@ -952,6 +952,9 @@ type ImportedDocument {
   totalGross: Float!
   totalNet: Float!
   totalVat: Float!
+
+  """Tracking status, set by hand."""
+  trackingStatus: DocumentStatus
   type: AccountingDocumentType!
 }
 
@@ -1605,6 +1608,11 @@ type Mutation {
 
   """Saves the personal access token once checked; returns the login."""
   setGithubToken(token: String!): String!
+
+  """
+  Sets the tracking status of an imported document by hand (none: clears it).
+  """
+  setImportedDocumentTrackingStatus(id: ID!, statusId: ID): Boolean!
   setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
   setMailSignature(id: ID!, signature: String!): MailAccount!
 

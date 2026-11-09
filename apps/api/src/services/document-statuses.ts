@@ -173,6 +173,7 @@ export async function deleteDocumentStatus(id: string): Promise<void> {
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     });
     await tx.accountingDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
+    await tx.importedDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
     await tx.documentStatus.delete({ where: { id } });
   });
 }

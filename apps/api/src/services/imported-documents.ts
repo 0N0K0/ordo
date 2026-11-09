@@ -3,6 +3,7 @@ import { prisma } from '../db';
 import { Prisma, type ImportedDocument } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachmentData } from './attachments';
+import { scopeOf } from './document-statuses';
 import { requirePro } from './workspaces';
 
 export type { ImportedDocumentInput } from '@ordo/shared';
@@ -108,4 +109,21 @@ export async function deleteImportedDocument(id: string): Promise<void> {
   if (!document) throw notFound('Document importé');
   await prisma.importedDocument.delete({ where: { id } });
   if (document.attachmentId) await prisma.attachment.delete({ where: { id: document.attachmentId } }).catch(() => undefined);
+}
+
+/**
+ * Sets the tracking status of an imported document by hand (accepted, sent, credit note to make…), or clears it.
+ * @param {string} id Imported document.
+ * @param {string | null} statusId Status of the scope of the document, or null.
+ * @returns {Promise<ImportedDocument>} Document.
+ */
+export async function setImportedTrackingStatus(id: string, statusId: string | null): Promise<ImportedDocument> {
+  requirePro('facturation');
+  const document = await prisma.importedDocument.findUnique({ where: { id } });
+  if (!document) throw notFound('Document importé');
+  if (statusId) {
+    const status = await prisma.documentStatus.findUnique({ where: { id: statusId } });
+    if (!status || status.scope !== scopeOf(document.type)) throw notFound('Statut');
+  }
+  return prisma.importedDocument.update({ where: { id }, data: { trackingStatusId: statusId } });
 }

@@ -1158,7 +1158,15 @@ export type ImportedDocumentsQueryVariables = Exact<{
 }>;
 
 
-export type ImportedDocumentsQuery = { importedDocuments: Array<{ id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null }> };
+export type ImportedDocumentsQuery = { importedDocuments: Array<{ id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null }> };
+
+export type SetImportedDocumentTrackingStatusMutationVariables = Exact<{
+  id: string | number;
+  statusId?: string | number | null | undefined;
+}>;
+
+
+export type SetImportedDocumentTrackingStatusMutation = { setImportedDocumentTrackingStatus: boolean };
 
 export type ImportDocumentMutationVariables = Exact<{
   input: ImportedDocumentInput;
@@ -4403,9 +4411,20 @@ export const ImportedDocumentsDocument = new TypedDocumentString(`
     settled
     paid
     balance
+    trackingStatus {
+      id
+      name
+      color
+      category
+    }
   }
 }
     `) as unknown as TypedDocumentString<ImportedDocumentsQuery, ImportedDocumentsQueryVariables>;
+export const SetImportedDocumentTrackingStatusDocument = new TypedDocumentString(`
+    mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {
+  setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)
+}
+    `) as unknown as TypedDocumentString<SetImportedDocumentTrackingStatusMutation, SetImportedDocumentTrackingStatusMutationVariables>;
 export const ImportDocumentDocument = new TypedDocumentString(`
     mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {
   importDocument(input: $input, file: $file)

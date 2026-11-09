@@ -494,7 +494,18 @@ const ImportedDocumentsDocument = graphql(`
       settled
       paid
       balance
+      trackingStatus {
+        id
+        name
+        color
+        category
+      }
     }
+  }
+`);
+const SetImportedTrackingStatus = graphql(`
+  mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {
+    setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)
   }
 `);
 const ImportDocument = graphql(`
@@ -541,5 +552,8 @@ export function useImportedDocumentMutations() {
       async (variables: { id: string; input: ImportedDocumentInput; file: File | null }) => (await execute(UpdateImportedDocument, variables)).updateImportedDocument,
     ),
     remove: useAccountingMutation(async (id: string) => (await execute(DeleteImportedDocument, { id })).deleteImportedDocument),
+    setStatus: useAccountingMutation(
+      async (variables: { id: string; statusId: string | null }) => (await execute(SetImportedTrackingStatus, variables)).setImportedDocumentTrackingStatus,
+    ),
   };
 }
