@@ -1,0 +1,25 @@
+@layer app {
+  /* Sections of a settings tab as cards: a third of the width each, three side by side at most, fewer when that
+     would be narrower than their minimum (one on a phone); an incomplete row is centered, top-aligned. */
+  .grid {
+    --settings-card-min: 20rem;
+    --settings-gap: var(--mantine-spacing-lg);
+
+    /* Agencement */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+
+    /* Espacement */
+    gap: var(--settings-gap);
+
+    & > * {
+      /* Agencement */
+      flex: 0 1 calc((100% - 2 * var(--settings-gap)) / 3);
+
+      /* Dimension */
+      min-width: min(100%, var(--settings-card-min));
+    }
+  }
+}

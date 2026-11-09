@@ -1,5 +1,5 @@
 import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 
 const DEFAULT_WIDTH = 280;
 /** Below this width the sidebar is hidden entirely. */
@@ -14,10 +14,24 @@ function maxWidth(): number {
 }
 
 /**
+ * Width the content of an element misses: the most any of its parts is cut (a name ending with "…").
+ * @param {HTMLElement} element Element.
+ * @returns {number} Width, in pixels (with a little room).
+ */
+function hiddenWidth(element: HTMLElement): number {
+  let missing = 0;
+  for (const part of element.querySelectorAll<HTMLElement>('*')) {
+    if (part.clientWidth > 0 && part.scrollWidth > part.clientWidth) missing = Math.max(missing, part.scrollWidth - part.clientWidth);
+  }
+  return missing ? Math.ceil(missing) + 8 : 0;
+}
+
+/**
  * Sidebar width and open state, persisted, with a drag handle to resize it. Each window keeps its own: the last
  * change is what a new window starts with.
- * Dragging below the minimum hides the sidebar; dragging back reopens it.
- * @returns {object} Width, open state, toggles and the handle pointer handler.
+ * Dragging below the minimum hides the sidebar; dragging back reopens it; a double click on the handle gives it its
+ * minimum width, and at its minimum width the width of its content.
+ * @returns {object} Width, open state, toggles and the handle pointer and double click handlers.
  */
 export function useResizableSidebar() {
   const [width, setWidth] = useLocalStorage({ key: 'ordo.sidebar.width', sync: false, defaultValue: DEFAULT_WIDTH });
@@ -72,5 +86,19 @@ export function useResizableSidebar() {
     resizing,
     toggle: () => setOpened((current) => !current),
     onResizeStart,
+    /**
+     * Double click on the handle: the sidebar at its minimum width; already there, at the width of its content.
+     * @param {ReactMouseEvent<HTMLElement>} event Double click on the handle (inside the sidebar).
+     * @returns {void}
+     */
+    onResizeReset: (event: ReactMouseEvent<HTMLElement>) => {
+      const sidebar = event.currentTarget.parentElement;
+      if (opened && width <= MIN_SIDEBAR_WIDTH + 1 && sidebar) {
+        setWidth(Math.max(MIN_SIDEBAR_WIDTH, Math.min(maxWidth(), width + hiddenWidth(sidebar))));
+        return;
+      }
+      setOpened(true);
+      setWidth(MIN_SIDEBAR_WIDTH);
+    },
   };
 }

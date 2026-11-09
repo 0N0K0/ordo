@@ -110,6 +110,7 @@ export function AppLayout() {
                 aria-orientation="vertical"
                 aria-label="Redimensionner la barre latérale"
                 onPointerDown={sidebar.onResizeStart}
+                onDoubleClick={sidebar.onResizeReset}
               />
             )}
           </AppShell.Navbar>
