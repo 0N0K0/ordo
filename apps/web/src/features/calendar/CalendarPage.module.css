@@ -1,4 +1,23 @@
 @layer app {
+  /* Week and day: the page takes the height of the window left by the header and the margins of the app, the
+     calendar what its header and filters leave (never less than a readable height). */
+  .fill {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Dimension */
+    height: calc(100dvh - var(--app-shell-header-offset, 0rem) - 2 * var(--app-shell-padding, 0rem));
+
+    & > .calendar {
+      /* Agencement */
+      flex: 1;
+
+      /* Dimension */
+      min-height: 25rem;
+    }
+  }
+
   /* FullCalendar in the app's colors (light and dark). */
   .calendar {
     :global(.fc) {

@@ -503,8 +503,10 @@ export function CalendarPage() {
     }
   };
 
+  // The week and the day fill the window (scrolling in place); the month grows with its days.
+  const fill = view !== 'dayGridMonth';
   return (
-    <Stack gap="md">
+    <Stack gap="md" className={fill ? classes.fill : undefined}>
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="sm" wrap="nowrap">
           <Title order={1} size="h2">
@@ -653,8 +655,8 @@ export function CalendarPage() {
           initialDate={requestedDate ?? undefined}
           locale={frLocale}
           headerToolbar={false}
-          // The month grows with its days (every task shown); week and day scroll in place.
-          height={view === 'dayGridMonth' ? 'auto' : 'calc(100dvh - 250px)'}
+          // The month grows with its days (every task shown); week and day take the height left to the page.
+          height={fill ? '100%' : 'auto'}
           views={{ timeGrid: { dayMaxEventRows: allDayExpanded ? false : ALL_DAY_ROWS } }}
           allDayContent={() => (
             <Tooltip label={allDayExpanded ? 'Réduire la journée entière' : 'Développer la journée entière'}>
