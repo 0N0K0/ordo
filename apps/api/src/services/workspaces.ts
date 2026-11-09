@@ -1,8 +1,9 @@
 import { parseCookie } from 'cookie';
 import type { NextFunction, Request, Response } from 'express';
+import { readTaskColumnDefaults, taskColumnDefaultsSchema, type TaskColumnDefaults } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
-import type { NotificationSource, Workspace, WorkspaceKind } from '../generated/prisma/client';
+import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { currentWorkspace, runInWorkspace } from '../workspace-context';
 import { resolveCalendarId } from './calendars';
@@ -192,4 +193,24 @@ export async function deleteWorkspace(id: string): Promise<void> {
     }),
   );
   await unscopedPrisma.workspace.delete({ where: { id } });
+}
+
+/**
+ * Columns new task views of this workspace start with: chosen for it, else the app's.
+ * @returns {Promise<TaskColumnDefaults>} Order and hidden columns.
+ */
+export async function taskColumnDefaults(): Promise<TaskColumnDefaults> {
+  const workspace = await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspace().id }, select: { taskColumns: true } });
+  return readTaskColumnDefaults(workspace?.taskColumns);
+}
+
+/**
+ * Chooses the columns new task views of this workspace start with, or gives back the app's (null).
+ * @param {TaskColumnDefaults | null} input Order and hidden columns, or null.
+ * @returns {Promise<TaskColumnDefaults>} Columns now.
+ */
+export async function setTaskColumnDefaults(input: TaskColumnDefaults | null): Promise<TaskColumnDefaults> {
+  const columns = input ? parseInput(taskColumnDefaultsSchema, input) : null;
+  await unscopedPrisma.workspace.update({ where: { id: currentWorkspace().id }, data: { taskColumns: columns ?? Prisma.DbNull } });
+  return readTaskColumnDefaults(columns);
 }

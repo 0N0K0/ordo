@@ -2616,6 +2616,19 @@ export type MoveTaskTagMutationVariables = Exact<{
 
 export type MoveTaskTagMutation = { moveTaskTag: boolean };
 
+export type TaskColumnDefaultsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TaskColumnDefaultsQuery = { taskColumnDefaults: { columnOrder: Array<string>, hiddenColumns: Array<string> } };
+
+export type SetTaskColumnDefaultsMutationVariables = Exact<{
+  columnOrder?: Array<string> | string | null | undefined;
+  hiddenColumns?: Array<string> | string | null | undefined;
+}>;
+
+
+export type SetTaskColumnDefaultsMutation = { setTaskColumnDefaults: { columnOrder: Array<string>, hiddenColumns: Array<string> } };
+
 export type SetTasksClosedMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   closed: boolean;
@@ -6393,6 +6406,22 @@ export const MoveTaskTagDocument = new TypedDocumentString(`
   moveTaskTag(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveTaskTagMutation, MoveTaskTagMutationVariables>;
+export const TaskColumnDefaultsDocument = new TypedDocumentString(`
+    query TaskColumnDefaults {
+  taskColumnDefaults {
+    columnOrder
+    hiddenColumns
+  }
+}
+    `) as unknown as TypedDocumentString<TaskColumnDefaultsQuery, TaskColumnDefaultsQueryVariables>;
+export const SetTaskColumnDefaultsDocument = new TypedDocumentString(`
+    mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {
+  setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {
+    columnOrder
+    hiddenColumns
+  }
+}
+    `) as unknown as TypedDocumentString<SetTaskColumnDefaultsMutation, SetTaskColumnDefaultsMutationVariables>;
 export const SetTasksClosedDocument = new TypedDocumentString(`
     mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {
   setTasksClosed(ids: $ids, closed: $closed)

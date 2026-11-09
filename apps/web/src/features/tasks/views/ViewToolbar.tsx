@@ -1,11 +1,8 @@
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { arrayMove } from '@dnd-kit/sortable';
 import {
   ActionIcon,
   Badge,
   Button,
-  Checkbox,
   CloseButton,
   Group,
   Menu,
@@ -20,11 +17,9 @@ import {
 } from '@mantine/core';
 import {
   EVENT_PERIODS,
-  TASK_COLUMNS,
   TASK_GROUP_BY,
   TASK_SORT_KEYS,
   type EventPeriod,
-  type TaskColumn,
   type TaskGroupBy,
   type TaskSortKey,
   type TaskViewConfig,
@@ -37,7 +32,6 @@ import {
   DownloadSimpleIcon,
   FileCsvIcon,
   FilePdfIcon,
-  DotsSixVerticalIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
   PlusIcon,
@@ -45,9 +39,10 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import type { TaskContext } from '../use-task-context';
-import { COLUMN_LABELS, GROUP_BY_LABELS, LOCKED_COLUMNS, SORT_LABELS } from './columns-meta';
+import { GROUP_BY_LABELS, SORT_LABELS } from './columns-meta';
 import { FilterBuilder } from './FilterBuilder';
 import { countConditions } from './filter-meta';
+import { ColumnsPanel } from './ColumnsPanel';
 
 type Change = (change: (config: TaskViewConfig) => TaskViewConfig) => void;
 
@@ -163,85 +158,20 @@ function SortPanel({ sorting, onChange }: SortPanelProps) {
 }
 
 /**
- * Column of the visibility / order list, draggable.
- * @param {object} props Component props.
- * @param {TaskColumn} props.column Column.
- * @param {boolean} props.visible Whether it is shown.
- * @param {(visible: boolean) => void} props.onToggle Shows or hides it.
- * @returns {JSX.Element} Row.
- */
-function ColumnItem({ column, visible, onToggle }: { column: TaskColumn; visible: boolean; onToggle: (visible: boolean) => void }) {
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: column });
-  return (
-    <Group
-      ref={setNodeRef}
-      gap="xs"
-      wrap="nowrap"
-      style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-    >
-      <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${COLUMN_LABELS[column]}`} {...attributes} {...listeners} style={{ cursor: 'grab' }}>
-        <DotsSixVerticalIcon aria-hidden />
-      </ActionIcon>
-      <Checkbox
-        size="xs"
-        label={COLUMN_LABELS[column]}
-        checked={visible}
-        disabled={LOCKED_COLUMNS.includes(column)}
-        onChange={(event) => onToggle(event.currentTarget.checked)}
-      />
-    </Group>
-  );
-}
-
-/**
- * Column visibility and order.
+ * Column visibility and order of a view.
  * @param {object} props Component props.
  * @param {TaskViewConfig} props.config View configuration.
  * @param {Change} props.change Configuration updater.
  * @returns {JSX.Element} Panel.
  */
-function ColumnsPanel({ config, change }: { config: TaskViewConfig; change: Change }) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-  // Columns missing from a saved order (added later) go at the end.
-  const order = [...config.columnOrder, ...TASK_COLUMNS.filter((column) => !config.columnOrder.includes(column))];
-  const hidden = new Set(config.hiddenColumns);
-
-  /**
-   * Moves a dragged column.
-   * @param {DragEndEvent} event Drag event.
-   * @returns {void}
-   */
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    change((current) => ({
-      ...current,
-      columnOrder: arrayMove(order, order.indexOf(active.id as TaskColumn), order.indexOf(over.id as TaskColumn)),
-    }));
-  };
-
+function ViewColumnsPanel({ config, change }: { config: TaskViewConfig; change: Change }) {
   return (
     <ScrollArea.Autosize mah={420} type="auto">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <Stack gap={4} w={220}>
-            {order.map((column) => (
-              <ColumnItem
-                key={column}
-                column={column}
-                visible={!hidden.has(column)}
-                onToggle={(visible) =>
-                  change((current) => ({
-                    ...current,
-                    hiddenColumns: visible
-                      ? current.hiddenColumns.filter((item) => item !== column)
-                      : [...current.hiddenColumns, column],
-                  }))
-                }
-              />
-            ))}
-          </Stack>
-        </SortableContext>
-      </DndContext>
+      <ColumnsPanel
+        columnOrder={config.columnOrder}
+        hiddenColumns={config.hiddenColumns}
+        onChange={(columns) => change((current) => ({ ...current, ...columns }))}
+      />
     </ScrollArea.Autosize>
   );
 }
@@ -339,7 +269,7 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
           </Button>
         </Popover.Target>
         <Popover.Dropdown>
-          <ColumnsPanel config={config} change={change} />
+          <ViewColumnsPanel config={config} change={change} />
         </Popover.Dropdown>
       </Popover>
 
