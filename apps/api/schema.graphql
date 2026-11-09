@@ -1554,6 +1554,16 @@ type Mutation {
   renameMailFolder(accountId: ID!, name: String!, path: String!): String!
 
   """
+  Moves a folder among the folders of a parent (into that parent first when it is another one).
+  """
+  reorderDocumentFolder(id: ID!, index: Int!, parentId: ID): Boolean!
+
+  """
+  Moves a document among the documents of a folder (into that folder first when it is another one).
+  """
+  reorderLibraryDocument(folderId: ID, id: ID!, index: Int!): Boolean!
+
+  """
   Reports mails as spam (to the junk folder) or not (back to the inbox); returns the folder they are in.
   """
   reportMailSpam(accountId: ID!, folder: String!, spam: Boolean!, uids: [Int!]!): String!

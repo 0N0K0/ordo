@@ -169,6 +169,8 @@ type Documents = {
     "\n  mutation AddLibraryLink($folderId: ID, $title: String!, $url: String!, $note: String) {\n    addLibraryLink(folderId: $folderId, title: $title, url: $url, note: $note)\n  }\n": typeof types.AddLibraryLinkDocument,
     "\n  mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {\n    updateLibraryDocument(id: $id, title: $title, url: $url, note: $note, file: $file)\n  }\n": typeof types.UpdateLibraryDocumentDocument,
     "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n": typeof types.MoveLibraryDocumentsDocument,
+    "\n  mutation ReorderDocumentFolder($id: ID!, $parentId: ID, $index: Int!) {\n    reorderDocumentFolder(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.ReorderDocumentFolderDocument,
+    "\n  mutation ReorderLibraryDocument($id: ID!, $folderId: ID, $index: Int!) {\n    reorderLibraryDocument(id: $id, folderId: $folderId, index: $index)\n  }\n": typeof types.ReorderLibraryDocumentDocument,
     "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": typeof types.DeleteLibraryDocumentsDocument,
     "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": typeof types.WatchedMailAccountsDocument,
     "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": typeof types.WatchedUnreadMailsDocument,
@@ -519,6 +521,8 @@ const documents: Documents = {
     "\n  mutation AddLibraryLink($folderId: ID, $title: String!, $url: String!, $note: String) {\n    addLibraryLink(folderId: $folderId, title: $title, url: $url, note: $note)\n  }\n": types.AddLibraryLinkDocument,
     "\n  mutation UpdateLibraryDocument($id: ID!, $title: String!, $url: String, $note: String, $file: File) {\n    updateLibraryDocument(id: $id, title: $title, url: $url, note: $note, file: $file)\n  }\n": types.UpdateLibraryDocumentDocument,
     "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n": types.MoveLibraryDocumentsDocument,
+    "\n  mutation ReorderDocumentFolder($id: ID!, $parentId: ID, $index: Int!) {\n    reorderDocumentFolder(id: $id, parentId: $parentId, index: $index)\n  }\n": types.ReorderDocumentFolderDocument,
+    "\n  mutation ReorderLibraryDocument($id: ID!, $folderId: ID, $index: Int!) {\n    reorderLibraryDocument(id: $id, folderId: $folderId, index: $index)\n  }\n": types.ReorderLibraryDocumentDocument,
     "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": types.DeleteLibraryDocumentsDocument,
     "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": types.WatchedMailAccountsDocument,
     "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": types.WatchedUnreadMailsDocument,
@@ -1331,6 +1335,14 @@ export function graphql(source: "\n  mutation UpdateLibraryDocument($id: ID!, $t
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MoveLibraryDocuments($ids: [ID!]!, $folderId: ID) {\n    moveLibraryDocuments(ids: $ids, folderId: $folderId)\n  }\n"): typeof import('./graphql').MoveLibraryDocumentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ReorderDocumentFolder($id: ID!, $parentId: ID, $index: Int!) {\n    reorderDocumentFolder(id: $id, parentId: $parentId, index: $index)\n  }\n"): typeof import('./graphql').ReorderDocumentFolderDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ReorderLibraryDocument($id: ID!, $folderId: ID, $index: Int!) {\n    reorderLibraryDocument(id: $id, folderId: $folderId, index: $index)\n  }\n"): typeof import('./graphql').ReorderLibraryDocumentDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

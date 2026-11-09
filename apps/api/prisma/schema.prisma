@@ -778,6 +778,8 @@ model DocumentFolder {
   parent      DocumentFolder?   @relation("DocumentFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
   children    DocumentFolder[]  @relation("DocumentFolderTree")
   documents   LibraryDocument[]
+  /// Order among the folders of its parent (then by name).
+  position    Int               @default(0)
   createdAt   DateTime          @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
@@ -799,6 +801,8 @@ model LibraryDocument {
   attachmentId    String?             @unique
   attachment      Attachment?         @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
   note            String?
+  /// Order among the documents of its folder (then by title).
+  position        Int                 @default(0)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   /// Treasury entries it supports.

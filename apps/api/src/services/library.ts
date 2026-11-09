@@ -4,6 +4,7 @@ import type { DocumentFolder, LibraryDocument } from '../generated/prisma/client
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachmentData } from './attachments';
 import { zipFiles } from './zip';
+import { moveInOrder } from './ordering';
 
 /** Largest file of the library. */
 export const MAX_LIBRARY_BYTES = 25 * 1024 * 1024;
@@ -50,7 +51,67 @@ async function folderTree(folderId: string): Promise<string[]> {
  */
 export async function createFolder(name: string, parentId: string | null): Promise<DocumentFolder> {
   await assertFolder(parentId);
-  return prisma.documentFolder.create({ data: { name: parseInput(folderNameSchema, name), parentId } });
+  return prisma.documentFolder.create({ data: { name: parseInput(folderNameSchema, name), parentId, position: await nextFolderPosition(parentId) } });
+}
+
+/**
+ * Position after the last folder of a parent: where a folder created or moved in goes.
+ * @param {string | null} parentId Parent folder, or null at the root.
+ * @returns {Promise<number>} Position.
+ */
+async function nextFolderPosition(parentId: string | null): Promise<number> {
+  const { _max } = await prisma.documentFolder.aggregate({ where: { parentId }, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
+}
+
+/**
+ * Position after the last document of a folder: where a document added or moved in goes.
+ * @param {string | null} folderId Folder, or null at the root.
+ * @returns {Promise<number>} Position.
+ */
+async function nextDocumentPosition(folderId: string | null): Promise<number> {
+  const { _max } = await prisma.libraryDocument.aggregate({ where: { folderId }, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
+}
+
+/**
+ * Moves a folder among the folders of its parent (moved into that parent first when it is another one).
+ * @param {string} id Folder.
+ * @param {string | null} parentId Parent, or null at the root.
+ * @param {number} index Place among its siblings.
+ * @returns {Promise<void>}
+ */
+export async function reorderFolder(id: string, parentId: string | null, index: number): Promise<void> {
+  const folder = await prisma.documentFolder.findUnique({ where: { id }, select: { parentId: true } });
+  if (!folder) throw notFound('Dossier');
+  if ((folder.parentId ?? null) !== parentId) await moveFolder(id, parentId);
+  const siblings = await prisma.documentFolder.findMany({ where: { parentId }, orderBy: [{ position: 'asc' }, { name: 'asc' }], select: { id: true } });
+  const order = moveInOrder(
+    siblings.map((sibling) => sibling.id),
+    id,
+    index,
+  );
+  await prisma.$transaction(order.map((folderId, position) => prisma.documentFolder.update({ where: { id: folderId }, data: { position } })));
+}
+
+/**
+ * Moves a document among the documents of its folder (moved into that folder first when it is another one).
+ * @param {string} id Document.
+ * @param {string | null} folderId Folder, or null at the root.
+ * @param {number} index Place among the documents of the folder.
+ * @returns {Promise<void>}
+ */
+export async function reorderDocument(id: string, folderId: string | null, index: number): Promise<void> {
+  const document = await prisma.libraryDocument.findUnique({ where: { id }, select: { folderId: true } });
+  if (!document) throw notFound('Document');
+  if ((document.folderId ?? null) !== folderId) await moveDocuments([id], folderId);
+  const siblings = await prisma.libraryDocument.findMany({ where: { folderId }, orderBy: [{ position: 'asc' }, { title: 'asc' }], select: { id: true } });
+  const order = moveInOrder(
+    siblings.map((sibling) => sibling.id),
+    id,
+    index,
+  );
+  await prisma.$transaction(order.map((documentId, position) => prisma.libraryDocument.update({ where: { id: documentId }, data: { position } })));
 }
 
 /**
@@ -74,7 +135,8 @@ export async function moveFolder(id: string, parentId: string | null): Promise<D
   await assertFolder(id);
   await assertFolder(parentId);
   if (parentId && (await folderTree(id)).includes(parentId)) throw clientError('BAD_USER_INPUT', 'Un dossier ne peut pas aller dans lui-même ni dans l’un de ses sous-dossiers.');
-  return prisma.documentFolder.update({ where: { id }, data: { parentId } });
+  // Moved in: after the folders already there.
+  return prisma.documentFolder.update({ where: { id }, data: { parentId, position: await nextFolderPosition(parentId) } });
 }
 
 /**
@@ -109,7 +171,9 @@ export async function addFiles(folderId: string | null, files: File[]): Promise<
     const attachment = await prisma.attachment.create({ data: attachmentData(file.name, Buffer.from(await file.arrayBuffer())) });
     // The title is the name without its extension.
     const title = attachment.name.replace(/\.[^.]{1,8}$/, '') || attachment.name;
-    created.push(await prisma.libraryDocument.create({ data: { kind: 'FILE', title: title.slice(0, 200), attachmentId: attachment.id, folderId } }));
+    created.push(
+      await prisma.libraryDocument.create({ data: { kind: 'FILE', title: title.slice(0, 200), attachmentId: attachment.id, folderId, position: await nextDocumentPosition(folderId) } }),
+    );
   }
   return created;
 }
@@ -122,7 +186,7 @@ export async function addFiles(folderId: string | null, files: File[]): Promise<
  */
 export async function addLink(folderId: string | null, input: z.input<typeof linkSchema>): Promise<LibraryDocument> {
   await assertFolder(folderId);
-  return prisma.libraryDocument.create({ data: { ...parseInput(linkSchema, input), kind: 'LINK', folderId } });
+  return prisma.libraryDocument.create({ data: { ...parseInput(linkSchema, input), kind: 'LINK', folderId, position: await nextDocumentPosition(folderId) } });
 }
 
 /**
@@ -157,7 +221,16 @@ export async function updateDocument(id: string, input: { title: string; url?: s
  */
 export async function moveDocuments(ids: string[], folderId: string | null): Promise<void> {
   await assertFolder(folderId);
-  await prisma.libraryDocument.updateMany({ where: { id: { in: ids } }, data: { folderId } });
+  // Moved in: after the documents already there, in the order given.
+  const moving = await prisma.libraryDocument.findMany({ where: { id: { in: ids } }, select: { id: true, folderId: true } });
+  let position = await nextDocumentPosition(folderId);
+  await prisma.$transaction(
+    ids.flatMap((id) => {
+      const document = moving.find((item) => item.id === id);
+      if (!document || (document.folderId ?? null) === folderId) return [];
+      return [prisma.libraryDocument.update({ where: { id }, data: { folderId, position: position++ } })];
+    }),
+  );
 }
 
 /**
