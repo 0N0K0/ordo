@@ -16,6 +16,7 @@ import { describeLink, newLine, type LineValues } from './lines';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
 import { ContextForm, RelationForm } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
+import { projectOptions } from '../workspace/tree';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -210,7 +211,11 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const documentData = [...documentGroups].map(([group, items]) => ({ group, items }));
   // Projects of the entry or of its lines, archived ones only when chosen already.
   const chosenProjects = new Set([values.projectId, ...values.lines.map((line) => line.projectId)]);
-  const projectOptions = (workspace?.projects ?? []).filter((project) => !project.archived || chosenProjects.has(project.id)).map((project) => ({ value: project.id, label: project.title }));
+  // Each project with its full path: client › project › sub-project.
+  const projectChoices = projectOptions(
+    workspace,
+    (workspace?.projects ?? []).filter((project) => !project.archived || chosenProjects.has(project.id)),
+  );
   // Entries found to link: not this one, nor those already linked, nor split ones (linked through their lines).
   const linkable = (found ?? [])
     .filter((item) => item.id !== entry?.id && !values.linkedEntryIds.includes(item.id) && item.lines.length === 0)
@@ -355,7 +360,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             error={form.errors.clientId ?? form.errors.counterpartyId}
           />
         </WithCreate>
-        {!split && <Select label="Projet" clearable searchable data={projectOptions} {...form.getInputProps('projectId')} />}
+        {!split && <Select label="Projet" clearable searchable data={projectChoices} {...form.getInputProps('projectId')} />}
         <Textarea label="Note" autosize minRows={1} {...form.getInputProps('note')} />
 
         <Divider label="Répartition" labelPosition="left" />
@@ -389,7 +394,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           settings={settings}
           errors={form.errors}
           entryId={entry?.id ?? null}
-          projects={projectOptions}
+          projects={projectChoices}
           documentGroups={documentData}
           onCreateContext={(index) => {
             setContextLine(index);

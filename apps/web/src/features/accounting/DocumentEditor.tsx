@@ -65,6 +65,7 @@ import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from './recurring-form';
 import { FileLink } from '../files/FileLink';
 import { FilePreview } from '../files/FilePreview';
+import { projectOptions } from '../workspace/tree';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -324,7 +325,10 @@ function Editor({ document }: { document: AccountingDocument }) {
       children: (
         <TimeBillingForm
           projectId={values.projectId}
-          projects={(workspace?.projects ?? []).filter((project) => project.clientId === values.clientId || project.id === values.projectId).map((project) => ({ value: project.id, label: project.title }))}
+          projects={projectOptions(
+            workspace,
+            (workspace?.projects ?? []).filter((project) => project.clientId === values.clientId || project.id === values.projectId),
+          )}
           excludeIds={billedIds}
           start={values.serviceStart}
           end={values.serviceEnd}
@@ -510,7 +514,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   searchable
                   readOnly={readOnly}
                   placeholder="Aucun"
-                  data={projects.map((project) => ({ value: project.id, label: project.title }))}
+                  data={projectOptions(workspace, projects)}
                   {...form.getInputProps('projectId')}
                 />
                 <Select

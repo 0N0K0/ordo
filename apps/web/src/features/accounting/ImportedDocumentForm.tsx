@@ -28,6 +28,7 @@ import {
   type ImportedDocument,
 } from './documents-api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { projectOptions } from '../workspace/tree';
 
 interface FormValues extends Record<string, unknown> {
   type: AccountingDocumentType;
@@ -172,10 +173,7 @@ export function ImportedDocumentForm({
               clearable
               searchable
               placeholder="Aucun"
-              data={projects.map((project) => ({
-                value: project.id,
-                label: project.title,
-              }))}
+              data={projectOptions(workspace, projects)}
               {...form.getInputProps('projectId')}
             />
           ) : (
