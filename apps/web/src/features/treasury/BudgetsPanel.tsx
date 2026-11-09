@@ -234,6 +234,61 @@ export function BudgetsPanel() {
    * @returns {number} Amount (positive: used).
    */
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
+  /**
+   * Totals of the budgeted rows of a direction: budgets, actual and forecast movements used, what is left.
+   * @param {'IN' | 'OUT'} direction Money in or out.
+   * @returns {{ count: number, budget: number, actual: number, forecast: number, left: number }} Totals, in cents.
+   */
+  const totalOf = (direction: 'IN' | 'OUT') => {
+    const total = { count: 0, budget: 0, actual: 0, forecast: 0, left: 0 };
+    for (const row of budgeted) {
+      if ((row.categoryId ? directionOf.get(row.categoryId) : 'OUT') !== direction) continue;
+      const actual = used(row, 'actual');
+      const forecast = used(row, 'forecast');
+      total.count += 1;
+      total.budget += row.budget;
+      total.actual += actual;
+      total.forecast += forecast;
+      total.left += row.budget - actual - forecast;
+    }
+    return total;
+  };
+  const outTotal = totalOf('OUT');
+  const inTotal = totalOf('IN');
+  /**
+   * Total rows: money out and money in like their rows; the balance in money in minus money out, its "left" the gap
+   * with the planned balance (above zero: better than planned).
+   */
+  const totals: { label: string; kind: 'OUT' | 'IN' | 'BALANCE'; budget: number; actual: number; forecast: number; left: number }[] = [
+    ...(outTotal.count ? [{ label: 'Total sorties', kind: 'OUT' as const, ...outTotal }] : []),
+    ...(inTotal.count ? [{ label: 'Total entrées', kind: 'IN' as const, ...inTotal }] : []),
+    ...(outTotal.count && inTotal.count
+      ? [
+          {
+            label: 'Solde (entrées − sorties)',
+            kind: 'BALANCE' as const,
+            budget: inTotal.budget - outTotal.budget,
+            actual: inTotal.actual - outTotal.actual,
+            forecast: inTotal.forecast - outTotal.forecast,
+            // Money in beyond its budget and money out below its budget both make the balance better.
+            left: outTotal.left - inTotal.left,
+          },
+        ]
+      : []),
+  ];
+  /**
+   * A total as printed, with its color: signed for the balance; "left" like the rows (money out over budget in red,
+   * money in beyond its budget as a green surplus).
+   * @param {(typeof totals)[number]} total Total row.
+   * @param {'budget' | 'actual' | 'forecast' | 'left'} key Column.
+   * @returns {{ text: string, color?: string }} Cell.
+   */
+  const totalCell = (total: (typeof totals)[number], key: 'budget' | 'actual' | 'forecast' | 'left'): { text: string; color?: string } => {
+    const value = total[key];
+    if (total.kind === 'BALANCE') return { text: `${value > 0 ? '+' : ''}${money(value)}`, color: value < 0 ? 'red' : value > 0 ? 'green' : undefined };
+    if (key === 'left' && value < 0) return total.kind === 'IN' ? { text: `+${money(-value)}`, color: 'green' } : { text: money(value), color: 'red' };
+    return { text: money(value), color: key === 'forecast' ? 'dimmed' : undefined };
+  };
   const money = (amount: number) => formatMoney(Math.round(amount * 100));
   const keyCells = (row: { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null }) => (
     <>
@@ -309,6 +364,11 @@ export function BudgetsPanel() {
                   const forecast = used(row, 'forecast');
                   const left = row.budget - actual - forecast;
                   const ratio = row.budget ? ((actual + forecast) / row.budget) * 100 : 0;
+                  const actualRatio = row.budget ? (actual / row.budget) * 100 : 0;
+                  // Money in beyond its budget is good news; money out beyond it is not.
+                  const income = row.categoryId !== null && directionOf.get(row.categoryId) === 'IN';
+                  const over = left < 0;
+                  const barColor = income ? (ratio >= 100 ? 'green' : 'blue') : ratio > 100 ? 'red' : ratio > 80 ? 'orange' : 'blue';
                   return (
                     <Table.Tr key={`${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}>
                       {keyCells(row)}
@@ -317,14 +377,15 @@ export function BudgetsPanel() {
                       <Table.Td ta="right" c="dimmed">
                         {forecast ? money(forecast) : '—'}
                       </Table.Td>
-                      <Table.Td ta="right" c={left < 0 ? 'red' : undefined} fw={left < 0 ? 600 : undefined}>
-                        {money(left)}
+                      <Table.Td ta="right" c={over ? (income ? 'green' : 'red') : undefined} fw={over ? 600 : undefined}>
+                        {/* Income beyond its budget: what came in on top. */}
+                        {over && income ? `+${money(-left)}` : money(left)}
                       </Table.Td>
                       <Table.Td>
-                        <Tooltip label={`${Math.round(ratio)} % (réel ${Math.round(row.budget ? (actual / row.budget) * 100 : 0)} %)`}>
-                          <Progress.Root size="md" aria-label={`Utilisé à ${Math.round(ratio)} %`}>
-                            <Progress.Section value={Math.min(100, row.budget ? (actual / row.budget) * 100 : 0)} color={ratio > 100 ? 'red' : ratio > 80 ? 'orange' : 'blue'} />
-                            <Progress.Section value={Math.max(0, Math.min(100, ratio) - Math.min(100, row.budget ? (actual / row.budget) * 100 : 0))} color={ratio > 100 ? 'red.3' : 'blue.2'} />
+                        <Tooltip label={`${Math.round(ratio)} % (réel ${Math.round(actualRatio)} %)${over ? (income ? ' · au-delà du budget' : ' · budget dépassé') : ''}`}>
+                          <Progress.Root size="md" aria-label={`${income ? 'Reçu' : 'Utilisé'} à ${Math.round(ratio)} %`}>
+                            <Progress.Section value={Math.min(100, actualRatio)} color={barColor} />
+                            <Progress.Section value={Math.max(0, Math.min(100, ratio) - Math.min(100, actualRatio))} color={`${barColor}.3`} />
                           </Progress.Root>
                         </Tooltip>
                       </Table.Td>
@@ -332,6 +393,28 @@ export function BudgetsPanel() {
                   );
                 })}
               </Table.Tbody>
+              {/* Totals per direction, and the balance of money in minus money out. */}
+              <Table.Tfoot>
+                {totals.map((total) => (
+                  <Table.Tr
+                    key={total.label}
+                    // Totals stand out from the budgets: tinted in gray, the balance in the primary color.
+                    bg={total.kind === 'BALANCE' ? 'var(--mantine-primary-color-light)' : 'var(--mantine-color-gray-light)'}
+                    style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
+                  >
+                    <Table.Th colSpan={3}>{total.label}</Table.Th>
+                    {(['budget', 'actual', 'forecast', 'left'] as const).map((key) => {
+                      const cell = totalCell(total, key);
+                      return (
+                        <Table.Th key={key} ta="right" c={cell.color} style={{ whiteSpace: 'nowrap' }}>
+                          {cell.text}
+                        </Table.Th>
+                      );
+                    })}
+                    <Table.Th />
+                  </Table.Tr>
+                ))}
+              </Table.Tfoot>
             </Table>
           </Table.ScrollContainer>
         )}
