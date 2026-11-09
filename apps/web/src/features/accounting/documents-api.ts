@@ -42,6 +42,7 @@ graphql(`
       color
       category
     }
+    paymentMethods
     balance
     paid
     overdue

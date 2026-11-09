@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney } from '@ordo/shared';
-import { ArrowsClockwiseIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CoinsIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
@@ -12,6 +12,7 @@ import { openDepositForm } from './new-document';
 import { handleFileClick } from '../files/open-file';
 import { downloadUrl } from '../files/viewable';
 import { pdfUrl } from './document-pdf';
+import { openPaymentDialog } from './payment-dialog';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
 import { openSentDialog } from './sent-dialog';
 
@@ -126,7 +127,8 @@ interface OrdoRowProps {
 }
 
 /**
- * Row of a document made in Ordo; it opens the document, and a final one downloads its PDF.
+ * Row of a document made in Ordo; it opens the document; a final one records a payment (refund) while still due
+ * and downloads its PDF.
  * @param {OrdoRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
@@ -187,6 +189,19 @@ function OrdoRow({ document, showType, showClient, onOpen }: OrdoRowProps) {
         {/* A final document downloads its PDF; drafts have none yet. */}
         {document.status === 'FINAL' && (
           <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
+            {/* An invoice still due takes a payment, a credit note still to refund a refund. */}
+            {document.type !== 'QUOTE' && (document.balance ?? 0) > 0 && (
+              <Tooltip label={document.type === 'CREDIT_NOTE' ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  aria-label={`${document.type === 'CREDIT_NOTE' ? 'Remboursement' : 'Paiement'} de ${document.number}`}
+                  onClick={() => openPaymentDialog(document)}
+                >
+                  <CoinsIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            )}
             <Tooltip label="Télécharger le PDF">
               <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="subtle" color="gray" aria-label={`Télécharger ${document.number}`}>
                 <DownloadSimpleIcon aria-hidden />
