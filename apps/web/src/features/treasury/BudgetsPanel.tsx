@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Group, Modal, NumberInput, Paper, Progress, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Modal, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -40,7 +40,22 @@ interface BudgetValues extends Record<string, unknown> {
 }
 
 /**
- * Budget form: month, member (none: me), context (none: everyday), category, amount, repetition.
+ * Direction of a budget (that of its category): money out or in.
+ * @param {{ direction: string | undefined }} props Direction.
+ * @returns {JSX.Element | null} Badge.
+ */
+function DirectionBadge({ direction }: { direction: string | undefined }) {
+  if (!direction) return null;
+  return (
+    <Badge size="xs" variant="light" color={direction === 'IN' ? 'green' : 'red'}>
+      {direction === 'IN' ? 'Entrée' : 'Sortie'}
+    </Badge>
+  );
+}
+
+/**
+ * Budget form: money out or in, month, member (none: me), context (none: everyday), category of that direction,
+ * amount, repetition.
  * @param {{ budget?: TreasuryBudget, defaults?: Partial<BudgetValues>, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -65,6 +80,9 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   });
   const values = form.values;
   const me = members.find((member) => member.isMe);
+  // Money out or in: the direction of the category, unless chosen first (none chosen: money out).
+  const [chosenDirection, setDirection] = useState<'OUT' | 'IN' | null>(null);
+  const direction = chosenDirection ?? (categories.find((category) => category.id === values.categoryId)?.direction as 'OUT' | 'IN' | undefined) ?? 'OUT';
 
   return (
     <form
@@ -90,16 +108,38 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
             onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
             error={form.errors.month}
           />
-          <NumberInput label="Montant" required min={0} decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" {...form.getInputProps('amount')} />
+          <NumberInput
+            label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'}
+            required
+            min={0}
+            decimalScale={2}
+            decimalSeparator=","
+            thousandSeparator=" "
+            suffix=" €"
+            prefix={direction === 'OUT' ? '− ' : '+ '}
+            {...form.getInputProps('amount')}
+          />
         </SimpleGrid>
+        <SegmentedControl
+          fullWidth
+          aria-label="Sens du budget"
+          data={[
+            { value: 'OUT', label: 'Sorties (dépenses)' },
+            { value: 'IN', label: 'Entrées (recettes)' },
+          ]}
+          value={direction}
+          onChange={(value) => {
+            setDirection(value as 'OUT' | 'IN');
+            // A category of the other direction no longer fits.
+            if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
+          }}
+        />
         <Select
           label="Catégorie"
           required
           searchable
-          data={[
-            { group: 'Sorties', items: categoryOptions(categories, 'OUT') },
-            { group: 'Entrées', items: categoryOptions(categories, 'IN') },
-          ]}
+          data={categoryOptions(categories, direction)}
+          nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
           description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
           {...form.getInputProps('categoryId')}
         />
@@ -212,7 +252,17 @@ export function BudgetsPanel() {
         )}
       </Table.Td>
       <Table.Td>{row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT}</Table.Td>
-      <Table.Td>{row.categoryId ? (paths.get(row.categoryId) ?? '') : <Text c="dimmed">Sans catégorie</Text>}</Table.Td>
+      <Table.Td>
+        {row.categoryId ? (
+          // The direction of a budget is that of its category.
+          <Group gap={6} wrap="nowrap">
+            {paths.get(row.categoryId) ?? ''}
+            <DirectionBadge direction={directionOf.get(row.categoryId)} />
+          </Group>
+        ) : (
+          <Text c="dimmed">Sans catégorie</Text>
+        )}
+      </Table.Td>
     </>
   );
 
@@ -387,7 +437,11 @@ export function BudgetsPanel() {
                       )}
                     </Table.Td>
                     {keyCells(budget)}
-                    <Table.Td ta="right">{money(budget.amount)}</Table.Td>
+                    {/* Money out budgeted below zero, money in above. */}
+                    <Table.Td ta="right" c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'} style={{ whiteSpace: 'nowrap' }}>
+                      {directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}
+                      {money(budget.amount)}
+                    </Table.Td>
                     <Table.Td>
                       <Group gap={2} wrap="nowrap">
                         <Tooltip label="Modifier (et ses répétitions)">
