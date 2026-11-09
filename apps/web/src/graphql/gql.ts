@@ -315,6 +315,8 @@ type Documents = {
     "\n  mutation UpdateTreasuryEntry($id: ID!, $input: TreasuryEntryInput!) {\n    updateTreasuryEntry(id: $id, input: $input)\n  }\n": typeof types.UpdateTreasuryEntryDocument,
     "\n  mutation DeleteTreasuryEntry($id: ID!) {\n    deleteTreasuryEntry(id: $id)\n  }\n": typeof types.DeleteTreasuryEntryDocument,
     "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n": typeof types.RealizeTreasuryForecastDocument,
+    "\n  query InvoiceTreasuryCategories {\n    invoiceTreasuryCategories {\n      invoiceCategoryId\n      creditNoteCategoryId\n    }\n  }\n": typeof types.InvoiceTreasuryCategoriesDocument,
+    "\n  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {\n    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)\n  }\n": typeof types.SetInvoiceTreasuryCategoriesDocument,
     "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": typeof types.AddTreasuryMemberDocument,
     "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": typeof types.RemoveTreasuryMemberDocument,
     "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {\n    saveTreasuryRelation(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryRelationDocument,
@@ -663,6 +665,8 @@ const documents: Documents = {
     "\n  mutation UpdateTreasuryEntry($id: ID!, $input: TreasuryEntryInput!) {\n    updateTreasuryEntry(id: $id, input: $input)\n  }\n": types.UpdateTreasuryEntryDocument,
     "\n  mutation DeleteTreasuryEntry($id: ID!) {\n    deleteTreasuryEntry(id: $id)\n  }\n": types.DeleteTreasuryEntryDocument,
     "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n": types.RealizeTreasuryForecastDocument,
+    "\n  query InvoiceTreasuryCategories {\n    invoiceTreasuryCategories {\n      invoiceCategoryId\n      creditNoteCategoryId\n    }\n  }\n": types.InvoiceTreasuryCategoriesDocument,
+    "\n  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {\n    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)\n  }\n": types.SetInvoiceTreasuryCategoriesDocument,
     "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": types.AddTreasuryMemberDocument,
     "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": types.RemoveTreasuryMemberDocument,
     "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {\n    saveTreasuryRelation(id: $id, input: $input)\n  }\n": types.SaveTreasuryRelationDocument,
@@ -1911,6 +1915,14 @@ export function graphql(source: "\n  mutation DeleteTreasuryEntry($id: ID!) {\n 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n"): typeof import('./graphql').RealizeTreasuryForecastDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query InvoiceTreasuryCategories {\n    invoiceTreasuryCategories {\n      invoiceCategoryId\n      creditNoteCategoryId\n    }\n  }\n"): typeof import('./graphql').InvoiceTreasuryCategoriesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {\n    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)\n  }\n"): typeof import('./graphql').SetInvoiceTreasuryCategoriesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

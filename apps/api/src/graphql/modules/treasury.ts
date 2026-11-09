@@ -738,6 +738,13 @@ const PaymentInput = builder.inputType('DocumentPaymentInput', {
   }),
 });
 
+const InvoiceCategoriesRef = builder.objectRef<{ invoiceCategoryId: string | null; creditNoteCategoryId: string | null }>('InvoiceTreasuryCategories').implement({
+  fields: (t) => ({
+    invoiceCategoryId: t.exposeID('invoiceCategoryId', { nullable: true, description: 'Money in: payments of invoices.' }),
+    creditNoteCategoryId: t.exposeID('creditNoteCategoryId', { nullable: true, description: 'Money out: refunds of credit notes.' }),
+  }),
+});
+
 builder.queryFields((t) => ({
   treasuryMembers: t.prismaField({
     type: ['Contributor'],
@@ -790,6 +797,14 @@ builder.queryFields((t) => ({
       });
       const ids = late.filter((document) => (balances.get(document.id)?.balance ?? 0) > 0).map((document) => document.id);
       return prisma.accountingDocument.findMany({ ...query, where: { id: { in: ids } }, orderBy: [{ sentAt: 'asc' }, { number: 'asc' }] });
+    },
+  }),
+  invoiceTreasuryCategories: t.field({
+    type: InvoiceCategoriesRef,
+    description: 'Treasury categories of the payments of invoices and of the refunds of credit notes: the budgets they count in.',
+    resolve: async () => {
+      const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
+      return { invoiceCategoryId: company?.invoiceCategoryId ?? null, creditNoteCategoryId: company?.creditNoteCategoryId ?? null };
     },
   }),
   documentStatuses: t.prismaField({
@@ -1071,6 +1086,14 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {
       await treasury.deleteAccount(id);
+      return true;
+    },
+  }),
+  setInvoiceTreasuryCategories: t.boolean({
+    description: 'Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out); null: none.',
+    args: { invoiceCategoryId: t.arg.id(), creditNoteCategoryId: t.arg.id() },
+    resolve: async (_root, { invoiceCategoryId, creditNoteCategoryId }) => {
+      await settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null });
       return true;
     },
   }),

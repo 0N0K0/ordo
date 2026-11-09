@@ -347,7 +347,7 @@ export async function deleteDocument(id: string): Promise<void> {
   await prisma.accountingDocument.delete({ where: { id } });
 }
 
-export type Seller = Omit<CompanyProfile, 'id' | 'updatedAt'>;
+export type Seller = Omit<CompanyProfile, 'id' | 'updatedAt' | 'invoiceCategoryId' | 'creditNoteCategoryId'>;
 export type Buyer = Awaited<ReturnType<typeof buyerSnapshot>>;
 
 /**
@@ -356,7 +356,8 @@ export type Buyer = Awaited<ReturnType<typeof buyerSnapshot>>;
  */
 export async function sellerSnapshot(): Promise<Seller> {
   const company = await getCompanyProfile();
-  const { id: _id, updatedAt: _updatedAt, ...fields } = company;
+  // Treasury settings are no part of the documents.
+  const { id: _id, updatedAt: _updatedAt, invoiceCategoryId: _invoice, creditNoteCategoryId: _creditNote, ...fields } = company;
   return fields;
 }
 

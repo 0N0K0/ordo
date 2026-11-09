@@ -1327,46 +1327,52 @@ model WorkSchedule {
 
 /// The user's business, shown on the accounting documents (a single row).
 model CompanyProfile {
-  id                String    @id @default(cuid())
-  name              String    @default("")
-  contact           String?
+  id                   String            @id @default(cuid())
+  name                 String            @default("")
+  contact              String?
   /// Legal form (SASU, EURL, EI, micro-entreprise…).
-  legalForm         String?
+  legalForm            String?
   /// Share capital, as written ("1 000 €").
-  capital           String?
+  capital              String?
   /// Registration (RCS Paris 123 456 789, RM…).
-  registration      String?
-  siren             String?
-  siret             String?
-  activityCode      String?
-  vatNumber         String?
+  registration         String?
+  siren                String?
+  siret                String?
+  activityCode         String?
+  vatNumber            String?
   /// Off: "TVA non applicable" (franchise), no VAT on the documents.
-  vatApplicable     Boolean   @default(true)
+  vatApplicable        Boolean           @default(true)
   /// Mention printed when VAT does not apply.
-  vatExemptionText  String    @default("TVA non applicable, art. 293 B du CGI")
-  address           Json?
-  email             String?
-  phone             String?
-  website           String?
-  logoId            String?
-  bankName          String?
-  accountHolder     String?
-  iban              String?
-  bic               String?
+  vatExemptionText     String            @default("TVA non applicable, art. 293 B du CGI")
+  address              Json?
+  email                String?
+  phone                String?
+  website              String?
+  logoId               String?
+  bankName             String?
+  accountHolder        String?
+  iban                 String?
+  bic                  String?
   /// Defaults of new documents.
-  paymentTerms      String    @default("À 30 jours")
-  paymentDays       Int       @default(30)
-  paymentMethods    String    @default("Virement bancaire")
-  lateInterest      String    @default("Trois fois le taux d’intérêt légal")
+  paymentTerms         String            @default("À 30 jours")
+  paymentDays          Int               @default(30)
+  paymentMethods       String            @default("Virement bancaire")
+  lateInterest         String            @default("Trois fois le taux d’intérêt légal")
   /// Other mentions printed on every document.
-  otherMentions     String    @default("Pas d’escompte pour paiement anticipé.")
+  otherMentions        String            @default("Pas d’escompte pour paiement anticipé.")
   /// Label of the client's internal reference ("Référence dossier", "Bon de commande"…).
-  referenceLabel    String    @default("Référence dossier")
-  quoteValidityDays Int       @default(30)
-  updatedAt         DateTime  @updatedAt
+  referenceLabel       String            @default("Référence dossier")
+  quoteValidityDays    Int               @default(30)
+  updatedAt            DateTime          @updatedAt
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId       String    @unique @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out):
+  /// the budgets their expected and actual movements count in.
+  invoiceCategoryId    String?
+  invoiceCategory      TreasuryCategory? @relation("InvoiceCategory", fields: [invoiceCategoryId], references: [id], onDelete: SetNull)
+  creditNoteCategoryId String?
+  creditNoteCategory   TreasuryCategory? @relation("CreditNoteCategory", fields: [creditNoteCategoryId], references: [id], onDelete: SetNull)
+  workspaceId          String            @unique @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace            Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 enum AccountingDocumentType {
@@ -1901,19 +1907,22 @@ enum TreasuryDirection {
 
 /// Category of the treasury entries, for money in or out, possibly under a parent category of the same direction.
 model TreasuryCategory {
-  id          String              @id @default(cuid())
-  name        String
-  direction   TreasuryDirection
-  parentId    String?
-  parent      TreasuryCategory?   @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    TreasuryCategory[]  @relation("TreasuryCategoryTree")
-  createdAt   DateTime            @default(now())
-  entries     TreasuryEntry[]
-  lines       TreasuryEntryLine[]
-  budgets     TreasuryBudget[]
+  id                 String              @id @default(cuid())
+  name               String
+  direction          TreasuryDirection
+  parentId           String?
+  parent             TreasuryCategory?   @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children           TreasuryCategory[]  @relation("TreasuryCategoryTree")
+  createdAt          DateTime            @default(now())
+  entries            TreasuryEntry[]
+  lines              TreasuryEntryLine[]
+  budgets            TreasuryBudget[]
+  /// Invoicing settings giving it to the payments of invoices, or to the refunds of credit notes.
+  invoiceProfiles    CompanyProfile[]    @relation("InvoiceCategory")
+  creditNoteProfiles CompanyProfile[]    @relation("CreditNoteCategory")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId        String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
   @@index([workspaceId])

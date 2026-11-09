@@ -980,6 +980,14 @@ input ImportedDocumentInput {
   type: AccountingDocumentType!
 }
 
+type InvoiceTreasuryCategories {
+  """Money out: refunds of credit notes."""
+  creditNoteCategoryId: ID
+
+  """Money in: payments of invoices."""
+  invoiceCategoryId: ID
+}
+
 """Arbitrary JSON value, validated by the resolver that receives it."""
 scalar JSON
 
@@ -1623,6 +1631,11 @@ type Mutation {
   Sets the tracking status of an imported document by hand (none: clears it).
   """
   setImportedDocumentTrackingStatus(id: ID!, statusId: ID): Boolean!
+
+  """
+  Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out); null: none.
+  """
+  setInvoiceTreasuryCategories(creditNoteCategoryId: ID, invoiceCategoryId: ID): Boolean!
   setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
   setMailSignature(id: ID!, signature: String!): MailAccount!
 
@@ -1947,6 +1960,11 @@ type Query {
   Imported quotes and invoices, latest first, optionally of a client or a project.
   """
   importedDocuments(clientId: ID, projectId: ID): [ImportedDocument!]!
+
+  """
+  Treasury categories of the payments of invoices and of the refunds of credit notes: the budgets they count in.
+  """
+  invoiceTreasuryCategories: InvoiceTreasuryCategories!
 
   """
   Date (YYYY-MM-DD) of the latest document of a type, final or imported, `documentId` left out: none can be dated before.

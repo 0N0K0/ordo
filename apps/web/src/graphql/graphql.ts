@@ -2982,6 +2982,19 @@ export type RealizeTreasuryForecastMutationVariables = Exact<{
 
 export type RealizeTreasuryForecastMutation = { realizeTreasuryForecast: string };
 
+export type InvoiceTreasuryCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type InvoiceTreasuryCategoriesQuery = { invoiceTreasuryCategories: { invoiceCategoryId: string | null, creditNoteCategoryId: string | null } };
+
+export type SetInvoiceTreasuryCategoriesMutationVariables = Exact<{
+  invoiceCategoryId?: string | number | null | undefined;
+  creditNoteCategoryId?: string | number | null | undefined;
+}>;
+
+
+export type SetInvoiceTreasuryCategoriesMutation = { setInvoiceTreasuryCategories: boolean };
+
 export type AddTreasuryMemberMutationVariables = Exact<{
   contributorId?: string | number | null | undefined;
   name?: string | null | undefined;
@@ -6957,6 +6970,22 @@ export const RealizeTreasuryForecastDocument = new TypedDocumentString(`
   )
 }
     `) as unknown as TypedDocumentString<RealizeTreasuryForecastMutation, RealizeTreasuryForecastMutationVariables>;
+export const InvoiceTreasuryCategoriesDocument = new TypedDocumentString(`
+    query InvoiceTreasuryCategories {
+  invoiceTreasuryCategories {
+    invoiceCategoryId
+    creditNoteCategoryId
+  }
+}
+    `) as unknown as TypedDocumentString<InvoiceTreasuryCategoriesQuery, InvoiceTreasuryCategoriesQueryVariables>;
+export const SetInvoiceTreasuryCategoriesDocument = new TypedDocumentString(`
+    mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {
+  setInvoiceTreasuryCategories(
+    invoiceCategoryId: $invoiceCategoryId
+    creditNoteCategoryId: $creditNoteCategoryId
+  )
+}
+    `) as unknown as TypedDocumentString<SetInvoiceTreasuryCategoriesMutation, SetInvoiceTreasuryCategoriesMutationVariables>;
 export const AddTreasuryMemberDocument = new TypedDocumentString(`
     mutation AddTreasuryMember($contributorId: ID, $name: String) {
   addTreasuryMember(contributorId: $contributorId, name: $name)

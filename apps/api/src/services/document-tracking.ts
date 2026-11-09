@@ -270,12 +270,16 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
       throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });
     }
   }
-  // The usual category of payments, when it exists.
-  const category = await prisma.treasuryCategory.findFirst({
-    where: { name: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  });
+  // The category set for the payments of invoices (refunds of credit notes), else the usual one when it exists.
+  const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
+  const chosen = refund ? company?.creditNoteCategoryId : company?.invoiceCategoryId;
+  const category = chosen
+    ? { id: chosen }
+    : await prisma.treasuryCategory.findFirst({
+        where: { name: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
   await prisma.treasuryEntry.create({
     data: {
       accountId: payment.accountId,

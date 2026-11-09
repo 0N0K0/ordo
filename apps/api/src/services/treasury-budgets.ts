@@ -4,6 +4,7 @@ import type { TreasuryBudget } from '../generated/prisma/client';
 import { Prisma } from '../generated/prisma/client';
 import { notFound, parseInput } from '../graphql/errors';
 import { storedRecurrence } from './calendar-events';
+import { treasuryProjection } from './treasury';
 
 /** Key of a budget or of what it compares with: member or relation, context (null: everyday), category. */
 interface Key {
@@ -94,13 +95,14 @@ function lastDay(month: string): string {
  * Budgets of a range of months compared with the actual and forecast movements (loans left out): each line of a split entry (for
  * its relation, or its member; a line without either is the app user's), and what the lines leave or a whole entry without lines (the app
  * user's, in the context planned on its day), counts in the budget of its month, member and context for its
- * category or the closest parent category that has one; without one, it is out of budget.
+ * category or the closest parent category that has one; without one, it is out of budget. What is expected of
+ * the invoices and credit notes counts as forecast in the categories set for them (invoicing settings).
  * @param {string} from First month (YYYY-MM).
  * @param {string} to Last month (YYYY-MM).
  * @param {string | null} meId Contributor of the app user.
  * @returns {Promise<BudgetReportRow[]>} Rows: budgets first, then what is out of budget.
  */
-export async function budgetReport(from: string, to: string, meId: string | null): Promise<BudgetReportRow[]> {
+export async function budgetReport(from: string, to: string, meId: string | null, today: string = formatDay(new Date())): Promise<BudgetReportRow[]> {
   const me = meId ?? 'me';
   const [budgets, categories, periods] = await Promise.all([
     prisma.treasuryBudget.findMany({ where: { month: { lte: parseDay(`${to}-01`) } } }),
@@ -189,6 +191,17 @@ export async function budgetReport(from: string, to: string, meId: string | null
       );
       // What the lines leave, or the whole entry: the app user's, in the context planned that day.
       add(day, { memberId: me, relationId: null, contextId: plannedContext(planned, day), categoryId: lines.length ? null : entry.categoryId }, remainder, kind);
+    }
+  }
+  // What is expected of the invoices (due on final and imported ones, coming recurring ones) and credit notes, in
+  // the categories set for them: forecast of the app user, in the context planned that day (overdue: today).
+  const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
+  if (today <= lastDay(to)) {
+    const { items } = await treasuryProjection(today, today, lastDay(to));
+    for (const item of items) {
+      if (item.kind === 'FORECAST' || item.kind === 'ACTUAL') continue;
+      const categoryId = item.amount < 0 ? (company?.creditNoteCategoryId ?? null) : (company?.invoiceCategoryId ?? null);
+      add(item.date, { memberId: me, relationId: null, contextId: plannedContext(planned, item.date), categoryId }, item.amount, 'forecast');
     }
   }
   return [...rows.values()].sort((a, b) => a.month.localeCompare(b.month) || Number(b.budgeted) - Number(a.budgeted));
