@@ -6,6 +6,7 @@ import type { NotificationSource, Workspace, WorkspaceKind } from '../generated/
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { currentWorkspace, runInWorkspace } from '../workspace-context';
 import { resolveCalendarId } from './calendars';
+import { ensureDocumentStatuses } from './document-statuses';
 
 /** Cookie (and header) naming the workspace the app shows. */
 export const WORKSPACE_COOKIE = 'ordo_workspace';
@@ -17,17 +18,6 @@ const workspaceInputSchema = z.object({
   name: z.string().trim().min(1, 'Nom requis.').max(60, '60 caractères au plus.'),
   kind: z.enum(['PRO', 'PERSO']),
 });
-
-/** Tracking statuses of the documents, given to every professional workspace. */
-const DEFAULT_DOCUMENT_STATUSES = [
-  { scope: 'QUOTE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND', position: 0 },
-  { scope: 'QUOTE', name: 'Envoyé', color: '#228be6', category: 'SENT', position: 1 },
-  { scope: 'QUOTE', name: 'Accepté', color: '#40c057', category: 'ACCEPTED', position: 2 },
-  { scope: 'QUOTE', name: 'Refusé', color: '#fa5252', category: 'REFUSED', position: 3 },
-  { scope: 'INVOICE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND', position: 0 },
-  { scope: 'INVOICE', name: 'Envoyée', color: '#228be6', category: 'SENT', position: 1 },
-  { scope: 'INVOICE', name: 'Payée', color: '#40c057', category: 'PAID', position: 2 },
-] as const;
 
 /**
  * Workspaces, in the order of the switcher.
@@ -122,9 +112,8 @@ async function setUpWorkspace(workspace: Workspace): Promise<void> {
   await runInWorkspace(workspace, async () => {
     for (const user of await unscopedPrisma.user.findMany({ select: { id: true, username: true } })) await ensureMeContributor(user);
     await resolveCalendarId();
-    if (workspace.kind === 'PRO' && (await prisma.documentStatus.count()) === 0) {
-      await prisma.documentStatus.createMany({ data: DEFAULT_DOCUMENT_STATUSES.map((status) => ({ ...status })) });
-    }
+    // Every category of the tracking gets a status, those already there kept.
+    if (workspace.kind === 'PRO') await ensureDocumentStatuses();
   });
 }
 
