@@ -37,12 +37,12 @@ builder.prismaObject('LibraryDocument', {
 builder.queryFields((t) => ({
   documentFolders: t.prismaField({
     type: ['DocumentFolder'],
-    resolve: (query) => prisma.documentFolder.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.documentFolder.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
   }),
   libraryDocuments: t.prismaField({
     type: ['LibraryDocument'],
     description: 'Every document of the library (content of the files left out).',
-    resolve: (query) => prisma.libraryDocument.findMany({ ...query, orderBy: { title: 'asc' } }),
+    resolve: (query) => prisma.libraryDocument.findMany({ ...query, orderBy: [{ position: 'asc' }, { title: 'asc' }] }),
   }),
 }));
 
@@ -92,6 +92,22 @@ builder.mutationFields((t) => ({
     args: { ids: t.arg.idList({ required: true }), folderId: t.arg.id() },
     resolve: async (_root, { ids, folderId }) => {
       await library.moveDocuments(ids, folderId ?? null);
+      return true;
+    },
+  }),
+  reorderDocumentFolder: t.boolean({
+    description: 'Moves a folder among the folders of a parent (into that parent first when it is another one).',
+    args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, parentId, index }) => {
+      await library.reorderFolder(id, parentId ?? null, index);
+      return true;
+    },
+  }),
+  reorderLibraryDocument: t.boolean({
+    description: 'Moves a document among the documents of a folder (into that folder first when it is another one).',
+    args: { id: t.arg.id({ required: true }), folderId: t.arg.id(), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, folderId, index }) => {
+      await library.reorderDocument(id, folderId ?? null, index);
       return true;
     },
   }),

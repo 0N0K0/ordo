@@ -70,6 +70,16 @@ const MoveDocuments = graphql(`
     moveLibraryDocuments(ids: $ids, folderId: $folderId)
   }
 `);
+const ReorderFolder = graphql(`
+  mutation ReorderDocumentFolder($id: ID!, $parentId: ID, $index: Int!) {
+    reorderDocumentFolder(id: $id, parentId: $parentId, index: $index)
+  }
+`);
+const ReorderDocument = graphql(`
+  mutation ReorderLibraryDocument($id: ID!, $folderId: ID, $index: Int!) {
+    reorderLibraryDocument(id: $id, folderId: $folderId, index: $index)
+  }
+`);
 const DeleteDocuments = graphql(`
   mutation DeleteLibraryDocuments($ids: [ID!]!) {
     deleteLibraryDocuments(ids: $ids)
@@ -113,7 +123,18 @@ export function useLibraryMutations() {
     ),
     move: useLibraryMutation(async (variables: { ids: string[]; folderId: string | null }) => (await execute(MoveDocuments, variables)).moveLibraryDocuments),
     remove: useLibraryMutation(async (ids: string[]) => (await execute(DeleteDocuments, { ids })).deleteLibraryDocuments),
+    reorderFolder: useLibraryMutation(async (variables: { id: string; parentId: string | null; index: number }) => (await execute(ReorderFolder, variables)).reorderDocumentFolder),
+    reorderDocument: useLibraryMutation(async (variables: { id: string; folderId: string | null; index: number }) => (await execute(ReorderDocument, variables)).reorderLibraryDocument),
   };
+}
+
+/**
+ * Shows a new order of the library at once (a drag and drop), before the server confirms it.
+ * @returns {(change: (library: LibraryQuery) => LibraryQuery) => void} Updater of the library in cache.
+ */
+export function useLibraryOptimism() {
+  const queryClient = useQueryClient();
+  return (change: (library: LibraryQuery) => LibraryQuery) => queryClient.setQueryData<LibraryQuery>(libraryKey, (library) => (library ? change(library) : library));
 }
 
 /**

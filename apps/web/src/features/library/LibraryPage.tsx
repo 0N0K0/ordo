@@ -9,7 +9,6 @@ import {
   Grid,
   Group,
   Menu,
-  NavLink,
   Paper,
   Skeleton,
   Stack,
@@ -44,10 +43,14 @@ import { useState, type DragEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useLibrary, useLibraryMutations, zipUrl, type DocumentFolder, type LibraryDocument } from './api';
+import { useLibrary, useLibraryMutations, useLibraryOptimism, zipUrl, type DocumentFolder, type LibraryDocument } from './api';
 import { folderPaths, folderSubtree } from './folders';
 import { DocumentForm, FolderNameForm, LinkForm, MoveForm } from './LibraryForms';
 import { openFile } from '../files/open-file';
+import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { dndId, libraryCollision } from './library-dnd';
+import { DroppableFolderLink, SortableRow } from './LibraryDnd';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -150,14 +153,15 @@ interface FolderTreeProps {
 function FolderTree({ folders, parentId, current, open, onSelect, counts }: FolderTreeProps) {
   return (
     <>
+      {/* In the order of the library (chosen by drag and drop). */}
       {folders
         .filter((folder) => folder.parentId === parentId)
-        .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
         .map((folder) => {
           const children = folders.some((item) => item.parentId === folder.id);
           return (
-            <NavLink
+            <DroppableFolderLink
               key={folder.id}
+              folderId={folder.id}
               label={folder.name}
               leftSection={<FolderIcon aria-hidden weight={folder.id === current ? 'fill' : 'regular'} />}
               rightSection={
@@ -172,7 +176,7 @@ function FolderTree({ folders, parentId, current, open, onSelect, counts }: Fold
               disableRightSectionRotation
             >
               {children ? <FolderTree folders={folders} parentId={folder.id} current={current} open={open} onSelect={onSelect} counts={counts} /> : undefined}
-            </NavLink>
+            </DroppableFolderLink>
           );
         })}
     </>
@@ -182,7 +186,8 @@ function FolderTree({ folders, parentId, current, open, onSelect, counts }: Fold
 /**
  * Document library: global documents (Kbis, logo, statutes, certificates…), files or links to a cloud, in
  * nested folders; added (several files at once, by drag and drop too), shown, downloaded alone or as a ZIP,
- * edited, moved, deleted. The open folder is kept in the URL (?folder=).
+ * edited, moved, deleted; folders and documents reordered, and moved into folders, by drag and drop. The open
+ * folder is kept in the URL (?folder=).
  * @returns {JSX.Element} Page.
  */
 export function LibraryPage() {
@@ -215,7 +220,7 @@ export function LibraryPage() {
   for (const document of documents) counts.set(document.folderId ?? null, (counts.get(document.folderId ?? null) ?? 0) + 1);
 
   const query = search.trim().toLowerCase();
-  const subfolders = query ? [] : folders.filter((folder) => folder.parentId === current).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const subfolders = query ? [] : folders.filter((folder) => folder.parentId === current);
   const shown = query
     ? documents.filter((document) => [document.title, document.fileName, document.note].some((value) => value?.toLowerCase().includes(query)))
     : documents.filter((document) => (document.folderId ?? null) === current);
@@ -372,6 +377,72 @@ export function LibraryPage() {
     </Group>
   );
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const showAtOnce = useLibraryOptimism();
+  const onMoveError = (moveError: Error) => notifyError(moveError.message);
+
+  /**
+   * Drop of a dragged folder or document: reordered among those of its kind in the open folder, or moved into a
+   * folder (of the tree, or of the list for documents; the selected documents go together).
+   * @param {DragEndEvent} event Drag end.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const dragged = dndId(active.id);
+    const target = dndId(over.id);
+    const into = target.kind === 'tree' ? (target.id === 'root' ? null : target.id) : target.kind === 'folder' && dragged.kind === 'doc' ? target.id : undefined;
+
+    if (dragged.kind === 'doc' && into !== undefined) {
+      if (into === current) return;
+      const ids = selected.has(dragged.id) ? [...selected] : [dragged.id];
+      showAtOnce((library) => {
+        const moved = library.libraryDocuments.filter((document) => ids.includes(document.id)).map((document) => ({ ...document, folderId: into }));
+        return { ...library, libraryDocuments: [...library.libraryDocuments.filter((document) => !ids.includes(document.id)), ...moved] };
+      });
+      setSelected(new Set());
+      mutations.move.mutate(
+        { ids, folderId: into },
+        { onSuccess: () => notifySuccess(`${ids.length > 1 ? `${ids.length} documents déplacés` : 'Document déplacé'}.`), onError: onMoveError },
+      );
+      return;
+    }
+    if (dragged.kind === 'doc' && target.kind === 'doc') {
+      const order = shown.map((document) => document.id);
+      const index = order.indexOf(target.id);
+      showAtOnce((library) => {
+        const inFolder = arrayMove(order, order.indexOf(dragged.id), index).map((id) => library.libraryDocuments.find((document) => document.id === id)!);
+        return { ...library, libraryDocuments: [...library.libraryDocuments.filter((document) => !order.includes(document.id)), ...inFolder] };
+      });
+      mutations.reorderDocument.mutate({ id: dragged.id, folderId: current, index }, { onError: onMoveError });
+      return;
+    }
+    if (dragged.kind === 'folder' && target.kind === 'tree') {
+      const parentId = target.id === 'root' ? null : target.id;
+      const folder = folders.find((item) => item.id === dragged.id);
+      if (!folder || (folder.parentId ?? null) === parentId) return;
+      if (parentId && folderSubtree(folders, folder.id).has(parentId)) {
+        notifyError('Un dossier ne peut pas aller dans lui-même ni dans l’un de ses sous-dossiers.');
+        return;
+      }
+      showAtOnce((library) => ({
+        ...library,
+        documentFolders: [...library.documentFolders.filter((item) => item.id !== folder.id), { ...folder, parentId }],
+      }));
+      mutations.moveFolder.mutate({ id: folder.id, parentId }, { onSuccess: () => notifySuccess('Dossier déplacé.'), onError: onMoveError });
+      return;
+    }
+    if (dragged.kind === 'folder' && target.kind === 'folder') {
+      const order = subfolders.map((folder) => folder.id);
+      const index = order.indexOf(target.id);
+      showAtOnce((library) => {
+        const level = arrayMove(order, order.indexOf(dragged.id), index).map((id) => library.documentFolders.find((folder) => folder.id === id)!);
+        return { ...library, documentFolders: [...library.documentFolders.filter((folder) => !order.includes(folder.id)), ...level] };
+      });
+      mutations.reorderFolder.mutate({ id: dragged.id, parentId: current, index }, { onError: onMoveError });
+    }
+  };
+
   const trail: DocumentFolder[] = [];
   for (let folder = folders.find((item) => item.id === current); folder; folder = folders.find((item) => item.id === folder!.parentId)) trail.unshift(folder);
 
@@ -425,10 +496,12 @@ export function LibraryPage() {
       ) : isPending ? (
         <Skeleton height={320} />
       ) : (
+        <DndContext sensors={sensors} collisionDetection={libraryCollision} onDragEnd={handleDragEnd}>
         <Grid gap="md">
           <Grid.Col span={{ base: 12, md: 3 }}>
             <Paper withBorder radius="md" p="xs">
-              <NavLink
+              <DroppableFolderLink
+                folderId={null}
                 label="Documents"
                 leftSection={<FolderIcon aria-hidden weight={current === null ? 'fill' : 'regular'} />}
                 rightSection={
@@ -555,6 +628,7 @@ export function LibraryPage() {
                   <Table verticalSpacing="xs" highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
+                        <Table.Th w={32} />
                         <Table.Th w={40}>
                           <Checkbox
                             aria-label="Tout sélectionner"
@@ -571,11 +645,12 @@ export function LibraryPage() {
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
+                      <SortableContext items={subfolders.map((folder) => `folder:${folder.id}`)} strategy={verticalListSortingStrategy}>
                       {subfolders.map((folder) => {
                         const inside = folderSubtree(folders, folder.id);
                         const count = documents.filter((document) => document.folderId && inside.has(document.folderId)).length;
                         return (
-                          <Table.Tr key={folder.id} onClick={() => select(folder.id)} style={{ cursor: 'pointer' }}>
+                          <SortableRow key={folder.id} id={`folder:${folder.id}`} label={`le dossier ${folder.name}`} onClick={() => select(folder.id)} style={{ cursor: 'pointer' }}>
                             <Table.Td />
                             <Table.Td>
                               <Group gap="sm" wrap="nowrap">
@@ -596,11 +671,20 @@ export function LibraryPage() {
                             <Table.Td>
                               <Group justify="flex-end">{folderMenu(folder)}</Group>
                             </Table.Td>
-                          </Table.Tr>
+                          </SortableRow>
                         );
                       })}
+                      </SortableContext>
+                      <SortableContext items={shown.map((document) => `doc:${document.id}`)} strategy={verticalListSortingStrategy}>
                       {shown.map((document) => (
-                        <Table.Tr key={document.id} bg={selected.has(document.id) ? 'var(--mantine-primary-color-light)' : undefined}>
+                        // Search results come from several folders: no order to change there.
+                        <SortableRow
+                          key={document.id}
+                          id={`doc:${document.id}`}
+                          label={document.title}
+                          disabled={Boolean(query)}
+                          bg={selected.has(document.id) ? 'var(--mantine-primary-color-light)' : undefined}
+                        >
                           <Table.Td>
                             <Checkbox
                               aria-label={`Sélectionner ${document.title}`}
@@ -645,18 +729,21 @@ export function LibraryPage() {
                             </Text>
                           </Table.Td>
                           <Table.Td>{documentActions(document)}</Table.Td>
-                        </Table.Tr>
+                        </SortableRow>
                       ))}
+                      </SortableContext>
                     </Table.Tbody>
                   </Table>
                 )}
               </Paper>
               <Text size="xs" c="dimmed">
-                Fichiers de 25 Mo au plus. Glissez-déposez des fichiers sur la liste pour les ajouter au dossier ouvert.
+                Fichiers de 25 Mo au plus. Glissez-déposez des fichiers sur la liste pour les ajouter au dossier ouvert. Réordonnez dossiers et documents par leur poignée ;
+                déposez un document sur un dossier, ou un dossier dans l’arborescence, pour l’y ranger.
               </Text>
             </Stack>
           </Grid.Col>
         </Grid>
+        </DndContext>
       )}
     </Stack>
   );

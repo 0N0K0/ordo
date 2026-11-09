@@ -1950,6 +1950,24 @@ export type MoveLibraryDocumentsMutationVariables = Exact<{
 
 export type MoveLibraryDocumentsMutation = { moveLibraryDocuments: boolean };
 
+export type ReorderDocumentFolderMutationVariables = Exact<{
+  id: string | number;
+  parentId?: string | number | null | undefined;
+  index: number;
+}>;
+
+
+export type ReorderDocumentFolderMutation = { reorderDocumentFolder: boolean };
+
+export type ReorderLibraryDocumentMutationVariables = Exact<{
+  id: string | number;
+  folderId?: string | number | null | undefined;
+  index: number;
+}>;
+
+
+export type ReorderLibraryDocumentMutation = { reorderLibraryDocument: boolean };
+
 export type DeleteLibraryDocumentsMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
 }>;
@@ -5457,6 +5475,16 @@ export const MoveLibraryDocumentsDocument = new TypedDocumentString(`
   moveLibraryDocuments(ids: $ids, folderId: $folderId)
 }
     `) as unknown as TypedDocumentString<MoveLibraryDocumentsMutation, MoveLibraryDocumentsMutationVariables>;
+export const ReorderDocumentFolderDocument = new TypedDocumentString(`
+    mutation ReorderDocumentFolder($id: ID!, $parentId: ID, $index: Int!) {
+  reorderDocumentFolder(id: $id, parentId: $parentId, index: $index)
+}
+    `) as unknown as TypedDocumentString<ReorderDocumentFolderMutation, ReorderDocumentFolderMutationVariables>;
+export const ReorderLibraryDocumentDocument = new TypedDocumentString(`
+    mutation ReorderLibraryDocument($id: ID!, $folderId: ID, $index: Int!) {
+  reorderLibraryDocument(id: $id, folderId: $folderId, index: $index)
+}
+    `) as unknown as TypedDocumentString<ReorderLibraryDocumentMutation, ReorderLibraryDocumentMutationVariables>;
 export const DeleteLibraryDocumentsDocument = new TypedDocumentString(`
     mutation DeleteLibraryDocuments($ids: [ID!]!) {
   deleteLibraryDocuments(ids: $ids)
