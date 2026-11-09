@@ -372,7 +372,14 @@ function tableColumns(
     { key: 'unit', label: 'Unité', width: 52, align: 'left' },
     { key: 'price', label: 'PU HT', width: 72, align: 'right' },
     ...(discounts
-      ? [{ key: 'discount', label: 'Remise', width: 66, align: 'right' } as const]
+      ? [
+          {
+            key: 'discount',
+            label: 'Remise',
+            width: 66,
+            align: 'right',
+          } as const,
+        ]
       : []),
     ...(vatApplicable
       ? [{ key: 'vat', label: 'TVA', width: 40, align: 'right' } as const]
@@ -444,8 +451,7 @@ function writeLines(
     const titleColumn = columns[0];
     const textWidth =
       (line.kind === 'TEXT' ? width : titleColumn.width) - 2 * pad;
-    const notes =
-      line.kind === 'DISBURSEMENT' ? ['Débours, hors TVA'] : [];
+    const notes = line.kind === 'DISBURSEMENT' ? ['Débours, hors TVA'] : [];
 
     const measure = () => {
       doc
@@ -616,7 +622,10 @@ function writeTotals(
       .font(row.strong ? 'bold' : 'regular')
       .fontSize(row.strong ? 10.5 : 9)
       .fillColor(row.strong ? COLORS.text : COLORS.muted);
-    doc.text(row.label, x + TOTALS.inset, y, { width: width - 100, lineBreak: false });
+    doc.text(row.label, x + TOTALS.inset, y, {
+      width: width - 100,
+      lineBreak: false,
+    });
     doc.fillColor(COLORS.text).text(row.value, x + width - 100, y, {
       width: 100 - TOTALS.inset,
       align: 'right',
@@ -659,7 +668,11 @@ function sectionHeight(doc: Doc, section: Section, width: number): number {
   for (const line of section.lines) {
     // The label is bold: measured so, as one text with its value.
     doc.font(line.label ? 'bold' : 'regular').fontSize(8);
-    height += doc.heightOfString(line.label ? `${line.label} : ${line.value}` : line.value, { width, lineGap: SECTION_LINE_GAP }) + 3;
+    height +=
+      doc.heightOfString(
+        line.label ? `${line.label} : ${line.value}` : line.value,
+        { width, lineGap: SECTION_LINE_GAP },
+      ) + 3;
   }
   return height;
 }
@@ -673,16 +686,39 @@ function sectionHeight(doc: Doc, section: Section, width: number): number {
  * @param {number} width Width.
  * @returns {number} Bottom.
  */
-function drawSection(doc: Doc, section: Section, x: number, top: number, width: number): number {
-  doc.font('bold').fontSize(8.5).fillColor(COLORS.accent).text(section.title, x, top, { width });
+function drawSection(
+  doc: Doc,
+  section: Section,
+  x: number,
+  top: number,
+  width: number,
+): number {
+  doc
+    .font('bold')
+    .fontSize(8.5)
+    .fillColor(COLORS.accent)
+    .text(section.title, x, top, { width });
   let y = top + 13;
   for (const line of section.lines) {
     doc.fontSize(8);
     if (line.label) {
-      doc.font('bold').fillColor(COLORS.text).text(`${line.label} : `, x, y, { width, lineGap: SECTION_LINE_GAP, continued: true });
-      doc.font('regular').fillColor(COLORS.muted).text(line.value, { width, lineGap: SECTION_LINE_GAP });
+      doc
+        .font('bold')
+        .fillColor(COLORS.text)
+        .text(`${line.label} : `, x, y, {
+          width,
+          lineGap: SECTION_LINE_GAP,
+          continued: true,
+        });
+      doc
+        .font('regular')
+        .fillColor(COLORS.muted)
+        .text(line.value, { width, lineGap: SECTION_LINE_GAP });
     } else {
-      doc.font('regular').fillColor(COLORS.muted).text(line.value, x, y, { width, lineGap: SECTION_LINE_GAP });
+      doc
+        .font('regular')
+        .fillColor(COLORS.muted)
+        .text(line.value, x, y, { width, lineGap: SECTION_LINE_GAP });
     }
     y = doc.y + 3;
   }
@@ -697,16 +733,30 @@ function drawSection(doc: Doc, section: Section, x: number, top: number, width: 
  * @param {{ main?: Section, totalsColumn?: Section }} sections Sections (empty ones left out).
  * @returns {void}
  */
-function writeSections(doc: Doc, flow: Flow, { main, totalsColumn }: { main?: Section; totalsColumn?: Section }): void {
+function writeSections(
+  doc: Doc,
+  flow: Flow,
+  { main, totalsColumn }: { main?: Section; totalsColumn?: Section },
+): void {
   const right = totalsColumn?.lines.length ? totalsColumn : null;
   const left = main?.lines.length ? main : null;
   if (!left && !right) return;
   const columnX = doc.page.width - PAGE.margin - TOTALS.width + TOTALS.inset;
   const columnWidth = TOTALS.width - 2 * TOTALS.inset;
-  const leftWidth = right ? columnX - PAGE.margin - SECTION_GUTTER : doc.page.width - 2 * PAGE.margin;
-  flow.ensure(Math.max(left ? sectionHeight(doc, left, leftWidth) : 0, right ? sectionHeight(doc, right, columnWidth) : 0));
+  const leftWidth = right
+    ? columnX - PAGE.margin - SECTION_GUTTER
+    : doc.page.width - 2 * PAGE.margin;
+  flow.ensure(
+    Math.max(
+      left ? sectionHeight(doc, left, leftWidth) : 0,
+      right ? sectionHeight(doc, right, columnWidth) : 0,
+    ),
+  );
   const top = flow.y;
-  const bottoms = [left ? drawSection(doc, left, PAGE.margin, top, leftWidth) : top, right ? drawSection(doc, right, columnX, top, columnWidth) : top];
+  const bottoms = [
+    left ? drawSection(doc, left, PAGE.margin, top, leftWidth) : top,
+    right ? drawSection(doc, right, columnX, top, columnWidth) : top,
+  ];
   flow.y = Math.max(...bottoms) + 5;
 }
 
@@ -718,7 +768,12 @@ function writeSections(doc: Doc, flow: Flow, { main, totalsColumn }: { main?: Se
  * @param {SectionLine[]} lines Lines.
  * @returns {void}
  */
-function writeSection(doc: Doc, flow: Flow, title: string, lines: SectionLine[]): void {
+function writeSection(
+  doc: Doc,
+  flow: Flow,
+  title: string,
+  lines: SectionLine[],
+): void {
   writeSections(doc, flow, { main: { title, lines } });
 }
 /** Points per millimetre. */
@@ -729,7 +784,12 @@ const MM = 72 / 25.4;
  * window 100 × 45 mm at 20 mm from the right and 15 mm from the bottom) holding the page folded in three: the
  * window spans 100–200 mm across and 50–95 mm down the page, less the play of the letter in the envelope.
  */
-const ENVELOPE_WINDOW = { x: 116 * MM, y: 55 * MM, width: 78 * MM, bottom: 90 * MM };
+const ENVELOPE_WINDOW = {
+  x: 116 * MM,
+  y: 55 * MM,
+  width: 78 * MM,
+  bottom: 90 * MM,
+};
 /** Below the window, whatever the play of the letter in the envelope. */
 const BELOW_WINDOW = 98 * MM;
 
@@ -857,8 +917,14 @@ function writeHeader(
   ].filter((group) => group.length > 0);
   // The contact group under its heading, the name of the contact on its own line.
   const contactGroup = sellerGroups.at(-1);
-  if (contactGroup && (seller.contact || seller.phone || seller.email || seller.website)) {
-    contactGroup.unshift({ type: 'rich', runs: [{ text: 'Contact :', bold: true }] });
+  if (
+    contactGroup &&
+    (seller.contact || seller.phone || seller.email || seller.website)
+  ) {
+    contactGroup.unshift({
+      type: 'rich',
+      runs: [{ text: 'Contact :', bold: true }],
+    });
   }
 
   doc.fontSize(8.5).fillColor(COLORS.muted);
@@ -867,13 +933,11 @@ function writeHeader(
     for (const line of group) {
       if (line.type === 'rich') {
         line.runs.forEach((run, index) => {
-          doc
-            .font(run.bold ? 'bold' : 'regular')
-            .text(run.text, left, y, {
-              width: leftWidth,
-              lineGap: SELLER_SPACING.line,
-              continued: index < line.runs.length - 1,
-            });
+          doc.font(run.bold ? 'bold' : 'regular').text(run.text, left, y, {
+            width: leftWidth,
+            lineGap: SELLER_SPACING.line,
+            continued: index < line.runs.length - 1,
+          });
         });
       } else {
         doc.font('regular').text(line.text, left, y, {
@@ -1017,7 +1081,11 @@ function writeApproval(doc: Doc, flow: Flow): void {
   flow.ensure(height);
   const top = flow.y;
 
-  doc.font('regular').fontSize(14).fillColor(COLORS.text).text('Bon pour accord', x, top, { width, lineBreak: false });
+  doc
+    .font('regular')
+    .fontSize(14)
+    .fillColor(COLORS.text)
+    .text('Bon pour accord', x, top, { width, lineBreak: false });
 
   // Place and date, on lines with room above them to write.
   const lineY = top + 22 + HANDWRITING.line;
@@ -1028,7 +1096,13 @@ function writeApproval(doc: Doc, flow: Flow): void {
    * @param {number} to Right, from the block.
    * @returns {void}
    */
-  const blank = (from: number, to: number) => doc.moveTo(x + from, lineY).lineTo(x + to, lineY).lineWidth(0.6).strokeColor(COLORS.border).stroke();
+  const blank = (from: number, to: number) =>
+    doc
+      .moveTo(x + from, lineY)
+      .lineTo(x + to, lineY)
+      .lineWidth(0.6)
+      .strokeColor(COLORS.border)
+      .stroke();
   doc.font('regular').fontSize(8.5).fillColor(COLORS.muted);
   doc.text('À', x, textY, { lineBreak: false });
   blank(12, 128);
@@ -1041,9 +1115,18 @@ function writeApproval(doc: Doc, flow: Flow): void {
 
   // Signature and stamp, over a room closed by a line.
   const signatureY = lineY + 14;
-  doc.font('regular').fontSize(8.5).fillColor(COLORS.muted).text('Signature et cachet', x, signatureY, { lineBreak: false });
+  doc
+    .font('regular')
+    .fontSize(8.5)
+    .fillColor(COLORS.muted)
+    .text('Signature et cachet', x, signatureY, { lineBreak: false });
   const bottom = signatureY + HANDWRITING.signature;
-  doc.moveTo(x, bottom).lineTo(x + width, bottom).lineWidth(0.6).strokeColor(COLORS.border).stroke();
+  doc
+    .moveTo(x, bottom)
+    .lineTo(x + width, bottom)
+    .lineWidth(0.6)
+    .strokeColor(COLORS.border)
+    .stroke();
 
   flow.y = bottom + 12;
 }
@@ -1110,20 +1193,38 @@ export interface DocumentPdf {
  * @param {DocumentWithLines} document Document.
  * @returns {Promise<{ date: Date, method: string | null, amount: number }[]>} Payments (amounts in cents).
  */
-async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date: Date; method: string | null; amount: number }[]> {
-  if (document.status !== 'FINAL' || (document.type !== 'INVOICE' && document.type !== 'DEPOSIT_INVOICE')) {
-    throw clientError('BAD_USER_INPUT', 'Seule une facture validée peut être acquittée.');
+async function paidInvoicePayments(
+  document: DocumentWithLines,
+): Promise<{ date: Date; method: string | null; amount: number }[]> {
+  if (
+    document.status !== 'FINAL' ||
+    (document.type !== 'INVOICE' && document.type !== 'DEPOSIT_INVOICE')
+  ) {
+    throw clientError(
+      'BAD_USER_INPUT',
+      'Seule une facture validée peut être acquittée.',
+    );
   }
   const balance = (await documentBalances()).get(document.id);
   if (!balance || balance.paid <= 0 || balance.balance > 0) {
-    throw clientError('BAD_USER_INPUT', 'La facture n’est pas entièrement réglée : enregistrez d’abord son règlement.');
+    throw clientError(
+      'BAD_USER_INPUT',
+      'La facture n’est pas entièrement réglée : enregistrez d’abord son règlement.',
+    );
   }
   const allocations = await prisma.treasuryAllocation.findMany({
     where: { documentId: document.id },
-    select: { amount: true, entry: { select: { date: true, method: { select: { name: true } } } } },
+    select: {
+      amount: true,
+      entry: { select: { date: true, method: { select: { name: true } } } },
+    },
     orderBy: { entry: { date: 'asc' } },
   });
-  return allocations.map((allocation) => ({ date: allocation.entry.date, method: allocation.entry.method?.name ?? null, amount: Math.round(Number(allocation.amount) * 100) }));
+  return allocations.map((allocation) => ({
+    date: allocation.entry.date,
+    method: allocation.entry.method?.name ?? null,
+    amount: Math.round(Number(allocation.amount) * 100),
+  }));
 }
 
 /**
@@ -1135,7 +1236,10 @@ async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date:
  * @param {{ paid?: boolean }} [options] Receipted invoice. Optional.
  * @returns {Promise<DocumentPdf>} PDF.
  */
-export async function documentPdf(id: string, options: { paid?: boolean } = {}): Promise<DocumentPdf> {
+export async function documentPdf(
+  id: string,
+  options: { paid?: boolean } = {},
+): Promise<DocumentPdf> {
   const document = await findDocument(id);
   const payments = options.paid ? await paidInvoicePayments(document) : null;
   const draft = document.status !== 'FINAL';
@@ -1227,7 +1331,7 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
     const last = payments[payments.length - 1];
     writeSection(doc, flow, 'Facture acquittée', [
       ...payments.map((payment) => ({
-        label: `Réglé le ${printedDate(payment.date)}${payment.method ? ` (${payment.method.toLowerCase()})` : ''}`,
+        label: `Réglée le ${printedDate(payment.date)}${payment.method ? ` (${payment.method.toLowerCase()})` : ''}`,
         value: formatMoney(payment.amount, document.currency),
       })),
       { label: '', value: `Pour acquit, le ${printedDate(last.date)}.` },
@@ -1287,8 +1391,12 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
       lines:
         document.showBankDetails && seller.iban
           ? [
-              seller.accountHolder ? { label: 'Titulaire', value: seller.accountHolder } : null,
-              seller.bankName ? { label: 'Banque', value: seller.bankName } : null,
+              seller.accountHolder
+                ? { label: 'Titulaire', value: seller.accountHolder }
+                : null,
+              seller.bankName
+                ? { label: 'Banque', value: seller.bankName }
+                : null,
               { label: 'IBAN', value: seller.iban },
               seller.bic ? { label: 'BIC', value: seller.bic } : null,
             ].filter((line): line is SectionLine => line !== null)

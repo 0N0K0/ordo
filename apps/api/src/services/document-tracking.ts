@@ -148,26 +148,50 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
 }
 
 /**
- * Notes that a document was sent (by mail from Ordo, or by hand: deposited on Chorus Pro, posted…), now or on a
- * past day, or corrects it: "to send" becomes "sent".
- * @param {string} id Document id.
- * @param {{ date?: string | null, via?: string | null }} [options] Day it was sent (none: now) and how. Optional.
- * @returns {Promise<AccountingDocument>} Document.
+ * A "sent" status of the scope of a document type, or an error.
+ * @param {string} statusId Status.
+ * @param {AccountingDocument['type']} type Document type.
+ * @returns {Promise<{ id: string }>} Status.
  */
-export async function markSent(id: string, options: { date?: string | null; via?: string | null } = {}): Promise<AccountingDocument> {
-  const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } });
-  if (!document) throw notFound('Document');
-  if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seul un document validé peut être envoyé.');
+export async function sentStatus(statusId: string, type: AccountingDocument['type']): Promise<{ id: string }> {
+  const status = await prisma.documentStatus.findUnique({ where: { id: statusId } });
+  if (!status || status.scope !== scopeOf(type)) throw notFound('Statut');
+  if (status.category !== 'SENT') throw clientError('BAD_USER_INPUT', 'Ce statut n’est pas un statut d’envoi.');
+  return status;
+}
+
+/**
+ * Sending day and way of a document entered by hand, checked.
+ * @param {{ date?: string | null, via?: string | null }} options Day (none: now) and way.
+ * @returns {{ sentAt: Date, sentVia: string | null }} Data.
+ */
+export function sendingData(options: { date?: string | null; via?: string | null }): { sentAt: Date; sentVia: string | null } {
   const via = options.via ? z.enum(SENDING_CHANNELS).safeParse(options.via) : null;
   if (via && !via.success) throw clientError('BAD_USER_INPUT', 'Moyen d’envoi inconnu.');
   const today = new Date().toISOString().slice(0, 10);
   if (options.date && options.date > today) throw clientError('BAD_USER_INPUT', 'La date d’envoi ne peut pas être dans le futur.');
   // A past day is kept at noon (UTC): the same day in every time zone of France.
-  const sentAt = options.date && options.date !== today ? new Date(`${options.date}T12:00:00Z`) : new Date();
-  const sent = !document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null;
+  return { sentAt: options.date && options.date !== today ? new Date(`${options.date}T12:00:00Z`) : new Date(), sentVia: via?.data ?? null };
+}
+
+/**
+ * Notes that a document was sent (by mail from Ordo, or by hand: deposited on Chorus Pro, posted…), now or on a
+ * past day, or corrects it: "to send" becomes "sent".
+ * @param {string} id Document id.
+ * @param {{ date?: string | null, via?: string | null, statusId?: string | null }} [options] Day it was sent (none: now), how, and the
+ * "sent" status to give (none: the first one, when it was "to send"). Optional.
+ * @returns {Promise<AccountingDocument>} Document.
+ */
+export async function markSent(id: string, options: { date?: string | null; via?: string | null; statusId?: string | null } = {}): Promise<AccountingDocument> {
+  const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } });
+  if (!document) throw notFound('Document');
+  if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seul un document validé peut être envoyé.');
+  const sending = sendingData(options);
+  const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
+  const sent = chosen ?? (!document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null);
   return prisma.accountingDocument.update({
     where: { id },
-    data: { sentAt, sentVia: via?.data ?? null, ...(sent ? { trackingStatusId: sent.id } : {}) },
+    data: { ...sending, ...(sent ? { trackingStatusId: sent.id } : {}) },
   });
 }
 

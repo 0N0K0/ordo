@@ -948,6 +948,10 @@ type ImportedDocument {
   paid: Float
   payments: [TreasuryAllocation!]!
   projectId: ID
+  sentAt: DateTime
+
+  """How it was sent: MAIL, CHORUS, POST, HAND or OTHER."""
+  sentVia: String
   settled: Boolean!
   title: String
   totalGross: Float!
@@ -1458,9 +1462,14 @@ type Mutation {
   markAlarmFired(at: DateTime!, id: ID!): Boolean!
 
   """
-  Notes that a document was sent, now or on a past day (date), and how (MAIL, CHORUS, POST, HAND, OTHER).
+  Notes that a document was sent, now or on a past day (date), how (MAIL, CHORUS, POST, HAND, OTHER), and with which "sent" status.
   """
-  markDocumentSent(date: Date, id: ID!, via: String): Boolean!
+  markDocumentSent(date: Date, id: ID!, statusId: ID, via: String): Boolean!
+
+  """
+  Notes that an imported document was sent, on a day (none: now) and how, with a "sent" status.
+  """
+  markImportedDocumentSent(date: Date, id: ID!, statusId: ID!, via: String): Boolean!
 
   """
   Adds or removes a flag (labelId and on), or sets the done state (done), on mails.
@@ -2000,7 +2009,9 @@ type Query {
   """
   newDocumentDefaults(clientId: ID!, issueDate: Date!, type: AccountingDocumentType!): JSON!
 
-  """Final invoices still due after their due date, oldest due first."""
+  """
+  Final invoices still due, sent 15 days ago or more (the sending counts, not the due date), sent first first.
+  """
   overdueInvoices(today: Date!): [AccountingDocument!]!
   places: [Place!]!
   projectCategories: [ProjectCategory!]!

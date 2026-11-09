@@ -35,6 +35,8 @@ const OverdueInvoicesDocument = graphql(`
       serviceId
       issueDate
       dueDate
+      sentAt
+      sentVia
       totalGross
       currency
       balance
@@ -81,8 +83,8 @@ const SetTrackingStatus = graphql(`
   }
 `);
 const MarkSent = graphql(`
-  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String) {
-    markDocumentSent(id: $id, date: $date, via: $via)
+  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID) {
+    markDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)
   }
 `);
 const AcceptQuote = graphql(`
@@ -166,7 +168,7 @@ export function useTrackingMutations() {
   return {
     setStatus: useAccountingMutation(async (variables: { id: string; statusId: string }) => (await execute(SetTrackingStatus, variables)).setDocumentTrackingStatus),
     markSent: useAccountingMutation(
-      async (variables: { id: string; date?: string | null; via?: SendingChannel | null }) => (await execute(MarkSent, variables)).markDocumentSent,
+      async (variables: { id: string; date?: string | null; via?: SendingChannel | null; statusId?: string | null }) => (await execute(MarkSent, variables)).markDocumentSent,
     ),
     accept: useAccountingMutation(async (variables: { id: string; date: string; file: File | null }) => (await execute(AcceptQuote, variables)).acceptQuote),
     removeSigned: useAccountingMutation(async (id: string) => (await execute(RemoveSignedQuote, { id })).removeSignedQuote),

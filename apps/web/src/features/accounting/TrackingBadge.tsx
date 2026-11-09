@@ -3,14 +3,16 @@ import type { AccountingDocumentType } from '@ordo/shared';
 import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react';
 import { notifyError } from '../../lib/notify';
 import type { AccountingDocumentSummary } from './documents-api';
+import { openSentDialog } from './sent-dialog';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
 
-type TrackedDocument = Pick<AccountingDocumentSummary, 'id' | 'status' | 'type' | 'trackingStatus' | 'overdue'>;
+type TrackedDocument = Pick<AccountingDocumentSummary, 'id' | 'status' | 'type' | 'number' | 'trackingStatus' | 'overdue' | 'sentAt' | 'sentVia'>;
 
 interface StatusMenuProps {
   type: AccountingDocumentType;
   current: { id: string; name: string; color: string } | null | undefined;
-  onSelect: (statusId: string) => void;
+  /** A status chosen (its category tells a "sent" one). */
+  onSelect: (status: { id: string; category: string }) => void;
   pending?: boolean;
 }
 
@@ -40,7 +42,7 @@ export function StatusMenu({ type, current, onSelect, pending }: StatusMenuProps
             leftSection={<ColorSwatch color={status.color} size={12} />}
             rightSection={status.id === current?.id ? <CheckIcon aria-hidden /> : undefined}
             disabled={pending}
-            onClick={() => status.id !== current?.id && onSelect(status.id)}
+            onClick={() => status.id !== current?.id && onSelect(status)}
           >
             {status.name}
           </Menu.Item>
@@ -56,13 +58,23 @@ export function StatusMenu({ type, current, onSelect, pending }: StatusMenuProps
  * @returns {JSX.Element} Menu.
  */
 function DocumentStatusMenu({ document }: { document: TrackedDocument }) {
-  const { setStatus } = useTrackingMutations();
+  const { setStatus, markSent } = useTrackingMutations();
   return (
     <StatusMenu
       type={document.type}
       current={document.trackingStatus}
       pending={setStatus.isPending}
-      onSelect={(statusId) => setStatus.mutate({ id: document.id, statusId }, { onError: (error) => notifyError(error.message) })}
+      onSelect={(status) =>
+        // A "sent" status asks when and how it was sent.
+        status.category === 'SENT'
+          ? openSentDialog({
+              title: `Envoi de ${document.number ?? 'ce document'}`,
+              sentAt: document.sentAt,
+              sentVia: document.sentVia,
+              onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
+            })
+          : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+      }
     />
   );
 }

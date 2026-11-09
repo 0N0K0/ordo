@@ -369,3 +369,6 @@ export const SENT_VIA_LABELS: Record<SendingChannel, string> = {
   HAND: 'Remis en main propre',
   OTHER: 'Envoyé',
 };
+
+/** Days after an invoice was sent before it may be reminded. */
+export const REMINDER_DELAY_DAYS = 15;

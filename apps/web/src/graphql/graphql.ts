@@ -1152,7 +1152,7 @@ export type MoveProjectResourceMutationVariables = Exact<{
 
 export type MoveProjectResourceMutation = { moveProjectResource: boolean };
 
-export type ImportedDocumentFieldsFragment = { id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
+export type ImportedDocumentFieldsFragment = { id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
 
 export type ImportedDocumentsQueryVariables = Exact<{
   clientId?: string | number | null | undefined;
@@ -1160,14 +1160,24 @@ export type ImportedDocumentsQueryVariables = Exact<{
 }>;
 
 
-export type ImportedDocumentsQuery = { importedDocuments: Array<{ id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null }> };
+export type ImportedDocumentsQuery = { importedDocuments: Array<{ id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null }> };
 
 export type ImportedDocumentQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type ImportedDocumentQuery = { importedDocument: { id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null } | null };
+export type ImportedDocumentQuery = { importedDocument: { id: string, type: AccountingDocumentType, number: string, issueDate: string, dueDate: string | null, clientId: string | null, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalVat: number, totalGross: number, currency: string, note: string | null, fileUrl: string | null, fileName: string | null, settled: boolean, paid: number | null, balance: number | null, fileMimeType: string | null, sentAt: string | null, sentVia: string | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null } | null };
+
+export type MarkImportedDocumentSentMutationVariables = Exact<{
+  id: string | number;
+  date?: string | null | undefined;
+  via?: string | null | undefined;
+  statusId: string | number;
+}>;
+
+
+export type MarkImportedDocumentSentMutation = { markImportedDocumentSent: boolean };
 
 export type SetImportedDocumentTrackingStatusMutationVariables = Exact<{
   id: string | number;
@@ -1211,7 +1221,7 @@ export type OverdueInvoicesQueryVariables = Exact<{
 }>;
 
 
-export type OverdueInvoicesQuery = { overdueInvoices: Array<{ id: string, type: AccountingDocumentType, number: string | null, clientId: string, clientName: string, projectId: string | null, contactId: string | null, serviceId: string | null, issueDate: string, dueDate: string | null, totalGross: number, currency: string, balance: number | null, billingEmail: string | null, reminderCount: number, lastReminderAt: string | null }> };
+export type OverdueInvoicesQuery = { overdueInvoices: Array<{ id: string, type: AccountingDocumentType, number: string | null, clientId: string, clientName: string, projectId: string | null, contactId: string | null, serviceId: string | null, issueDate: string, dueDate: string | null, sentAt: string | null, sentVia: string | null, totalGross: number, currency: string, balance: number | null, billingEmail: string | null, reminderCount: number, lastReminderAt: string | null }> };
 
 export type SendDocumentRemindersMutationVariables = Exact<{
   accountId: string | number;
@@ -1268,6 +1278,7 @@ export type MarkDocumentSentMutationVariables = Exact<{
   id: string | number;
   date?: string | null | undefined;
   via?: string | null | undefined;
+  statusId?: string | number | null | undefined;
 }>;
 
 
@@ -3521,6 +3532,8 @@ export const ImportedDocumentFieldsFragmentDoc = new TypedDocumentString(`
     category
   }
   fileMimeType
+  sentAt
+  sentVia
 }
     `, {"fragmentName":"ImportedDocumentFields"}) as unknown as TypedDocumentString<ImportedDocumentFieldsFragment, unknown>;
 export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
@@ -4461,6 +4474,8 @@ export const ImportedDocumentsDocument = new TypedDocumentString(`
     category
   }
   fileMimeType
+  sentAt
+  sentVia
 }`) as unknown as TypedDocumentString<ImportedDocumentsQuery, ImportedDocumentsQueryVariables>;
 export const ImportedDocumentDocument = new TypedDocumentString(`
     query ImportedDocument($id: ID!) {
@@ -4495,7 +4510,14 @@ export const ImportedDocumentDocument = new TypedDocumentString(`
     category
   }
   fileMimeType
+  sentAt
+  sentVia
 }`) as unknown as TypedDocumentString<ImportedDocumentQuery, ImportedDocumentQueryVariables>;
+export const MarkImportedDocumentSentDocument = new TypedDocumentString(`
+    mutation MarkImportedDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID!) {
+  markImportedDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)
+}
+    `) as unknown as TypedDocumentString<MarkImportedDocumentSentMutation, MarkImportedDocumentSentMutationVariables>;
 export const SetImportedDocumentTrackingStatusDocument = new TypedDocumentString(`
     mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {
   setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)
@@ -4542,6 +4564,8 @@ export const OverdueInvoicesDocument = new TypedDocumentString(`
     serviceId
     issueDate
     dueDate
+    sentAt
+    sentVia
     totalGross
     currency
     balance
@@ -4591,8 +4615,8 @@ export const SetDocumentTrackingStatusDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<SetDocumentTrackingStatusMutation, SetDocumentTrackingStatusMutationVariables>;
 export const MarkDocumentSentDocument = new TypedDocumentString(`
-    mutation MarkDocumentSent($id: ID!, $date: Date, $via: String) {
-  markDocumentSent(id: $id, date: $date, via: $via)
+    mutation MarkDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID) {
+  markDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)
 }
     `) as unknown as TypedDocumentString<MarkDocumentSentMutation, MarkDocumentSentMutationVariables>;
 export const AcceptQuoteDocument = new TypedDocumentString(`

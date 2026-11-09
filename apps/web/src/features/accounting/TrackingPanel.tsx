@@ -1,15 +1,16 @@
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, FileInput, Group, Modal, NumberInput, Select, Skeleton, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { documentPaymentSchema, formatMoney, SENDING_CHANNEL_LABELS, SENDING_CHANNELS, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
+import { documentPaymentSchema, formatMoney, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { localDay, localToday } from '../../lib/dates';
+import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type TreasuryPaymentMethod } from '../treasury/api';
 import type { AccountingDocument } from './documents-api';
 import { Section } from './EditorSection';
+import { SentForm } from './SentForm';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
 import { FileLink } from '../files/FileLink';
 
@@ -173,55 +174,6 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
 }
 
 /**
- * Sending of a document outside the mails of Ordo (deposited on Chorus Pro, posted, handed…), or its correction:
- * the day and the way.
- * @param {{ document: AccountingDocument, onDone: () => void }} props Component props.
- * @returns {JSX.Element} Form.
- */
-function SentForm({ document, onDone }: { document: AccountingDocument; onDone: () => void }) {
-  const { markSent } = useTrackingMutations();
-  const today = localToday();
-  const [date, setDate] = useState<string | null>(document.sentAt ? localDay(new Date(document.sentAt)) : today);
-  const [via, setVia] = useState<SendingChannel>((SENDING_CHANNELS as readonly string[]).includes(document.sentVia ?? '') ? (document.sentVia as SendingChannel) : 'CHORUS');
-  return (
-    <Stack gap="sm">
-      <Select
-        label="Moyen d’envoi"
-        data={SENDING_CHANNELS.map((value) => ({ value, label: SENDING_CHANNEL_LABELS[value] }))}
-        value={via}
-        allowDeselect={false}
-        onChange={(value) => value && setVia(value as SendingChannel)}
-      />
-      <DatePickerInput label="Date d’envoi" required valueFormat="D MMM YYYY" maxDate={today} value={date} onChange={(value) => setDate(value)} />
-      <Group justify="flex-end">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={markSent.isPending}
-          disabled={!date}
-          onClick={() =>
-            date &&
-            markSent.mutate(
-              { id: document.id, date, via },
-              {
-                onSuccess: () => {
-                  notifySuccess('Envoi noté.');
-                  onDone();
-                },
-                onError: (error) => notifyError(error.message),
-              },
-            )
-          }
-        >
-          Enregistrer
-        </Button>
-      </Group>
-    </Stack>
-  );
-}
-
-/**
  * Note of a reminder made outside Ordo (call, letter…).
  * @param {{ documentId: string, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
@@ -270,6 +222,8 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
   const { data: statuses } = useDocumentStatuses();
   const mutations = useTrackingMutations();
   const [dialog, setDialog] = useState<Dialog>(null);
+  // "Sent" status chosen in the list, given with the sending.
+  const [sentStatusId, setSentStatusId] = useState<string | null>(null);
   const isQuote = document.type === 'QUOTE';
   const isCredit = document.type === 'CREDIT_NOTE';
   const scoped = (statuses ?? []).filter((status) => status.scope === (isQuote ? 'QUOTE' : 'INVOICE'));
@@ -291,7 +245,14 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             {option.label}
           </Group>
         )}
-        onChange={(statusId) => statusId && mutations.setStatus.mutate({ id: document.id, statusId }, { onError })}
+        onChange={(statusId) => {
+          if (!statusId) return;
+          // A "sent" status asks when and how it was sent.
+          if (scoped.find((status) => status.id === statusId)?.category === 'SENT') {
+            setSentStatusId(statusId);
+            setDialog('sent');
+          } else mutations.setStatus.mutate({ id: document.id, statusId }, { onError });
+        }}
       />
       {document.overdue && (
         <Alert color="red" p="xs">
@@ -420,7 +381,17 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         {dialog === 'payment' && <PaymentForm document={document} onDone={() => setDialog(null)} />}
         {dialog === 'accept' && <AcceptForm document={document} onDone={() => setDialog(null)} />}
         {dialog === 'reminder' && <ReminderForm documentId={document.id} onDone={() => setDialog(null)} />}
-        {dialog === 'sent' && <SentForm document={document} onDone={() => setDialog(null)} />}
+        {dialog === 'sent' && (
+          <SentForm
+            sentAt={document.sentAt}
+            sentVia={document.sentVia}
+            onSubmit={({ date, via }) => mutations.markSent.mutateAsync({ id: document.id, date, via, statusId: sentStatusId })}
+            onDone={() => {
+              setDialog(null);
+              setSentStatusId(null);
+            }}
+          />
+        )}
       </Modal>
     </Section>
   );

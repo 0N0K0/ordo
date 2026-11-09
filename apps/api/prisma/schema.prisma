@@ -1644,6 +1644,9 @@ model ImportedDocument {
   note             String?
   /// Paid (or refunded) outside the treasury of Ordo: not expected any more.
   settled          Boolean                @default(true)
+  /// When and how it was sent (set by hand), like the documents of Ordo.
+  sentAt           DateTime?
+  sentVia          String?
   /// Tracking status, set by hand (its payments are not followed by Ordo).
   trackingStatusId String?
   trackingStatus   DocumentStatus?        @relation(fields: [trackingStatusId], references: [id], onDelete: SetNull)

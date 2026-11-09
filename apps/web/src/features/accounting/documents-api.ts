@@ -500,6 +500,8 @@ graphql(`
       category
     }
     fileMimeType
+    sentAt
+    sentVia
   }
 `);
 
@@ -516,6 +518,11 @@ const ImportedDocumentDocument = graphql(`
     importedDocument(id: $id) {
       ...ImportedDocumentFields
     }
+  }
+`);
+const MarkImportedSent = graphql(`
+  mutation MarkImportedDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID!) {
+    markImportedDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)
   }
 `);
 const SetImportedTrackingStatus = graphql(`
@@ -578,6 +585,9 @@ export function useImportedDocumentMutations() {
     remove: useAccountingMutation(async (id: string) => (await execute(DeleteImportedDocument, { id })).deleteImportedDocument),
     setStatus: useAccountingMutation(
       async (variables: { id: string; statusId: string | null }) => (await execute(SetImportedTrackingStatus, variables)).setImportedDocumentTrackingStatus,
+    ),
+    markSent: useAccountingMutation(
+      async (variables: { id: string; date: string; via: string; statusId: string }) => (await execute(MarkImportedSent, variables)).markImportedDocumentSent,
     ),
   };
 }

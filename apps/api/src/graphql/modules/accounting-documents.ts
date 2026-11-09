@@ -122,6 +122,8 @@ builder.prismaObject('ImportedDocument', {
   fields: (t) => ({
     id: t.exposeID('id'),
     trackingStatus: t.relation('trackingStatus', { nullable: true, description: 'Tracking status, set by hand.' }),
+    sentAt: t.expose('sentAt', { type: 'DateTime', nullable: true }),
+    sentVia: t.exposeString('sentVia', { nullable: true, description: 'How it was sent: MAIL, CHORUS, POST, HAND or OTHER.' }),
     type: t.field({ type: AccountingDocumentTypeEnum, resolve: (document) => document.type }),
     number: t.exposeString('number'),
     issueDate: t.expose('issueDate', { type: 'Date' }),
@@ -485,6 +487,14 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ImportedDocumentInput, required: true }), file: t.arg({ type: 'File' }) },
     resolve: async (_root, { id, input, file }) => {
       await imported.updateImportedDocument(id, importedInput(input), file ?? null);
+      return true;
+    },
+  }),
+  markImportedDocumentSent: t.boolean({
+    description: 'Notes that an imported document was sent, on a day (none: now) and how, with a "sent" status.',
+    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string(), statusId: t.arg.id({ required: true }) },
+    resolve: async (_root, { id, date, via, statusId }) => {
+      await imported.markImportedSent(id, { date: date ?? null, via: via ?? null, statusId });
       return true;
     },
   }),

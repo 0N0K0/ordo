@@ -59,22 +59,23 @@ type Documents = {
     "\n  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {\n    updateProjectResource(id: $id, title: $title, url: $url, note: $note)\n  }\n": typeof types.UpdateProjectResourceDocument,
     "\n  mutation DeleteProjectResource($id: ID!) {\n    deleteProjectResource(id: $id)\n  }\n": typeof types.DeleteProjectResourceDocument,
     "\n  mutation MoveProjectResource($id: ID!, $index: Int!) {\n    moveProjectResource(id: $id, index: $index)\n  }\n": typeof types.MoveProjectResourceDocument,
-    "\n  fragment ImportedDocumentFields on ImportedDocument {\n    id\n    type\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalVat\n    totalGross\n    currency\n    note\n    fileUrl\n    fileName\n    settled\n    paid\n    balance\n    trackingStatus {\n      id\n      name\n      color\n      category\n    }\n    fileMimeType\n  }\n": typeof types.ImportedDocumentFieldsFragmentDoc,
+    "\n  fragment ImportedDocumentFields on ImportedDocument {\n    id\n    type\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalVat\n    totalGross\n    currency\n    note\n    fileUrl\n    fileName\n    settled\n    paid\n    balance\n    trackingStatus {\n      id\n      name\n      color\n      category\n    }\n    fileMimeType\n    sentAt\n    sentVia\n  }\n": typeof types.ImportedDocumentFieldsFragmentDoc,
     "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      ...ImportedDocumentFields\n    }\n  }\n": typeof types.ImportedDocumentsDocument,
     "\n  query ImportedDocument($id: ID!) {\n    importedDocument(id: $id) {\n      ...ImportedDocumentFields\n    }\n  }\n": typeof types.ImportedDocumentDocument,
+    "\n  mutation MarkImportedDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID!) {\n    markImportedDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)\n  }\n": typeof types.MarkImportedDocumentSentDocument,
     "\n  mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {\n    setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)\n  }\n": typeof types.SetImportedDocumentTrackingStatusDocument,
     "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": typeof types.ImportDocumentDocument,
     "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": typeof types.UpdateImportedDocumentDocument,
     "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": typeof types.DeleteImportedDocumentDocument,
     "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      category\n      position\n      documentCount\n    }\n  }\n": typeof types.DocumentStatusesDocument,
-    "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n": typeof types.OverdueInvoicesDocument,
+    "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      sentAt\n      sentVia\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n": typeof types.OverdueInvoicesDocument,
     "\n  mutation SendDocumentReminders($accountId: ID!, $documentIds: [ID!]!) {\n    sendDocumentReminders(accountId: $accountId, documentIds: $documentIds) {\n      documentId\n      number\n      error\n    }\n  }\n": typeof types.SendDocumentRemindersDocument,
     "\n  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {\n    createDocumentStatus(scope: $scope, name: $name, color: $color, category: $category)\n  }\n": typeof types.CreateDocumentStatusDocument,
     "\n  mutation UpdateDocumentStatus($id: ID!, $name: String, $color: String, $category: DocumentStatusCategory) {\n    updateDocumentStatus(id: $id, name: $name, color: $color, category: $category)\n  }\n": typeof types.UpdateDocumentStatusDocument,
     "\n  mutation DeleteDocumentStatus($id: ID!) {\n    deleteDocumentStatus(id: $id)\n  }\n": typeof types.DeleteDocumentStatusDocument,
     "\n  mutation MoveDocumentStatus($id: ID!, $index: Int!) {\n    moveDocumentStatus(id: $id, index: $index)\n  }\n": typeof types.MoveDocumentStatusDocument,
     "\n  mutation SetDocumentTrackingStatus($id: ID!, $statusId: ID!) {\n    setDocumentTrackingStatus(id: $id, statusId: $statusId)\n  }\n": typeof types.SetDocumentTrackingStatusDocument,
-    "\n  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String) {\n    markDocumentSent(id: $id, date: $date, via: $via)\n  }\n": typeof types.MarkDocumentSentDocument,
+    "\n  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID) {\n    markDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)\n  }\n": typeof types.MarkDocumentSentDocument,
     "\n  mutation AcceptQuote($id: ID!, $date: Date!, $file: File) {\n    acceptQuote(id: $id, date: $date, file: $file)\n  }\n": typeof types.AcceptQuoteDocument,
     "\n  mutation RemoveSignedQuote($id: ID!) {\n    removeSignedQuote(id: $id)\n  }\n": typeof types.RemoveSignedQuoteDocument,
     "\n  mutation AddDocumentReminder($id: ID!, $note: String) {\n    addDocumentReminder(id: $id, note: $note)\n  }\n": typeof types.AddDocumentReminderDocument,
@@ -406,22 +407,23 @@ const documents: Documents = {
     "\n  mutation UpdateProjectResource($id: ID!, $title: String!, $url: String, $note: String) {\n    updateProjectResource(id: $id, title: $title, url: $url, note: $note)\n  }\n": types.UpdateProjectResourceDocument,
     "\n  mutation DeleteProjectResource($id: ID!) {\n    deleteProjectResource(id: $id)\n  }\n": types.DeleteProjectResourceDocument,
     "\n  mutation MoveProjectResource($id: ID!, $index: Int!) {\n    moveProjectResource(id: $id, index: $index)\n  }\n": types.MoveProjectResourceDocument,
-    "\n  fragment ImportedDocumentFields on ImportedDocument {\n    id\n    type\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalVat\n    totalGross\n    currency\n    note\n    fileUrl\n    fileName\n    settled\n    paid\n    balance\n    trackingStatus {\n      id\n      name\n      color\n      category\n    }\n    fileMimeType\n  }\n": types.ImportedDocumentFieldsFragmentDoc,
+    "\n  fragment ImportedDocumentFields on ImportedDocument {\n    id\n    type\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalVat\n    totalGross\n    currency\n    note\n    fileUrl\n    fileName\n    settled\n    paid\n    balance\n    trackingStatus {\n      id\n      name\n      color\n      category\n    }\n    fileMimeType\n    sentAt\n    sentVia\n  }\n": types.ImportedDocumentFieldsFragmentDoc,
     "\n  query ImportedDocuments($clientId: ID, $projectId: ID) {\n    importedDocuments(clientId: $clientId, projectId: $projectId) {\n      ...ImportedDocumentFields\n    }\n  }\n": types.ImportedDocumentsDocument,
     "\n  query ImportedDocument($id: ID!) {\n    importedDocument(id: $id) {\n      ...ImportedDocumentFields\n    }\n  }\n": types.ImportedDocumentDocument,
+    "\n  mutation MarkImportedDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID!) {\n    markImportedDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)\n  }\n": types.MarkImportedDocumentSentDocument,
     "\n  mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {\n    setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)\n  }\n": types.SetImportedDocumentTrackingStatusDocument,
     "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": types.ImportDocumentDocument,
     "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": types.UpdateImportedDocumentDocument,
     "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": types.DeleteImportedDocumentDocument,
     "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      category\n      position\n      documentCount\n    }\n  }\n": types.DocumentStatusesDocument,
-    "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n": types.OverdueInvoicesDocument,
+    "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      sentAt\n      sentVia\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n": types.OverdueInvoicesDocument,
     "\n  mutation SendDocumentReminders($accountId: ID!, $documentIds: [ID!]!) {\n    sendDocumentReminders(accountId: $accountId, documentIds: $documentIds) {\n      documentId\n      number\n      error\n    }\n  }\n": types.SendDocumentRemindersDocument,
     "\n  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {\n    createDocumentStatus(scope: $scope, name: $name, color: $color, category: $category)\n  }\n": types.CreateDocumentStatusDocument,
     "\n  mutation UpdateDocumentStatus($id: ID!, $name: String, $color: String, $category: DocumentStatusCategory) {\n    updateDocumentStatus(id: $id, name: $name, color: $color, category: $category)\n  }\n": types.UpdateDocumentStatusDocument,
     "\n  mutation DeleteDocumentStatus($id: ID!) {\n    deleteDocumentStatus(id: $id)\n  }\n": types.DeleteDocumentStatusDocument,
     "\n  mutation MoveDocumentStatus($id: ID!, $index: Int!) {\n    moveDocumentStatus(id: $id, index: $index)\n  }\n": types.MoveDocumentStatusDocument,
     "\n  mutation SetDocumentTrackingStatus($id: ID!, $statusId: ID!) {\n    setDocumentTrackingStatus(id: $id, statusId: $statusId)\n  }\n": types.SetDocumentTrackingStatusDocument,
-    "\n  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String) {\n    markDocumentSent(id: $id, date: $date, via: $via)\n  }\n": types.MarkDocumentSentDocument,
+    "\n  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID) {\n    markDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)\n  }\n": types.MarkDocumentSentDocument,
     "\n  mutation AcceptQuote($id: ID!, $date: Date!, $file: File) {\n    acceptQuote(id: $id, date: $date, file: $file)\n  }\n": types.AcceptQuoteDocument,
     "\n  mutation RemoveSignedQuote($id: ID!) {\n    removeSignedQuote(id: $id)\n  }\n": types.RemoveSignedQuoteDocument,
     "\n  mutation AddDocumentReminder($id: ID!, $note: String) {\n    addDocumentReminder(id: $id, note: $note)\n  }\n": types.AddDocumentReminderDocument,
@@ -888,7 +890,7 @@ export function graphql(source: "\n  mutation MoveProjectResource($id: ID!, $ind
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment ImportedDocumentFields on ImportedDocument {\n    id\n    type\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalVat\n    totalGross\n    currency\n    note\n    fileUrl\n    fileName\n    settled\n    paid\n    balance\n    trackingStatus {\n      id\n      name\n      color\n      category\n    }\n    fileMimeType\n  }\n"): typeof import('./graphql').ImportedDocumentFieldsFragmentDoc;
+export function graphql(source: "\n  fragment ImportedDocumentFields on ImportedDocument {\n    id\n    type\n    number\n    issueDate\n    dueDate\n    clientId\n    clientName\n    projectId\n    title\n    totalNet\n    totalVat\n    totalGross\n    currency\n    note\n    fileUrl\n    fileName\n    settled\n    paid\n    balance\n    trackingStatus {\n      id\n      name\n      color\n      category\n    }\n    fileMimeType\n    sentAt\n    sentVia\n  }\n"): typeof import('./graphql').ImportedDocumentFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -897,6 +899,10 @@ export function graphql(source: "\n  query ImportedDocuments($clientId: ID, $pro
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query ImportedDocument($id: ID!) {\n    importedDocument(id: $id) {\n      ...ImportedDocumentFields\n    }\n  }\n"): typeof import('./graphql').ImportedDocumentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MarkImportedDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID!) {\n    markImportedDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)\n  }\n"): typeof import('./graphql').MarkImportedDocumentSentDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -920,7 +926,7 @@ export function graphql(source: "\n  query DocumentStatuses {\n    documentStatu
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n"): typeof import('./graphql').OverdueInvoicesDocument;
+export function graphql(source: "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      sentAt\n      sentVia\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n"): typeof import('./graphql').OverdueInvoicesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -948,7 +954,7 @@ export function graphql(source: "\n  mutation SetDocumentTrackingStatus($id: ID!
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String) {\n    markDocumentSent(id: $id, date: $date, via: $via)\n  }\n"): typeof import('./graphql').MarkDocumentSentDocument;
+export function graphql(source: "\n  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID) {\n    markDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)\n  }\n"): typeof import('./graphql').MarkDocumentSentDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

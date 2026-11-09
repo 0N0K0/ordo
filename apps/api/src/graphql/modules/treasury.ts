@@ -1,4 +1,4 @@
-import { DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, REMINDER_DELAY_DAYS, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/reminders';
 import * as statuses from '../../services/document-statuses';
@@ -778,16 +778,18 @@ builder.queryFields((t) => ({
   }),
   overdueInvoices: t.prismaField({
     type: ['AccountingDocument'],
-    description: 'Final invoices still due after their due date, oldest due first.',
+    description: `Final invoices still due, sent ${REMINDER_DELAY_DAYS} days ago or more (the sending counts, not the due date), sent first first.`,
     args: { today: t.arg({ type: 'Date', required: true }) },
     resolve: async (query, _root, args, ctx) => {
       const balances = await balancesOf(ctx);
+      // Sent on the 1st: reminded from the 16th.
+      const sentBefore = parseDay(addDays(args.today, -(REMINDER_DELAY_DAYS - 1)));
       const late = await prisma.accountingDocument.findMany({
-        where: { status: 'FINAL', type: { in: ['INVOICE', 'DEPOSIT_INVOICE'] }, dueDate: { lt: parseDay(args.today) } },
+        where: { status: 'FINAL', type: { in: ['INVOICE', 'DEPOSIT_INVOICE'] }, sentAt: { lt: sentBefore } },
         select: { id: true },
       });
       const ids = late.filter((document) => (balances.get(document.id)?.balance ?? 0) > 0).map((document) => document.id);
-      return prisma.accountingDocument.findMany({ ...query, where: { id: { in: ids } }, orderBy: [{ dueDate: 'asc' }, { number: 'asc' }] });
+      return prisma.accountingDocument.findMany({ ...query, where: { id: { in: ids } }, orderBy: [{ sentAt: 'asc' }, { number: 'asc' }] });
     },
   }),
   documentStatuses: t.prismaField({
@@ -1006,10 +1008,10 @@ builder.mutationFields((t) => ({
     },
   }),
   markDocumentSent: t.boolean({
-    description: 'Notes that a document was sent, now or on a past day (date), and how (MAIL, CHORUS, POST, HAND, OTHER).',
-    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string() },
-    resolve: async (_root, { id, date, via }) => {
-      await tracking.markSent(id, { date: date ?? null, via: via ?? null });
+    description: 'Notes that a document was sent, now or on a past day (date), how (MAIL, CHORUS, POST, HAND, OTHER), and with which "sent" status.',
+    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string(), statusId: t.arg.id() },
+    resolve: async (_root, { id, date, via, statusId }) => {
+      await tracking.markSent(id, { date: date ?? null, via: via ?? null, statusId: statusId ?? null });
       return true;
     },
   }),

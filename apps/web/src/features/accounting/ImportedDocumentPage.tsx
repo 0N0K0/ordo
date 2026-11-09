@@ -11,6 +11,7 @@ import { Section } from './EditorSection';
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { StatusMenu } from './TrackingBadge';
+import { openSentDialog } from './sent-dialog';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
 
@@ -29,7 +30,7 @@ const printed = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`
 export function ImportedDocumentPage() {
   const { id = '' } = useParams();
   const { data: document, isLoading } = useImportedDocument(id);
-  const { setStatus } = useImportedDocumentMutations();
+  const { setStatus, markSent } = useImportedDocumentMutations();
 
   if (isLoading) {
     return (
@@ -119,7 +120,17 @@ export function ImportedDocumentPage() {
                   type={document.type}
                   current={document.trackingStatus}
                   pending={setStatus.isPending}
-                  onSelect={(statusId) => setStatus.mutate({ id: document.id, statusId }, { onError: (error) => notifyError(error.message) })}
+                  onSelect={(status) =>
+                    // A "sent" status asks when and how it was sent.
+                    status.category === 'SENT'
+                      ? openSentDialog({
+                          title: `Envoi de ${document.number}`,
+                          sentAt: document.sentAt,
+                          sentVia: document.sentVia,
+                          onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
+                        })
+                      : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+                  }
                 />
                 {document.type !== 'QUOTE' && (
                   <Badge variant="light" color={document.balance ? 'orange' : 'green'}>

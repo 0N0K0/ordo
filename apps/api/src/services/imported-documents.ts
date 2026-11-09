@@ -4,6 +4,7 @@ import { Prisma, type ImportedDocument } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachmentData } from './attachments';
 import { scopeOf } from './document-statuses';
+import { sendingData, sentStatus } from './document-tracking';
 import { requirePro } from './workspaces';
 
 export type { ImportedDocumentInput } from '@ordo/shared';
@@ -126,4 +127,19 @@ export async function setImportedTrackingStatus(id: string, statusId: string | n
     if (!status || status.scope !== scopeOf(document.type)) throw notFound('Statut');
   }
   return prisma.importedDocument.update({ where: { id }, data: { trackingStatusId: statusId } });
+}
+
+/**
+ * Notes that an imported document was sent (deposited on Chorus Pro, posted…), on a day and how, with the "sent"
+ * status chosen.
+ * @param {string} id Imported document.
+ * @param {{ date?: string | null, via?: string | null, statusId: string }} options Day (none: now), way and status.
+ * @returns {Promise<ImportedDocument>} Document.
+ */
+export async function markImportedSent(id: string, options: { date?: string | null; via?: string | null; statusId: string }): Promise<ImportedDocument> {
+  requirePro('facturation');
+  const document = await prisma.importedDocument.findUnique({ where: { id } });
+  if (!document) throw notFound('Document importé');
+  const status = await sentStatus(options.statusId, document.type);
+  return prisma.importedDocument.update({ where: { id }, data: { ...sendingData(options), trackingStatusId: status.id } });
 }

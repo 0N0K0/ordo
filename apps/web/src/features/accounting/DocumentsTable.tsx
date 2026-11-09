@@ -11,8 +11,12 @@ import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openDepositForm } from './new-document';
 import { handleFileClick } from '../files/open-file';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
+import { openSentDialog } from './sent-dialog';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+const dateFormat = new Intl.DateTimeFormat('fr-FR', {
+  dateStyle: 'medium',
+  timeZone: 'UTC',
+});
 
 interface DocumentsTableProps {
   documents: AccountingDocumentSummary[];
@@ -71,7 +75,10 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
             onCancel={() => modals.close(modalId)}
             onConfirm={() => {
               modals.close(modalId);
-              remove.mutate(document.id, { onSuccess: () => notifySuccess('Document importé supprimé.'), onError: (error) => notifyError(error.message) });
+              remove.mutate(document.id, {
+                onSuccess: () => notifySuccess('Document importé supprimé.'),
+                onError: (error) => notifyError(error.message),
+              });
             }}
           />
         </Stack>
@@ -202,7 +209,7 @@ interface ImportedRowProps {
  * @returns {JSX.Element} Row.
  */
 function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowProps) {
-  const { setStatus } = useImportedDocumentMutations();
+  const { setStatus, markSent } = useImportedDocumentMutations();
   const navigate = useNavigate();
   const open = () => navigate(`/accounting/imported/${document.id}`);
   return (
@@ -233,11 +240,27 @@ function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowPr
             type={document.type}
             current={document.trackingStatus}
             pending={setStatus.isPending}
-            onSelect={(statusId) => setStatus.mutate({ id: document.id, statusId }, { onError: (error) => notifyError(error.message) })}
+            onSelect={(status) =>
+              // A "sent" status asks when and how it was sent.
+              status.category === 'SENT'
+                ? openSentDialog({
+                    title: `Envoi de ${document.number}`,
+                    sentAt: document.sentAt,
+                    sentVia: document.sentVia,
+                    onSubmit: ({ date, via }) =>
+                      markSent.mutateAsync({
+                        id: document.id,
+                        date,
+                        via,
+                        statusId: status.id,
+                      }),
+                  })
+                : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+            }
           />
           {document.type !== 'QUOTE' && (
             <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
-              {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglé'}
+              {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglée'}
             </Badge>
           )}
         </Group>
@@ -263,7 +286,11 @@ function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowPr
                 aria-label={`Ouvrir ${document.fileName ?? 'le document'}`}
                 onClick={(event: React.MouseEvent) => {
                   event.stopPropagation();
-                  handleFileClick(event, { url: document.fileUrl!, name: document.fileName ?? document.number, mimeType: document.fileMimeType });
+                  handleFileClick(event, {
+                    url: document.fileUrl!,
+                    name: document.fileName ?? document.number,
+                    mimeType: document.fileMimeType,
+                  });
                 }}
               >
                 <FilePdfIcon aria-hidden />
