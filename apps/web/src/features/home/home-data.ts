@@ -1,6 +1,6 @@
 import { addDays, entrySeconds, filterPeriod, formatMoney } from '@ordo/shared';
 import { useMemo } from 'react';
-import type { AccountingDocumentSummary } from '../accounting/documents-api';
+import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
 import { useMatchingTaskIds, type Task } from '../tasks/api';
 import { useTimeEntriesSince } from '../time/api';
 import { useNow } from '../time/use-now';
@@ -61,7 +61,7 @@ export interface BillingSummary {
   /** Of which past the due date. */
   overdue: number;
   overdueCount: number;
-  /** Net revenue (credit notes deducted) of the month and of the year. */
+  /** Net revenue (credit notes deducted) of the month and of the year, imported documents included. */
   monthNet: number;
   yearNet: number;
   /** Quotes sent and waiting for an answer. */
@@ -71,12 +71,13 @@ export interface BillingSummary {
 }
 
 /**
- * Invoicing at a glance, from the Ordo documents.
+ * Invoicing at a glance, from the Ordo documents; the revenue counts the imported invoices and credit notes too.
  * @param {AccountingDocumentSummary[]} documents Documents.
  * @param {string} today Today.
+ * @param {ImportedDocument[]} [imported] Imported documents. Optional.
  * @returns {BillingSummary} Summary.
  */
-export function billingSummary(documents: AccountingDocumentSummary[], today: string): BillingSummary {
+export function billingSummary(documents: AccountingDocumentSummary[], today: string, imported: ImportedDocument[] = []): BillingSummary {
   const summary: BillingSummary = { receivable: 0, overdue: 0, overdueCount: 0, monthNet: 0, yearNet: 0, pendingQuotes: [], pendingQuotesNet: 0, drafts: 0 };
   for (const document of documents) {
     if (document.status === 'DRAFT') {
@@ -100,6 +101,14 @@ export function billingSummary(documents: AccountingDocumentSummary[], today: st
         summary.overdueCount += 1;
       }
     }
+  }
+  // Imported invoices and credit notes are revenue of their date too (quotes are not).
+  for (const document of imported) {
+    if (document.type === 'QUOTE') continue;
+    const sign = document.type === 'CREDIT_NOTE' ? -1 : 1;
+    const date = String(document.issueDate);
+    if (date.slice(0, 4) === today.slice(0, 4)) summary.yearNet += sign * document.totalNet;
+    if (date.slice(0, 7) === today.slice(0, 7)) summary.monthNet += sign * document.totalNet;
   }
   // Oldest sent first: those to follow up.
   summary.pendingQuotes.sort((a, b) => (a.sentAt ?? a.issueDate).localeCompare(b.sentAt ?? b.issueDate));

@@ -3,7 +3,7 @@ import { addDays, formatDuration } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { ArrowCounterClockwiseIcon, FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
-import { useAccountingDocuments } from '../features/accounting/documents-api';
+import { useAccountingDocuments, useImportedDocuments } from '../features/accounting/documents-api';
 import { useMe } from '../features/auth/api';
 import { ChronoCard } from '../features/home/ChronoCard';
 import { BillingCard, QuotesCard, TreasuryCard } from '../features/home/FinanceCards';
@@ -48,7 +48,8 @@ export function HomePage() {
   const myTasks = useMyTodayTasks(context, today);
   const time = useWeekTime(today);
   const documents = useAccountingDocuments();
-  const summary = useMemo(() => (documents.data ? billingSummary(documents.data, today) : null), [documents.data, today]);
+  const imported = useImportedDocuments();
+  const summary = useMemo(() => (documents.data && imported.data ? billingSummary(documents.data, today, imported.data) : null), [documents.data, imported.data, today]);
   const projection = useTreasuryProjection({ today, from: today, until: addDays(today, 90) });
   const in30 = addDays(today, 30);
   const at30 = projection.data ? [...projection.data.series].reverse().find((point) => point.date <= in30) : undefined;
