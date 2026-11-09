@@ -169,7 +169,7 @@ function OrdoRow({ document, showType, showClient, actions, onOpen }: OrdoRowPro
         </Stack>
       </Table.Td>
       <Table.Td>
-        <TrackingBadge document={document} />
+        <TrackingBadge document={document} editable />
       </Table.Td>
       <Table.Td ta="right" ff="monospace">
         {formatMoney(Math.round(document.totalNet * 100), document.currency)}
