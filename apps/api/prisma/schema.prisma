@@ -1674,6 +1674,8 @@ enum DocumentStatusCategory {
   REFUSED
   /// Paid (invoices), refunded or deducted (credit notes).
   PAID
+  /// Invoices: a credit note is to be made on it (kept, paid or not, until one is final).
+  CREDIT_DUE
 }
 
 /// Configurable tracking status of the final documents ("Envoyé", "En négociation", "Payée"…).

@@ -783,6 +783,7 @@ type DocumentStatus {
 
 enum DocumentStatusCategory {
   ACCEPTED
+  CREDIT_DUE
   PAID
   REFUSED
   SENT

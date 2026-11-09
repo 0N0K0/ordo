@@ -1,4 +1,4 @@
-import { formatDay, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/reminders';
 import * as statuses from '../../services/document-statuses';
@@ -10,6 +10,7 @@ import * as statements from '../../services/treasury-import';
 import * as loans from '../../services/treasury-loans';
 import * as team from '../../services/treasury-team';
 import { meContributorId } from '../../services/workspaces';
+import { currentWorkspace } from '../../workspace-context';
 import { builder } from '../builder';
 
 /**
@@ -43,7 +44,7 @@ function importedBalancesOf(ctx: object): Promise<Map<string, tracking.DocumentB
 }
 
 const ScopeEnum = builder.enumType('DocumentStatusScope', { values: ['QUOTE', 'INVOICE'] as const });
-const CategoryEnum = builder.enumType('DocumentStatusCategory', { values: ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID'] as const });
+const CategoryEnum = builder.enumType('DocumentStatusCategory', { values: DOCUMENT_STATUS_CATEGORIES });
 const EntryStatusEnum = builder.enumType('TreasuryEntryStatus', { values: ['ACTUAL', 'FORECAST'] as const });
 const DirectionEnum = builder.enumType('TreasuryDirection', { values: ['IN', 'OUT'] as const });
 
@@ -791,7 +792,11 @@ builder.queryFields((t) => ({
   }),
   documentStatuses: t.prismaField({
     type: ['DocumentStatus'],
-    resolve: (query) => prisma.documentStatus.findMany({ ...query, orderBy: [{ scope: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: async (query) => {
+      // A category added since (credit note to make…) gets its default status.
+      if (currentWorkspace().kind === 'PRO') await statuses.ensureDocumentStatuses();
+      return prisma.documentStatus.findMany({ ...query, orderBy: [{ scope: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }] });
+    },
   }),
   treasuryAccounts: t.prismaField({
     type: ['TreasuryAccount'],

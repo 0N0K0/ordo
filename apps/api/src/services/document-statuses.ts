@@ -25,6 +25,7 @@ export const DEFAULT_DOCUMENT_STATUSES = [
   { scope: 'INVOICE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
   { scope: 'INVOICE', name: 'Envoyée', color: '#228be6', category: 'SENT' },
   { scope: 'INVOICE', name: 'Payée', color: '#40c057', category: 'PAID' },
+  { scope: 'INVOICE', name: 'Avoir à créer', color: '#fd7e14', category: 'CREDIT_DUE' },
 ] as const satisfies readonly { scope: DocumentStatusScope; name: string; color: string; category: DocumentStatusCategory }[];
 
 /**

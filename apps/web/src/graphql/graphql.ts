@@ -309,6 +309,7 @@ export type DocumentPaymentInput = {
 
 export type DocumentStatusCategory =
   | 'ACCEPTED'
+  | 'CREDIT_DUE'
   | 'PAID'
   | 'REFUSED'
   | 'SENT'

@@ -72,7 +72,8 @@ export async function importedBalances(): Promise<Map<string, DocumentBalance>> 
 
 /**
  * Brings the status of final invoices and credit notes in line with their payments: "paid" once nothing is
- * due, back to "sent" (or "to send") when a payment is removed. Other statuses chosen by hand are kept.
+ * due, back to "sent" (or "to send") when a payment is removed. Other statuses chosen by hand are kept; "credit
+ * note to make" too, paid or not, until a credit note on the invoice is final.
  * @param {(string | null | undefined)[]} ids Documents whose payments or credit notes changed.
  * @returns {Promise<void>}
  */
@@ -87,7 +88,12 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
   const all = new Set([...wanted, ...related.flatMap((item) => [item.id, item.sourceId ?? ''])].filter(Boolean));
   const documents = await prisma.accountingDocument.findMany({
     where: { id: { in: [...all] }, status: 'FINAL', type: { not: 'QUOTE' } },
-    select: { id: true, sentAt: true, trackingStatus: { select: { category: true } } },
+    select: {
+      id: true,
+      sentAt: true,
+      trackingStatus: { select: { category: true } },
+      derived: { where: { type: 'CREDIT_NOTE', status: 'FINAL' }, select: { id: true } },
+    },
   });
   if (!documents.length) return;
   const balances = await documentBalances();
@@ -95,7 +101,12 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
   for (const document of documents) {
     const balance = balances.get(document.id)?.balance ?? 0;
     const category = document.trackingStatus?.category;
-    if (balance <= 0 && category !== 'PAID') {
+    if (category === 'CREDIT_DUE') {
+      // Waiting for its credit note; once made, the invoice is paid or due again.
+      if (!document.derived.length) continue;
+      const status = balance <= 0 ? paidStatus : await statusOf('INVOICE', document.sentAt ? 'SENT' : 'TO_SEND');
+      await prisma.accountingDocument.update({ where: { id: document.id }, data: { trackingStatusId: status.id } });
+    } else if (balance <= 0 && category !== 'PAID') {
       await prisma.accountingDocument.update({ where: { id: document.id }, data: { trackingStatusId: paidStatus.id } });
     } else if (balance > 0 && (category === 'PAID' || !category)) {
       const status = await statusOf('INVOICE', document.sentAt ? 'SENT' : 'TO_SEND');
