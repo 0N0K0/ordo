@@ -23,6 +23,7 @@ import { buildRows, taskIdOfRow } from './views/task-rows';
 import { useTaskView } from './views/use-task-view';
 import { ViewTabs } from './views/ViewTabs';
 import { ViewToolbar } from './views/ViewToolbar';
+import { sprintPeriod } from './views/sprint-period';
 
 const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -141,12 +142,15 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
   // Events of the period, filtered by the view as far as their fields allow (task-only conditions leave them in).
   const showEvents = config?.events.show ?? false;
   const eventPeriod = config?.events.period ?? 'next:30';
+  // A view filtering sprints lists the events of their dates.
+  const sprintRange = useMemo(() => (showEvents && context && config ? sprintPeriod(config.filter, context, today) : null), [showEvents, context, config, today]);
   const range = useMemo(() => {
     if (!showEvents) return null;
     if (eventRange) return eventRange;
+    if (sprintRange) return sprintRange;
     const [from, end] = filterPeriod(eventPeriod, today);
     return { from, to: addDays(end, -1) };
-  }, [showEvents, eventRange, eventPeriod, today]);
+  }, [showEvents, eventRange, sprintRange, eventPeriod, today]);
   const eventsQuery = useCalendarEvents(range);
   const events = useMemo(() => {
     if (!context || !query || !range || !eventsQuery.data) return [];
@@ -206,7 +210,8 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
           context={context}
           filterOpened={filterOpened}
           onFilterOpenedChange={setFilterOpened}
-          eventPeriodLocked={Boolean(eventRange)}
+          eventPeriodLocked={Boolean(eventRange ?? sprintRange)}
+          eventPeriodLabel={!eventRange && sprintRange ? `Évènements des sprints : du ${dayLabel(sprintRange.from)} au ${dayLabel(sprintRange.to)}` : undefined}
           onExport={exportRows}
           exporting={exporting}
           canExport={rows.length > 0}

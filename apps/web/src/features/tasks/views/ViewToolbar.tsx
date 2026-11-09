@@ -185,6 +185,8 @@ interface ViewToolbarProps {
   onFilterOpenedChange: (opened: boolean) => void;
   /** The page sets the period of the events (home): no period choice. */
   eventPeriodLocked: boolean;
+  /** What sets the period of the events when locked (the sprints filtered), told in place of its choice. */
+  eventPeriodLabel?: string;
   onExport: (format: 'csv' | 'pdf') => void;
   exporting: boolean;
   /** Something is listed. */
@@ -197,7 +199,7 @@ interface ViewToolbarProps {
  * @param {ViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, onExport, exporting, canExport }: ViewToolbarProps) {
+export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport }: ViewToolbarProps) {
   const filterCount = countConditions(config.filter);
   return (
     <Group gap="sm" wrap="wrap">
@@ -307,6 +309,11 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
           change((current) => ({ ...current, events: { ...current.events, show } }));
         }}
       />
+      {config.events.show && eventPeriodLocked && eventPeriodLabel && (
+        <Text size="sm" c="dimmed">
+          {eventPeriodLabel}
+        </Text>
+      )}
       {config.events.show && !eventPeriodLocked && (
         <Select
           aria-label="Période des évènements"
