@@ -36,8 +36,9 @@ export function contentWidth(table: HTMLTableElement, index: number): number {
 }
 
 /**
- * Height an element can take down to the bottom of the window (less the bottom padding of the page), at least a
- * minimum; follows the size of the window and of what is above it.
+ * Height an element can take so that the page fits the window: down to its bottom, less what the page has below the
+ * element (paddings, borders, other content) and its bottom padding; at least a minimum. Follows the size of the
+ * window and of the page.
  * @param {number} [minimum] Smallest height, in pixels. Optional. Default = 320.
  * @returns {readonly [React.RefObject<HTMLDivElement | null>, number | undefined]} Element to measure, and its height.
  */
@@ -52,16 +53,21 @@ export function useFillHeight(minimum = 320) {
     const update = () => {
       const element = ref.current;
       if (!element) return;
-      const top = element.getBoundingClientRect().top + window.scrollY;
+      const box = element.getBoundingClientRect();
       const main = element.closest('main');
-      const bottom = main ? parseFloat(getComputedStyle(main).paddingBottom) : 16;
-      setHeight(Math.max(minimum, Math.floor(window.innerHeight - top - bottom)));
+      const padding = main ? parseFloat(getComputedStyle(main).paddingBottom) : 16;
+      // What the page has below the element: measured on its content, not on the main area (as tall as the window
+      // at least).
+      const content = main?.firstElementChild?.getBoundingClientRect();
+      const below = content ? Math.max(0, content.bottom - box.bottom) : 0;
+      const top = box.top + window.scrollY;
+      setHeight(Math.max(minimum, Math.floor(window.innerHeight - top - below - padding)));
     };
     update();
     window.addEventListener('resize', update);
-    // What is above may change height (filters, a bar of selection…).
+    // What is above or below may change height (filters, a bar of selection…): the content of the page tells it.
     const observer = new ResizeObserver(update);
-    observer.observe(document.body);
+    observer.observe(ref.current?.closest('main')?.firstElementChild ?? document.body);
     return () => {
       window.removeEventListener('resize', update);
       observer.disconnect();

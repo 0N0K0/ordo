@@ -795,9 +795,8 @@ export function TaskTable({
       }}
     >
       <CellSelectionContext.Provider value={effectiveCellSelection}>
-        {/* Scrolling inside the height left by the page: the header stays on top. */}
-        <div ref={fillRef}>
-        <Table.ScrollContainer minWidth={table.getTotalSize()} maxHeight={fillHeight}>
+        {/* Scrolling both ways inside the height left by the page, its scrollbars counted in: the header stays on top. */}
+        <div ref={fillRef} className={classes.scroller} style={{ maxHeight: fillHeight }}>
           <Table
             ref={tableRef}
             highlightOnHover
@@ -886,7 +885,6 @@ export function TaskTable({
               />
             </Table.Tfoot>
           </Table>
-        </Table.ScrollContainer>
         </div>
       </CellSelectionContext.Provider>
     </DndContext>
