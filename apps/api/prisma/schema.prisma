@@ -22,6 +22,8 @@ model Workspace {
   position                  Int                        @default(0)
   /// Notifications this workspace still gives while another one is open.
   notifyElsewhere           NotificationSource[]       @default([])
+  /// Columns new task views start with: { columnOrder, hiddenColumns }; none: the app's.
+  taskColumns               Json?
   places                    Place[]
   /// Schedules without kind: their name (none: "Travail"), color (none: the green of working hours) and display.
   scheduleName              String?

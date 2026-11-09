@@ -2,7 +2,7 @@ import { defaultTaskViewConfig, taskViewConfigSchema, type TaskViewConfig } from
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { notifyError } from '../../../lib/notify';
-import { useTaskViewMutations, useTaskViews, type TaskViewRecord } from '../api';
+import { useTaskColumnDefaults, useTaskViewMutations, useTaskViews, type TaskViewRecord } from '../api';
 
 export interface TaskView extends Omit<TaskViewRecord, 'config'> {
   config: TaskViewConfig;
@@ -40,6 +40,9 @@ function canonical(value: unknown): string {
  */
 export function useTaskView(projectId: string | null) {
   const viewsQuery = useTaskViews(projectId);
+  // Columns new views start with: those chosen for the workspace.
+  const columnsQuery = useTaskColumnDefaults();
+  const columnDefaults = columnsQuery.data;
   const mutations = useTaskViewMutations();
   const [params, setParams] = useSearchParams();
   const [drafts, setDrafts] = useState<Record<string, TaskViewConfig>>({});
@@ -63,13 +66,14 @@ export function useTaskView(projectId: string | null) {
   const { create } = mutations;
   useEffect(() => {
     const scope = projectId ?? '';
-    if (!viewsQuery.isSuccess || views.length > 0 || created.current === scope) return;
+    // The first view waits for the columns of the workspace (the app's if they cannot be read).
+    if (!viewsQuery.isSuccess || columnsQuery.isPending || views.length > 0 || created.current === scope) return;
     created.current = scope;
     create.mutate(
-      { name: 'Toutes les tâches', config: defaultTaskViewConfig(), projectId },
+      { name: 'Toutes les tâches', config: defaultTaskViewConfig(columnDefaults), projectId },
       { onError: (error) => notifyError(error.message) },
     );
-  }, [viewsQuery.isSuccess, views.length, create, projectId]);
+  }, [viewsQuery.isSuccess, columnsQuery.isPending, columnDefaults, views.length, create, projectId]);
 
   /**
    * Selects a view (kept in the URL).
@@ -135,7 +139,7 @@ export function useTaskView(projectId: string | null) {
      */
     createView: (name: string, fromCurrent: boolean) =>
       mutations.create.mutate(
-        { name, config: fromCurrent && config ? config : defaultTaskViewConfig(), projectId },
+        { name, config: fromCurrent && config ? config : defaultTaskViewConfig(columnDefaults), projectId },
         {
           onSuccess: (view) => {
             if (fromCurrent && current) discard(current.id);

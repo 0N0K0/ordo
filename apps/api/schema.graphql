@@ -1671,6 +1671,11 @@ type Mutation {
   setTaskArchived(archived: Boolean!, id: ID!): Task!
 
   """
+  Chooses the columns new task views start with; without columns, gives back the app’s.
+  """
+  setTaskColumnDefaults(columnOrder: [String!], hiddenColumns: [String!]): TaskColumnDefaults!
+
+  """
   Makes a task recurring, changes its repetition, or stops it (null). On an occurrence, its series is changed.
   """
   setTaskRecurrence(id: ID!, recurrence: JSON): Task!
@@ -2087,6 +2092,11 @@ type Query {
 
   """A task, by its id (its number is only unique in its project)."""
   task(id: ID!): Task
+
+  """
+  Columns new task views of the workspace start with (chosen for it, else the app’s).
+  """
+  taskColumnDefaults: TaskColumnDefaults!
   taskPriorities: [TaskPriority!]!
   taskStatuses: [TaskStatus!]!
   taskTags: [TaskTag!]!
@@ -2380,6 +2390,12 @@ type Task {
   trackedSeconds: Int!
   typeId: ID
   updatedAt: DateTime!
+}
+
+"""Columns new task views of the workspace start with."""
+type TaskColumnDefaults {
+  columnOrder: [String!]!
+  hiddenColumns: [String!]!
 }
 
 type TaskComment {

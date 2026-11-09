@@ -262,6 +262,8 @@ type Documents = {
     "\n      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskTag(id: $id, input: $input) {\n          id\n        }\n      }\n    ": typeof types.UpdateTaskTagDocument,
     "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    ": typeof types.DeleteTaskTagDocument,
     "\n      mutation MoveTaskTag($id: ID!, $index: Int!) {\n        moveTaskTag(id: $id, index: $index)\n      }\n    ": typeof types.MoveTaskTagDocument,
+    "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.TaskColumnDefaultsDocument,
+    "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": typeof types.SetTasksClosedDocument,
     "\n  query TaskViews($projectId: ID) {\n    taskViews(projectId: $projectId) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": typeof types.MatchingTaskIdsDocument,
@@ -614,6 +616,8 @@ const documents: Documents = {
     "\n      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskTag(id: $id, input: $input) {\n          id\n        }\n      }\n    ": types.UpdateTaskTagDocument,
     "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    ": types.DeleteTaskTagDocument,
     "\n      mutation MoveTaskTag($id: ID!, $index: Int!) {\n        moveTaskTag(id: $id, index: $index)\n      }\n    ": types.MoveTaskTagDocument,
+    "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.TaskColumnDefaultsDocument,
+    "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": types.SetTasksClosedDocument,
     "\n  query TaskViews($projectId: ID) {\n    taskViews(projectId: $projectId) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": types.MatchingTaskIdsDocument,
@@ -1707,6 +1711,14 @@ export function graphql(source: "\n      mutation DeleteTaskTag($id: ID!) {\n   
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n      mutation MoveTaskTag($id: ID!, $index: Int!) {\n        moveTaskTag(id: $id, index: $index)\n      }\n    "): typeof import('./graphql').MoveTaskTagDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n"): typeof import('./graphql').TaskColumnDefaultsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n"): typeof import('./graphql').SetTaskColumnDefaultsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

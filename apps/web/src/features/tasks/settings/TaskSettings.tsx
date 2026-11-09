@@ -3,6 +3,7 @@ import type { TaskStatusCategory } from "@ordo/shared";
 import { notifyError } from "../../../lib/notify";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { useTaskLabelMutations, useTasksData, type Task } from "../api";
+import { ColumnDefaults } from "./ColumnDefaults";
 
 const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
   { value: "TODO", label: "À faire" },
@@ -44,6 +45,7 @@ export function TaskSettings() {
 
   return (
     <Stack gap="lg">
+      <ColumnDefaults />
       <LabelManager
         title="Statuts de tâche"
         description="La catégorie donne son sens au statut quel que soit son nom (filtres, tâches « en cours » de l’accueil). C’est l’état ouvert / fermé de la tâche, et non son statut, qui dit si elle est terminée."

@@ -4,6 +4,14 @@
     table-layout: fixed;
   }
 
+  /* Scrolling area of the table: both ways, so that its header sticks to its top. */
+  .scroller {
+    /* Dimension */
+    max-width: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
   .header {
     /* Position */
     position: relative;

@@ -312,14 +312,39 @@ export const taskViewConfigSchema = z.object({
 });
 export type TaskViewConfig = z.infer<typeof taskViewConfigSchema>;
 
+/** Columns of the views made by the app, unless the workspace chose its own. */
+export const DEFAULT_HIDDEN_COLUMNS: TaskColumn[] = ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt'];
+
+/** Columns new views of a workspace start with: their order, and those hidden. */
+export const taskColumnDefaultsSchema = z.object({
+  columnOrder: columnListSchema().default([...TASK_COLUMNS]),
+  // The title is always shown.
+  hiddenColumns: columnListSchema()
+    .transform((columns): TaskColumn[] => columns.filter((column) => column !== 'title'))
+    .default([...DEFAULT_HIDDEN_COLUMNS]),
+});
+export type TaskColumnDefaults = z.infer<typeof taskColumnDefaultsSchema>;
+
 /**
- * Configuration of a new view: every task, manual order, default columns.
+ * Columns new views start with: those chosen for the workspace (stored value), else the app's.
+ * @param {unknown} stored Stored value, if any.
+ * @returns {TaskColumnDefaults} Order and hidden columns.
+ */
+export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
+  const parsed = taskColumnDefaultsSchema.safeParse(stored ?? {});
+  return parsed.success ? parsed.data : { columnOrder: [...TASK_COLUMNS], hiddenColumns: [...DEFAULT_HIDDEN_COLUMNS] };
+}
+
+/**
+ * Configuration of a new view: every task, manual order, the default columns (of the workspace when given).
+ * @param {TaskColumnDefaults} [columns] Columns chosen for the workspace. Optional.
  * @returns {TaskViewConfig} Config.
  */
-export function defaultTaskViewConfig(): TaskViewConfig {
+export function defaultTaskViewConfig(columns?: TaskColumnDefaults): TaskViewConfig {
   return taskViewConfigSchema.parse({
     filter: emptyFilter(),
-    hiddenColumns: ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt'],
+    columnOrder: columns?.columnOrder ?? [...TASK_COLUMNS],
+    hiddenColumns: columns?.hiddenColumns ?? DEFAULT_HIDDEN_COLUMNS,
   });
 }
 

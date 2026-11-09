@@ -67,6 +67,7 @@ import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
 import { EventPeopleCell, EventTitleCell, EventWhenCell } from './views/event-cells';
 import { AddTaskRow, SummaryRow } from './views/table-extras';
 import type { DisplayRow, TaskRow } from './views/task-rows';
+import { contentWidth, useFillHeight } from './column-fit';
 
 // Stable module-level registry. Sorting is applied when building the rows (so it works with groups
 // and sub-tasks), the table only holds the sorting state and header interactions.
@@ -463,6 +464,25 @@ export function TaskTable({
     onRowSelectionChange: (updater) => onSelectionChange(apply(updater, selection)),
   });
 
+  const [fillRef, fillHeight] = useFillHeight();
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  /**
+   * Double click on the edge of a column: fitted to its content, or back to its default width when it already is.
+   * @param {string} id Column.
+   * @param {number} index Index of the column among the cells of a row.
+   * @param {number} size Current width.
+   * @param {() => void} reset Back to the default width.
+   * @returns {void}
+   */
+  const fitColumn = (id: string, index: number, size: number, reset: () => void) => {
+    if (!tableRef.current) return;
+    // Clamped like the saved widths.
+    const fit = Math.min(1200, Math.max(40, contentWidth(tableRef.current, index) + 2));
+    if (Math.abs(fit - size) <= 2) reset();
+    else table.setColumnSizing((sizing) => ({ ...sizing, [id]: fit }));
+  };
+
   const visibleRows = table.getRowModel().rows;
   const visibleColumns = table.getVisibleLeafColumns();
   const taskRows = visibleRows.filter((row) => row.original.kind === 'task');
@@ -775,8 +795,10 @@ export function TaskTable({
       }}
     >
       <CellSelectionContext.Provider value={effectiveCellSelection}>
-        <Table.ScrollContainer minWidth={table.getTotalSize()}>
+        {/* Scrolling both ways inside the height left by the page, its scrollbars counted in: the header stays on top. */}
+        <div ref={fillRef} className={classes.scroller} style={{ maxHeight: fillHeight }}>
           <Table
+            ref={tableRef}
             highlightOnHover
             stickyHeader
             verticalSpacing={4}
@@ -840,7 +862,7 @@ export function TaskTable({
                               onPointerDown={(event) => event.stopPropagation()}
                               onMouseDown={header.getResizeHandler()}
                               onTouchStart={header.getResizeHandler()}
-                              onDoubleClick={() => header.column.resetSize()}
+                              onDoubleClick={() => fitColumn(header.column.id, headerGroup.headers.indexOf(header), header.column.getSize(), header.column.resetSize)}
                             />
                           )}
                         </SortableHeader>
@@ -863,7 +885,7 @@ export function TaskTable({
               />
             </Table.Tfoot>
           </Table>
-        </Table.ScrollContainer>
+        </div>
       </CellSelectionContext.Provider>
     </DndContext>
   );
