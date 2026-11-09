@@ -353,3 +353,17 @@ export const catalogItemSchema = z.object({
   archived: z.boolean(),
 });
 export type CatalogItemInput = z.input<typeof catalogItemSchema>;
+
+/** Ways a document reaches its client. */
+export const SENDING_CHANNELS = ['MAIL', 'CHORUS', 'POST', 'HAND', 'OTHER'] as const;
+export type SendingChannel = (typeof SENDING_CHANNELS)[number];
+/** Name of each way, to choose it. */
+export const SENDING_CHANNEL_LABELS: Record<SendingChannel, string> = { MAIL: 'Mail', CHORUS: 'Chorus Pro', POST: 'Courrier', HAND: 'En main propre', OTHER: 'Autre' };
+/** Sending told: "Déposé sur Chorus Pro" (then "le 12/11/2026"). */
+export const SENT_VIA_LABELS: Record<SendingChannel, string> = {
+  MAIL: 'Envoyé par mail',
+  CHORUS: 'Déposé sur Chorus Pro',
+  POST: 'Envoyé par courrier',
+  HAND: 'Remis en main propre',
+  OTHER: 'Envoyé',
+};

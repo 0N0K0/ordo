@@ -1470,6 +1470,8 @@ model AccountingDocument {
   trackingStatus      DocumentStatus?          @relation(fields: [trackingStatusId], references: [id], onDelete: SetNull)
   /// Last time it was sent to the client (by mail from Ordo, or marked by hand).
   sentAt              DateTime?
+  /// How it was sent: MAIL, CHORUS (Chorus Pro), POST, HAND or OTHER; none: not told.
+  sentVia             String?
   /// Quotes: date of acceptance, and signed copy.
   acceptedAt          DateTime?                @db.Date
   signedAttachmentId  String?                  @unique

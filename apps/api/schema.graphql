@@ -71,6 +71,9 @@ type AccountingDocument {
   reminders: [DocumentReminder!]!
   seller: JSON
   sentAt: DateTime
+
+  """How it was sent: MAIL, CHORUS, POST, HAND or OTHER."""
+  sentVia: String
   serviceEnd: Date
   serviceId: ID
   serviceStart: Date
@@ -1425,7 +1428,11 @@ type Mutation {
 
   """Records that an alarm rang for the occurrence at `at`."""
   markAlarmFired(at: DateTime!, id: ID!): Boolean!
-  markDocumentSent(id: ID!): Boolean!
+
+  """
+  Notes that a document was sent, now or on a past day (date), and how (MAIL, CHORUS, POST, HAND, OTHER).
+  """
+  markDocumentSent(date: Date, id: ID!, via: String): Boolean!
 
   """
   Adds or removes a flag (labelId and on), or sets the done state (done), on mails.

@@ -1,4 +1,5 @@
-import { documentPaymentSchema, parseDay, toCents, type DocumentPaymentInput } from '@ordo/shared';
+import { documentPaymentSchema, parseDay, SENDING_CHANNELS, toCents, type DocumentPaymentInput } from '@ordo/shared';
+import { z } from 'zod';
 import { prisma } from '../db';
 import { Prisma, type AccountingDocument } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
@@ -136,16 +137,27 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
 }
 
 /**
- * Notes that a document was sent: "to send" becomes "sent".
+ * Notes that a document was sent (by mail from Ordo, or by hand: deposited on Chorus Pro, posted…), now or on a
+ * past day, or corrects it: "to send" becomes "sent".
  * @param {string} id Document id.
+ * @param {{ date?: string | null, via?: string | null }} [options] Day it was sent (none: now) and how. Optional.
  * @returns {Promise<AccountingDocument>} Document.
  */
-export async function markSent(id: string): Promise<AccountingDocument> {
+export async function markSent(id: string, options: { date?: string | null; via?: string | null } = {}): Promise<AccountingDocument> {
   const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } });
   if (!document) throw notFound('Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seul un document validé peut être envoyé.');
+  const via = options.via ? z.enum(SENDING_CHANNELS).safeParse(options.via) : null;
+  if (via && !via.success) throw clientError('BAD_USER_INPUT', 'Moyen d’envoi inconnu.');
+  const today = new Date().toISOString().slice(0, 10);
+  if (options.date && options.date > today) throw clientError('BAD_USER_INPUT', 'La date d’envoi ne peut pas être dans le futur.');
+  // A past day is kept at noon (UTC): the same day in every time zone of France.
+  const sentAt = options.date && options.date !== today ? new Date(`${options.date}T12:00:00Z`) : new Date();
   const sent = !document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null;
-  return prisma.accountingDocument.update({ where: { id }, data: { sentAt: new Date(), ...(sent ? { trackingStatusId: sent.id } : {}) } });
+  return prisma.accountingDocument.update({
+    where: { id },
+    data: { sentAt, sentVia: via?.data ?? null, ...(sent ? { trackingStatusId: sent.id } : {}) },
+  });
 }
 
 /**

@@ -46,6 +46,7 @@ graphql(`
     paid
     overdue
     sentAt
+    sentVia
     acceptedAt
     depositType
     depositValue
@@ -98,6 +99,7 @@ graphql(`
     finalizedAt
     updatedAt
     sentAt
+    sentVia
     acceptedAt
     signedFileUrl
     signedFileName

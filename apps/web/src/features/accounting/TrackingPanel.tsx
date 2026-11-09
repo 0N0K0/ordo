@@ -1,10 +1,10 @@
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, FileInput, Group, Modal, NumberInput, Select, Skeleton, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { documentPaymentSchema, formatMoney } from '@ordo/shared';
+import { documentPaymentSchema, formatMoney, SENDING_CHANNEL_LABELS, SENDING_CHANNELS, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { localToday } from '../../lib/dates';
+import { localDay, localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type TreasuryPaymentMethod } from '../treasury/api';
@@ -172,6 +172,55 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
 }
 
 /**
+ * Sending of a document outside the mails of Ordo (deposited on Chorus Pro, posted, handed…), or its correction:
+ * the day and the way.
+ * @param {{ document: AccountingDocument, onDone: () => void }} props Component props.
+ * @returns {JSX.Element} Form.
+ */
+function SentForm({ document, onDone }: { document: AccountingDocument; onDone: () => void }) {
+  const { markSent } = useTrackingMutations();
+  const today = localToday();
+  const [date, setDate] = useState<string | null>(document.sentAt ? localDay(new Date(document.sentAt)) : today);
+  const [via, setVia] = useState<SendingChannel>((SENDING_CHANNELS as readonly string[]).includes(document.sentVia ?? '') ? (document.sentVia as SendingChannel) : 'CHORUS');
+  return (
+    <Stack gap="sm">
+      <Select
+        label="Moyen d’envoi"
+        data={SENDING_CHANNELS.map((value) => ({ value, label: SENDING_CHANNEL_LABELS[value] }))}
+        value={via}
+        allowDeselect={false}
+        onChange={(value) => value && setVia(value as SendingChannel)}
+      />
+      <DatePickerInput label="Date d’envoi" required valueFormat="D MMM YYYY" maxDate={today} value={date} onChange={(value) => setDate(value)} />
+      <Group justify="flex-end">
+        <Button variant="default" onClick={onDone}>
+          Annuler
+        </Button>
+        <Button
+          loading={markSent.isPending}
+          disabled={!date}
+          onClick={() =>
+            date &&
+            markSent.mutate(
+              { id: document.id, date, via },
+              {
+                onSuccess: () => {
+                  notifySuccess('Envoi noté.');
+                  onDone();
+                },
+                onError: (error) => notifyError(error.message),
+              },
+            )
+          }
+        >
+          Enregistrer
+        </Button>
+      </Group>
+    </Stack>
+  );
+}
+
+/**
  * Note of a reminder made outside Ordo (call, letter…).
  * @param {{ documentId: string, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
@@ -208,7 +257,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
   );
 }
 
-type Dialog = 'payment' | 'accept' | 'reminder' | null;
+type Dialog = 'payment' | 'accept' | 'reminder' | 'sent' | null;
 
 /**
  * Tracking of a final document: configurable status, sending, acceptance with the signed quote (quotes),
@@ -250,13 +299,13 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
       )}
       <Group justify="space-between" wrap="nowrap">
         <Text size="sm" c="dimmed">
-          {document.sentAt ? `Envoyé le ${dateTimeFormat.format(new Date(document.sentAt))}` : 'Pas encore envoyé.'}
+          {document.sentAt
+            ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${dateTimeFormat.format(new Date(document.sentAt))}`
+            : 'Pas encore envoyé.'}
         </Text>
-        {!document.sentAt && (
-          <Button size="compact-xs" variant="subtle" onClick={() => mutations.markSent.mutate(document.id, { onError })}>
-            Marquer envoyé
-          </Button>
-        )}
+        <Button size="compact-xs" variant="subtle" onClick={() => setDialog('sent')}>
+          {document.sentAt ? 'Modifier' : 'Marquer envoyé'}
+        </Button>
       </Group>
 
       {isQuote && (
@@ -366,10 +415,11 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         </Stack>
       )}
 
-      <Modal opened={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'accept' ? 'Acceptation du devis' : dialog === 'reminder' ? 'Noter une relance' : isCredit ? 'Remboursement' : 'Paiement'}>
+      <Modal opened={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'accept' ? 'Acceptation du devis' : dialog === 'reminder' ? 'Noter une relance' : dialog === 'sent' ? 'Envoi' : isCredit ? 'Remboursement' : 'Paiement'}>
         {dialog === 'payment' && <PaymentForm document={document} onDone={() => setDialog(null)} />}
         {dialog === 'accept' && <AcceptForm document={document} onDone={() => setDialog(null)} />}
         {dialog === 'reminder' && <ReminderForm documentId={document.id} onDone={() => setDialog(null)} />}
+        {dialog === 'sent' && <SentForm document={document} onDone={() => setDialog(null)} />}
       </Modal>
     </Section>
   );

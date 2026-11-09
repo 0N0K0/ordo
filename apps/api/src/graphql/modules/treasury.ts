@@ -468,6 +468,7 @@ builder.prismaObject('TreasuryAccount', {
 builder.prismaObjectFields('AccountingDocument', (t) => ({
   trackingStatus: t.relation('trackingStatus', { nullable: true }),
   sentAt: t.expose('sentAt', { type: 'DateTime', nullable: true }),
+  sentVia: t.exposeString('sentVia', { nullable: true, description: 'How it was sent: MAIL, CHORUS, POST, HAND or OTHER.' }),
   acceptedAt: t.expose('acceptedAt', { type: 'Date', nullable: true }),
   signedFileUrl: t.string({
     nullable: true,
@@ -1000,9 +1001,10 @@ builder.mutationFields((t) => ({
     },
   }),
   markDocumentSent: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await tracking.markSent(id);
+    description: 'Notes that a document was sent, now or on a past day (date), and how (MAIL, CHORUS, POST, HAND, OTHER).',
+    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string() },
+    resolve: async (_root, { id, date, via }) => {
+      await tracking.markSent(id, { date: date ?? null, via: via ?? null });
       return true;
     },
   }),

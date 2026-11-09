@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { DocumentPaymentInput, DocumentStatusCategory, DocumentStatusScope } from '@ordo/shared';
+import type { DocumentPaymentInput, DocumentStatusCategory, DocumentStatusScope, SendingChannel } from '@ordo/shared';
 import { graphql } from '../../graphql';
 import type { DocumentStatusesQuery, OverdueInvoicesQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -81,8 +81,8 @@ const SetTrackingStatus = graphql(`
   }
 `);
 const MarkSent = graphql(`
-  mutation MarkDocumentSent($id: ID!) {
-    markDocumentSent(id: $id)
+  mutation MarkDocumentSent($id: ID!, $date: Date, $via: String) {
+    markDocumentSent(id: $id, date: $date, via: $via)
   }
 `);
 const AcceptQuote = graphql(`
@@ -165,7 +165,9 @@ export function useDocumentStatusMutations(scope: DocumentStatusScope) {
 export function useTrackingMutations() {
   return {
     setStatus: useAccountingMutation(async (variables: { id: string; statusId: string }) => (await execute(SetTrackingStatus, variables)).setDocumentTrackingStatus),
-    markSent: useAccountingMutation(async (id: string) => (await execute(MarkSent, { id })).markDocumentSent),
+    markSent: useAccountingMutation(
+      async (variables: { id: string; date?: string | null; via?: SendingChannel | null }) => (await execute(MarkSent, variables)).markDocumentSent,
+    ),
     accept: useAccountingMutation(async (variables: { id: string; date: string; file: File | null }) => (await execute(AcceptQuote, variables)).acceptQuote),
     removeSigned: useAccountingMutation(async (id: string) => (await execute(RemoveSignedQuote, { id })).removeSignedQuote),
     addReminder: useAccountingMutation(async (variables: { id: string; note: string | null }) => (await execute(AddReminder, variables)).addDocumentReminder),

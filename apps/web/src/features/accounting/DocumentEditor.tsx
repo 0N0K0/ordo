@@ -281,7 +281,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       onSent: () =>
         reminder
           ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, { onError: (error) => notifyError(error.message) })
-          : tracking.markSent.mutate(document.id, { onError: (error) => notifyError(error.message) }),
+          : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, { onError: (error) => notifyError(error.message) }),
     })
       .then(openComposer)
       .catch((error: Error) => notifyError(error.message))
