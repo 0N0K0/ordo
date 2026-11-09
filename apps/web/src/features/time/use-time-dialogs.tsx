@@ -13,26 +13,34 @@ let modalCount = 0;
  * Dialogs of the tracked times: the form adding or editing one, and the confirmation of a deletion.
  * @param {TaskContext | null} context Task context.
  * @param {string} [defaultProjectId] Project of a new time. Optional.
- * @returns {{ openForm: (entry?: TimeEntry) => void, confirmDelete: (entry: TimeEntry) => void }} Openers.
+ * @returns {{ openForm: (entry?: TimeEntry, options?: { copy?: boolean }) => void, duplicate: (entry: TimeEntry) => void, confirmDelete: (entry: TimeEntry) => void }} Openers.
  */
 export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectId?: string) {
   const { remove } = useTimeMutations();
 
   /**
    * Opens the time form.
-   * @param {TimeEntry} [entry] Entry to edit. Optional.
+   * @param {TimeEntry} [entry] Entry to edit (or to copy). Optional.
+   * @param {{ copy?: boolean }} [options] The entry is copied into a new one. Optional.
    * @returns {void}
    */
-  const openForm = (entry?: TimeEntry) => {
+  const openForm = (entry?: TimeEntry, { copy = false }: { copy?: boolean } = {}) => {
     if (!context) return;
     const modalId = `time-entry-${++modalCount}`;
     modals.open({
       modalId,
-      title: entry ? 'Modifier le temps' : 'Ajouter un temps',
+      title: copy ? 'Dupliquer le temps' : entry ? 'Modifier le temps' : 'Ajouter un temps',
       size: 'lg',
-      children: <TimeEntryForm context={context} entry={entry} defaultProjectId={defaultProjectId} onDone={() => modals.close(modalId)} />,
+      children: <TimeEntryForm context={context} entry={entry} copy={copy} defaultProjectId={defaultProjectId} onDone={() => modals.close(modalId)} />,
     });
   };
+
+  /**
+   * Opens the time form on a copy of a time.
+   * @param {TimeEntry} entry Entry copied.
+   * @returns {void}
+   */
+  const duplicate = (entry: TimeEntry) => openForm(entry, { copy: true });
 
   /**
    * Asks for confirmation before deleting a time.
@@ -63,5 +71,5 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
     });
   };
 
-  return { openForm, confirmDelete };
+  return { openForm, duplicate, confirmDelete };
 }

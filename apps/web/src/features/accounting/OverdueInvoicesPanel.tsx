@@ -1,10 +1,10 @@
 import { Alert, Anchor, Badge, Button, Checkbox, Group, Paper, Select, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { daysBetween, formatMoney } from '@ordo/shared';
+import { daysBetween, formatMoney, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
 import { CheckCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { localToday } from '../../lib/dates';
+import { localDay, localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailAccounts } from '../mail/api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
@@ -30,7 +30,7 @@ function daysSinceReminder(invoice: OverdueInvoice, today: string): number | nul
 }
 
 /**
- * Overdue invoices: how late, what is still due, reminders already made and to whom the reminder goes; the
+ * Invoices to remind (sent at least 15 days ago, still due): when and how they were sent, what is still due, reminders already made and to whom the reminder goes; the
  * chosen ones are reminded at once, one mail each with the invoice joined.
  * @returns {JSX.Element} Panel.
  */
@@ -122,7 +122,7 @@ export function OverdueInvoicesPanel() {
             <CheckCircleIcon aria-hidden />
           </ThemeIcon>
           <Text size="sm" c="dimmed" ta="center">
-            Aucune facture en retard : tout ce qui est échu est réglé.
+            Aucune facture à relancer : celles envoyées depuis {REMINDER_DELAY_DAYS} jours ou plus sont réglées.
           </Text>
         </Stack>
       </Paper>
@@ -178,7 +178,7 @@ export function OverdueInvoicesPanel() {
                 />
               </Table.Th>
               <Table.Th>Facture</Table.Th>
-              <Table.Th>Échéance</Table.Th>
+              <Table.Th>Envoi</Table.Th>
               <Table.Th ta="right">Reste dû</Table.Th>
               <Table.Th>Dernière relance</Table.Th>
               <Table.Th>Destinataire</Table.Th>
@@ -186,7 +186,9 @@ export function OverdueInvoicesPanel() {
           </Table.Thead>
           <Table.Tbody>
             {invoices.map((invoice) => {
-              const late = invoice.dueDate ? daysBetween(String(invoice.dueDate), today) : 0;
+              // Reminders count from the sending.
+              const sentDay = invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null;
+              const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
               const since = daysSinceReminder(invoice, today);
               return (
                 <Table.Tr key={invoice.id}>
@@ -208,10 +210,23 @@ export function OverdueInvoicesPanel() {
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm">{invoice.dueDate ? dayFormat.format(new Date(`${invoice.dueDate}T00:00:00Z`)) : '—'}</Text>
-                    <Badge size="xs" variant="light" color={late > 30 ? 'red' : 'orange'}>
-                      {late} jour{late > 1 ? 's' : ''} de retard
+                    <Text size="sm">
+                      {sentDay ? dayFormat.format(new Date(`${sentDay}T00:00:00Z`)) : '—'}
+                      {invoice.sentVia && (
+                        <Text span size="xs" c="dimmed">
+                          {' '}
+                          · {SENDING_CHANNEL_LABELS[invoice.sentVia as SendingChannel] ?? invoice.sentVia}
+                        </Text>
+                      )}
+                    </Text>
+                    <Badge size="xs" variant="light" color={sentSince > 45 ? 'red' : 'orange'}>
+                      Envoyée il y a {sentSince} jour{sentSince > 1 ? 's' : ''}
                     </Badge>
+                    {invoice.dueDate && (
+                      <Text size="xs" c="dimmed">
+                        Échéance {dayFormat.format(new Date(`${invoice.dueDate}T00:00:00Z`))}
+                      </Text>
+                    )}
                   </Table.Td>
                   <Table.Td ta="right" ff="monospace">
                     {formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency)}

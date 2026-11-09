@@ -4,7 +4,7 @@ import { colorSchema } from './workspace';
 
 export const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
 export type DocumentStatusScope = (typeof DOCUMENT_STATUS_SCOPES)[number];
-export const DOCUMENT_STATUS_CATEGORIES = ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID'] as const;
+export const DOCUMENT_STATUS_CATEGORIES = ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID', 'CREDIT_DUE'] as const;
 export type DocumentStatusCategory = (typeof DOCUMENT_STATUS_CATEGORIES)[number];
 
 /** Categories a scope uses, with their meaning. */
@@ -19,6 +19,7 @@ export const STATUS_CATEGORIES_BY_SCOPE: Record<DocumentStatusScope, { value: Do
     { value: 'TO_SEND', label: 'À envoyer' },
     { value: 'SENT', label: 'Envoyée' },
     { value: 'PAID', label: 'Payée' },
+    { value: 'CREDIT_DUE', label: 'Avoir à créer' },
   ],
 };
 

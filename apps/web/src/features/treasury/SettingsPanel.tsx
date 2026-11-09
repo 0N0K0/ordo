@@ -24,10 +24,11 @@ import { AddressBookIcon, CreditCardIcon, PencilSimpleIcon, PlusIcon, TagIcon, T
 import { useState, type ReactNode } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
+import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
 import { categoryOptions, categoryTree } from './categories';
 import { confirmDeletion } from './confirm-deletion';
 import { TeamPanel } from './TeamPanel';
+import { useActiveWorkspace } from '../workspaces/api';
 
 const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OUT: 'Sorties' };
 
@@ -373,12 +374,63 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
 }
 
 /**
+ * Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out): what
+ * is expected of the invoices (forecast) and their payments count in the budgets of these categories.
+ * @param {{ categories: TreasuryCategory[] }} props Categories of the treasury.
+ * @returns {JSX.Element} Section.
+ */
+function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
+  const { data: chosen } = useInvoiceTreasuryCategories();
+  const { setInvoiceCategories } = useTreasuryMutations();
+  const current = { invoiceCategoryId: chosen?.invoiceCategoryId ?? null, creditNoteCategoryId: chosen?.creditNoteCategoryId ?? null };
+  /**
+   * Saves a category.
+   * @param {Partial<typeof current>} changes Category changed.
+   * @returns {void}
+   */
+  const save = (changes: Partial<typeof current>) =>
+    setInvoiceCategories.mutate({ ...current, ...changes }, { onSuccess: () => notifySuccess('Catégorie enregistrée.'), onError: (error) => notifyError(error.message) });
+  return (
+    <Paper withBorder radius="md" p="md">
+      <Title order={3} size="h5" mb={4}>
+        Factures et avoirs
+      </Title>
+      <Text size="xs" c="dimmed" mb="sm">
+        Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.
+      </Text>
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+        <Select
+          label="Règlements des factures"
+          placeholder="Aucune (hors budget)"
+          clearable
+          searchable
+          data={categoryOptions(categories, 'IN')}
+          value={current.invoiceCategoryId}
+          onChange={(value) => save({ invoiceCategoryId: value })}
+        />
+        <Select
+          label="Remboursements des avoirs"
+          placeholder="Aucune (hors budget)"
+          clearable
+          searchable
+          data={categoryOptions(categories, 'OUT')}
+          value={current.creditNoteCategoryId}
+          onChange={(value) => save({ creditNoteCategoryId: value })}
+        />
+      </SimpleGrid>
+    </Paper>
+  );
+}
+
+/**
  * Treasury settings: contexts (how entries are split), categories of money in and out
  * (with sub-categories), payment methods and the counterparties that are not clients.
  * @returns {JSX.Element} Panel.
  */
 export function SettingsPanel() {
   const { data: settings, isPending } = useTreasurySettings();
+  // No invoicing in a personal workspace.
+  const { perso } = useActiveWorkspace();
   const { deleteMethod, deleteCounterparty } = useTreasuryMutations();
   const [dialog, setDialog] = useState<Dialog>(null);
   const close = () => setDialog(null);
@@ -393,6 +445,7 @@ export function SettingsPanel() {
         <CategoryList direction="IN" categories={categories} open={setDialog} />
         <CategoryList direction="OUT" categories={categories} open={setDialog} />
       </SimpleGrid>
+      {!perso && <InvoiceCategories categories={categories} />}
 
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
         <Paper withBorder radius="md" p="md">

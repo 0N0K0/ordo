@@ -10,6 +10,7 @@ import {
   Grid,
   Group,
   NumberInput,
+  Paper,
   SegmentedControl,
   Select,
   SimpleGrid,
@@ -52,15 +53,18 @@ import { useWorkspace } from '../workspace/api';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useCompanyProfile } from './api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from './document-pdf';
-import { useAccountingDocument, useDocumentMutations, type AccountingDocument } from './documents-api';
+import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, type AccountingDocument } from './documents-api';
 import { Section } from './EditorSection';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { DeductDepositMenu } from './DeductDepositMenu';
 import { LinesEditor } from './LinesEditor';
 import { openDepositForm } from './new-document';
 import { useTrackingMutations } from './tracking-api';
 import { TimeBillingForm } from './TimeBillingForm';
 import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from './recurring-form';
+import { FileLink } from '../files/FileLink';
+import { FilePreview } from '../files/FilePreview';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -105,6 +109,7 @@ function toValues(document: AccountingDocument): FormValues {
       vatRate: line.vatRate,
       discountType: line.discountType ?? null,
       discountValue: line.discountValue ?? null,
+      deductedDocumentId: line.deductedDocumentId ?? null,
     })),
     timeEntryIds: document.timeEntries.map((entry) => entry.id),
   };
@@ -122,6 +127,8 @@ function Editor({ document }: { document: AccountingDocument }) {
   const form = useAppForm<FormValues>({ initialValues: toValues(document), schema: accountingDocumentInputSchema });
   const values = form.values;
   const { data: client } = useClientBilling(values.clientId);
+  const [finalView, setFinalView] = useState<'preview' | 'details'>('preview');
+  const { data: latestDate } = useLatestDocumentDate(document.type, document.id, document.status === 'DRAFT');
   const { data: company } = useCompanyProfile();
   const openComposer = useMailComposer();
   const [preparingMail, setPreparingMail] = useState(false);
@@ -272,6 +279,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       totalGross: Math.round(document.totalGross * 100),
       currency: document.currency,
       dueDate: document.dueDate ?? null,
+      paymentTerms: document.paymentTerms ?? null,
       projectId: document.projectId ?? null,
       attachments: document.attachments,
       companyName: company?.name ?? '',
@@ -280,7 +288,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       onSent: () =>
         reminder
           ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, { onError: (error) => notifyError(error.message) })
-          : tracking.markSent.mutate(document.id, { onError: (error) => notifyError(error.message) }),
+          : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, { onError: (error) => notifyError(error.message) }),
     })
       .then(openComposer)
       .catch((error: Error) => notifyError(error.message))
@@ -372,9 +380,12 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
         </Stack>
         <Group gap="xs">
-          <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
-            Aperçu
-          </Button>
+          {/* A final document shows its PDF in the page. */}
+          {!readOnly && (
+            <Button variant="default" leftSection={<EyeIcon aria-hidden />} onClick={preview}>
+              Aperçu
+            </Button>
+          )}
           <Tooltip label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'}>
             <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="default" size="lg" aria-label="Télécharger le PDF">
               <DownloadSimpleIcon aria-hidden />
@@ -464,6 +475,23 @@ function Editor({ document }: { document: AccountingDocument }) {
 
       <Grid gap="md">
         <Grid.Col span={{ base: 12, lg: 8 }}>
+          {/* A final document shows its PDF in place; its fields stay a click away. */}
+          {readOnly && (
+            <SegmentedControl
+              mb="sm"
+              data={[
+                { value: 'preview', label: 'Aperçu' },
+                { value: 'details', label: 'Détails' },
+              ]}
+              value={finalView}
+              onChange={(value) => setFinalView(value as 'preview' | 'details')}
+            />
+          )}
+          {readOnly && finalView === 'preview' ? (
+            <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+              <FilePreview url={pdfUrl(document.id)} name={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height="max(36rem, calc(100dvh - 16rem))" />
+            </Paper>
+          ) : (
           <Stack gap="md">
             <Section title="Client et dates">
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
@@ -503,7 +531,16 @@ function Editor({ document }: { document: AccountingDocument }) {
                     .map((contact) => ({ value: contact.id, label: `${contact.firstName} ${contact.lastName}` }))}
                   {...form.getInputProps('contactId')}
                 />
-                <DatePickerInput label="Date du document" required readOnly={readOnly} valueFormat="D MMM YYYY" {...form.getInputProps('issueDate')} />
+                <DatePickerInput
+                  label="Date du document"
+                  required
+                  readOnly={readOnly}
+                  valueFormat="D MMM YYYY"
+                  // Not before the latest document of its type (models of recurring invoices are dated later).
+                  minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
+                  description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${printedDay(latestDate)}, date du dernier document de ce type.` : undefined}
+                  {...form.getInputProps('issueDate')}
+                />
                 <DatePickerInput
                   label={isQuote ? 'Valable jusqu’au' : 'Échéance'}
                   clearable
@@ -533,11 +570,23 @@ function Editor({ document }: { document: AccountingDocument }) {
                 currency={currency}
                 errors={form.errors}
                 extraActions={
-                  canBillTime && (
-                    <Button size="xs" variant="light" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
-                      Temps passé
-                    </Button>
-                  )
+                  <>
+                    {canBillTime && (
+                      <Button size="xs" variant="light" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
+                        Temps passé
+                      </Button>
+                    )}
+                    {document.type === 'INVOICE' && (
+                      <DeductDepositMenu
+                        clientId={values.clientId || null}
+                        documentId={document.id}
+                        lines={values.lines}
+                        currency={currency}
+                        vatApplicable={values.vatApplicable}
+                        onAdd={(added) => form.setFieldValue('lines', [...values.lines, ...added])}
+                      />
+                    )}
+                  </>
                 }
               />
               {billedIds.length > 0 && (
@@ -639,6 +688,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               </Group>
             </Section>
           </Stack>
+          )}
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, lg: 4 }}>
@@ -774,11 +824,11 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
       ) : (
         document.attachments.map((attachment) => (
           <Group key={attachment.id} justify="space-between" wrap="nowrap">
-            <Anchor href={attachment.url} target="_blank" rel="noopener" size="sm" truncate>
+            <FileLink url={attachment.url} name={attachment.name} size="sm" truncate>
               <Group gap={4} wrap="nowrap">
                 <PaperclipIcon aria-hidden /> {attachment.name}
               </Group>
-            </Anchor>
+            </FileLink>
             <Tooltip label="Retirer">
               <ActionIcon
                 variant="subtle"
@@ -798,6 +848,15 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
     </Section>
   );
 }
+
+const dayFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
+
+/**
+ * Printed calendar date.
+ * @param {string} date YYYY-MM-DD.
+ * @returns {string} "09/11/2026".
+ */
+const printedDay = (date: string) => dayFormat.format(new Date(`${date}T00:00:00Z`));
 
 /**
  * Accounting document page: editable draft (or recurring model), read-only final document with the

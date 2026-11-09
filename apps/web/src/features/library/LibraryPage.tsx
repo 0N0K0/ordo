@@ -8,7 +8,6 @@ import {
   CloseButton,
   Grid,
   Group,
-  Image,
   Menu,
   NavLink,
   Paper,
@@ -48,6 +47,7 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useLibrary, useLibraryMutations, zipUrl, type DocumentFolder, type LibraryDocument } from './api';
 import { folderPaths, folderSubtree } from './folders';
 import { DocumentForm, FolderNameForm, LinkForm, MoveForm } from './LibraryForms';
+import { openFile } from '../files/open-file';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -129,15 +129,8 @@ function openDocument(document: LibraryDocument): void {
     window.open(document.url, '_blank', 'noopener');
     return;
   }
-  if (document.mimeType === 'application/pdf') {
-    openModal(document.title, () => <Box component="iframe" src={`/api/library/${document.id}/view#view=FitH`} title={document.title} w="100%" h="80vh" style={{ border: 0, display: 'block' }} />, '64rem');
-    return;
-  }
-  if (IMAGE_TYPES.includes(document.mimeType ?? '')) {
-    openModal(document.title, () => <Image src={document.url} alt={document.title} fit="contain" mah="75vh" />, 'xl');
-    return;
-  }
-  window.location.href = `${document.url}?download=1`;
+  // PDFs and images in the app's viewer, other files downloaded.
+  openFile({ url: document.url, name: document.title, mimeType: document.mimeType });
 }
 
 interface FolderTreeProps {

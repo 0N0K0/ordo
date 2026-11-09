@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from './documents-api';
+import { FileLink } from '../files/FileLink';
 
 let modalCount = 0;
 
@@ -158,9 +159,15 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
                     {resource.kind === 'FILE' ? <FileIcon aria-hidden /> : linkIcon(resource.url)}
                   </ThemeIcon>
                   <Stack gap={0} style={{ minWidth: 0 }}>
-                    <Anchor href={resource.url} target="_blank" rel="noopener noreferrer" fw={600} size="sm" truncate>
-                      {resource.title}
-                    </Anchor>
+                    {resource.kind === 'FILE' ? (
+                      <FileLink url={resource.url} name={resource.title} fw={600} size="sm" truncate>
+                        {resource.title}
+                      </FileLink>
+                    ) : (
+                      <Anchor href={resource.url} target="_blank" rel="noopener noreferrer" fw={600} size="sm" truncate>
+                        {resource.title}
+                      </Anchor>
+                    )}
                     <Text size="xs" c="dimmed" truncate>
                       {resource.note ?? (resource.kind === 'LINK' ? resource.url : resource.size ? `${Math.max(1, Math.round(resource.size / 1024))} Ko` : '')}
                     </Text>

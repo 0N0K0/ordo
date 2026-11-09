@@ -50,6 +50,8 @@ interface AlarmFormValues extends Record<string, unknown> {
 interface AlarmFormProps {
   context: TaskContext;
   alarm?: Alarm;
+  /** The alarm is copied into a new one. */
+  copy?: boolean;
   onDone: () => void;
 }
 
@@ -59,11 +61,11 @@ interface AlarmFormProps {
  * @param {AlarmFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function AlarmForm({ context, alarm, onDone }: AlarmFormProps) {
+export function AlarmForm({ context, alarm, copy = false, onDone }: AlarmFormProps) {
   const { create, update } = useAlarmMutations();
   const form = useAppForm<AlarmFormValues>({
     initialValues: {
-      title: alarm?.title ?? '',
+      title: alarm ? (copy ? `${alarm.title} (copie)` : alarm.title) : '',
       note: alarm?.note ?? '',
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),
@@ -86,12 +88,12 @@ export function AlarmForm({ context, alarm, onDone }: AlarmFormProps) {
     const input: AlarmInput = { ...values, note: values.note || null, minutes: tracking ? values.minutes : null };
     const callbacks = {
       onSuccess: () => {
-        notifySuccess(alarm ? 'Alarme modifiée.' : 'Alarme créée.');
+        notifySuccess(copy ? 'Alarme dupliquée.' : alarm ? 'Alarme modifiée.' : 'Alarme créée.');
         onDone();
       },
       onError: (error: Error) => showFormError(form, error),
     };
-    if (alarm) update.mutate({ id: alarm.id, input }, callbacks);
+    if (alarm && !copy) update.mutate({ id: alarm.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });
 
@@ -211,7 +213,7 @@ export function AlarmForm({ context, alarm, onDone }: AlarmFormProps) {
             Annuler
           </Button>
           <Button type="submit" loading={create.isPending || update.isPending}>
-            {alarm ? 'Enregistrer' : 'Créer l’alarme'}
+            {alarm && !copy ? 'Enregistrer' : 'Créer l’alarme'}
           </Button>
         </Group>
       </Stack>

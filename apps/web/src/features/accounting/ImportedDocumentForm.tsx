@@ -1,13 +1,32 @@
-import { Button, Checkbox, FileInput, Group, NumberInput, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import {
+  Button,
+  Checkbox,
+  FileInput,
+  Group,
+  NumberInput,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+} from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { ACCOUNTING_DOCUMENT_TYPES, importedDocumentSchema, type AccountingDocumentType } from '@ordo/shared';
+import {
+  ACCOUNTING_DOCUMENT_TYPES,
+  importedDocumentSchema,
+  type AccountingDocumentType,
+} from '@ordo/shared';
 import { FilePdfIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useWorkspace } from '../workspace/api';
-import { useImportedDocumentMutations, type ImportedDocument } from './documents-api';
+import {
+  useImportedDocumentMutations,
+  type ImportedDocument,
+} from './documents-api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 
 interface FormValues extends Record<string, unknown> {
@@ -33,7 +52,13 @@ interface FormValues extends Record<string, unknown> {
  * @param {{ document?: ImportedDocument, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function ImportedDocumentForm({ document, onDone }: { document?: ImportedDocument; onDone: () => void }) {
+export function ImportedDocumentForm({
+  document,
+  onDone,
+}: {
+  document?: ImportedDocument;
+  onDone: () => void;
+}) {
   const { data: workspace } = useWorkspace();
   const { create, update } = useImportedDocumentMutations();
   const [file, setFile] = useState<File | null>(null);
@@ -58,18 +83,28 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
     schema: importedDocumentSchema,
   });
   const values = form.values;
-  const projects = (workspace?.projects ?? []).filter((project) => !project.archived && (!values.clientId || project.clientId === values.clientId));
+  const projects = (workspace?.projects ?? []).filter(
+    (project) =>
+      !project.archived &&
+      (!values.clientId || project.clientId === values.clientId),
+  );
 
   const handleSubmit = form.onSubmit((input) => {
     const callbacks = {
       onSuccess: () => {
-        notifySuccess(document ? 'Document importé modifié.' : 'Document importé.');
+        notifySuccess(
+          document ? 'Document importé modifié.' : 'Document importé.',
+        );
         onDone();
       },
       onError: (error: Error) => showFormError(form, error),
     };
-    const payload = { ...input, clientName: input.clientId ? null : input.clientName };
-    if (document) update.mutate({ id: document.id, input: payload, file }, callbacks);
+    const payload = {
+      ...input,
+      clientName: input.clientId ? null : input.clientName,
+    };
+    if (document)
+      update.mutate({ id: document.id, input: payload, file }, callbacks);
     else create.mutate({ input: payload, file }, callbacks);
   });
 
@@ -77,21 +112,44 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Pour garder la trace d’un devis ou d’une facture émis ailleurs : ses informations principales et son PDF, sans ses
-          lignes.
+          Pour garder la trace d’un devis ou d’une facture émis ailleurs : ses
+          informations principales et son PDF, sans ses lignes.
         </Text>
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <Select
             label="Type"
-            data={ACCOUNTING_DOCUMENT_TYPES.map((type) => ({ value: type, label: DOCUMENT_TYPE_LABELS[type] }))}
+            data={ACCOUNTING_DOCUMENT_TYPES.map((type) => ({
+              value: type,
+              label: DOCUMENT_TYPE_LABELS[type],
+            }))}
             allowDeselect={false}
             {...form.getInputProps('type')}
           />
-          <TextInput label="Numéro" required data-autofocus {...form.getInputProps('number')} />
+          <TextInput
+            label="Numéro"
+            required
+            data-autofocus
+            {...form.getInputProps('number')}
+          />
           <TextInput label="Objet" {...form.getInputProps('title')} />
-          <DatePickerInput label="Date" required valueFormat="D MMM YYYY" {...form.getInputProps('issueDate')} />
-          <DatePickerInput label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'} clearable valueFormat="D MMM YYYY" {...form.getInputProps('dueDate')} />
-          <Select label="Devise" data={['EUR', 'CHF', 'USD', 'GBP', 'CAD']} allowDeselect={false} {...form.getInputProps('currency')} />
+          <DatePickerInput
+            label="Date"
+            required
+            valueFormat="D MMM YYYY"
+            {...form.getInputProps('issueDate')}
+          />
+          <DatePickerInput
+            label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'}
+            clearable
+            valueFormat="D MMM YYYY"
+            {...form.getInputProps('dueDate')}
+          />
+          <Select
+            label="Devise"
+            data={['EUR', 'CHF', 'USD', 'GBP', 'CAD']}
+            allowDeselect={false}
+            {...form.getInputProps('currency')}
+          />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           <Select
@@ -99,14 +157,33 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
             clearable
             searchable
             placeholder="Client d’Ordo"
-            data={(workspace?.clients ?? []).map((client) => ({ value: client.id, label: client.name }))}
+            data={(workspace?.clients ?? []).map((client) => ({
+              value: client.id,
+              label: client.name,
+            }))}
             {...form.getInputProps('clientId')}
-            onChange={(clientId) => form.setValues({ clientId, projectId: null })}
+            onChange={(clientId) =>
+              form.setValues({ clientId, projectId: null })
+            }
           />
           {values.clientId ? (
-            <Select label="Projet" clearable searchable placeholder="Aucun" data={projects.map((project) => ({ value: project.id, label: project.title }))} {...form.getInputProps('projectId')} />
+            <Select
+              label="Projet"
+              clearable
+              searchable
+              placeholder="Aucun"
+              data={projects.map((project) => ({
+                value: project.id,
+                label: project.title,
+              }))}
+              {...form.getInputProps('projectId')}
+            />
           ) : (
-            <TextInput label="Ou nom du client" placeholder="S’il n’est pas dans Ordo" {...form.getInputProps('clientName')} />
+            <TextInput
+              label="Ou nom du client"
+              placeholder="S’il n’est pas dans Ordo"
+              {...form.getInputProps('clientName')}
+            />
           )}
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
@@ -118,7 +195,11 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
             {...form.getInputProps('totalNet')}
             onChange={(value) => {
               const totalNet = typeof value === 'number' ? value : 0;
-              form.setValues({ totalNet, totalGross: Math.round((totalNet + values.totalVat) * 100) / 100 });
+              form.setValues({
+                totalNet,
+                totalGross:
+                  Math.round((totalNet + values.totalVat) * 100) / 100,
+              });
             }}
           />
           <NumberInput
@@ -129,25 +210,45 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
             {...form.getInputProps('totalVat')}
             onChange={(value) => {
               const totalVat = typeof value === 'number' ? value : 0;
-              form.setValues({ totalVat, totalGross: Math.round((values.totalNet + totalVat) * 100) / 100 });
+              form.setValues({
+                totalVat,
+                totalGross:
+                  Math.round((values.totalNet + totalVat) * 100) / 100,
+              });
             }}
           />
-          <NumberInput label="Total TTC" description="Débours compris" decimalScale={2} decimalSeparator="," thousandSeparator=" " {...form.getInputProps('totalGross')} />
+          <NumberInput
+            label="Total TTC"
+            description="Débours compris"
+            decimalScale={2}
+            decimalSeparator=","
+            thousandSeparator=" "
+            {...form.getInputProps('totalGross')}
+          />
         </SimpleGrid>
         <FileInput
           label="Document"
           placeholder={document?.fileName ?? 'PDF du devis ou de la facture'}
-          description={document?.fileName ? 'Choisir un fichier remplace le document actuel.' : undefined}
+          description={
+            document?.fileName
+              ? 'Choisir un fichier remplace le document actuel.'
+              : undefined
+          }
           leftSection={<FilePdfIcon aria-hidden />}
           accept="application/pdf,image/*"
           clearable
           value={file}
           onChange={setFile}
         />
-        <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
+        <Textarea
+          label="Note"
+          autosize
+          minRows={2}
+          {...form.getInputProps('note')}
+        />
         {values.type !== 'QUOTE' && (
           <Checkbox
-            label="Déjà réglé hors trésorerie"
+            label="Déjà réglée hors trésorerie"
             description="Décochez pour l’attendre dans le prévisionnel et le rattacher aux mouvements de trésorerie qui le règlent."
             {...form.getInputProps('settled', { type: 'checkbox' })}
           />

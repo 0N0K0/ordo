@@ -37,10 +37,11 @@ export function openNewDocument(type: AccountingDocumentType, preset: { clientId
 }
 
 /**
- * Opens the download of the documents of a period as a ZIP.
+ * Opens the download of the documents of a period as a ZIP; with a year, that calendar year to start with.
+ * @param {{ year?: string | null, years?: string[] }} [options] Year shown, and the years of the documents. Optional.
  * @returns {void}
  */
-export function openDocumentsZip(): void {
+export function openDocumentsZip({ year = null, years = [] }: { year?: string | null; years?: string[] } = {}): void {
   const modalId = `documents-zip-${++modalCount}`;
-  modals.open({ modalId, title: 'Télécharger les documents d’une période', children: <DocumentsZipForm onDone={() => modals.close(modalId)} /> });
+  modals.open({ modalId, title: 'Télécharger les documents d’une période', children: <DocumentsZipForm year={year} years={years} onDone={() => modals.close(modalId)} /> });
 }

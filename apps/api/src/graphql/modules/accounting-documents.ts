@@ -26,6 +26,7 @@ builder.prismaObject('AccountingLine', {
     vatRate: t.float({ resolve: (line) => Number(line.vatRate) }),
     discountType: t.field({ type: DiscountTypeEnum, nullable: true, resolve: (line) => line.discountType }),
     discountValue: t.float({ nullable: true, resolve: (line) => (line.discountValue === null ? null : Number(line.discountValue)) }),
+    deductedDocumentId: t.exposeID('deductedDocumentId', { nullable: true, description: 'Deductions: deposit invoice whose amount the line takes off.' }),
   }),
 });
 
@@ -120,6 +121,9 @@ builder.prismaObject('ImportedDocument', {
   description: 'Quote or invoice issued before Ordo: main information and file.',
   fields: (t) => ({
     id: t.exposeID('id'),
+    trackingStatus: t.relation('trackingStatus', { nullable: true, description: 'Tracking status, set by hand.' }),
+    sentAt: t.expose('sentAt', { type: 'DateTime', nullable: true }),
+    sentVia: t.exposeString('sentVia', { nullable: true, description: 'How it was sent: MAIL, CHORUS, POST, HAND or OTHER.' }),
     type: t.field({ type: AccountingDocumentTypeEnum, resolve: (document) => document.type }),
     number: t.exposeString('number'),
     issueDate: t.expose('issueDate', { type: 'Date' }),
@@ -142,6 +146,7 @@ builder.prismaObject('ImportedDocument', {
       resolve: (document) => (document.attachment ? `/api/attachments/${document.attachment.id}/${encodeURIComponent(document.attachment.name)}` : null),
     }),
     fileName: t.string({ nullable: true, select: { attachment: { select: { name: true } } }, resolve: (document) => document.attachment?.name ?? null }),
+    fileMimeType: t.string({ nullable: true, select: { attachment: { select: { mimeType: true } } }, resolve: (document) => document.attachment?.mimeType ?? null }),
   }),
 });
 
@@ -209,6 +214,7 @@ const LineInput = builder.inputType('AccountingLineInput', {
     vatRate: t.float({ required: true }),
     discountType: t.field({ type: DiscountTypeEnum }),
     discountValue: t.float(),
+    deductedDocumentId: t.id({ description: 'Deductions: deposit invoice whose amount the line takes off.' }),
   }),
 });
 
@@ -281,7 +287,13 @@ const documentInput = (input: typeof DocumentInput.$inferInput) => ({
   otherMentions: input.otherMentions ?? null,
   globalDiscountType: input.globalDiscountType ?? null,
   globalDiscountValue: input.globalDiscountValue ?? null,
-  lines: input.lines.map((line) => ({ ...line, description: line.description ?? null, discountType: line.discountType ?? null, discountValue: line.discountValue ?? null })),
+  lines: input.lines.map((line) => ({
+    ...line,
+    description: line.description ?? null,
+    discountType: line.discountType ?? null,
+    discountValue: line.discountValue ?? null,
+    deductedDocumentId: line.deductedDocumentId ?? null,
+  })),
 });
 
 /**
@@ -289,6 +301,40 @@ const documentInput = (input: typeof DocumentInput.$inferInput) => ({
  * @returns {string} YYYY-MM-DD.
  */
 const today = () => formatDay(new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())));
+
+const DeductibleRateRef = builder.objectRef<{ rate: number; base: number }>('DeductibleRate').implement({
+  fields: (t) => ({ rate: t.exposeFloat('rate'), amount: t.float({ description: 'Excluding VAT.', resolve: (item) => item.base / 100 }) }),
+});
+
+const DeductibleDepositRef = builder.objectRef<docs.DeductibleDeposit>('DeductibleDeposit').implement({
+  description: 'Final deposit invoice of a client with what is left to deduct from it.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    number: t.exposeString('number'),
+    issueDate: t.string({ resolve: (deposit) => formatDay(deposit.issueDate) }),
+    totalGross: t.float({ description: 'Total including VAT.', resolve: (deposit) => deposit.totalGross / 100 }),
+    remaining: t.field({
+      type: [DeductibleRateRef],
+      description: 'Amounts excluding VAT left to deduct, per VAT rate.',
+      resolve: (deposit) => deposit.remaining,
+    }),
+  }),
+});
+
+builder.queryFields((t) => ({
+  deductibleDeposits: t.field({
+    type: [DeductibleDepositRef],
+    description: 'Final deposit invoices of a client not deducted in full yet (the deductions of `documentId` left out).',
+    args: { clientId: t.arg.id({ required: true }), documentId: t.arg.id() },
+    resolve: (_root, { clientId, documentId }) => docs.deductibleDeposits(clientId, documentId ?? null),
+  }),
+  latestDocumentDate: t.string({
+    nullable: true,
+    description: 'Date (YYYY-MM-DD) of the latest document of a type, final or imported, `documentId` left out: none can be dated before.',
+    args: { type: t.arg({ type: AccountingDocumentTypeEnum, required: true }), documentId: t.arg.id() },
+    resolve: (_root, { type, documentId }) => docs.latestIssueDate(type, documentId ?? null),
+  }),
+}));
 
 builder.queryFields((t) => ({
   accountingDocuments: t.prismaField({
@@ -317,6 +363,12 @@ builder.queryFields((t) => ({
   recurringInvoices: t.prismaField({
     type: ['RecurringInvoice'],
     resolve: (query) => prisma.recurringInvoice.findMany({ ...query, orderBy: { createdAt: 'asc' } }),
+  }),
+  importedDocument: t.prismaField({
+    type: 'ImportedDocument',
+    nullable: true,
+    args: { id: t.arg.id({ required: true }) },
+    resolve: (query, _root, { id }) => prisma.importedDocument.findUnique({ ...query, where: { id } }),
   }),
   importedDocuments: t.prismaField({
     type: ['ImportedDocument'],
@@ -435,6 +487,22 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ImportedDocumentInput, required: true }), file: t.arg({ type: 'File' }) },
     resolve: async (_root, { id, input, file }) => {
       await imported.updateImportedDocument(id, importedInput(input), file ?? null);
+      return true;
+    },
+  }),
+  markImportedDocumentSent: t.boolean({
+    description: 'Notes that an imported document was sent, on a day (none: now) and how, with a "sent" status.',
+    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string(), statusId: t.arg.id({ required: true }) },
+    resolve: async (_root, { id, date, via, statusId }) => {
+      await imported.markImportedSent(id, { date: date ?? null, via: via ?? null, statusId });
+      return true;
+    },
+  }),
+  setImportedDocumentTrackingStatus: t.boolean({
+    description: 'Sets the tracking status of an imported document by hand (none: clears it).',
+    args: { id: t.arg.id({ required: true }), statusId: t.arg.id() },
+    resolve: async (_root, { id, statusId }) => {
+      await imported.setImportedTrackingStatus(id, statusId ?? null);
       return true;
     },
   }),

@@ -1,4 +1,5 @@
-import { documentPaymentSchema, parseDay, toCents, type DocumentPaymentInput } from '@ordo/shared';
+import { documentPaymentSchema, parseDay, SENDING_CHANNELS, toCents, type DocumentPaymentInput } from '@ordo/shared';
+import { z } from 'zod';
 import { prisma } from '../db';
 import { Prisma, type AccountingDocument } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
@@ -71,7 +72,8 @@ export async function importedBalances(): Promise<Map<string, DocumentBalance>> 
 
 /**
  * Brings the status of final invoices and credit notes in line with their payments: "paid" once nothing is
- * due, back to "sent" (or "to send") when a payment is removed. Other statuses chosen by hand are kept.
+ * due, back to "sent" (or "to send") when a payment is removed. Other statuses chosen by hand are kept; "credit
+ * note to make" too, paid or not, until a credit note on the invoice is final.
  * @param {(string | null | undefined)[]} ids Documents whose payments or credit notes changed.
  * @returns {Promise<void>}
  */
@@ -86,7 +88,12 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
   const all = new Set([...wanted, ...related.flatMap((item) => [item.id, item.sourceId ?? ''])].filter(Boolean));
   const documents = await prisma.accountingDocument.findMany({
     where: { id: { in: [...all] }, status: 'FINAL', type: { not: 'QUOTE' } },
-    select: { id: true, sentAt: true, trackingStatus: { select: { category: true } } },
+    select: {
+      id: true,
+      sentAt: true,
+      trackingStatus: { select: { category: true } },
+      derived: { where: { type: 'CREDIT_NOTE', status: 'FINAL' }, select: { id: true } },
+    },
   });
   if (!documents.length) return;
   const balances = await documentBalances();
@@ -94,7 +101,12 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
   for (const document of documents) {
     const balance = balances.get(document.id)?.balance ?? 0;
     const category = document.trackingStatus?.category;
-    if (balance <= 0 && category !== 'PAID') {
+    if (category === 'CREDIT_DUE') {
+      // Waiting for its credit note; once made, the invoice is paid or due again.
+      if (!document.derived.length) continue;
+      const status = balance <= 0 ? paidStatus : await statusOf('INVOICE', document.sentAt ? 'SENT' : 'TO_SEND');
+      await prisma.accountingDocument.update({ where: { id: document.id }, data: { trackingStatusId: status.id } });
+    } else if (balance <= 0 && category !== 'PAID') {
       await prisma.accountingDocument.update({ where: { id: document.id }, data: { trackingStatusId: paidStatus.id } });
     } else if (balance > 0 && (category === 'PAID' || !category)) {
       const status = await statusOf('INVOICE', document.sentAt ? 'SENT' : 'TO_SEND');
@@ -136,16 +148,51 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
 }
 
 /**
- * Notes that a document was sent: "to send" becomes "sent".
+ * A "sent" status of the scope of a document type, or an error.
+ * @param {string} statusId Status.
+ * @param {AccountingDocument['type']} type Document type.
+ * @returns {Promise<{ id: string }>} Status.
+ */
+export async function sentStatus(statusId: string, type: AccountingDocument['type']): Promise<{ id: string }> {
+  const status = await prisma.documentStatus.findUnique({ where: { id: statusId } });
+  if (!status || status.scope !== scopeOf(type)) throw notFound('Statut');
+  if (status.category !== 'SENT') throw clientError('BAD_USER_INPUT', 'Ce statut n’est pas un statut d’envoi.');
+  return status;
+}
+
+/**
+ * Sending day and way of a document entered by hand, checked.
+ * @param {{ date?: string | null, via?: string | null }} options Day (none: now) and way.
+ * @returns {{ sentAt: Date, sentVia: string | null }} Data.
+ */
+export function sendingData(options: { date?: string | null; via?: string | null }): { sentAt: Date; sentVia: string | null } {
+  const via = options.via ? z.enum(SENDING_CHANNELS).safeParse(options.via) : null;
+  if (via && !via.success) throw clientError('BAD_USER_INPUT', 'Moyen d’envoi inconnu.');
+  const today = new Date().toISOString().slice(0, 10);
+  if (options.date && options.date > today) throw clientError('BAD_USER_INPUT', 'La date d’envoi ne peut pas être dans le futur.');
+  // A past day is kept at noon (UTC): the same day in every time zone of France.
+  return { sentAt: options.date && options.date !== today ? new Date(`${options.date}T12:00:00Z`) : new Date(), sentVia: via?.data ?? null };
+}
+
+/**
+ * Notes that a document was sent (by mail from Ordo, or by hand: deposited on Chorus Pro, posted…), now or on a
+ * past day, or corrects it: "to send" becomes "sent".
  * @param {string} id Document id.
+ * @param {{ date?: string | null, via?: string | null, statusId?: string | null }} [options] Day it was sent (none: now), how, and the
+ * "sent" status to give (none: the first one, when it was "to send"). Optional.
  * @returns {Promise<AccountingDocument>} Document.
  */
-export async function markSent(id: string): Promise<AccountingDocument> {
+export async function markSent(id: string, options: { date?: string | null; via?: string | null; statusId?: string | null } = {}): Promise<AccountingDocument> {
   const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } });
   if (!document) throw notFound('Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seul un document validé peut être envoyé.');
-  const sent = !document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null;
-  return prisma.accountingDocument.update({ where: { id }, data: { sentAt: new Date(), ...(sent ? { trackingStatusId: sent.id } : {}) } });
+  const sending = sendingData(options);
+  const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
+  const sent = chosen ?? (!document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null);
+  return prisma.accountingDocument.update({
+    where: { id },
+    data: { ...sending, ...(sent ? { trackingStatusId: sent.id } : {}) },
+  });
 }
 
 /**
@@ -223,12 +270,16 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
       throw clientError('BAD_USER_INPUT', message, { fields: { methodId: message } });
     }
   }
-  // The usual category of payments, when it exists.
-  const category = await prisma.treasuryCategory.findFirst({
-    where: { name: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  });
+  // The category set for the payments of invoices (refunds of credit notes), else the usual one when it exists.
+  const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
+  const chosen = refund ? company?.creditNoteCategoryId : company?.invoiceCategoryId;
+  const category = chosen
+    ? { id: chosen }
+    : await prisma.treasuryCategory.findFirst({
+        where: { name: { equals: refund ? 'Remboursements clients' : 'Ventes', mode: 'insensitive' }, direction: refund ? 'OUT' : 'IN' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
   await prisma.treasuryEntry.create({
     data: {
       accountId: payment.accountId,

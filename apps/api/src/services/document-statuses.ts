@@ -16,8 +16,54 @@ export function scopeOf(type: AccountingDocumentType): DocumentStatusScope {
   return type === 'QUOTE' ? 'QUOTE' : 'INVOICE';
 }
 
+/** Tracking statuses of the documents a professional workspace starts with: one per category of each scope. */
+export const DEFAULT_DOCUMENT_STATUSES = [
+  { scope: 'QUOTE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
+  { scope: 'QUOTE', name: 'Envoyé', color: '#228be6', category: 'SENT' },
+  { scope: 'QUOTE', name: 'Accepté', color: '#40c057', category: 'ACCEPTED' },
+  { scope: 'QUOTE', name: 'Refusé', color: '#fa5252', category: 'REFUSED' },
+  { scope: 'INVOICE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
+  { scope: 'INVOICE', name: 'Envoyée', color: '#228be6', category: 'SENT' },
+  { scope: 'INVOICE', name: 'Payée', color: '#40c057', category: 'PAID' },
+  { scope: 'INVOICE', name: 'Avoir à créer', color: '#fd7e14', category: 'CREDIT_DUE' },
+] as const satisfies readonly { scope: DocumentStatusScope; name: string; color: string; category: DocumentStatusCategory }[];
+
 /**
- * First status of a category in a scope (the one automatic changes give).
+ * Creates the default status of a category missing from a scope, at its end (its name taken by a status of
+ * another category: numbered).
+ * @param {DocumentStatusScope} scope Scope.
+ * @param {DocumentStatusCategory} category Category.
+ * @param {Client} client Prisma client or transaction.
+ * @returns {Promise<DocumentStatus>} Status.
+ */
+async function createDefaultStatus(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client): Promise<DocumentStatus> {
+  const preset = DEFAULT_DOCUMENT_STATUSES.find((item) => item.scope === scope && item.category === category);
+  const label = preset?.name ?? STATUS_CATEGORIES_BY_SCOPE[scope].find((item) => item.value === category)?.label ?? category;
+  const taken = new Set((await client.documentStatus.findMany({ where: { scope }, select: { name: true } })).map((item) => item.name));
+  let name = label;
+  for (let index = 2; taken.has(name); index += 1) name = `${label} (${index})`;
+  const { _max } = await client.documentStatus.aggregate({ where: { scope }, _max: { position: true } });
+  return client.documentStatus.create({ data: { scope, category, name, color: preset?.color ?? '#868e96', position: (_max.position ?? -1) + 1 } });
+}
+
+/**
+ * Gives a status to every category of every scope that has none (a new workspace, or one that lost some).
+ * @param {Client} [client] Prisma client or transaction. Optional.
+ * @returns {Promise<void>}
+ */
+export async function ensureDocumentStatuses(client: Client = prisma): Promise<void> {
+  const existing = await client.documentStatus.findMany({ select: { scope: true, category: true } });
+  const present = new Set(existing.map((item) => `${item.scope}:${item.category}`));
+  for (const scope of Object.keys(STATUS_CATEGORIES_BY_SCOPE) as DocumentStatusScope[]) {
+    for (const { value } of STATUS_CATEGORIES_BY_SCOPE[scope]) {
+      if (!present.has(`${scope}:${value}`)) await createDefaultStatus(scope, value, client);
+    }
+  }
+}
+
+/**
+ * First status of a category in a scope (the one automatic changes give); a category left without any gets its
+ * default status back rather than blocking the tracking.
  * @param {DocumentStatusScope} scope Scope.
  * @param {DocumentStatusCategory} category Category.
  * @param {Client} [client] Prisma client or transaction. Optional.
@@ -25,9 +71,7 @@ export function scopeOf(type: AccountingDocumentType): DocumentStatusScope {
  */
 export async function statusOf(scope: DocumentStatusScope, category: DocumentStatusCategory, client: Client = prisma): Promise<DocumentStatus> {
   const status = await client.documentStatus.findFirst({ where: { scope, category }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
-  // Every category keeps at least one status (deletion refuses the last one).
-  if (!status) throw clientError('BAD_USER_INPUT', 'Statut de suivi manquant : vérifiez les paramètres de facturation.');
-  return status;
+  return status ?? createDefaultStatus(scope, category, client);
 }
 
 /**
@@ -129,6 +173,7 @@ export async function deleteDocumentStatus(id: string): Promise<void> {
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     });
     await tx.accountingDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
+    await tx.importedDocument.updateMany({ where: { trackingStatusId: id }, data: { trackingStatusId: replacement.id } });
     await tx.documentStatus.delete({ where: { id } });
   });
 }

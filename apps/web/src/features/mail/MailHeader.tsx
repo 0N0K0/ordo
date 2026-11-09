@@ -1,7 +1,8 @@
-import { Anchor, Avatar, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import { Avatar, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { PaperclipIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { addressLabel, fileSize, fullDate, senderName, type Address } from './mail-format';
+import { FileLink } from '../files/FileLink';
 
 interface MailHeaderProps {
   subject: string;
@@ -62,9 +63,9 @@ export function MailFiles({ files }: { files: { key: string; name: string; size:
         <Paper key={file.key} withBorder px="xs" py={4} radius="sm">
           <Group gap={6} wrap="nowrap">
             <PaperclipIcon aria-hidden />
-            <Anchor href={file.url} target="_blank" rel="noopener" size="sm">
+            <FileLink url={file.url} name={file.name} size="sm">
               {file.name}
-            </Anchor>
+            </FileLink>
             <Text size="xs" c="dimmed">
               {fileSize(file.size)}
             </Text>

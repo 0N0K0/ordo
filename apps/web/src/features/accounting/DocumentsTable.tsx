@@ -1,17 +1,26 @@
 import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney } from '@ordo/shared';
-import { ArrowsClockwiseIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
+import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
+import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openDepositForm } from './new-document';
-import { TrackingBadge } from './TrackingBadge';
+import { handleFileClick } from '../files/open-file';
+import { downloadUrl } from '../files/viewable';
+import { pdfUrl } from './document-pdf';
+import { openPaymentDialog } from './payment-dialog';
+import { StatusMenu, TrackingBadge } from './TrackingBadge';
+import { openSentDialog } from './sent-dialog';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+const dateFormat = new Intl.DateTimeFormat('fr-FR', {
+  dateStyle: 'medium',
+  timeZone: 'UTC',
+});
 
 interface DocumentsTableProps {
   documents: AccountingDocumentSummary[];
@@ -70,7 +79,10 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
             onCancel={() => modals.close(modalId)}
             onConfirm={() => {
               modals.close(modalId);
-              remove.mutate(document.id, { onSuccess: () => notifySuccess('Document importé supprimé.'), onError: (error) => notifyError(error.message) });
+              remove.mutate(document.id, {
+                onSuccess: () => notifySuccess('Document importé supprimé.'),
+                onError: (error) => notifyError(error.message),
+              });
             }}
           />
         </Stack>
@@ -91,7 +103,7 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
             <Table.Th>Suivi</Table.Th>
             <Table.Th ta="right">Total HT</Table.Th>
             <Table.Th ta="right">Total</Table.Th>
-            {imported.length > 0 && <Table.Th />}
+            <Table.Th />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -102,8 +114,8 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
                 document={row.document}
                 showType={showType}
                 showClient={showClient}
-                actions={imported.length > 0}
                 onOpen={() => void navigate(`/accounting/${row.document.id}`)}
+                onDuplicated={(id) => void navigate(`/accounting/${id}`)}
               />
             ) : (
               <ImportedRow key={row.document.id} document={row.document} showType={showType} showClient={showClient} onDelete={() => confirmDelete(row.document)} />
@@ -119,17 +131,19 @@ interface OrdoRowProps {
   document: AccountingDocumentSummary;
   showType?: boolean;
   showClient: boolean;
-  /** Empty actions cell (the table has imported documents). */
-  actions: boolean;
   onOpen: () => void;
+  /** The draft copy made: opened. */
+  onDuplicated: (id: string) => void;
 }
 
 /**
- * Row of a document made in Ordo; it opens the document.
+ * Row of a document made in Ordo; it opens the document, and is duplicated as a draft (then opened); a final one
+ * records a payment (refund) while still due and downloads its PDF.
  * @param {OrdoRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function OrdoRow({ document, showType, showClient, actions, onOpen }: OrdoRowProps) {
+function OrdoRow({ document, showType, showClient, onOpen, onDuplicated }: OrdoRowProps) {
+  const { duplicate } = useDocumentMutations();
   return (
     <Table.Tr style={{ cursor: 'pointer' }} onClick={onOpen}>
       <Table.Td>
@@ -169,7 +183,7 @@ function OrdoRow({ document, showType, showClient, actions, onOpen }: OrdoRowPro
         </Stack>
       </Table.Td>
       <Table.Td>
-        <TrackingBadge document={document} />
+        <TrackingBadge document={document} editable />
       </Table.Td>
       <Table.Td ta="right" ff="monospace">
         {formatMoney(Math.round(document.totalNet * 100), document.currency)}
@@ -182,7 +196,53 @@ function OrdoRow({ document, showType, showClient, actions, onOpen }: OrdoRowPro
           </Text>
         )}
       </Table.Td>
-      {actions && <Table.Td />}
+      <Table.Td>
+        <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
+          {/* An invoice still due takes a payment, a credit note still to refund a refund. */}
+          {document.status === 'FINAL' && document.type !== 'QUOTE' && (document.balance ?? 0) > 0 && (
+            <Tooltip label={document.type === 'CREDIT_NOTE' ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                aria-label={`${document.type === 'CREDIT_NOTE' ? 'Remboursement' : 'Paiement'} de ${document.number}`}
+                onClick={() => openPaymentDialog(document)}
+              >
+                <CoinsIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          <Tooltip label="Dupliquer en brouillon">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              aria-label={`Dupliquer ${document.number ?? 'le brouillon'}`}
+              loading={duplicate.isPending && duplicate.variables?.id === document.id}
+              onClick={() =>
+                duplicate.mutate(
+                  { id: document.id, issueDate: localToday() },
+                  {
+                    onSuccess: (id) => {
+                      notifySuccess('Document dupliqué en brouillon.');
+                      onDuplicated(id);
+                    },
+                    onError: (error) => notifyError(error.message),
+                  },
+                )
+              }
+            >
+              <CopyIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          {/* A final document downloads its PDF; drafts have none yet. */}
+          {document.status === 'FINAL' && (
+            <Tooltip label="Télécharger le PDF">
+              <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="subtle" color="gray" aria-label={`Télécharger ${document.number}`}>
+                <DownloadSimpleIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          )}
+        </Group>
+      </Table.Td>
     </Table.Tr>
   );
 }
@@ -195,18 +255,24 @@ interface ImportedRowProps {
 }
 
 /**
- * Row of a document issued before Ordo: its file, a deposit invoice from it (quotes), edit and delete.
+ * Row of a document issued before Ordo: its tracking status (set by hand), its settlement, its file, a deposit
+ * invoice from it (quotes), edit and delete.
  * @param {ImportedRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
 function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowProps) {
+  const { setStatus, markSent } = useImportedDocumentMutations();
+  const navigate = useNavigate();
+  const open = () => navigate(`/accounting/imported/${document.id}`);
   return (
-    <Table.Tr>
+    <Table.Tr style={{ cursor: 'pointer' }} onClick={open}>
       <Table.Td>
         <Group gap={6} wrap="nowrap">
-          <Text size="sm" ff="monospace" fw={600}>
-            {document.number}
-          </Text>
+          <UnstyledButton onClick={open} aria-label={`Ouvrir ${document.number}`}>
+            <Text size="sm" ff="monospace" fw={600}>
+              {document.number}
+            </Text>
+          </UnstyledButton>
           <Badge size="xs" variant="light" color="cyan">
             Importé
           </Badge>
@@ -221,11 +287,35 @@ function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowPr
         </Text>
       </Table.Td>
       <Table.Td>
-        {document.type !== 'QUOTE' && (
-          <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
-            {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglé'}
-          </Badge>
-        )}
+        <Group gap={4} wrap="nowrap">
+          <StatusMenu
+            type={document.type}
+            current={document.trackingStatus}
+            pending={setStatus.isPending}
+            onSelect={(status) =>
+              // A "sent" status asks when and how it was sent.
+              status.category === 'SENT'
+                ? openSentDialog({
+                    title: `Envoi de ${document.number}`,
+                    sentAt: document.sentAt,
+                    sentVia: document.sentVia,
+                    onSubmit: ({ date, via }) =>
+                      markSent.mutateAsync({
+                        id: document.id,
+                        date,
+                        via,
+                        statusId: status.id,
+                      }),
+                  })
+                : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+            }
+          />
+          {document.type !== 'QUOTE' && (
+            <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
+              {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglée'}
+            </Badge>
+          )}
+        </Group>
       </Table.Td>
       <Table.Td ta="right" ff="monospace">
         {formatMoney(Math.round(document.totalNet * 100), document.currency)}
@@ -234,11 +324,35 @@ function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowPr
         {formatMoney(Math.round(document.totalGross * 100), document.currency)}
       </Table.Td>
       <Table.Td>
-        <Group gap={2} justify="flex-end" wrap="nowrap">
+        {/* Actions of the row, apart from opening it. */}
+        <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
           {document.fileUrl && (
             <Tooltip label={document.fileName ?? 'Document'}>
-              <ActionIcon component="a" href={document.fileUrl} target="_blank" rel="noopener" variant="subtle" color="gray" aria-label={`Ouvrir ${document.fileName ?? 'le document'}`}>
+              <ActionIcon
+                component="a"
+                href={document.fileUrl}
+                target="_blank"
+                rel="noopener"
+                variant="subtle"
+                color="gray"
+                aria-label={`Ouvrir ${document.fileName ?? 'le document'}`}
+                onClick={(event: React.MouseEvent) => {
+                  event.stopPropagation();
+                  handleFileClick(event, {
+                    url: document.fileUrl!,
+                    name: document.fileName ?? document.number,
+                    mimeType: document.fileMimeType,
+                  });
+                }}
+              >
                 <FilePdfIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          {document.fileUrl && (
+            <Tooltip label="Télécharger le fichier">
+              <ActionIcon component="a" href={downloadUrl(document.fileUrl)} variant="subtle" color="gray" aria-label={`Télécharger ${document.fileName ?? document.number}`}>
+                <DownloadSimpleIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
           )}

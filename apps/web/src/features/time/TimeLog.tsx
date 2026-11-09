@@ -1,6 +1,6 @@
 import { ActionIcon, Badge, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
-import { ClockIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { TaskRef } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
@@ -26,6 +26,7 @@ interface EntryRowProps {
   /** Project of the list (null: every project): times of other projects show theirs. */
   projectId: string | null;
   onEdit: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
 }
 
@@ -34,7 +35,7 @@ interface EntryRowProps {
  * @param {EntryRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function EntryRow({ entry, context, projectId, onEdit, onDelete }: EntryRowProps) {
+function EntryRow({ entry, context, projectId, onEdit, onDuplicate, onDelete }: EntryRowProps) {
   const running = entry.endedAt === null;
   const tasks = entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined);
   return (
@@ -84,19 +85,28 @@ function EntryRow({ entry, context, projectId, onEdit, onDelete }: EntryRowProps
           </Text>
         )}
       </Stack>
-      {/* The running timer is edited from the timer card; time on a final invoice is part of it. */}
-      {!running && !entry.documentNumber && (
+      {/* The running timer is edited from the timer card; time on a final invoice is part of it (copied still). */}
+      {!running && (
         <Group gap={2} wrap="nowrap">
-          <Tooltip label="Modifier">
-            <ActionIcon variant="subtle" color="gray" aria-label="Modifier ce temps" onClick={onEdit}>
-              <PencilSimpleIcon aria-hidden />
+          {!entry.documentNumber && (
+            <Tooltip label="Modifier">
+              <ActionIcon variant="subtle" color="gray" aria-label="Modifier ce temps" onClick={onEdit}>
+                <PencilSimpleIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          <Tooltip label="Dupliquer">
+            <ActionIcon variant="subtle" color="gray" aria-label="Dupliquer ce temps" onClick={onDuplicate}>
+              <CopyIcon aria-hidden />
             </ActionIcon>
           </Tooltip>
-          <Tooltip label="Supprimer">
-            <ActionIcon variant="subtle" color="red" aria-label="Supprimer ce temps" onClick={onDelete}>
-              <TrashIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
+          {!entry.documentNumber && (
+            <Tooltip label="Supprimer">
+              <ActionIcon variant="subtle" color="red" aria-label="Supprimer ce temps" onClick={onDelete}>
+                <TrashIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          )}
         </Group>
       )}
     </Group>
@@ -109,6 +119,7 @@ interface TimeLogProps {
   projectId: string | null;
   emptyMessage: string;
   onEdit: (entry: TimeEntry) => void;
+  onDuplicate: (entry: TimeEntry) => void;
   onDelete: (entry: TimeEntry) => void;
 }
 
@@ -117,7 +128,7 @@ interface TimeLogProps {
  * @param {TimeLogProps} props Component props.
  * @returns {JSX.Element} List.
  */
-export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDelete }: TimeLogProps) {
+export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete }: TimeLogProps) {
   if (!entries || !context) {
     return (
       <Stack gap="xs" aria-label="Chargement">
@@ -156,7 +167,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
             </Text>
           </Group>
           {dayEntries.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} context={context} projectId={projectId} onEdit={() => onEdit(entry)} onDelete={() => onDelete(entry)} />
+            <EntryRow key={entry.id} entry={entry} context={context} projectId={projectId} onEdit={() => onEdit(entry)} onDuplicate={() => onDuplicate(entry)} onDelete={() => onDelete(entry)} />
           ))}
         </Paper>
       ))}

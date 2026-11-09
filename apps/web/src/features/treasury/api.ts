@@ -377,6 +377,29 @@ export function useTreasuryEntries(filter: { from: string; to: string; accountId
   });
 }
 
+const InvoiceCategoriesDocument = graphql(`
+  query InvoiceTreasuryCategories {
+    invoiceTreasuryCategories {
+      invoiceCategoryId
+      creditNoteCategoryId
+    }
+  }
+`);
+
+const SetInvoiceCategories = graphql(`
+  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {
+    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)
+  }
+`);
+
+/**
+ * Treasury categories of the payments of invoices and of the refunds of credit notes (the budgets they count in).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useInvoiceTreasuryCategories() {
+  return useQuery({ queryKey: [...treasuryKey, 'invoice-categories'], queryFn: async () => (await execute(InvoiceCategoriesDocument)).invoiceTreasuryCategories });
+}
+
 /**
  * Treasury settings: categories, payment methods and counterparties.
  * @returns {UseQueryResult} Query state.
@@ -453,6 +476,9 @@ export interface AccountValues {
  */
 export function useTreasuryMutations() {
   return {
+    setInvoiceCategories: useTreasuryMutation(
+      async (variables: { invoiceCategoryId: string | null; creditNoteCategoryId: string | null }) => (await execute(SetInvoiceCategories, variables)).setInvoiceTreasuryCategories,
+    ),
     createAccount: useTreasuryMutation(async (input: AccountValues) => (await execute(CreateAccount, { input })).createTreasuryAccount),
     updateAccount: useTreasuryMutation(async (variables: { id: string; input: AccountValues }) => (await execute(UpdateAccount, variables)).updateTreasuryAccount),
     deleteAccount: useTreasuryMutation(async (id: string) => (await execute(DeleteAccount, { id })).deleteTreasuryAccount),

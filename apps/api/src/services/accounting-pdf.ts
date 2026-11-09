@@ -3,6 +3,7 @@ import {
   addressLines,
   depositAmount,
   formatMoney,
+  paidOnReceipt,
   UNIT_LABELS,
   type AccountingDocumentType,
   type Address,
@@ -52,6 +53,8 @@ const COLORS = {
   accent: '#aa9371',
 };
 const PAGE = { margin: 34, bottom: 60 };
+/** Block of the totals, on the right: its width and the inset of its texts (the bank details follow it). */
+const TOTALS = { width: 250, inset: 8 };
 
 const countryNames = new Intl.DisplayNames('fr', { type: 'region' });
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
@@ -369,7 +372,14 @@ function tableColumns(
     { key: 'unit', label: 'Unité', width: 52, align: 'left' },
     { key: 'price', label: 'PU HT', width: 72, align: 'right' },
     ...(discounts
-      ? [{ key: 'discount', label: 'Remise', width: 66, align: 'right' } as const]
+      ? [
+          {
+            key: 'discount',
+            label: 'Remise',
+            width: 66,
+            align: 'right',
+          } as const,
+        ]
       : []),
     ...(vatApplicable
       ? [{ key: 'vat', label: 'TVA', width: 40, align: 'right' } as const]
@@ -441,8 +451,7 @@ function writeLines(
     const titleColumn = columns[0];
     const textWidth =
       (line.kind === 'TEXT' ? width : titleColumn.width) - 2 * pad;
-    const notes =
-      line.kind === 'DISBURSEMENT' ? ['Débours, hors TVA'] : [];
+    const notes = line.kind === 'DISBURSEMENT' ? ['Débours, hors TVA'] : [];
 
     const measure = () => {
       doc
@@ -601,7 +610,7 @@ function writeTotals(
       strong: true,
     },
   ];
-  const width = 250;
+  const width = TOTALS.width;
   const x = doc.page.width - PAGE.margin - width;
   const rowHeight = 17;
   flow.space(10);
@@ -613,9 +622,12 @@ function writeTotals(
       .font(row.strong ? 'bold' : 'regular')
       .fontSize(row.strong ? 10.5 : 9)
       .fillColor(row.strong ? COLORS.text : COLORS.muted);
-    doc.text(row.label, x + 8, y, { width: width - 100, lineBreak: false });
+    doc.text(row.label, x + TOTALS.inset, y, {
+      width: width - 100,
+      lineBreak: false,
+    });
     doc.fillColor(COLORS.text).text(row.value, x + width - 100, y, {
-      width: 92,
+      width: 100 - TOTALS.inset,
       align: 'right',
       lineBreak: false,
     });
@@ -632,79 +644,162 @@ function writeTotals(
   }
 }
 
+/** Line of a section: a bold label (none: text alone) and its value. */
+type SectionLine = { label: string; value: string };
+/** Titled section of small text (conditions, bank details). */
+interface Section {
+  title: string;
+  lines: SectionLine[];
+}
+
+/** Space between two sections side by side. */
+const SECTION_GUTTER = 20;
+const SECTION_LINE_GAP = 1;
+
 /**
- * Writes a titled section of small text (conditions, bank details).
+ * Height a section takes in a width.
+ * @param {Doc} doc PDF document.
+ * @param {Section} section Section.
+ * @param {number} width Width.
+ * @returns {number} Height.
+ */
+function sectionHeight(doc: Doc, section: Section, width: number): number {
+  let height = 13;
+  for (const line of section.lines) {
+    // The label is bold: measured so, as one text with its value.
+    doc.font(line.label ? 'bold' : 'regular').fontSize(8);
+    height +=
+      doc.heightOfString(
+        line.label ? `${line.label} : ${line.value}` : line.value,
+        { width, lineGap: SECTION_LINE_GAP },
+      ) + 3;
+  }
+  return height;
+}
+
+/**
+ * Draws a section at a place.
+ * @param {Doc} doc PDF document.
+ * @param {Section} section Section.
+ * @param {number} x Left.
+ * @param {number} top Top.
+ * @param {number} width Width.
+ * @returns {number} Bottom.
+ */
+function drawSection(
+  doc: Doc,
+  section: Section,
+  x: number,
+  top: number,
+  width: number,
+): number {
+  doc
+    .font('bold')
+    .fontSize(8.5)
+    .fillColor(COLORS.accent)
+    .text(section.title, x, top, { width });
+  let y = top + 13;
+  for (const line of section.lines) {
+    doc.fontSize(8);
+    if (line.label) {
+      doc
+        .font('bold')
+        .fillColor(COLORS.text)
+        .text(`${line.label} : `, x, y, {
+          width,
+          lineGap: SECTION_LINE_GAP,
+          continued: true,
+        });
+      doc
+        .font('regular')
+        .fillColor(COLORS.muted)
+        .text(line.value, { width, lineGap: SECTION_LINE_GAP });
+    } else {
+      doc
+        .font('regular')
+        .fillColor(COLORS.muted)
+        .text(line.value, x, y, { width, lineGap: SECTION_LINE_GAP });
+    }
+    y = doc.y + 3;
+  }
+  return y;
+}
+
+/**
+ * Writes sections of small text side by side, kept together on a page: a main one on the left (over the full
+ * width when alone), and one in the column of the totals block, aligned on its texts (bank details).
+ * @param {Doc} doc PDF document.
+ * @param {Flow} flow Flow.
+ * @param {{ main?: Section, totalsColumn?: Section }} sections Sections (empty ones left out).
+ * @returns {void}
+ */
+function writeSections(
+  doc: Doc,
+  flow: Flow,
+  { main, totalsColumn }: { main?: Section; totalsColumn?: Section },
+): void {
+  const right = totalsColumn?.lines.length ? totalsColumn : null;
+  const left = main?.lines.length ? main : null;
+  if (!left && !right) return;
+  const columnX = doc.page.width - PAGE.margin - TOTALS.width + TOTALS.inset;
+  const columnWidth = TOTALS.width - 2 * TOTALS.inset;
+  const leftWidth = right
+    ? columnX - PAGE.margin - SECTION_GUTTER
+    : doc.page.width - 2 * PAGE.margin;
+  flow.ensure(
+    Math.max(
+      left ? sectionHeight(doc, left, leftWidth) : 0,
+      right ? sectionHeight(doc, right, columnWidth) : 0,
+    ),
+  );
+  const top = flow.y;
+  const bottoms = [
+    left ? drawSection(doc, left, PAGE.margin, top, leftWidth) : top,
+    right ? drawSection(doc, right, columnX, top, columnWidth) : top,
+  ];
+  flow.y = Math.max(...bottoms) + 5;
+}
+
+/**
+ * Writes a titled section of small text over the full width.
  * @param {Doc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {string} title Title.
- * @param {string[]} lines Lines.
+ * @param {SectionLine[]} lines Lines.
  * @returns {void}
  */
 function writeSection(
   doc: Doc,
   flow: Flow,
   title: string,
-  lines: { label: string; value: string }[],
+  lines: SectionLine[],
 ): void {
-  const width = doc.page.width - 2 * PAGE.margin;
-  const lineGap = 1;
-
-  // Calcul de la hauteur totale
-  doc.fontSize(8);
-
-  let contentHeight = 0;
-
-  for (const line of lines) {
-    doc.font('bold');
-
-    const labelWidth = line.label ? doc.widthOfString(`${line.label} : `) : 0;
-
-    doc.font('regular');
-
-    const height = doc.heightOfString(line.value, {
-      width: Math.max(1, width - Math.min(labelWidth, width)),
-      lineGap,
-    });
-
-    contentHeight += height;
-  }
-
-  flow.ensure(14 + contentHeight + lines.length * 3);
-
-  // Titre de section
-  doc
-    .font('bold')
-    .fontSize(8.5)
-    .fillColor(COLORS.accent)
-    .text(title, PAGE.margin, flow.y);
-
-  let y = flow.y + 13;
-
-  // Contenu
-  for (const line of lines) {
-    doc.fontSize(8);
-
-    if (line.label) {
-      doc
-        .font('bold')
-        .fillColor(COLORS.text)
-        .text(`${line.label} : `, PAGE.margin, y, {
-          continued: true,
-        });
-    }
-
-    doc.font('regular').fillColor(COLORS.muted).text(line.value, {
-      width,
-      lineGap,
-    });
-
-    y = doc.y + 3;
-  }
-
-  flow.y = y + 5;
+  writeSections(doc, flow, { main: { title, lines } });
 }
+/** Points per millimetre. */
+const MM = 72 / 25.4;
+
 /**
- * Writes the header: logo and seller on the left, title, number and dates on the right, then the buyer.
+ * Where the address of the buyer goes, to show through the window of a standard DL envelope (110 × 220 mm,
+ * window 100 × 45 mm at 20 mm from the right and 15 mm from the bottom) holding the page folded in three: the
+ * window spans 100–200 mm across and 50–95 mm down the page, less the play of the letter in the envelope.
+ */
+const ENVELOPE_WINDOW = {
+  x: 116 * MM,
+  y: 55 * MM,
+  width: 78 * MM,
+  bottom: 90 * MM,
+};
+/** Below the window, whatever the play of the letter in the envelope. */
+const BELOW_WINDOW = 98 * MM;
+
+/** Spacing of the seller block: between its lines, and between its groups (identifiers, address, contact). */
+const SELLER_SPACING = { line: 2.5, group: 8 };
+
+/**
+ * Writes the header: logo and seller on the left (identifiers, address and contact in airy groups), title,
+ * number and dates on the right, then the buyer on a white background where the window of an envelope shows it
+ * (its identifiers under it, out of the window).
  * @param {Doc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {object} data Data.
@@ -732,10 +827,10 @@ function writeHeader(
     sourceNumber: string | null;
   },
 ): void {
-  console.log(seller);
-
   const left = PAGE.margin;
-  const right = 330;
+  // Left of the window: the seller never shows through it.
+  const leftWidth = 220;
+  const right = ENVELOPE_WINDOW.x;
   const rightWidth = doc.page.width - PAGE.margin - right;
   const top = flow.y;
 
@@ -744,7 +839,7 @@ function writeHeader(
   if (logo) {
     try {
       doc.image(logo, left, y, { fit: [150, 56] });
-      y += 64;
+      y += 66;
     } catch {
       // An unreadable logo is left out.
     }
@@ -753,98 +848,110 @@ function writeHeader(
     .font('bold')
     .fontSize(12)
     .fillColor(COLORS.text)
-    .text(seller.name, left, y, { width: 250 });
-  y = doc.y + 2;
+    .text(seller.name, left, y, { width: leftWidth });
+  y = doc.y + 4;
 
   type SellerLine =
     | { type: 'text'; text: string; url?: string }
     | { type: 'rich'; runs: { text: string; bold?: boolean }[] };
 
-  const sellerLines: SellerLine[] = [
-    ...(seller.siret
-      ? [{ type: 'text' as const, text: `SIRET ${seller.siret}` }]
-      : seller.siren
-        ? [{ type: 'text' as const, text: `SIREN ${seller.siren}` }]
+  /**
+   * Link of a website, with its scheme.
+   * @param {string} website Website as entered.
+   * @returns {string} URL.
+   */
+  const websiteUrl = (website: string) =>
+    /^https?:\/\//i.test(website) ? website : `https://${website}`;
+
+  // Groups apart from each other: identifiers, address, contact.
+  const sellerGroups: SellerLine[][] = [
+    [
+      ...(seller.siret
+        ? [{ type: 'text' as const, text: `SIRET ${seller.siret}` }]
+        : seller.siren
+          ? [{ type: 'text' as const, text: `SIREN ${seller.siren}` }]
+          : []),
+      ...(seller.activityCode
+        ? [{ type: 'text' as const, text: `Code APE ${seller.activityCode}` }]
         : []),
-
-    ...(seller.vatNumber
-      ? [{ type: 'text' as const, text: `TVA ${seller.vatNumber}` }]
-      : []),
-
-    ...printedAddress(seller.address).map((text) => ({
+      ...(seller.vatNumber
+        ? [{ type: 'text' as const, text: `TVA ${seller.vatNumber}` }]
+        : []),
+    ],
+    printedAddress(seller.address).map((text) => ({
       type: 'text' as const,
       text,
     })),
-
-    {
+    [
+      ...(seller.contact
+        ? [{ type: 'text' as const, text: seller.contact }]
+        : []),
+      ...(seller.phone
+        ? [
+            {
+              type: 'text' as const,
+              text: seller.phone,
+              url: `tel:${seller.phone}`,
+            },
+          ]
+        : []),
+      ...(seller.email
+        ? [
+            {
+              type: 'text' as const,
+              text: seller.email,
+              url: `mailto:${seller.email}`,
+            },
+          ]
+        : []),
+      ...(seller.website
+        ? [
+            {
+              type: 'text' as const,
+              text: seller.website,
+              url: websiteUrl(seller.website),
+            },
+          ]
+        : []),
+    ],
+  ].filter((group) => group.length > 0);
+  // The contact group under its heading, the name of the contact on its own line.
+  const contactGroup = sellerGroups.at(-1);
+  if (
+    contactGroup &&
+    (seller.contact || seller.phone || seller.email || seller.website)
+  ) {
+    contactGroup.unshift({
       type: 'rich',
-      runs: [
-        { text: 'Contact : ', bold: true },
-        { text: seller.contact ?? 'null' },
-      ],
-    },
+      runs: [{ text: 'Contact :', bold: true }],
+    });
+  }
 
-    ...(seller.phone
-      ? [
-          {
-            type: 'text' as const,
-            text: seller.phone,
-            url: `tel:${seller.phone}`,
-          },
-        ]
-      : []),
-
-    ...(seller.email
-      ? [
-          {
-            type: 'text' as const,
-            text: seller.email,
-            url: `mailto:${seller.email}`,
-          },
-        ]
-      : []),
-
-    ...(seller.website
-      ? [
-          {
-            type: 'text' as const,
-            text: seller.website,
-            url: /^https?:\/\//i.test(seller.website)
-              ? seller.website
-              : `https://${seller.website}`,
-          },
-        ]
-      : []),
-  ];
-  doc.font('regular').fontSize(8.5).fillColor(COLORS.muted);
   doc.fontSize(8.5).fillColor(COLORS.muted);
-
-  sellerLines.forEach((line) => {
-    if (line.type === 'rich') {
-      line.runs.forEach((run, index) => {
-        doc.font(run.bold ? 'bold' : 'regular');
-
-        doc.text(run.text, left, y, {
-          width: 250,
-          lineGap: 1,
-          continued: index < line.runs.length - 1,
+  sellerGroups.forEach((group, groupIndex) => {
+    if (groupIndex > 0) y += SELLER_SPACING.group;
+    for (const line of group) {
+      if (line.type === 'rich') {
+        line.runs.forEach((run, index) => {
+          doc.font(run.bold ? 'bold' : 'regular').text(run.text, left, y, {
+            width: leftWidth,
+            lineGap: SELLER_SPACING.line,
+            continued: index < line.runs.length - 1,
+          });
         });
-      });
-    } else {
-      doc.font('regular');
-
-      doc.text(line.text, left, y, {
-        width: 250,
-        lineGap: 1,
-        link: line.url,
-      });
+      } else {
+        doc.font('regular').text(line.text, left, y, {
+          width: leftWidth,
+          lineGap: SELLER_SPACING.line,
+          link: line.url,
+        });
+      }
+      y = doc.y;
     }
-
-    y = doc.y;
   });
-  const sellerBottom = doc.y;
+  const sellerBottom = y;
 
-  // Title, number and dates.
+  // Title, number and dates, above the window.
   doc
     .font('bold')
     .fontSize(20)
@@ -868,7 +975,12 @@ function writeHeader(
     ['Date', printedDate(document.issueDate)],
     [
       isQuote ? 'Valable jusqu’au' : 'Échéance',
-      document.dueDate ? printedDate(document.dueDate) : null,
+      // Paid on receipt: no date to wait for.
+      !isQuote && paidOnReceipt(document.paymentTerms)
+        ? 'À réception'
+        : document.dueDate
+          ? printedDate(document.dueDate)
+          : null,
     ],
     [
       'Prestation',
@@ -899,7 +1011,7 @@ function writeHeader(
     y = doc.y + 2;
   }
 
-  // Buyer.
+  // Buyer, in the window of the envelope (lower when the facts above reach it), on the white of the page.
   const contact = buyer.contact
     ? [
         `${buyer.contact.firstName} ${buyer.contact.lastName}`,
@@ -908,76 +1020,115 @@ function writeHeader(
         .filter(Boolean)
         .join(', ')
     : null;
-  const buyerLines = [
+  const postalLines = [
     buyer.service?.name ?? null,
     contact ? `À l’attention de ${contact}` : null,
     ...printedAddress(buyer.address),
+  ].filter((line): line is string => Boolean(line?.trim()));
+  const identifiers = [
     buyer.siret
       ? `SIRET ${buyer.siret}`
       : buyer.siren
         ? `SIREN ${buyer.siren}`
         : null,
     buyer.vatNumber ? `TVA ${buyer.vatNumber}` : null,
-  ].filter((line): line is string => Boolean(line?.trim()));
-  const boxTop = Math.max(y, sellerBottom) + 14;
-  doc.font('regular').fontSize(8.5);
-  const buyerText = buyerLines.join('\n');
-  const boxHeight =
-    40 +
-    (buyerText
-      ? doc.heightOfString(buyerText, { width: rightWidth - 24, lineGap: 1 })
-      : 0);
-  doc.roundedRect(right, boxTop, rightWidth, boxHeight, 4).fill(COLORS.fill);
+  ].filter((line): line is string => Boolean(line));
+  const addressTop = Math.max(ENVELOPE_WINDOW.y, y + 10);
   doc
     .font('bold')
     .fontSize(10.5)
     .fillColor(COLORS.text)
-    .text(buyer.name, right + 12, boxTop + 12, { width: rightWidth - 24 });
-  if (buyerText)
+    .text(buyer.name, right, addressTop, { width: ENVELOPE_WINDOW.width });
+  if (postalLines.length)
     doc
       .font('regular')
-      .fontSize(8.5)
+      .fontSize(9.5)
       .fillColor(COLORS.text)
-      .text(buyerText, right + 12, doc.y + 2, {
-        width: rightWidth - 24,
-        lineGap: 1,
+      .text(postalLines.join('\n'), right, doc.y + 2, {
+        width: ENVELOPE_WINDOW.width,
+        lineGap: 1.5,
       });
-  flow.y = Math.max(boxTop + boxHeight, doc.y) + 24;
+  // Identifiers under the window: they are not part of the postal address.
+  if (identifiers.length)
+    doc
+      .font('regular')
+      .fontSize(8)
+      .fillColor(COLORS.muted)
+      .text(
+        identifiers.join('  ·  '),
+        right,
+        Math.max(doc.y + 6, BELOW_WINDOW),
+        { width: rightWidth },
+      );
+  flow.y = Math.max(doc.y, sellerBottom) + 24;
 }
 
+/** Room to write by hand: above a line to fill in, and for the signature and stamp. */
+const HANDWRITING = { line: 42, signature: 100 };
+
 /**
- * Writes the "Bon pour accord" box of a quote: date, and signature preceded by the handwritten mention.
+ * Writes the "Bon pour accord" block of a quote, as on paper: "À ____, le __ / __ / ____" on lines to fill in
+ * by hand, then "Signature et cachet" over a room closed by a line; on the right, kept on one page.
  * @param {Doc} doc PDF document.
  * @param {Flow} flow Flow.
  * @returns {void}
  */
 function writeApproval(doc: Doc, flow: Flow): void {
-  const width = 260;
-  const height = 120;
+  const width = 280;
   const x = doc.page.width - PAGE.margin - width;
-  flow.space(8);
+  const height = 22 + HANDWRITING.line + 14 + HANDWRITING.signature + 4;
+  flow.space(12);
   flow.ensure(height);
+  const top = flow.y;
+
   doc
-    .roundedRect(x, flow.y, width, height, 4)
-    .lineWidth(0.8)
+    .font('regular')
+    .fontSize(14)
+    .fillColor(COLORS.text)
+    .text('Bon pour accord', x, top, { width, lineBreak: false });
+
+  // Place and date, on lines with room above them to write.
+  const lineY = top + 22 + HANDWRITING.line;
+  const textY = lineY - 9;
+  /**
+   * Line to fill in by hand.
+   * @param {number} from Left, from the block.
+   * @param {number} to Right, from the block.
+   * @returns {void}
+   */
+  const blank = (from: number, to: number) =>
+    doc
+      .moveTo(x + from, lineY)
+      .lineTo(x + to, lineY)
+      .lineWidth(0.6)
+      .strokeColor(COLORS.border)
+      .stroke();
+  doc.font('regular').fontSize(8.5).fillColor(COLORS.muted);
+  doc.text('À', x, textY, { lineBreak: false });
+  blank(12, 128);
+  doc.text(', le', x + 131, textY, { lineBreak: false });
+  blank(154, 188);
+  doc.text('/', x + 192, textY, { lineBreak: false });
+  blank(200, 234);
+  doc.text('/', x + 238, textY, { lineBreak: false });
+  blank(246, width);
+
+  // Signature and stamp, over a room closed by a line.
+  const signatureY = lineY + 14;
+  doc
+    .font('regular')
+    .fontSize(8.5)
+    .fillColor(COLORS.muted)
+    .text('Signature et cachet', x, signatureY, { lineBreak: false });
+  const bottom = signatureY + HANDWRITING.signature;
+  doc
+    .moveTo(x, bottom)
+    .lineTo(x + width, bottom)
+    .lineWidth(0.6)
     .strokeColor(COLORS.border)
     .stroke();
-  doc
-    .font('bold')
-    .fontSize(10)
-    .fillColor(COLORS.text)
-    .text('Bon pour accord', x + 12, flow.y + 10);
-  doc.font('regular').fontSize(8).fillColor(COLORS.muted);
-  doc.text('Date :', x + 12, flow.y + 28);
-  doc
-    .fontSize(7)
-    .text(
-      'Signature, précédée de la mention manuscrite « Bon pour accord » :',
-      x + 12,
-      flow.y + 44,
-      { width: width - 24 },
-    );
-  flow.y += height + 8;
+
+  flow.y = bottom + 12;
 }
 
 /**
@@ -1042,20 +1193,38 @@ export interface DocumentPdf {
  * @param {DocumentWithLines} document Document.
  * @returns {Promise<{ date: Date, method: string | null, amount: number }[]>} Payments (amounts in cents).
  */
-async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date: Date; method: string | null; amount: number }[]> {
-  if (document.status !== 'FINAL' || (document.type !== 'INVOICE' && document.type !== 'DEPOSIT_INVOICE')) {
-    throw clientError('BAD_USER_INPUT', 'Seule une facture validée peut être acquittée.');
+async function paidInvoicePayments(
+  document: DocumentWithLines,
+): Promise<{ date: Date; method: string | null; amount: number }[]> {
+  if (
+    document.status !== 'FINAL' ||
+    (document.type !== 'INVOICE' && document.type !== 'DEPOSIT_INVOICE')
+  ) {
+    throw clientError(
+      'BAD_USER_INPUT',
+      'Seule une facture validée peut être acquittée.',
+    );
   }
   const balance = (await documentBalances()).get(document.id);
   if (!balance || balance.paid <= 0 || balance.balance > 0) {
-    throw clientError('BAD_USER_INPUT', 'La facture n’est pas entièrement réglée : enregistrez d’abord son règlement.');
+    throw clientError(
+      'BAD_USER_INPUT',
+      'La facture n’est pas entièrement réglée : enregistrez d’abord son règlement.',
+    );
   }
   const allocations = await prisma.treasuryAllocation.findMany({
     where: { documentId: document.id },
-    select: { amount: true, entry: { select: { date: true, method: { select: { name: true } } } } },
+    select: {
+      amount: true,
+      entry: { select: { date: true, method: { select: { name: true } } } },
+    },
     orderBy: { entry: { date: 'asc' } },
   });
-  return allocations.map((allocation) => ({ date: allocation.entry.date, method: allocation.entry.method?.name ?? null, amount: Math.round(Number(allocation.amount) * 100) }));
+  return allocations.map((allocation) => ({
+    date: allocation.entry.date,
+    method: allocation.entry.method?.name ?? null,
+    amount: Math.round(Number(allocation.amount) * 100),
+  }));
 }
 
 /**
@@ -1067,7 +1236,10 @@ async function paidInvoicePayments(document: DocumentWithLines): Promise<{ date:
  * @param {{ paid?: boolean }} [options] Receipted invoice. Optional.
  * @returns {Promise<DocumentPdf>} PDF.
  */
-export async function documentPdf(id: string, options: { paid?: boolean } = {}): Promise<DocumentPdf> {
+export async function documentPdf(
+  id: string,
+  options: { paid?: boolean } = {},
+): Promise<DocumentPdf> {
   const document = await findDocument(id);
   const payments = options.paid ? await paidInvoicePayments(document) : null;
   const draft = document.status !== 'FINAL';
@@ -1159,7 +1331,7 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
     const last = payments[payments.length - 1];
     writeSection(doc, flow, 'Facture acquittée', [
       ...payments.map((payment) => ({
-        label: `Réglé le ${printedDate(payment.date)}${payment.method ? ` (${payment.method.toLowerCase()})` : ''}`,
+        label: `Réglée le ${printedDate(payment.date)}${payment.method ? ` (${payment.method.toLowerCase()})` : ''}`,
         value: formatMoney(payment.amount, document.currency),
       })),
       { label: '', value: `Pour acquit, le ${printedDate(last.date)}.` },
@@ -1211,26 +1383,26 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
       : null,
   ].filter((line): line is { label: string; value: string } => line !== null);
 
-  if (conditions.length) {
-    writeSection(doc, flow, 'Conditions', conditions);
-  }
-  if (document.showBankDetails && seller.iban) {
-    writeSection(
-      doc,
-      flow,
-      'Coordonnées bancaires',
-      [
-        seller.accountHolder
-          ? { label: 'Titulaire', value: seller.accountHolder }
-          : null,
-        seller.bankName ? { label: 'Banque', value: seller.bankName } : null,
-        { label: 'IBAN', value: seller.iban },
-        seller.bic ? { label: 'BIC', value: seller.bic } : null,
-      ].filter(
-        (line): line is { label: string; value: string } => line !== null,
-      ),
-    );
-  }
+  // Conditions on the left, bank details under the totals.
+  writeSections(doc, flow, {
+    main: { title: 'Conditions', lines: conditions },
+    totalsColumn: {
+      title: 'Coordonnées bancaires',
+      lines:
+        document.showBankDetails && seller.iban
+          ? [
+              seller.accountHolder
+                ? { label: 'Titulaire', value: seller.accountHolder }
+                : null,
+              seller.bankName
+                ? { label: 'Banque', value: seller.bankName }
+                : null,
+              { label: 'IBAN', value: seller.iban },
+              seller.bic ? { label: 'BIC', value: seller.bic } : null,
+            ].filter((line): line is SectionLine => line !== null)
+          : [],
+    },
+  });
   if (document.type === 'QUOTE') writeApproval(doc, flow);
   writeFooters(doc, draft, document);
 

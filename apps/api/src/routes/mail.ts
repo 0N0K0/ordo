@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { getSession } from '../auth/session';
+import { fileSecurityPolicy, isPdf } from '../services/attachments';
 import { messageAttachment } from '../services/mail/reader';
 
 export const mailRouter: Router = Router();
 
-// Attachment of a mail read from the server: images are shown in place, other files downloaded.
+// Attachment of a mail read from the server: images and PDFs are shown in place (?download=1: downloaded), other
+// files downloaded.
 mailRouter.get('/:accountId/attachment', async (req, res) => {
   if (!(await getSession(req, res))) {
     res.sendStatus(401);
@@ -20,11 +22,13 @@ mailRouter.get('/:accountId/attachment', async (req, res) => {
   try {
     const file = await messageAttachment(req.params.accountId, folder, uid, index);
     const image = /^image\/(png|jpeg|gif|webp)$/.test(file.contentType);
+    const pdf = isPdf(file.content);
+    const inline = (image || pdf) && !req.query.download;
     res.set({
-      'Content-Type': image ? file.contentType : 'application/octet-stream',
-      'Content-Disposition': `${image ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      'Content-Type': image ? file.contentType : pdf ? 'application/pdf' : 'application/octet-stream',
+      'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       'Cache-Control': 'private, max-age=3600',
-      'Content-Security-Policy': "default-src 'none'; sandbox",
+      'Content-Security-Policy': fileSecurityPolicy(inline && pdf),
       'X-Content-Type-Options': 'nosniff',
     });
     res.send(file.content);

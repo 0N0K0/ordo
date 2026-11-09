@@ -9,6 +9,7 @@ import {
 import { prisma } from '../db';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
+import { getCompanyProfile } from './company';
 
 /**
  * Validates a category: its parent exists, has the same direction and is not the category or one of its
@@ -153,4 +154,27 @@ export async function updateCounterparty(id: string, input: TreasuryCounterparty
 export async function deleteCounterparty(id: string): Promise<void> {
   const { count } = await prisma.treasuryCounterparty.deleteMany({ where: { id } });
   if (!count) throw notFound('Tiers');
+}
+
+/**
+ * Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out): the
+ * budgets their expected and actual movements count in. None: no category (out of budget).
+ * @param {{ invoiceCategoryId: string | null, creditNoteCategoryId: string | null }} input Categories.
+ * @returns {Promise<void>}
+ */
+export async function setInvoiceCategories(input: { invoiceCategoryId: string | null; creditNoteCategoryId: string | null }): Promise<void> {
+  for (const [id, direction, field] of [
+    [input.invoiceCategoryId, 'IN', 'invoiceCategoryId'],
+    [input.creditNoteCategoryId, 'OUT', 'creditNoteCategoryId'],
+  ] as const) {
+    if (!id) continue;
+    const category = await prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true } });
+    if (!category) throw notFound('Catégorie');
+    if (category.direction !== direction) {
+      const message = direction === 'IN' ? 'Choisissez une catégorie d’entrées.' : 'Choisissez une catégorie de sorties.';
+      throw clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
+    }
+  }
+  const company = await getCompanyProfile();
+  await prisma.companyProfile.update({ where: { id: company.id }, data: { invoiceCategoryId: input.invoiceCategoryId, creditNoteCategoryId: input.creditNoteCategoryId } });
 }

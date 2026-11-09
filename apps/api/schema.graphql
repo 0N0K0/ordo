@@ -71,6 +71,9 @@ type AccountingDocument {
   reminders: [DocumentReminder!]!
   seller: JSON
   sentAt: DateTime
+
+  """How it was sent: MAIL, CHORUS, POST, HAND or OTHER."""
+  sentVia: String
   serviceEnd: Date
   serviceId: ID
   serviceStart: Date
@@ -141,6 +144,8 @@ enum AccountingDocumentType {
 }
 
 type AccountingLine {
+  """Deductions: deposit invoice whose amount the line takes off."""
+  deductedDocumentId: ID
   description: String
   discountType: DiscountType
   discountValue: Float
@@ -155,6 +160,8 @@ type AccountingLine {
 }
 
 input AccountingLineInput {
+  """Deductions: deposit invoice whose amount the line takes off."""
+  deductedDocumentId: ID
   description: String
   discountType: DiscountType
   discountValue: Float
@@ -690,6 +697,25 @@ scalar Date
 """Instant, ISO 8601."""
 scalar DateTime
 
+"""Final deposit invoice of a client with what is left to deduct from it."""
+type DeductibleDeposit {
+  id: ID!
+  issueDate: String!
+  number: String!
+
+  """Amounts excluding VAT left to deduct, per VAT rate."""
+  remaining: [DeductibleRate!]!
+
+  """Total including VAT."""
+  totalGross: Float!
+}
+
+type DeductibleRate {
+  """Excluding VAT."""
+  amount: Float!
+  rate: Float!
+}
+
 """
 Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.
 """
@@ -757,6 +783,7 @@ type DocumentStatus {
 
 enum DocumentStatusCategory {
   ACCEPTED
+  CREDIT_DUE
   PAID
   REFUSED
   SENT
@@ -911,6 +938,7 @@ type ImportedDocument {
   clientName: String!
   currency: String!
   dueDate: Date
+  fileMimeType: String
   fileName: String
   fileUrl: String
   id: ID!
@@ -920,11 +948,18 @@ type ImportedDocument {
   paid: Float
   payments: [TreasuryAllocation!]!
   projectId: ID
+  sentAt: DateTime
+
+  """How it was sent: MAIL, CHORUS, POST, HAND or OTHER."""
+  sentVia: String
   settled: Boolean!
   title: String
   totalGross: Float!
   totalNet: Float!
   totalVat: Float!
+
+  """Tracking status, set by hand."""
+  trackingStatus: DocumentStatus
   type: AccountingDocumentType!
 }
 
@@ -943,6 +978,14 @@ input ImportedDocumentInput {
   totalNet: Float!
   totalVat: Float!
   type: AccountingDocumentType!
+}
+
+type InvoiceTreasuryCategories {
+  """Money out: refunds of credit notes."""
+  creditNoteCategoryId: ID
+
+  """Money in: payments of invoices."""
+  invoiceCategoryId: ID
 }
 
 """Arbitrary JSON value, validated by the resolver that receives it."""
@@ -1425,7 +1468,16 @@ type Mutation {
 
   """Records that an alarm rang for the occurrence at `at`."""
   markAlarmFired(at: DateTime!, id: ID!): Boolean!
-  markDocumentSent(id: ID!): Boolean!
+
+  """
+  Notes that a document was sent, now or on a past day (date), how (MAIL, CHORUS, POST, HAND, OTHER), and with which "sent" status.
+  """
+  markDocumentSent(date: Date, id: ID!, statusId: ID, via: String): Boolean!
+
+  """
+  Notes that an imported document was sent, on a day (none: now) and how, with a "sent" status.
+  """
+  markImportedDocumentSent(date: Date, id: ID!, statusId: ID!, via: String): Boolean!
 
   """
   Adds or removes a flag (labelId and on), or sets the done state (done), on mails.
@@ -1574,6 +1626,16 @@ type Mutation {
 
   """Saves the personal access token once checked; returns the login."""
   setGithubToken(token: String!): String!
+
+  """
+  Sets the tracking status of an imported document by hand (none: clears it).
+  """
+  setImportedDocumentTrackingStatus(id: ID!, statusId: ID): Boolean!
+
+  """
+  Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out); null: none.
+  """
+  setInvoiceTreasuryCategories(creditNoteCategoryId: ID, invoiceCategoryId: ID): Boolean!
   setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
   setMailSignature(id: ID!, signature: String!): MailAccount!
 
@@ -1863,6 +1925,11 @@ type Query {
   """Dashboards of a project, or the global ones."""
   dashboards(projectId: ID): [Dashboard!]!
 
+  """
+  Final deposit invoices of a client not deducted in full yet (the deductions of `documentId` left out).
+  """
+  deductibleDeposits(clientId: ID!, documentId: ID): [DeductibleDeposit!]!
+
   """Schedules without kind of this workspace: name, color and display."""
   defaultScheduleKind: DefaultScheduleKind!
   documentFolders: [DocumentFolder!]!
@@ -1887,11 +1954,22 @@ type Query {
   githubLogin: String
   githubProjectLink(projectId: ID!): GithubProjectLink
   health: String!
+  importedDocument(id: ID!): ImportedDocument
 
   """
   Imported quotes and invoices, latest first, optionally of a client or a project.
   """
   importedDocuments(clientId: ID, projectId: ID): [ImportedDocument!]!
+
+  """
+  Treasury categories of the payments of invoices and of the refunds of credit notes: the budgets they count in.
+  """
+  invoiceTreasuryCategories: InvoiceTreasuryCategories!
+
+  """
+  Date (YYYY-MM-DD) of the latest document of a type, final or imported, `documentId` left out: none can be dated before.
+  """
+  latestDocumentDate(documentId: ID, type: AccountingDocumentType!): String
 
   """Every document of the library (content of the files left out)."""
   libraryDocuments: [LibraryDocument!]!
@@ -1949,7 +2027,9 @@ type Query {
   """
   newDocumentDefaults(clientId: ID!, issueDate: Date!, type: AccountingDocumentType!): JSON!
 
-  """Final invoices still due after their due date, oldest due first."""
+  """
+  Final invoices still due, sent 15 days ago or more (the sending counts, not the due date), sent first first.
+  """
   overdueInvoices(today: Date!): [AccountingDocument!]!
   places: [Place!]!
   projectCategories: [ProjectCategory!]!

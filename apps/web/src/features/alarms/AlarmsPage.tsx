@@ -19,6 +19,7 @@ import { nextOccurrence } from '@ordo/shared';
 import {
   AlarmIcon,
   BellRingingIcon,
+  CopyIcon,
   PencilSimpleIcon,
   PlusIcon,
   TrashIcon,
@@ -288,6 +289,11 @@ export function AlarmsPage() {
                         onClick={() => openForm(alarm)}
                       >
                         <PencilSimpleIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Dupliquer">
+                      <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${alarm.title}`} onClick={() => openForm(alarm, { copy: true })}>
+                        <CopyIcon aria-hidden />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Supprimer">

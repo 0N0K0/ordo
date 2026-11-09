@@ -6,7 +6,7 @@ import type {
   AccountingDocumentListFieldsFragment,
   AccountingDocumentType,
   ImportedDocumentInput,
-  ImportedDocumentsQuery,
+  ImportedDocumentFieldsFragment,
   ProjectResourcesQuery,
   RecurringInvoicesQuery,
 } from '../../graphql/graphql';
@@ -42,10 +42,12 @@ graphql(`
       color
       category
     }
+    paymentMethods
     balance
     paid
     overdue
     sentAt
+    sentVia
     acceptedAt
     depositType
     depositValue
@@ -98,6 +100,7 @@ graphql(`
     finalizedAt
     updatedAt
     sentAt
+    sentVia
     acceptedAt
     signedFileUrl
     signedFileName
@@ -129,6 +132,7 @@ graphql(`
       vatRate
       discountType
       discountValue
+      deductedDocumentId
     }
     attachments {
       id
@@ -193,6 +197,27 @@ const ProjectResourcesDocument = graphql(`
       size
       createdAt
     }
+  }
+`);
+
+const DeductibleDepositsDocument = graphql(`
+  query DeductibleDeposits($clientId: ID!, $documentId: ID) {
+    deductibleDeposits(clientId: $clientId, documentId: $documentId) {
+      id
+      number
+      issueDate
+      totalGross
+      remaining {
+        rate
+        amount
+      }
+    }
+  }
+`);
+
+const LatestDocumentDateDocument = graphql(`
+  query LatestDocumentDate($type: AccountingDocumentType!, $documentId: ID) {
+    latestDocumentDate(type: $type, documentId: $documentId)
   }
 `);
 
@@ -281,6 +306,36 @@ const MoveProjectResource = graphql(`
     moveProjectResource(id: $id, index: $index)
   }
 `);
+
+/**
+ * Date of the latest document of a type (final or imported, the document edited aside): none can be dated before.
+ * @param {AccountingDocumentType} type Type.
+ * @param {string | null} documentId Document edited.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
+ * @returns {UseQueryResult} Query state (YYYY-MM-DD or null).
+ */
+export function useLatestDocumentDate(type: AccountingDocumentType, documentId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...accountingQueryKey, 'latest-date', type, documentId],
+    queryFn: async () => (await execute(LatestDocumentDateDocument, { type, documentId })).latestDocumentDate ?? null,
+    enabled,
+  });
+}
+
+/**
+ * Final deposit invoices of a client left to deduct (the deductions of the document edited aside).
+ * @param {string | null} clientId Client.
+ * @param {string | null} documentId Document edited.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useDeductibleDeposits(clientId: string | null, documentId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...accountingQueryKey, 'deductible-deposits', clientId, documentId],
+    queryFn: async () => (await execute(DeductibleDepositsDocument, { clientId: clientId!, documentId })).deductibleDeposits,
+    enabled: enabled && Boolean(clientId),
+  });
+}
 
 /**
  * Documents (recurring models excluded), latest first, optionally of a client or a project.
@@ -418,29 +473,62 @@ export function useProjectResourceMutations() {
 }
 
 
+graphql(`
+  fragment ImportedDocumentFields on ImportedDocument {
+    id
+    type
+    number
+    issueDate
+    dueDate
+    clientId
+    clientName
+    projectId
+    title
+    totalNet
+    totalVat
+    totalGross
+    currency
+    note
+    fileUrl
+    fileName
+    settled
+    paid
+    balance
+    trackingStatus {
+      id
+      name
+      color
+      category
+    }
+    fileMimeType
+    sentAt
+    sentVia
+  }
+`);
+
 const ImportedDocumentsDocument = graphql(`
   query ImportedDocuments($clientId: ID, $projectId: ID) {
     importedDocuments(clientId: $clientId, projectId: $projectId) {
-      id
-      type
-      number
-      issueDate
-      dueDate
-      clientId
-      clientName
-      projectId
-      title
-      totalNet
-      totalVat
-      totalGross
-      currency
-      note
-      fileUrl
-      fileName
-      settled
-      paid
-      balance
+      ...ImportedDocumentFields
     }
+  }
+`);
+
+const ImportedDocumentDocument = graphql(`
+  query ImportedDocument($id: ID!) {
+    importedDocument(id: $id) {
+      ...ImportedDocumentFields
+    }
+  }
+`);
+const MarkImportedSent = graphql(`
+  mutation MarkImportedDocumentSent($id: ID!, $date: Date, $via: String, $statusId: ID!) {
+    markImportedDocumentSent(id: $id, date: $date, via: $via, statusId: $statusId)
+  }
+`);
+const SetImportedTrackingStatus = graphql(`
+  mutation SetImportedDocumentTrackingStatus($id: ID!, $statusId: ID) {
+    setImportedDocumentTrackingStatus(id: $id, statusId: $statusId)
   }
 `);
 const ImportDocument = graphql(`
@@ -459,11 +547,20 @@ const DeleteImportedDocument = graphql(`
   }
 `);
 
-export type ImportedDocument = ImportedDocumentsQuery['importedDocuments'][number];
+export type ImportedDocument = ImportedDocumentFieldsFragment;
 export type { ImportedDocumentInput };
 
 /**
- * Imported quotes and invoices, optionally of a client or a project.
+ * One imported document.
+ * @param {string} id Imported document.
+ * @returns {UseQueryResult} Query state (null when not found).
+ */
+export function useImportedDocument(id: string) {
+  return useQuery({ queryKey: [...accountingQueryKey, 'imported', 'one', id], queryFn: async () => (await execute(ImportedDocumentDocument, { id })).importedDocument ?? null });
+}
+
+/**
+ * Imported documents, latest first, optionally of a client or a project.
  * @param {{ clientId?: string, projectId?: string }} [filter] Filter. Optional.
  * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
  * @returns {UseQueryResult} Query state.
@@ -487,5 +584,11 @@ export function useImportedDocumentMutations() {
       async (variables: { id: string; input: ImportedDocumentInput; file: File | null }) => (await execute(UpdateImportedDocument, variables)).updateImportedDocument,
     ),
     remove: useAccountingMutation(async (id: string) => (await execute(DeleteImportedDocument, { id })).deleteImportedDocument),
+    setStatus: useAccountingMutation(
+      async (variables: { id: string; statusId: string | null }) => (await execute(SetImportedTrackingStatus, variables)).setImportedDocumentTrackingStatus,
+    ),
+    markSent: useAccountingMutation(
+      async (variables: { id: string; date: string; via: string; statusId: string }) => (await execute(MarkImportedSent, variables)).markImportedDocumentSent,
+    ),
   };
 }

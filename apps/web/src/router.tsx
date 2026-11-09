@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router';
 import { AccountPage } from './features/account/AccountPage';
 import { AccountingPage } from './features/accounting/AccountingPage';
 import { DocumentPage } from './features/accounting/DocumentPage';
+import { ImportedDocumentPage } from './features/accounting/ImportedDocumentPage';
 import { TreasuryPage } from './features/treasury/TreasuryPage';
 import { DashboardsPage } from './pages/DashboardsPage';
 import { LibraryPage } from './features/library/LibraryPage';
@@ -43,6 +44,14 @@ export const router = createBrowserRouter([
             element: (
               <ProOnly>
                 <AccountingPage />
+              </ProOnly>
+            ),
+          },
+          {
+            path: 'accounting/imported/:id',
+            element: (
+              <ProOnly>
+                <ImportedDocumentPage />
               </ProOnly>
             ),
           },

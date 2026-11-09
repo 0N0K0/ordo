@@ -1,4 +1,4 @@
-import { formatDay, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, REMINDER_DELAY_DAYS, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/reminders';
 import * as statuses from '../../services/document-statuses';
@@ -10,6 +10,7 @@ import * as statements from '../../services/treasury-import';
 import * as loans from '../../services/treasury-loans';
 import * as team from '../../services/treasury-team';
 import { meContributorId } from '../../services/workspaces';
+import { currentWorkspace } from '../../workspace-context';
 import { builder } from '../builder';
 
 /**
@@ -43,7 +44,7 @@ function importedBalancesOf(ctx: object): Promise<Map<string, tracking.DocumentB
 }
 
 const ScopeEnum = builder.enumType('DocumentStatusScope', { values: ['QUOTE', 'INVOICE'] as const });
-const CategoryEnum = builder.enumType('DocumentStatusCategory', { values: ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID'] as const });
+const CategoryEnum = builder.enumType('DocumentStatusCategory', { values: DOCUMENT_STATUS_CATEGORIES });
 const EntryStatusEnum = builder.enumType('TreasuryEntryStatus', { values: ['ACTUAL', 'FORECAST'] as const });
 const DirectionEnum = builder.enumType('TreasuryDirection', { values: ['IN', 'OUT'] as const });
 
@@ -468,6 +469,7 @@ builder.prismaObject('TreasuryAccount', {
 builder.prismaObjectFields('AccountingDocument', (t) => ({
   trackingStatus: t.relation('trackingStatus', { nullable: true }),
   sentAt: t.expose('sentAt', { type: 'DateTime', nullable: true }),
+  sentVia: t.exposeString('sentVia', { nullable: true, description: 'How it was sent: MAIL, CHORUS, POST, HAND or OTHER.' }),
   acceptedAt: t.expose('acceptedAt', { type: 'Date', nullable: true }),
   signedFileUrl: t.string({
     nullable: true,
@@ -736,6 +738,13 @@ const PaymentInput = builder.inputType('DocumentPaymentInput', {
   }),
 });
 
+const InvoiceCategoriesRef = builder.objectRef<{ invoiceCategoryId: string | null; creditNoteCategoryId: string | null }>('InvoiceTreasuryCategories').implement({
+  fields: (t) => ({
+    invoiceCategoryId: t.exposeID('invoiceCategoryId', { nullable: true, description: 'Money in: payments of invoices.' }),
+    creditNoteCategoryId: t.exposeID('creditNoteCategoryId', { nullable: true, description: 'Money out: refunds of credit notes.' }),
+  }),
+});
+
 builder.queryFields((t) => ({
   treasuryMembers: t.prismaField({
     type: ['Contributor'],
@@ -776,21 +785,35 @@ builder.queryFields((t) => ({
   }),
   overdueInvoices: t.prismaField({
     type: ['AccountingDocument'],
-    description: 'Final invoices still due after their due date, oldest due first.',
+    description: `Final invoices still due, sent ${REMINDER_DELAY_DAYS} days ago or more (the sending counts, not the due date), sent first first.`,
     args: { today: t.arg({ type: 'Date', required: true }) },
     resolve: async (query, _root, args, ctx) => {
       const balances = await balancesOf(ctx);
+      // Sent on the 1st: reminded from the 16th.
+      const sentBefore = parseDay(addDays(args.today, -(REMINDER_DELAY_DAYS - 1)));
       const late = await prisma.accountingDocument.findMany({
-        where: { status: 'FINAL', type: { in: ['INVOICE', 'DEPOSIT_INVOICE'] }, dueDate: { lt: parseDay(args.today) } },
+        where: { status: 'FINAL', type: { in: ['INVOICE', 'DEPOSIT_INVOICE'] }, sentAt: { lt: sentBefore } },
         select: { id: true },
       });
       const ids = late.filter((document) => (balances.get(document.id)?.balance ?? 0) > 0).map((document) => document.id);
-      return prisma.accountingDocument.findMany({ ...query, where: { id: { in: ids } }, orderBy: [{ dueDate: 'asc' }, { number: 'asc' }] });
+      return prisma.accountingDocument.findMany({ ...query, where: { id: { in: ids } }, orderBy: [{ sentAt: 'asc' }, { number: 'asc' }] });
+    },
+  }),
+  invoiceTreasuryCategories: t.field({
+    type: InvoiceCategoriesRef,
+    description: 'Treasury categories of the payments of invoices and of the refunds of credit notes: the budgets they count in.',
+    resolve: async () => {
+      const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
+      return { invoiceCategoryId: company?.invoiceCategoryId ?? null, creditNoteCategoryId: company?.creditNoteCategoryId ?? null };
     },
   }),
   documentStatuses: t.prismaField({
     type: ['DocumentStatus'],
-    resolve: (query) => prisma.documentStatus.findMany({ ...query, orderBy: [{ scope: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }] }),
+    resolve: async (query) => {
+      // A category added since (credit note to make…) gets its default status.
+      if (currentWorkspace().kind === 'PRO') await statuses.ensureDocumentStatuses();
+      return prisma.documentStatus.findMany({ ...query, orderBy: [{ scope: 'asc' }, { position: 'asc' }, { createdAt: 'asc' }] });
+    },
   }),
   treasuryAccounts: t.prismaField({
     type: ['TreasuryAccount'],
@@ -1000,9 +1023,10 @@ builder.mutationFields((t) => ({
     },
   }),
   markDocumentSent: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => {
-      await tracking.markSent(id);
+    description: 'Notes that a document was sent, now or on a past day (date), how (MAIL, CHORUS, POST, HAND, OTHER), and with which "sent" status.',
+    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date' }), via: t.arg.string(), statusId: t.arg.id() },
+    resolve: async (_root, { id, date, via, statusId }) => {
+      await tracking.markSent(id, { date: date ?? null, via: via ?? null, statusId: statusId ?? null });
       return true;
     },
   }),
@@ -1062,6 +1086,14 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {
       await treasury.deleteAccount(id);
+      return true;
+    },
+  }),
+  setInvoiceTreasuryCategories: t.boolean({
+    description: 'Treasury categories of the payments of invoices (money in) and of the refunds of credit notes (money out); null: none.',
+    args: { invoiceCategoryId: t.arg.id(), creditNoteCategoryId: t.arg.id() },
+    resolve: async (_root, { invoiceCategoryId, creditNoteCategoryId }) => {
+      await settings.setInvoiceCategories({ invoiceCategoryId: invoiceCategoryId ?? null, creditNoteCategoryId: creditNoteCategoryId ?? null });
       return true;
     },
   }),

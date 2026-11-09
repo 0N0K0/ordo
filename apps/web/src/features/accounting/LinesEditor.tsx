@@ -59,8 +59,15 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
     <Paper withBorder radius="sm" p="xs" className={classes.line} data-kind={line.kind}>
       <Stack gap={6}>
         <Group gap="xs" wrap="nowrap" align="flex-start">
-          <Badge size="sm" variant="light" color={line.kind === 'DEDUCTION' ? 'orange' : line.kind === 'DISBURSEMENT' ? 'grape' : 'gray'} mt={6} className={classes.kind}>
-            {KIND_LABELS[line.kind]}
+          <Badge
+            size="sm"
+            variant="light"
+            color={line.kind === 'DEDUCTION' ? 'orange' : line.kind === 'DISBURSEMENT' ? 'grape' : 'gray'}
+            mt={6}
+            className={classes.kind}
+            title={line.deductedDocumentId ? 'Déduction liée à une facture d’acompte' : undefined}
+          >
+            {line.deductedDocumentId ? 'Acompte' : KIND_LABELS[line.kind]}
           </Badge>
           <TextInput
             aria-label={`Libellé de la ligne ${index + 1}`}
