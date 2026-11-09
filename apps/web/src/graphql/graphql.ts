@@ -1004,6 +1004,14 @@ export type DeductibleDepositsQueryVariables = Exact<{
 
 export type DeductibleDepositsQuery = { deductibleDeposits: Array<{ id: string, number: string, issueDate: string, totalGross: number, remaining: Array<{ rate: number, amount: number }> }> };
 
+export type LatestDocumentDateQueryVariables = Exact<{
+  type: AccountingDocumentType;
+  documentId?: string | number | null | undefined;
+}>;
+
+
+export type LatestDocumentDateQuery = { latestDocumentDate: string | null };
+
 export type CreateAccountingDocumentMutationVariables = Exact<{
   type: AccountingDocumentType;
   input: AccountingDocumentInput;
@@ -4272,6 +4280,11 @@ export const DeductibleDepositsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeductibleDepositsQuery, DeductibleDepositsQueryVariables>;
+export const LatestDocumentDateDocument = new TypedDocumentString(`
+    query LatestDocumentDate($type: AccountingDocumentType!, $documentId: ID) {
+  latestDocumentDate(type: $type, documentId: $documentId)
+}
+    `) as unknown as TypedDocumentString<LatestDocumentDateQuery, LatestDocumentDateQueryVariables>;
 export const CreateAccountingDocumentDocument = new TypedDocumentString(`
     mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {
   createAccountingDocument(type: $type, input: $input)

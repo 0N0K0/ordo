@@ -102,6 +102,50 @@ async function assertParties({ clientId, serviceId, contactId, projectId }: { cl
   if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
 }
 
+type Client = Prisma.TransactionClient | typeof prisma;
+
+/** A document of each type, to tell it in messages. */
+const TYPE_NAMES: Record<AccountingDocumentType, string> = {
+  QUOTE: 'le dernier devis',
+  INVOICE: 'la dernière facture',
+  DEPOSIT_INVOICE: 'la dernière facture d’acompte',
+  CREDIT_NOTE: 'le dernier avoir',
+};
+const printedDay = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
+
+/**
+ * Date of the latest document of a type: final in Ordo (another one than a document), or imported.
+ * @param {AccountingDocumentType} type Type.
+ * @param {string | null} exceptId Document left out (the one being dated).
+ * @param {Client} [client] Prisma client or transaction. Optional.
+ * @returns {Promise<string | null>} YYYY-MM-DD, none without documents.
+ */
+export async function latestIssueDate(type: AccountingDocumentType, exceptId: string | null, client: Client = prisma): Promise<string | null> {
+  const [own, imported] = await Promise.all([
+    client.accountingDocument.aggregate({ where: { type, status: 'FINAL', ...(exceptId ? { id: { not: exceptId } } : {}) }, _max: { issueDate: true } }),
+    client.importedDocument.aggregate({ where: { type }, _max: { issueDate: true } }),
+  ]);
+  const dates = [own._max.issueDate, imported._max.issueDate].filter((date): date is Date => date !== null).map(formatDay);
+  return dates.length ? dates.sort().at(-1)! : null;
+}
+
+/**
+ * Checks that a document is not dated before the latest one of its type: documents follow each other in time as
+ * their numbers do.
+ * @param {AccountingDocumentType} type Type.
+ * @param {string} issueDate Date of the document.
+ * @param {string | null} id Document (null when created).
+ * @param {Client} [client] Prisma client or transaction. Optional.
+ * @returns {Promise<void>}
+ */
+async function assertChronology(type: AccountingDocumentType, issueDate: string, id: string | null, client: Client = prisma): Promise<void> {
+  const latest = await latestIssueDate(type, id, client);
+  if (latest && issueDate < latest) {
+    const message = `La date ne peut pas précéder celle de ${TYPE_NAMES[type]} (${printedDay.format(parseDay(latest))}).`;
+    throw clientError('BAD_USER_INPUT', message, { fields: { issueDate: message } });
+  }
+}
+
 /**
  * Checks that the deposits deducted by lines are final deposit invoices of the client of the document.
  * @param {AccountingLineInput[]} lines Lines.
@@ -242,6 +286,8 @@ export async function createDocument(
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
   await assertDeductions(fields.lines, fields.clientId);
+  // A model of recurring invoices is dated when its invoices are made.
+  if (extra.status !== 'TEMPLATE') await assertChronology(type, fields.issueDate, null);
   const company = await getCompanyProfile();
   if (fields.timeEntryIds?.length && extra.status === 'TEMPLATE') throw clientError('BAD_USER_INPUT', 'Un modèle de facture récurrente ne facture pas de temps.');
   if (fields.timeEntryIds?.length) await assertBillableTime(type, null, fields.timeEntryIds);
@@ -273,6 +319,7 @@ export async function updateDocument(id: string, input: AccountingDocumentInput)
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
   await assertDeductions(fields.lines, fields.clientId);
+  if (document.status === 'DRAFT') await assertChronology(document.type, fields.issueDate, id);
   const timeEntryIds = fields.timeEntryIds;
   if (timeEntryIds?.length && document.status !== 'DRAFT') throw clientError('BAD_USER_INPUT', 'Un modèle de facture récurrente ne facture pas de temps.');
   if (timeEntryIds) await assertBillableTime(document.type, id, timeEntryIds);
@@ -363,6 +410,8 @@ export async function finalizeDocument(id: string): Promise<AccountingDocument> 
     await tx.$executeRaw`INSERT INTO "DocumentSequence" ("workspaceId", "type", "year", "nextNumber") VALUES (${currentWorkspaceId()}, ${document.type}::"AccountingDocumentType", ${year}, 1) ON CONFLICT DO NOTHING`;
     const [sequence] = await tx.$queryRaw<{ nextNumber: number }[]>`
       SELECT "nextNumber" FROM "DocumentSequence" WHERE "workspaceId" = ${currentWorkspaceId()} AND "type" = ${document.type}::"AccountingDocumentType" AND "year" = ${year} FOR UPDATE`;
+    // Checked again under the lock: another document of the type may have been validated meanwhile.
+    await assertChronology(document.type, formatDay(document.issueDate), id, tx);
     const counter = Math.max(sequence.nextNumber, (await usedCounter(document.type, year)) + 1);
     if (counter > 99_999) throw clientError('BAD_USER_INPUT', 'Numérotation épuisée pour cette année.');
     await tx.documentSequence.update({ where: { workspaceId_type_year: { workspaceId: currentWorkspaceId(), type: document.type, year } }, data: { nextNumber: counter + 1 } });

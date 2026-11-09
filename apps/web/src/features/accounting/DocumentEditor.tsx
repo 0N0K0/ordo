@@ -52,7 +52,7 @@ import { useWorkspace } from '../workspace/api';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useCompanyProfile } from './api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from './document-pdf';
-import { useAccountingDocument, useDocumentMutations, type AccountingDocument } from './documents-api';
+import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, type AccountingDocument } from './documents-api';
 import { Section } from './EditorSection';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { DeductDepositMenu } from './DeductDepositMenu';
@@ -124,6 +124,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   const form = useAppForm<FormValues>({ initialValues: toValues(document), schema: accountingDocumentInputSchema });
   const values = form.values;
   const { data: client } = useClientBilling(values.clientId);
+  const { data: latestDate } = useLatestDocumentDate(document.type, document.id, document.status === 'DRAFT');
   const { data: company } = useCompanyProfile();
   const openComposer = useMailComposer();
   const [preparingMail, setPreparingMail] = useState(false);
@@ -506,7 +507,16 @@ function Editor({ document }: { document: AccountingDocument }) {
                     .map((contact) => ({ value: contact.id, label: `${contact.firstName} ${contact.lastName}` }))}
                   {...form.getInputProps('contactId')}
                 />
-                <DatePickerInput label="Date du document" required readOnly={readOnly} valueFormat="D MMM YYYY" {...form.getInputProps('issueDate')} />
+                <DatePickerInput
+                  label="Date du document"
+                  required
+                  readOnly={readOnly}
+                  valueFormat="D MMM YYYY"
+                  // Not before the latest document of its type (models of recurring invoices are dated later).
+                  minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
+                  description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${printedDay(latestDate)}, date du dernier document de ce type.` : undefined}
+                  {...form.getInputProps('issueDate')}
+                />
                 <DatePickerInput
                   label={isQuote ? 'Valable jusqu’au' : 'Échéance'}
                   clearable
@@ -813,6 +823,15 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
     </Section>
   );
 }
+
+const dayFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
+
+/**
+ * Printed calendar date.
+ * @param {string} date YYYY-MM-DD.
+ * @returns {string} "09/11/2026".
+ */
+const printedDay = (date: string) => dayFormat.format(new Date(`${date}T00:00:00Z`));
 
 /**
  * Accounting document page: editable draft (or recurring model), read-only final document with the

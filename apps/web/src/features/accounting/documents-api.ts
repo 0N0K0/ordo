@@ -214,6 +214,12 @@ const DeductibleDepositsDocument = graphql(`
   }
 `);
 
+const LatestDocumentDateDocument = graphql(`
+  query LatestDocumentDate($type: AccountingDocumentType!, $documentId: ID) {
+    latestDocumentDate(type: $type, documentId: $documentId)
+  }
+`);
+
 const CreateDocument = graphql(`
   mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {
     createAccountingDocument(type: $type, input: $input)
@@ -299,6 +305,21 @@ const MoveProjectResource = graphql(`
     moveProjectResource(id: $id, index: $index)
   }
 `);
+
+/**
+ * Date of the latest document of a type (final or imported, the document edited aside): none can be dated before.
+ * @param {AccountingDocumentType} type Type.
+ * @param {string | null} documentId Document edited.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
+ * @returns {UseQueryResult} Query state (YYYY-MM-DD or null).
+ */
+export function useLatestDocumentDate(type: AccountingDocumentType, documentId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...accountingQueryKey, 'latest-date', type, documentId],
+    queryFn: async () => (await execute(LatestDocumentDateDocument, { type, documentId })).latestDocumentDate ?? null,
+    enabled,
+  });
+}
 
 /**
  * Final deposit invoices of a client left to deduct (the deductions of the document edited aside).

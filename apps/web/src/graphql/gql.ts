@@ -41,6 +41,7 @@ type Documents = {
     "\n  query RecurringInvoices {\n    recurringInvoices {\n      id\n      name\n      templateId\n      recurrence\n      startDate\n      nextDate\n      autoFinalize\n      active\n      issuedCount\n      template {\n        clientName\n        totalGross\n        currency\n      }\n    }\n  }\n": typeof types.RecurringInvoicesDocument,
     "\n  query ProjectResources($projectId: ID!) {\n    projectResources(projectId: $projectId) {\n      id\n      kind\n      title\n      note\n      url\n      size\n      createdAt\n    }\n  }\n": typeof types.ProjectResourcesDocument,
     "\n  query DeductibleDeposits($clientId: ID!, $documentId: ID) {\n    deductibleDeposits(clientId: $clientId, documentId: $documentId) {\n      id\n      number\n      issueDate\n      totalGross\n      remaining {\n        rate\n        amount\n      }\n    }\n  }\n": typeof types.DeductibleDepositsDocument,
+    "\n  query LatestDocumentDate($type: AccountingDocumentType!, $documentId: ID) {\n    latestDocumentDate(type: $type, documentId: $documentId)\n  }\n": typeof types.LatestDocumentDateDocument,
     "\n  mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {\n    createAccountingDocument(type: $type, input: $input)\n  }\n": typeof types.CreateAccountingDocumentDocument,
     "\n  mutation UpdateAccountingDocument($id: ID!, $input: AccountingDocumentInput!) {\n    updateAccountingDocument(id: $id, input: $input)\n  }\n": typeof types.UpdateAccountingDocumentDocument,
     "\n  mutation DeleteAccountingDocument($id: ID!) {\n    deleteAccountingDocument(id: $id)\n  }\n": typeof types.DeleteAccountingDocumentDocument,
@@ -384,6 +385,7 @@ const documents: Documents = {
     "\n  query RecurringInvoices {\n    recurringInvoices {\n      id\n      name\n      templateId\n      recurrence\n      startDate\n      nextDate\n      autoFinalize\n      active\n      issuedCount\n      template {\n        clientName\n        totalGross\n        currency\n      }\n    }\n  }\n": types.RecurringInvoicesDocument,
     "\n  query ProjectResources($projectId: ID!) {\n    projectResources(projectId: $projectId) {\n      id\n      kind\n      title\n      note\n      url\n      size\n      createdAt\n    }\n  }\n": types.ProjectResourcesDocument,
     "\n  query DeductibleDeposits($clientId: ID!, $documentId: ID) {\n    deductibleDeposits(clientId: $clientId, documentId: $documentId) {\n      id\n      number\n      issueDate\n      totalGross\n      remaining {\n        rate\n        amount\n      }\n    }\n  }\n": types.DeductibleDepositsDocument,
+    "\n  query LatestDocumentDate($type: AccountingDocumentType!, $documentId: ID) {\n    latestDocumentDate(type: $type, documentId: $documentId)\n  }\n": types.LatestDocumentDateDocument,
     "\n  mutation CreateAccountingDocument($type: AccountingDocumentType!, $input: AccountingDocumentInput!) {\n    createAccountingDocument(type: $type, input: $input)\n  }\n": types.CreateAccountingDocumentDocument,
     "\n  mutation UpdateAccountingDocument($id: ID!, $input: AccountingDocumentInput!) {\n    updateAccountingDocument(id: $id, input: $input)\n  }\n": types.UpdateAccountingDocumentDocument,
     "\n  mutation DeleteAccountingDocument($id: ID!) {\n    deleteAccountingDocument(id: $id)\n  }\n": types.DeleteAccountingDocumentDocument,
@@ -805,6 +807,10 @@ export function graphql(source: "\n  query ProjectResources($projectId: ID!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query DeductibleDeposits($clientId: ID!, $documentId: ID) {\n    deductibleDeposits(clientId: $clientId, documentId: $documentId) {\n      id\n      number\n      issueDate\n      totalGross\n      remaining {\n        rate\n        amount\n      }\n    }\n  }\n"): typeof import('./graphql').DeductibleDepositsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query LatestDocumentDate($type: AccountingDocumentType!, $documentId: ID) {\n    latestDocumentDate(type: $type, documentId: $documentId)\n  }\n"): typeof import('./graphql').LatestDocumentDateDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

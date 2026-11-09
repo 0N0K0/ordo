@@ -324,6 +324,12 @@ builder.queryFields((t) => ({
     args: { clientId: t.arg.id({ required: true }), documentId: t.arg.id() },
     resolve: (_root, { clientId, documentId }) => docs.deductibleDeposits(clientId, documentId ?? null),
   }),
+  latestDocumentDate: t.string({
+    nullable: true,
+    description: 'Date (YYYY-MM-DD) of the latest document of a type, final or imported, `documentId` left out: none can be dated before.',
+    args: { type: t.arg({ type: AccountingDocumentTypeEnum, required: true }), documentId: t.arg.id() },
+    resolve: (_root, { type, documentId }) => docs.latestIssueDate(type, documentId ?? null),
+  }),
 }));
 
 builder.queryFields((t) => ({

@@ -1928,6 +1928,11 @@ type Query {
   """
   importedDocuments(clientId: ID, projectId: ID): [ImportedDocument!]!
 
+  """
+  Date (YYYY-MM-DD) of the latest document of a type, final or imported, `documentId` left out: none can be dated before.
+  """
+  latestDocumentDate(documentId: ID, type: AccountingDocumentType!): String
+
   """Every document of the library (content of the files left out)."""
   libraryDocuments: [LibraryDocument!]!
   mailAccounts: [MailAccount!]!
