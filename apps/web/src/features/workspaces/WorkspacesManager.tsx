@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Chip, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Chip, Group, Paper, SegmentedControl, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -6,6 +6,7 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Workspace, type WorkspaceKind } from './api';
 import { switchWorkspace } from './switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
+import { SettingsGrid } from '../../components/settings/SettingsGrid';
 
 const KINDS = [
   { value: 'PRO', label: 'Pro' },
@@ -177,35 +178,49 @@ export function WorkspacesManager() {
   };
 
   return (
-    <Stack gap="sm">
-      <Text size="sm" c="dimmed">
-        Chaque espace a ses propres projets, tâches, temps, agenda, alarmes, boîtes mail, documents, tableaux de bord, trésorerie et paramètres. Un espace personnel n’a ni facturation, ni clients, ni
-        société. Un espace peut continuer à notifier ses alarmes, rappels d’agenda et nouveaux mails quand un autre est ouvert.
-      </Text>
-      {workspaces.map((workspace, index) => (
-        <WorkspaceRow
-          key={workspace.id}
-          workspace={workspace}
-          index={index}
-          count={workspaces.length}
-          current={workspace.id === data?.currentWorkspaceId}
-          fallbackId={workspaces.find((item) => item.id !== workspace.id)?.id ?? null}
-        />
-      ))}
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          add();
-        }}
-      >
-        <Group gap="xs" wrap="nowrap" align="flex-end">
-          <TextInput label="Nouvel espace" placeholder="Nom" style={{ flex: 1 }} value={name} maxLength={60} onChange={(event) => setName(event.currentTarget.value)} />
-          <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
-          <Button type="submit" variant="light" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
-            Ajouter
-          </Button>
-        </Group>
-      </form>
-    </Stack>
+    <SettingsGrid>
+      <Paper withBorder radius="md" p="lg">
+        <Stack gap="sm">
+          <Title order={2} size="h4">
+            Espaces
+          </Title>
+          <Text size="sm" c="dimmed">
+            Chaque espace a ses propres projets, tâches, temps, agenda, alarmes, boîtes mail, documents, tableaux de bord, trésorerie et paramètres. Un espace personnel n’a ni facturation, ni clients,
+            ni société. Un espace peut continuer à notifier ses alarmes, rappels d’agenda et nouveaux mails quand un autre est ouvert.
+          </Text>
+          {workspaces.map((workspace, index) => (
+            <WorkspaceRow
+              key={workspace.id}
+              workspace={workspace}
+              index={index}
+              count={workspaces.length}
+              current={workspace.id === data?.currentWorkspaceId}
+              fallbackId={workspaces.find((item) => item.id !== workspace.id)?.id ?? null}
+            />
+          ))}
+        </Stack>
+      </Paper>
+      <Paper withBorder radius="md" p="lg">
+        <Stack gap="sm">
+          <Title order={2} size="h4">
+            Nouvel espace
+          </Title>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              add();
+            }}
+          >
+            <Group gap="xs" wrap="nowrap" align="flex-end">
+              <TextInput label="Nom" placeholder="Nom de l’espace" style={{ flex: 1 }} value={name} maxLength={60} onChange={(event) => setName(event.currentTarget.value)} />
+              <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
+              <Button type="submit" variant="light" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
+                Ajouter
+              </Button>
+            </Group>
+          </form>
+        </Stack>
+      </Paper>
+    </SettingsGrid>
   );
 }

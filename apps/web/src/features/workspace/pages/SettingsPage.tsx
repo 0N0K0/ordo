@@ -20,6 +20,7 @@ import {
   useUpdateProjectStatus,
   useWorkspace,
 } from "../api";
+import { SettingsGrid, WideSetting } from "../../../components/settings/SettingsGrid";
 
 /**
  * Settings, in tabs: projects (statuses, categories), team or household, contributors and relations, tasks (statuses,
@@ -101,7 +102,7 @@ export function SettingsPage() {
           </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="projects">
-          <Stack gap="lg">
+          <SettingsGrid>
             <LabelManager
               title="Statuts de projet"
               description="Un projet a au plus un statut. L’ordre est celui des listes de sélection."
@@ -125,20 +126,23 @@ export function SettingsPage() {
               update={updateCategory}
               remove={deleteCategory}
             />
-          </Stack>
+          </SettingsGrid>
         </Tabs.Panel>
         <Tabs.Panel value="tasks">
           <TaskSettings />
         </Tabs.Panel>
         <Tabs.Panel value="contributors">
-          <Stack gap="lg">
+          <SettingsGrid>
             <TeamMembers />
-            <ContributorsManager
-              contributors={taskData?.contributors ?? []}
-              usage={assigneeUsage}
-            />
             <TeamRelations />
-          </Stack>
+            {/* The list of contributors is a wide table. */}
+            <WideSetting>
+              <ContributorsManager
+                contributors={taskData?.contributors ?? []}
+                usage={assigneeUsage}
+              />
+            </WideSetting>
+          </SettingsGrid>
         </Tabs.Panel>
         <Tabs.Panel value="company">
           <CompanySettings />

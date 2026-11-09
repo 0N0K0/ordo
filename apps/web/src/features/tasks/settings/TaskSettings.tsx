@@ -1,9 +1,10 @@
-import { Select, Stack } from "@mantine/core";
+import { Select } from "@mantine/core";
 import type { TaskStatusCategory } from "@ordo/shared";
 import { notifyError } from "../../../lib/notify";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { useTaskLabelMutations, useTasksData, type Task } from "../api";
 import { ColumnDefaults } from "./ColumnDefaults";
+import { SettingsGrid } from "../../../components/settings/SettingsGrid";
 
 const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
   { value: "TODO", label: "À faire" },
@@ -44,7 +45,7 @@ export function TaskSettings() {
   const statusList = byPosition(data?.taskStatuses);
 
   return (
-    <Stack gap="lg">
+    <SettingsGrid>
       <ColumnDefaults />
       <LabelManager
         title="Statuts de tâche"
@@ -118,6 +119,6 @@ export function TaskSettings() {
         remove={tags.remove}
         move={tags.move}
       />
-    </Stack>
+    </SettingsGrid>
   );
 }

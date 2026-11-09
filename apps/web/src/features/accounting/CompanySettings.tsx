@@ -41,6 +41,7 @@ import {
   type CompanyProfile,
 } from './api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { SettingsGrid, WideSetting } from "../../components/settings/SettingsGrid";
 
 type FormValues = CompanyProfileInput & Record<string, unknown>;
 
@@ -109,7 +110,8 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="lg">
+      {/* Groups of fields side by side; the conditions and the save button across. */}
+      <SettingsGrid>
         <Fieldset legend="Identité">
           <Stack gap="sm">
             <Group gap="md" align="center">
@@ -261,6 +263,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
           </SimpleGrid>
         </Fieldset>
 
+        <WideSetting>
         <Fieldset legend="Conditions et mentions par défaut">
           <Stack gap="sm">
             <Text size="xs" c="dimmed">
@@ -323,13 +326,16 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
             />
           </Stack>
         </Fieldset>
+        </WideSetting>
 
-        <Group justify="flex-end">
-          <Button type="submit" loading={update.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
+        <WideSetting>
+          <Group justify="flex-end">
+            <Button type="submit" loading={update.isPending}>
+              Enregistrer
+            </Button>
+          </Group>
+        </WideSetting>
+      </SettingsGrid>
     </form>
   );
 }
@@ -448,7 +454,9 @@ function NumberingSettings() {
 export function CompanySettings() {
   const { data: profile, isPending } = useCompanyProfile();
   return (
-    <Stack gap="lg">
+    <SettingsGrid>
+      {/* The profile is a long form: across the grid; the numbering below it. */}
+      <WideSetting>
       <Paper withBorder p="lg" radius="md" component="section">
         <Stack gap="md">
           <Stack gap={4}>
@@ -472,7 +480,8 @@ export function CompanySettings() {
           )}
         </Stack>
       </Paper>
+      </WideSetting>
       <NumberingSettings />
-    </Stack>
+    </SettingsGrid>
   );
 }

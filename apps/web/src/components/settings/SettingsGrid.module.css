@@ -1,0 +1,22 @@
+@layer app {
+  /* Sections of a settings tab as cards: three side by side at most, fewer when they would be narrower than
+     their minimum (one on a phone), top-aligned. */
+  .grid {
+    --settings-card-min: 20rem;
+    --settings-gap: var(--mantine-spacing-lg);
+
+    /* Agencement */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--settings-card-min), (100% - 2 * var(--settings-gap)) / 3)), 1fr));
+    align-items: start;
+
+    /* Espacement */
+    gap: var(--settings-gap);
+  }
+
+  /* A section across the whole grid (wide lists, long forms). */
+  .wide {
+    /* Agencement */
+    grid-column: 1 / -1;
+  }
+}

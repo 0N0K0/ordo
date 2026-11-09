@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useGithubContributors, useGithubLogin, useGithubMutations } from './api';
+import { SettingsGrid } from '../../components/settings/SettingsGrid';
 
 /**
  * GitHub login of a contributor, saved when the field is left.
@@ -76,7 +77,7 @@ export function GithubSettings() {
 
   if (isPending) return <Skeleton height={200} />;
   return (
-    <Stack gap="lg">
+    <SettingsGrid>
       <Paper withBorder radius="md" p="lg">
         <Stack gap="sm">
           <Group gap="xs">
@@ -162,6 +163,6 @@ export function GithubSettings() {
           )}
         </Stack>
       </Paper>
-    </Stack>
+    </SettingsGrid>
   );
 }
