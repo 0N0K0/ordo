@@ -53,6 +53,8 @@ const COLORS = {
   accent: '#aa9371',
 };
 const PAGE = { margin: 34, bottom: 60 };
+/** Block of the totals, on the right: its width and the inset of its texts (the bank details follow it). */
+const TOTALS = { width: 250, inset: 8 };
 
 const countryNames = new Intl.DisplayNames('fr', { type: 'region' });
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
@@ -602,7 +604,7 @@ function writeTotals(
       strong: true,
     },
   ];
-  const width = 250;
+  const width = TOTALS.width;
   const x = doc.page.width - PAGE.margin - width;
   const rowHeight = 17;
   flow.space(10);
@@ -614,9 +616,9 @@ function writeTotals(
       .font(row.strong ? 'bold' : 'regular')
       .fontSize(row.strong ? 10.5 : 9)
       .fillColor(row.strong ? COLORS.text : COLORS.muted);
-    doc.text(row.label, x + 8, y, { width: width - 100, lineBreak: false });
+    doc.text(row.label, x + TOTALS.inset, y, { width: width - 100, lineBreak: false });
     doc.fillColor(COLORS.text).text(row.value, x + width - 100, y, {
-      width: 92,
+      width: 100 - TOTALS.inset,
       align: 'right',
       lineBreak: false,
     });
@@ -633,76 +635,91 @@ function writeTotals(
   }
 }
 
+/** Line of a section: a bold label (none: text alone) and its value. */
+type SectionLine = { label: string; value: string };
+/** Titled section of small text (conditions, bank details). */
+interface Section {
+  title: string;
+  lines: SectionLine[];
+}
+
+/** Space between two sections side by side. */
+const SECTION_GUTTER = 20;
+const SECTION_LINE_GAP = 1;
+
 /**
- * Writes a titled section of small text (conditions, bank details).
+ * Height a section takes in a width.
+ * @param {Doc} doc PDF document.
+ * @param {Section} section Section.
+ * @param {number} width Width.
+ * @returns {number} Height.
+ */
+function sectionHeight(doc: Doc, section: Section, width: number): number {
+  let height = 13;
+  for (const line of section.lines) {
+    // The label is bold: measured so, as one text with its value.
+    doc.font(line.label ? 'bold' : 'regular').fontSize(8);
+    height += doc.heightOfString(line.label ? `${line.label} : ${line.value}` : line.value, { width, lineGap: SECTION_LINE_GAP }) + 3;
+  }
+  return height;
+}
+
+/**
+ * Draws a section at a place.
+ * @param {Doc} doc PDF document.
+ * @param {Section} section Section.
+ * @param {number} x Left.
+ * @param {number} top Top.
+ * @param {number} width Width.
+ * @returns {number} Bottom.
+ */
+function drawSection(doc: Doc, section: Section, x: number, top: number, width: number): number {
+  doc.font('bold').fontSize(8.5).fillColor(COLORS.accent).text(section.title, x, top, { width });
+  let y = top + 13;
+  for (const line of section.lines) {
+    doc.fontSize(8);
+    if (line.label) {
+      doc.font('bold').fillColor(COLORS.text).text(`${line.label} : `, x, y, { width, lineGap: SECTION_LINE_GAP, continued: true });
+      doc.font('regular').fillColor(COLORS.muted).text(line.value, { width, lineGap: SECTION_LINE_GAP });
+    } else {
+      doc.font('regular').fillColor(COLORS.muted).text(line.value, x, y, { width, lineGap: SECTION_LINE_GAP });
+    }
+    y = doc.y + 3;
+  }
+  return y;
+}
+
+/**
+ * Writes sections of small text side by side, kept together on a page: a main one on the left (over the full
+ * width when alone), and one in the column of the totals block, aligned on its texts (bank details).
+ * @param {Doc} doc PDF document.
+ * @param {Flow} flow Flow.
+ * @param {{ main?: Section, totalsColumn?: Section }} sections Sections (empty ones left out).
+ * @returns {void}
+ */
+function writeSections(doc: Doc, flow: Flow, { main, totalsColumn }: { main?: Section; totalsColumn?: Section }): void {
+  const right = totalsColumn?.lines.length ? totalsColumn : null;
+  const left = main?.lines.length ? main : null;
+  if (!left && !right) return;
+  const columnX = doc.page.width - PAGE.margin - TOTALS.width + TOTALS.inset;
+  const columnWidth = TOTALS.width - 2 * TOTALS.inset;
+  const leftWidth = right ? columnX - PAGE.margin - SECTION_GUTTER : doc.page.width - 2 * PAGE.margin;
+  flow.ensure(Math.max(left ? sectionHeight(doc, left, leftWidth) : 0, right ? sectionHeight(doc, right, columnWidth) : 0));
+  const top = flow.y;
+  const bottoms = [left ? drawSection(doc, left, PAGE.margin, top, leftWidth) : top, right ? drawSection(doc, right, columnX, top, columnWidth) : top];
+  flow.y = Math.max(...bottoms) + 5;
+}
+
+/**
+ * Writes a titled section of small text over the full width.
  * @param {Doc} doc PDF document.
  * @param {Flow} flow Flow.
  * @param {string} title Title.
- * @param {string[]} lines Lines.
+ * @param {SectionLine[]} lines Lines.
  * @returns {void}
  */
-function writeSection(
-  doc: Doc,
-  flow: Flow,
-  title: string,
-  lines: { label: string; value: string }[],
-): void {
-  const width = doc.page.width - 2 * PAGE.margin;
-  const lineGap = 1;
-
-  // Calcul de la hauteur totale
-  doc.fontSize(8);
-
-  let contentHeight = 0;
-
-  for (const line of lines) {
-    doc.font('bold');
-
-    const labelWidth = line.label ? doc.widthOfString(`${line.label} : `) : 0;
-
-    doc.font('regular');
-
-    const height = doc.heightOfString(line.value, {
-      width: Math.max(1, width - Math.min(labelWidth, width)),
-      lineGap,
-    });
-
-    contentHeight += height;
-  }
-
-  flow.ensure(14 + contentHeight + lines.length * 3);
-
-  // Titre de section
-  doc
-    .font('bold')
-    .fontSize(8.5)
-    .fillColor(COLORS.accent)
-    .text(title, PAGE.margin, flow.y);
-
-  let y = flow.y + 13;
-
-  // Contenu
-  for (const line of lines) {
-    doc.fontSize(8);
-
-    if (line.label) {
-      doc
-        .font('bold')
-        .fillColor(COLORS.text)
-        .text(`${line.label} : `, PAGE.margin, y, {
-          continued: true,
-        });
-    }
-
-    doc.font('regular').fillColor(COLORS.muted).text(line.value, {
-      width,
-      lineGap,
-    });
-
-    y = doc.y + 3;
-  }
-
-  flow.y = y + 5;
+function writeSection(doc: Doc, flow: Flow, title: string, lines: SectionLine[]): void {
+  writeSections(doc, flow, { main: { title, lines } });
 }
 /** Points per millimetre. */
 const MM = 72 / 25.4;
@@ -716,11 +733,11 @@ const ENVELOPE_WINDOW = { x: 116 * MM, y: 55 * MM, width: 78 * MM, bottom: 90 * 
 /** Below the window, whatever the play of the letter in the envelope. */
 const BELOW_WINDOW = 98 * MM;
 
-/** Spacing of the seller block: between its lines, and between its groups (address, identifiers, contact). */
+/** Spacing of the seller block: between its lines, and between its groups (identifiers, address, contact). */
 const SELLER_SPACING = { line: 2.5, group: 8 };
 
 /**
- * Writes the header: logo and seller on the left (address, identifiers and contact in airy groups), title,
+ * Writes the header: logo and seller on the left (identifiers, address and contact in airy groups), title,
  * number and dates on the right, then the buyer on a white background where the window of an envelope shows it
  * (its identifiers under it, out of the window).
  * @param {Doc} doc PDF document.
@@ -786,33 +803,28 @@ function writeHeader(
   const websiteUrl = (website: string) =>
     /^https?:\/\//i.test(website) ? website : `https://${website}`;
 
-  // Groups apart from each other: address, identifiers, contact.
+  // Groups apart from each other: identifiers, address, contact.
   const sellerGroups: SellerLine[][] = [
-    printedAddress(seller.address).map((text) => ({
-      type: 'text' as const,
-      text,
-    })),
     [
       ...(seller.siret
         ? [{ type: 'text' as const, text: `SIRET ${seller.siret}` }]
         : seller.siren
           ? [{ type: 'text' as const, text: `SIREN ${seller.siren}` }]
           : []),
+      ...(seller.activityCode
+        ? [{ type: 'text' as const, text: `Code APE ${seller.activityCode}` }]
+        : []),
       ...(seller.vatNumber
         ? [{ type: 'text' as const, text: `TVA ${seller.vatNumber}` }]
         : []),
     ],
+    printedAddress(seller.address).map((text) => ({
+      type: 'text' as const,
+      text,
+    })),
     [
       ...(seller.contact
-        ? [
-            {
-              type: 'rich' as const,
-              runs: [
-                { text: 'Contact : ', bold: true },
-                { text: seller.contact },
-              ],
-            },
-          ]
+        ? [{ type: 'text' as const, text: seller.contact }]
         : []),
       ...(seller.phone
         ? [
@@ -843,6 +855,11 @@ function writeHeader(
         : []),
     ],
   ].filter((group) => group.length > 0);
+  // The contact group under its heading, the name of the contact on its own line.
+  const contactGroup = sellerGroups.at(-1);
+  if (contactGroup && (seller.contact || seller.phone || seller.email || seller.website)) {
+    contactGroup.unshift({ type: 'rich', runs: [{ text: 'Contact :', bold: true }] });
+  }
 
   doc.fontSize(8.5).fillColor(COLORS.muted);
   sellerGroups.forEach((group, groupIndex) => {
@@ -982,39 +999,53 @@ function writeHeader(
   flow.y = Math.max(doc.y, sellerBottom) + 24;
 }
 
+/** Room to write by hand: above a line to fill in, and for the signature and stamp. */
+const HANDWRITING = { line: 42, signature: 100 };
+
 /**
- * Writes the "Bon pour accord" box of a quote: date, and signature preceded by the handwritten mention.
+ * Writes the "Bon pour accord" block of a quote, as on paper: "À ____, le __ / __ / ____" on lines to fill in
+ * by hand, then "Signature et cachet" over a room closed by a line; on the right, kept on one page.
  * @param {Doc} doc PDF document.
  * @param {Flow} flow Flow.
  * @returns {void}
  */
 function writeApproval(doc: Doc, flow: Flow): void {
-  const width = 260;
-  const height = 120;
+  const width = 280;
   const x = doc.page.width - PAGE.margin - width;
-  flow.space(8);
+  const height = 22 + HANDWRITING.line + 14 + HANDWRITING.signature + 4;
+  flow.space(12);
   flow.ensure(height);
-  doc
-    .roundedRect(x, flow.y, width, height, 4)
-    .lineWidth(0.8)
-    .strokeColor(COLORS.border)
-    .stroke();
-  doc
-    .font('bold')
-    .fontSize(10)
-    .fillColor(COLORS.text)
-    .text('Bon pour accord', x + 12, flow.y + 10);
-  doc.font('regular').fontSize(8).fillColor(COLORS.muted);
-  doc.text('Date :', x + 12, flow.y + 28);
-  doc
-    .fontSize(7)
-    .text(
-      'Signature, précédée de la mention manuscrite « Bon pour accord » :',
-      x + 12,
-      flow.y + 44,
-      { width: width - 24 },
-    );
-  flow.y += height + 8;
+  const top = flow.y;
+
+  doc.font('regular').fontSize(14).fillColor(COLORS.text).text('Bon pour accord', x, top, { width, lineBreak: false });
+
+  // Place and date, on lines with room above them to write.
+  const lineY = top + 22 + HANDWRITING.line;
+  const textY = lineY - 9;
+  /**
+   * Line to fill in by hand.
+   * @param {number} from Left, from the block.
+   * @param {number} to Right, from the block.
+   * @returns {void}
+   */
+  const blank = (from: number, to: number) => doc.moveTo(x + from, lineY).lineTo(x + to, lineY).lineWidth(0.6).strokeColor(COLORS.border).stroke();
+  doc.font('regular').fontSize(8.5).fillColor(COLORS.muted);
+  doc.text('À', x, textY, { lineBreak: false });
+  blank(12, 128);
+  doc.text(', le', x + 131, textY, { lineBreak: false });
+  blank(154, 188);
+  doc.text('/', x + 192, textY, { lineBreak: false });
+  blank(200, 234);
+  doc.text('/', x + 238, textY, { lineBreak: false });
+  blank(246, width);
+
+  // Signature and stamp, over a room closed by a line.
+  const signatureY = lineY + 14;
+  doc.font('regular').fontSize(8.5).fillColor(COLORS.muted).text('Signature et cachet', x, signatureY, { lineBreak: false });
+  const bottom = signatureY + HANDWRITING.signature;
+  doc.moveTo(x, bottom).lineTo(x + width, bottom).lineWidth(0.6).strokeColor(COLORS.border).stroke();
+
+  flow.y = bottom + 12;
 }
 
 /**
@@ -1248,26 +1279,22 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
       : null,
   ].filter((line): line is { label: string; value: string } => line !== null);
 
-  if (conditions.length) {
-    writeSection(doc, flow, 'Conditions', conditions);
-  }
-  if (document.showBankDetails && seller.iban) {
-    writeSection(
-      doc,
-      flow,
-      'Coordonnées bancaires',
-      [
-        seller.accountHolder
-          ? { label: 'Titulaire', value: seller.accountHolder }
-          : null,
-        seller.bankName ? { label: 'Banque', value: seller.bankName } : null,
-        { label: 'IBAN', value: seller.iban },
-        seller.bic ? { label: 'BIC', value: seller.bic } : null,
-      ].filter(
-        (line): line is { label: string; value: string } => line !== null,
-      ),
-    );
-  }
+  // Conditions on the left, bank details under the totals.
+  writeSections(doc, flow, {
+    main: { title: 'Conditions', lines: conditions },
+    totalsColumn: {
+      title: 'Coordonnées bancaires',
+      lines:
+        document.showBankDetails && seller.iban
+          ? [
+              seller.accountHolder ? { label: 'Titulaire', value: seller.accountHolder } : null,
+              seller.bankName ? { label: 'Banque', value: seller.bankName } : null,
+              { label: 'IBAN', value: seller.iban },
+              seller.bic ? { label: 'BIC', value: seller.bic } : null,
+            ].filter((line): line is SectionLine => line !== null)
+          : [],
+    },
+  });
   if (document.type === 'QUOTE') writeApproval(doc, flow);
   writeFooters(doc, draft, document);
 
