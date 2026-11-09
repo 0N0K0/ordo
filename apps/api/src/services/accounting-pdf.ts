@@ -3,6 +3,7 @@ import {
   addressLines,
   depositAmount,
   formatMoney,
+  paidOnReceipt,
   UNIT_LABELS,
   type AccountingDocumentType,
   type Address,
@@ -893,7 +894,12 @@ function writeHeader(
     ['Date', printedDate(document.issueDate)],
     [
       isQuote ? 'Valable jusqu’au' : 'Échéance',
-      document.dueDate ? printedDate(document.dueDate) : null,
+      // Paid on receipt: no date to wait for.
+      !isQuote && paidOnReceipt(document.paymentTerms)
+        ? 'À réception'
+        : document.dueDate
+          ? printedDate(document.dueDate)
+          : null,
     ],
     [
       'Prestation',

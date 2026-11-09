@@ -257,6 +257,17 @@ export const BILLING_SCHEDULE_PRESETS = [
 ];
 
 /**
+ * Whether payment terms ask to pay on receipt ("À réception", "Comptant"): the due date is then the issue date,
+ * printed as "À réception".
+ * @param {string | null} terms Payment terms.
+ * @returns {boolean} Paid on receipt.
+ */
+export function paidOnReceipt(terms: string | null | undefined): boolean {
+  const text = terms?.trim().toLowerCase() ?? '';
+  return /^(à|a) réception$/.test(text) || text === 'comptant';
+}
+
+/**
  * Due date given by payment terms written like the presets ("À réception", "À 30 jours", "À 45 jours fin de mois").
  * @param {string | null} terms Payment terms.
  * @param {string} issueDate Date of the document (YYYY-MM-DD).
@@ -264,7 +275,7 @@ export const BILLING_SCHEDULE_PRESETS = [
  */
 export function dueDateForTerms(terms: string | null, issueDate: string): string | null {
   const text = terms?.trim().toLowerCase() ?? '';
-  if (/^(à|a) réception$/.test(text) || text === 'comptant') return issueDate;
+  if (paidOnReceipt(terms)) return issueDate;
   const match = /^(?:à|a) (\d{1,3}) jours( fin de mois)?$/.exec(text);
   if (!match) return null;
   const due = addDays(issueDate, Number(match[1]));

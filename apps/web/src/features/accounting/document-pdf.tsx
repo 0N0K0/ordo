@@ -1,6 +1,6 @@
 import { Box } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { formatMoney, reminderMail, type AccountingDocumentType } from '@ordo/shared';
+import { formatMoney, paidOnReceipt, reminderMail, type AccountingDocumentType } from '@ordo/shared';
 import type { ComposeOptions } from '../mail/compose-options';
 import { escapeHtml } from '../mail/mail-format';
 
@@ -65,6 +65,8 @@ export interface DocumentMail {
   currency: string;
   /** Due date or end of validity (YYYY-MM-DD). */
   dueDate: string | null;
+  /** Payment terms ("À réception": no date to pay before). */
+  paymentTerms: string | null;
   projectId: string | null;
   attachments: { name: string; url: string }[];
   companyName: string;
@@ -96,7 +98,7 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
       ? `d’un montant de ${amount}${date ? `, valable jusqu’au ${date}` : ''}`
       : document.type === 'CREDIT_NOTE'
         ? `d’un montant de ${amount}`
-        : `d’un montant de ${amount}${date ? `, à régler avant le ${date}` : ''}`;
+        : `d’un montant de ${amount}${paidOnReceipt(document.paymentTerms) ? ', à régler à réception' : date ? `, à régler avant le ${date}` : ''}`;
   if (document.reminder) {
     const mail = reminderMail({
       deposit: document.type === 'DEPOSIT_INVOICE',

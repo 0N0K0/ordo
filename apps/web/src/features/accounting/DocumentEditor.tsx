@@ -272,6 +272,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       totalGross: Math.round(document.totalGross * 100),
       currency: document.currency,
       dueDate: document.dueDate ?? null,
+      paymentTerms: document.paymentTerms ?? null,
       projectId: document.projectId ?? null,
       attachments: document.attachments,
       companyName: company?.name ?? '',
