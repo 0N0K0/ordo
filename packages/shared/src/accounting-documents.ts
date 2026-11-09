@@ -27,6 +27,8 @@ export const accountingLineSchema = z.object({
   vatRate: z.number().min(0, 'Taux invalide.').max(100, 'Taux invalide.'),
   discountType: z.enum(DISCOUNT_TYPES).nullable(),
   discountValue: z.number().min(0, 'La remise ne peut pas être négative.').max(99_999_999).nullable(),
+  /** Deductions: deposit invoice whose amount the line takes off. */
+  deductedDocumentId: z.string().nullish(),
 });
 export type AccountingLineInput = z.infer<typeof accountingLineSchema>;
 

@@ -8,6 +8,7 @@ import {
   formatDay,
   formatMoney,
   parseDay,
+  toCents,
   type AccountingDocumentInput,
   type AccountingDocumentType,
   type AccountingLineInput,
@@ -40,6 +41,7 @@ export function lineInput(line: AccountingLine): AccountingLineInput {
     vatRate: Number(line.vatRate),
     discountType: line.discountType,
     discountValue: line.discountValue === null ? null : Number(line.discountValue),
+    deductedDocumentId: line.deductedDocumentId,
   };
 }
 
@@ -101,6 +103,24 @@ async function assertParties({ clientId, serviceId, contactId, projectId }: { cl
 }
 
 /**
+ * Checks that the deposits deducted by lines are final deposit invoices of the client of the document.
+ * @param {AccountingLineInput[]} lines Lines.
+ * @param {string} clientId Client of the document.
+ * @returns {Promise<void>}
+ */
+async function assertDeductions(lines: AccountingLineInput[], clientId: string): Promise<void> {
+  const ids = [...new Set(lines.flatMap((line) => (line.kind === 'DEDUCTION' && line.deductedDocumentId ? [line.deductedDocumentId] : [])))];
+  if (!ids.length) return;
+  const deposits = await prisma.accountingDocument.findMany({ where: { id: { in: ids } }, select: { id: true, type: true, status: true, clientId: true } });
+  for (const id of ids) {
+    const deposit = deposits.find((item) => item.id === id);
+    if (!deposit) throw notFound('Facture d’acompte');
+    if (deposit.type !== 'DEPOSIT_INVOICE' || deposit.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seule une facture d’acompte validée peut être déduite.');
+    if (deposit.clientId !== clientId) throw clientError('BAD_USER_INPUT', 'Cette facture d’acompte est celle d’un autre client.');
+  }
+}
+
+/**
  * Checks that tracked time can be billed on a document: invoices only, finished time, not billed elsewhere.
  * @param {AccountingDocumentType} type Type of the document.
  * @param {string | null} documentId Document (null when created).
@@ -125,9 +145,11 @@ async function assertBillableTime(type: AccountingDocumentType, documentId: stri
  * @param {AccountingLineInput[]} lines Lines.
  * @returns {Prisma.AccountingLineCreateWithoutDocumentInput[]} Lines data.
  */
-function linesData(lines: AccountingLineInput[]): Prisma.AccountingLineCreateWithoutDocumentInput[] {
+function linesData(lines: AccountingLineInput[]): Prisma.AccountingLineUncheckedCreateWithoutDocumentInput[] {
   return lines.map((line, position) => ({
     ...line,
+    // Only a deduction takes off a deposit.
+    deductedDocumentId: line.kind === 'DEDUCTION' ? (line.deductedDocumentId ?? null) : null,
     position,
     quantity: new Prisma.Decimal(line.quantity),
     unitPrice: new Prisma.Decimal(line.unitPrice),
@@ -219,6 +241,7 @@ export async function createDocument(
   requirePro('facturation');
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
+  await assertDeductions(fields.lines, fields.clientId);
   const company = await getCompanyProfile();
   if (fields.timeEntryIds?.length && extra.status === 'TEMPLATE') throw clientError('BAD_USER_INPUT', 'Un modèle de facture récurrente ne facture pas de temps.');
   if (fields.timeEntryIds?.length) await assertBillableTime(type, null, fields.timeEntryIds);
@@ -249,6 +272,7 @@ export async function updateDocument(id: string, input: AccountingDocumentInput)
   assertEditable(document);
   const fields = parseInput(accountingDocumentInputSchema, input);
   await assertParties(fields);
+  await assertDeductions(fields.lines, fields.clientId);
   const timeEntryIds = fields.timeEntryIds;
   if (timeEntryIds?.length && document.status !== 'DRAFT') throw clientError('BAD_USER_INPUT', 'Un modèle de facture récurrente ne facture pas de temps.');
   if (timeEntryIds) await assertBillableTime(document.type, id, timeEntryIds);
@@ -379,7 +403,7 @@ async function invoicedOnQuote(quoteId: string) {
     for (const credit of invoice.derived) {
       for (const item of documentTotals(credit).vat) rates.set(item.rate, (rates.get(item.rate) ?? 0) - item.base);
     }
-    return { number: invoice.number ?? '', rates };
+    return { id: invoice.id, type: invoice.type, number: invoice.number ?? '', rates };
   });
 }
 
@@ -422,7 +446,7 @@ export async function createFromDocument(
   let title = source.title;
 
   if (type === 'INVOICE') {
-    const deductions: AccountingLineInput[] = (await invoicedOnQuote(source.id)).flatMap(({ number, rates }) =>
+    const deductions: AccountingLineInput[] = (await invoicedOnQuote(source.id)).flatMap(({ id, type: invoicedType, number, rates }) =>
       [...rates.entries()]
         .filter(([, base]) => base !== 0)
         .map(([rate, base]) => ({
@@ -435,6 +459,8 @@ export async function createFromDocument(
           vatRate: rate,
           discountType: null,
           discountValue: null,
+          // A deposit is deducted explicitly, linked to its invoice.
+          deductedDocumentId: invoicedType === 'DEPOSIT_INVOICE' ? id : null,
         })),
     );
     lines = [...sourceLines.filter((line) => line.kind !== 'DEDUCTION'), ...deductions];
@@ -648,4 +674,53 @@ export async function removeDocumentAttachment(attachmentId: string): Promise<vo
   const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId }, select: { accountingDocumentId: true } });
   if (!attachment?.accountingDocumentId) throw notFound('Pièce jointe');
   await prisma.attachment.delete({ where: { id: attachmentId } });
+}
+
+/** Deposit invoice of a client with what is left to deduct from it. */
+export interface DeductibleDeposit {
+  id: string;
+  number: string;
+  issueDate: Date;
+  /** Total including VAT, in cents. */
+  totalGross: number;
+  /** Amounts excluding VAT left to deduct, per VAT rate, in cents. */
+  remaining: { rate: number; base: number }[];
+}
+
+/**
+ * Final deposit invoices of a client not deducted in full yet: their amounts excluding VAT per rate, less their
+ * credit notes and the deductions of the other documents (drafts included, the document being edited left out;
+ * final credit notes giving back those of the invoices they cancel).
+ * @param {string} clientId Client.
+ * @param {string | null} documentId Document being edited (its own deductions do not count).
+ * @returns {Promise<DeductibleDeposit[]>} Deposits, oldest first.
+ */
+export async function deductibleDeposits(clientId: string, documentId: string | null): Promise<DeductibleDeposit[]> {
+  const deposits = await prisma.accountingDocument.findMany({
+    where: { clientId, type: 'DEPOSIT_INVOICE', status: 'FINAL' },
+    include: {
+      lines: true,
+      derived: { where: { status: 'FINAL', type: 'CREDIT_NOTE' }, include: { lines: true } },
+      deductedBy: {
+        where: documentId ? { documentId: { not: documentId } } : {},
+        select: { quantity: true, unitPrice: true, vatRate: true, document: { select: { type: true, status: true } } },
+      },
+    },
+    orderBy: [{ issueDate: 'asc' }, { number: 'asc' }],
+  });
+  return deposits.flatMap((deposit) => {
+    const left = new Map<number, number>();
+    for (const item of documentTotals(deposit).vat) left.set(item.rate, (left.get(item.rate) ?? 0) + item.base);
+    for (const credit of deposit.derived) for (const item of documentTotals(credit).vat) left.set(item.rate, (left.get(item.rate) ?? 0) - item.base);
+    for (const line of deposit.deductedBy) {
+      // A final credit note cancelling an invoice gives its deduction back; a draft one does not count yet.
+      const credit = line.document.type === 'CREDIT_NOTE';
+      if (credit && line.document.status !== 'FINAL') continue;
+      const rate = Number(line.vatRate);
+      const amount = Math.round(Number(line.quantity) * toCents(Number(line.unitPrice)));
+      left.set(rate, (left.get(rate) ?? 0) + (credit ? amount : -amount));
+    }
+    const remaining = [...left.entries()].filter(([, base]) => base > 0).map(([rate, base]) => ({ rate, base }));
+    return remaining.length ? [{ id: deposit.id, number: deposit.number ?? '', issueDate: deposit.issueDate, totalGross: documentTotals(deposit).totalGross, remaining }] : [];
+  });
 }

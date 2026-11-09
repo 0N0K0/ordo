@@ -55,6 +55,7 @@ import { documentMailOptions, openPdfPreview, pdfUrl } from './document-pdf';
 import { useAccountingDocument, useDocumentMutations, type AccountingDocument } from './documents-api';
 import { Section } from './EditorSection';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { DeductDepositMenu } from './DeductDepositMenu';
 import { LinesEditor } from './LinesEditor';
 import { openDepositForm } from './new-document';
 import { useTrackingMutations } from './tracking-api';
@@ -105,6 +106,7 @@ function toValues(document: AccountingDocument): FormValues {
       vatRate: line.vatRate,
       discountType: line.discountType ?? null,
       discountValue: line.discountValue ?? null,
+      deductedDocumentId: line.deductedDocumentId ?? null,
     })),
     timeEntryIds: document.timeEntries.map((entry) => entry.id),
   };
@@ -534,11 +536,23 @@ function Editor({ document }: { document: AccountingDocument }) {
                 currency={currency}
                 errors={form.errors}
                 extraActions={
-                  canBillTime && (
-                    <Button size="xs" variant="light" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
-                      Temps passé
-                    </Button>
-                  )
+                  <>
+                    {canBillTime && (
+                      <Button size="xs" variant="light" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
+                        Temps passé
+                      </Button>
+                    )}
+                    {document.type === 'INVOICE' && (
+                      <DeductDepositMenu
+                        clientId={values.clientId || null}
+                        documentId={document.id}
+                        lines={values.lines}
+                        currency={currency}
+                        vatApplicable={values.vatApplicable}
+                        onAdd={(added) => form.setFieldValue('lines', [...values.lines, ...added])}
+                      />
+                    )}
+                  </>
                 }
               />
               {billedIds.length > 0 && (

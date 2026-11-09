@@ -131,6 +131,7 @@ graphql(`
       vatRate
       discountType
       discountValue
+      deductedDocumentId
     }
     attachments {
       id
@@ -194,6 +195,21 @@ const ProjectResourcesDocument = graphql(`
       url
       size
       createdAt
+    }
+  }
+`);
+
+const DeductibleDepositsDocument = graphql(`
+  query DeductibleDeposits($clientId: ID!, $documentId: ID) {
+    deductibleDeposits(clientId: $clientId, documentId: $documentId) {
+      id
+      number
+      issueDate
+      totalGross
+      remaining {
+        rate
+        amount
+      }
     }
   }
 `);
@@ -283,6 +299,21 @@ const MoveProjectResource = graphql(`
     moveProjectResource(id: $id, index: $index)
   }
 `);
+
+/**
+ * Final deposit invoices of a client left to deduct (the deductions of the document edited aside).
+ * @param {string | null} clientId Client.
+ * @param {string | null} documentId Document edited.
+ * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useDeductibleDeposits(clientId: string | null, documentId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [...accountingQueryKey, 'deductible-deposits', clientId, documentId],
+    queryFn: async () => (await execute(DeductibleDepositsDocument, { clientId: clientId!, documentId })).deductibleDeposits,
+    enabled: enabled && Boolean(clientId),
+  });
+}
 
 /**
  * Documents (recurring models excluded), latest first, optionally of a client or a project.

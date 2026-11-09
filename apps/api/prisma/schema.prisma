@@ -1464,6 +1464,8 @@ model AccountingDocument {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   lines               AccountingLine[]
+  /// Deposit invoices: lines of the invoices deducting them.
+  deductedBy          AccountingLine[]         @relation("DeductedDeposits")
   attachments         Attachment[]             @relation("DocumentAttachments")
   /// Tracking (configurable status, sending, acceptance, payments, reminders); final documents only.
   trackingStatusId    String?
@@ -1516,26 +1518,30 @@ enum AccountingUnit {
 }
 
 model AccountingLine {
-  id            String             @id @default(cuid())
-  documentId    String
-  document      AccountingDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  position      Int
-  kind          AccountingLineKind @default(ITEM)
-  title         String
+  id                 String              @id @default(cuid())
+  documentId         String
+  document           AccountingDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  position           Int
+  kind               AccountingLineKind  @default(ITEM)
+  title              String
   /// Markdown.
-  description   String?
-  quantity      Decimal            @default(1) @db.Decimal(14, 3)
-  unit          AccountingUnit     @default(UNIT)
-  unitPrice     Decimal            @default(0) @db.Decimal(14, 2)
+  description        String?
+  quantity           Decimal             @default(1) @db.Decimal(14, 3)
+  unit               AccountingUnit      @default(UNIT)
+  unitPrice          Decimal             @default(0) @db.Decimal(14, 2)
   /// Percent (20, 10, 5.5…).
-  vatRate       Decimal            @default(0) @db.Decimal(5, 2)
-  discountType  DiscountType?
-  discountValue Decimal?           @db.Decimal(14, 2)
+  vatRate            Decimal             @default(0) @db.Decimal(5, 2)
+  discountType       DiscountType?
+  discountValue      Decimal?            @db.Decimal(14, 2)
+  /// Deductions: deposit invoice whose amount the line takes off.
+  deductedDocumentId String?
+  deductedDocument   AccountingDocument? @relation("DeductedDeposits", fields: [deductedDocumentId], references: [id], onDelete: SetNull)
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId   String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId        String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
+  @@index([deductedDocumentId])
   @@index([workspaceId])
 }
 

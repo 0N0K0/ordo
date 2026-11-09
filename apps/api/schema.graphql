@@ -144,6 +144,8 @@ enum AccountingDocumentType {
 }
 
 type AccountingLine {
+  """Deductions: deposit invoice whose amount the line takes off."""
+  deductedDocumentId: ID
   description: String
   discountType: DiscountType
   discountValue: Float
@@ -158,6 +160,8 @@ type AccountingLine {
 }
 
 input AccountingLineInput {
+  """Deductions: deposit invoice whose amount the line takes off."""
+  deductedDocumentId: ID
   description: String
   discountType: DiscountType
   discountValue: Float
@@ -692,6 +696,25 @@ scalar Date
 
 """Instant, ISO 8601."""
 scalar DateTime
+
+"""Final deposit invoice of a client with what is left to deduct from it."""
+type DeductibleDeposit {
+  id: ID!
+  issueDate: String!
+  number: String!
+
+  """Amounts excluding VAT left to deduct, per VAT rate."""
+  remaining: [DeductibleRate!]!
+
+  """Total including VAT."""
+  totalGross: Float!
+}
+
+type DeductibleRate {
+  """Excluding VAT."""
+  amount: Float!
+  rate: Float!
+}
 
 """
 Schedules without kind of this workspace: their name, color (none: the green of working hours) and display.
@@ -1869,6 +1892,11 @@ type Query {
 
   """Dashboards of a project, or the global ones."""
   dashboards(projectId: ID): [Dashboard!]!
+
+  """
+  Final deposit invoices of a client not deducted in full yet (the deductions of `documentId` left out).
+  """
+  deductibleDeposits(clientId: ID!, documentId: ID): [DeductibleDeposit!]!
 
   """Schedules without kind of this workspace: name, color and display."""
   defaultScheduleKind: DefaultScheduleKind!
