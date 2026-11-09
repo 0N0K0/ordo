@@ -136,6 +136,27 @@ export function projectPath(workspace: Workspace, project: Project): string {
 }
 
 /**
+ * Full path of a project, its client first: what lists offering projects show.
+ * @param {Workspace} workspace Workspace data.
+ * @param {Project} project Project.
+ * @returns {string} "Client › Projet › Sous-projet" ("Sans client › …" without client).
+ */
+export function projectFullPath(workspace: Workspace, project: Project): string {
+  return `${projectPath(workspace, project)} › ${project.title}`;
+}
+
+/**
+ * Options of a select of projects, each with its full path, in the order of their paths.
+ * @param {Workspace | undefined} workspace Workspace data.
+ * @param {Project[]} projects Projects offered.
+ * @returns {{ value: string, label: string }[]} Options.
+ */
+export function projectOptions(workspace: Workspace | undefined, projects: Project[]): { value: string; label: string }[] {
+  if (!workspace) return projects.map((project) => ({ value: project.id, label: project.title }));
+  return projects.map((project) => ({ value: project.id, label: projectFullPath(workspace, project) })).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+}
+
+/**
  * Level of a project in its tree: 1 for a root project.
  * @param {Project[]} projects Every project.
  * @param {string} id Project id.

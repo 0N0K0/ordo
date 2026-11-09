@@ -7,6 +7,7 @@ import { notifyError } from '../../lib/notify';
 import { useWorkspace } from '../workspace/api';
 import { fetchNewDocumentDefaults, useDocumentMutations } from './documents-api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { projectOptions } from '../workspace/tree';
 
 /**
  * New document: its client (and project), then the draft opens with the company's default terms.
@@ -61,7 +62,8 @@ export function NewDocumentForm({ type, clientId: initialClient = null, projectI
         clearable
         placeholder={clientId ? 'Aucun' : 'Choisissez d’abord un client'}
         disabled={!clientId}
-        data={projects.map((project) => ({ value: project.id, label: project.title }))}
+        data={projectOptions(workspace, projects)}
+        searchable
         value={projectId}
         onChange={setProjectId}
       />
