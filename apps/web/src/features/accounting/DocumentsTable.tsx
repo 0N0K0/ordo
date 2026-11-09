@@ -1,11 +1,12 @@
 import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney } from '@ordo/shared';
-import { ArrowsClockwiseIcon, CoinsIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router';
+import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
+import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openDepositForm } from './new-document';
@@ -108,7 +109,14 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
         <Table.Tbody>
           {rows.map((row) =>
             row.kind === 'ordo' ? (
-              <OrdoRow key={row.document.id} document={row.document} showType={showType} showClient={showClient} onOpen={() => void navigate(`/accounting/${row.document.id}`)} />
+              <OrdoRow
+                key={row.document.id}
+                document={row.document}
+                showType={showType}
+                showClient={showClient}
+                onOpen={() => void navigate(`/accounting/${row.document.id}`)}
+                onDuplicated={(id) => void navigate(`/accounting/${id}`)}
+              />
             ) : (
               <ImportedRow key={row.document.id} document={row.document} showType={showType} showClient={showClient} onDelete={() => confirmDelete(row.document)} />
             ),
@@ -124,15 +132,18 @@ interface OrdoRowProps {
   showType?: boolean;
   showClient: boolean;
   onOpen: () => void;
+  /** The draft copy made: opened. */
+  onDuplicated: (id: string) => void;
 }
 
 /**
- * Row of a document made in Ordo; it opens the document; a final one records a payment (refund) while still due
- * and downloads its PDF.
+ * Row of a document made in Ordo; it opens the document, and is duplicated as a draft (then opened); a final one
+ * records a payment (refund) while still due and downloads its PDF.
  * @param {OrdoRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function OrdoRow({ document, showType, showClient, onOpen }: OrdoRowProps) {
+function OrdoRow({ document, showType, showClient, onOpen, onDuplicated }: OrdoRowProps) {
+  const { duplicate } = useDocumentMutations();
   return (
     <Table.Tr style={{ cursor: 'pointer' }} onClick={onOpen}>
       <Table.Td>
@@ -186,29 +197,51 @@ function OrdoRow({ document, showType, showClient, onOpen }: OrdoRowProps) {
         )}
       </Table.Td>
       <Table.Td>
-        {/* A final document downloads its PDF; drafts have none yet. */}
-        {document.status === 'FINAL' && (
-          <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
-            {/* An invoice still due takes a payment, a credit note still to refund a refund. */}
-            {document.type !== 'QUOTE' && (document.balance ?? 0) > 0 && (
-              <Tooltip label={document.type === 'CREDIT_NOTE' ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}>
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  aria-label={`${document.type === 'CREDIT_NOTE' ? 'Remboursement' : 'Paiement'} de ${document.number}`}
-                  onClick={() => openPaymentDialog(document)}
-                >
-                  <CoinsIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            )}
+        <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
+          {/* An invoice still due takes a payment, a credit note still to refund a refund. */}
+          {document.status === 'FINAL' && document.type !== 'QUOTE' && (document.balance ?? 0) > 0 && (
+            <Tooltip label={document.type === 'CREDIT_NOTE' ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                aria-label={`${document.type === 'CREDIT_NOTE' ? 'Remboursement' : 'Paiement'} de ${document.number}`}
+                onClick={() => openPaymentDialog(document)}
+              >
+                <CoinsIcon aria-hidden />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          <Tooltip label="Dupliquer en brouillon">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              aria-label={`Dupliquer ${document.number ?? 'le brouillon'}`}
+              loading={duplicate.isPending && duplicate.variables?.id === document.id}
+              onClick={() =>
+                duplicate.mutate(
+                  { id: document.id, issueDate: localToday() },
+                  {
+                    onSuccess: (id) => {
+                      notifySuccess('Document dupliqué en brouillon.');
+                      onDuplicated(id);
+                    },
+                    onError: (error) => notifyError(error.message),
+                  },
+                )
+              }
+            >
+              <CopyIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          {/* A final document downloads its PDF; drafts have none yet. */}
+          {document.status === 'FINAL' && (
             <Tooltip label="Télécharger le PDF">
               <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="subtle" color="gray" aria-label={`Télécharger ${document.number}`}>
                 <DownloadSimpleIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
-          </Group>
-        )}
+          )}
+        </Group>
       </Table.Td>
     </Table.Tr>
   );
