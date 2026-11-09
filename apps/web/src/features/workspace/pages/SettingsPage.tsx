@@ -20,7 +20,7 @@ import {
   useUpdateProjectStatus,
   useWorkspace,
 } from "../api";
-import { SettingsGrid, WideSetting } from "../../../components/settings/SettingsGrid";
+import { SettingsGrid } from "../../../components/settings/SettingsGrid";
 
 /**
  * Settings, in tabs: projects (statuses, categories), team or household, contributors and relations, tasks (statuses,
@@ -135,13 +135,10 @@ export function SettingsPage() {
           <SettingsGrid>
             <TeamMembers />
             <TeamRelations />
-            {/* The list of contributors is a wide table. */}
-            <WideSetting>
-              <ContributorsManager
-                contributors={taskData?.contributors ?? []}
-                usage={assigneeUsage}
-              />
-            </WideSetting>
+            <ContributorsManager
+              contributors={taskData?.contributors ?? []}
+              usage={assigneeUsage}
+            />
           </SettingsGrid>
         </Tabs.Panel>
         <Tabs.Panel value="company">
