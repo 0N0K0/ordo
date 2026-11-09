@@ -1,7 +1,20 @@
 import { ActionIcon, Badge, Button, Group, Modal, Paper, SegmentedControl, Select, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { MonthPickerInput, YearPickerInput } from '@mantine/dates';
 import { addDays, EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts } from '@ordo/shared';
-import { ArrowsLeftRightIcon, CaretDownIcon, CaretRightIcon, FileCsvIcon, FilePdfIcon, HandCoinsIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import {
+  ArrowsLeftRightIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  CopyIcon,
+  FileCsvIcon,
+  FilePdfIcon,
+  HandCoinsIcon,
+  LinkIcon,
+  PaperclipIcon,
+  PencilSimpleIcon,
+  ReceiptIcon,
+  TrashIcon,
+} from '@phosphor-icons/react';
 import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { localToday } from '../../lib/dates';
@@ -52,6 +65,8 @@ function periodTotals(entries: TreasuryEntry[]) {
 interface EntriesPanelProps {
   accounts: TreasuryAccount[];
   onEdit: (entry: TreasuryEntry) => void;
+  /** Copies an entry into a new one. */
+  onDuplicate: (entry: TreasuryEntry) => void;
 }
 
 /**
@@ -61,7 +76,7 @@ interface EntriesPanelProps {
  * @param {EntriesPanelProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
-export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
+export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProps) {
   const today = localToday();
   const [scale, setScale] = useState<'month' | 'year'>('month');
   const [month, setMonth] = useState<string>(`${today.slice(0, 7)}-01`);
@@ -303,6 +318,11 @@ export function EntriesPanel({ accounts, onEdit }: EntriesPanelProps) {
                           <Tooltip label="Modifier">
                             <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${entry.label}`} onClick={() => onEdit(entry)}>
                               <PencilSimpleIcon aria-hidden />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Dupliquer">
+                            <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${entry.label}`} onClick={() => onDuplicate(entry)}>
+                              <CopyIcon aria-hidden />
                             </ActionIcon>
                           </Tooltip>
                           <Tooltip label="Supprimer">

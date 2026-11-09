@@ -52,7 +52,7 @@ export function TimePage() {
   const start = periodStart(period, today);
   // Local midnight of the first day.
   const entries = useTimeEntriesSince(start ? new Date(`${start}T00:00:00`).toISOString() : null);
-  const { openForm, confirmDelete } = useTimeEntryDialogs(context, projectId ?? undefined);
+  const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context, projectId ?? undefined);
 
   const shown = useMemo(() => {
     if (!entries.data) return undefined;
@@ -120,6 +120,7 @@ export function TimePage() {
         projectId={projectId}
         emptyMessage={projectId ? 'Aucun temps sur ce projet pendant cette période.' : 'Aucun temps pendant cette période.'}
         onEdit={openForm}
+        onDuplicate={duplicate}
         onDelete={confirmDelete}
       />
     </Stack>

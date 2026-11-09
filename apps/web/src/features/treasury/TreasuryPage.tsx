@@ -24,7 +24,7 @@ import {
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
-import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, GearIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, GearIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
@@ -211,7 +211,7 @@ function Figure({ label, value, hint, color }: { label: string; value: number; h
 
 type Dialog =
   | { kind: 'account'; account?: TreasuryAccount }
-  | { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST' }
+  | { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean }
   | { kind: 'realize'; item: ProjectionItem }
   | null;
 
@@ -274,7 +274,11 @@ export function TreasuryPage() {
             : 'Nouveau compte'
           : dialog?.kind === 'realize'
             ? 'Réaliser la prévision'
-            : dialog?.kind === 'entry' && dialog.entry
+            : dialog?.kind === 'entry' && dialog.entry && dialog.copy
+              ? dialog.entry.status === 'FORECAST'
+                ? 'Dupliquer la prévision'
+                : 'Dupliquer le mouvement'
+              : dialog?.kind === 'entry' && dialog.entry
               ? 'Modifier le mouvement'
               : dialog?.kind === 'entry' && dialog.status === 'FORECAST'
                 ? 'Nouvelle prévision'
@@ -282,7 +286,7 @@ export function TreasuryPage() {
       }
     >
       {dialog?.kind === 'account' && <AccountForm account={dialog.account} onDone={close} />}
-      {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} onDone={close} />}
+      {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} />}
       {dialog?.kind === 'realize' && <RealizeForm item={dialog.item} onDone={close} />}
     </Modal>
   );
@@ -501,6 +505,11 @@ export function TreasuryPage() {
                                   <PencilSimpleIcon aria-hidden />
                                 </ActionIcon>
                               </Tooltip>
+                              <Tooltip label="Dupliquer le mouvement">
+                                <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${item.label}`} onClick={() => setDialog({ kind: 'entry', entry, copy: true })}>
+                                  <CopyIcon aria-hidden />
+                                </ActionIcon>
+                              </Tooltip>
                               <Tooltip label="Supprimer le mouvement">
                                 <ActionIcon
                                   variant="subtle"
@@ -531,6 +540,11 @@ export function TreasuryPage() {
                                   <PencilSimpleIcon aria-hidden />
                                 </ActionIcon>
                               </Tooltip>
+                              <Tooltip label="Dupliquer la prévision">
+                                <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${item.label}`} onClick={() => setDialog({ kind: 'entry', entry, copy: true })}>
+                                  <CopyIcon aria-hidden />
+                                </ActionIcon>
+                              </Tooltip>
                               <Tooltip label="Supprimer la prévision">
                                 <ActionIcon
                                   variant="subtle"
@@ -558,7 +572,7 @@ export function TreasuryPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="entries" pt="md">
-          <EntriesPanel accounts={accounts} onEdit={(entry) => setDialog({ kind: 'entry', entry })} />
+          <EntriesPanel accounts={accounts} onEdit={(entry) => setDialog({ kind: 'entry', entry })} onDuplicate={(entry) => setDialog({ kind: 'entry', entry, copy: true })} />
         </Tabs.Panel>
 
         <Tabs.Panel value="budgets" pt="md">

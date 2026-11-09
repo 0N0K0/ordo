@@ -6,19 +6,19 @@ import type { Alarm } from './api';
 let modalCount = 0;
 
 /**
- * Opens the alarm form in a modal, for a new alarm or to edit one.
+ * Opens the alarm form in a modal, for a new alarm, to edit one, or to copy one into a new one.
  * @param {TaskContext | null} context Task context.
- * @returns {(alarm?: Alarm) => void} Opener.
+ * @returns {(alarm?: Alarm, options?: { copy?: boolean }) => void} Opener.
  */
 export function useAlarmForm(context: TaskContext | null) {
-  return (alarm?: Alarm) => {
+  return (alarm?: Alarm, { copy = false }: { copy?: boolean } = {}) => {
     if (!context) return;
     const modalId = `alarm-${++modalCount}`;
     modals.open({
       modalId,
-      title: alarm ? 'Modifier l’alarme' : 'Nouvelle alarme',
+      title: copy ? 'Dupliquer l’alarme' : alarm ? 'Modifier l’alarme' : 'Nouvelle alarme',
       size: 'lg',
-      children: <AlarmForm context={context} alarm={alarm} onDone={() => modals.close(modalId)} />,
+      children: <AlarmForm context={context} alarm={alarm} copy={copy} onDone={() => modals.close(modalId)} />,
     });
   };
 }

@@ -16,7 +16,7 @@ import { useTimeEntryDialogs } from './use-time-dialogs';
 export function ProjectTimePanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const entries = useTimeEntries(projectId);
-  const { openForm, confirmDelete } = useTimeEntryDialogs(context, projectId);
+  const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context, projectId);
   const archived = context?.projectById.get(projectId)?.archived;
 
   const finished = (entries.data ?? []).filter((entry) => entry.endedAt !== null);
@@ -40,7 +40,7 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
           Ajouter un temps
         </Button>
       </Group>
-      <TimeLog entries={entries.data} context={context} projectId={projectId} emptyMessage="Aucun temps sur ce projet." onEdit={openForm} onDelete={confirmDelete} />
+      <TimeLog entries={entries.data} context={context} projectId={projectId} emptyMessage="Aucun temps sur ce projet." onEdit={openForm} onDuplicate={duplicate} onDelete={confirmDelete} />
     </Stack>
   );
 }

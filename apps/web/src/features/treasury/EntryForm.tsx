@@ -83,6 +83,8 @@ interface EntryFormProps {
   entry?: TreasuryEntry | ForecastEntry;
   /** New entry: actual or forecast. */
   status?: 'ACTUAL' | 'FORECAST';
+  /** The entry is copied into a new one (its settlements of documents left out). */
+  copy?: boolean;
   onDone: () => void;
 }
 
@@ -93,7 +95,7 @@ interface EntryFormProps {
  * @param {EntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) {
+export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: EntryFormProps) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
   const [search, setSearch] = useState('');
@@ -127,7 +129,8 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       projectId: entry?.projectId ?? null,
       note: entry?.note ?? '',
       recurrence: (entry?.recurrence as Recurrence | null) ?? null,
-      allocations: (entry?.allocations ?? []).map((allocation) => ({
+      // A copy settles no document: the original already does.
+      allocations: (copy ? [] : (entry?.allocations ?? [])).map((allocation) => ({
         documentId: allocation.documentId ?? null,
         importedDocumentId: allocation.importedDocumentId ?? null,
         amount: allocation.amount,
@@ -138,7 +141,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
       // A stored amount is signed; edited, it is relative to the direction of the entry.
       lines: (entry?.lines ?? []).map((line) =>
         newLine({
-          id: line.id,
+          id: copy ? null : line.id,
           label: line.label ?? null,
           mode: line.mode,
           value: line.mode === 'AMOUNT' && (entry?.amount ?? 0) < 0 ? -line.value : line.value,
@@ -248,12 +251,12 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
     };
     const callbacks = {
       onSuccess: () => {
-        notifySuccess(entry ? 'Mouvement modifié.' : 'Mouvement ajouté.');
+        notifySuccess(copy ? 'Mouvement dupliqué.' : entry ? 'Mouvement modifié.' : 'Mouvement ajouté.');
         onDone();
       },
       onError: (error: Error) => showFormError(form, error),
     };
-    if (entry) updateEntry.mutate({ id: entry.id, input: payload }, callbacks);
+    if (entry && !copy) updateEntry.mutate({ id: entry.id, input: payload }, callbacks);
     else createEntry.mutate(payload, callbacks);
   });
 

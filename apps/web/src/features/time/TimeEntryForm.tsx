@@ -27,6 +27,8 @@ interface TimeEntryFormProps {
   entry?: TimeEntry;
   /** Project of a new entry. */
   defaultProjectId?: string;
+  /** The entry is copied into a new one (not billed). */
+  copy?: boolean;
   onDone: () => void;
 }
 
@@ -36,7 +38,7 @@ interface TimeEntryFormProps {
  * @param {TimeEntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: TimeEntryFormProps) {
+export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, onDone }: TimeEntryFormProps) {
   const { create, update } = useTimeMutations();
   const initial = entry ? localParts(new Date(entry.startedAt)) : { date: localToday(), start: '09:00' };
   const minutes = entry?.duration ? Math.round(entry.duration / 60) : 60;
@@ -76,12 +78,12 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
     };
     const callbacks = {
       onSuccess: () => {
-        notifySuccess(entry ? 'Temps modifié.' : 'Temps ajouté.');
+        notifySuccess(copy ? 'Temps dupliqué.' : entry ? 'Temps modifié.' : 'Temps ajouté.');
         onDone();
       },
       onError: (error: Error) => showFormError(form, error),
     };
-    if (entry) update.mutate({ id: entry.id, input }, callbacks);
+    if (entry && !copy) update.mutate({ id: entry.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });
 
@@ -128,7 +130,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
             Annuler
           </Button>
           <Button type="submit" loading={create.isPending || update.isPending}>
-            {entry ? 'Enregistrer' : 'Ajouter'}
+            {entry && !copy ? 'Enregistrer' : 'Ajouter'}
           </Button>
         </Group>
       </Stack>

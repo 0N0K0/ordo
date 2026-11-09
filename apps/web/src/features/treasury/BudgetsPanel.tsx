@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Button, Group, Modal, NumberInput, Paper, Progress, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/shared';
-import { ChartPieSliceIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
+import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -159,7 +159,8 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   );
 }
 
-type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues> } | null;
+// A copy is a new budget with the values of another one.
+type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?: boolean } | null;
 
 /**
  * Budgets: those of a month compared with its actual and forecast movements (what is spent, or received, and what
@@ -394,6 +395,31 @@ export function BudgetsPanel() {
                             <PencilSimpleIcon aria-hidden />
                           </ActionIcon>
                         </Tooltip>
+                        <Tooltip label="Dupliquer">
+                          <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Dupliquer le budget"
+                            onClick={() =>
+                              // A new budget with its values, to change (month, category…) before it is saved.
+                              setDialog({
+                                copy: true,
+                                defaults: {
+                                  month: budget.month,
+                                  memberId: budget.memberId ?? null,
+                                  relationId: budget.relationId ?? null,
+                                  contextId: budget.contextId ?? null,
+                                  categoryId: budget.categoryId,
+                                  amount: budget.amount,
+                                  repeatEvery: budget.repeatEvery ?? null,
+                                  repeatUntil: budget.repeatUntil ?? null,
+                                },
+                              })
+                            }
+                          >
+                            <CopyIcon aria-hidden />
+                          </ActionIcon>
+                        </Tooltip>
                         <Tooltip label="Supprimer">
                           <ActionIcon
                             variant="subtle"
@@ -420,7 +446,7 @@ export function BudgetsPanel() {
         )}
       </Paper>
 
-      <Modal opened={dialog !== null} onClose={close} title={dialog?.budget ? 'Modifier le budget' : 'Nouveau budget'}>
+      <Modal opened={dialog !== null} onClose={close} title={dialog?.budget ? 'Modifier le budget' : dialog?.copy ? 'Dupliquer le budget' : 'Nouveau budget'}>
         {dialog && <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />}
       </Modal>
     </Stack>
