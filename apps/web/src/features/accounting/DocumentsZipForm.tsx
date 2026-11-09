@@ -9,20 +9,31 @@ import { DOCUMENT_TYPE_LABELS } from './labels';
 
 const TYPES: AccountingDocumentType[] = ['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'];
 
+/** Periods offered: the presets, and a calendar year to choose (before the custom dates). */
+type ZipPeriod = PeriodPreset | 'calendarYear';
+const ZIP_PERIODS: { value: ZipPeriod; label: string }[] = [
+  ...PERIOD_PRESETS.filter((item) => item.value !== 'custom'),
+  { value: 'calendarYear', label: 'Année civile…' },
+  ...PERIOD_PRESETS.filter((item) => item.value === 'custom'),
+];
+
 /**
  * Download of the accounting documents issued over a period, as a ZIP with one folder per type: final
  * documents of Ordo as printed (PDF with Factur-X), and the files of the imported ones.
- * @param {{ onDone: () => void }} props Component props.
+ * A calendar year can be chosen among those of the documents (the one shown in the list, when given).
+ * @param {{ onDone: () => void, year?: string | null, years?: string[] }} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function DocumentsZipForm({ onDone }: { onDone: () => void }) {
+export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] }: { onDone: () => void; year?: string | null; years?: string[] }) {
   const today = localToday();
-  const [preset, setPreset] = useState<PeriodPreset>('lastMonth');
+  const [preset, setPreset] = useState<ZipPeriod>(initialYear ? 'calendarYear' : 'lastMonth');
+  const [year, setYear] = useState(initialYear ?? today.slice(0, 4));
+  const yearOptions = [...new Set([...years, today.slice(0, 4), year])].sort().reverse();
   const [custom, setCustom] = useState<[string | null, string | null]>(presetRange('lastMonth', today));
   const [types, setTypes] = useState<string[]>(TYPES);
   const [imported, setImported] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [from, to] = preset === 'custom' ? custom : presetRange(preset, today);
+  const [from, to] = preset === 'custom' ? custom : preset === 'calendarYear' ? [`${year}-01-01`, `${year}-12-31`] : presetRange(preset, today);
   const valid = Boolean(from && to && from <= to) && types.length > 0;
 
   /**
@@ -39,7 +50,7 @@ export function DocumentsZipForm({ onDone }: { onDone: () => void }) {
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Documents comptables du ${from} au ${to}.zip`;
+      link.download = preset === 'calendarYear' ? `Documents comptables ${year}.zip` : `Documents comptables du ${from} au ${to}.zip`;
       link.click();
       URL.revokeObjectURL(url);
       notifySuccess('Archive téléchargée.');
@@ -53,7 +64,10 @@ export function DocumentsZipForm({ onDone }: { onDone: () => void }) {
 
   return (
     <Stack gap="md">
-      <Select label="Période" data={PERIOD_PRESETS} value={preset} onChange={(value) => value && setPreset(value as PeriodPreset)} allowDeselect={false} data-autofocus />
+      <Group grow align="flex-end">
+        <Select label="Période" data={ZIP_PERIODS} value={preset} onChange={(value) => value && setPreset(value as ZipPeriod)} allowDeselect={false} data-autofocus />
+        {preset === 'calendarYear' && <Select label="Année" data={yearOptions} value={year} onChange={(value) => value && setYear(value)} allowDeselect={false} />}
+      </Group>
       <SimpleGrid cols={2}>
         <DatePickerInput label="Du" value={from} disabled={preset !== 'custom'} onChange={(value) => setCustom([value, custom[1]])} valueFormat="D MMM YYYY" />
         <DatePickerInput

@@ -1,7 +1,19 @@
-import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Table, Tabs, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Menu, Paper, Select, Skeleton, Stack, Table, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
-import { ArrowsClockwiseIcon, BellRingingIcon, CaretDownIcon, FileArrowUpIcon, FileZipIcon, FlagIcon, PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import {
+  ArrowsClockwiseIcon,
+  BellRingingIcon,
+  CalendarBlankIcon,
+  CaretDownIcon,
+  FileArrowUpIcon,
+  FileZipIcon,
+  FlagIcon,
+  PackageIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon,
+} from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
@@ -153,6 +165,25 @@ export function AccountingPage() {
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
+  // Calendar year of the documents of every type (their date), kept in the address; none: every year.
+  const year = params.get('year');
+  const yearOf = (date: unknown) => String(date).slice(0, 4);
+  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), localToday().slice(0, 4)])]
+    .sort()
+    .reverse();
+  const inYear = (date: unknown) => !year || yearOf(date) === year;
+  /**
+   * Changes a parameter of the address, the others kept.
+   * @param {string} key Parameter.
+   * @param {string | null} value Value; none removes it.
+   * @returns {void}
+   */
+  const setParam = (key: string, value: string | null) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setParams(next, { replace: true });
+  };
 
   return (
     <Stack gap="lg">
@@ -161,7 +192,7 @@ export function AccountingPage() {
           Facturation
         </Title>
         <Group gap="sm">
-          <Button variant="default" leftSection={<FileZipIcon aria-hidden />} onClick={openDocumentsZip}>
+          <Button variant="default" leftSection={<FileZipIcon aria-hidden />} onClick={() => openDocumentsZip({ year, years })}>
             Télécharger (ZIP)
           </Button>
           <Menu position="bottom-end" shadow="md">
@@ -184,45 +215,58 @@ export function AccountingPage() {
           </Menu>
         </Group>
       </Group>
-      <Tabs value={tab} onChange={(value) => setParams(value && value !== 'QUOTE' ? { tab: value } : {}, { replace: true })} keepMounted={false}>
-        <Tabs.List mb="md">
-          {TABS.map((item) => (
-            <Tabs.Tab key={item.value} value={item.value}>
-              {item.label}
+      <Tabs value={tab} onChange={(value) => setParam('tab', value && value !== 'QUOTE' ? value : null)} keepMounted={false}>
+        <Group justify="space-between" align="flex-end" mb="md" wrap="nowrap" gap="md">
+          <Tabs.List style={{ flex: 1 }}>
+            {TABS.map((item) => (
+              <Tabs.Tab key={item.value} value={item.value}>
+                {item.label}
+              </Tabs.Tab>
+            ))}
+            <Tabs.Tab
+              value="overdue"
+              leftSection={<BellRingingIcon aria-hidden />}
+              rightSection={
+                overdue.data?.length ? (
+                  <Badge size="xs" circle color="red">
+                    {overdue.data.length}
+                  </Badge>
+                ) : undefined
+              }
+            >
+              À relancer
             </Tabs.Tab>
-          ))}
-          <Tabs.Tab
-            value="overdue"
-            leftSection={<BellRingingIcon aria-hidden />}
-            rightSection={
-              overdue.data?.length ? (
-                <Badge size="xs" circle color="red">
-                  {overdue.data.length}
-                </Badge>
-              ) : undefined
-            }
-          >
-            À relancer
-          </Tabs.Tab>
-          <Tabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
-            Récurrentes
-          </Tabs.Tab>
-          <Tabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
-            Catalogue
-          </Tabs.Tab>
-          <Tabs.Tab value="tracking" leftSection={<FlagIcon aria-hidden />}>
-            Suivi des documents
-          </Tabs.Tab>
-        </Tabs.List>
+            <Tabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
+              Récurrentes
+            </Tabs.Tab>
+            <Tabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
+              Catalogue
+            </Tabs.Tab>
+            <Tabs.Tab value="tracking" leftSection={<FlagIcon aria-hidden />}>
+              Suivi des documents
+            </Tabs.Tab>
+          </Tabs.List>
+          {TABS.some((item) => item.value === tab) && (
+            <Select
+              w={170}
+              aria-label="Année des documents"
+              leftSection={<CalendarBlankIcon aria-hidden />}
+              data={[{ value: '', label: 'Toutes les années' }, ...years.map((value) => ({ value, label: value }))]}
+              value={year ?? ''}
+              allowDeselect={false}
+              onChange={(value) => setParam('year', value || null)}
+            />
+          )}
+        </Group>
         {TABS.map((item) => (
           <Tabs.Panel key={item.value} value={item.value}>
             {isPending || imported.isPending ? (
               <Skeleton height={200} />
             ) : (
               <DocumentsTable
-                documents={(documents ?? []).filter((document) => document.type === item.value)}
-                imported={(imported.data ?? []).filter((document) => document.type === item.value)}
-                empty={EMPTY_DOCUMENTS[item.value]}
+                documents={(documents ?? []).filter((document) => document.type === item.value && inYear(document.issueDate))}
+                imported={(imported.data ?? []).filter((document) => document.type === item.value && inYear(document.issueDate))}
+                empty={year ? `${EMPTY_DOCUMENTS[item.value].replace(/\.$/, '')} en ${year}.` : EMPTY_DOCUMENTS[item.value]}
               />
             )}
           </Tabs.Panel>
