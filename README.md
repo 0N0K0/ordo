@@ -53,7 +53,7 @@ cd ../..
 npm run user:create
 ```
 
-Ordo n'a qu'un seul compte : `user:create` refuse d'en créer un second. Identifiant, email et mot de passe se modifient ensuite depuis la page **Mon compte**, et un mot de passe oublié se réinitialise depuis l'écran de connexion.
+`user:create` crée le compte administrateur, une seule fois : il reçoit les espaces existants, et c'est le seul à avoir des espaces professionnels. Les autres comptes se créent depuis **Paramètres › Comptes** : la personne reçoit par email un lien pour choisir son mot de passe, et n'a que des espaces personnels, que les autres ne voient pas. Identifiant, email et mot de passe se modifient ensuite depuis la page **Mon compte**, et un mot de passe oublié se réinitialise depuis l'écran de connexion.
 
 ## Lancement
 
@@ -106,7 +106,7 @@ Staging (`main`) et production (`prod`) sur o2switch, déployés par GitHub Acti
 | `npm run db:up`       | Démarre PostgreSQL et Mailpit                    |
 | `npm run db:down`     | Arrête PostgreSQL (les données sont conservées)  |
 | `npm run codegen`     | Régénère le schéma GraphQL et les types du front |
-| `npm run user:create` | Crée le compte unique                            |
+| `npm run user:create` | Crée le compte administrateur                    |
 | `npm run db:seed`     | Remplace les données par des fixtures            |
 
 ## Ajouter une dépendance

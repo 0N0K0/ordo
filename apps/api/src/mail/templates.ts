@@ -3,6 +3,26 @@ import type { Mail } from './mailer';
 const SIGNATURE = '\n\n— Ordo';
 
 /**
+ * Link of a new account, created by the admin, to choose its password.
+ * @param {string} to Recipient address.
+ * @param {string} username Login name of the account.
+ * @param {string} url Link.
+ * @param {number} ttlDays Link validity in days.
+ * @returns {Mail} Email to send.
+ */
+export function accountSetupMail(to: string, username: string, url: string, ttlDays: number): Mail {
+  return {
+    to,
+    subject: 'Votre compte Ordo',
+    text:
+      `Un compte Ordo vient d'être créé pour vous, avec l'identifiant « ${username} ».\n\n` +
+      `Pour choisir votre mot de passe et l'activer, ouvrez ce lien (valable ${ttlDays} jours) :\n${url}\n\n` +
+      `Si vous ne vous attendiez pas à ce message, ignorez-le : le compte reste inutilisable sans mot de passe.` +
+      SIGNATURE,
+  };
+}
+
+/**
  * Password reset link email.
  * @param {string} to Recipient address.
  * @param {string} url Reset link.

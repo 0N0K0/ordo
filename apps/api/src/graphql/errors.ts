@@ -8,6 +8,7 @@ export type ErrorCode =
   | 'INVALID_TOKEN'
   | 'CONFLICT'
   | 'NOT_FOUND'
+  | 'FORBIDDEN'
   | 'TOO_MANY_REQUESTS'
   | 'SERVICE_UNAVAILABLE';
 

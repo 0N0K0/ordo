@@ -16,6 +16,9 @@ datasource db {
 /// Separate space of the app (professional or personal): every row but the accounts belongs to one.
 model Workspace {
   id                        String                     @id @default(cuid())
+  /// Account the workspace belongs to (null: not claimed yet, before the first account exists).
+  ownerId                   String?
+  owner                     User?                      @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   name                      String
   kind                      WorkspaceKind              @default(PRO)
   /// Order in the switcher.
@@ -100,6 +103,8 @@ model Workspace {
   treasuryCounterparties    TreasuryCounterparty[]
   treasuryEntries           TreasuryEntry[]
   treasuryAllocations       TreasuryAllocation[]
+
+  @@index([ownerId])
 }
 
 /// Kind of notification a workspace can give while another one is open.
@@ -116,20 +121,28 @@ enum WorkspaceKind {
 }
 
 model User {
-  id           String        @id @default(cuid())
+  id              String        @id @default(cuid())
   /// Lowercase, unique login name.
-  username     String        @unique
+  username        String        @unique
   /// Lowercase, unique email address.
-  email        String        @unique
+  email           String        @unique
   /// New email address awaiting confirmation.
-  pendingEmail String?
-  passwordHash String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  sessions     Session[]
-  authTokens   AuthToken[]
+  pendingEmail    String?
+  passwordHash    String
+  /// ADMIN: the one account managing the others (created from the command line); MEMBER: created by the admin.
+  role            UserRole      @default(MEMBER)
+  /// Set while the account is disabled: it cannot log in.
+  disabledAt      DateTime?
+  /// Account created by the admin whose owner has not chosen a password yet (from the link sent by email).
+  passwordPending Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  sessions        Session[]
+  authTokens      AuthToken[]
+  /// Workspaces of the account: nobody else sees them.
+  workspaces      Workspace[]
   /// Contributor profile of the user in each workspace ("Moi"): tasks can be assigned to them like to anyone else.
-  contributors Contributor[]
+  contributors    Contributor[]
 }
 
 model Session {
@@ -149,6 +162,13 @@ model Session {
 enum AuthTokenType {
   PASSWORD_RESET
   EMAIL_CHANGE
+  /// Link of a new account to choose its password.
+  ACCOUNT_SETUP
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
 }
 
 /// Single-use token sent by email.

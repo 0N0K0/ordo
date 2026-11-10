@@ -84,6 +84,23 @@ export async function getSession(req: Request, res: Response): Promise<SessionIn
   return { id: session.id, userId: session.userId };
 }
 
+const resolved = new WeakMap<Request, Promise<SessionInfo | null>>();
+
+/**
+ * Session of a request, resolved once for the whole request (the workspace middleware, then GraphQL).
+ * @param {Request} req Express request.
+ * @param {Response} res Express response (to refresh the cookie).
+ * @returns {Promise<SessionInfo | null>} Valid session, or null.
+ */
+export function requestSession(req: Request, res: Response): Promise<SessionInfo | null> {
+  let session = resolved.get(req);
+  if (!session) {
+    session = getSession(req, res);
+    resolved.set(req, session);
+  }
+  return session;
+}
+
 /**
  * Closes the given session and clears its cookie.
  * @param {Response} res Express response.

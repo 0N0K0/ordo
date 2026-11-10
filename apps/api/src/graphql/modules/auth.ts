@@ -46,6 +46,19 @@ builder.mutationFields((t) => ({
     },
   }),
 
+  setUpAccount: t.boolean({
+    skipTypeScopes: true,
+    description: 'Chooses the password of a new account from the link sent at its creation.',
+    args: {
+      token: t.arg.string({ required: true }),
+      password: t.arg.string({ required: true }),
+    },
+    resolve: async (_root, { token, password }) => {
+      await auth.setUpAccount(token, password);
+      return true;
+    },
+  }),
+
   resetPassword: t.boolean({
     skipTypeScopes: true,
     args: {

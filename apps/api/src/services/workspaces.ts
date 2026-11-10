@@ -1,5 +1,6 @@
 import { parseCookie } from 'cookie';
 import type { NextFunction, Request, Response } from 'express';
+import { requestSession } from '../auth/session';
 import { readTaskColumnDefaults, taskColumnDefaultsSchema, type TaskColumnDefaults } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
@@ -21,36 +22,80 @@ const workspaceInputSchema = z.object({
 });
 
 /**
- * Workspaces, in the order of the switcher.
+ * Workspaces of an account, in the order of the switcher.
+ * @param {string} ownerId Account.
  * @returns {Promise<Workspace[]>} Workspaces.
  */
-export function listWorkspaces(): Promise<Workspace[]> {
-  return unscopedPrisma.workspace.findMany({ orderBy: [...byOrder] });
+export function listWorkspaces(ownerId: string): Promise<Workspace[]> {
+  return unscopedPrisma.workspace.findMany({ where: { ownerId }, orderBy: [...byOrder] });
 }
 
 /**
- * Workspace a request asks for (header, then cookie), or the first one; one is created when there is none.
- * @param {Request} req Request.
+ * Throws when an account may not have a workspace of this kind: only the admin has professional ones (company,
+ * clients, invoicing); the other accounts have personal ones.
+ * @param {WorkspaceKind} kind Kind.
+ * @param {string} ownerId Account.
+ * @returns {Promise<void>}
+ */
+async function assertKindAllowed(kind: WorkspaceKind, ownerId: string): Promise<void> {
+  if (kind !== 'PRO') return;
+  const owner = await unscopedPrisma.user.findUnique({ where: { id: ownerId }, select: { role: true } });
+  if (owner?.role !== 'ADMIN') throw clientError('FORBIDDEN', 'Seule l’administratrice a des espaces professionnels : créez un espace personnel.');
+}
+
+/**
+ * Kind of the first workspace of an account: professional for the admin, personal for the others.
+ * @param {string} ownerId Account.
+ * @returns {Promise<{ name: string, kind: WorkspaceKind }>} Name and kind.
+ */
+export async function firstWorkspaceOf(ownerId: string): Promise<{ name: string; kind: WorkspaceKind }> {
+  const owner = await unscopedPrisma.user.findUnique({ where: { id: ownerId }, select: { role: true } });
+  return owner?.role === 'ADMIN' ? { name: 'Pro', kind: 'PRO' } : { name: 'Perso', kind: 'PERSO' };
+}
+
+/**
+ * Workspace of an account, or throws as if it did not exist (the workspaces of the others are not even seen).
+ * @param {string} id Workspace.
+ * @param {string} ownerId Account.
  * @returns {Promise<Workspace>} Workspace.
  */
-async function requestedWorkspace(req: Request): Promise<Workspace> {
-  const header = req.headers[WORKSPACE_HEADER];
-  const wanted = (typeof header === 'string' && header) || parseCookie(req.headers.cookie ?? '')[WORKSPACE_COOKIE];
-  const found = wanted ? await unscopedPrisma.workspace.findUnique({ where: { id: wanted } }) : null;
-  if (found) return found;
-  const first = await unscopedPrisma.workspace.findFirst({ orderBy: [...byOrder] });
-  return first ?? unscopedPrisma.workspace.create({ data: { name: 'Pro', kind: 'PRO' } });
+async function ownWorkspace(id: string, ownerId: string): Promise<Workspace> {
+  const workspace = await unscopedPrisma.workspace.findFirst({ where: { id, ownerId } });
+  if (!workspace) throw notFound('Espace');
+  return workspace;
 }
 
 /**
- * Express middleware: the rest of the request works in the workspace it asks for.
+ * Workspace a request asks for (header, then cookie) among those of its account, or the account's first one; one
+ * is created when the account has none.
  * @param {Request} req Request.
- * @param {Response} _res Response.
+ * @param {string} ownerId Logged-in account.
+ * @returns {Promise<Workspace>} Workspace.
+ */
+async function requestedWorkspace(req: Request, ownerId: string): Promise<Workspace> {
+  const header = req.headers[WORKSPACE_HEADER];
+  const wanted = (typeof header === 'string' && header) || parseCookie(req.headers.cookie ?? '')[WORKSPACE_COOKIE];
+  const found = wanted ? await unscopedPrisma.workspace.findFirst({ where: { id: wanted, ownerId } }) : null;
+  if (found) return found;
+  const first = await unscopedPrisma.workspace.findFirst({ where: { ownerId }, orderBy: [...byOrder] });
+  return first ?? createWorkspace(await firstWorkspaceOf(ownerId), ownerId);
+}
+
+/**
+ * Express middleware: the rest of the request of a logged-in account works in the workspace it asks for, among
+ * the account's. A request without session works in none: it reaches no workspace data (login, password reset).
+ * @param {Request} req Request.
+ * @param {Response} res Response.
  * @param {NextFunction} next Next handler.
  * @returns {Promise<void>}
  */
-export async function workspaceMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
-  const workspace = await requestedWorkspace(req);
+export async function workspaceMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const session = await requestSession(req, res);
+  if (!session) {
+    next();
+    return;
+  }
+  const workspace = await requestedWorkspace(req, session.userId);
   runInWorkspace(workspace, next);
 }
 
@@ -104,14 +149,15 @@ export async function ensureMeContributor(user: { id: string; username: string }
 }
 
 /**
- * Settings a workspace starts with: the "Moi" of every user, a calendar, and the tracking statuses of a
+ * Settings a workspace starts with: the "Moi" of its account, a calendar, and the tracking statuses of a
  * professional one.
  * @param {Workspace} workspace Workspace.
  * @returns {Promise<void>}
  */
-async function setUpWorkspace(workspace: Workspace): Promise<void> {
+export async function setUpWorkspace(workspace: Workspace): Promise<void> {
   await runInWorkspace(workspace, async () => {
-    for (const user of await unscopedPrisma.user.findMany({ select: { id: true, username: true } })) await ensureMeContributor(user);
+    const owner = workspace.ownerId ? await unscopedPrisma.user.findUnique({ where: { id: workspace.ownerId }, select: { id: true, username: true } }) : null;
+    if (owner) await ensureMeContributor(owner);
     await resolveCalendarId();
     // Every category of the tracking gets a status, those already there kept.
     if (workspace.kind === 'PRO') await ensureDocumentStatuses();
@@ -119,28 +165,32 @@ async function setUpWorkspace(workspace: Workspace): Promise<void> {
 }
 
 /**
- * Creates a workspace, last of the switcher.
+ * Creates a workspace of an account, last of its switcher.
  * @param {{ name: string, kind: WorkspaceKind }} input Name and kind.
+ * @param {string} ownerId Account.
  * @returns {Promise<Workspace>} Workspace.
  */
-export async function createWorkspace(input: { name: string; kind: WorkspaceKind }): Promise<Workspace> {
+export async function createWorkspace(input: { name: string; kind: WorkspaceKind }, ownerId: string): Promise<Workspace> {
   const data = parseInput(workspaceInputSchema, input);
-  const last = await unscopedPrisma.workspace.aggregate({ _max: { position: true } });
-  const workspace = await unscopedPrisma.workspace.create({ data: { ...data, position: (last._max.position ?? -1) + 1 } });
+  await assertKindAllowed(data.kind, ownerId);
+  const last = await unscopedPrisma.workspace.aggregate({ where: { ownerId }, _max: { position: true } });
+  const workspace = await unscopedPrisma.workspace.create({ data: { ...data, ownerId, position: (last._max.position ?? -1) + 1 } });
   await setUpWorkspace(workspace);
   return workspace;
 }
 
 /**
- * Renames a workspace or changes its kind. It only becomes personal without clients nor invoicing documents.
+ * Renames a workspace of an account or changes its kind. It only becomes personal without clients nor invoicing
+ * documents.
  * @param {string} id Workspace.
  * @param {{ name: string, kind: WorkspaceKind }} input Name and kind.
+ * @param {string} ownerId Account.
  * @returns {Promise<Workspace>} Workspace.
  */
-export async function updateWorkspace(id: string, input: { name: string; kind: WorkspaceKind }): Promise<Workspace> {
+export async function updateWorkspace(id: string, input: { name: string; kind: WorkspaceKind }, ownerId: string): Promise<Workspace> {
   const data = parseInput(workspaceInputSchema, input);
-  const workspace = await unscopedPrisma.workspace.findUnique({ where: { id } });
-  if (!workspace) throw notFound('Espace');
+  const workspace = await ownWorkspace(id, ownerId);
+  await assertKindAllowed(data.kind, ownerId);
   if (workspace.kind === 'PRO' && data.kind === 'PERSO') {
     const used = await runInWorkspace(workspace, async () => (await prisma.client.count()) + (await prisma.accountingDocument.count()) + (await prisma.importedDocument.count()));
     if (used > 0) throw clientError('BAD_USER_INPUT', 'Cet espace a des clients ou des documents de facturation : il ne peut pas devenir personnel.');
@@ -151,38 +201,42 @@ export async function updateWorkspace(id: string, input: { name: string; kind: W
 }
 
 /**
- * Chooses the notifications a workspace still gives while another one is open.
+ * Chooses the notifications a workspace of an account still gives while another one is open.
  * @param {string} id Workspace.
  * @param {NotificationSource[]} sources Alarms, calendar reminders, new mails.
+ * @param {string} ownerId Account.
  * @returns {Promise<Workspace>} Workspace.
  */
-export async function setWorkspaceNotifications(id: string, sources: NotificationSource[]): Promise<Workspace> {
-  if (!(await unscopedPrisma.workspace.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Espace');
+export async function setWorkspaceNotifications(id: string, sources: NotificationSource[], ownerId: string): Promise<Workspace> {
+  await ownWorkspace(id, ownerId);
   return unscopedPrisma.workspace.update({ where: { id }, data: { notifyElsewhere: [...new Set(sources)] } });
 }
 
 /**
- * Moves a workspace in the switcher.
+ * Moves a workspace of an account in its switcher.
  * @param {string} id Workspace.
  * @param {number} index New index.
+ * @param {string} ownerId Account.
  * @returns {Promise<void>}
  */
-export async function moveWorkspace(id: string, index: number): Promise<void> {
-  const ids = (await listWorkspaces()).map((workspace) => workspace.id).filter((item) => item !== id);
-  if (ids.length === (await unscopedPrisma.workspace.count())) throw notFound('Espace');
+export async function moveWorkspace(id: string, index: number, ownerId: string): Promise<void> {
+  await ownWorkspace(id, ownerId);
+  const ids = (await listWorkspaces(ownerId)).map((workspace) => workspace.id).filter((item) => item !== id);
   ids.splice(Math.max(0, Math.min(index, ids.length)), 0, id);
   await unscopedPrisma.$transaction(ids.map((item, position) => unscopedPrisma.workspace.update({ where: { id: item }, data: { position } })));
 }
 
 /**
- * Deletes a workspace and everything in it. The last one cannot be deleted.
+ * Deletes a workspace of an account and everything in it. The account's last one cannot be deleted, unless the
+ * whole account goes (its deletion takes its workspaces first).
  * @param {string} id Workspace.
+ * @param {string} ownerId Account.
+ * @param {{ withAccount?: boolean }} [options] The account is being deleted. Optional.
  * @returns {Promise<void>}
  */
-export async function deleteWorkspace(id: string): Promise<void> {
-  const workspace = await unscopedPrisma.workspace.findUnique({ where: { id } });
-  if (!workspace) throw notFound('Espace');
-  if ((await unscopedPrisma.workspace.count()) <= 1) throw clientError('BAD_USER_INPUT', 'Le dernier espace ne peut pas être supprimé.');
+export async function deleteWorkspace(id: string, ownerId: string, { withAccount = false }: { withAccount?: boolean } = {}): Promise<void> {
+  const workspace = await ownWorkspace(id, ownerId);
+  if (!withAccount && (await unscopedPrisma.workspace.count({ where: { ownerId } })) <= 1) throw clientError('BAD_USER_INPUT', 'Le dernier espace ne peut pas être supprimé.');
   await runInWorkspace(workspace, () =>
     prisma.$transaction(async (tx) => {
       // Rows other rows forbid to delete go first: the cascade from the workspace takes the rest.

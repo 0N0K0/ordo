@@ -2,6 +2,7 @@ import { ActionIcon, Badge, Button, Chip, Group, Paper, SegmentedControl, Stack,
 import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
+import { useIsAdmin } from '../auth/api';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Workspace, type WorkspaceKind } from './api';
 import { switchWorkspace } from './switch';
@@ -35,6 +36,8 @@ interface WorkspaceRowProps {
  */
 function WorkspaceRow({ workspace, index, count, current, fallbackId }: WorkspaceRowProps) {
   const { update, setNotifications, move, remove } = useWorkspaceMutations();
+  // Only the admin has professional workspaces: the kind is hers to change.
+  const admin = useIsAdmin();
   const [name, setName] = useState(workspace.name);
   const [confirming, setConfirming] = useState(false);
   const onError = (error: Error) => notifyError(error.message);
@@ -103,7 +106,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
           }
           rightSectionWidth={current ? 64 : undefined}
         />
-        <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />
+        {admin && <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />}
         <Tooltip label="Monter">
           <ActionIcon variant="subtle" color="gray" aria-label={`Monter ${workspace.name}`} disabled={index === 0} onClick={() => move.mutate({ id: workspace.id, index: index - 1 }, { onError })}>
             <ArrowUpIcon aria-hidden />
@@ -155,6 +158,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
 export function WorkspacesManager() {
   const { data } = useWorkspaces();
   const { create } = useWorkspaceMutations();
+  const admin = useIsAdmin();
   const [name, setName] = useState('');
   const [kind, setKind] = useState<WorkspaceKind>('PERSO');
   const workspaces = data?.workspaces ?? [];
@@ -166,7 +170,8 @@ export function WorkspacesManager() {
   const add = () => {
     if (!name.trim()) return;
     create.mutate(
-      { name: name.trim(), kind },
+      // The other accounts only have personal workspaces.
+      { name: name.trim(), kind: admin ? kind : 'PERSO' },
       {
         onSuccess: () => {
           notifySuccess('Espace créé.');
@@ -213,7 +218,7 @@ export function WorkspacesManager() {
           >
             <Group gap="xs" wrap="nowrap" align="flex-end">
               <TextInput label="Nom" placeholder="Nom de l’espace" style={{ flex: 1 }} value={name} maxLength={60} onChange={(event) => setName(event.currentTarget.value)} />
-              <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
+              {admin && <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />}
               <Button type="submit" variant="light" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
                 Ajouter
               </Button>

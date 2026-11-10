@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { getSession, type SessionInfo } from '../auth/session';
+import { requestSession, type SessionInfo } from '../auth/session';
 import { unauthenticated } from './errors';
 
 export interface ServerContext {
@@ -18,7 +18,7 @@ export interface Context extends ServerContext {
  * @returns {Promise<Context>} Context holding the current session.
  */
 export async function createContext({ req, res }: ServerContext): Promise<Context> {
-  return { req, res, session: await getSession(req, res) };
+  return { req, res, session: await requestSession(req, res) };
 }
 
 /**

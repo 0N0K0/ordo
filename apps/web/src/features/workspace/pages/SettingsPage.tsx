@@ -1,8 +1,10 @@
 import { Stack, Tabs, Title } from "@mantine/core";
-import { BuildingsIcon, FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
+import { BuildingsIcon, FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UserCircleGearIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
+import { AccountsManager } from "../../accounts/AccountsManager";
 import { CompanySettings } from "../../accounting/CompanySettings";
+import { useIsAdmin } from "../../auth/api";
 import { GithubSettings } from "../../github/GithubSettings";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
@@ -41,9 +43,10 @@ export function SettingsPage() {
   const { data: taskData } = useTasksData();
   const [params, setParams] = useSearchParams();
   const { perso } = useActiveWorkspace();
+  const admin = useIsAdmin();
   const asked = params.get("tab") ?? "projects";
-  // A personal workspace has no company nor invoicing.
-  const tab = perso && asked === "company" ? "projects" : asked;
+  // A personal workspace has no company nor invoicing; only the admin manages the accounts.
+  const tab = (perso && asked === "company") || (!admin && asked === "accounts") ? "projects" : asked;
   const assigneeUsage = new Map<string, number>();
   for (const task of taskData?.tasks ?? []) {
     for (const id of task.assigneeIds)
@@ -100,6 +103,11 @@ export function SettingsPage() {
           <Tabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
             Espaces
           </Tabs.Tab>
+          {admin && (
+            <Tabs.Tab value="accounts" leftSection={<UserCircleGearIcon aria-hidden />}>
+              Comptes
+            </Tabs.Tab>
+          )}
         </Tabs.List>
         <Tabs.Panel value="projects">
           <SettingsGrid>
@@ -150,6 +158,11 @@ export function SettingsPage() {
         <Tabs.Panel value="workspaces">
           <WorkspacesManager />
         </Tabs.Panel>
+        {admin && (
+          <Tabs.Panel value="accounts">
+            <AccountsManager />
+          </Tabs.Panel>
+        )}
       </Tabs>
     </Stack>
   );

@@ -461,7 +461,7 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
  * @returns {Promise<EventOccurrence[]>} Occurrences, by start.
  */
 export async function subscribedOccurrences(from: string, to: string): Promise<EventOccurrence[]> {
-  const byWorkspace = new Map<string, { workspace: { id: string; kind: 'PRO' | 'PERSO' }; calendarIds: string[] }>();
+  const byWorkspace = new Map<string, { workspace: { id: string; kind: 'PRO' | 'PERSO'; ownerId: string | null }; calendarIds: string[] }>();
   for (const subscription of await listSubscriptions()) {
     const entry = byWorkspace.get(subscription.workspace.id) ?? { workspace: subscription.workspace, calendarIds: [] };
     entry.calendarIds.push(subscription.calendarId);

@@ -25,7 +25,7 @@ import {
   type WorkSchedule,
 } from "../generated/prisma/client";
 import { clientError, notFound, parseInput } from "../graphql/errors";
-import { currentWorkspaceId } from "../workspace-context";
+import { currentOwnerId, currentWorkspaceId } from "../workspace-context";
 
 /**
  * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
@@ -360,7 +360,8 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
     ]),
   );
   const workspaces = await unscopedPrisma.workspace.findMany({
-    where: { id: { not: currentWorkspaceId() } },
+    // Only the other workspaces of the same account.
+    where: { id: { not: currentWorkspaceId() }, ownerId: currentOwnerId() },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
@@ -427,6 +428,8 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
   );
   const schedules = await unscopedPrisma.workSchedule.findMany({
     where: {
+      // Only the workspaces of the same account.
+      workspace: { ownerId: currentOwnerId() },
       OR: subscriptions.map((item) => ({
         workspaceId: item.sourceWorkspaceId,
         typeId: item.typeId,
@@ -497,8 +500,8 @@ export async function subscribeScheduleKind(
       "Ces plages appartiennent déjà à cet espace.",
     );
   if (
-    !(await unscopedPrisma.workspace.findUnique({
-      where: { id: sourceWorkspaceId },
+    !(await unscopedPrisma.workspace.findFirst({
+      where: { id: sourceWorkspaceId, ownerId: currentOwnerId() },
       select: { id: true },
     }))
   )

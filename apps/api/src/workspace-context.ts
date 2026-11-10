@@ -5,6 +5,8 @@ import type { WorkspaceKind } from './generated/prisma/enums';
 export interface WorkspaceScope {
   id: string;
   kind: WorkspaceKind;
+  /** Account the workspace belongs to: it only reaches the other workspaces of that account. */
+  ownerId?: string | null;
 }
 
 const storage = new AsyncLocalStorage<WorkspaceScope>();
@@ -18,7 +20,7 @@ const storage = new AsyncLocalStorage<WorkspaceScope>();
  * @returns {T} Result of the function.
  */
 export function runInWorkspace<T>(workspace: WorkspaceScope, fn: () => T): T {
-  return storage.run({ id: workspace.id, kind: workspace.kind }, () => {
+  return storage.run({ id: workspace.id, kind: workspace.kind, ownerId: workspace.ownerId ?? null }, () => {
     const result = fn();
     // Prisma queries are lazy (they run when awaited): one returned as is is started here, in the workspace.
     if (result !== null && typeof result === 'object' && 'then' in result && typeof result.then === 'function') {
@@ -49,6 +51,14 @@ export function currentWorkspace(): WorkspaceScope {
 }
 
 /**
+ * Account owning the workspace of the current request or job (null: not claimed yet).
+ * @returns {string | null} Account id.
+ */
+export function currentOwnerId(): string | null {
+  return currentWorkspace().ownerId ?? null;
+}
+
+/**
  * Id of the workspace of the current request or job.
  * @returns {string} Id.
  */
@@ -62,5 +72,5 @@ export function currentWorkspaceId(): string {
  * @returns {void}
  */
 export function enterWorkspace(workspace: WorkspaceScope): void {
-  storage.enterWith({ id: workspace.id, kind: workspace.kind });
+  storage.enterWith({ id: workspace.id, kind: workspace.kind, ownerId: workspace.ownerId ?? null });
 }

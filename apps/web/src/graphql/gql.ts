@@ -81,18 +81,25 @@ type Documents = {
     "\n  mutation AddDocumentReminder($id: ID!, $note: String) {\n    addDocumentReminder(id: $id, note: $note)\n  }\n": typeof types.AddDocumentReminderDocument,
     "\n  mutation DeleteDocumentReminder($id: ID!) {\n    deleteDocumentReminder(id: $id)\n  }\n": typeof types.DeleteDocumentReminderDocument,
     "\n  mutation RecordDocumentPayment($id: ID!, $input: DocumentPaymentInput!) {\n    recordDocumentPayment(id: $id, input: $input)\n  }\n": typeof types.RecordDocumentPaymentDocument,
+    "\n  fragment ManagedAccount on User {\n    id\n    username\n    email\n    role\n    disabled\n    passwordPending\n    createdAt\n  }\n": typeof types.ManagedAccountFragmentDoc,
+    "\n  query Accounts {\n    accounts {\n      ...ManagedAccount\n    }\n  }\n": typeof types.AccountsDocument,
+    "\n  mutation CreateAccount($input: AccountInput!) {\n    createAccount(input: $input) {\n      ...ManagedAccount\n    }\n  }\n": typeof types.CreateAccountDocument,
+    "\n  mutation ResendAccountSetup($id: ID!) {\n    resendAccountSetup(id: $id)\n  }\n": typeof types.ResendAccountSetupDocument,
+    "\n  mutation SetAccountDisabled($id: ID!, $disabled: Boolean!) {\n    setAccountDisabled(id: $id, disabled: $disabled) {\n      ...ManagedAccount\n    }\n  }\n": typeof types.SetAccountDisabledDocument,
+    "\n  mutation DeleteAccount($id: ID!) {\n    deleteAccount(id: $id)\n  }\n": typeof types.DeleteAccountDocument,
     "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": typeof types.AlarmFieldsFragmentDoc,
     "\n  query Alarms {\n    alarms {\n      ...AlarmFields\n    }\n  }\n": typeof types.AlarmsDocument,
     "\n  mutation CreateAlarm($input: AlarmInput!) {\n    createAlarm(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateAlarmDocument,
     "\n  mutation UpdateAlarm($id: ID!, $input: AlarmInput!) {\n    updateAlarm(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateAlarmDocument,
     "\n  mutation DeleteAlarm($id: ID!) {\n    deleteAlarm(id: $id)\n  }\n": typeof types.DeleteAlarmDocument,
     "\n  mutation MarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.MarkAlarmFiredDocument,
-    "\n  fragment AccountUser on User {\n    id\n    username\n    email\n    pendingEmail\n    contributorId\n  }\n": typeof types.AccountUserFragmentDoc,
+    "\n  fragment AccountUser on User {\n    id\n    username\n    email\n    pendingEmail\n    contributorId\n    role\n  }\n": typeof types.AccountUserFragmentDoc,
     "\n  query Me {\n    me {\n      ...AccountUser\n    }\n  }\n": typeof types.MeDocument,
     "\n  mutation Login($identifier: String!, $password: String!) {\n    login(identifier: $identifier, password: $password) {\n      ...AccountUser\n    }\n  }\n": typeof types.LoginDocument,
     "\n  mutation Logout {\n    logout\n  }\n": typeof types.LogoutDocument,
     "\n  mutation RequestPasswordReset($identifier: String!) {\n    requestPasswordReset(identifier: $identifier)\n  }\n": typeof types.RequestPasswordResetDocument,
     "\n  mutation ResetPassword($token: String!, $password: String!) {\n    resetPassword(token: $token, password: $password)\n  }\n": typeof types.ResetPasswordDocument,
+    "\n  mutation SetUpAccount($token: String!, $password: String!) {\n    setUpAccount(token: $token, password: $password)\n  }\n": typeof types.SetUpAccountDocument,
     "\n  mutation ConfirmEmailChange($token: String!) {\n    confirmEmailChange(token: $token)\n  }\n": typeof types.ConfirmEmailChangeDocument,
     "\n  mutation ChangePassword($currentPassword: String!, $password: String!) {\n    changePassword(currentPassword: $currentPassword, password: $password)\n  }\n": typeof types.ChangePasswordDocument,
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": typeof types.ChangeUsernameDocument,
@@ -435,18 +442,25 @@ const documents: Documents = {
     "\n  mutation AddDocumentReminder($id: ID!, $note: String) {\n    addDocumentReminder(id: $id, note: $note)\n  }\n": types.AddDocumentReminderDocument,
     "\n  mutation DeleteDocumentReminder($id: ID!) {\n    deleteDocumentReminder(id: $id)\n  }\n": types.DeleteDocumentReminderDocument,
     "\n  mutation RecordDocumentPayment($id: ID!, $input: DocumentPaymentInput!) {\n    recordDocumentPayment(id: $id, input: $input)\n  }\n": types.RecordDocumentPaymentDocument,
+    "\n  fragment ManagedAccount on User {\n    id\n    username\n    email\n    role\n    disabled\n    passwordPending\n    createdAt\n  }\n": types.ManagedAccountFragmentDoc,
+    "\n  query Accounts {\n    accounts {\n      ...ManagedAccount\n    }\n  }\n": types.AccountsDocument,
+    "\n  mutation CreateAccount($input: AccountInput!) {\n    createAccount(input: $input) {\n      ...ManagedAccount\n    }\n  }\n": types.CreateAccountDocument,
+    "\n  mutation ResendAccountSetup($id: ID!) {\n    resendAccountSetup(id: $id)\n  }\n": types.ResendAccountSetupDocument,
+    "\n  mutation SetAccountDisabled($id: ID!, $disabled: Boolean!) {\n    setAccountDisabled(id: $id, disabled: $disabled) {\n      ...ManagedAccount\n    }\n  }\n": types.SetAccountDisabledDocument,
+    "\n  mutation DeleteAccount($id: ID!) {\n    deleteAccount(id: $id)\n  }\n": types.DeleteAccountDocument,
     "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": types.AlarmFieldsFragmentDoc,
     "\n  query Alarms {\n    alarms {\n      ...AlarmFields\n    }\n  }\n": types.AlarmsDocument,
     "\n  mutation CreateAlarm($input: AlarmInput!) {\n    createAlarm(input: $input) {\n      id\n    }\n  }\n": types.CreateAlarmDocument,
     "\n  mutation UpdateAlarm($id: ID!, $input: AlarmInput!) {\n    updateAlarm(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateAlarmDocument,
     "\n  mutation DeleteAlarm($id: ID!) {\n    deleteAlarm(id: $id)\n  }\n": types.DeleteAlarmDocument,
     "\n  mutation MarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.MarkAlarmFiredDocument,
-    "\n  fragment AccountUser on User {\n    id\n    username\n    email\n    pendingEmail\n    contributorId\n  }\n": types.AccountUserFragmentDoc,
+    "\n  fragment AccountUser on User {\n    id\n    username\n    email\n    pendingEmail\n    contributorId\n    role\n  }\n": types.AccountUserFragmentDoc,
     "\n  query Me {\n    me {\n      ...AccountUser\n    }\n  }\n": types.MeDocument,
     "\n  mutation Login($identifier: String!, $password: String!) {\n    login(identifier: $identifier, password: $password) {\n      ...AccountUser\n    }\n  }\n": types.LoginDocument,
     "\n  mutation Logout {\n    logout\n  }\n": types.LogoutDocument,
     "\n  mutation RequestPasswordReset($identifier: String!) {\n    requestPasswordReset(identifier: $identifier)\n  }\n": types.RequestPasswordResetDocument,
     "\n  mutation ResetPassword($token: String!, $password: String!) {\n    resetPassword(token: $token, password: $password)\n  }\n": types.ResetPasswordDocument,
+    "\n  mutation SetUpAccount($token: String!, $password: String!) {\n    setUpAccount(token: $token, password: $password)\n  }\n": types.SetUpAccountDocument,
     "\n  mutation ConfirmEmailChange($token: String!) {\n    confirmEmailChange(token: $token)\n  }\n": types.ConfirmEmailChangeDocument,
     "\n  mutation ChangePassword($currentPassword: String!, $password: String!) {\n    changePassword(currentPassword: $currentPassword, password: $password)\n  }\n": types.ChangePasswordDocument,
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": types.ChangeUsernameDocument,
@@ -990,6 +1004,30 @@ export function graphql(source: "\n  mutation RecordDocumentPayment($id: ID!, $i
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  fragment ManagedAccount on User {\n    id\n    username\n    email\n    role\n    disabled\n    passwordPending\n    createdAt\n  }\n"): typeof import('./graphql').ManagedAccountFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Accounts {\n    accounts {\n      ...ManagedAccount\n    }\n  }\n"): typeof import('./graphql').AccountsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateAccount($input: AccountInput!) {\n    createAccount(input: $input) {\n      ...ManagedAccount\n    }\n  }\n"): typeof import('./graphql').CreateAccountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ResendAccountSetup($id: ID!) {\n    resendAccountSetup(id: $id)\n  }\n"): typeof import('./graphql').ResendAccountSetupDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetAccountDisabled($id: ID!, $disabled: Boolean!) {\n    setAccountDisabled(id: $id, disabled: $disabled) {\n      ...ManagedAccount\n    }\n  }\n"): typeof import('./graphql').SetAccountDisabledDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteAccount($id: ID!) {\n    deleteAccount(id: $id)\n  }\n"): typeof import('./graphql').DeleteAccountDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n"): typeof import('./graphql').AlarmFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -1014,7 +1052,7 @@ export function graphql(source: "\n  mutation MarkAlarmFired($id: ID!, $at: Date
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment AccountUser on User {\n    id\n    username\n    email\n    pendingEmail\n    contributorId\n  }\n"): typeof import('./graphql').AccountUserFragmentDoc;
+export function graphql(source: "\n  fragment AccountUser on User {\n    id\n    username\n    email\n    pendingEmail\n    contributorId\n    role\n  }\n"): typeof import('./graphql').AccountUserFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1035,6 +1073,10 @@ export function graphql(source: "\n  mutation RequestPasswordReset($identifier: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation ResetPassword($token: String!, $password: String!) {\n    resetPassword(token: $token, password: $password)\n  }\n"): typeof import('./graphql').ResetPasswordDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetUpAccount($token: String!, $password: String!) {\n    setUpAccount(token: $token, password: $password)\n  }\n"): typeof import('./graphql').SetUpAccountDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

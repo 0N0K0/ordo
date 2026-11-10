@@ -4,6 +4,11 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 /** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import type { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
+export type AccountInput = {
+  email: string;
+  username: string;
+};
+
 export type AccountingDocumentInput = {
   billingSchedule?: string | null | undefined;
   clientId: string | number;
@@ -1333,6 +1338,42 @@ export type RecordDocumentPaymentMutationVariables = Exact<{
 
 export type RecordDocumentPaymentMutation = { recordDocumentPayment: boolean };
 
+export type ManagedAccountFragment = { id: string, username: string, email: string, role: string, disabled: boolean, passwordPending: boolean, createdAt: string };
+
+export type AccountsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type AccountsQuery = { accounts: Array<{ id: string, username: string, email: string, role: string, disabled: boolean, passwordPending: boolean, createdAt: string }> };
+
+export type CreateAccountMutationVariables = Exact<{
+  input: AccountInput;
+}>;
+
+
+export type CreateAccountMutation = { createAccount: { id: string, username: string, email: string, role: string, disabled: boolean, passwordPending: boolean, createdAt: string } };
+
+export type ResendAccountSetupMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type ResendAccountSetupMutation = { resendAccountSetup: boolean };
+
+export type SetAccountDisabledMutationVariables = Exact<{
+  id: string | number;
+  disabled: boolean;
+}>;
+
+
+export type SetAccountDisabledMutation = { setAccountDisabled: { id: string, username: string, email: string, role: string, disabled: boolean, passwordPending: boolean, createdAt: string } };
+
+export type DeleteAccountMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteAccountMutation = { deleteAccount: boolean };
+
 export type AlarmFieldsFragment = { id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string };
 
 export type AlarmsQueryVariables = Exact<{ [key: string]: never; }>;
@@ -1370,12 +1411,12 @@ export type MarkAlarmFiredMutationVariables = Exact<{
 
 export type MarkAlarmFiredMutation = { markAlarmFired: boolean };
 
-export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null };
+export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, role: string };
 
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MeQuery = { me: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } | null };
+export type MeQuery = { me: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, role: string } | null };
 
 export type LoginMutationVariables = Exact<{
   identifier: string;
@@ -1383,7 +1424,7 @@ export type LoginMutationVariables = Exact<{
 }>;
 
 
-export type LoginMutation = { login: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type LoginMutation = { login: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, role: string } };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never; }>;
 
@@ -1404,6 +1445,14 @@ export type ResetPasswordMutationVariables = Exact<{
 
 
 export type ResetPasswordMutation = { resetPassword: boolean };
+
+export type SetUpAccountMutationVariables = Exact<{
+  token: string;
+  password: string;
+}>;
+
+
+export type SetUpAccountMutation = { setUpAccount: boolean };
 
 export type ConfirmEmailChangeMutationVariables = Exact<{
   token: string;
@@ -1426,7 +1475,7 @@ export type ChangeUsernameMutationVariables = Exact<{
 }>;
 
 
-export type ChangeUsernameMutation = { changeUsername: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type ChangeUsernameMutation = { changeUsername: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, role: string } };
 
 export type RequestEmailChangeMutationVariables = Exact<{
   currentPassword: string;
@@ -1434,12 +1483,12 @@ export type RequestEmailChangeMutationVariables = Exact<{
 }>;
 
 
-export type RequestEmailChangeMutation = { requestEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type RequestEmailChangeMutation = { requestEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, role: string } };
 
 export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, role: string } };
 
 export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, title: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, contributorIds: Array<string>, relationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, postponedFrom: { eventId: string, date: string | null, title: string } | null, postponedTo: Array<{ eventId: string, title: string, startDate: string, startTime: string | null }> };
 
@@ -3592,6 +3641,17 @@ export const ImportedDocumentFieldsFragmentDoc = new TypedDocumentString(`
   sentVia
 }
     `, {"fragmentName":"ImportedDocumentFields"}) as unknown as TypedDocumentString<ImportedDocumentFieldsFragment, unknown>;
+export const ManagedAccountFragmentDoc = new TypedDocumentString(`
+    fragment ManagedAccount on User {
+  id
+  username
+  email
+  role
+  disabled
+  passwordPending
+  createdAt
+}
+    `, {"fragmentName":"ManagedAccount"}) as unknown as TypedDocumentString<ManagedAccountFragment, unknown>;
 export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
     fragment AlarmFields on Alarm {
   id
@@ -3619,6 +3679,7 @@ export const AccountUserFragmentDoc = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  role
 }
     `, {"fragmentName":"AccountUser"}) as unknown as TypedDocumentString<AccountUserFragment, unknown>;
 export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(`
@@ -4702,6 +4763,61 @@ export const RecordDocumentPaymentDocument = new TypedDocumentString(`
   recordDocumentPayment(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<RecordDocumentPaymentMutation, RecordDocumentPaymentMutationVariables>;
+export const AccountsDocument = new TypedDocumentString(`
+    query Accounts {
+  accounts {
+    ...ManagedAccount
+  }
+}
+    fragment ManagedAccount on User {
+  id
+  username
+  email
+  role
+  disabled
+  passwordPending
+  createdAt
+}`) as unknown as TypedDocumentString<AccountsQuery, AccountsQueryVariables>;
+export const CreateAccountDocument = new TypedDocumentString(`
+    mutation CreateAccount($input: AccountInput!) {
+  createAccount(input: $input) {
+    ...ManagedAccount
+  }
+}
+    fragment ManagedAccount on User {
+  id
+  username
+  email
+  role
+  disabled
+  passwordPending
+  createdAt
+}`) as unknown as TypedDocumentString<CreateAccountMutation, CreateAccountMutationVariables>;
+export const ResendAccountSetupDocument = new TypedDocumentString(`
+    mutation ResendAccountSetup($id: ID!) {
+  resendAccountSetup(id: $id)
+}
+    `) as unknown as TypedDocumentString<ResendAccountSetupMutation, ResendAccountSetupMutationVariables>;
+export const SetAccountDisabledDocument = new TypedDocumentString(`
+    mutation SetAccountDisabled($id: ID!, $disabled: Boolean!) {
+  setAccountDisabled(id: $id, disabled: $disabled) {
+    ...ManagedAccount
+  }
+}
+    fragment ManagedAccount on User {
+  id
+  username
+  email
+  role
+  disabled
+  passwordPending
+  createdAt
+}`) as unknown as TypedDocumentString<SetAccountDisabledMutation, SetAccountDisabledMutationVariables>;
+export const DeleteAccountDocument = new TypedDocumentString(`
+    mutation DeleteAccount($id: ID!) {
+  deleteAccount(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteAccountMutation, DeleteAccountMutationVariables>;
 export const AlarmsDocument = new TypedDocumentString(`
     query Alarms {
   alarms {
@@ -4762,6 +4878,7 @@ export const MeDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  role
 }`) as unknown as TypedDocumentString<MeQuery, MeQueryVariables>;
 export const LoginDocument = new TypedDocumentString(`
     mutation Login($identifier: String!, $password: String!) {
@@ -4775,6 +4892,7 @@ export const LoginDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  role
 }`) as unknown as TypedDocumentString<LoginMutation, LoginMutationVariables>;
 export const LogoutDocument = new TypedDocumentString(`
     mutation Logout {
@@ -4791,6 +4909,11 @@ export const ResetPasswordDocument = new TypedDocumentString(`
   resetPassword(token: $token, password: $password)
 }
     `) as unknown as TypedDocumentString<ResetPasswordMutation, ResetPasswordMutationVariables>;
+export const SetUpAccountDocument = new TypedDocumentString(`
+    mutation SetUpAccount($token: String!, $password: String!) {
+  setUpAccount(token: $token, password: $password)
+}
+    `) as unknown as TypedDocumentString<SetUpAccountMutation, SetUpAccountMutationVariables>;
 export const ConfirmEmailChangeDocument = new TypedDocumentString(`
     mutation ConfirmEmailChange($token: String!) {
   confirmEmailChange(token: $token)
@@ -4813,6 +4936,7 @@ export const ChangeUsernameDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  role
 }`) as unknown as TypedDocumentString<ChangeUsernameMutation, ChangeUsernameMutationVariables>;
 export const RequestEmailChangeDocument = new TypedDocumentString(`
     mutation RequestEmailChange($currentPassword: String!, $email: String!) {
@@ -4826,6 +4950,7 @@ export const RequestEmailChangeDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  role
 }`) as unknown as TypedDocumentString<RequestEmailChangeMutation, RequestEmailChangeMutationVariables>;
 export const CancelEmailChangeDocument = new TypedDocumentString(`
     mutation CancelEmailChange {
@@ -4839,6 +4964,7 @@ export const CancelEmailChangeDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  role
 }`) as unknown as TypedDocumentString<CancelEmailChangeMutation, CancelEmailChangeMutationVariables>;
 export const WorkSchedulesDocument = new TypedDocumentString(`
     query WorkSchedules {

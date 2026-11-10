@@ -15,6 +15,7 @@ import { ConfirmEmailPage } from './features/auth/pages/ConfirmEmailPage';
 import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
 import { LoginPage } from './features/auth/pages/LoginPage';
 import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage';
+import { SetupAccountPage } from './features/auth/pages/SetupAccountPage';
 import { ClientPage } from './features/workspace/pages/ClientPage';
 import { ProjectPage } from './features/workspace/pages/ProjectPage';
 import { SettingsPage } from './features/workspace/pages/SettingsPage';
@@ -92,6 +93,7 @@ export const router = createBrowserRouter([
       },
       // Reachable whether logged in or not: these pages come from email links.
       { path: 'reset-password', element: <ResetPasswordPage /> },
+      { path: 'setup-account', element: <SetupAccountPage /> },
       { path: 'confirm-email', element: <ConfirmEmailPage /> },
     ],
   },

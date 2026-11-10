@@ -2,7 +2,7 @@ import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../db';
 import type { Calendar, WorkspaceKind } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
-import { currentWorkspaceId } from '../workspace-context';
+import { currentOwnerId, currentWorkspaceId } from '../workspace-context';
 import { moveInOrder } from './ordering';
 
 /** Color of the calendar a workspace starts with. */
@@ -16,7 +16,7 @@ export interface CalendarSubscriptionView {
   calendarId: string;
   name: string;
   color: string;
-  workspace: { id: string; name: string; kind: WorkspaceKind };
+  workspace: { id: string; name: string; kind: WorkspaceKind; ownerId: string | null };
 }
 
 /** Calendar of another workspace this one can subscribe to. */
@@ -117,8 +117,10 @@ export async function deleteCalendar(id: string): Promise<void> {
  */
 export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
   const subscriptions = await prisma.calendarSubscription.findMany({
+    // Only the workspaces of the same account.
+    where: { calendar: { workspace: { ownerId: currentOwnerId() } } },
     orderBy: [...byOrder],
-    include: { calendar: { include: { workspace: { select: { id: true, name: true, kind: true } } } } },
+    include: { calendar: { include: { workspace: { select: { id: true, name: true, kind: true, ownerId: true } } } } },
   });
   return subscriptions.map(({ id, calendar }) => ({ id, calendarId: calendar.id, name: calendar.name, color: calendar.color, workspace: calendar.workspace }));
 }
@@ -130,7 +132,7 @@ export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
 export async function subscribableCalendars(): Promise<SubscribableCalendar[]> {
   const subscribed = new Set((await prisma.calendarSubscription.findMany({ select: { calendarId: true } })).map((item) => item.calendarId));
   const calendars = await unscopedPrisma.calendar.findMany({
-    where: { workspaceId: { not: currentWorkspaceId() } },
+    where: { workspaceId: { not: currentWorkspaceId() }, workspace: { ownerId: currentOwnerId() } },
     include: { workspace: { select: { id: true, name: true, kind: true, position: true, createdAt: true } } },
   });
   return calendars
@@ -147,8 +149,9 @@ export async function subscribableCalendars(): Promise<SubscribableCalendar[]> {
  * @returns {Promise<void>}
  */
 export async function subscribe(calendarId: string): Promise<void> {
-  const calendar = await unscopedPrisma.calendar.findUnique({ where: { id: calendarId }, select: { workspaceId: true } });
-  if (!calendar) throw notFound('Calendrier');
+  const calendar = await unscopedPrisma.calendar.findUnique({ where: { id: calendarId }, select: { workspaceId: true, workspace: { select: { ownerId: true } } } });
+  // A calendar of another account is not offered: it does not exist for this one.
+  if (!calendar || calendar.workspace.ownerId !== currentOwnerId()) throw notFound('Calendrier');
   if (calendar.workspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ce calendrier appartient déjà à cet espace.');
   if (await prisma.calendarSubscription.findFirst({ where: { calendarId }, select: { id: true } })) return;
   const { _max } = await prisma.calendarSubscription.aggregate({ _max: { position: true } });

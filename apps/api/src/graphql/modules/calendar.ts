@@ -26,7 +26,7 @@ builder.prismaObject('Calendar', {
   }),
 });
 
-const CalendarWorkspace = builder.objectRef<calendars.CalendarSubscriptionView['workspace']>('CalendarWorkspace').implement({
+const CalendarWorkspace = builder.objectRef<Pick<calendars.CalendarSubscriptionView['workspace'], 'id' | 'name' | 'kind'>>('CalendarWorkspace').implement({
   description: 'Workspace a calendar belongs to.',
   fields: (t) => ({ id: t.exposeID('id'), name: t.exposeString('name'), kind: t.exposeString('kind') }),
 });

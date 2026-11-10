@@ -73,10 +73,10 @@ async function verifyCurrentPassword(session: SessionInfo, currentPassword: stri
 /**
  * Finds a valid (unexpired) email token.
  * @param {string} token Token from the link.
- * @param {'PASSWORD_RESET' | 'EMAIL_CHANGE'} type Expected token type.
+ * @param {'PASSWORD_RESET' | 'EMAIL_CHANGE' | 'ACCOUNT_SETUP'} type Expected token type.
  * @returns {Promise<object>} Token with its user.
  */
-async function findValidToken(token: string, type: 'PASSWORD_RESET' | 'EMAIL_CHANGE') {
+async function findValidToken(token: string, type: 'PASSWORD_RESET' | 'EMAIL_CHANGE' | 'ACCOUNT_SETUP') {
   const authToken = await prisma.authToken.findUnique({
     where: { tokenHash: hashToken(token) },
     include: { user: true },
@@ -114,6 +114,8 @@ export async function login(
   if (!(await verifyPassword(user?.passwordHash ?? null, password)) || !user) {
     throw clientError('INVALID_CREDENTIALS', 'Identifiant ou mot de passe incorrect.');
   }
+  // Told only once the password is right: the account cannot be probed.
+  if (user.disabledAt) throw clientError('FORBIDDEN', 'Ce compte est désactivé.');
 
   await reset(loginLimiter, `ip:${ip}`, `id:${identifier}`);
   await purgeExpiredSessions();
@@ -144,7 +146,8 @@ export async function requestPasswordReset(req: Request, rawIdentifier: string):
   const user = await prisma.user.findUnique({
     where: identifier.includes('@') ? { email: identifier } : { username: identifier },
   });
-  if (!user) return;
+  // A disabled account gets no link.
+  if (!user || user.disabledAt) return;
 
   const { token, tokenHash } = generateToken();
   await prisma.$transaction([
@@ -176,11 +179,28 @@ export async function resetPassword(token: string, password: string): Promise<vo
   parseInput(z.object({ password: strongPasswordSchema([user.username, user.email]) }), { password });
 
   await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } }),
-    prisma.authToken.deleteMany({ where: { userId: user.id, type: 'PASSWORD_RESET' } }),
+    prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), passwordPending: false } }),
+    prisma.authToken.deleteMany({ where: { userId: user.id, type: { in: ['PASSWORD_RESET', 'ACCOUNT_SETUP'] } } }),
     prisma.session.deleteMany({ where: { userId: user.id } }),
   ]);
   sendInBackground(passwordChangedNoticeMail(user.email));
+}
+
+/**
+ * Chooses the password of a new account from the link sent at its creation: the account can then log in.
+ * @param {string} token Token from the link.
+ * @param {string} password Password.
+ * @returns {Promise<void>}
+ */
+export async function setUpAccount(token: string, password: string): Promise<void> {
+  const authToken = await findValidToken(token, 'ACCOUNT_SETUP');
+  const { user } = authToken;
+  if (user.disabledAt) throw clientError('INVALID_TOKEN', INVALID_TOKEN_MESSAGE);
+  parseInput(z.object({ password: strongPasswordSchema([user.username, user.email]) }), { password });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), passwordPending: false } }),
+    prisma.authToken.deleteMany({ where: { userId: user.id, type: { in: ['ACCOUNT_SETUP', 'PASSWORD_RESET'] } } }),
+  ]);
 }
 
 /**

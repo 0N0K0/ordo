@@ -1,3 +1,8 @@
+input AccountInput {
+  email: String!
+  username: String!
+}
+
 type AccountingAttachment {
   id: ID!
   name: String!
@@ -1346,6 +1351,11 @@ type Mutation {
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
+
+  """
+  Creates an account (admin only): its owner receives by email a link to choose the password.
+  """
+  createAccount(input: AccountInput!): User!
   createAccountingDocument(input: AccountingDocumentInput!, type: AccountingDocumentType!): ID!
   createAlarm(input: AlarmInput!): Alarm!
   createCalendar(input: CalendarInput!): Calendar!
@@ -1394,6 +1404,11 @@ type Mutation {
   createTreasuryPaymentMethod(input: TreasuryPaymentMethodInput!): ID!
   createWorkSchedule(input: WorkScheduleInput!): ID!
   createWorkspace(input: WorkspaceInput!): Workspace!
+
+  """
+  Deletes an account with its workspaces and everything in them (admin only).
+  """
+  deleteAccount(id: ID!): Boolean!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
 
@@ -1613,6 +1628,11 @@ type Mutation {
 
   """Always returns true, whether or not the account exists."""
   requestPasswordReset(identifier: String!): Boolean!
+
+  """
+  Sends again the link of an account waiting for its password (admin only).
+  """
+  resendAccountSetup(id: ID!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
   saveDefaultScheduleKind(input: DefaultScheduleKindInput!): DefaultScheduleKind!
 
@@ -1653,6 +1673,11 @@ type Mutation {
 
   """Sends a scheduled (or failed) mail now."""
   sendScheduledMail(id: ID!): Boolean!
+
+  """
+  Disables an account (logged out, cannot log in) or enables it again (admin only).
+  """
+  setAccountDisabled(disabled: Boolean!, id: ID!): User!
 
   """
   Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.
@@ -1723,6 +1748,11 @@ type Mutation {
   """
   setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
   setTimerPaused(paused: Boolean!): TimeEntry!
+
+  """
+  Chooses the password of a new account from the link sent at its creation.
+  """
+  setUpAccount(password: String!, token: String!): Boolean!
 
   """
   Chooses the notifications a workspace still gives while another one is open.
@@ -1949,6 +1979,9 @@ type Query {
   Documents (recurring models excluded), latest first, optionally of a client or a project.
   """
   accountingDocuments(clientId: ID, projectId: ID): [AccountingDocument!]!
+
+  """Every account (admin only)."""
+  accounts: [User!]!
   alarms: [Alarm!]!
   calendarCategories: [CalendarCategory!]!
 
@@ -3089,9 +3122,19 @@ input TreasuryStatementRowInput {
 type User {
   """Contributor profile ("Moi") in the current workspace."""
   contributorId: ID
+  createdAt: DateTime!
+
+  """Disabled: it cannot log in."""
+  disabled: Boolean!
   email: String!
   id: ID!
+
+  """Created by the admin, waiting for its owner to choose a password."""
+  passwordPending: Boolean!
   pendingEmail: String
+
+  """ADMIN (the one account managing the others) or MEMBER."""
+  role: String!
   username: String!
 }
 

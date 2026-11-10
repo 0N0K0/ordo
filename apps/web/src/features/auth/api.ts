@@ -12,6 +12,7 @@ graphql(`
     email
     pendingEmail
     contributorId
+    role
   }
 `);
 
@@ -46,6 +47,12 @@ const RequestPasswordResetMutation = graphql(`
 const ResetPasswordMutation = graphql(`
   mutation ResetPassword($token: String!, $password: String!) {
     resetPassword(token: $token, password: $password)
+  }
+`);
+
+const SetUpAccountMutation = graphql(`
+  mutation SetUpAccount($token: String!, $password: String!) {
+    setUpAccount(token: $token, password: $password)
   }
 `);
 
@@ -161,6 +168,24 @@ export function useResetPassword() {
     // Every session is closed by the server.
     onSuccess: () => setMe(null),
   });
+}
+
+/**
+ * Chooses the password of a new account from the link sent at its creation.
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useSetUpAccount() {
+  return useMutation({
+    mutationFn: async (variables: { token: string; password: string }) => (await execute(SetUpAccountMutation, variables)).setUpAccount,
+  });
+}
+
+/**
+ * Whether the logged-in account is the admin: she alone manages the accounts and has professional workspaces.
+ * @returns {boolean} Admin.
+ */
+export function useIsAdmin(): boolean {
+  return useMe().data?.role === 'ADMIN';
 }
 
 /**

@@ -2,6 +2,7 @@ import { builder } from './builder';
 import './modules/health';
 import './modules/user';
 import './modules/auth';
+import './modules/accounts';
 import './modules/workspace';
 import './modules/workspaces';
 import './modules/tasks';
