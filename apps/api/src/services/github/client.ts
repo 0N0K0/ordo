@@ -43,11 +43,15 @@ export async function githubRequest<T>(token: string, query: string, variables: 
 }
 
 /**
- * Token of the app, or throws when GitHub is not connected.
+ * Token of the app, or throws when GitHub is not connected or the token cannot be decrypted.
  * @returns {Promise<string>} Token.
  */
 export async function githubToken(): Promise<string> {
   const connection = await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } });
   if (!connection) throw clientError('BAD_USER_INPUT', 'Connectez d’abord GitHub (Paramètres › GitHub).');
-  return decryptSecret(connection.token);
+  try {
+    return decryptSecret(connection.token);
+  } catch {
+    throw clientError('BAD_USER_INPUT', 'Jeton GitHub illisible (MAIL_ENCRYPTION_KEY changée) : enregistrez-le à nouveau dans Paramètres › GitHub.');
+  }
 }

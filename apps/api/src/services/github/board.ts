@@ -1,3 +1,4 @@
+import { env } from '../../env';
 import { clientError } from '../../graphql/errors';
 import { githubRequest } from './client';
 
@@ -9,6 +10,13 @@ export interface BoardField {
   options: { id: string; name: string }[];
   /** Iterations (current and coming, then completed). */
   iterations: { id: string; title: string; startDate: string; duration: number }[];
+  /** Default duration of the iterations, in days (iteration fields only). */
+  iterationDuration: number | null;
+  /**
+   * Issue field of the organization the board shows, or null: its values belong to the issues (none on a draft),
+   * its options are the issue field's, and it is written with updateIssueFieldValue.
+   */
+  issueFieldId: string | null;
 }
 
 export interface Board {
@@ -16,6 +24,8 @@ export interface Board {
   title: string;
   url: string;
   fields: BoardField[];
+  /** Issue types of the organization owning the board (none for a user's board). */
+  issueTypes: { id: string; name: string }[];
 }
 
 /** Value of a field of an item. */
@@ -49,33 +59,45 @@ export interface RemoteItem {
   labels: { id: string; name: string }[];
   repositoryId: string | null;
   parentId: string | null;
+  /** Issues only: issue type, milestone, blocking issues and related issues (node ids). */
+  issueTypeId: string | null;
+  milestone: { id: string; title: string } | null;
+  blockedBy: string[];
+  relatesTo: string[];
   comments: RemoteComment[];
   /** Latest change of the item or its content. */
   updatedAt: string;
   fields: Record<string, FieldValue>;
 }
 
+const ISSUE_FIELD_SELECTION = 'issueField { __typename ... on IssueFieldSingleSelect { id options { id name } } ... on IssueFieldDate { id } ... on IssueFieldNumber { id } ... on IssueFieldText { id } }';
+
 const FIELD_SELECTION = `
   fields(first: 50) {
     nodes {
       __typename
-      ... on ProjectV2FieldCommon { id name dataType }
-      ... on ProjectV2SingleSelectField { options { id name } }
+      ... on ProjectV2FieldCommon { id name dataType isIssueField }
+      ... on ProjectV2Field { ${ISSUE_FIELD_SELECTION} }
+      ... on ProjectV2SingleSelectField { options { id name } ${ISSUE_FIELD_SELECTION} }
       ... on ProjectV2IterationField {
         configuration {
+          duration
           iterations { id title startDate duration }
           completedIterations { id title startDate duration }
         }
       }
     }
-  }`;
+  }
+  owner { __typename ... on Organization { issueTypes(first: 50) { nodes { id name isEnabled } } } }`;
 
 interface RawField {
   id?: string;
   name?: string;
   dataType?: string;
   options?: { id: string; name: string }[];
-  configuration?: { iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] };
+  configuration?: { duration: number; iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] };
+  isIssueField?: boolean;
+  issueField?: { id?: string; options?: { id: string; name: string }[] } | null;
 }
 
 interface RawBoard {
@@ -83,6 +105,7 @@ interface RawBoard {
   title: string;
   url: string;
   fields: { nodes: RawField[] };
+  owner?: { issueTypes?: { nodes: { id: string; name: string; isEnabled: boolean }[] } };
 }
 
 /**
@@ -101,9 +124,13 @@ function toBoard(raw: RawBoard): Board {
         id: field.id!,
         name: field.name ?? '',
         dataType: field.dataType ?? '',
-        options: field.options ?? [],
+        // The options of an issue field are the issue field's (its values are written with their ids).
+        options: (field.isIssueField ? field.issueField?.options : undefined) ?? field.options ?? [],
         iterations: [...(field.configuration?.iterations ?? []), ...(field.configuration?.completedIterations ?? [])],
+        iterationDuration: field.configuration?.duration ?? null,
+        issueFieldId: (field.isIssueField && field.issueField?.id) || null,
       })),
+    issueTypes: (raw.owner?.issueTypes?.nodes ?? []).filter((type) => type.isEnabled).map(({ id, name }) => ({ id, name })),
   };
 }
 
@@ -165,18 +192,26 @@ interface RawItem {
     labels?: { nodes: { id: string; name: string }[] };
     repository?: { id: string };
     parent?: { id: string } | null;
+    issueType?: { id: string } | null;
+    milestone?: { id: string; title: string } | null;
+    blockedBy?: { nodes: { id: string }[] };
+    relatesTo?: { nodes: { id: string }[] };
+    issueFieldValues?: { nodes: { __typename: string; name?: string; dateValue?: string; numberValue?: number; field?: { id?: string } | null }[] } | null;
     comments?: { nodes: { id: string; body: string; createdAt: string; updatedAt: string; author: { login: string } | null }[] };
   } | null;
   fieldValues: { nodes: (FieldValue & { field?: { id?: string } })[] };
 }
 
 /**
- * Issues and draft issues of a board (pull requests and archived items left out).
+ * Issues and draft issues of a board (pull requests and archived items left out). The values of the issue fields
+ * the board shows are read on the issues and kept under the board field.
  * @param {string} token Token.
- * @param {string} id Board node id.
+ * @param {Board} board Board, with its fields.
  * @returns {Promise<RemoteItem[]>} Items.
  */
-export async function boardItems(token: string, id: string): Promise<RemoteItem[]> {
+export async function boardItems(token: string, board: Board): Promise<RemoteItem[]> {
+  const id = board.id;
+  const issueFields = new Map(board.fields.filter((field) => field.issueFieldId).map((field) => [field.issueFieldId!, field]));
   const items: RemoteItem[] = [];
   let cursor: string | null = null;
   do {
@@ -197,6 +232,18 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
                     labels(first: 50) { nodes { id name } }
                     repository { id }
                     parent { id }
+                    issueType { id }
+                    milestone { id title }
+                    blockedBy(first: 50) { nodes { id } }
+                    relatesTo(first: 50) { nodes { id } }
+                    issueFieldValues(first: 30) {
+                      nodes {
+                        __typename
+                        ... on IssueFieldSingleSelectValue { name field { ... on IssueFieldSingleSelect { id } } }
+                        ... on IssueFieldDateValue { dateValue: value field { ... on IssueFieldDate { id } } }
+                        ... on IssueFieldNumberValue { numberValue: value field { ... on IssueFieldNumber { id } } }
+                      }
+                    }
                     comments(first: 100) { nodes { id body createdAt updatedAt author { login } } }
                   }
                   ... on DraftIssue { id title body updatedAt assignees(first: 20) { nodes { login } } }
@@ -227,6 +274,17 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
         const { field: _field, ...rest } = value; // eslint-disable-line @typescript-eslint/no-unused-vars
         fields[fieldId] = rest;
       }
+      // Issue fields: their values are the issue's (an option by its name, among the issue field's options).
+      for (const field of issueFields.values()) delete fields[field.id];
+      for (const value of content.issueFieldValues?.nodes ?? []) {
+        const field = value.field?.id ? issueFields.get(value.field.id) : undefined;
+        if (!field) continue;
+        if (value.__typename === 'IssueFieldSingleSelectValue') {
+          const optionId = field.options.find((option) => option.name === value.name)?.id;
+          if (optionId) fields[field.id] = { optionId };
+        } else if (value.__typename === 'IssueFieldDateValue' && value.dateValue) fields[field.id] = { date: value.dateValue.slice(0, 10) };
+        else if (value.__typename === 'IssueFieldNumberValue' && value.numberValue !== undefined) fields[field.id] = { number: value.numberValue };
+      }
       const updates = [item.updatedAt, content.updatedAt].filter((date): date is string => Boolean(date)).sort();
       items.push({
         itemId: item.id,
@@ -241,6 +299,10 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
         labels: content.labels?.nodes ?? [],
         repositoryId: content.repository?.id ?? null,
         parentId: content.parent?.id ?? null,
+        issueTypeId: content.issueType?.id ?? null,
+        milestone: content.milestone ?? null,
+        blockedBy: (content.blockedBy?.nodes ?? []).map((issue) => issue.id),
+        relatesTo: (content.relatesTo?.nodes ?? []).map((issue) => issue.id),
         comments: (content.comments?.nodes ?? []).map((comment) => ({ ...comment, author: comment.author?.login ?? null })),
         updatedAt: updates[updates.length - 1],
         fields,
@@ -320,6 +382,30 @@ export async function setItemField(token: string, target: { projectId: string; i
     token,
     'mutation OrdoSetField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { clientMutationId } }',
     { ...target, value: input },
+  );
+}
+
+/**
+ * Sets (or clears, with null) the value of an issue field on an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string} issueFieldId Issue field id.
+ * @param {FieldValue | null} value Value (option of the issue field, date or number), or null to clear.
+ * @returns {Promise<void>}
+ */
+export async function setIssueFieldValue(token: string, issueId: string, issueFieldId: string, value: FieldValue | null): Promise<void> {
+  const field =
+    value === null
+      ? { fieldId: issueFieldId, delete: true }
+      : value.optionId
+        ? { fieldId: issueFieldId, singleSelectOptionId: value.optionId }
+        : value.date
+          ? { fieldId: issueFieldId, dateValue: value.date }
+          : { fieldId: issueFieldId, numberValue: value.number };
+  await githubRequest(
+    token,
+    'mutation OrdoSetIssueField($issueId: ID!, $field: IssueFieldCreateOrUpdateInput!) { updateIssueFieldValue(input: { issueId: $issueId, issueField: $field }) { clientMutationId } }',
+    { issueId, field },
   );
 }
 
@@ -544,4 +630,140 @@ export async function updateIssueComment(token: string, id: string, body: string
  */
 export async function deleteIssueComment(token: string, id: string): Promise<void> {
   await githubRequest(token, 'mutation OrdoDeleteComment($id: ID!) { deleteIssueComment(input: { id: $id }) { clientMutationId } }', { id });
+}
+
+/**
+ * Sets (or clears, with null) the issue type of an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string | null} issueTypeId Issue type, or null.
+ * @returns {Promise<void>}
+ */
+export async function setIssueType(token: string, issueId: string, issueTypeId: string | null): Promise<void> {
+  await githubRequest(
+    token,
+    'mutation OrdoSetIssueType($issueId: ID!, $issueTypeId: ID) { updateIssueIssueType(input: { issueId: $issueId, issueTypeId: $issueTypeId }) { clientMutationId } }',
+    { issueId, issueTypeId },
+  );
+}
+
+/**
+ * Sets (or clears, with null) the milestone of an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string | null} milestoneId Milestone node id, or null.
+ * @returns {Promise<void>}
+ */
+export async function setIssueMilestone(token: string, issueId: string, milestoneId: string | null): Promise<void> {
+  await githubRequest(token, 'mutation OrdoSetMilestone($id: ID!, $milestoneId: ID) { updateIssue(input: { id: $id, milestoneId: $milestoneId }) { clientMutationId } }', {
+    id: issueId,
+    milestoneId,
+  });
+}
+
+/**
+ * Milestones of a repository (open and closed), with its "owner/name".
+ * @param {string} token Token.
+ * @param {string} repositoryId Repository node id.
+ * @returns {Promise<{ nameWithOwner: string, milestones: { id: string, title: string }[] }>} Repository milestones.
+ */
+export async function repositoryMilestones(token: string, repositoryId: string): Promise<{ nameWithOwner: string; milestones: { id: string; title: string }[] }> {
+  const data = await githubRequest<{ node: { nameWithOwner: string; milestones: { nodes: { id: string; title: string }[] } } | null }>(
+    token,
+    'query OrdoMilestones($id: ID!) { node(id: $id) { ... on Repository { nameWithOwner milestones(first: 100, states: [OPEN, CLOSED]) { nodes { id title } } } } }',
+    { id: repositoryId },
+  );
+  if (!data.node) throw clientError('BAD_USER_INPUT', 'Dépôt GitHub introuvable, ou le jeton n’y a plus accès.');
+  return { nameWithOwner: data.node.nameWithOwner, milestones: data.node.milestones.nodes };
+}
+
+/**
+ * Base URL of the REST API next to the GraphQL one (https://api.github.com, or <host>/api/v3 on GitHub Enterprise).
+ * @returns {string} Base URL.
+ */
+function restBase(): string {
+  const url = env.GITHUB_GRAPHQL_URL.replace(/\/+$/, '');
+  return url.endsWith('/api/graphql') ? `${url.slice(0, -'/graphql'.length)}/v3` : url.replace(/\/graphql$/, '');
+}
+
+/**
+ * Creates a milestone in a repository (the GraphQL API has no mutation for it: REST).
+ * @param {string} token Token.
+ * @param {string} nameWithOwner Repository "owner/name".
+ * @param {string} title Title.
+ * @returns {Promise<{ id: string, title: string }>} Milestone (node id).
+ */
+export async function createMilestone(token: string, nameWithOwner: string, title: string): Promise<{ id: string; title: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${restBase()}/repos/${nameWithOwner}/milestones`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'User-Agent': 'Ordo' },
+      body: JSON.stringify({ title }),
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    throw clientError('BAD_USER_INPUT', `GitHub injoignable (${error instanceof Error ? error.message : String(error)}).`);
+  }
+  const body = (await response.json().catch(() => ({}))) as { node_id?: string; title?: string; message?: string };
+  if (!response.ok || !body.node_id) throw clientError('BAD_USER_INPUT', `Jalon « ${title} » non créé sur GitHub : ${body.message ?? response.status}.`);
+  return { id: body.node_id, title: body.title ?? title };
+}
+
+/**
+ * Adds or removes a "blocked by" dependency between two issues.
+ * @param {string} token Token.
+ * @param {string} issueId Blocked issue.
+ * @param {string} blockingIssueId Blocking issue.
+ * @param {boolean} add Add (true) or remove (false).
+ * @returns {Promise<void>}
+ */
+export async function setBlockedBy(token: string, issueId: string, blockingIssueId: string, add: boolean): Promise<void> {
+  const mutation = add ? 'addBlockedBy' : 'removeBlockedBy';
+  await githubRequest(token, `mutation OrdoBlockedBy($issueId: ID!, $blockingIssueId: ID!) { ${mutation}(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) { clientMutationId } }`, {
+    issueId,
+    blockingIssueId,
+  });
+}
+
+/**
+ * Adds or removes a "relates to" relationship between two issues.
+ * @param {string} token Token.
+ * @param {string} issueId Issue.
+ * @param {string} relatedIssueId Related issue.
+ * @param {boolean} add Add (true) or remove (false).
+ * @returns {Promise<void>}
+ */
+export async function setRelatesTo(token: string, issueId: string, relatedIssueId: string, add: boolean): Promise<void> {
+  const mutation = add ? 'addRelatesTo' : 'removeRelatesTo';
+  await githubRequest(token, `mutation OrdoRelatesTo($issueId: ID!, $relatedIssueId: ID!) { ${mutation}(input: { issueId: $issueId, relatedIssueId: $relatedIssueId }) { clientMutationId } }`, {
+    issueId,
+    relatedIssueId,
+  });
+}
+
+/**
+ * Adds iterations to an iteration field. The API replaces the whole configuration: the existing iterations are
+ * sent again with their ids, so that they keep their identity (and the items their iteration).
+ * @param {string} token Token.
+ * @param {BoardField} field Iteration field, as read on the board.
+ * @param {{ title: string, startDate: string, duration: number }[]} added Iterations to add.
+ * @returns {Promise<BoardField['iterations']>} Iterations of the field once updated.
+ */
+export async function addIterations(token: string, field: BoardField, added: { title: string; startDate: string; duration: number }[]): Promise<BoardField['iterations']> {
+  const iterations = [...field.iterations.map(({ id, title, startDate, duration }) => ({ id, title, startDate, duration })), ...added];
+  const startDate = iterations.map((iteration) => iteration.startDate).sort()[0];
+  const data = await githubRequest<{
+    updateProjectV2Field: { projectV2Field: { configuration?: { iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] } } | null };
+  }>(
+    token,
+    `mutation OrdoAddIterations($fieldId: ID!, $configuration: ProjectV2IterationFieldConfigurationInput!) {
+      updateProjectV2Field(input: { fieldId: $fieldId, iterationConfiguration: $configuration }) {
+        projectV2Field { ... on ProjectV2IterationField { configuration { iterations { id title startDate duration } completedIterations { id title startDate duration } } } }
+      }
+    }`,
+    { fieldId: field.id, configuration: { duration: field.iterationDuration ?? 14, startDate, iterations } },
+  );
+  const configuration = data.updateProjectV2Field.projectV2Field?.configuration;
+  return configuration ? [...configuration.iterations, ...configuration.completedIterations] : field.iterations;
 }

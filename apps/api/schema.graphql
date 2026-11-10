@@ -853,6 +853,9 @@ input GeoPointInput {
 type GithubBoard {
   fields: [GithubBoardField!]!
   id: ID!
+
+  """Issue types of the organization owning the board."""
+  issueTypes: [GithubBoardOption!]!
   title: String!
   url: String!
 }
@@ -861,6 +864,11 @@ type GithubBoardField {
   """SINGLE_SELECT, ITERATION, DATE, NUMBER, TEXT…"""
   dataType: String!
   id: ID!
+
+  """
+  Issue field of the organization: values on the issues only (none on drafts).
+  """
+  issueField: Boolean!
   iterationCount: Int!
   name: String!
   options: [GithubBoardOption!]!
@@ -878,6 +886,7 @@ type GithubContributor {
 }
 
 input GithubLinkInput {
+  deadlineFieldId: String
   effortFieldId: String
   enabled: Boolean!
   endFieldId: String
@@ -895,10 +904,25 @@ input GithubLinkInput {
 
   """{ [ordoStatusId]: optionId }"""
   statusOptions: JSON!
+  syncAssignees: Boolean!
+  syncLabels: Boolean!
+
+  """Number field receiving the tracked time, in hours (Ordo → GitHub)."""
+  timeSpentFieldId: String
+  typeFieldId: String
+
+  """{ [ordoTypeId]: optionId or issue type id }"""
+  typeOptions: JSON!
+
+  """
+  FIELD (typeFieldId), ISSUE_TYPE (issue types of the organization), or null.
+  """
+  typeSource: String
   url: String!
 }
 
 type GithubProjectLink {
+  deadlineFieldId: String
   effortFieldId: String
   enabled: Boolean!
   endFieldId: String
@@ -916,7 +940,15 @@ type GithubProjectLink {
   startFieldId: String
   statusFieldId: String
   statusOptions: JSON!
+  syncAssignees: Boolean!
+  syncLabels: Boolean!
+  timeSpentFieldId: String
   title: String!
+  typeFieldId: String
+  typeOptions: JSON!
+
+  """FIELD, ISSUE_TYPE, or null."""
+  typeSource: String
   url: String!
 }
 
@@ -926,6 +958,7 @@ type GithubSyncSummary {
   pulledNew: Int!
   pushed: Int!
   pushedNew: Int!
+  renumbered: Int!
   sprints: Int!
   unlinked: Int!
 }
