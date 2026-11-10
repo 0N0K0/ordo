@@ -85,6 +85,12 @@
     background-color: var(--mantine-color-default-hover) !important;
   }
 
+  /* Latest acceptable date of a task, on its own day: a dotted line in the color of the project (red once overdue). */
+  .deadline {
+    /* Bordures */
+    border-style: dotted !important;
+  }
+
   .closed {
     /* Effets */
     opacity: 0.55;

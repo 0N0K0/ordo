@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { localToday } from '../../lib/dates';
+import { taskPlacement, type TaskSpanKind } from './task-calendar';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useUpdateTask } from '../tasks/api';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -378,26 +379,43 @@ export function CalendarPage() {
       }
     }
     if (filters.tasks) {
+      const today = localToday();
       for (const task of context.tasks) {
-        const start = task.startDate ?? task.endDate;
-        if (!start || task.archived || !inProjects(task.projectId)) continue;
+        if (task.archived || !inProjects(task.projectId)) continue;
         if (filters.contributorIds.length && !task.assigneeIds.some((id) => filters.contributorIds.includes(id))) continue;
         if (categoryFilter.size) continue;
-        const end = task.endDate && task.endDate >= start ? task.endDate : start;
+        // Its dates, from start to end, to today or to its latest acceptable date; that date too when apart.
+        const { span, deadline } = taskPlacement(task, today);
         const color = context.projectById.get(task.projectId)?.color ?? 'var(--mantine-color-gray-6)';
-        result.push({
-          id: `task:${task.id}`,
-          // Its number is only unique in its project: the project comes with it.
-          title: context.taskLabel(task),
-          allDay: true,
-          start,
-          end: addDays(end, 1),
-          backgroundColor: 'transparent',
-          borderColor: color,
-          textColor: 'var(--mantine-color-text)',
-          extendedProps: { kind: 'task', task },
-          classNames: [classes.task, ...(task.closed ? [classes.closed] : [])],
-        });
+        // Its number is only unique in its project: the project comes with it (without « Sans client »).
+        const label = `${context.projectLabel(task.projectId).replace(/^Sans client › /, '')} #${task.number} ${task.title}`;
+        const look = { allDay: true, backgroundColor: 'transparent', borderColor: color, textColor: 'var(--mantine-color-text)', classNames: [classes.task, ...(task.closed ? [classes.closed] : [])] };
+        if (span) {
+          result.push({
+            ...look,
+            id: `task:${task.id}`,
+            title: label,
+            start: span.start,
+            end: addDays(span.end, 1),
+            // Up to a date the task does not hold (today, its latest date): moving it moves its start only.
+            durationEditable: span.kind === 'dates',
+            extendedProps: { kind: 'task', task, part: span.kind },
+          });
+        }
+        if (deadline) {
+          const overdue = !task.closed && deadline < today;
+          result.push({
+            ...look,
+            id: `task-deadline:${task.id}`,
+            title: label,
+            start: deadline,
+            end: addDays(deadline, 1),
+            durationEditable: false,
+            borderColor: overdue ? 'var(--mantine-color-red-6)' : color,
+            classNames: [...look.classNames, classes.deadline],
+            extendedProps: { kind: 'task', task, part: 'deadline' },
+          });
+        }
       }
     }
     return result;
@@ -438,9 +456,18 @@ export function CalendarPage() {
 
     if (event.extendedProps.kind === 'task') {
       const task = event.extendedProps.task;
-      const input = task.startDate
-        ? { startDate: startParts.date, endDate: task.endDate ? endParts.date : null }
-        : { endDate: endParts.date };
+      const part: TaskSpanKind | 'deadline' = event.extendedProps.part;
+      // Its latest acceptable date, a span up to a date it does not hold (its start only), or its dates.
+      const input =
+        part === 'deadline'
+          ? { deadline: startParts.date }
+          : part === 'open' || !task.endDate
+            ? task.startDate
+              ? { startDate: startParts.date }
+              : { endDate: endParts.date }
+            : task.startDate
+              ? { startDate: startParts.date, endDate: endParts.date }
+              : { endDate: endParts.date };
       updateTask.mutate({ id: task.id, input }, { onError: (error) => (notifyError(error.message), revert()) });
       return;
     }
