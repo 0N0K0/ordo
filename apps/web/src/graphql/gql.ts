@@ -152,7 +152,7 @@ type Documents = {
     "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": typeof types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": typeof types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": typeof types.GithubContributorsDocument,
-    "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n      issueTypes {\n        id\n        name\n      }\n    }\n  }\n": typeof types.GithubBoardDocument,
+    "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        issueField\n        options {\n          id\n          name\n        }\n      }\n      issueTypes {\n        id\n        name\n      }\n    }\n  }\n": typeof types.GithubBoardDocument,
     "\n  query GithubProjectLink($projectId: ID!) {\n    githubProjectLink(projectId: $projectId) {\n      id\n      projectId\n      url\n      title\n      statusFieldId\n      priorityFieldId\n      iterationFieldId\n      startFieldId\n      endFieldId\n      effortFieldId\n      deadlineFieldId\n      timeSpentFieldId\n      typeSource\n      typeFieldId\n      statusOptions\n      priorityOptions\n      typeOptions\n      syncAssignees\n      syncLabels\n      repositoryName\n      pushExisting\n      enabled\n      lastSyncAt\n      lastSyncError\n      lastSyncSummary\n      linkedTaskCount\n    }\n  }\n": typeof types.GithubProjectLinkDocument,
     "\n  mutation SetGithubToken($token: String!) {\n    setGithubToken(token: $token)\n  }\n": typeof types.SetGithubTokenDocument,
     "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": typeof types.RemoveGithubTokenDocument,
@@ -506,7 +506,7 @@ const documents: Documents = {
     "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": types.GithubContributorsDocument,
-    "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n      issueTypes {\n        id\n        name\n      }\n    }\n  }\n": types.GithubBoardDocument,
+    "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        issueField\n        options {\n          id\n          name\n        }\n      }\n      issueTypes {\n        id\n        name\n      }\n    }\n  }\n": types.GithubBoardDocument,
     "\n  query GithubProjectLink($projectId: ID!) {\n    githubProjectLink(projectId: $projectId) {\n      id\n      projectId\n      url\n      title\n      statusFieldId\n      priorityFieldId\n      iterationFieldId\n      startFieldId\n      endFieldId\n      effortFieldId\n      deadlineFieldId\n      timeSpentFieldId\n      typeSource\n      typeFieldId\n      statusOptions\n      priorityOptions\n      typeOptions\n      syncAssignees\n      syncLabels\n      repositoryName\n      pushExisting\n      enabled\n      lastSyncAt\n      lastSyncError\n      lastSyncSummary\n      linkedTaskCount\n    }\n  }\n": types.GithubProjectLinkDocument,
     "\n  mutation SetGithubToken($token: String!) {\n    setGithubToken(token: $token)\n  }\n": types.SetGithubTokenDocument,
     "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": types.RemoveGithubTokenDocument,
@@ -1274,7 +1274,7 @@ export function graphql(source: "\n  query GithubContributors {\n    githubContr
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        options {\n          id\n          name\n        }\n      }\n      issueTypes {\n        id\n        name\n      }\n    }\n  }\n"): typeof import('./graphql').GithubBoardDocument;
+export function graphql(source: "\n  query GithubBoard($url: String!) {\n    githubBoard(url: $url) {\n      id\n      title\n      url\n      fields {\n        id\n        name\n        dataType\n        iterationCount\n        issueField\n        options {\n          id\n          name\n        }\n      }\n      issueTypes {\n        id\n        name\n      }\n    }\n  }\n"): typeof import('./graphql').GithubBoardDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -34,6 +34,7 @@ const BoardDocument = graphql(`
         name
         dataType
         iterationCount
+        issueField
         options {
           id
           name

@@ -16,6 +16,7 @@ const BoardFieldRef = builder.objectRef<BoardField>('GithubBoardField').implemen
     dataType: t.exposeString('dataType', { description: 'SINGLE_SELECT, ITERATION, DATE, NUMBER, TEXT…' }),
     options: t.field({ type: [BoardOptionRef], resolve: (field) => field.options }),
     iterationCount: t.int({ resolve: (field) => field.iterations.length }),
+    issueField: t.boolean({ description: 'Issue field of the organization: values on the issues only (none on drafts).', resolve: (field) => field.issueFieldId !== null }),
   }),
 });
 

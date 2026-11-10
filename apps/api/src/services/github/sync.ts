@@ -14,6 +14,7 @@ import {
   setBlockedBy,
   setIssueLabels,
   setIssueMilestone,
+  setIssueFieldValue,
   setIssueParent,
   setIssueType,
   setItemField,
@@ -90,6 +91,8 @@ interface Maps {
   contributorByLogin: Map<string, string>;
   /** Task id by GitHub issue or draft id. */
   taskByContent: Map<string, string>;
+  /** Issue field of each board field showing one (issues only: drafts have none). */
+  issueFields: Map<string, string>;
 }
 
 /** Content type of a task whose item was removed from the board: not sent again. */
@@ -143,6 +146,15 @@ const trackedHours = (task: SyncedTask) =>
 const syncsType = (link: GithubProjectLink, type: RemoteItem['type']) => (link.typeSource === 'FIELD' && Boolean(link.typeFieldId)) || (link.typeSource === 'ISSUE_TYPE' && type === 'ISSUE');
 
 /**
+ * Board field usable for an item: set, and not an issue field on a draft (a draft has no issue field value).
+ * @param {string | null} fieldId Board field.
+ * @param {Maps} maps Correspondences.
+ * @param {RemoteItem['type']} type Content type.
+ * @returns {boolean} Usable.
+ */
+const usable = (fieldId: string | null, maps: Maps, type: RemoteItem['type']): fieldId is string => Boolean(fieldId) && (type === 'ISSUE' || !maps.issueFields.has(fieldId!));
+
+/**
  * Synchronized values of a task.
  * @param {SyncedTask} task Task.
  * @param {GithubProjectLink} link Board link.
@@ -162,18 +174,18 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
     fields.blockedBy = issuesOf(task.blockedBy.map((block) => block.blocker));
     fields.relatesTo = issuesOf(relatedOf(task));
   }
-  if (link.statusFieldId) fields.status = task.statusId ? (maps.statusOption[task.statusId] ?? `ordo:${task.statusId}`) : null;
-  if (link.priorityFieldId) fields.priority = task.priorityId ? (maps.priorityOption[task.priorityId] ?? `ordo:${task.priorityId}`) : null;
-  if (syncsType(link, type)) fields.type = task.typeId ? (maps.typeOption[task.typeId] ?? `ordo:${task.typeId}`) : null;
+  if (usable(link.statusFieldId, maps, type)) fields.status = task.statusId ? (maps.statusOption[task.statusId] ?? `ordo:${task.statusId}`) : null;
+  if (usable(link.priorityFieldId, maps, type)) fields.priority = task.priorityId ? (maps.priorityOption[task.priorityId] ?? `ordo:${task.priorityId}`) : null;
+  if (syncsType(link, type) && (link.typeSource !== 'FIELD' || usable(link.typeFieldId, maps, type))) fields.type = task.typeId ? (maps.typeOption[task.typeId] ?? `ordo:${task.typeId}`) : null;
   if (link.iterationFieldId) {
     // A board item has one iteration: the latest sprint of the task.
     const latest = [...task.sprints].sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0];
     fields.iteration = latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
   }
-  if (link.startFieldId) fields.start = task.startDate ? task.startDate.toISOString().slice(0, 10) : null;
-  if (link.endFieldId) fields.end = task.endDate ? task.endDate.toISOString().slice(0, 10) : null;
-  if (link.deadlineFieldId) fields.deadline = task.deadline ? task.deadline.toISOString().slice(0, 10) : null;
-  if (link.effortFieldId) fields.effort = task.effort;
+  if (usable(link.startFieldId, maps, type)) fields.start = task.startDate ? task.startDate.toISOString().slice(0, 10) : null;
+  if (usable(link.endFieldId, maps, type)) fields.end = task.endDate ? task.endDate.toISOString().slice(0, 10) : null;
+  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = task.deadline ? task.deadline.toISOString().slice(0, 10) : null;
+  if (usable(link.effortFieldId, maps, type)) fields.effort = task.effort;
   return fields;
 }
 
@@ -202,17 +214,17 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
     fields.blockedBy = known(item.blockedBy);
     fields.relatesTo = known(item.relatesTo);
   }
-  if (link.statusFieldId) fields.status = option(link.statusFieldId, maps.optionStatus);
-  if (link.priorityFieldId) fields.priority = option(link.priorityFieldId, maps.optionPriority);
-  if (syncsType(link, item.type)) {
+  if (usable(link.statusFieldId, maps, item.type)) fields.status = option(link.statusFieldId, maps.optionStatus);
+  if (usable(link.priorityFieldId, maps, item.type)) fields.priority = option(link.priorityFieldId, maps.optionPriority);
+  if (syncsType(link, item.type) && (link.typeSource !== 'FIELD' || usable(link.typeFieldId, maps, item.type))) {
     if (link.typeSource === 'FIELD') fields.type = option(link.typeFieldId!, maps.optionType);
     else fields.type = item.issueTypeId ? (maps.optionType.has(item.issueTypeId) ? item.issueTypeId : `gh:${item.issueTypeId}`) : null;
   }
   if (link.iterationFieldId) fields.iteration = (fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null;
-  if (link.startFieldId) fields.start = (fieldValue(item.fields[link.startFieldId]) as string | null)?.slice(0, 10) ?? null;
-  if (link.endFieldId) fields.end = (fieldValue(item.fields[link.endFieldId]) as string | null)?.slice(0, 10) ?? null;
-  if (link.deadlineFieldId) fields.deadline = (fieldValue(item.fields[link.deadlineFieldId]) as string | null)?.slice(0, 10) ?? null;
-  if (link.effortFieldId) fields.effort = (fieldValue(item.fields[link.effortFieldId]) as number | null) ?? null;
+  if (usable(link.startFieldId, maps, item.type)) fields.start = (fieldValue(item.fields[link.startFieldId]) as string | null)?.slice(0, 10) ?? null;
+  if (usable(link.endFieldId, maps, item.type)) fields.end = (fieldValue(item.fields[link.endFieldId]) as string | null)?.slice(0, 10) ?? null;
+  if (usable(link.deadlineFieldId, maps, item.type)) fields.deadline = (fieldValue(item.fields[link.deadlineFieldId]) as string | null)?.slice(0, 10) ?? null;
+  if (usable(link.effortFieldId, maps, item.type)) fields.effort = (fieldValue(item.fields[link.effortFieldId]) as number | null) ?? null;
   return fields;
 }
 
@@ -357,6 +369,7 @@ type SentRelations = Set<string>;
  * @param {MilestoneCache} context.milestones Milestones of the repositories.
  * @param {SentRelations} context.sent Relationships already sent in this sync.
  * @param {Map<string, string>} context.taskByContent Tasks by issue: other issues are left alone.
+ * @param {Map<string, string>} context.issueFields Issue field of the board fields showing one.
  * @returns {Promise<void>}
  */
 async function pushValues(
@@ -371,6 +384,7 @@ async function pushValues(
     milestones,
     sent,
     taskByContent,
+    issueFields,
   }: {
     knownBefore: string[];
     tags: { name: string; color?: string }[];
@@ -378,6 +392,7 @@ async function pushValues(
     milestones: MilestoneCache;
     sent: SentRelations;
     taskByContent: Map<string, string>;
+    issueFields: Map<string, string>;
   },
 ): Promise<void> {
   const assignees = values.assignees as string[] | undefined;
@@ -458,7 +473,6 @@ async function pushValues(
       await send(token, item.contentId, other, add);
     }
   }
-  const target = (fieldId: string) => ({ projectId: link.githubProjectId, itemId: item.itemId, fieldId });
   const fields: [keyof SyncFields, string | null, (value: NonNullable<SyncFields[keyof SyncFields]>) => FieldValue][] = [
     ['status', link.statusFieldId, (value) => ({ optionId: String(value) })],
     ['priority', link.priorityFieldId, (value) => ({ optionId: String(value) })],
@@ -472,7 +486,7 @@ async function pushValues(
   for (const [field, fieldId, toValue] of fields) {
     if (!fieldId || !(field in values)) continue;
     const value = values[field];
-    await setItemField(token, target(fieldId), value === null || value === undefined ? null : toValue(value));
+    await writeField(token, link, item, fieldId, value === null || value === undefined ? null : toValue(value), issueFields);
   }
 }
 
@@ -570,20 +584,38 @@ async function syncIterations(board: Board, link: GithubProjectLink): Promise<nu
 }
 
 /**
+ * Writes a value in a board field of an item: the item's own value, or the issue's for an issue field (a draft
+ * has none: nothing is written).
+ * @param {string} token Token.
+ * @param {GithubProjectLink} link Board link.
+ * @param {RemoteItem} item Item.
+ * @param {string} fieldId Board field.
+ * @param {FieldValue | null} value Value, or null to clear.
+ * @param {Map<string, string>} issueFields Issue field of the board fields showing one.
+ * @returns {Promise<void>}
+ */
+async function writeField(token: string, link: GithubProjectLink, item: RemoteItem, fieldId: string, value: FieldValue | null, issueFields: Map<string, string>): Promise<void> {
+  const issueFieldId = issueFields.get(fieldId);
+  if (!issueFieldId) return setItemField(token, { projectId: link.githubProjectId, itemId: item.itemId, fieldId }, value);
+  if (item.type === 'ISSUE') await setIssueFieldValue(token, item.contentId, issueFieldId, value);
+}
+
+/**
  * Writes the tracked time of a task (hours) in the number field of the board chosen for it, when it differs.
  * Ordo → GitHub only: the time comes from the time entries.
  * @param {string} token Token.
  * @param {GithubProjectLink} link Board link.
  * @param {RemoteItem} item Item.
  * @param {SyncedTask} task Task.
+ * @param {Map<string, string>} issueFields Issue field of the board fields showing one.
  * @returns {Promise<boolean>} Written.
  */
-async function pushTrackedTime(token: string, link: GithubProjectLink, item: RemoteItem, task: SyncedTask): Promise<boolean> {
-  if (!link.timeSpentFieldId) return false;
+async function pushTrackedTime(token: string, link: GithubProjectLink, item: RemoteItem, task: SyncedTask, issueFields: Map<string, string>): Promise<boolean> {
+  if (!link.timeSpentFieldId || (item.type !== 'ISSUE' && issueFields.has(link.timeSpentFieldId))) return false;
   const hours = trackedHours(task) || null;
   const current = (fieldValue(item.fields[link.timeSpentFieldId]) as number | null) ?? null;
   if (hours === current) return false;
-  await setItemField(token, { projectId: link.githubProjectId, itemId: item.itemId, fieldId: link.timeSpentFieldId }, hours === null ? null : { number: hours });
+  await writeField(token, link, item, link.timeSpentFieldId, hours === null ? null : { number: hours }, issueFields);
   return true;
 }
 
@@ -609,7 +641,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const login = (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? '';
     const board = await boardById(token, link.githubProjectId);
     summary.sprints = await syncIterations(board, link);
-    const items = await boardItems(token, link.githubProjectId);
+    const items = await boardItems(token, board);
     const itemIds = items.map((item) => item.itemId);
     const tree = await projectTree(projectId);
 
@@ -661,6 +693,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
       iterationSprint: new Map(sprints.map((sprint) => [sprint.githubIterationId!, sprint.id])),
       contributorByLogin: new Map(contributors.map((contributor) => [contributor.githubLogin!, contributor.id])),
       taskByContent: new Map(linked.map((task) => [task.githubContentId!, task.id])),
+      issueFields: new Map(board.fields.filter((field) => field.issueFieldId).map((field) => [field.id, field.issueFieldId!])),
     };
     const labels: LabelCache = new Map();
     const milestones: MilestoneCache = new Map();
@@ -681,10 +714,11 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
           milestones,
           sent,
           taskByContent: maps.taskByContent,
+          issueFields: maps.issueFields,
         });
         summary.pushed += 1;
       }
-      if (await pushTrackedTime(token, link, item, task)) summary.pushed += Object.keys(result.push).length ? 0 : 1;
+      if (await pushTrackedTime(token, link, item, task, maps.issueFields)) summary.pushed += Object.keys(result.push).length ? 0 : 1;
       await prisma.task.update({
         where: { id: task.id },
         data: {
@@ -748,8 +782,9 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
         milestones,
         sent,
         taskByContent: maps.taskByContent,
+        issueFields: maps.issueFields,
       });
-      await pushTrackedTime(token, link, item, task);
+      await pushTrackedTime(token, link, item, task, maps.issueFields);
       // Values that could not be sent are seen as GitHub's (empty), so they are not sent again.
       const snapshot = Object.fromEntries(Object.entries(local).map(([key, value]) => [key, isUnmapped(value, 'ordo') ? null : value]));
       await prisma.task.update({

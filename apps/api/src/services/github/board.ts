@@ -10,6 +10,11 @@ export interface BoardField {
   options: { id: string; name: string }[];
   /** Iterations (current and coming, then completed). */
   iterations: { id: string; title: string; startDate: string; duration: number }[];
+  /**
+   * Issue field of the organization the board shows, or null: its values belong to the issues (none on a draft),
+   * its options are the issue field's, and it is written with updateIssueFieldValue.
+   */
+  issueFieldId: string | null;
 }
 
 export interface Board {
@@ -63,12 +68,15 @@ export interface RemoteItem {
   fields: Record<string, FieldValue>;
 }
 
+const ISSUE_FIELD_SELECTION = 'issueField { __typename ... on IssueFieldSingleSelect { id options { id name } } ... on IssueFieldDate { id } ... on IssueFieldNumber { id } ... on IssueFieldText { id } }';
+
 const FIELD_SELECTION = `
   fields(first: 50) {
     nodes {
       __typename
-      ... on ProjectV2FieldCommon { id name dataType }
-      ... on ProjectV2SingleSelectField { options { id name } }
+      ... on ProjectV2FieldCommon { id name dataType isIssueField }
+      ... on ProjectV2Field { ${ISSUE_FIELD_SELECTION} }
+      ... on ProjectV2SingleSelectField { options { id name } ${ISSUE_FIELD_SELECTION} }
       ... on ProjectV2IterationField {
         configuration {
           iterations { id title startDate duration }
@@ -85,6 +93,8 @@ interface RawField {
   dataType?: string;
   options?: { id: string; name: string }[];
   configuration?: { iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] };
+  isIssueField?: boolean;
+  issueField?: { id?: string; options?: { id: string; name: string }[] } | null;
 }
 
 interface RawBoard {
@@ -111,8 +121,10 @@ function toBoard(raw: RawBoard): Board {
         id: field.id!,
         name: field.name ?? '',
         dataType: field.dataType ?? '',
-        options: field.options ?? [],
+        // The options of an issue field are the issue field's (its values are written with their ids).
+        options: (field.isIssueField ? field.issueField?.options : undefined) ?? field.options ?? [],
         iterations: [...(field.configuration?.iterations ?? []), ...(field.configuration?.completedIterations ?? [])],
+        issueFieldId: (field.isIssueField && field.issueField?.id) || null,
       })),
     issueTypes: (raw.owner?.issueTypes?.nodes ?? []).filter((type) => type.isEnabled).map(({ id, name }) => ({ id, name })),
   };
@@ -180,18 +192,22 @@ interface RawItem {
     milestone?: { id: string; title: string } | null;
     blockedBy?: { nodes: { id: string }[] };
     relatesTo?: { nodes: { id: string }[] };
+    issueFieldValues?: { nodes: { __typename: string; name?: string; dateValue?: string; numberValue?: number; field?: { id?: string } | null }[] } | null;
     comments?: { nodes: { id: string; body: string; createdAt: string; updatedAt: string; author: { login: string } | null }[] };
   } | null;
   fieldValues: { nodes: (FieldValue & { field?: { id?: string } })[] };
 }
 
 /**
- * Issues and draft issues of a board (pull requests and archived items left out).
+ * Issues and draft issues of a board (pull requests and archived items left out). The values of the issue fields
+ * the board shows are read on the issues and kept under the board field.
  * @param {string} token Token.
- * @param {string} id Board node id.
+ * @param {Board} board Board, with its fields.
  * @returns {Promise<RemoteItem[]>} Items.
  */
-export async function boardItems(token: string, id: string): Promise<RemoteItem[]> {
+export async function boardItems(token: string, board: Board): Promise<RemoteItem[]> {
+  const id = board.id;
+  const issueFields = new Map(board.fields.filter((field) => field.issueFieldId).map((field) => [field.issueFieldId!, field]));
   const items: RemoteItem[] = [];
   let cursor: string | null = null;
   do {
@@ -216,6 +232,14 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
                     milestone { id title }
                     blockedBy(first: 50) { nodes { id } }
                     relatesTo(first: 50) { nodes { id } }
+                    issueFieldValues(first: 30) {
+                      nodes {
+                        __typename
+                        ... on IssueFieldSingleSelectValue { name field { ... on IssueFieldSingleSelect { id } } }
+                        ... on IssueFieldDateValue { dateValue: value field { ... on IssueFieldDate { id } } }
+                        ... on IssueFieldNumberValue { numberValue: value field { ... on IssueFieldNumber { id } } }
+                      }
+                    }
                     comments(first: 100) { nodes { id body createdAt updatedAt author { login } } }
                   }
                   ... on DraftIssue { id title body updatedAt assignees(first: 20) { nodes { login } } }
@@ -245,6 +269,17 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
         if (!fieldId) continue;
         const { field: _field, ...rest } = value; // eslint-disable-line @typescript-eslint/no-unused-vars
         fields[fieldId] = rest;
+      }
+      // Issue fields: their values are the issue's (an option by its name, among the issue field's options).
+      for (const field of issueFields.values()) delete fields[field.id];
+      for (const value of content.issueFieldValues?.nodes ?? []) {
+        const field = value.field?.id ? issueFields.get(value.field.id) : undefined;
+        if (!field) continue;
+        if (value.__typename === 'IssueFieldSingleSelectValue') {
+          const optionId = field.options.find((option) => option.name === value.name)?.id;
+          if (optionId) fields[field.id] = { optionId };
+        } else if (value.__typename === 'IssueFieldDateValue' && value.dateValue) fields[field.id] = { date: value.dateValue.slice(0, 10) };
+        else if (value.__typename === 'IssueFieldNumberValue' && value.numberValue !== undefined) fields[field.id] = { number: value.numberValue };
       }
       const updates = [item.updatedAt, content.updatedAt].filter((date): date is string => Boolean(date)).sort();
       items.push({
@@ -343,6 +378,30 @@ export async function setItemField(token: string, target: { projectId: string; i
     token,
     'mutation OrdoSetField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }) { clientMutationId } }',
     { ...target, value: input },
+  );
+}
+
+/**
+ * Sets (or clears, with null) the value of an issue field on an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string} issueFieldId Issue field id.
+ * @param {FieldValue | null} value Value (option of the issue field, date or number), or null to clear.
+ * @returns {Promise<void>}
+ */
+export async function setIssueFieldValue(token: string, issueId: string, issueFieldId: string, value: FieldValue | null): Promise<void> {
+  const field =
+    value === null
+      ? { fieldId: issueFieldId, delete: true }
+      : value.optionId
+        ? { fieldId: issueFieldId, singleSelectOptionId: value.optionId }
+        : value.date
+          ? { fieldId: issueFieldId, dateValue: value.date }
+          : { fieldId: issueFieldId, numberValue: value.number };
+  await githubRequest(
+    token,
+    'mutation OrdoSetIssueField($issueId: ID!, $field: IssueFieldCreateOrUpdateInput!) { updateIssueFieldValue(input: { issueId: $issueId, issueField: $field }) { clientMutationId } }',
+    { issueId, field },
   );
 }
 

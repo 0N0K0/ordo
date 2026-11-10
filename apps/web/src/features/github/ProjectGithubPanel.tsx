@@ -107,7 +107,9 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
   const { saveLink } = useGithubMutations();
   const [values, setValues] = useState<LinkValues>(initial);
   const change = (changes: Partial<LinkValues>) => setValues((current) => ({ ...current, ...changes }));
-  const fieldsOf = (type: string) => board.fields.filter((field) => field.dataType === type).map((field) => ({ value: field.id, label: field.name }));
+  // Issue fields of the organization: values on the issues only (drafts have none).
+  const fieldsOf = (type: string) =>
+    board.fields.filter((field) => field.dataType === type).map((field) => ({ value: field.id, label: field.issueField ? `${field.name} (champ d’issue)` : field.name }));
   const optionsOf = (fieldId: string | null) => board.fields.find((field) => field.id === fieldId)?.options.map((option) => ({ value: option.id, label: option.name })) ?? [];
   const typeChoices =
     values.typeSource === 'ISSUE_TYPE' ? board.issueTypes.map((type) => ({ value: type.id, label: type.name })) : values.typeSource === 'FIELD' ? optionsOf(values.typeFieldId) : [];

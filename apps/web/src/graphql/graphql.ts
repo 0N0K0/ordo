@@ -1836,7 +1836,7 @@ export type GithubBoardQueryVariables = Exact<{
 }>;
 
 
-export type GithubBoardQuery = { githubBoard: { id: string, title: string, url: string, fields: Array<{ id: string, name: string, dataType: string, iterationCount: number, options: Array<{ id: string, name: string }> }>, issueTypes: Array<{ id: string, name: string }> } };
+export type GithubBoardQuery = { githubBoard: { id: string, title: string, url: string, fields: Array<{ id: string, name: string, dataType: string, iterationCount: number, issueField: boolean, options: Array<{ id: string, name: string }> }>, issueTypes: Array<{ id: string, name: string }> } };
 
 export type GithubProjectLinkQueryVariables = Exact<{
   projectId: string | number;
@@ -5360,6 +5360,7 @@ export const GithubBoardDocument = new TypedDocumentString(`
       name
       dataType
       iterationCount
+      issueField
       options {
         id
         name

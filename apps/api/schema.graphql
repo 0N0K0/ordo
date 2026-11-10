@@ -864,6 +864,11 @@ type GithubBoardField {
   """SINGLE_SELECT, ITERATION, DATE, NUMBER, TEXT…"""
   dataType: String!
   id: ID!
+
+  """
+  Issue field of the organization: values on the issues only (none on drafts).
+  """
+  issueField: Boolean!
   iterationCount: Int!
   name: String!
   options: [GithubBoardOption!]!
