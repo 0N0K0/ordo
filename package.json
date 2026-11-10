@@ -31,6 +31,12 @@
     "apps/*",
     "packages/*"
   ],
+  "allowScripts": {
+    "@prisma/engines": true,
+    "argon2": true,
+    "esbuild": true,
+    "prisma": true
+  },
   "devDependencies": {
     "concurrently": "^10.0.6",
     "eslint": "^10.14.0",
