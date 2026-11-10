@@ -7,12 +7,17 @@ import type { TaskContext } from '../use-task-context';
 import { eventWhen } from './event-format';
 
 /**
- * Title of an event row: calendar icon, title (opens the event) and place.
+ * Title of an event row: calendar icon, title (opens the event; struck through when cancelled or postponed) and
+ * place.
  * @param {{ event: EventOccurrence, context: TaskContext }} props Occurrence and task context.
  * @returns {JSX.Element} Cell.
  */
 export function EventTitleCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
   const openEvent = useEventForm(context);
+  // Cancelled or postponed: struck through, like in the calendar.
+  const postponed = event.postponedTo.length > 0;
+  const struck = event.calledOff || postponed;
+  const reason = postponed ? `Reporté au ${event.postponedTo.map((item) => new Date(`${String(item.startDate)}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC' })).join(', ')}` : 'Annulé';
   return (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
       <Tooltip label="Évènement" withArrow>
@@ -25,11 +30,13 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
           <ArrowsClockwiseIcon aria-label="Récurrent" className={classes.recurring} />
         </Tooltip>
       )}
-      <UnstyledButton onClick={() => openEvent({ occurrence: event })} style={{ minWidth: 0 }}>
-        <Text size="sm" fw={500} truncate>
-          {event.title}
-        </Text>
-      </UnstyledButton>
+      <Tooltip label={reason} disabled={!struck}>
+        <UnstyledButton onClick={() => openEvent({ occurrence: event })} style={{ minWidth: 0 }}>
+          <Text size="sm" fw={500} truncate td={struck ? 'line-through' : undefined} c={struck ? 'dimmed' : undefined}>
+            {event.title}
+          </Text>
+        </UnstyledButton>
+      </Tooltip>
       {event.location && (
         <Text size="xs" c="dimmed" truncate style={{ flex: 'none', maxWidth: '40%' }}>
           {event.location}
