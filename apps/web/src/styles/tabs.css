@@ -1,0 +1,48 @@
+@layer app {
+  /*
+   * Horizontal tabs stay on one line and scroll sideways when the window is too narrow for them (Mantine wraps them
+   * onto several lines). Vertical tabs are left alone. In a flex row (a toolbar…), the tabs may shrink below the
+   * width of their tabs, which then scroll.
+   */
+  .mantine-Tabs-root[data-orientation='horizontal'] {
+    /* Dimension */
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mantine-Tabs-list[data-orientation='horizontal'] {
+    /* Agencement */
+    flex-wrap: nowrap;
+
+    /* Dimension */
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    /*
+     * Effets: the line under the tabs (above them when inverted) is drawn by the list itself: Mantine's pseudo-element
+     * would only span the part shown before scrolling.
+     */
+    box-shadow: inset 0 calc(var(--tabs-list-border-width) * -1) 0 var(--tab-border-color);
+
+    /* Interaction */
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+
+    &[data-inverted] {
+      /* Effets */
+      box-shadow: inset 0 var(--tabs-list-border-width) 0 var(--tab-border-color);
+    }
+
+    &::before {
+      /* Agencement */
+      display: none;
+    }
+
+    & > .mantine-Tabs-tab {
+      /* Agencement */
+      flex-shrink: 0;
+    }
+  }
+}
