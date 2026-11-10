@@ -199,8 +199,9 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
       </Group>
       {values.iterationFieldId && (
         <Text size="xs" c="dimmed">
-          Itérations et sprints se correspondent par leur nom, sinon par leur date de début : une itération sans sprint devient un sprint du projet, un sprint sans
-          itération est ajouté au champ du tableau ; noms et dates suivent ensuite l’itération.
+          Itérations et sprints se correspondent par leur nom : une itération sans sprint devient un sprint du projet ; un sprint sans itération est à créer dans
+          les réglages du tableau GitHub (l’API ne sait pas donner ses dates à une itération). Ordo fait référence pour les noms et dates. Une tâche placée dans
+          une itération sur GitHub est ajoutée à son sprint, sans perdre ses autres sprints.
         </Text>
       )}
       {(values.statusFieldId || values.priorityFieldId || values.typeSource) && (
@@ -454,7 +455,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                   sync.mutate(projectId, {
                     onSuccess: (result) =>
                       notifySuccess(
-                        `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour, ${result.renumbered} tâche(s) renumérotée(s), ${result.comments} commentaire(s) échangé(s).`,
+                        `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour, ${result.renumbered} tâche(s) renumérotée(s),${result.sprintsSkipped ? ` ${result.sprintsSkipped} sprint(s) sans itération (à créer dans GitHub),` : ''} ${result.comments} commentaire(s) échangé(s).`,
                       ),
                     onError: (error) => notifyError(error.message),
                   })
@@ -478,7 +479,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">
               Dernier échange : {summary.pulledNew} tâche(s) créée(s) depuis GitHub, {summary.pushedNew} item(s) créé(s) sur GitHub, {summary.pulled} tâche(s) et{' '}
-              {summary.pushed} item(s) mis à jour, {summary.unlinked} tâche(s) déliée(s), {summary.sprints} sprint(s) créé(s) ou mis à jour, {summary.renumbered ?? 0} tâche(s) renumérotée(s), {summary.comments ?? 0}{' '}
+              {summary.pushed} item(s) mis à jour, {summary.unlinked} tâche(s) déliée(s), {summary.sprints} sprint(s) créé(s) ou mis à jour, {summary.renumbered ?? 0} tâche(s) renumérotée(s),{summary.sprintsSkipped ? ` ${summary.sprintsSkipped} sprint(s) sans itération (à créer dans GitHub),` : ''} {summary.comments ?? 0}{' '}
               commentaire(s) échangé(s).
             </Text>
           )}

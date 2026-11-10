@@ -108,6 +108,7 @@ const Sync = graphql(`
       pushed
       unlinked
       sprints
+      sprintsSkipped
       renumbered
       comments
     }

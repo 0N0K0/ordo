@@ -158,7 +158,7 @@ type Documents = {
     "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": typeof types.RemoveGithubTokenDocument,
     "\n  mutation SaveGithubLink($projectId: ID!, $input: GithubLinkInput!) {\n    saveGithubLink(projectId: $projectId, input: $input)\n  }\n": typeof types.SaveGithubLinkDocument,
     "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": typeof types.UnlinkGithubProjectDocument,
-    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      renumbered\n      comments\n    }\n  }\n": typeof types.SyncGithubProjectDocument,
+    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      sprintsSkipped\n      renumbered\n      comments\n    }\n  }\n": typeof types.SyncGithubProjectDocument,
     "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": typeof types.SetContributorGithubLoginDocument,
     "\n  query Library {\n    documentFolders {\n      id\n      name\n      parentId\n    }\n    libraryDocuments {\n      id\n      folderId\n      kind\n      title\n      note\n      url\n      fileName\n      mimeType\n      size\n      updatedAt\n    }\n  }\n": typeof types.LibraryDocument,
     "\n  mutation CreateDocumentFolder($name: String!, $parentId: ID) {\n    createDocumentFolder(name: $name, parentId: $parentId)\n  }\n": typeof types.CreateDocumentFolderDocument,
@@ -512,7 +512,7 @@ const documents: Documents = {
     "\n  mutation RemoveGithubToken {\n    removeGithubToken\n  }\n": types.RemoveGithubTokenDocument,
     "\n  mutation SaveGithubLink($projectId: ID!, $input: GithubLinkInput!) {\n    saveGithubLink(projectId: $projectId, input: $input)\n  }\n": types.SaveGithubLinkDocument,
     "\n  mutation UnlinkGithubProject($projectId: ID!) {\n    unlinkGithubProject(projectId: $projectId)\n  }\n": types.UnlinkGithubProjectDocument,
-    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      renumbered\n      comments\n    }\n  }\n": types.SyncGithubProjectDocument,
+    "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      sprintsSkipped\n      renumbered\n      comments\n    }\n  }\n": types.SyncGithubProjectDocument,
     "\n  mutation SetContributorGithubLogin($id: ID!, $login: String) {\n    setContributorGithubLogin(id: $id, login: $login)\n  }\n": types.SetContributorGithubLoginDocument,
     "\n  query Library {\n    documentFolders {\n      id\n      name\n      parentId\n    }\n    libraryDocuments {\n      id\n      folderId\n      kind\n      title\n      note\n      url\n      fileName\n      mimeType\n      size\n      updatedAt\n    }\n  }\n": types.LibraryDocument,
     "\n  mutation CreateDocumentFolder($name: String!, $parentId: ID) {\n    createDocumentFolder(name: $name, parentId: $parentId)\n  }\n": types.CreateDocumentFolderDocument,
@@ -1298,7 +1298,7 @@ export function graphql(source: "\n  mutation UnlinkGithubProject($projectId: ID
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      renumbered\n      comments\n    }\n  }\n"): typeof import('./graphql').SyncGithubProjectDocument;
+export function graphql(source: "\n  mutation SyncGithubProject($projectId: ID!) {\n    syncGithubProject(projectId: $projectId) {\n      pulledNew\n      pushedNew\n      pulled\n      pushed\n      unlinked\n      sprints\n      sprintsSkipped\n      renumbered\n      comments\n    }\n  }\n"): typeof import('./graphql').SyncGithubProjectDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
