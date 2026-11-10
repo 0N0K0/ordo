@@ -47,11 +47,20 @@ interface AlarmFormValues extends Record<string, unknown> {
   enabled: boolean;
 }
 
+/** Values a new alarm starts with (e.g. the task it is created from). */
+export interface AlarmDefaults {
+  title?: string;
+  projectId?: string | null;
+  taskId?: string | null;
+}
+
 interface AlarmFormProps {
   context: TaskContext;
   alarm?: Alarm;
   /** The alarm is copied into a new one. */
   copy?: boolean;
+  /** Values of a new alarm. */
+  defaults?: AlarmDefaults;
   onDone: () => void;
 }
 
@@ -61,11 +70,11 @@ interface AlarmFormProps {
  * @param {AlarmFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function AlarmForm({ context, alarm, copy = false, onDone }: AlarmFormProps) {
+export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: AlarmFormProps) {
   const { create, update } = useAlarmMutations();
   const form = useAppForm<AlarmFormValues>({
     initialValues: {
-      title: alarm ? (copy ? `${alarm.title} (copie)` : alarm.title) : '',
+      title: alarm ? (copy ? `${alarm.title} (copie)` : alarm.title) : (defaults?.title ?? ''),
       note: alarm?.note ?? '',
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),
@@ -75,8 +84,8 @@ export function AlarmForm({ context, alarm, copy = false, onDone }: AlarmFormPro
       weekdays: alarm?.weekdays ?? [],
       endDate: alarm?.endDate ?? null,
       minutes: alarm?.minutes ?? 50,
-      projectId: alarm?.projectId ?? null,
-      taskId: alarm?.taskId ?? null,
+      projectId: alarm ? alarm.projectId : (defaults?.projectId ?? null),
+      taskId: alarm ? alarm.taskId : (defaults?.taskId ?? null),
       enabled: alarm?.enabled ?? true,
     },
     schema: alarmInputSchema,

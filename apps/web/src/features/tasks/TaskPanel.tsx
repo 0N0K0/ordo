@@ -43,6 +43,7 @@ import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
 import { notifyError } from '../../lib/notify';
 import { useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
+import { TaskAlarms } from '../alarms/TaskAlarms';
 import { TaskTime } from '../time/TaskTime';
 import { TaskComments } from './TaskComments';
 import { TaskRecurrence } from './TaskRecurrence';
@@ -377,6 +378,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 </Text>
               )}
             </Stack>
+
+            <Divider />
+            <TaskAlarms task={task} context={context} />
 
             <Divider />
             <Stack gap="xs">
