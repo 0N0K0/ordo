@@ -167,16 +167,17 @@ const PRO_ONLY = new Set(['/accounting']);
 const isActive = (to: string, pathname: string) => pathname === to || pathname.startsWith(`${to}/`);
 
 /**
- * Groups of the menu, folded or unfolded from their own item: their pages show below it, indented. The state of
- * each group is kept per window; the group of the page open is unfolded, and highlighted while folded.
+ * Groups of the menu, folded or unfolded from their own item: their pages show below it, indented. They start
+ * folded; the state of each group is kept per window; the group of the page open is unfolded, and highlighted
+ * while folded.
  * @param {{ groups: MenuGroup[], pathname: string }} props Component props.
  * @param {MenuGroup[]} props.groups Groups.
  * @param {string} props.pathname Current path.
  * @returns {JSX.Element} Groups.
  */
 function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: string }) {
-  const [folded, setFolded] = useLocalStorage<string[]>({
-    key: 'ordo.sidebar.foldedGroups',
+  const [unfolded, setUnfolded] = useLocalStorage<string[]>({
+    key: 'ordo.sidebar.openGroups',
     // Each window keeps its own (the last change is what a new window starts with).
     sync: false,
     defaultValue: [],
@@ -193,18 +194,18 @@ function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: strin
   const current = groups.find((group) => group.links.some((item) => isActive(item.to, pathname)))?.label;
   // Going to a page of a folded group unfolds it.
   useEffect(() => {
-    if (current) setFolded((labels) => (labels.includes(current) ? labels.filter((label) => label !== current) : labels));
-  }, [current, setFolded]);
+    if (current) setUnfolded((labels) => (labels.includes(current) ? labels : [...labels, current]));
+  }, [current, setUnfolded]);
 
   return groups.map((group) => {
-    const opened = !folded.includes(group.label);
+    const opened = unfolded.includes(group.label);
     return (
       <NavLink
         key={group.label}
         label={group.label}
         leftSection={group.icon}
         opened={opened}
-        onChange={(next) => setFolded((labels) => (next ? labels.filter((label) => label !== group.label) : [...labels, group.label]))}
+        onChange={(next) => setUnfolded((labels) => (next ? [...labels, group.label] : labels.filter((label) => label !== group.label)))}
         active={!opened && group.label === current}
         childrenOffset="md"
       >
