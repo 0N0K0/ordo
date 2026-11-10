@@ -91,6 +91,10 @@ npm run codegen
 
 Cette commande régénère `apps/api/schema.graphql` puis les types du front (`apps/web/src/graphql`).
 
+## Déploiement
+
+Staging (`main`) et production (`prod`) sur o2switch, déployés par GitHub Actions : installation d'un environnement, secrets et variables GitHub, dépannage dans [docs/deployment.md](docs/deployment.md).
+
 ## Scripts
 
 | Commande              | Effet                                            |

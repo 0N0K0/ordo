@@ -19,7 +19,13 @@ NODE_ENV=development npm ci --no-audit --no-fund
 
 echo "▶ Build"
 (cd apps/api && npx --no-install prisma generate)
+# The sub-domain serves apps/web/dist, where cPanel writes the .htaccess that hands requests to Passenger: the web
+# build empties the folder, so it is put back.
+htaccess="$(mktemp)"
+if [[ -f apps/web/dist/.htaccess ]]; then cp apps/web/dist/.htaccess "$htaccess"; fi
 npm run build
+if [[ -s "$htaccess" ]]; then cp "$htaccess" apps/web/dist/.htaccess; fi
+rm -f "$htaccess"
 
 if [[ "${BACKUP:-0}" == 1 ]]; then
   echo "▶ Database backup"
