@@ -21,7 +21,6 @@ import {
   ArchiveIcon,
   BankIcon,
   CalendarBlankIcon,
-  CaretRightIcon,
   ChartBarIcon,
   CheckIcon,
   CheckSquareOffsetIcon,
@@ -40,7 +39,7 @@ import {
   UsersThreeIcon,
   WalletIcon,
 } from '@phosphor-icons/react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { ErrorIcon } from '../../../components/feedback-icons';
 import { useWorkspace } from '../api';
@@ -126,7 +125,7 @@ interface MenuGroup {
   links: MenuLink[];
 }
 
-/** Menu below « Accueil »: groups opening their pages in sub-menus. */
+/** Menu below « Accueil »: groups folding and unfolding their pages. */
 const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Organisation',
@@ -168,43 +167,54 @@ const PRO_ONLY = new Set(['/accounting']);
 const isActive = (to: string, pathname: string) => pathname === to || pathname.startsWith(`${to}/`);
 
 /**
- * Groups of the menu: each opens its pages in a sub-menu beside the sidebar, on hover (or a click, by touch or
- * keyboard); the group of the page open is highlighted.
+ * Groups of the menu, folded or unfolded from their own item: their pages show below it, indented. They start
+ * folded; the state of each group is kept per window; the group of the page open is unfolded, and highlighted
+ * while folded.
  * @param {{ groups: MenuGroup[], pathname: string }} props Component props.
+ * @param {MenuGroup[]} props.groups Groups.
+ * @param {string} props.pathname Current path.
  * @returns {JSX.Element} Groups.
  */
 function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: string }) {
-  return groups.map((group) => (
-    <Menu key={group.label} trigger="click-hover" openDelay={60} closeDelay={150} position="right-start" offset={4} shadow="md" withinPortal>
-      <Menu.Target>
-        <NavLink
-          component="button"
-          label={group.label}
-          leftSection={group.icon}
-          rightSection={<CaretRightIcon aria-hidden size={12} />}
-          active={group.links.some((item) => isActive(item.to, pathname))}
-          aria-haspopup="menu"
-        />
-      </Menu.Target>
-      <Menu.Dropdown>
-        <Menu.Label>{group.label}</Menu.Label>
+  const [unfolded, setUnfolded] = useLocalStorage<string[]>({
+    key: 'ordo.sidebar.openGroups',
+    // Each window keeps its own (the last change is what a new window starts with).
+    sync: false,
+    defaultValue: [],
+    // A value of another shape (an older version, edited by hand) is dropped.
+    deserialize: (value) => {
+      try {
+        const parsed: unknown = value === undefined ? [] : JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter((label): label is string => typeof label === 'string') : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+  const current = groups.find((group) => group.links.some((item) => isActive(item.to, pathname)))?.label;
+  // Going to a page of a folded group unfolds it.
+  useEffect(() => {
+    if (current) setUnfolded((labels) => (labels.includes(current) ? labels : [...labels, current]));
+  }, [current, setUnfolded]);
+
+  return groups.map((group) => {
+    const opened = unfolded.includes(group.label);
+    return (
+      <NavLink
+        key={group.label}
+        label={group.label}
+        leftSection={group.icon}
+        opened={opened}
+        onChange={(next) => setUnfolded((labels) => (next ? [...labels, group.label] : labels.filter((label) => label !== group.label)))}
+        active={!opened && group.label === current}
+        childrenOffset="md"
+      >
         {group.links.map((item) => (
-          <Menu.Item
-            key={item.to}
-            component={Link}
-            to={item.to}
-            leftSection={item.icon}
-            rightSection={item.badge}
-            // The page open stands out.
-            bg={isActive(item.to, pathname) ? 'var(--mantine-primary-color-light)' : undefined}
-            fw={isActive(item.to, pathname) ? 600 : undefined}
-          >
-            {item.label}
-          </Menu.Item>
+          <NavLink key={item.to} component={Link} to={item.to} label={item.label} leftSection={item.icon} rightSection={item.badge} active={isActive(item.to, pathname)} />
         ))}
-      </Menu.Dropdown>
-    </Menu>
-  ));
+      </NavLink>
+    );
+  });
 }
 
 /**

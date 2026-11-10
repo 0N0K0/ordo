@@ -171,7 +171,7 @@ export function ViewTabs({ state }: { state: TaskViewState }) {
         <Tabs value={current?.id ?? null} onChange={(id) => id && state.select(id)} style={{ minWidth: 0 }}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={views.map((view) => view.id)} strategy={horizontalListSortingStrategy}>
-              <Tabs.List style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
+              <Tabs.List>
                 {views.map((view, index) => {
                   const active = view.id === current?.id;
                   return (
