@@ -467,6 +467,9 @@ export function TaskTable({
   const [fillRef, fillHeight] = useFillHeight();
   const tableRef = useRef<HTMLTableElement>(null);
 
+  // Width each column was fitted to: a second double click, the column unchanged, gives back its default width.
+  const fitted = useRef(new Map<string, number>());
+
   /**
    * Double click on the edge of a column: fitted to its content, or back to its default width when it already is.
    * @param {string} id Column.
@@ -479,8 +482,13 @@ export function TaskTable({
     if (!tableRef.current) return;
     // Clamped like the saved widths.
     const fit = Math.min(1200, Math.max(40, contentWidth(tableRef.current, index) + 2));
-    if (Math.abs(fit - size) <= 2) reset();
-    else table.setColumnSizing((sizing) => ({ ...sizing, [id]: fit }));
+    if (fitted.current.get(id) === size || Math.abs(fit - size) <= 2) {
+      fitted.current.delete(id);
+      reset();
+      return;
+    }
+    fitted.current.set(id, fit);
+    table.setColumnSizing((sizing) => ({ ...sizing, [id]: fit }));
   };
 
   const visibleRows = table.getRowModel().rows;
@@ -862,7 +870,7 @@ export function TaskTable({
                               onPointerDown={(event) => event.stopPropagation()}
                               onMouseDown={header.getResizeHandler()}
                               onTouchStart={header.getResizeHandler()}
-                              onDoubleClick={() => fitColumn(header.column.id, headerGroup.headers.indexOf(header), header.column.getSize(), header.column.resetSize)}
+                              onDoubleClick={() => fitColumn(header.column.id, headerGroup.headers.indexOf(header), header.column.getSize(), () => header.column.resetSize())}
                             />
                           )}
                         </SortableHeader>
