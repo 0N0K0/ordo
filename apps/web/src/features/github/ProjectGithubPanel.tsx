@@ -199,7 +199,8 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
       </Group>
       {values.iterationFieldId && (
         <Text size="xs" c="dimmed">
-          Les itérations du tableau deviennent des sprints du projet (créés et mis à jour à chaque synchronisation).
+          Itérations et sprints se correspondent par leur nom, sinon par leur date de début : une itération sans sprint devient un sprint du projet, un sprint sans
+          itération est ajouté au champ du tableau ; noms et dates suivent ensuite l’itération.
         </Text>
       )}
       {(values.statusFieldId || values.priorityFieldId || values.typeSource) && (

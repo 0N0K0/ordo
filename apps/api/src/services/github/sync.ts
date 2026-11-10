@@ -5,6 +5,7 @@ import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskR
 import {
   addIssueComment,
   boardById,
+  addIterations,
   boardItems,
   createItem,
   createLabel,
@@ -559,24 +560,75 @@ async function projectTree(projectId: string): Promise<string[]> {
 }
 
 /**
- * Mirrors the iterations of the board as sprints of the project (created, renamed, dates updated).
+ * Sprint name compared without case or accents.
+ * @param {string} name Name.
+ * @returns {string} Folded name.
+ */
+const foldName = (name: string) => name.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+
+/**
+ * Pairs the iterations of the board with the sprints of the project tree, both ways. An iteration without sprint
+ * takes the Ordo sprint of the same name, or else of the same start (a sprint created from it by an earlier sync
+ * gives that sprint its tasks and is deleted), or becomes a new sprint; a paired sprint follows the name and
+ * dates of its iteration. Ordo sprints without iteration are added to the iteration field.
+ * @param {string} token Token.
  * @param {Board} board Board.
  * @param {GithubProjectLink} link Board link.
- * @returns {Promise<number>} Sprints created or updated.
+ * @param {string[]} tree Projects of the tree.
+ * @returns {Promise<number>} Sprints created, paired or updated, and iterations created.
  */
-async function syncIterations(board: Board, link: GithubProjectLink): Promise<number> {
+async function syncIterations(token: string, board: Board, link: GithubProjectLink, tree: string[]): Promise<number> {
   const field = board.fields.find((item) => item.id === link.iterationFieldId);
   if (!field) return 0;
   let changed = 0;
+  const sprints = await prisma.sprint.findMany({ where: { projectId: { in: tree } }, orderBy: { createdAt: 'asc' } });
+  const day = (date: Date) => date.toISOString().slice(0, 10);
+  const unpaired = (test: (sprint: (typeof sprints)[number]) => boolean) => sprints.find((sprint) => !sprint.githubIterationId && test(sprint));
+
   for (const iteration of field.iterations) {
     const startDate = new Date(`${iteration.startDate}T00:00:00.000Z`);
     const endDate = new Date(startDate.getTime() + (iteration.duration - 1) * 86_400_000);
-    const sprint = await prisma.sprint.findUnique({ where: { githubIterationId: iteration.id } });
+    let sprint = sprints.find((item) => item.githubIterationId === iteration.id);
+    const twin = unpaired((item) => foldName(item.name) === foldName(iteration.title)) ?? unpaired((item) => day(item.startDate) === iteration.startDate);
+    if (twin) {
+      if (sprint) {
+        // A sprint created from the iteration by an earlier sync: its tasks join the Ordo sprint, which replaces it.
+        const tasks = await prisma.task.findMany({ where: { sprints: { some: { id: sprint.id } } }, select: { id: true } });
+        if (tasks.length) await prisma.sprint.update({ where: { id: twin.id }, data: { tasks: { connect: tasks } } });
+        await prisma.sprint.delete({ where: { id: sprint.id } });
+        sprints.splice(sprints.indexOf(sprint), 1);
+      }
+      await prisma.sprint.update({ where: { id: twin.id }, data: { githubIterationId: iteration.id } });
+      twin.githubIterationId = iteration.id;
+      sprint = twin;
+      changed += 1;
+    }
     if (!sprint) {
-      await prisma.sprint.create({ data: { projectId: link.projectId, name: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } });
+      sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, name: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;
     } else if (sprint.name !== iteration.title || sprint.startDate.getTime() !== startDate.getTime() || sprint.endDate.getTime() !== endDate.getTime()) {
       await prisma.sprint.update({ where: { id: sprint.id }, data: { name: iteration.title.slice(0, 120), startDate, endDate } });
+      changed += 1;
+    }
+  }
+
+  // Ordo sprints without iteration: added to the field, then paired by title and start.
+  const missing = sprints.filter((sprint) => !sprint.githubIterationId);
+  if (missing.length) {
+    const added = missing.map((sprint) => ({
+      title: sprint.name,
+      startDate: day(sprint.startDate),
+      duration: Math.max(1, Math.round((sprint.endDate.getTime() - sprint.startDate.getTime()) / 86_400_000) + 1),
+    }));
+    const iterations = await addIterations(token, field, added).catch((error: unknown) => {
+      throw clientError('BAD_USER_INPUT', `Sprints Ordo non ajoutés comme itérations (${missing.map((sprint) => sprint.name).join(', ')}) : ${error instanceof Error ? error.message : String(error)}`);
+    });
+    field.iterations = iterations;
+    for (const sprint of missing) {
+      const iteration = iterations.find((item) => item.title === sprint.name && item.startDate === day(sprint.startDate) && !sprints.some((other) => other.githubIterationId === item.id));
+      if (!iteration) continue;
+      await prisma.sprint.update({ where: { id: sprint.id }, data: { githubIterationId: iteration.id } });
+      sprint.githubIterationId = iteration.id;
       changed += 1;
     }
   }
@@ -640,10 +692,10 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const token = await githubToken();
     const login = (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? '';
     const board = await boardById(token, link.githubProjectId);
-    summary.sprints = await syncIterations(board, link);
+    const tree = await projectTree(projectId);
+    summary.sprints = await syncIterations(token, board, link, tree);
     const items = await boardItems(token, board);
     const itemIds = items.map((item) => item.itemId);
-    const tree = await projectTree(projectId);
 
     // Tasks of the tree whose item is gone: unlinked, and marked so that they are not sent back.
     const gone = await prisma.task.findMany({ where: { projectId: { in: tree }, githubItemId: { not: null, notIn: itemIds } }, select: { id: true } });
