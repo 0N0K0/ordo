@@ -45,9 +45,18 @@ export interface LinkInput {
   startFieldId: string | null;
   endFieldId: string | null;
   effortFieldId: string | null;
+  deadlineFieldId: string | null;
+  timeSpentFieldId: string | null;
+  /** FIELD (typeFieldId), ISSUE_TYPE (issue types of the organization) or null. */
+  typeSource: 'FIELD' | 'ISSUE_TYPE' | null;
+  typeFieldId: string | null;
   /** { [ordoStatusId]: optionId } */
   statusOptions: Record<string, string>;
   priorityOptions: Record<string, string>;
+  /** { [ordoTypeId]: optionId or issue type id } */
+  typeOptions: Record<string, string>;
+  syncAssignees: boolean;
+  syncLabels: boolean;
   /** "owner/name", or null for draft issues. */
   repositoryName: string | null;
   pushExisting: boolean;
@@ -99,8 +108,16 @@ export async function saveGithubLink(projectId: string, input: LinkInput): Promi
   check(input.startFieldId, ['DATE'], 'le début');
   check(input.endFieldId, ['DATE'], 'la fin');
   check(input.effortFieldId, ['NUMBER'], 'l’effort');
-  const options = (mapping: Record<string, string>, field: typeof status) =>
+  check(input.deadlineFieldId, ['DATE'], 'la date max');
+  check(input.timeSpentFieldId, ['NUMBER'], 'le temps passé');
+  const typeField = input.typeSource === 'FIELD' ? check(input.typeFieldId, ['SINGLE_SELECT'], 'le type') : null;
+  if (input.typeSource === 'FIELD' && !typeField) throw clientError('BAD_USER_INPUT', 'Choisissez le champ du tableau qui porte le type.');
+  if (input.typeSource === 'ISSUE_TYPE' && !board.issueTypes.length) {
+    throw clientError('BAD_USER_INPUT', 'Ce tableau n’appartient pas à une organisation ayant des types d’issue : choisissez un champ du tableau pour le type.');
+  }
+  const options = (mapping: Record<string, string>, field: { options: { id: string }[] } | null) =>
     Object.fromEntries(Object.entries(field ? mapping : {}).filter(([, optionId]) => field?.options.some((option) => option.id === optionId)));
+  const typeChoices = input.typeSource === 'ISSUE_TYPE' ? { options: board.issueTypes } : typeField;
   const repository = input.repositoryName?.trim() ? await repositoryByName(token, input.repositoryName) : null;
 
   const data = {
@@ -113,8 +130,15 @@ export async function saveGithubLink(projectId: string, input: LinkInput): Promi
     startFieldId: input.startFieldId,
     endFieldId: input.endFieldId,
     effortFieldId: input.effortFieldId,
+    deadlineFieldId: input.deadlineFieldId,
+    timeSpentFieldId: input.timeSpentFieldId,
+    typeSource: input.typeSource,
+    typeFieldId: input.typeSource === 'FIELD' ? input.typeFieldId : null,
     statusOptions: options(input.statusOptions, status) as Prisma.InputJsonValue,
     priorityOptions: options(input.priorityOptions, priority) as Prisma.InputJsonValue,
+    typeOptions: options(input.typeOptions, typeChoices) as Prisma.InputJsonValue,
+    syncAssignees: input.syncAssignees,
+    syncLabels: input.syncLabels,
     repositoryId: repository?.id ?? null,
     repositoryName: repository?.nameWithOwner ?? null,
     pushExisting: input.pushExisting,

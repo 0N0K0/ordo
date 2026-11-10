@@ -1,3 +1,4 @@
+import { env } from '../../env';
 import { clientError } from '../../graphql/errors';
 import { githubRequest } from './client';
 
@@ -16,6 +17,8 @@ export interface Board {
   title: string;
   url: string;
   fields: BoardField[];
+  /** Issue types of the organization owning the board (none for a user's board). */
+  issueTypes: { id: string; name: string }[];
 }
 
 /** Value of a field of an item. */
@@ -49,6 +52,11 @@ export interface RemoteItem {
   labels: { id: string; name: string }[];
   repositoryId: string | null;
   parentId: string | null;
+  /** Issues only: issue type, milestone, blocking issues and related issues (node ids). */
+  issueTypeId: string | null;
+  milestone: { id: string; title: string } | null;
+  blockedBy: string[];
+  relatesTo: string[];
   comments: RemoteComment[];
   /** Latest change of the item or its content. */
   updatedAt: string;
@@ -68,7 +76,8 @@ const FIELD_SELECTION = `
         }
       }
     }
-  }`;
+  }
+  owner { __typename ... on Organization { issueTypes(first: 50) { nodes { id name isEnabled } } } }`;
 
 interface RawField {
   id?: string;
@@ -83,6 +92,7 @@ interface RawBoard {
   title: string;
   url: string;
   fields: { nodes: RawField[] };
+  owner?: { issueTypes?: { nodes: { id: string; name: string; isEnabled: boolean }[] } };
 }
 
 /**
@@ -104,6 +114,7 @@ function toBoard(raw: RawBoard): Board {
         options: field.options ?? [],
         iterations: [...(field.configuration?.iterations ?? []), ...(field.configuration?.completedIterations ?? [])],
       })),
+    issueTypes: (raw.owner?.issueTypes?.nodes ?? []).filter((type) => type.isEnabled).map(({ id, name }) => ({ id, name })),
   };
 }
 
@@ -165,6 +176,10 @@ interface RawItem {
     labels?: { nodes: { id: string; name: string }[] };
     repository?: { id: string };
     parent?: { id: string } | null;
+    issueType?: { id: string } | null;
+    milestone?: { id: string; title: string } | null;
+    blockedBy?: { nodes: { id: string }[] };
+    relatesTo?: { nodes: { id: string }[] };
     comments?: { nodes: { id: string; body: string; createdAt: string; updatedAt: string; author: { login: string } | null }[] };
   } | null;
   fieldValues: { nodes: (FieldValue & { field?: { id?: string } })[] };
@@ -197,6 +212,10 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
                     labels(first: 50) { nodes { id name } }
                     repository { id }
                     parent { id }
+                    issueType { id }
+                    milestone { id title }
+                    blockedBy(first: 50) { nodes { id } }
+                    relatesTo(first: 50) { nodes { id } }
                     comments(first: 100) { nodes { id body createdAt updatedAt author { login } } }
                   }
                   ... on DraftIssue { id title body updatedAt assignees(first: 20) { nodes { login } } }
@@ -241,6 +260,10 @@ export async function boardItems(token: string, id: string): Promise<RemoteItem[
         labels: content.labels?.nodes ?? [],
         repositoryId: content.repository?.id ?? null,
         parentId: content.parent?.id ?? null,
+        issueTypeId: content.issueType?.id ?? null,
+        milestone: content.milestone ?? null,
+        blockedBy: (content.blockedBy?.nodes ?? []).map((issue) => issue.id),
+        relatesTo: (content.relatesTo?.nodes ?? []).map((issue) => issue.id),
         comments: (content.comments?.nodes ?? []).map((comment) => ({ ...comment, author: comment.author?.login ?? null })),
         updatedAt: updates[updates.length - 1],
         fields,
@@ -544,4 +567,114 @@ export async function updateIssueComment(token: string, id: string, body: string
  */
 export async function deleteIssueComment(token: string, id: string): Promise<void> {
   await githubRequest(token, 'mutation OrdoDeleteComment($id: ID!) { deleteIssueComment(input: { id: $id }) { clientMutationId } }', { id });
+}
+
+/**
+ * Sets (or clears, with null) the issue type of an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string | null} issueTypeId Issue type, or null.
+ * @returns {Promise<void>}
+ */
+export async function setIssueType(token: string, issueId: string, issueTypeId: string | null): Promise<void> {
+  await githubRequest(
+    token,
+    'mutation OrdoSetIssueType($issueId: ID!, $issueTypeId: ID) { updateIssueIssueType(input: { issueId: $issueId, issueTypeId: $issueTypeId }) { clientMutationId } }',
+    { issueId, issueTypeId },
+  );
+}
+
+/**
+ * Sets (or clears, with null) the milestone of an issue.
+ * @param {string} token Token.
+ * @param {string} issueId Issue node id.
+ * @param {string | null} milestoneId Milestone node id, or null.
+ * @returns {Promise<void>}
+ */
+export async function setIssueMilestone(token: string, issueId: string, milestoneId: string | null): Promise<void> {
+  await githubRequest(token, 'mutation OrdoSetMilestone($id: ID!, $milestoneId: ID) { updateIssue(input: { id: $id, milestoneId: $milestoneId }) { clientMutationId } }', {
+    id: issueId,
+    milestoneId,
+  });
+}
+
+/**
+ * Milestones of a repository (open and closed), with its "owner/name".
+ * @param {string} token Token.
+ * @param {string} repositoryId Repository node id.
+ * @returns {Promise<{ nameWithOwner: string, milestones: { id: string, title: string }[] }>} Repository milestones.
+ */
+export async function repositoryMilestones(token: string, repositoryId: string): Promise<{ nameWithOwner: string; milestones: { id: string; title: string }[] }> {
+  const data = await githubRequest<{ node: { nameWithOwner: string; milestones: { nodes: { id: string; title: string }[] } } | null }>(
+    token,
+    'query OrdoMilestones($id: ID!) { node(id: $id) { ... on Repository { nameWithOwner milestones(first: 100, states: [OPEN, CLOSED]) { nodes { id title } } } } }',
+    { id: repositoryId },
+  );
+  if (!data.node) throw clientError('BAD_USER_INPUT', 'Dépôt GitHub introuvable, ou le jeton n’y a plus accès.');
+  return { nameWithOwner: data.node.nameWithOwner, milestones: data.node.milestones.nodes };
+}
+
+/**
+ * Base URL of the REST API next to the GraphQL one (https://api.github.com, or <host>/api/v3 on GitHub Enterprise).
+ * @returns {string} Base URL.
+ */
+function restBase(): string {
+  const url = env.GITHUB_GRAPHQL_URL.replace(/\/+$/, '');
+  return url.endsWith('/api/graphql') ? `${url.slice(0, -'/graphql'.length)}/v3` : url.replace(/\/graphql$/, '');
+}
+
+/**
+ * Creates a milestone in a repository (the GraphQL API has no mutation for it: REST).
+ * @param {string} token Token.
+ * @param {string} nameWithOwner Repository "owner/name".
+ * @param {string} title Title.
+ * @returns {Promise<{ id: string, title: string }>} Milestone (node id).
+ */
+export async function createMilestone(token: string, nameWithOwner: string, title: string): Promise<{ id: string; title: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${restBase()}/repos/${nameWithOwner}/milestones`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'User-Agent': 'Ordo' },
+      body: JSON.stringify({ title }),
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    throw clientError('BAD_USER_INPUT', `GitHub injoignable (${error instanceof Error ? error.message : String(error)}).`);
+  }
+  const body = (await response.json().catch(() => ({}))) as { node_id?: string; title?: string; message?: string };
+  if (!response.ok || !body.node_id) throw clientError('BAD_USER_INPUT', `Jalon « ${title} » non créé sur GitHub : ${body.message ?? response.status}.`);
+  return { id: body.node_id, title: body.title ?? title };
+}
+
+/**
+ * Adds or removes a "blocked by" dependency between two issues.
+ * @param {string} token Token.
+ * @param {string} issueId Blocked issue.
+ * @param {string} blockingIssueId Blocking issue.
+ * @param {boolean} add Add (true) or remove (false).
+ * @returns {Promise<void>}
+ */
+export async function setBlockedBy(token: string, issueId: string, blockingIssueId: string, add: boolean): Promise<void> {
+  const mutation = add ? 'addBlockedBy' : 'removeBlockedBy';
+  await githubRequest(token, `mutation OrdoBlockedBy($issueId: ID!, $blockingIssueId: ID!) { ${mutation}(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) { clientMutationId } }`, {
+    issueId,
+    blockingIssueId,
+  });
+}
+
+/**
+ * Adds or removes a "relates to" relationship between two issues.
+ * @param {string} token Token.
+ * @param {string} issueId Issue.
+ * @param {string} relatedIssueId Related issue.
+ * @param {boolean} add Add (true) or remove (false).
+ * @returns {Promise<void>}
+ */
+export async function setRelatesTo(token: string, issueId: string, relatedIssueId: string, add: boolean): Promise<void> {
+  const mutation = add ? 'addRelatesTo' : 'removeRelatesTo';
+  await githubRequest(token, `mutation OrdoRelatesTo($issueId: ID!, $relatedIssueId: ID!) { ${mutation}(input: { issueId: $issueId, relatedIssueId: $relatedIssueId }) { clientMutationId } }`, {
+    issueId,
+    relatedIssueId,
+  });
 }

@@ -39,6 +39,10 @@ const BoardDocument = graphql(`
           name
         }
       }
+      issueTypes {
+        id
+        name
+      }
     }
   }
 `);
@@ -55,8 +59,15 @@ const LinkDocument = graphql(`
       startFieldId
       endFieldId
       effortFieldId
+      deadlineFieldId
+      timeSpentFieldId
+      typeSource
+      typeFieldId
       statusOptions
       priorityOptions
+      typeOptions
+      syncAssignees
+      syncLabels
       repositoryName
       pushExisting
       enabled
@@ -96,6 +107,7 @@ const Sync = graphql(`
       pushed
       unlinked
       sprints
+      renumbered
       comments
     }
   }
@@ -163,8 +175,16 @@ export interface LinkValues {
   startFieldId: string | null;
   endFieldId: string | null;
   effortFieldId: string | null;
+  deadlineFieldId: string | null;
+  timeSpentFieldId: string | null;
+  /** FIELD (typeFieldId), ISSUE_TYPE (issue types of the organization) or null. */
+  typeSource: 'FIELD' | 'ISSUE_TYPE' | null;
+  typeFieldId: string | null;
   statusOptions: Record<string, string>;
   priorityOptions: Record<string, string>;
+  typeOptions: Record<string, string>;
+  syncAssignees: boolean;
+  syncLabels: boolean;
   repositoryName: string | null;
   pushExisting: boolean;
   enabled: boolean;

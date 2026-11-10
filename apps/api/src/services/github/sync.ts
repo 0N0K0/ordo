@@ -1,17 +1,23 @@
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, notFound } from '../../graphql/errors';
-import { createTask } from '../tasks';
+import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks';
 import {
   addIssueComment,
   boardById,
   boardItems,
   createItem,
   createLabel,
+  createMilestone,
   repositoryLabels,
+  repositoryMilestones,
+  setBlockedBy,
   setIssueLabels,
+  setIssueMilestone,
   setIssueParent,
+  setIssueType,
   setItemField,
+  setRelatesTo,
   updateContent,
   updateIssueComment,
   type Board,
@@ -34,21 +40,39 @@ export interface SyncSummary {
   unlinked: number;
   /** Sprints created or updated from the iterations. */
   sprints: number;
+  /** Tasks renumbered after their issue. */
+  renumbered: number;
   /** Comments created, changed or deleted, on either side. */
   comments: number;
 }
 
+const linkedTask = { select: { id: true, githubContentId: true, githubContentType: true } } as const;
 const include = {
   assignees: { select: { id: true, githubLogin: true } },
   tags: { select: { id: true, name: true } },
   sprints: { select: { id: true, startDate: true, githubIterationId: true } },
   parent: { select: { githubContentId: true, githubContentType: true } },
+  milestone: { select: { title: true } },
+  blockedBy: { select: { blocker: linkedTask } },
+  relationsA: { select: { taskB: linkedTask } },
+  relationsB: { select: { taskA: linkedTask } },
+  timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { tasks: true } } } },
 } as const;
+interface LinkedTask {
+  id: string;
+  githubContentId: string | null;
+  githubContentType: string | null;
+}
 type SyncedTask = Task & {
   assignees: { id: string; githubLogin: string | null }[];
   tags: { id: string; name: string }[];
   sprints: { id: string; startDate: Date; githubIterationId: string | null }[];
   parent: { githubContentId: string | null; githubContentType: string | null } | null;
+  milestone: { title: string } | null;
+  blockedBy: { blocker: LinkedTask }[];
+  relationsA: { taskB: LinkedTask }[];
+  relationsB: { taskA: LinkedTask }[];
+  timeEntries: { duration: number | null; _count: { tasks: number } }[];
 };
 
 /** What a sync needs to translate values between both sides. */
@@ -57,6 +81,9 @@ interface Maps {
   optionStatus: Map<string, string>;
   priorityOption: Record<string, string>;
   optionPriority: Map<string, string>;
+  /** Type id → option (FIELD) or issue type (ISSUE_TYPE), and back. */
+  typeOption: Record<string, string>;
+  optionType: Map<string, string>;
   sprintIteration: Map<string, string>;
   iterationSprint: Map<string, string>;
   /** Contributor id by GitHub login. */
@@ -85,6 +112,37 @@ function fieldValue(value: FieldValue | undefined): string | number | null {
 const labelKeys = (names: string[]) => [...new Set(names.map((name) => name.trim().toLowerCase()))].sort();
 
 /**
+ * Issues of linked tasks (tasks without issue have no counterpart and are left alone on both sides).
+ * @param {LinkedTask[]} tasks Tasks.
+ * @returns {string[]} Issue node ids, sorted.
+ */
+const issuesOf = (tasks: LinkedTask[]) =>
+  [...new Set(tasks.filter((task) => task.githubContentType === 'ISSUE' && task.githubContentId).map((task) => task.githubContentId!))].sort();
+
+/**
+ * Tasks related to a task (relations are stored once per pair).
+ * @param {SyncedTask} task Task.
+ * @returns {LinkedTask[]} Related tasks.
+ */
+const relatedOf = (task: SyncedTask) => [...task.relationsA.map((relation) => relation.taskB), ...task.relationsB.map((relation) => relation.taskA)];
+
+/**
+ * Tracked time of a task in hours (two decimals): each finished time entry is shared equally between its tasks.
+ * @param {SyncedTask} task Task.
+ * @returns {number} Hours.
+ */
+const trackedHours = (task: SyncedTask) =>
+  Math.round((task.timeEntries.reduce((sum, entry) => sum + (entry.duration ?? 0) / Math.max(1, entry._count.tasks), 0) / 3600) * 100) / 100;
+
+/**
+ * Whether the type is synchronized for an item: in a field of the board, or as issue type (issues only).
+ * @param {GithubProjectLink} link Board link.
+ * @param {RemoteItem['type']} type Content type.
+ * @returns {boolean} Synchronized.
+ */
+const syncsType = (link: GithubProjectLink, type: RemoteItem['type']) => (link.typeSource === 'FIELD' && Boolean(link.typeFieldId)) || (link.typeSource === 'ISSUE_TYPE' && type === 'ISSUE');
+
+/**
  * Synchronized values of a task.
  * @param {SyncedTask} task Task.
  * @param {GithubProjectLink} link Board link.
@@ -93,19 +151,20 @@ const labelKeys = (names: string[]) => [...new Set(names.map((name) => name.trim
  * @returns {SyncFields} Values.
  */
 function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type: RemoteItem['type']): SyncFields {
-  const fields: SyncFields = {
-    title: task.title,
-    body: task.description ?? '',
-    assignees: task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login)),
-  };
+  const fields: SyncFields = { title: task.title, body: task.description ?? '' };
+  if (link.syncAssignees) fields.assignees = task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login));
   if (type === 'ISSUE') {
     fields.closed = task.closedAt !== null;
-    fields.labels = labelKeys(task.tags.map((tag) => tag.name));
+    if (link.syncLabels) fields.labels = labelKeys(task.tags.map((tag) => tag.name));
     // The parent is an issue of the board, or has no counterpart.
     fields.parent = task.parentId ? (task.parent?.githubContentType === 'ISSUE' && task.parent.githubContentId ? task.parent.githubContentId : `ordo:${task.parentId}`) : null;
+    fields.milestone = task.milestone?.title ?? null;
+    fields.blockedBy = issuesOf(task.blockedBy.map((block) => block.blocker));
+    fields.relatesTo = issuesOf(relatedOf(task));
   }
   if (link.statusFieldId) fields.status = task.statusId ? (maps.statusOption[task.statusId] ?? `ordo:${task.statusId}`) : null;
   if (link.priorityFieldId) fields.priority = task.priorityId ? (maps.priorityOption[task.priorityId] ?? `ordo:${task.priorityId}`) : null;
+  if (syncsType(link, type)) fields.type = task.typeId ? (maps.typeOption[task.typeId] ?? `ordo:${task.typeId}`) : null;
   if (link.iterationFieldId) {
     // A board item has one iteration: the latest sprint of the task.
     const latest = [...task.sprints].sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0];
@@ -113,6 +172,7 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
   }
   if (link.startFieldId) fields.start = task.startDate ? task.startDate.toISOString().slice(0, 10) : null;
   if (link.endFieldId) fields.end = task.endDate ? task.endDate.toISOString().slice(0, 10) : null;
+  if (link.deadlineFieldId) fields.deadline = task.deadline ? task.deadline.toISOString().slice(0, 10) : null;
   if (link.effortFieldId) fields.effort = task.effort;
   return fields;
 }
@@ -129,22 +189,29 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
     const value = fieldValue(item.fields[fieldId]);
     return value === null ? null : reverse.has(String(value)) ? String(value) : `gh:${value}`;
   };
-  const fields: SyncFields = {
-    title: item.title,
-    body: item.body,
-    // Logins without contributor are left alone on both sides.
-    assignees: item.assignees.filter((login) => maps.contributorByLogin.has(login)),
-  };
+  // Issues without task (outside the board) are left alone on both sides.
+  const known = (ids: string[]) => [...new Set(ids.filter((id) => maps.taskByContent.has(id)))].sort();
+  const fields: SyncFields = { title: item.title, body: item.body };
+  // Logins without contributor are left alone on both sides.
+  if (link.syncAssignees) fields.assignees = item.assignees.filter((login) => maps.contributorByLogin.has(login));
   if (item.type === 'ISSUE') {
     fields.closed = item.closed;
-    fields.labels = labelKeys(item.labels.map((label) => label.name));
+    if (link.syncLabels) fields.labels = labelKeys(item.labels.map((label) => label.name));
     fields.parent = item.parentId ? (maps.taskByContent.has(item.parentId) ? item.parentId : `gh:${item.parentId}`) : null;
+    fields.milestone = item.milestone?.title ?? null;
+    fields.blockedBy = known(item.blockedBy);
+    fields.relatesTo = known(item.relatesTo);
   }
   if (link.statusFieldId) fields.status = option(link.statusFieldId, maps.optionStatus);
   if (link.priorityFieldId) fields.priority = option(link.priorityFieldId, maps.optionPriority);
+  if (syncsType(link, item.type)) {
+    if (link.typeSource === 'FIELD') fields.type = option(link.typeFieldId!, maps.optionType);
+    else fields.type = item.issueTypeId ? (maps.optionType.has(item.issueTypeId) ? item.issueTypeId : `gh:${item.issueTypeId}`) : null;
+  }
   if (link.iterationFieldId) fields.iteration = (fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null;
   if (link.startFieldId) fields.start = (fieldValue(item.fields[link.startFieldId]) as string | null)?.slice(0, 10) ?? null;
   if (link.endFieldId) fields.end = (fieldValue(item.fields[link.endFieldId]) as string | null)?.slice(0, 10) ?? null;
+  if (link.deadlineFieldId) fields.deadline = (fieldValue(item.fields[link.deadlineFieldId]) as string | null)?.slice(0, 10) ?? null;
   if (link.effortFieldId) fields.effort = (fieldValue(item.fields[link.effortFieldId]) as number | null) ?? null;
   return fields;
 }
@@ -180,6 +247,22 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
   if ('priority' in values) data.priority = values.priority ? { connect: { id: maps.optionPriority.get(String(values.priority))! } } : { disconnect: true };
+  if ('type' in values) data.type = values.type ? { connect: { id: maps.optionType.get(String(values.type))! } } : { disconnect: true };
+  if ('deadline' in values) data.deadline = day(values.deadline);
+  if ('milestone' in values) data.milestone = values.milestone ? { connect: { id: await milestoneOf(task.projectId, String(values.milestone)) } } : { disconnect: true };
+  if ('blockedBy' in values) {
+    const wanted = new Set((values.blockedBy as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
+    const current = task.blockedBy.map((block) => block.blocker).filter((blocker) => blocker.githubContentType === 'ISSUE' && blocker.githubContentId);
+    for (const blocker of current) if (!wanted.has(blocker.id)) await removeTaskBlock(blocker.id, task.id);
+    // A dependency Ordo refuses (circular, other project tree) is left out.
+    for (const id of wanted) if (!current.some((blocker) => blocker.id === id)) await addTaskBlock(id, task.id).catch(() => undefined);
+  }
+  if ('relatesTo' in values) {
+    const wanted = new Set((values.relatesTo as string[]).map((id) => maps.taskByContent.get(id)).filter((id): id is string => Boolean(id)));
+    const current = relatedOf(task).filter((other) => other.githubContentType === 'ISSUE' && other.githubContentId);
+    for (const other of current) if (!wanted.has(other.id)) await removeTaskRelation(task.id, other.id);
+    for (const id of wanted) if (!current.some((other) => other.id === id)) await addTaskRelation(task.id, id).catch(() => undefined);
+  }
   if ('iteration' in values) {
     // The iteration replaces the sprints mirroring iterations; the task keeps its other sprints.
     const sprintId = values.iteration ? maps.iterationSprint.get(String(values.iteration)) : undefined;
@@ -218,8 +301,48 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   return data;
 }
 
+/**
+ * Milestone of a project with this title, created when there is none.
+ * @param {string} projectId Project of the task.
+ * @param {string} title Milestone title on GitHub.
+ * @returns {Promise<string>} Milestone id.
+ */
+async function milestoneOf(projectId: string, title: string): Promise<string> {
+  const found = await prisma.milestone.findFirst({ where: { projectId, title }, select: { id: true } });
+  if (found) return found.id;
+  const { _max } = await prisma.milestone.aggregate({ where: { projectId }, _max: { position: true } });
+  return (await prisma.milestone.create({ data: { projectId, title: title.slice(0, 200), position: (_max.position ?? -1) + 1 }, select: { id: true } })).id;
+}
+
+/**
+ * Gives a task the number of its issue (a task of the project holding it already takes the next free number;
+ * one linked to an issue with that same number, from another repository, keeps it).
+ * @param {string} taskId Task.
+ * @param {number} number Issue number.
+ * @returns {Promise<boolean>} Renumbered.
+ */
+async function matchIssueNumber(taskId: string, number: number): Promise<boolean> {
+  // Read again: the task may have just given its number to another one.
+  const task = await prisma.task.findUnique({ where: { id: taskId }, select: { id: true, number: true, projectId: true } });
+  if (!task || task.number === number) return false;
+  const holder = await prisma.task.findFirst({ where: { projectId: task.projectId, number, id: { not: task.id } }, select: { id: true, githubContentType: true, githubNumber: true } });
+  if (holder?.githubContentType === 'ISSUE' && holder.githubNumber === number) return false;
+  if (holder) {
+    const { _max } = await prisma.task.aggregate({ where: { projectId: task.projectId }, _max: { number: true } });
+    await prisma.task.update({ where: { id: holder.id }, data: { number: Math.max(_max.number ?? 0, number) + 1 } });
+  }
+  await prisma.task.update({ where: { id: task.id }, data: { number } });
+  return true;
+}
+
 /** Labels of the repositories met during a sync: name (lowercase) → id. */
 type LabelCache = Map<string, Map<string, string>>;
+
+/** Milestones of the repositories met during a sync: "owner/name" and title → id. */
+type MilestoneCache = Map<string, { nameWithOwner: string; milestones: Map<string, string> }>;
+
+/** Relationships already sent in a sync (each pair is seen from both of its issues). */
+type SentRelations = Set<string>;
 
 /**
  * Writes synchronized values on an item.
@@ -231,6 +354,9 @@ type LabelCache = Map<string, Map<string, string>>;
  * @param {string[]} context.knownBefore Synchronized logins on GitHub before the change.
  * @param {{ name: string }[]} context.tags Tags of the task (names as written in Ordo).
  * @param {LabelCache} context.labels Labels of the repositories.
+ * @param {MilestoneCache} context.milestones Milestones of the repositories.
+ * @param {SentRelations} context.sent Relationships already sent in this sync.
+ * @param {Map<string, string>} context.taskByContent Tasks by issue: other issues are left alone.
  * @returns {Promise<void>}
  */
 async function pushValues(
@@ -238,7 +364,21 @@ async function pushValues(
   link: GithubProjectLink,
   item: RemoteItem,
   values: SyncFields,
-  { knownBefore, tags, labels }: { knownBefore: string[]; tags: { name: string; color?: string }[]; labels: LabelCache },
+  {
+    knownBefore,
+    tags,
+    labels,
+    milestones,
+    sent,
+    taskByContent,
+  }: {
+    knownBefore: string[];
+    tags: { name: string; color?: string }[];
+    labels: LabelCache;
+    milestones: MilestoneCache;
+    sent: SentRelations;
+    taskByContent: Map<string, string>;
+  },
 ): Promise<void> {
   const assignees = values.assignees as string[] | undefined;
   await updateContent(token, item.type, item.contentId, {
@@ -276,10 +416,54 @@ async function pushValues(
   if ('parent' in values && item.type === 'ISSUE') {
     await setIssueParent(token, item.contentId, (values.parent as string | null) ?? null, item.parentId);
   }
+  if ('milestone' in values && item.type === 'ISSUE' && item.repositoryId) {
+    const title = values.milestone ? String(values.milestone) : null;
+    let milestoneId: string | null = null;
+    if (title) {
+      let repository = milestones.get(item.repositoryId);
+      if (!repository) {
+        const found = await repositoryMilestones(token, item.repositoryId);
+        repository = { nameWithOwner: found.nameWithOwner, milestones: new Map(found.milestones.map((milestone) => [milestone.title, milestone.id])) };
+        milestones.set(item.repositoryId, repository);
+      }
+      milestoneId = repository.milestones.get(title) ?? null;
+      if (!milestoneId) {
+        // An Ordo milestone without counterpart in the repository: created with its title.
+        milestoneId = (await createMilestone(token, repository.nameWithOwner, title)).id;
+        repository.milestones.set(title, milestoneId);
+      }
+    }
+    await setIssueMilestone(token, item.contentId, milestoneId);
+  }
+  if ('type' in values && link.typeSource === 'ISSUE_TYPE' && item.type === 'ISSUE') {
+    await setIssueType(token, item.contentId, (values.type as string | null) ?? null);
+  }
+  // Only the issues of the board are compared: the others are left alone.
+  const relationships: ['blockedBy' | 'relatesTo', string[], typeof setBlockedBy][] = [
+    ['blockedBy', item.blockedBy, setBlockedBy],
+    ['relatesTo', item.relatesTo, setRelatesTo],
+  ];
+  for (const [field, before, send] of relationships) {
+    if (!(field in values) || item.type !== 'ISSUE') continue;
+    const wanted = values[field] as string[];
+    const changes = [
+      ...wanted.filter((id) => !before.includes(id)).map((id) => [id, true] as const),
+      ...before.filter((id) => taskByContent.has(id) && !wanted.includes(id)).map((id) => [id, false] as const),
+    ];
+    for (const [other, add] of changes) {
+      // A relation is symmetric: sent once for its pair.
+      const key = field === 'relatesTo' ? `${field}:${[item.contentId, other].sort().join(':')}:${add}` : `${field}:${item.contentId}:${other}:${add}`;
+      if (sent.has(key)) continue;
+      sent.add(key);
+      await send(token, item.contentId, other, add);
+    }
+  }
   const target = (fieldId: string) => ({ projectId: link.githubProjectId, itemId: item.itemId, fieldId });
   const fields: [keyof SyncFields, string | null, (value: NonNullable<SyncFields[keyof SyncFields]>) => FieldValue][] = [
     ['status', link.statusFieldId, (value) => ({ optionId: String(value) })],
     ['priority', link.priorityFieldId, (value) => ({ optionId: String(value) })],
+    ['type', link.typeSource === 'FIELD' ? link.typeFieldId : null, (value) => ({ optionId: String(value) })],
+    ['deadline', link.deadlineFieldId, (value) => ({ date: String(value) })],
     ['iteration', link.iterationFieldId, (value) => ({ iterationId: String(value) })],
     ['start', link.startFieldId, (value) => ({ date: String(value) })],
     ['end', link.endFieldId, (value) => ({ date: String(value) })],
@@ -385,6 +569,24 @@ async function syncIterations(board: Board, link: GithubProjectLink): Promise<nu
   return changed;
 }
 
+/**
+ * Writes the tracked time of a task (hours) in the number field of the board chosen for it, when it differs.
+ * Ordo → GitHub only: the time comes from the time entries.
+ * @param {string} token Token.
+ * @param {GithubProjectLink} link Board link.
+ * @param {RemoteItem} item Item.
+ * @param {SyncedTask} task Task.
+ * @returns {Promise<boolean>} Written.
+ */
+async function pushTrackedTime(token: string, link: GithubProjectLink, item: RemoteItem, task: SyncedTask): Promise<boolean> {
+  if (!link.timeSpentFieldId) return false;
+  const hours = trackedHours(task) || null;
+  const current = (fieldValue(item.fields[link.timeSpentFieldId]) as number | null) ?? null;
+  if (hours === current) return false;
+  await setItemField(token, { projectId: link.githubProjectId, itemId: item.itemId, fieldId: link.timeSpentFieldId }, hours === null ? null : { number: hours });
+  return true;
+}
+
 const running = new Set<string>();
 
 /**
@@ -401,7 +603,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
   if (!link) throw notFound('Lien GitHub');
   if (running.has(link.id)) throw clientError('BAD_USER_INPUT', 'Une synchronisation de ce projet est déjà en cours.');
   running.add(link.id);
-  const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, comments: 0 };
+  const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, renumbered: 0, comments: 0 };
   try {
     const token = await githubToken();
     const login = (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? '';
@@ -444,6 +646,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
 
     const statusOption = link.statusOptions as Record<string, string>;
     const priorityOption = link.priorityOptions as Record<string, string>;
+    const typeOption = link.typeSource ? (link.typeOptions as Record<string, string>) : {};
     const sprints = await prisma.sprint.findMany({ where: { githubIterationId: { not: null } }, select: { id: true, githubIterationId: true } });
     const contributors = await prisma.contributor.findMany({ where: { githubLogin: { not: null } }, select: { id: true, githubLogin: true } });
     const linked = await prisma.task.findMany({ where: { githubItemId: { in: itemIds } }, include });
@@ -452,12 +655,16 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
       optionStatus: new Map(Object.entries(statusOption).reverse().map(([status, option]) => [option, status])),
       priorityOption,
       optionPriority: new Map(Object.entries(priorityOption).reverse().map(([priority, option]) => [option, priority])),
+      typeOption,
+      optionType: new Map(Object.entries(typeOption).reverse().map(([type, option]) => [option, type])),
       sprintIteration: new Map(sprints.map((sprint) => [sprint.id, sprint.githubIterationId!])),
       iterationSprint: new Map(sprints.map((sprint) => [sprint.githubIterationId!, sprint.id])),
       contributorByLogin: new Map(contributors.map((contributor) => [contributor.githubLogin!, contributor.id])),
       taskByContent: new Map(linked.map((task) => [task.githubContentId!, task.id])),
     };
     const labels: LabelCache = new Map();
+    const milestones: MilestoneCache = new Map();
+    const sent: SentRelations = new Set();
     const tagColors = new Map((await prisma.taskTag.findMany()).map((tag) => [tag.name.toLowerCase(), tag.color]));
     const byItem = new Map(linked.map((task) => [task.githubItemId!, task]));
 
@@ -471,9 +678,13 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
           knownBefore: (remote.assignees as string[]) ?? [],
           tags: task.tags.map((tag) => ({ name: tag.name, color: tagColors.get(tag.name.toLowerCase()) })),
           labels,
+          milestones,
+          sent,
+          taskByContent: maps.taskByContent,
         });
         summary.pushed += 1;
       }
+      if (await pushTrackedTime(token, link, item, task)) summary.pushed += Object.keys(result.push).length ? 0 : 1;
       await prisma.task.update({
         where: { id: task.id },
         data: {
@@ -486,6 +697,8 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
         },
       });
       if (Object.keys(result.pull).length && !created.has(item.itemId)) summary.pulled += 1;
+      // The number of the task follows its issue.
+      if (item.type === 'ISSUE' && item.number !== null && (await matchIssueNumber(task.id, item.number))) summary.renumbered += 1;
       if (item.type === 'ISSUE') summary.comments += await syncComments(token, task.id, item, login);
     }
 
@@ -502,7 +715,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
         repositoryId: link.repositoryId,
         title: task.title,
         body: task.description ?? '',
-        assignees: task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login)),
+        assignees: link.syncAssignees ? task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login)) : [],
       });
       maps.taskByContent.set(created.contentId, task.id);
       // A parent sent in this same run is known now.
@@ -517,15 +730,26 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
         labels: [],
         repositoryId: link.repositoryId,
         parentId: null,
+        issueTypeId: null,
+        milestone: null,
+        blockedBy: [],
+        relatesTo: [],
         comments: [],
         updatedAt: new Date().toISOString(),
         fields: {},
       };
       const { title: _title, body: _body, assignees: _assignees, ...fields } = local; // eslint-disable-line @typescript-eslint/no-unused-vars
-      const pushable = Object.fromEntries(
-        Object.entries(fields).filter(([key, value]) => !isUnmapped(value, 'ordo') && !(key === 'closed' && !value) && !(key === 'labels' && !(value as string[]).length) && !(key === 'parent' && !value)),
-      );
-      await pushValues(token, link, item, pushable, { knownBefore: item.assignees, tags: task.tags.map((tag) => ({ name: tag.name, color: tagColors.get(tag.name.toLowerCase()) })), labels });
+      // A new item is empty: only the values set in Ordo are sent.
+      const pushable = Object.fromEntries(Object.entries(fields).filter(([, value]) => !isUnmapped(value, 'ordo') && value !== null && value !== false && !(Array.isArray(value) && !value.length)));
+      await pushValues(token, link, item, pushable, {
+        knownBefore: item.assignees,
+        tags: task.tags.map((tag) => ({ name: tag.name, color: tagColors.get(tag.name.toLowerCase()) })),
+        labels,
+        milestones,
+        sent,
+        taskByContent: maps.taskByContent,
+      });
+      await pushTrackedTime(token, link, item, task);
       // Values that could not be sent are seen as GitHub's (empty), so they are not sent again.
       const snapshot = Object.fromEntries(Object.entries(local).map(([key, value]) => [key, isUnmapped(value, 'ordo') ? null : value]));
       await prisma.task.update({
@@ -539,6 +763,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
           githubSnapshot: snapshot as Prisma.InputJsonValue,
         },
       });
+      if (created.number !== null && (await matchIssueNumber(task.id, created.number))) summary.renumbered += 1;
       if (type === 'ISSUE') summary.comments += await syncComments(token, task.id, item, login);
       summary.pushedNew += 1;
     }

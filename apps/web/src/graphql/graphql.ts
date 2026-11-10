@@ -325,6 +325,7 @@ export type GeoPointInput = {
 };
 
 export type GithubLinkInput = {
+  deadlineFieldId?: string | null | undefined;
   effortFieldId?: string | null | undefined;
   enabled: boolean;
   endFieldId?: string | null | undefined;
@@ -339,6 +340,15 @@ export type GithubLinkInput = {
   statusFieldId?: string | null | undefined;
   /** { [ordoStatusId]: optionId } */
   statusOptions: unknown;
+  syncAssignees: boolean;
+  syncLabels: boolean;
+  /** Number field receiving the tracked time, in hours (Ordo → GitHub). */
+  timeSpentFieldId?: string | null | undefined;
+  typeFieldId?: string | null | undefined;
+  /** { [ordoTypeId]: optionId or issue type id } */
+  typeOptions: unknown;
+  /** FIELD (typeFieldId), ISSUE_TYPE (issue types of the organization), or null. */
+  typeSource?: string | null | undefined;
   url: string;
 };
 
@@ -1826,14 +1836,14 @@ export type GithubBoardQueryVariables = Exact<{
 }>;
 
 
-export type GithubBoardQuery = { githubBoard: { id: string, title: string, url: string, fields: Array<{ id: string, name: string, dataType: string, iterationCount: number, options: Array<{ id: string, name: string }> }> } };
+export type GithubBoardQuery = { githubBoard: { id: string, title: string, url: string, fields: Array<{ id: string, name: string, dataType: string, iterationCount: number, options: Array<{ id: string, name: string }> }>, issueTypes: Array<{ id: string, name: string }> } };
 
 export type GithubProjectLinkQueryVariables = Exact<{
   projectId: string | number;
 }>;
 
 
-export type GithubProjectLinkQuery = { githubProjectLink: { id: string, projectId: string, url: string, title: string, statusFieldId: string | null, priorityFieldId: string | null, iterationFieldId: string | null, startFieldId: string | null, endFieldId: string | null, effortFieldId: string | null, statusOptions: unknown, priorityOptions: unknown, repositoryName: string | null, pushExisting: boolean, enabled: boolean, lastSyncAt: string | null, lastSyncError: string | null, lastSyncSummary: unknown, linkedTaskCount: number } | null };
+export type GithubProjectLinkQuery = { githubProjectLink: { id: string, projectId: string, url: string, title: string, statusFieldId: string | null, priorityFieldId: string | null, iterationFieldId: string | null, startFieldId: string | null, endFieldId: string | null, effortFieldId: string | null, deadlineFieldId: string | null, timeSpentFieldId: string | null, typeSource: string | null, typeFieldId: string | null, statusOptions: unknown, priorityOptions: unknown, typeOptions: unknown, syncAssignees: boolean, syncLabels: boolean, repositoryName: string | null, pushExisting: boolean, enabled: boolean, lastSyncAt: string | null, lastSyncError: string | null, lastSyncSummary: unknown, linkedTaskCount: number } | null };
 
 export type SetGithubTokenMutationVariables = Exact<{
   token: string;
@@ -1867,7 +1877,7 @@ export type SyncGithubProjectMutationVariables = Exact<{
 }>;
 
 
-export type SyncGithubProjectMutation = { syncGithubProject: { pulledNew: number, pushedNew: number, pulled: number, pushed: number, unlinked: number, sprints: number, comments: number } };
+export type SyncGithubProjectMutation = { syncGithubProject: { pulledNew: number, pushedNew: number, pulled: number, pushed: number, unlinked: number, sprints: number, renumbered: number, comments: number } };
 
 export type SetContributorGithubLoginMutationVariables = Exact<{
   id: string | number;
@@ -5355,6 +5365,10 @@ export const GithubBoardDocument = new TypedDocumentString(`
         name
       }
     }
+    issueTypes {
+      id
+      name
+    }
   }
 }
     `) as unknown as TypedDocumentString<GithubBoardQuery, GithubBoardQueryVariables>;
@@ -5371,8 +5385,15 @@ export const GithubProjectLinkDocument = new TypedDocumentString(`
     startFieldId
     endFieldId
     effortFieldId
+    deadlineFieldId
+    timeSpentFieldId
+    typeSource
+    typeFieldId
     statusOptions
     priorityOptions
+    typeOptions
+    syncAssignees
+    syncLabels
     repositoryName
     pushExisting
     enabled
@@ -5412,6 +5433,7 @@ export const SyncGithubProjectDocument = new TypedDocumentString(`
     pushed
     unlinked
     sprints
+    renumbered
     comments
   }
 }

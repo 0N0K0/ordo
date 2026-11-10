@@ -714,9 +714,19 @@ model GithubProjectLink {
   startFieldId     String?
   endFieldId       String?
   effortFieldId    String?
-  /// Option of the board for each Ordo status / priority: { [ordoId]: optionId }.
+  deadlineFieldId  String?
+  /// Number field receiving the tracked time of the tasks, in hours (Ordo → GitHub only).
+  timeSpentFieldId String?
+  /// Task types: FIELD (single select field typeFieldId), ISSUE_TYPE (issue types of the organization), or null.
+  typeSource       String?
+  typeFieldId      String?
+  /// Option of the board for each Ordo status / priority / type: { [ordoId]: optionId } (issue type id for ISSUE_TYPE).
   statusOptions    Json      @default("{}")
   priorityOptions  Json      @default("{}")
+  typeOptions      Json      @default("{}")
+  /// Assignees and tags synchronized with the assignees and labels of GitHub.
+  syncAssignees    Boolean   @default(true)
+  syncLabels       Boolean   @default(true)
   /// New Ordo tasks become issues of this repository, or draft issues without one.
   repositoryId     String?
   repositoryName   String?
