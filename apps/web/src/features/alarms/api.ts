@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { graphql } from '../../graphql';
 import type { AlarmFieldsFragment, AlarmInput } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -71,6 +72,19 @@ export const alarmsQueryKey = ['alarms'] as const;
  */
 export function useAlarms() {
   return useQuery({ queryKey: alarmsQueryKey, queryFn: async () => (await execute(AlarmsDocument)).alarms });
+}
+
+/**
+ * Number of enabled alarms of each task (tasks without any are left out).
+ * @returns {Map<string, number>} Count by task id.
+ */
+export function useTaskAlarmCounts(): Map<string, number> {
+  const { data } = useAlarms();
+  return useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const alarm of data ?? []) if (alarm.enabled && alarm.taskId) counts.set(alarm.taskId, (counts.get(alarm.taskId) ?? 0) + 1);
+    return counts;
+  }, [data]);
 }
 
 /**
