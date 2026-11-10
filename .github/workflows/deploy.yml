@@ -1,0 +1,75 @@
+name: Deploy
+run-name: Deploy ${{ inputs.environment || (github.event.pull_request.base.ref == 'prod' && 'production' || 'staging') }} 🚀
+
+# main → staging, prod → production, on each merged pull request; or by hand.
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+      - prod
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    name: Deploy
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment || (github.event.pull_request.base.ref == 'prod' && 'production' || 'staging') }}
+      url: ${{ vars.APP_URL }}
+    # One deployment at a time per environment, none cancelled midway.
+    concurrency:
+      group: deploy-${{ inputs.environment || (github.event.pull_request.base.ref == 'prod' && 'production' || 'staging') }}
+      cancel-in-progress: false
+    env:
+      TARGET: ${{ inputs.environment || (github.event.pull_request.base.ref == 'prod' && 'production' || 'staging') }}
+      CPANEL_API: https://${{ secrets.CPANEL_HOST }}:2083/execute/SshWhitelist
+      CPANEL_AUTH: "Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}"
+    steps:
+      # 1. Public IP of the runner, allowed on the o2switch SSH firewall for the deployment.
+      - name: Get runner public IP
+        run: echo "RUNNER_IP=$(curl -fsS https://api.ipify.org)" >> "$GITHUB_ENV"
+
+      - name: Whitelist runner IP on o2switch firewall
+        run: |
+          curl -fsS -m 45 -H "$CPANEL_AUTH" "$CPANEL_API/add?address=$RUNNER_IP&port=22" | jq -e '.status == 1' > /dev/null
+
+      - name: Wait for firewall rule to propagate
+        run: sleep 5
+
+      # 2. On the server: pull the branch of the environment, then install, build, (back up,) migrate and restart.
+      - name: Open SSH and deploy 🚀
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5 (pinned: it receives the SSH key)
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          command_timeout: 30m
+          script: |
+            set -e
+            cd "${{ vars.APP_DIR }}"
+            branch="${{ env.TARGET == 'production' && 'prod' || 'main' }}"
+            test "$(git branch --show-current)" = "$branch" || { echo "The server checkout is not on $branch." >&2; exit 1; }
+            git pull --ff-only origin "$branch"
+            BACKUP=${{ env.TARGET == 'production' && '1' || '0' }} bash scripts/deploy.sh
+
+      # 3. The first request starts the app: it must answer.
+      - name: Check the site answers
+        run: curl -fsS -o /dev/null --retry 6 --retry-delay 10 --retry-all-errors "${{ vars.APP_URL }}"
+
+      # 4. Cleanup, even when the deployment failed.
+      - name: Remove runner IP from whitelist
+        if: always() && env.RUNNER_IP != ''
+        run: |
+          curl -sm 45 -H "$CPANEL_AUTH" "$CPANEL_API/remove?address=$RUNNER_IP&port=22&direction=in"
+          curl -sm 45 -H "$CPANEL_AUTH" "$CPANEL_API/remove?address=$RUNNER_IP&port=22&direction=out"
