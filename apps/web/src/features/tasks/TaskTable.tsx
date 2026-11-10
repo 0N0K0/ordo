@@ -21,7 +21,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Anchor, Box, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
 import { formatDuration, TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
-import { ArrowsClockwiseIcon, CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon, GithubLogoIcon } from '@phosphor-icons/react';
+import { AlarmIcon, ArrowsClockwiseIcon, CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon, GithubLogoIcon } from '@phosphor-icons/react';
+import { useTaskAlarmCounts } from '../alarms/api';
 import {
   columnOrderingFeature,
   columnResizingFeature,
@@ -279,6 +280,7 @@ export function TaskTable({
   const anchorRow = useRef<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [drag, setDrag] = useState<{ activeId: string; overId: string | null; offsetX: number } | null>(null);
+  const alarmCounts = useTaskAlarmCounts();
 
   const columns = useMemo(() => {
     const cells: Record<TaskColumn, (task: Task) => ReactNode> = {
@@ -297,6 +299,11 @@ export function TaskTable({
               {(task.recurrence || task.seriesId) && (
                 <Tooltip label={task.seriesId ? 'Occurrence d’une tâche récurrente' : 'Tâche récurrente'}>
                   <ArrowsClockwiseIcon aria-label="Récurrente" className={classes.recurring} />
+                </Tooltip>
+              )}
+              {alarmCounts.has(task.id) && (
+                <Tooltip label={`${alarmCounts.get(task.id)} alerte(s) active(s)`}>
+                  <AlarmIcon aria-label="Alertes" className={classes.recurring} />
                 </Tooltip>
               )}
             </>
@@ -410,7 +417,7 @@ export function TaskTable({
         }),
       ),
     ]);
-  }, [context, today]);
+  }, [context, today, alarmCounts]);
 
   // Full column order: columns added after a view was saved go at the end.
   const order = useMemo(
