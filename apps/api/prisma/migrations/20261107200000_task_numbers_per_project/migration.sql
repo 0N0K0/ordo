@@ -52,4 +52,4 @@ BEGIN
   RETURN NEW;
 END $$;
 
-CREATE TRIGGER task_project_number BEFORE INSERT OR UPDATE OF "projectId" ON "Task" FOR EACH ROW EXECUTE FUNCTION task_project_number();
+CREATE TRIGGER task_project_number BEFORE INSERT OR UPDATE OF "projectId" ON "Task" FOR EACH ROW EXECUTE PROCEDURE task_project_number();
