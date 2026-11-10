@@ -51,7 +51,7 @@ ADD COLUMN     "valueDate" DATE;
 
 -- Free text categories become categories, one per name and direction (sign of the entries using it).
 INSERT INTO "TreasuryCategory" ("id", "name", "direction")
-SELECT 'c' || replace(gen_random_uuid()::text, '-', ''), "name", "direction"::"TreasuryDirection"
+SELECT 'c' || md5(random()::text || clock_timestamp()::text), "name", "direction"::"TreasuryDirection"
 FROM (
   SELECT DISTINCT btrim("category") AS "name", CASE WHEN "amount" < 0 THEN 'OUT' ELSE 'IN' END AS "direction"
   FROM "TreasuryEntry"
@@ -67,7 +67,7 @@ WHERE e."category" IS NOT NULL
 
 -- Free text payment methods become payment methods, for money in and / or out as used.
 INSERT INTO "TreasuryPaymentMethod" ("id", "name", "incoming", "outgoing")
-SELECT 'c' || replace(gen_random_uuid()::text, '-', ''), btrim("method"), bool_or("amount" >= 0), bool_or("amount" < 0)
+SELECT 'c' || md5(random()::text || clock_timestamp()::text), btrim("method"), bool_or("amount" >= 0), bool_or("amount" < 0)
 FROM "TreasuryEntry"
 WHERE "method" IS NOT NULL AND btrim("method") <> ''
 GROUP BY btrim("method");

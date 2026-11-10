@@ -642,14 +642,14 @@ CREATE OR REPLACE FUNCTION "record_task_status"() RETURNS trigger AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     INSERT INTO "TaskStatusChange" ("id", "workspaceId", "taskId", "statusId", "closed", "at")
-    VALUES ('c' || replace(gen_random_uuid()::text, '-', ''), NEW."workspaceId", NEW."id", NEW."statusId", NEW."closedAt" IS NOT NULL, NEW."createdAt");
+    VALUES ('c' || md5(random()::text || clock_timestamp()::text), NEW."workspaceId", NEW."id", NEW."statusId", NEW."closedAt" IS NOT NULL, NEW."createdAt");
   ELSIF NEW."statusId" IS DISTINCT FROM OLD."statusId" OR (NEW."closedAt" IS NULL) <> (OLD."closedAt" IS NULL) THEN
     IF NOT EXISTS (SELECT 1 FROM "TaskStatusChange" WHERE "taskId" = NEW."id") THEN
       INSERT INTO "TaskStatusChange" ("id", "workspaceId", "taskId", "statusId", "closed", "at")
-      VALUES ('c' || replace(gen_random_uuid()::text, '-', ''), OLD."workspaceId", OLD."id", OLD."statusId", OLD."closedAt" IS NOT NULL, OLD."createdAt");
+      VALUES ('c' || md5(random()::text || clock_timestamp()::text), OLD."workspaceId", OLD."id", OLD."statusId", OLD."closedAt" IS NOT NULL, OLD."createdAt");
     END IF;
     INSERT INTO "TaskStatusChange" ("id", "workspaceId", "taskId", "statusId", "closed", "at")
-    VALUES ('c' || replace(gen_random_uuid()::text, '-', ''), NEW."workspaceId", NEW."id", NEW."statusId", NEW."closedAt" IS NOT NULL, now() AT TIME ZONE 'UTC');
+    VALUES ('c' || md5(random()::text || clock_timestamp()::text), NEW."workspaceId", NEW."id", NEW."statusId", NEW."closedAt" IS NOT NULL, now() AT TIME ZONE 'UTC');
   END IF;
   RETURN NEW;
 END;
