@@ -1,5 +1,23 @@
 /** Fields synchronized between a task and an item of a GitHub board. */
-export const SYNC_FIELDS = ['title', 'body', 'closed', 'status', 'priority', 'iteration', 'start', 'end', 'effort', 'assignees', 'labels', 'parent'] as const;
+export const SYNC_FIELDS = [
+  'title',
+  'body',
+  'closed',
+  'status',
+  'priority',
+  'type',
+  'iteration',
+  'start',
+  'end',
+  'deadline',
+  'effort',
+  'assignees',
+  'labels',
+  'parent',
+  'milestone',
+  'blockedBy',
+  'relatesTo',
+] as const;
 export type SyncField = (typeof SYNC_FIELDS)[number];
 export type SyncValue = string | number | boolean | string[] | null;
 /** Values of the synchronized fields, in a shape common to both sides (absent: not synchronized). */
@@ -37,10 +55,18 @@ export interface MergeResult {
 }
 
 /**
+ * Whether a value is empty (no value, empty list or text).
+ * @param {SyncValue} value Value.
+ * @returns {boolean} Empty.
+ */
+const isEmpty = (value: SyncValue) => value === null || value === '' || (Array.isArray(value) && !value.length);
+
+/**
  * Three-way merge, field by field, against the values of the last sync: a field changed on one side only goes
- * to the other; changed on both sides, the side changed last wins. Without snapshot (first sync of a pair),
- * the side changed last wins every differing field. A value that cannot be applied on the other side is
- * kept in the snapshot as the other side's value, so that it is not sent again and again.
+ * to the other; changed on both sides, the side changed last wins. Without snapshot for a field (first sync of
+ * a pair, or a field synchronized since), lists are joined and a value wins over an empty one; otherwise the
+ * side changed last wins. A value that cannot be applied on the other side is kept in the snapshot as the
+ * other side's value, so that it is not sent again and again.
  * @param {SyncFields} local Values of the task.
  * @param {SyncFields} remote Values of the item.
  * @param {SyncFields | null} snapshot Values at the last sync.
@@ -58,7 +84,17 @@ export function mergeFields(local: SyncFields, remote: SyncFields, snapshot: Syn
       continue;
     }
     const base = snapshot && field in snapshot ? (snapshot[field] ?? null) : undefined;
-    const pull = base !== undefined ? sameValue(mine, base) || (!sameValue(theirs, base) && !localNewer) : !localNewer;
+    if (base === undefined && Array.isArray(mine) && Array.isArray(theirs)) {
+      // Nothing is dropped from either side: both get every value (one not applicable is not sent).
+      const joined = [...new Set([...mine, ...theirs])].sort();
+      const pulled = joined.filter((value) => !isUnmapped(value, 'gh'));
+      const pushed = joined.filter((value) => !isUnmapped(value, 'ordo'));
+      if (!sameValue(pulled, mine)) result.pull[field] = pulled;
+      if (!sameValue(pushed, theirs)) result.push[field] = pushed;
+      result.snapshot[field] = joined.filter((value) => !isUnmapped(value, 'gh') && !isUnmapped(value, 'ordo'));
+      continue;
+    }
+    const pull = base !== undefined ? sameValue(mine, base) || (!sameValue(theirs, base) && !localNewer) : isEmpty(mine) !== isEmpty(theirs) ? isEmpty(mine) : !localNewer;
     if (pull) {
       if (isUnmapped(theirs, 'gh')) {
         result.snapshot[field] = mine;

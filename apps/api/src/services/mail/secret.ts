@@ -29,13 +29,20 @@ export function encryptSecret(value: string): string {
 }
 
 /**
- * Decrypts a secret encrypted by `encryptSecret`.
+ * Decrypts a secret encrypted by `encryptSecret`; a secret encrypted with another key is refused with a message
+ * saying to enter it again.
  * @param {string} value Encrypted value.
  * @returns {string} Secret.
  */
 export function decryptSecret(value: string): string {
-  const [iv, tag, data] = value.split('.').map((part) => Buffer.from(part, 'base64'));
-  const decipher = createDecipheriv('aes-256-gcm', key(), iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+  const secretKey = key();
+  try {
+    const [iv, tag, data] = value.split('.').map((part) => Buffer.from(part, 'base64'));
+    const decipher = createDecipheriv('aes-256-gcm', secretKey, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+  } catch {
+    // Encrypted with another key (MAIL_ENCRYPTION_KEY changed, or data copied from another install).
+    throw clientError('BAD_USER_INPUT', 'Secret enregistré illisible : la clé MAIL_ENCRYPTION_KEY n’est plus celle qui l’a chiffré. Saisissez-le à nouveau.');
+  }
 }

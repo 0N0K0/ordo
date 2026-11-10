@@ -50,6 +50,9 @@ function guessOption(name: string, options: { id: string; name: string }[]): str
  */
 const guessField = (board: GithubBoard, type: string, name?: RegExp) => board.fields.find((field) => field.dataType === type && (!name || name.test(field.name)))?.id ?? null;
 
+/** Value of the type select meaning the issue types of the organization (the other values are field ids). */
+const ISSUE_TYPES = '__issue_types';
+
 /**
  * Settings guessed for a board: fields by name and type, options by name.
  * @param {GithubBoard} board Board.
@@ -59,10 +62,10 @@ const guessField = (board: GithubBoard, type: string, name?: RegExp) => board.fi
 function guessSettings(board: GithubBoard, context: TaskContext): LinkValues {
   const statusFieldId = guessField(board, 'SINGLE_SELECT', /^status$|statut/i);
   const priorityFieldId = guessField(board, 'SINGLE_SELECT', /priorit/i);
-  const options = (fieldId: string | null, labels: { id: string; name: string }[]) => {
-    const field = board.fields.find((item) => item.id === fieldId);
-    return Object.fromEntries(labels.map((label) => [label.id, field ? guessOption(label.name, field.options) : undefined]).filter((entry): entry is [string, string] => Boolean(entry[1])));
-  };
+  const typeFieldId = board.issueTypes.length ? null : guessField(board, 'SINGLE_SELECT', /^type$|type/i);
+  const guessAll = (choices: { id: string; name: string }[], labels: { id: string; name: string }[]) =>
+    Object.fromEntries(labels.map((label) => [label.id, guessOption(label.name, choices)]).filter((entry): entry is [string, string] => Boolean(entry[1])));
+  const options = (fieldId: string | null, labels: { id: string; name: string }[]) => guessAll(board.fields.find((item) => item.id === fieldId)?.options ?? [], labels);
   return {
     url: board.url,
     statusFieldId,
@@ -71,8 +74,15 @@ function guessSettings(board: GithubBoard, context: TaskContext): LinkValues {
     startFieldId: guessField(board, 'DATE', /start|d[ée]but/i),
     endFieldId: guessField(board, 'DATE', /end|target|due|fin|[ée]ch[ée]ance/i),
     effortFieldId: guessField(board, 'NUMBER', /estimat|effort|size|point|taille/i),
+    deadlineFieldId: guessField(board, 'DATE', /deadline|max|limite/i),
+    timeSpentFieldId: guessField(board, 'NUMBER', /spent|pass[ée]|tracked|temps/i),
+    typeSource: board.issueTypes.length ? 'ISSUE_TYPE' : typeFieldId ? 'FIELD' : null,
+    typeFieldId,
     statusOptions: options(statusFieldId, context.statuses),
     priorityOptions: options(priorityFieldId, context.priorities),
+    typeOptions: board.issueTypes.length ? guessAll(board.issueTypes, context.types) : options(typeFieldId, context.types),
+    syncAssignees: true,
+    syncLabels: true,
     repositoryName: null,
     pushExisting: false,
     enabled: true,
@@ -97,18 +107,25 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
   const { saveLink } = useGithubMutations();
   const [values, setValues] = useState<LinkValues>(initial);
   const change = (changes: Partial<LinkValues>) => setValues((current) => ({ ...current, ...changes }));
-  const fieldsOf = (type: string) => board.fields.filter((field) => field.dataType === type).map((field) => ({ value: field.id, label: field.name }));
+  // Issue fields of the organization: values on the issues only (drafts have none).
+  const fieldsOf = (type: string) =>
+    board.fields.filter((field) => field.dataType === type).map((field) => ({ value: field.id, label: field.issueField ? `${field.name} (champ d’issue)` : field.name }));
   const optionsOf = (fieldId: string | null) => board.fields.find((field) => field.id === fieldId)?.options.map((option) => ({ value: option.id, label: option.name })) ?? [];
+  const typeChoices =
+    values.typeSource === 'ISSUE_TYPE' ? board.issueTypes.map((type) => ({ value: type.id, label: type.name })) : values.typeSource === 'FIELD' ? optionsOf(values.typeFieldId) : [];
+  const typeSelect = [
+    ...(board.issueTypes.length ? [{ group: 'Issues', items: [{ value: ISSUE_TYPES, label: 'Types d’issue de l’organisation' }] }] : []),
+    { group: 'Champs du tableau', items: fieldsOf('SINGLE_SELECT') },
+  ];
 
   /**
-   * Correspondence table of Ordo labels and options of a field.
+   * Correspondence table of Ordo labels and choices of GitHub (options of a field, or issue types).
    * @param {{ id: string, name: string }[]} labels Ordo labels.
-   * @param {string | null} fieldId Field.
-   * @param {'statusOptions' | 'priorityOptions'} key Mapping.
-   * @returns {JSX.Element | null} Table.
+   * @param {{ value: string, label: string }[]} choices GitHub choices.
+   * @param {'statusOptions' | 'priorityOptions' | 'typeOptions'} key Mapping.
+   * @returns {JSX.Element} Table.
    */
-  const mappingTable = (labels: { id: string; name: string }[], fieldId: string | null, key: 'statusOptions' | 'priorityOptions') =>
-    fieldId ? (
+  const mappingTable = (labels: { id: string; name: string }[], choices: { value: string; label: string }[], key: 'statusOptions' | 'priorityOptions' | 'typeOptions') => (
       <Table verticalSpacing={4} withRowBorders={false}>
         <Table.Tbody>
           {labels.map((label) => (
@@ -122,7 +139,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
                   placeholder="Non synchronisé"
                   clearable
                   aria-label={`Option GitHub de ${label.name}`}
-                  data={optionsOf(fieldId)}
+                  data={choices}
                   value={values[key][label.id] ?? null}
                   onChange={(optionId) => {
                     const next = { ...values[key] };
@@ -136,7 +153,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
           ))}
         </Table.Tbody>
       </Table>
-    ) : null;
+  );
 
   return (
     <Stack gap="md">
@@ -145,30 +162,55 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         <Anchor href={board.url} target="_blank" rel="noopener" size="sm" fw={600}>
           {board.title}
         </Anchor>
-        . Titre, description et assignés sont toujours synchronisés, ainsi que, pour les issues, l’ouverture / fermeture, les labels (étiquettes), les sous-issues
-        (sous-tâches) et les commentaires ; choisissez les autres champs.
+        . Toujours synchronisés : titre, description et commentaires ; pour les issues, l’ouverture / fermeture, le jalon, le parent (sous-issues), les
+        dépendances (« bloquée par »), les relations (« relative à ») et le numéro (celui de l’issue). Choisissez où vont les autres champs.
       </Text>
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
         <Select label="Statut" placeholder="Non synchronisé" clearable data={fieldsOf('SINGLE_SELECT')} value={values.statusFieldId} onChange={(statusFieldId) => change({ statusFieldId, statusOptions: {} })} />
         <Select label="Priorité" placeholder="Non synchronisée" clearable data={fieldsOf('SINGLE_SELECT')} value={values.priorityFieldId} onChange={(priorityFieldId) => change({ priorityFieldId, priorityOptions: {} })} />
+        <Select
+          label="Type"
+          placeholder="Non synchronisé"
+          clearable
+          data={typeSelect}
+          value={values.typeSource === 'ISSUE_TYPE' ? ISSUE_TYPES : values.typeFieldId}
+          onChange={(value) =>
+            change(value === ISSUE_TYPES ? { typeSource: 'ISSUE_TYPE', typeFieldId: null, typeOptions: {} } : { typeSource: value ? 'FIELD' : null, typeFieldId: value, typeOptions: {} })
+          }
+        />
         <Select label="Sprint (itérations)" placeholder="Non synchronisé" clearable data={fieldsOf('ITERATION')} value={values.iterationFieldId} onChange={(iterationFieldId) => change({ iterationFieldId })} />
         <Select label="Début" placeholder="Non synchronisé" clearable data={fieldsOf('DATE')} value={values.startFieldId} onChange={(startFieldId) => change({ startFieldId })} />
         <Select label="Fin" placeholder="Non synchronisée" clearable data={fieldsOf('DATE')} value={values.endFieldId} onChange={(endFieldId) => change({ endFieldId })} />
+        <Select label="Date max" placeholder="Non synchronisée" clearable data={fieldsOf('DATE')} value={values.deadlineFieldId} onChange={(deadlineFieldId) => change({ deadlineFieldId })} />
         <Select label="Effort" placeholder="Non synchronisé" clearable data={fieldsOf('NUMBER')} value={values.effortFieldId} onChange={(effortFieldId) => change({ effortFieldId })} />
+        <Select
+          label="Temps passé"
+          description="En heures, d’Ordo vers GitHub"
+          placeholder="Non synchronisé"
+          clearable
+          data={fieldsOf('NUMBER')}
+          value={values.timeSpentFieldId}
+          onChange={(timeSpentFieldId) => change({ timeSpentFieldId })}
+        />
       </SimpleGrid>
+      <Group gap="xl">
+        <Switch label="Assignés (assignees GitHub)" checked={values.syncAssignees} onChange={(event) => change({ syncAssignees: event.currentTarget.checked })} />
+        <Switch label="Étiquettes (labels des issues)" checked={values.syncLabels} onChange={(event) => change({ syncLabels: event.currentTarget.checked })} />
+      </Group>
       {values.iterationFieldId && (
         <Text size="xs" c="dimmed">
-          Les itérations du tableau deviennent des sprints du projet (créés et mis à jour à chaque synchronisation).
+          Itérations et sprints se correspondent par leur nom, sinon par leur date de début : une itération sans sprint devient un sprint du projet, un sprint sans
+          itération est ajouté au champ du tableau ; noms et dates suivent ensuite l’itération.
         </Text>
       )}
-      {(values.statusFieldId || values.priorityFieldId) && (
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+      {(values.statusFieldId || values.priorityFieldId || values.typeSource) && (
+        <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
           {values.statusFieldId && (
             <Stack gap={4}>
               <Text size="sm" fw={600}>
                 Statuts
               </Text>
-              {mappingTable(context.statuses, values.statusFieldId, 'statusOptions')}
+              {mappingTable(context.statuses, optionsOf(values.statusFieldId), 'statusOptions')}
             </Stack>
           )}
           {values.priorityFieldId && (
@@ -176,7 +218,20 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
               <Text size="sm" fw={600}>
                 Priorités
               </Text>
-              {mappingTable(context.priorities, values.priorityFieldId, 'priorityOptions')}
+              {mappingTable(context.priorities, optionsOf(values.priorityFieldId), 'priorityOptions')}
+            </Stack>
+          )}
+          {values.typeSource && (
+            <Stack gap={4}>
+              <Text size="sm" fw={600}>
+                Types
+              </Text>
+              {mappingTable(context.types, typeChoices, 'typeOptions')}
+              {values.typeSource === 'ISSUE_TYPE' && (
+                <Text size="xs" c="dimmed">
+                  Les brouillons d’issue n’ont pas de type.
+                </Text>
+              )}
             </Stack>
           )}
         </SimpleGrid>
@@ -248,8 +303,15 @@ function EditLink({ link, context, onDone }: { link: GithubLink; context: TaskCo
         startFieldId: link.startFieldId ?? null,
         endFieldId: link.endFieldId ?? null,
         effortFieldId: link.effortFieldId ?? null,
+        deadlineFieldId: link.deadlineFieldId ?? null,
+        timeSpentFieldId: link.timeSpentFieldId ?? null,
+        typeSource: link.typeSource === 'FIELD' || link.typeSource === 'ISSUE_TYPE' ? link.typeSource : null,
+        typeFieldId: link.typeFieldId ?? null,
         statusOptions: (link.statusOptions as Record<string, string>) ?? {},
         priorityOptions: (link.priorityOptions as Record<string, string>) ?? {},
+        typeOptions: (link.typeOptions as Record<string, string>) ?? {},
+        syncAssignees: link.syncAssignees,
+        syncLabels: link.syncLabels,
         repositoryName: link.repositoryName ?? null,
         pushExisting: link.pushExisting,
         enabled: link.enabled,
@@ -392,7 +454,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                   sync.mutate(projectId, {
                     onSuccess: (result) =>
                       notifySuccess(
-                        `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour, ${result.comments} commentaire(s) échangé(s).`,
+                        `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour, ${result.renumbered} tâche(s) renumérotée(s), ${result.comments} commentaire(s) échangé(s).`,
                       ),
                     onError: (error) => notifyError(error.message),
                   })
@@ -416,7 +478,8 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">
               Dernier échange : {summary.pulledNew} tâche(s) créée(s) depuis GitHub, {summary.pushedNew} item(s) créé(s) sur GitHub, {summary.pulled} tâche(s) et{' '}
-              {summary.pushed} item(s) mis à jour, {summary.unlinked} tâche(s) déliée(s), {summary.sprints} sprint(s) créé(s) ou mis à jour, {summary.comments ?? 0} commentaire(s) échangé(s).
+              {summary.pushed} item(s) mis à jour, {summary.unlinked} tâche(s) déliée(s), {summary.sprints} sprint(s) créé(s) ou mis à jour, {summary.renumbered ?? 0} tâche(s) renumérotée(s), {summary.comments ?? 0}{' '}
+              commentaire(s) échangé(s).
             </Text>
           )}
         </Stack>
