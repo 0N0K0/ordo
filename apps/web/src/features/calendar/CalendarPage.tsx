@@ -387,8 +387,8 @@ export function CalendarPage() {
         // Its dates, from start to end, to today or to its latest acceptable date; that date too when apart.
         const { span, deadline } = taskPlacement(task, today);
         const color = context.projectById.get(task.projectId)?.color ?? 'var(--mantine-color-gray-6)';
-        // Its number is only unique in its project: the project comes with it.
-        const label = context.taskLabel(task);
+        // Its number is only unique in its project: the project comes with it (without « Sans client »).
+        const label = `${context.projectLabel(task.projectId).replace(/^Sans client › /, '')} #${task.number} ${task.title}`;
         const look = { allDay: true, backgroundColor: 'transparent', borderColor: color, textColor: 'var(--mantine-color-text)', classNames: [classes.task, ...(task.closed ? [classes.closed] : [])] };
         if (span) {
           result.push({
@@ -407,7 +407,7 @@ export function CalendarPage() {
           result.push({
             ...look,
             id: `task-deadline:${task.id}`,
-            title: `Date max · ${label}`,
+            title: label,
             start: deadline,
             end: addDays(deadline, 1),
             durationEditable: false,
