@@ -101,6 +101,7 @@ const SummaryRef = builder.objectRef<Awaited<ReturnType<typeof syncGithubProject
     pushed: t.exposeInt('pushed'),
     unlinked: t.exposeInt('unlinked'),
     sprints: t.exposeInt('sprints'),
+    sprintsSkipped: t.exposeInt('sprintsSkipped', { description: 'Ordo sprints without iteration: to be created on GitHub, where they are paired by name.' }),
     renumbered: t.exposeInt('renumbered'),
     comments: t.exposeInt('comments'),
   }),

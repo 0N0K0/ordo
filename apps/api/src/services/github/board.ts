@@ -10,8 +10,6 @@ export interface BoardField {
   options: { id: string; name: string }[];
   /** Iterations (current and coming, then completed). */
   iterations: { id: string; title: string; startDate: string; duration: number }[];
-  /** Default duration of the iterations, in days (iteration fields only). */
-  iterationDuration: number | null;
   /**
    * Issue field of the organization the board shows, or null: its values belong to the issues (none on a draft),
    * its options are the issue field's, and it is written with updateIssueFieldValue.
@@ -81,7 +79,6 @@ const FIELD_SELECTION = `
       ... on ProjectV2SingleSelectField { options { id name } ${ISSUE_FIELD_SELECTION} }
       ... on ProjectV2IterationField {
         configuration {
-          duration
           iterations { id title startDate duration }
           completedIterations { id title startDate duration }
         }
@@ -95,7 +92,7 @@ interface RawField {
   name?: string;
   dataType?: string;
   options?: { id: string; name: string }[];
-  configuration?: { duration: number; iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] };
+  configuration?: { iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] };
   isIssueField?: boolean;
   issueField?: { id?: string; options?: { id: string; name: string }[] } | null;
 }
@@ -127,7 +124,6 @@ function toBoard(raw: RawBoard): Board {
         // The options of an issue field are the issue field's (its values are written with their ids).
         options: (field.isIssueField ? field.issueField?.options : undefined) ?? field.options ?? [],
         iterations: [...(field.configuration?.iterations ?? []), ...(field.configuration?.completedIterations ?? [])],
-        iterationDuration: field.configuration?.duration ?? null,
         issueFieldId: (field.isIssueField && field.issueField?.id) || null,
       })),
     issueTypes: (raw.owner?.issueTypes?.nodes ?? []).filter((type) => type.isEnabled).map(({ id, name }) => ({ id, name })),
@@ -740,30 +736,4 @@ export async function setRelatesTo(token: string, issueId: string, relatedIssueI
     issueId,
     relatedIssueId,
   });
-}
-
-/**
- * Adds iterations to an iteration field. The API replaces the whole configuration: the existing iterations are
- * sent again with their ids, so that they keep their identity (and the items their iteration).
- * @param {string} token Token.
- * @param {BoardField} field Iteration field, as read on the board.
- * @param {{ title: string, startDate: string, duration: number }[]} added Iterations to add.
- * @returns {Promise<BoardField['iterations']>} Iterations of the field once updated.
- */
-export async function addIterations(token: string, field: BoardField, added: { title: string; startDate: string; duration: number }[]): Promise<BoardField['iterations']> {
-  const iterations = [...field.iterations.map(({ id, title, startDate, duration }) => ({ id, title, startDate, duration })), ...added];
-  const startDate = iterations.map((iteration) => iteration.startDate).sort()[0];
-  const data = await githubRequest<{
-    updateProjectV2Field: { projectV2Field: { configuration?: { iterations: BoardField['iterations']; completedIterations: BoardField['iterations'] } } | null };
-  }>(
-    token,
-    `mutation OrdoAddIterations($fieldId: ID!, $configuration: ProjectV2IterationFieldConfigurationInput!) {
-      updateProjectV2Field(input: { fieldId: $fieldId, iterationConfiguration: $configuration }) {
-        projectV2Field { ... on ProjectV2IterationField { configuration { iterations { id title startDate duration } completedIterations { id title startDate duration } } } }
-      }
-    }`,
-    { fieldId: field.id, configuration: { duration: field.iterationDuration ?? 14, startDate, iterations } },
-  );
-  const configuration = data.updateProjectV2Field.projectV2Field?.configuration;
-  return configuration ? [...configuration.iterations, ...configuration.completedIterations] : field.iterations;
 }

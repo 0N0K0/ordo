@@ -960,6 +960,11 @@ type GithubSyncSummary {
   pushedNew: Int!
   renumbered: Int!
   sprints: Int!
+
+  """
+  Ordo sprints without iteration: to be created on GitHub, where they are paired by name.
+  """
+  sprintsSkipped: Int!
   unlinked: Int!
 }
 

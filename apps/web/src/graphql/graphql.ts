@@ -1877,7 +1877,7 @@ export type SyncGithubProjectMutationVariables = Exact<{
 }>;
 
 
-export type SyncGithubProjectMutation = { syncGithubProject: { pulledNew: number, pushedNew: number, pulled: number, pushed: number, unlinked: number, sprints: number, renumbered: number, comments: number } };
+export type SyncGithubProjectMutation = { syncGithubProject: { pulledNew: number, pushedNew: number, pulled: number, pushed: number, unlinked: number, sprints: number, sprintsSkipped: number, renumbered: number, comments: number } };
 
 export type SetContributorGithubLoginMutationVariables = Exact<{
   id: string | number;
@@ -5434,6 +5434,7 @@ export const SyncGithubProjectDocument = new TypedDocumentString(`
     pushed
     unlinked
     sprints
+    sprintsSkipped
     renumbered
     comments
   }

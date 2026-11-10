@@ -5,7 +5,6 @@ import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskR
 import {
   addIssueComment,
   boardById,
-  addIterations,
   boardItems,
   createItem,
   createLabel,
@@ -42,6 +41,8 @@ export interface SyncSummary {
   unlinked: number;
   /** Sprints created or updated from the iterations. */
   sprints: number;
+  /** Ordo sprints without iteration: to be created on GitHub (the API cannot give an iteration its dates). */
+  sprintsSkipped: number;
   /** Tasks renumbered after their issue. */
   renumbered: number;
   /** Comments created, changed or deleted, on either side. */
@@ -161,9 +162,10 @@ const usable = (fieldId: string | null, maps: Maps, type: RemoteItem['type']): f
  * @param {GithubProjectLink} link Board link.
  * @param {Maps} maps Correspondences.
  * @param {RemoteItem['type']} type Content of its item (a draft has no state, labels or parent).
+ * @param {string | null} [currentIteration] Iteration of the item now. Optional.
  * @returns {SyncFields} Values.
  */
-function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type: RemoteItem['type']): SyncFields {
+function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type: RemoteItem['type'], currentIteration: string | null = null): SyncFields {
   const fields: SyncFields = { title: task.title, body: task.description ?? '' };
   if (link.syncAssignees) fields.assignees = task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login));
   if (type === 'ISSUE') {
@@ -179,9 +181,12 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
   if (usable(link.priorityFieldId, maps, type)) fields.priority = task.priorityId ? (maps.priorityOption[task.priorityId] ?? `ordo:${task.priorityId}`) : null;
   if (syncsType(link, type) && (link.typeSource !== 'FIELD' || usable(link.typeFieldId, maps, type))) fields.type = task.typeId ? (maps.typeOption[task.typeId] ?? `ordo:${task.typeId}`) : null;
   if (link.iterationFieldId) {
-    // A board item has one iteration: the latest sprint of the task.
+    // A board item has one iteration, a task several sprints: the iteration of the item when it is one of them,
+    // otherwise the latest sprint of the task.
+    const current = currentIteration ? maps.iterationSprint.get(currentIteration) : undefined;
     const latest = [...task.sprints].sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0];
-    fields.iteration = latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
+    fields.iteration =
+      current && task.sprints.some((sprint) => sprint.id === current) ? currentIteration : latest ? (maps.sprintIteration.get(latest.id) ?? `ordo:${latest.id}`) : null;
   }
   if (usable(link.startFieldId, maps, type)) fields.start = task.startDate ? task.startDate.toISOString().slice(0, 10) : null;
   if (usable(link.endFieldId, maps, type)) fields.end = task.endDate ? task.endDate.toISOString().slice(0, 10) : null;
@@ -277,10 +282,9 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     for (const id of wanted) if (!current.some((other) => other.id === id)) await addTaskRelation(task.id, id).catch(() => undefined);
   }
   if ('iteration' in values) {
-    // The iteration replaces the sprints mirroring iterations; the task keeps its other sprints.
+    // The sprint of the iteration is added: a task may be in several sprints, none is taken away from GitHub.
     const sprintId = values.iteration ? maps.iterationSprint.get(String(values.iteration)) : undefined;
-    const kept = task.sprints.filter((sprint) => !sprint.githubIterationId).map((sprint) => ({ id: sprint.id }));
-    data.sprints = { set: [...kept, ...(sprintId ? [{ id: sprintId }] : [])] };
+    if (sprintId && !task.sprints.some((sprint) => sprint.id === sprintId)) data.sprints = { connect: [{ id: sprintId }] };
   }
   if ('start' in values) data.startDate = day(values.start);
   if ('end' in values) data.endDate = day(values.end);
@@ -567,29 +571,34 @@ async function projectTree(projectId: string): Promise<string[]> {
 const foldName = (name: string) => name.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
 
 /**
- * Pairs the iterations of the board with the sprints of the project tree, both ways. An iteration without sprint
- * takes the Ordo sprint of the same name, or else of the same start (a sprint created from it by an earlier sync
- * gives that sprint its tasks and is deleted), or becomes a new sprint; a paired sprint follows the name and
- * dates of its iteration. Ordo sprints without iteration are added to the iteration field.
- * @param {string} token Token.
+ * Pairs the iterations of the board with the sprints of the project tree, without losing anything. An iteration
+ * without sprint takes the Ordo sprint of the same name (a sprint created from it by an earlier sync gives that
+ * sprint its tasks and is deleted), or becomes a new sprint with its dates. Ordo is the reference for the name and
+ * dates of a paired sprint. Iterations are never written: the API lays the iterations of a field end to end, one
+ * period of the field's duration each, whatever dates are asked, so the sprints without iteration are only
+ * counted (to be created on GitHub, where they will be paired by name). A sprint whose iteration is gone is
+ * unpaired.
  * @param {Board} board Board.
  * @param {GithubProjectLink} link Board link.
  * @param {string[]} tree Projects of the tree.
- * @returns {Promise<number>} Sprints created, paired or updated, and iterations created.
+ * @returns {Promise<{ changed: number, unpaired: number }>} Sprints created or paired; sprints without iteration.
  */
-async function syncIterations(token: string, board: Board, link: GithubProjectLink, tree: string[]): Promise<number> {
+async function syncIterations(board: Board, link: GithubProjectLink, tree: string[]): Promise<{ changed: number; unpaired: number }> {
   const field = board.fields.find((item) => item.id === link.iterationFieldId);
-  if (!field) return 0;
+  if (!field) return { changed: 0, unpaired: 0 };
   let changed = 0;
   const sprints = await prisma.sprint.findMany({ where: { projectId: { in: tree } }, orderBy: { createdAt: 'asc' } });
-  const day = (date: Date) => date.toISOString().slice(0, 10);
-  const unpaired = (test: (sprint: (typeof sprints)[number]) => boolean) => sprints.find((sprint) => !sprint.githubIterationId && test(sprint));
+  const iterationIds = new Set(field.iterations.map((iteration) => iteration.id));
+
+  // Iterations gone from the board: their sprints can be paired again.
+  for (const sprint of sprints.filter((item) => item.githubIterationId && !iterationIds.has(item.githubIterationId))) {
+    await prisma.sprint.update({ where: { id: sprint.id }, data: { githubIterationId: null } });
+    sprint.githubIterationId = null;
+  }
 
   for (const iteration of field.iterations) {
-    const startDate = new Date(`${iteration.startDate}T00:00:00.000Z`);
-    const endDate = new Date(startDate.getTime() + (iteration.duration - 1) * 86_400_000);
     let sprint = sprints.find((item) => item.githubIterationId === iteration.id);
-    const twin = unpaired((item) => foldName(item.name) === foldName(iteration.title)) ?? unpaired((item) => day(item.startDate) === iteration.startDate);
+    const twin = sprints.find((item) => !item.githubIterationId && item !== sprint && foldName(item.name) === foldName(iteration.title));
     if (twin) {
       if (sprint) {
         // A sprint created from the iteration by an earlier sync: its tasks join the Ordo sprint, which replaces it.
@@ -604,35 +613,13 @@ async function syncIterations(token: string, board: Board, link: GithubProjectLi
       changed += 1;
     }
     if (!sprint) {
+      const startDate = new Date(`${iteration.startDate}T00:00:00.000Z`);
+      const endDate = new Date(startDate.getTime() + (iteration.duration - 1) * 86_400_000);
       sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, name: iteration.title.slice(0, 120), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;
-    } else if (sprint.name !== iteration.title || sprint.startDate.getTime() !== startDate.getTime() || sprint.endDate.getTime() !== endDate.getTime()) {
-      await prisma.sprint.update({ where: { id: sprint.id }, data: { name: iteration.title.slice(0, 120), startDate, endDate } });
-      changed += 1;
     }
   }
-
-  // Ordo sprints without iteration: added to the field, then paired by title and start.
-  const missing = sprints.filter((sprint) => !sprint.githubIterationId);
-  if (missing.length) {
-    const added = missing.map((sprint) => ({
-      title: sprint.name,
-      startDate: day(sprint.startDate),
-      duration: Math.max(1, Math.round((sprint.endDate.getTime() - sprint.startDate.getTime()) / 86_400_000) + 1),
-    }));
-    const iterations = await addIterations(token, field, added).catch((error: unknown) => {
-      throw clientError('BAD_USER_INPUT', `Sprints Ordo non ajoutés comme itérations (${missing.map((sprint) => sprint.name).join(', ')}) : ${error instanceof Error ? error.message : String(error)}`);
-    });
-    field.iterations = iterations;
-    for (const sprint of missing) {
-      const iteration = iterations.find((item) => item.title === sprint.name && item.startDate === day(sprint.startDate) && !sprints.some((other) => other.githubIterationId === item.id));
-      if (!iteration) continue;
-      await prisma.sprint.update({ where: { id: sprint.id }, data: { githubIterationId: iteration.id } });
-      sprint.githubIterationId = iteration.id;
-      changed += 1;
-    }
-  }
-  return changed;
+  return { changed, unpaired: sprints.filter((item) => !item.githubIterationId).length };
 }
 
 /**
@@ -687,13 +674,15 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
   if (!link) throw notFound('Lien GitHub');
   if (running.has(link.id)) throw clientError('BAD_USER_INPUT', 'Une synchronisation de ce projet est déjà en cours.');
   running.add(link.id);
-  const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, renumbered: 0, comments: 0 };
+  const summary: SyncSummary = { pulledNew: 0, pushedNew: 0, pulled: 0, pushed: 0, unlinked: 0, sprints: 0, sprintsSkipped: 0, renumbered: 0, comments: 0 };
   try {
     const token = await githubToken();
     const login = (await prisma.githubConnection.findUnique({ where: { workspaceId: currentWorkspaceId() } }))?.login ?? '';
     const board = await boardById(token, link.githubProjectId);
     const tree = await projectTree(projectId);
-    summary.sprints = await syncIterations(token, board, link, tree);
+    const iterations = await syncIterations(board, link, tree);
+    summary.sprints = iterations.changed;
+    summary.sprintsSkipped = iterations.unpaired;
     const items = await boardItems(token, board);
     const itemIds = items.map((item) => item.itemId);
 
@@ -752,12 +741,17 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const sent: SentRelations = new Set();
     const tagColors = new Map((await prisma.taskTag.findMany()).map((tag) => [tag.name.toLowerCase(), tag.color]));
     const byItem = new Map(linked.map((task) => [task.githubItemId!, task]));
+    const iterationIds = new Set(board.fields.find((field) => field.id === link.iterationFieldId)?.iterations.map((iteration) => iteration.id) ?? []);
 
     for (const item of items) {
       const task = byItem.get(item.itemId)!;
-      const local = localFields(task, link, maps, item.type);
+      const local = localFields(task, link, maps, item.type, link.iterationFieldId ? ((fieldValue(item.fields[link.iterationFieldId]) as string | null) ?? null) : null);
       const remote = remoteFields(item, link, maps);
-      const result = mergeFields(local, remote, task.githubSnapshot as SyncFields | null, task.updatedAt.toISOString() > item.updatedAt);
+      // An iteration of the last sync that is gone from the board (new ids given by GitHub) is no reference: the
+      // item lost it, the sprint of the task wins.
+      const snapshot = task.githubSnapshot ? { ...(task.githubSnapshot as SyncFields) } : null;
+      if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
+      const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
       if (Object.keys(result.push).length) {
         await pushValues(token, link, item, result.push, {
           knownBefore: (remote.assignees as string[]) ?? [],
