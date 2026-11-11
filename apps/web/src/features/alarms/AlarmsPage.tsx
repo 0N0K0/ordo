@@ -6,6 +6,7 @@ import { AlarmList } from './AlarmList';
 import { useAlarms } from './api';
 import { useAlarmForm } from './use-alarm-form';
 import { PageTitle } from '../../components/PageTitle';
+import classes from './AlarmsPage.module.css';
 
 /**
  * Alarms page: one-off and recurring reminders, alarms when no timer runs, and alarms during the timer.
@@ -22,7 +23,7 @@ export function AlarmsPage() {
   const openForm = useAlarmForm(context);
 
   return (
-    <Stack gap="lg">
+    <Stack gap="lg" className={classes.root}>
       <Group justify="space-between" align="flex-end">
         <Stack gap={4}>
           <PageTitle>Alarmes</PageTitle>

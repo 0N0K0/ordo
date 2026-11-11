@@ -1,0 +1,14 @@
+@layer app {
+  /* Content of the page: 7 columns of the design system at most (7 × 96 + 6 × 16 = 768px), centered. */
+  .root {
+    --column: 96px;
+    --gutter: 16px;
+
+    /* Dimension */
+    width: 100%;
+    max-width: calc(7 * var(--column) + 6 * var(--gutter));
+
+    /* Espacement */
+    margin-inline: auto;
+  }
+}
