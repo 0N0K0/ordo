@@ -1,4 +1,17 @@
 @layer app {
+  /* Content of the shopping pages: 9 columns of the design system at most (9 × 96 + 8 × 16 = 992px), centered. */
+  .root {
+    --column: 96px;
+    --gutter: 16px;
+
+    /* Dimension */
+    width: 100%;
+    max-width: calc(9 * var(--column) + 8 * var(--gutter));
+
+    /* Espacement */
+    margin-inline: auto;
+  }
+
   /* Group of products or items (a category or a store): its rows scroll sideways on a phone. */
   .group {
     /* Dimension */

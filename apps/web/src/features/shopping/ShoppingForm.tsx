@@ -100,14 +100,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
         <SimpleGrid cols={{ base: 1, xs: 2 }}>
-          <Select
-            label="Catégorie"
-            placeholder="Aucune"
-            clearable
-            searchable
-            data={shoppingCategoryOptions(data?.shoppingCategories ?? [])}
-            {...form.getInputProps('categoryId')}
-          />
+          <Select label="Catégorie" placeholder="Aucune" clearable searchable data={shoppingCategoryOptions(data?.shoppingCategories ?? [])} {...form.getInputProps('categoryId')} />
           <Select
             label="Magasin"
             placeholder="Aucun"

@@ -48,7 +48,14 @@ function CategoryForm({ categories, category, parentId = null, onDone }: Categor
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
         <ColorInput label="Couleur" format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
-        <Select label="Catégorie parente" placeholder="Aucune (catégorie principale)" clearable searchable data={shoppingCategoryOptions(categories, category?.id)} {...form.getInputProps('parentId')} />
+        <Select
+          label="Catégorie parente"
+          placeholder="Aucune (catégorie principale)"
+          clearable
+          searchable
+          data={shoppingCategoryOptions(categories, category?.id)}
+          {...form.getInputProps('parentId')}
+        />
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
             Annuler
@@ -105,8 +112,8 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
       children: (
         <Stack gap="md">
           <Text size="sm">
-            « {path} » sera supprimée définitivement.{used ? ` Ses ${used} produit(s) et élément(s) n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau. Cette action
-            est irréversible.
+            « {path} » sera supprimée définitivement.{used ? ` Ses ${used} produit(s) et élément(s) n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau. Cette action est
+            irréversible.
           </Text>
           <DestructiveActions
             loading={false}
