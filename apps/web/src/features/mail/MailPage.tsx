@@ -1,8 +1,8 @@
-import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
-import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, GearSixIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useMailRefresh, useScheduledMails } from './api';
@@ -19,6 +19,8 @@ import { ScheduledMailsList } from './ScheduledMailsList';
 import { MailAccountsManager } from './settings/MailAccountsManager';
 import { useMailComposer } from './use-mail-composer';
 import { PageTitle } from '../../components/PageTitle';
+import { PageSettings } from '../../layouts/PageSettings';
+import { SETTINGS_PARAM, useSettingsOpened } from '../../layouts/page-settings';
 
 type DoneFilter = 'all' | 'todo' | 'done';
 
@@ -86,9 +88,16 @@ export function MailPage() {
   const selected = selection.key === selectionKey ? selection.uids : [];
   const setSelected = (uids: number[]) => setSelection({ key: selectionKey, uids });
   const [dragged, setDragged] = useState<DraggedMails | null>(null);
-  const [managingLabels, setManagingLabels] = useState(false);
-  // Management of the mail accounts, opened from the URL too (?accounts=1).
-  const accountsOpen = params.get('accounts') === '1';
+  // Accounts and flags are managed in the settings sidebar (the old ?accounts=1 opens it).
+  const { setOpened: setSettingsOpened } = useSettingsOpened();
+  const openSettings = () => setSettingsOpened(true);
+  useEffect(() => {
+    if (params.get('accounts') !== '1') return;
+    const next = new URLSearchParams(params);
+    next.delete('accounts');
+    next.set(SETTINGS_PARAM, '1');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const { refresh, fetching } = useMailRefresh();
   const selectedMessages = (messages.data?.messages ?? []).filter((message) => selected.includes(message.uid));
 
@@ -130,23 +139,17 @@ export function MailPage() {
 
   return (
     <Stack gap="md" className={classes.page}>
-      <Modal opened={managingLabels} onClose={() => setManagingLabels(false)} title="Drapeaux">
-        {managingLabels && <MailLabelsManager />}
-      </Modal>
-      <Modal opened={accountsOpen} onClose={() => update({ accounts: null })} title="Boîtes mail" size="xl">
-        {accountsOpen && <MailAccountsManager />}
-      </Modal>
+      {/* Mail accounts and flags: in the settings sidebar. */}
+      <PageSettings title="Paramètres des mails">
+        <MailAccountsManager />
+        <MailLabelsManager />
+      </PageSettings>
       <Group justify="space-between">
         <PageTitle>Mails</PageTitle>
         <Group gap="sm">
           <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
             <Button variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
               Relever
-            </Button>
-          </Tooltip>
-          <Tooltip label="Ajouter, modifier ou retirer une boîte mail">
-            <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => update({ accounts: '1' })}>
-              Boîtes mail
             </Button>
           </Tooltip>
           <Button leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => compose({ accountId })}>
@@ -234,7 +237,7 @@ export function MailPage() {
                   open={uid !== null ? { accountId, folder, uid } : null}
                   onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
                   onOpenGone={() => update({ uid: null })}
-                  onManageLabels={() => setManagingLabels(true)}
+                  onManageLabels={openSettings}
                 />
               </>
             ) : searchId ? (
@@ -245,7 +248,7 @@ export function MailPage() {
                 open={accountId && uid !== null ? { accountId, folder, uid } : null}
                 onOpen={(mail) => update({ account: mail.accountId, folder: mail.folder, uid: String(mail.uid) })}
                   onOpenGone={() => update({ uid: null })}
-                  onManageLabels={() => setManagingLabels(true)}
+                  onManageLabels={openSettings}
               />
             ) : (
               <>
@@ -298,7 +301,7 @@ export function MailPage() {
                       if (uid !== null && selected.includes(uid)) update({ uid: null });
                     }}
                     onClear={() => setSelected([])}
-                    onManageLabels={() => setManagingLabels(true)}
+                    onManageLabels={openSettings}
                   />
                 ) : (
                   <Group gap={4} wrap="nowrap">
@@ -428,7 +431,7 @@ export function MailPage() {
                 uid={uid}
                 isDraft={isDrafts}
                 onDeleted={() => update({ uid: null })}
-                onManageLabels={() => setManagingLabels(true)}
+                onManageLabels={openSettings}
               />
             ) : (
               <Text size="sm" c="dimmed" ta="center" py="xl">

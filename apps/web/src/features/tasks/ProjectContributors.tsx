@@ -159,7 +159,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                           Via{' '}
                           <Anchor
                             component={Link}
-                            to={`/projects/${inheritedFrom.id}?tab=settings&section=contributors`}
+                            to={`/projects/${inheritedFrom.id}?settings=1&section=contributors`}
                             size="xs"
                             inherit
                           >

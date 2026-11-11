@@ -1,7 +1,6 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { CheckSquareOffsetIcon, GearIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
-import { useMediaQuery } from '@mantine/hooks';
-import { useMemo, type ReactNode } from 'react';
+import { CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
 import { ProjectGithubPanel } from '../../github/ProjectGithubPanel';
@@ -20,6 +19,8 @@ import { useEntityActions } from '../use-entity-actions';
 import { EntityHeader } from './EntityHeader';
 import { EntityNotFound, EntitySkeleton } from './EntityState';
 import { ProjectList } from './ProjectList';
+import { PageSettings } from '../../../layouts/PageSettings';
+import { SETTINGS_PARAM } from '../../../layouts/page-settings';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
 
@@ -55,16 +56,15 @@ const SETTINGS_SECTIONS = ['milestones', 'sprints', 'contributors', 'github'] as
 type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /**
- * Settings of a project, one section at a time from a side menu: milestones, sprints, contributors, GitHub.
+ * Settings of a project, in the settings sidebar, one section at a time (chosen above it): milestones, sprints,
+ * contributors, GitHub.
  * @param {{ projectId: string, section: SettingsSection, onSection: (section: SettingsSection) => void }} props Project, section shown and its change.
  * @returns {JSX.Element} Settings.
  */
 function ProjectSettings({ projectId, section, onSection }: { projectId: string; section: SettingsSection; onSection: (section: SettingsSection) => void }) {
-  // Side menu on wide screens, above the section on narrow ones.
-  const wide = useMediaQuery('(min-width: 48em)', true);
   return (
-    <Tabs orientation={wide ? 'vertical' : 'horizontal'} variant="pills" value={section} onChange={(value) => value && onSection(value as SettingsSection)} keepMounted={false}>
-      <Tabs.List {...(wide ? { mr: 'lg', miw: 180 } : { mb: 'md' })}>
+    <Tabs variant="pills" value={section} onChange={(value) => value && onSection(value as SettingsSection)} keepMounted={false}>
+      <Tabs.List mb="md">
         <Tabs.Tab value="milestones" leftSection={<FlagIcon aria-hidden />}>
           Jalons
         </Tabs.Tab>
@@ -109,9 +109,14 @@ export function ProjectPage() {
   const requested = params.get('tab') ?? 'overview';
   const legacy = (SETTINGS_SECTIONS as readonly string[]).includes(requested);
   // The dashboards are in the overview.
-  const tab = legacy ? 'settings' : requested === 'dashboards' || (perso && requested === 'billing') ? 'overview' : requested;
+  const tab = legacy || requested === 'settings' || requested === 'dashboards' || (perso && requested === 'billing') ? 'overview' : requested;
   const sectionParam = legacy ? requested : params.get('section');
   const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : 'milestones';
+  // The former settings tab (and its sections): the settings, in the sidebar.
+  useEffect(() => {
+    if (!legacy && requested !== 'settings') return;
+    setParams({ [SETTINGS_PARAM]: '1', section }, { replace: true });
+  }, [legacy, requested, section, setParams]);
   // Tasks of the project and of its sub-projects.
   const baseFilter = useMemo(
     () =>
@@ -182,8 +187,15 @@ export function ProjectPage() {
       <Tabs
         value={tab}
         onChange={(value) => {
-          // Changing tab drops the view and the open task of the previous tab.
-          setParams(value && value !== 'overview' ? { tab: value } : {}, { replace: true });
+          // Changing tab drops the view and the open task of the previous tab; the settings sidebar stays as it is.
+          setParams(
+            (current) => {
+              const next = new URLSearchParams(current.get(SETTINGS_PARAM) ? { [SETTINGS_PARAM]: '1', section } : {});
+              if (value && value !== 'overview') next.set('tab', value);
+              return next;
+            },
+            { replace: true },
+          );
         }}
         keepMounted={false}
       >
@@ -207,9 +219,6 @@ export function ProjectPage() {
           </Tabs.Tab>
           <Tabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
             Ressources
-          </Tabs.Tab>
-          <Tabs.Tab value="settings" leftSection={<GearIcon aria-hidden />}>
-            Paramètres
           </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="overview">
@@ -290,10 +299,24 @@ export function ProjectPage() {
         <Tabs.Panel value="mail">
           <ProjectMailsPanel projectId={project.id} />
         </Tabs.Panel>
-        <Tabs.Panel value="settings">
-          <ProjectSettings projectId={project.id} section={section} onSection={(next) => setParams({ tab: 'settings', section: next }, { replace: true })} />
-        </Tabs.Panel>
       </Tabs>
+      {/* Milestones, sprints, contributors, GitHub: in the settings sidebar. */}
+      <PageSettings title="Paramètres du projet">
+        <ProjectSettings
+          projectId={project.id}
+          section={section}
+          onSection={(next) =>
+            setParams(
+              (current) => {
+                const updated = new URLSearchParams(current);
+                updated.set('section', next);
+                return updated;
+              },
+              { replace: true },
+            )
+          }
+        />
+      </PageSettings>
     </Stack>
   );
 }

@@ -8,7 +8,6 @@ import {
   CaretDownIcon,
   FileArrowUpIcon,
   FileZipIcon,
-  FlagIcon,
   PackageIcon,
   PaperPlaneTiltIcon,
   PencilSimpleIcon,
@@ -31,6 +30,9 @@ import { openDocumentsZip, openNewDocument } from './new-document';
 import { openRecurringForm } from './recurring-form';
 import { DocumentStatusSettings } from './DocumentStatusSettings';
 import { PageTitle } from '../../components/PageTitle';
+import { PageSettings } from '../../layouts/PageSettings';
+import { SETTINGS_PARAM } from '../../layouts/page-settings';
+import { useEffect } from 'react';
 
 const TABS = [
   { value: 'QUOTE', label: 'Devis' },
@@ -158,13 +160,21 @@ function RecurringList() {
 /**
  * Accounting: quotes, invoices, deposit invoices and credit notes (imported ones listed with their type), the
  * documents to send (or deposit),
- * invoices to follow up, recurring invoices, catalogue and the tracking statuses of the documents.
+ * invoices to follow up, recurring invoices, catalogue; the tracking statuses of the documents in the settings sidebar.
  * @returns {JSX.Element} Page.
  */
 export function AccountingPage() {
   const [params, setParams] = useSearchParams();
   // Imported documents are now listed with their type.
   const tab = params.get('tab') && params.get('tab') !== 'imported' ? params.get('tab')! : 'QUOTE';
+  // The old tab of the tracking statuses: its settings, in the sidebar.
+  useEffect(() => {
+    if (params.get('tab') !== 'tracking') return;
+    const next = new URLSearchParams(params);
+    next.delete('tab');
+    next.set(SETTINGS_PARAM, '1');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
@@ -261,9 +271,6 @@ export function AccountingPage() {
             <Tabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
               Catalogue
             </Tabs.Tab>
-            <Tabs.Tab value="tracking" leftSection={<FlagIcon aria-hidden />}>
-              Suivi des documents
-            </Tabs.Tab>
           </Tabs.List>
           {TABS.some((item) => item.value === tab) && (
             <Select
@@ -302,10 +309,11 @@ export function AccountingPage() {
         <Tabs.Panel value="catalog">
           <CatalogPanel />
         </Tabs.Panel>
-        <Tabs.Panel value="tracking">
-          <DocumentStatusSettings />
-        </Tabs.Panel>
       </Tabs>
+      {/* Tracking statuses of the documents: in the settings sidebar. */}
+      <PageSettings title="Paramètres de la facturation">
+        <DocumentStatusSettings />
+      </PageSettings>
     </Stack>
   );
 }

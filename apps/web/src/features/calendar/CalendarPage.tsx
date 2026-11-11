@@ -7,7 +7,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Checkbox, Group, Modal, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay } from '@ordo/shared';
-import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
@@ -51,6 +51,7 @@ import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
 import { PageTitle } from '../../components/PageTitle';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { PageSettings } from '../../layouts/PageSettings';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -139,21 +140,6 @@ export function CalendarPage() {
   // A date to show (link to a postponed event…).
   const [params, setParams] = useSearchParams();
   const requestedDate = params.get('date');
-  // Settings of the calendar (calendars, subscriptions, categories), opened from the URL too (?settings=1).
-  const settingsOpen = params.get('settings') === '1';
-
-  /**
-   * Opens or closes the settings of the calendar (kept in the URL).
-   * @param {boolean} open Whether they are shown.
-   * @returns {void}
-   */
-  const showSettings = (open: boolean) => {
-    const next = new URLSearchParams(params);
-    if (open) next.set('settings', '1');
-    else next.delete('settings');
-    setParams(next, { replace: true });
-  };
-
   useEffect(() => {
     if (!requestedDate) return;
     calendarRef.current?.getApi().gotoDate(requestedDate);
@@ -571,11 +557,6 @@ export function CalendarPage() {
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             {perso ? 'Plages' : 'Plages de travail'}
           </Button>
-          <Tooltip label="Calendriers, abonnements aux autres espaces, catégories, types de plages, lieux">
-            <Button variant="default" leftSection={<GearSixIcon aria-hidden />} onClick={() => showSettings(true)}>
-              Paramètres
-            </Button>
-          </Tooltip>
           <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
             Nouvel évènement
           </Button>
@@ -604,11 +585,6 @@ export function CalendarPage() {
             }
           />
         ))}
-        <Tooltip label="Gérer les calendriers et les abonnements aux autres espaces">
-          <ActionIcon variant="subtle" color="gray" aria-label="Gérer les calendriers" onClick={() => showSettings(true)}>
-            <GearSixIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
       </Group>
 
       <Group gap="sm" wrap="wrap" align="flex-end">
@@ -656,16 +632,13 @@ export function CalendarPage() {
         </Alert>
       )}
       <SubscribedEventModal opened={openedSubscribed} onClose={() => setOpenedSubscribed(null)} />
-      <Modal opened={settingsOpen} onClose={() => showSettings(false)} title="Paramètres de l’agenda" size="xl">
-        {settingsOpen && (
-          <Stack gap="md">
-            <CalendarsManager />
-            <CalendarCategoriesManager />
-            <ScheduleSettings />
-            <PlacesManager />
-          </Stack>
-        )}
-      </Modal>
+      {/* Calendars, subscriptions, categories, kinds of slots and places: in the settings sidebar (?settings=1). */}
+      <PageSettings title="Paramètres de l’agenda">
+        <CalendarsManager />
+        <CalendarCategoriesManager />
+        <ScheduleSettings />
+        <PlacesManager />
+      </PageSettings>
       <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="min(72rem, 100%)">
         {managingSchedules && <WorkSchedulesManager />}
       </Modal>

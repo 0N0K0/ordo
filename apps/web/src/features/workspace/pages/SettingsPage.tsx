@@ -65,7 +65,7 @@ export function SettingsPage() {
   }
 
   // Settings moved to their views.
-  const moved: Record<string, string> = { tracking: perso ? "/" : "/accounting?tab=tracking", calendar: "/calendar?settings=1", mail: "/mail?accounts=1" };
+  const moved: Record<string, string> = { tracking: perso ? "/" : "/accounting?settings=1", calendar: "/calendar?settings=1", mail: "/mail?settings=1" };
   if (moved[asked]) return <Navigate to={moved[asked]} replace />;
 
   return (

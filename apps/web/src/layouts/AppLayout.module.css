@@ -28,6 +28,7 @@
       user-select: none;
 
       & :global(.mantine-AppShell-navbar),
+      & :global(.mantine-AppShell-aside),
       & :global(.mantine-AppShell-main) {
         /* Animation */
         transition: none;
