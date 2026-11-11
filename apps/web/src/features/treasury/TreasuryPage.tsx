@@ -44,6 +44,7 @@ import {
 import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type ChartScale } from './chart-period';
 import { confirmDeletion } from './confirm-deletion';
 import { EntriesPanel } from './EntriesPanel';
+import { EntryUrl } from './EntryUrl';
 import { EntryForm } from './EntryForm';
 import { SettingsPanel } from './SettingsPanel';
 import { BudgetsPanel } from './BudgetsPanel';
@@ -490,7 +491,10 @@ export function TreasuryPage() {
                               {item.label}
                             </Anchor>
                           ) : (
-                            <Text size="sm">{item.label}</Text>
+                            <Group gap={4} wrap="nowrap">
+                              <Text size="sm">{item.label}</Text>
+                              <EntryUrl url={entry?.url} label={item.label} />
+                            </Group>
                           )}
                           {entry?.recurrence != null && (
                             <Text size="xs" c="dimmed">
