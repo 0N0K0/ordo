@@ -421,8 +421,8 @@ export function CalendarPage() {
       const today = localToday();
       for (const task of context.tasks) {
         if (task.archived) continue;
-        // Its dates, from start to end, to today or to its latest acceptable date; that date too when apart.
-        const { span, deadline } = taskPlacement(task, today);
+        // Its dates, from start to end or to today; its latest acceptable date apart, today when late.
+        const { span, deadline, overdue } = taskPlacement(task, today);
         const color = context.projectById.get(task.projectId)?.color ?? 'var(--mantine-color-gray-6)';
         // Its number is only unique in its project: the project comes with it (without « Sans client »).
         const label = `${context.projectLabel(task.projectId).replace(/^Sans client › /, '')} #${task.number} ${task.title}`;
@@ -442,11 +442,12 @@ export function CalendarPage() {
             end: addDays(span.end, 1),
             // Up to a date the task does not hold (today, its latest date): moving it moves its start only.
             durationEditable: span.kind === 'dates',
+            // Late and carried by its span (up to today): in red.
+            ...(overdue && !deadline ? { borderColor: 'var(--mantine-color-red-6)' } : {}),
             extendedProps: { kind: 'task', task, part: span.kind },
           });
         }
         if (deadline) {
-          const overdue = !task.closed && deadline < today;
           result.push({
             ...look,
             id: `task-deadline:${task.id}`,
