@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   FlagIcon,
   EnvelopeSimpleIcon,
+  LinkBreakIcon,
   PencilSimpleLineIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
@@ -17,7 +18,7 @@ import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useWorkspace } from '../workspace/api';
-import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, type MailView } from './api';
+import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from './api';
 import { MailOrganizeActions } from './MailOrganizeActions';
 import { forwardOptions, replyOptions, splitDraftHtml, type SourceMail } from './compose-options';
 import { escapeHtml } from './mail-format';
@@ -45,20 +46,27 @@ interface MailReaderProps {
   onDeleted: () => void;
   /** Opens the flags settings. */
   onManageLabels: () => void;
+  /**
+   * Project the mail is read from (its mails tab): unlinked from it rather than linked to a project, no move to
+   * another folder (the folders are not shown), replies and forwards linked to it. Optional.
+   */
+  projectId?: string;
 }
 
 /**
  * Mail read live on the server: header, body, files and flags; reply, reply all, forward, done / to do,
- * flags, spam, move, mark as unread, delete, link to a project.
+ * flags, spam, move, mark as unread, delete, link to a project (from a project: unlink from it, no move).
  * @param {MailReaderProps} props Component props.
  * @returns {JSX.Element} Reader.
  */
-export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManageLabels }: MailReaderProps) {
+export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManageLabels, projectId }: MailReaderProps) {
   const { data: mail, isPending, error } = useMailMessage({ accountId, folder, uid });
   const { data: accounts } = useMailAccounts();
   const { data: workspace } = useWorkspace();
   const { data: labels } = useMailLabels();
-  const { setSeen, remove, deleteDraft } = useMailActions();
+  const { setSeen, remove, deleteDraft, unlink } = useMailActions();
+  // From a project, its copy of the mail (to unlink it).
+  const { data: projectMails } = useProjectMails(projectId ?? '', Boolean(projectId));
   const [resuming, setResuming] = useState(false);
   const compose = useMailComposer();
   const own = (accounts ?? []).map((account) => account.email);
@@ -68,6 +76,40 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
   useEffect(() => {
     if (mail) void queryClient.invalidateQueries({ queryKey: [...mailQueryKey], predicate: (query) => query.queryKey[1] !== 'message' });
   }, [mail, queryClient]);
+
+  const copy = mail && projectMails?.find((item) => item.messageId === mail.messageId);
+
+  /**
+   * Asks for confirmation before unlinking the mail from the project (its copy in Ordo deleted).
+   * @param {string} copyId Copy of the mail in the project.
+   * @returns {void}
+   */
+  const confirmUnlink = (copyId: string) => {
+    const modalId = `unlink-mail-${copyId}`;
+    modals.open({
+      modalId,
+      title: 'Détacher le mail du projet',
+      children: (
+        <Stack gap="md">
+          <Text size="sm">La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.</Text>
+          <DestructiveActions
+            loading={false}
+            onCancel={() => modals.close(modalId)}
+            onConfirm={() => {
+              modals.close(modalId);
+              unlink.mutate(copyId, {
+                onSuccess: () => {
+                  notifySuccess('Mail détaché du projet.');
+                  onDeleted();
+                },
+                onError: (failure) => notifyError(failure.message),
+              });
+            }}
+          />
+        </Stack>
+      ),
+    });
+  };
 
   if (isPending) return <Skeleton height={300} />;
   if (error || !mail) {
@@ -203,6 +245,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                 labelIds={mail.labelIds}
                 onMoved={onDeleted}
                 onManageLabels={onManageLabels}
+                noMove={Boolean(projectId)}
               />
             )}
             <Tooltip label="Marquer comme non lu">
@@ -271,7 +314,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
             size="xs"
             variant="default"
             leftSection={<ArrowBendUpLeftIcon aria-hidden />}
-            onClick={() => compose(replyOptions(sourceOf(mail), false, own))}
+            onClick={() => compose(replyOptions(sourceOf(mail), false, own, projectId))}
           >
             Répondre
           </Button>
@@ -279,7 +322,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
             size="xs"
             variant="default"
             leftSection={<ArrowBendDoubleUpLeftIcon aria-hidden />}
-            onClick={() => compose(replyOptions(sourceOf(mail), true, own))}
+            onClick={() => compose(replyOptions(sourceOf(mail), true, own, projectId))}
           >
             Répondre à tous
           </Button>
@@ -287,11 +330,19 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
             size="xs"
             variant="default"
             leftSection={<ArrowBendUpRightIcon aria-hidden />}
-            onClick={() => compose(forwardOptions(sourceOf(mail), files))}
+            onClick={() => compose(forwardOptions(sourceOf(mail), files, projectId))}
           >
             Transférer
           </Button>
-          <LinkToProject accountId={accountId} folder={folder} uid={uid} linkedProjectIds={mail.linkedProjectIds} />
+          {projectId ? (
+            copy && (
+              <Button size="xs" variant="default" color="red" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
+                Détacher du projet
+              </Button>
+            )
+          ) : (
+            <LinkToProject accountId={accountId} folder={folder} uid={uid} linkedProjectIds={mail.linkedProjectIds} />
+          )}
         </Group>
       )}
       <MailFiles

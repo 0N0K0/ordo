@@ -1,9 +1,10 @@
-import { MultiSelect, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
+import { SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import type { ChartConfig } from '@ordo/shared';
 import { DOCUMENT_TYPE_LABELS } from '../accounting/labels';
 import { useDocumentStatuses } from '../accounting/tracking-api';
 import { useTreasuryAccounts, useTreasurySettings } from '../treasury/api';
 import { useWorkspace } from '../workspace/api';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 /**
  * Filters of a document chart: types, clients, tracking statuses, drafts, imported documents, credit notes.
@@ -17,14 +18,14 @@ export function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 
   const set = (changes: Partial<ChartConfig['documents']>) => change({ documents: { ...filter, ...changes } });
   return (
     <Stack gap="sm">
-      <MultiSelect
+      <BatchMultiSelect
         label="Types de documents"
         placeholder="Tous"
         data={(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((value) => ({ value, label: DOCUMENT_TYPE_LABELS[value] }))}
         value={filter.types}
         onChange={(types) => set({ types: types as ChartConfig['documents']['types'] })}
       />
-      <MultiSelect
+      <BatchMultiSelect
         label="Clients"
         placeholder="Tous"
         searchable
@@ -35,7 +36,7 @@ export function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 
         value={filter.clientIds}
         onChange={(clientIds) => set({ clientIds })}
       />
-      <MultiSelect
+      <BatchMultiSelect
         label="Statuts de suivi"
         placeholder="Tous"
         data={(statuses ?? []).map((status) => ({
@@ -66,7 +67,7 @@ export function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 
   const set = (changes: Partial<ChartConfig['treasury']>) => change({ treasury: { ...filter, ...changes } });
   return (
     <Stack gap="sm">
-      <MultiSelect
+      <BatchMultiSelect
         label="Comptes"
         placeholder="Tous"
         data={(accounts ?? []).map((account) => ({
@@ -76,7 +77,7 @@ export function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 
         value={filter.accountIds}
         onChange={(accountIds) => set({ accountIds })}
       />
-      <MultiSelect label="Catégories" placeholder="Toutes" searchable data={categories} value={filter.categories} onChange={(selected) => set({ categories: selected })} />
+      <BatchMultiSelect label="Catégories" placeholder="Toutes" searchable data={categories} value={filter.categories} onChange={(selected) => set({ categories: selected })} />
       <Stack gap={4}>
         <Text size="sm" fw={500}>
           Mouvements

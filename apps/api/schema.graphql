@@ -2029,9 +2029,17 @@ type Query {
   mailAccounts: [MailAccount!]!
 
   """
-  A page of the mails matching criteria (shared mail search criteria), latest first; not saved.
+  A page of the mails matching criteria (shared mail search criteria; a project: its linked mails, in every folder), latest first by default; not saved.
   """
-  mailAdvancedSearch(criteria: JSON!, page: Int!): MailSearchPage!
+  mailAdvancedSearch(
+    """Ascending order (descending by default)."""
+    ascending: Boolean
+    criteria: JSON!
+    page: Int!
+
+    """date (default), correspondent or subject."""
+    sort: String
+  ): MailSearchPage!
 
   """Opens a draft to go on writing it."""
   mailDraft(accountId: ID!, folder: String!, uid: Int!): MailDraft!

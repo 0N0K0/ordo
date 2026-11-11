@@ -374,14 +374,15 @@ function Contexts() {
 }
 
 /**
- * Contexts and their planned periods (the team or household is in the settings, with the contributors).
+ * Contexts and their planned periods, one under the other (they are in the settings sidebar; the team or household
+ * is in the settings, with the contributors).
  * @returns {JSX.Element} Sections.
  */
 export function TeamPanel() {
   return (
-    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+    <Stack gap="md">
       <Contexts />
-    </SimpleGrid>
+    </Stack>
   );
 }
 

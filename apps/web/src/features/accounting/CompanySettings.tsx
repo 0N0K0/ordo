@@ -166,7 +166,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                 </Text>
               </Stack>
             </Group>
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
               <TextInput
                 label="Nom de la société"
                 required
@@ -210,7 +210,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
             label="Nom du contact"
             {...form.getInputProps('contact')}
           />
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+          <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
             <TextInput label="Email" {...form.getInputProps('email')} />
             <TextInput label="Téléphone" {...form.getInputProps('phone')} />
             <TextInput
@@ -250,7 +250,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
         </Fieldset>
 
         <Fieldset legend="Banque (RIB)">
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+          <SimpleGrid type="container" cols={{ base: 1, '400px': 2 }} spacing="sm">
             <TextInput
               label="Titulaire du compte"
               {...form.getInputProps('accountHolder')}
@@ -267,7 +267,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
               Reprises dans chaque nouveau document, où elles restent
               modifiables.
             </Text>
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
               <NumberInput
                 label="Échéance des factures"
                 description="Si les conditions ne la donnent pas."
@@ -289,7 +289,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                 {...form.getInputProps('referenceLabel')}
               />
             </SimpleGrid>
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            <SimpleGrid type="container" cols={{ base: 1, '560px': 3 }} spacing="sm">
               <Autocomplete
                 label="Conditions de règlement"
                 placeholder="À réception"

@@ -1,9 +1,10 @@
-import { Alert, Badge, Button, Checkbox, FileInput, Group, MultiSelect, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Stack, Table, Text } from '@mantine/core';
+import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Stack, Table, Text } from '@mantine/core';
 import { addDays, daysBetween, formatMoney, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
 import { FileCsvIcon, InfoIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from './api';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 /** Days between a bank operation and an entry or forecast of the same amount for them to match. */
@@ -295,7 +296,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
             onChange={(value) => value && remap({ dateFormat: value as StatementMapping['dateFormat'] })}
             allowDeselect={false}
           />
-          <MultiSelect
+          <BatchMultiSelect
             label="Libellé"
             description="Plusieurs colonnes sont mises bout à bout."
             data={columnOptions}

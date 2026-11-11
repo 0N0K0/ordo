@@ -1,0 +1,27 @@
+@layer app {
+  /* Name of the workspace as plain text (the menu opens on hover); a focus outline, not a ripple: it is text. */
+  .text {
+    /* Dimension */
+    max-width: 16rem;
+    overflow: hidden;
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    color: var(--mantine-color-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    /* Bordures */
+    border-radius: var(--mantine-radius-sm);
+
+    &:focus-visible {
+      /* Bordures */
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: 2px;
+    }
+
+    /* Interaction */
+    cursor: pointer;
+  }
+}

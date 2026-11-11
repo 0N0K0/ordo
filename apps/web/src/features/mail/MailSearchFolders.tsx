@@ -98,8 +98,12 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
 }
 
 interface MailSearchListProps {
-  /** Search folder, or criteria of an advanced search. */
-  query: { id: string } | { criteria: MailSearchCriteria };
+  /** Search folder, or criteria of an advanced search (and their order). */
+  query: { id: string } | { criteria: MailSearchCriteria; sort?: 'date' | 'correspondent' | 'subject'; ascending?: boolean };
+  /** Message without any mail. Optional. */
+  empty?: string;
+  /** No move to another folder (the mails of a project). Optional. */
+  noMove?: boolean;
   page: number;
   onPage: (page: number) => void;
   /** Mail open. */
@@ -123,7 +127,7 @@ const mailKey = (mail: { accountId: string; folder: string; uid: number }) => `$
  * @param {MailSearchListProps} props Component props.
  * @returns {JSX.Element} List.
  */
-export function MailSearchList({ query, page, onPage, open, onOpen, onOpenGone, onManageLabels }: MailSearchListProps) {
+export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpen, onOpenGone, onManageLabels }: MailSearchListProps) {
   const results = useMailSearchResults({ ...query, page: page - 1 });
   // Ticked mails, for the page of results shown.
   const pageKey = `${JSON.stringify(query)}|${page}`;
@@ -156,7 +160,7 @@ export function MailSearchList({ query, page, onPage, open, onOpen, onOpenGone, 
   if (total === 0) {
     return (
       <Text size="sm" c="dimmed" ta="center" p="xl">
-        Aucun mail ne répond {'id' in query ? 'aux critères de ce dossier' : 'à la recherche'}.
+        {empty ?? `Aucun mail ne répond ${'id' in query ? 'aux critères de ce dossier' : 'à la recherche'}.`}
       </Text>
     );
   }
@@ -183,6 +187,7 @@ export function MailSearchList({ query, page, onPage, open, onOpen, onOpenGone, 
             }}
             onClear={() => setSelected([])}
             onManageLabels={onManageLabels}
+            noMove={noMove}
           />
         ) : (
           <Text size="xs" c="dimmed">

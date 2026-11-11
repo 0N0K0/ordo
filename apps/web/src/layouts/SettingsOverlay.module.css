@@ -1,0 +1,15 @@
+@layer app {
+  /* Over the page content only: below the header, right of the navigation, under the settings sidebar. */
+  .overlay {
+    /* Position */
+    position: fixed;
+    top: var(--app-shell-header-offset, 0rem);
+    right: 0;
+    bottom: 0;
+    left: var(--app-shell-navbar-offset, 0rem);
+    z-index: calc(var(--mantine-z-index-app) - 1);
+
+    /* Interaction */
+    cursor: pointer;
+  }
+}

@@ -1,9 +1,9 @@
-import { Anchor, AppShell, Burger, Button, Group, Stack } from '@mantine/core';
+import { AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
-import { SignOutIcon, UserIcon } from '@phosphor-icons/react';
-import { useEffect } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../features/auth/api';
 import { TaskPanel } from '../features/tasks/TaskPanel';
 import { AlarmCenter } from '../features/alarms/AlarmCenter';
@@ -14,7 +14,15 @@ import { WorkspaceGate } from '../features/workspaces/WorkspaceGate';
 import { WorkspaceSwitcher } from '../features/workspaces/WorkspaceSwitcher';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
+import { HeaderClock } from './HeaderClock';
+import { HeaderTitle } from './HeaderTitle';
 import { QuickActions } from './QuickActions';
+import { PageSettingsContext, useSettingsOpened } from './page-settings';
+import { SettingsAside } from './SettingsAside';
+import { SettingsButton } from './SettingsButton';
+import { SettingsOverlay } from './SettingsOverlay';
+import { useResizableAside } from './use-resizable-aside';
+import { TimerWidget } from '../features/time/TimerWidget';
 import { useResizableSidebar } from './use-resizable-sidebar';
 
 /**
@@ -44,87 +52,118 @@ export function AppLayout() {
   };
 
   const sidebarOpened = mobile ? mobileOpened : sidebar.opened;
+  // Settings of the page shown (drawn by the page in the sidebar on the right).
+  const [settingsTitle, setSettingsTitle] = useState<string | null>(null);
+  const [settingsContainer, setSettingsContainer] = useState<HTMLDivElement | null>(null);
+  const { opened: settingsOpened, setOpened: setSettingsOpened } = useSettingsOpened();
+  const aside = useResizableAside(setSettingsOpened);
+  const closeSettings = useCallback(() => setSettingsOpened(false), [setSettingsOpened]);
+  const settingsShown = settingsOpened && settingsTitle !== null;
+  const pageSettings = useMemo(() => ({ title: settingsTitle, setTitle: setSettingsTitle, container: settingsContainer }), [settingsTitle, settingsContainer]);
 
   return (
     <ModalsProvider modalProps={{ centered: true }}>
-      <WorkspaceGate>
-        <AppShell
-          header={{ height: 56 }}
-          navbar={{
-            width: sidebar.width,
-            breakpoint: 'sm',
-            collapsed: { mobile: !mobileOpened, desktop: !sidebar.opened },
-          }}
-          padding="md"
-          data-resizing={sidebar.resizing || undefined}
-          className={classes.shell}
-        >
-          <AppShell.Header>
-            <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-              <Group gap="sm" wrap="nowrap">
-                <Burger
-                  opened={sidebarOpened}
-                  onClick={mobile ? mobileSidebar.toggle : sidebar.toggle}
-                  size="sm"
-                  aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
+      <PageSettingsContext.Provider value={pageSettings}>
+        <WorkspaceGate>
+          <AppShell
+            header={{ height: 56 }}
+            navbar={{
+              width: sidebar.width,
+              breakpoint: 'sm',
+              // One open state for both: at exactly the breakpoint, Mantine applies its mobile and its desktop rules at
+              // once, which must not disagree (the sidebar could then not be closed).
+              collapsed: { mobile: !sidebarOpened, desktop: !sidebarOpened },
+            }}
+            // Settings of the page, on the right (closed by default; the same state for both rules, as the navbar).
+            aside={{ width: aside.width, breakpoint: 'sm', collapsed: { mobile: !settingsShown, desktop: !settingsShown } }}
+            padding="md"
+            data-resizing={sidebar.resizing || aside.resizing || undefined}
+            className={classes.shell}
+          >
+            <AppShell.Header>
+              <div className={classes.header}>
+                <Group gap="sm" wrap="nowrap">
+                  <Burger
+                    opened={sidebarOpened}
+                    onClick={mobile ? mobileSidebar.toggle : sidebar.toggle}
+                    size="sm"
+                    aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
+                  />
+                  {/* Date and time above the sidebar (none on a phone). */}
+                  <HeaderClock />
+                  {/* On a phone, the workspace as a button; from the tablet on, it is in the middle, before the page. */}
+                  <div className={classes.phoneOnly}>
+                    <WorkspaceSwitcher />
+                  </div>
+                </Group>
+                <HeaderTitle />
+                <Group gap="sm" wrap="nowrap" justify="flex-end">
+                  {/* The running timer, not on a phone. */}
+                  <div className={classes.fromTablet}>
+                    <TimerWidget />
+                  </div>
+                  <SettingsButton />
+                  <QuickActions />
+                  {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
+                  <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-end" shadow="md" withinPortal>
+                    <Menu.Target>
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        leftSection={<UserIcon aria-hidden />}
+                        rightSection={<CaretDownIcon aria-hidden size={12} />}
+                        loading={logout.isPending}
+                        aria-haspopup="menu"
+                        maw={200}
+                      >
+                        {user?.username ?? 'Mon compte'}
+                      </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Item component={Link} to="/account" leftSection={<UserIcon aria-hidden />}>
+                        Mon compte
+                      </Menu.Item>
+                      <Menu.Divider />
+                      <Menu.Item leftSection={<SignOutIcon aria-hidden />} onClick={handleLogout}>
+                        Me déconnecter
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
+                </Group>
+              </div>
+            </AppShell.Header>
+
+            <AlarmCenter />
+            <ElsewhereNotifier />
+            <MailWatcher />
+            <AppShell.Navbar aria-label="Clients et projets">
+              <Sidebar />
+              {!mobile && (
+                <div
+                  className={classes.resizeHandle}
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Redimensionner la barre latérale"
+                  onPointerDown={sidebar.onResizeStart}
+                  onDoubleClick={sidebar.onResizeReset}
                 />
-                <Anchor component={Link} to="/" fw={700} c="inherit" underline="never">
-                  Ordo
-                </Anchor>
-                <WorkspaceSwitcher />
-              </Group>
-              <Group gap="sm" wrap="nowrap">
-                <QuickActions />
-                <Button
-                  component={NavLink}
-                  to="/account"
-                  variant="subtle"
-                  size="xs"
-                  leftSection={<UserIcon aria-hidden />}
-                  aria-label="Mon compte"
-                >
-                  {user?.username ?? 'Mon compte'}
-                </Button>
-                <Button
-                  variant="default"
-                  size="xs"
-                  leftSection={<SignOutIcon aria-hidden />}
-                  onClick={handleLogout}
-                  loading={logout.isPending}
-                >
-                  Se déconnecter
-                </Button>
-              </Group>
-            </Group>
-          </AppShell.Header>
+              )}
+            </AppShell.Navbar>
 
-          <AlarmCenter />
-          <ElsewhereNotifier />
-          <MailWatcher />
-          <AppShell.Navbar aria-label="Clients et projets">
-            <Sidebar />
-            {!mobile && (
-              <div
-                className={classes.resizeHandle}
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Redimensionner la barre latérale"
-                onPointerDown={sidebar.onResizeStart}
-                onDoubleClick={sidebar.onResizeReset}
-              />
-            )}
-          </AppShell.Navbar>
+            <SettingsOverlay opened={settingsShown} onClose={closeSettings} />
+            <SettingsAside onContainer={setSettingsContainer} onResizeStart={aside.onResizeStart} onResizeReset={aside.onResizeReset} />
 
-          {/* Pages use the full available width. */}
-          <AppShell.Main>
-            <Stack gap="md">
-              <Outlet />
-            </Stack>
-            {/* Task of ?task=12, over any page. */}
-            <TaskPanel />
-          </AppShell.Main>
-        </AppShell>
-      </WorkspaceGate>
+            {/* Pages use the full available width. */}
+            <AppShell.Main>
+              <Stack gap="md">
+                <Outlet />
+              </Stack>
+              {/* Task of ?task=12, over any page. */}
+              <TaskPanel />
+            </AppShell.Main>
+          </AppShell>
+        </WorkspaceGate>
+      </PageSettingsContext.Provider>
     </ModalsProvider>
   );
 }

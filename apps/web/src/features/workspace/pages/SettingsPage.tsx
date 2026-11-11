@@ -1,8 +1,7 @@
-import { Stack, Tabs, Title } from "@mantine/core";
-import { BuildingsIcon, FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
+import { Stack, Tabs } from "@mantine/core";
+import { FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
-import { CompanySettings } from "../../accounting/CompanySettings";
 import { GithubSettings } from "../../github/GithubSettings";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
@@ -21,10 +20,11 @@ import {
   useWorkspace,
 } from "../api";
 import { SettingsGrid } from "../../../components/settings/SettingsGrid";
+import { PageTitle } from "../../../components/PageTitle";
 
 /**
  * Settings, in tabs: projects (statuses, categories), team or household, contributors and relations, tasks (statuses,
- * priorities, types), GitHub, company (not in a personal workspace) and the workspaces. The tab is kept in the URL (?tab=). The settings of
+ * priorities, types), GitHub and the workspaces (the company: in the settings sidebar of the invoicing). The tab is kept in the URL (?tab=). The settings of
  * the document tracking, the calendar and the mail accounts are in their own views (old links lead there).
  * @returns {JSX.Element} Page.
  */
@@ -42,8 +42,7 @@ export function SettingsPage() {
   const [params, setParams] = useSearchParams();
   const { perso } = useActiveWorkspace();
   const asked = params.get("tab") ?? "projects";
-  // A personal workspace has no company nor invoicing.
-  const tab = perso && asked === "company" ? "projects" : asked;
+  const tab = asked;
   const assigneeUsage = new Map<string, number>();
   for (const task of taskData?.tasks ?? []) {
     for (const id of task.assigneeIds)
@@ -64,14 +63,17 @@ export function SettingsPage() {
   }
 
   // Settings moved to their views.
-  const moved: Record<string, string> = { tracking: perso ? "/" : "/accounting?tab=tracking", calendar: "/calendar?settings=1", mail: "/mail?accounts=1" };
+  const moved: Record<string, string> = {
+    tracking: perso ? "/" : "/accounting?settings=1",
+    company: perso ? "/" : "/accounting?settings=1&settingsTab=company",
+    calendar: "/calendar?settings=1",
+    mail: "/mail?settings=1",
+  };
   if (moved[asked]) return <Navigate to={moved[asked]} replace />;
 
   return (
     <Stack gap="lg">
-      <Title order={1} size="h2">
-        Paramètres
-      </Title>
+      <PageTitle>Paramètres</PageTitle>
       <Tabs
         value={tab}
         onChange={(value) =>
@@ -92,11 +94,6 @@ export function SettingsPage() {
           <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
             GitHub
           </Tabs.Tab>
-          {!perso && (
-            <Tabs.Tab value="company" leftSection={<BuildingsIcon aria-hidden />}>
-              Société
-            </Tabs.Tab>
-          )}
           <Tabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
             Espaces
           </Tabs.Tab>
@@ -140,9 +137,6 @@ export function SettingsPage() {
               usage={assigneeUsage}
             />
           </SettingsGrid>
-        </Tabs.Panel>
-        <Tabs.Panel value="company">
-          <CompanySettings />
         </Tabs.Panel>
         <Tabs.Panel value="github">
           <GithubSettings />

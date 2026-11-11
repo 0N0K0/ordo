@@ -10,14 +10,15 @@ import { useColorSwatches } from './use-color-swatches';
 interface ClientFormProps {
   /** Client to edit; creates a new one when absent. */
   client?: Client;
-  onDone: () => void;
+  /** Called after saving or cancelling; none (in the settings sidebar): no cancel, the form stays. */
+  onDone?: () => void;
 }
 
 /**
- * Client creation / edition form, displayed in a modal.
+ * Client creation / edition form: in a modal, or in the settings sidebar of the client page.
  * @param {ClientFormProps} props Component props.
  * @param {Client} [props.client] Client to edit. Optional.
- * @param {() => void} props.onDone Called after saving or cancelling.
+ * @param {() => void} [props.onDone] Called after saving or cancelling. Optional.
  * @returns {JSX.Element} Form.
  */
 export function ClientForm({ client, onDone }: ClientFormProps) {
@@ -36,7 +37,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
     const callbacks = {
       onSuccess: () => {
         notifySuccess(client ? 'Client modifié.' : 'Client créé.');
-        onDone();
+        onDone?.();
       },
       onError: (error: Error) => showFormError(form, error),
     };
@@ -54,7 +55,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <TextInput label="Nom" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('name')} />
         <ColorInput
           label="Couleur"
           placeholder="Aucune"
@@ -72,9 +73,11 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
           error={form.errors.icon as string | undefined}
         />
         <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
+          {onDone && (
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+          )}
           <Button type="submit" loading={pending}>
             {client ? 'Enregistrer' : 'Créer le client'}
           </Button>

@@ -6,11 +6,11 @@ const DEFAULT_WIDTH = 280;
 export const MIN_SIDEBAR_WIDTH = 200;
 
 /**
- * Maximum sidebar width: 480px, and never more than 40% of the viewport.
+ * Maximum sidebar width: 480px, and never more than 40% of the viewport (never under the minimum).
  * @returns {number} Width in px.
  */
 function maxWidth(): number {
-  return Math.min(480, window.innerWidth * 0.4);
+  return Math.max(MIN_SIDEBAR_WIDTH, Math.min(480, window.innerWidth * 0.4));
 }
 
 /**
@@ -37,15 +37,20 @@ export function useResizableSidebar() {
   const [width, setWidth] = useLocalStorage({ key: 'ordo.sidebar.width', sync: false, defaultValue: DEFAULT_WIDTH });
   const [opened, setOpened] = useLocalStorage({ key: 'ordo.sidebar.opened', sync: false, defaultValue: true });
   const [resizing, setResizing] = useState(false);
+  const [limit, setLimit] = useState(maxWidth);
   const frame = useRef(0);
 
-  // Keeps the stored width valid when the window shrinks.
+  // The widest the sidebar may be follows the window; the stored width is left as chosen (a narrow window, even
+  // for a moment, would otherwise shrink it for good).
   useEffect(() => {
-    const clamp = () => setWidth((current) => Math.min(current, maxWidth()));
-    clamp();
-    window.addEventListener('resize', clamp);
-    return () => window.removeEventListener('resize', clamp);
-  }, [setWidth]);
+    const update = () => setLimit(maxWidth());
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  // Width shown: the one chosen, between the minimum and the widest the window allows (a stored value out of range,
+  // or not a number, gives the default).
+  const chosen = Number.isFinite(width) ? width : DEFAULT_WIDTH;
+  const shown = Math.round(Math.max(MIN_SIDEBAR_WIDTH, Math.min(chosen, limit)));
 
   /**
    * Starts resizing from the handle.
@@ -81,7 +86,7 @@ export function useResizableSidebar() {
   );
 
   return {
-    width,
+    width: shown,
     opened,
     resizing,
     toggle: () => setOpened((current) => !current),
@@ -93,8 +98,8 @@ export function useResizableSidebar() {
      */
     onResizeReset: (event: ReactMouseEvent<HTMLElement>) => {
       const sidebar = event.currentTarget.parentElement;
-      if (opened && width <= MIN_SIDEBAR_WIDTH + 1 && sidebar) {
-        setWidth(Math.max(MIN_SIDEBAR_WIDTH, Math.min(maxWidth(), width + hiddenWidth(sidebar))));
+      if (opened && shown <= MIN_SIDEBAR_WIDTH + 1 && sidebar) {
+        setWidth(Math.max(MIN_SIDEBAR_WIDTH, Math.min(maxWidth(), shown + hiddenWidth(sidebar))));
         return;
       }
       setOpened(true);

@@ -1,11 +1,11 @@
-import { ActionIcon, Button, Group, Popover, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Group, Popover, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { entrySeconds, formatClock } from '@ordo/shared';
 import { PauseIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
 import { notifyError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRunningTimer, useTimeMutations, type TimeEntry } from './api';
-import { RunningTimer, TimerStartForm } from './TimerCard';
+import { RunningTimer } from './TimerCard';
 import classes from './TimerWidget.module.css';
 import { useNow } from './use-now';
 import { useStopTimer } from './use-stop-timer';
@@ -60,33 +60,10 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
 }
 
 /**
- * Timer in the app header, on every page: the running timer, or a button starting one.
- * @param {{ defaultProjectId?: string, compact?: boolean }} props Component props: project preselected to start a timer, icon only.
- * @returns {JSX.Element | null} Widget.
+ * Running timer in the app header, on every page (a timer is started from the « Ajouter » menu).
+ * @returns {JSX.Element | null} Controls, while a timer runs.
  */
-export function TimerWidget({ defaultProjectId, compact }: { defaultProjectId?: string; compact?: boolean }) {
-  const { context } = useTaskContext();
+export function TimerWidget() {
   const running = useRunningTimer();
-  const [opened, { toggle, close }] = useDisclosure(false);
-
-  if (running.isPending) return null;
-  if (running.data) return <RunningControls entry={running.data} />;
-  return (
-    <Popover opened={opened} onChange={(value) => !value && close()} width={380} position="bottom-end" shadow="md" trapFocus>
-      <Popover.Target>
-        {compact ? (
-          <Tooltip label="Lancer un chrono">
-            <ActionIcon size="input-xs" variant="light" aria-label="Lancer un chrono" onClick={toggle}>
-              <PlayIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-        ) : (
-          <Button size="xs" variant="light" leftSection={<PlayIcon aria-hidden />} onClick={toggle}>
-            Chrono
-          </Button>
-        )}
-      </Popover.Target>
-      <Popover.Dropdown>{context && <TimerStartForm key={defaultProjectId} context={context} defaultProjectId={defaultProjectId} popover onStarted={close} />}</Popover.Dropdown>
-    </Popover>
-  );
+  return running.data ? <RunningControls entry={running.data} /> : null;
 }

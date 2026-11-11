@@ -20,6 +20,7 @@ import {
   type AccountUser,
 } from '../auth/api';
 import { PasswordStrength } from '../auth/PasswordStrength';
+import { PageTitle } from '../../components/PageTitle';
 
 interface SectionProps {
   title: string;
@@ -239,9 +240,7 @@ export function AccountPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={1} size="h2">
-        Mon compte
-      </Title>
+      <PageTitle>Mon compte</PageTitle>
       <Section title="Identifiant" description="Utilisable à la place de l’adresse email pour se connecter.">
         <UsernameForm key={user.username} user={user} />
       </Section>

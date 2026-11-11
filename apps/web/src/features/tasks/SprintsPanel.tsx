@@ -60,7 +60,8 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+        {/* By the width of the settings sidebar, not the window's. */}
+        <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
           <DatePickerInput label="Début" required valueFormat="D MMM YYYY" {...form.getInputProps('startDate')} />
           <DatePickerInput label="Fin" required valueFormat="D MMM YYYY" {...form.getInputProps('endDate')} />
         </SimpleGrid>

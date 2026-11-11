@@ -1,32 +1,42 @@
 @layer app {
-  .dayHeader {
-    /* Espacement */
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
-
+  /* Row heading the times of a day. */
+  .dayRow {
     /* Arrière-Plan */
     background-color: var(--mantine-color-default-hover);
-
-    /* Bordures */
-    border-bottom: 1px solid var(--mantine-color-default-border);
   }
 
-  .entry {
-    /* Espacement */
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+  /* Scrolling area of the table: both ways, so that its header and its total stick to its edges. */
+  .scroller {
+    /* Dimension */
+    max-width: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
 
-    /* Bordures */
-    &:not(:last-child) {
-      border-bottom: 1px solid var(--mantine-color-default-border);
+  /* Total of the table, at the bottom of its area. */
+  .total {
+    /* Position */
+    position: sticky;
+    bottom: 0;
+
+    & th {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-body);
+
+      /* Effets: a line above it (a border would not stick with the cells). */
+      box-shadow: inset 0 2px 0 var(--mantine-color-default-border);
     }
   }
 
-  .hours {
-    /* Dimension */
-    width: 6.5rem;
-    flex: none;
+  .nowrap {
+    /* Typographie */
+    white-space: nowrap;
   }
 
   .description {
+    /* Dimension */
+    min-width: 14rem;
+
     /* Typographie */
     white-space: pre-wrap;
     overflow-wrap: anywhere;
