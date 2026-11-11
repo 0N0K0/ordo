@@ -1,6 +1,6 @@
-import { ActionIcon, Button, Group, Menu, Tooltip } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import { AlarmIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlusIcon } from '@phosphor-icons/react';
+import { Button, Menu } from '@mantine/core';
+import { modals } from '@mantine/modals';
+import { AlarmIcon, CalendarPlusIcon, CaretDownIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useMatch } from 'react-router';
 import { openNewDocument } from '../features/accounting/new-document';
@@ -9,98 +9,74 @@ import { useEventForm } from '../features/calendar/use-event-form';
 import { useMailComposer } from '../features/mail/use-mail-composer';
 import { useTaskActions } from '../features/tasks/use-task-actions';
 import { useTaskContext } from '../features/tasks/use-task-context';
-import { TimerWidget } from '../features/time/TimerWidget';
+import { useRunningTimer } from '../features/time/api';
+import { TimerStartForm } from '../features/time/TimerCard';
 import { useActiveWorkspace } from '../features/workspaces/api';
 
 interface QuickAction {
-  label: string;
-  /** Name of the button (tooltip, menu, screen readers). */
+  /** Name of the item (menu, screen readers). */
   title: string;
   icon: ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 }
 
 /**
- * Creation buttons of the header, on every page: task, event, timer, alarm, mail and quote (not in a personal
- * workspace). On a project
- * page, the project (and its client for a quote) is preselected. Labelled on large screens, icons with a
- * tooltip on medium ones, one « Créer » menu on phones (the timer staying next to it).
- * @returns {JSX.Element} Buttons.
+ * Creation menu of the header, on every page and at every width: « Ajouter » opens, on hover (or a click, by touch
+ * or keyboard), a task, an event, a timer, an alarm, a mail and a quote (not in a personal workspace). On a project
+ * page, the project (and its client for a quote) is preselected. A running timer shows on the right of the bar.
+ * @returns {JSX.Element} Menu.
  */
 export function QuickActions() {
   const { context } = useTaskContext();
-  const wide = useMediaQuery('(min-width: 75em)');
-  const phone = useMediaQuery('(max-width: 48em)');
   const projectId = useMatch('/projects/:id')?.params.id;
   const project = projectId ? context?.projectById.get(projectId) : undefined;
   const taskActions = useTaskActions(context);
   const openEvent = useEventForm(context);
   const openAlarm = useAlarmForm(context);
   const openMail = useMailComposer();
+  const running = useRunningTimer();
   const { perso } = useActiveWorkspace();
 
-  const before: QuickAction[] = [
-    { label: 'Tâche', title: 'Nouvelle tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
-    { label: 'Évènement', title: 'Nouvel évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
-  ];
-  const after: QuickAction[] = [
-    { label: 'Alarme', title: 'Nouvelle alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
-    { label: 'Mail', title: 'Nouveau mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
-    // No invoicing in a personal workspace.
-    ...(perso
-      ? []
-      : [
-          { label: 'Devis', title: 'Nouveau devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) },
-        ]),
-  ];
-
-  if (phone) {
-    return (
-      <Group gap="xs" wrap="nowrap">
-        <Menu position="bottom-end" withinPortal>
-          <Menu.Target>
-            <Tooltip label="Créer">
-              <ActionIcon size="input-xs" variant="light" aria-label="Créer">
-                <PlusIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {[...before, ...after].map((action) => (
-              <Menu.Item key={action.label} leftSection={action.icon} onClick={action.onClick} disabled={!context}>
-                {action.title}
-              </Menu.Item>
-            ))}
-          </Menu.Dropdown>
-        </Menu>
-        <TimerWidget defaultProjectId={project?.id} compact />
-      </Group>
-    );
-  }
-
   /**
-   * Button of an action: labelled, or an icon with a tooltip.
-   * @param {QuickAction} action Action.
-   * @returns {JSX.Element} Button.
+   * Opens the form starting a timer, its project preselected on a project page.
+   * @returns {void}
    */
-  const button = (action: QuickAction) =>
-    wide ? (
-      <Button key={action.label} size="xs" variant="light" leftSection={action.icon} onClick={action.onClick} disabled={!context} aria-label={action.title}>
-        {action.label}
-      </Button>
-    ) : (
-      <Tooltip key={action.label} label={action.title}>
-        <ActionIcon size="input-xs" variant="light" aria-label={action.title} onClick={action.onClick} disabled={!context}>
-          {action.icon}
-        </ActionIcon>
-      </Tooltip>
-    );
+  const openTimer = () => {
+    if (!context) return;
+    const modalId = 'new-timer';
+    modals.open({
+      modalId,
+      title: 'Nouveau chrono',
+      children: <TimerStartForm context={context} defaultProjectId={project?.id} popover onStarted={() => modals.close(modalId)} />,
+    });
+  };
+
+  const actions: QuickAction[] = [
+    { title: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
+    { title: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
+    // One timer runs at a time: the one running shows on the right of the bar.
+    { title: running.data ? 'Chrono (un chrono tourne déjà)' : 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, disabled: Boolean(running.data) },
+    { title: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
+    { title: 'Mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
+    // No invoicing in a personal workspace.
+    ...(perso ? [] : [{ title: 'Devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) }]),
+  ];
 
   return (
-    <Group gap="xs" wrap="nowrap" role="group" aria-label="Créer">
-      {before.map(button)}
-      <TimerWidget defaultProjectId={project?.id} compact={!wide} />
-      {after.map(button)}
-    </Group>
+    <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-start" shadow="md" withinPortal>
+      <Menu.Target>
+        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden size={12} />} disabled={!context} aria-haspopup="menu">
+          Ajouter
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        {actions.map((action) => (
+          <Menu.Item key={action.title} leftSection={action.icon} onClick={action.onClick} disabled={action.disabled}>
+            {action.title}
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
   );
 }

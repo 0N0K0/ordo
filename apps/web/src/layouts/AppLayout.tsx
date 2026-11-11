@@ -1,9 +1,9 @@
-import { Anchor, AppShell, Burger, Button, Group, Stack } from '@mantine/core';
+import { Anchor, AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
-import { SignOutIcon, UserIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
 import { useEffect } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../features/auth/api';
 import { TaskPanel } from '../features/tasks/TaskPanel';
 import { AlarmCenter } from '../features/alarms/AlarmCenter';
@@ -15,6 +15,7 @@ import { WorkspaceSwitcher } from '../features/workspaces/WorkspaceSwitcher';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
 import { QuickActions } from './QuickActions';
+import { TimerWidget } from '../features/time/TimerWidget';
 import { useResizableSidebar } from './use-resizable-sidebar';
 
 /**
@@ -72,28 +73,35 @@ export function AppLayout() {
                   Ordo
                 </Anchor>
                 <WorkspaceSwitcher />
+                <QuickActions />
               </Group>
               <Group gap="sm" wrap="nowrap">
-                <QuickActions />
-                <Button
-                  component={NavLink}
-                  to="/account"
-                  variant="subtle"
-                  size="xs"
-                  leftSection={<UserIcon aria-hidden />}
-                  aria-label="Mon compte"
-                >
-                  {user?.username ?? 'Mon compte'}
-                </Button>
-                <Button
-                  variant="default"
-                  size="xs"
-                  leftSection={<SignOutIcon aria-hidden />}
-                  onClick={handleLogout}
-                  loading={logout.isPending}
-                >
-                  Se déconnecter
-                </Button>
+                <TimerWidget />
+                {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
+                <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-end" shadow="md" withinPortal>
+                  <Menu.Target>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      leftSection={<UserIcon aria-hidden />}
+                      rightSection={<CaretDownIcon aria-hidden size={12} />}
+                      loading={logout.isPending}
+                      aria-haspopup="menu"
+                      maw={200}
+                    >
+                      {user?.username ?? 'Mon compte'}
+                    </Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item component={Link} to="/account" leftSection={<UserIcon aria-hidden />}>
+                      Mon compte
+                    </Menu.Item>
+                    <Menu.Divider />
+                    <Menu.Item leftSection={<SignOutIcon aria-hidden />} onClick={handleLogout}>
+                      Me déconnecter
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
               </Group>
             </Group>
           </AppShell.Header>

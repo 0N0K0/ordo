@@ -1,6 +1,6 @@
 import { Button, Menu } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { CaretUpDownIcon, CheckIcon, GearSixIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CheckIcon, GearSixIcon } from '@phosphor-icons/react';
 import { useActiveWorkspace, useWorkspaces } from './api';
 import { switchWorkspace } from './switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
@@ -15,22 +15,23 @@ function openWorkspacesManager(): void {
 }
 
 /**
- * Switcher of the top bar: the workspace shown, the others to open one, and their management.
+ * Switcher of the top bar, like the other menus of the bar (on hover, or a click by touch or keyboard): the
+ * workspace shown, the others to open one, and their management.
  * @returns {JSX.Element} Switcher.
  */
 export function WorkspaceSwitcher() {
   const { data } = useWorkspaces();
   const { workspace } = useActiveWorkspace();
   return (
-    <Menu position="bottom-start" shadow="md" withinPortal>
+    <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-start" shadow="md" withinPortal>
       <Menu.Target>
         <Button
           variant="subtle"
-          color="gray"
           size="xs"
           leftSection={workspace && <WorkspaceKindIcon kind={workspace.kind} />}
-          rightSection={<CaretUpDownIcon aria-hidden />}
+          rightSection={<CaretDownIcon aria-hidden size={12} />}
           aria-label={`Espace : ${workspace?.name ?? ''}. Changer d’espace`}
+          aria-haspopup="menu"
           maw={220}
         >
           {workspace?.name ?? 'Espace'}
