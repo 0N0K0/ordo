@@ -2,7 +2,7 @@ import { AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../features/auth/api';
 import { TaskPanel } from '../features/tasks/TaskPanel';
@@ -20,6 +20,7 @@ import { QuickActions } from './QuickActions';
 import { PageSettingsContext, useSettingsOpened } from './page-settings';
 import { SettingsAside } from './SettingsAside';
 import { SettingsButton } from './SettingsButton';
+import { SettingsOverlay } from './SettingsOverlay';
 import { useResizableAside } from './use-resizable-aside';
 import { TimerWidget } from '../features/time/TimerWidget';
 import { useResizableSidebar } from './use-resizable-sidebar';
@@ -56,6 +57,7 @@ export function AppLayout() {
   const [settingsContainer, setSettingsContainer] = useState<HTMLDivElement | null>(null);
   const { opened: settingsOpened, setOpened: setSettingsOpened } = useSettingsOpened();
   const aside = useResizableAside(setSettingsOpened);
+  const closeSettings = useCallback(() => setSettingsOpened(false), [setSettingsOpened]);
   const settingsShown = settingsOpened && settingsTitle !== null;
   const pageSettings = useMemo(() => ({ title: settingsTitle, setTitle: setSettingsTitle, container: settingsContainer }), [settingsTitle, settingsContainer]);
 
@@ -148,6 +150,7 @@ export function AppLayout() {
               )}
             </AppShell.Navbar>
 
+            <SettingsOverlay opened={settingsShown} onClose={closeSettings} />
             <SettingsAside onContainer={setSettingsContainer} onResizeStart={aside.onResizeStart} onResizeReset={aside.onResizeReset} />
 
             {/* Pages use the full available width. */}
