@@ -1,11 +1,11 @@
 @layer app {
   /*
-   * In the middle column of the header; by the breakpoints of the design system: the full date from md (720px =
-   * 45em), shortened from sm (464px = 29em), the time alone below.
+   * In the middle column of the header, from md on (tablet and desktop: 720px = 45em, by the breakpoints of the
+   * design system); none on a phone.
    */
   .clock {
     /* Agencement */
-    display: flex;
+    display: none;
     align-items: baseline;
 
     /* Espacement */
@@ -15,6 +15,11 @@
     font-size: var(--mantine-font-size-sm);
     color: var(--mantine-color-dimmed);
     white-space: nowrap;
+
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: flex;
+    }
   }
 
   .time {
@@ -22,30 +27,5 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--mantine-color-text);
-  }
-
-  .long,
-  .short {
-    /* Agencement */
-    display: none;
-  }
-
-  @media (min-width: 29em) {
-    .short {
-      /* Agencement */
-      display: inline;
-    }
-  }
-
-  @media (min-width: 45em) {
-    .short {
-      /* Agencement */
-      display: none;
-    }
-
-    .long {
-      /* Agencement */
-      display: inline;
-    }
   }
 }

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import classes from './HeaderClock.module.css';
 
 const longDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
 /**
@@ -37,16 +36,15 @@ function useMinute(): Date {
 }
 
 /**
- * Date and time in the middle of the app header (centered when the sides leave room, else next to the left one):
- * the full date on large screens, shortened on medium ones, the time alone on very small ones.
+ * Date and time in the middle of the app header (centered when the sides leave room, else next to the left one);
+ * none on a phone.
  * @returns {JSX.Element} Clock.
  */
 export function HeaderClock() {
   const now = useMinute();
   return (
     <time className={classes.clock} dateTime={now.toISOString()}>
-      <span className={classes.long}>{capitalized(longDate.format(now))}</span>
-      <span className={classes.short}>{capitalized(shortDate.format(now))}</span>
+      <span>{capitalized(longDate.format(now))}</span>
       <span className={classes.time}>{timeFormat.format(now)}</span>
     </time>
   );

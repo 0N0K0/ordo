@@ -51,6 +51,12 @@
     /* Espacement */
     padding-inline: var(--mantine-spacing-md);
     column-gap: var(--mantine-spacing-sm);
+
+    /* The right side stays in the last column, also without the date and time (hidden on a phone). */
+    & > :last-child {
+      /* Agencement */
+      grid-column: 3;
+    }
   }
 
   .resizeHandle {
