@@ -1,5 +1,26 @@
 @layer app {
   .shell {
+    /*
+     * Horizontal margins of the page content, by the breakpoints of the design system: 16px on a phone, 32px on a
+     * tablet (from md: 6 columns, 6 × 96 + 5 × 16 + 2 × 32 = 720px = 45em), 48px on a desktop (from lg: 9 columns,
+     * 9 × 96 + 8 × 16 + 2 × 64 = 1120px = 70em). The vertical ones stay Mantine's (the calendar height counts on them).
+     */
+    --page-gutter: 16px;
+
+    @media (min-width: 45em) {
+      --page-gutter: 32px;
+    }
+
+    @media (min-width: 70em) {
+      --page-gutter: 48px;
+    }
+
+    & :global(.mantine-AppShell-main) {
+      /* Espacement */
+      padding-inline-start: calc(var(--app-shell-navbar-offset, 0rem) + var(--page-gutter));
+      padding-inline-end: calc(var(--app-shell-aside-offset, 0rem) + var(--page-gutter));
+    }
+
     /* No width animation and no text selection while resizing the sidebar. */
     &[data-resizing] {
       /* Interaction */
