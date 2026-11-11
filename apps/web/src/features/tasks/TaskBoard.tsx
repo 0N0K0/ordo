@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Alert, Button, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { addDays, filterPeriod, ME, type FilterGroup } from '@ordo/shared';
 import { CheckSquareOffsetIcon, PlusIcon } from '@phosphor-icons/react';
@@ -24,6 +24,7 @@ import { useTaskView } from './views/use-task-view';
 import { ViewTabs } from './views/ViewTabs';
 import { ViewToolbar } from './views/ViewToolbar';
 import { sprintPeriod } from './views/sprint-period';
+import classes from './TaskBoard.module.css';
 
 const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -200,9 +201,16 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
 
   return (
     <Stack gap="md">
-      {header && <Group gap="sm">{header}</Group>}
-
-      {view.views.length > 0 && <ViewTabs state={view} />}
+      {(header || view.views.length > 0) && (
+        <div className={classes.top}>
+          {view.views.length > 0 && (
+            <div className={classes.tabs}>
+              <ViewTabs state={view} />
+            </div>
+          )}
+          {header && <div className={classes.controls}>{header}</div>}
+        </div>
+      )}
       {config && context && (
         <ViewToolbar
           config={config}

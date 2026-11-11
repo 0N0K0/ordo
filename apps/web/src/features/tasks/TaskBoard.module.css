@@ -1,0 +1,34 @@
+@layer app {
+  /*
+   * Tabs of the views, then the controls of the page (the period of « Mes tâches ») on their right; without room
+   * for both, the controls go above the tabs (the line that wraps comes first).
+   */
+  .top {
+    /* Agencement */
+    display: flex;
+    flex-wrap: wrap-reverse;
+    align-items: center;
+    justify-content: flex-end;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-sm);
+  }
+
+  .tabs {
+    /* Agencement */
+    flex: 1 1 18rem;
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  .controls {
+    /* Agencement */
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-sm);
+  }
+}
