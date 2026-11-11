@@ -1,4 +1,4 @@
-import { Anchor, AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
+import { AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
@@ -69,9 +69,6 @@ export function AppLayout() {
                   size="sm"
                   aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
                 />
-                <Anchor component={Link} to="/" fw={700} c="inherit" underline="never">
-                  Ordo
-                </Anchor>
                 <WorkspaceSwitcher />
                 <QuickActions />
               </Group>
