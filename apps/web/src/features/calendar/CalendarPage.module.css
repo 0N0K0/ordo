@@ -42,6 +42,15 @@
       text-decoration: none;
     }
 
+    /* Days and hours in the size of the events (FullCalendar's small font). */
+    :global(.fc .fc-col-header-cell-cushion),
+    :global(.fc .fc-daygrid-day-number),
+    :global(.fc .fc-timegrid-slot-label-cushion),
+    :global(.fc .fc-timegrid-axis-cushion) {
+      /* Typographie */
+      font-size: var(--fc-small-font-size);
+    }
+
     :global(.fc .fc-event) {
       /* Interaction */
       cursor: pointer;
