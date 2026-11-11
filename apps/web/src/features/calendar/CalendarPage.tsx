@@ -4,7 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Alert, Button, Checkbox, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Checkbox, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
@@ -49,6 +49,7 @@ import { PlacesManager } from '../geo/PlacesManager';
 import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
+import { PageTitle } from '../../components/PageTitle';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -536,9 +537,7 @@ export function CalendarPage() {
     <Stack gap="md" className={fill ? classes.fill : undefined}>
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="sm" wrap="nowrap">
-          <Title order={1} size="h2">
-            Agenda
-          </Title>
+          <PageTitle>Agenda</PageTitle>
         </Group>
         <Group gap="xs" wrap="wrap">
           <Button variant="default" size="sm" onClick={() => api()?.today()}>

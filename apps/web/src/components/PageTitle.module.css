@@ -1,0 +1,9 @@
+@layer app {
+  /* From md on (tablet, 720px = 45em, by the breakpoints of the design system), the header shows the page name. */
+  .title {
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: none;
+    }
+  }
+}

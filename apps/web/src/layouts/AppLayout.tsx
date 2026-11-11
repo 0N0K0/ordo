@@ -15,6 +15,7 @@ import { WorkspaceSwitcher } from '../features/workspaces/WorkspaceSwitcher';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
 import { HeaderClock } from './HeaderClock';
+import { HeaderTitle } from './HeaderTitle';
 import { QuickActions } from './QuickActions';
 import { TimerWidget } from '../features/time/TimerWidget';
 import { useResizableSidebar } from './use-resizable-sidebar';
@@ -72,12 +73,20 @@ export function AppLayout() {
                   size="sm"
                   aria-label={sidebarOpened ? 'Masquer la barre latérale' : 'Afficher la barre latérale'}
                 />
-                <WorkspaceSwitcher />
-                <QuickActions />
+                {/* Date and time above the sidebar (none on a phone). */}
+                <HeaderClock />
+                {/* On a phone, the workspace as a button; from the tablet on, it is in the middle, before the page. */}
+                <div className={classes.phoneOnly}>
+                  <WorkspaceSwitcher />
+                </div>
               </Group>
-              <HeaderClock />
+              <HeaderTitle />
               <Group gap="sm" wrap="nowrap" justify="flex-end">
-                <TimerWidget />
+                {/* The running timer, not on a phone. */}
+                <div className={classes.fromTablet}>
+                  <TimerWidget />
+                </div>
+                <QuickActions />
                 {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
                 <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-end" shadow="md" withinPortal>
                   <Menu.Target>

@@ -23,9 +23,9 @@ interface QuickAction {
 }
 
 /**
- * Creation menu of the header, on every page and at every width: « Ajouter » opens, on hover (or a click, by touch
+ * Creation menu of the header, between the running timer and the account, on every page and at every width: « Ajouter » opens, on hover (or a click, by touch
  * or keyboard), a task, an event, a timer, an alarm, a mail and a quote (not in a personal workspace). On a project
- * page, the project (and its client for a quote) is preselected. A running timer shows on the right of the bar.
+ * page, the project (and its client for a quote) is preselected. A running timer shows before it.
  * @returns {JSX.Element} Menu.
  */
 export function QuickActions() {
@@ -65,7 +65,7 @@ export function QuickActions() {
   ];
 
   return (
-    <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-start" shadow="md" withinPortal>
+    <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-end" shadow="md" withinPortal>
       <Menu.Target>
         {/* On a very small screen, only the plus (the name stays for screen readers). */}
         <Button

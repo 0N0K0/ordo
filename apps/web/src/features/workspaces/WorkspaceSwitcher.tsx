@@ -1,10 +1,11 @@
-import { Button, Menu } from '@mantine/core';
+import { Button, Menu, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { CaretDownIcon, CheckIcon, GearSixIcon } from '@phosphor-icons/react';
 import { useActiveWorkspace, useWorkspaces } from './api';
 import { switchWorkspace } from './switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 import { WorkspacesManager } from './WorkspacesManager';
+import classes from './WorkspaceSwitcher.module.css';
 
 /**
  * Opens the management of the workspaces.
@@ -16,26 +17,36 @@ function openWorkspacesManager(): void {
 
 /**
  * Switcher of the top bar, like the other menus of the bar (on hover, or a click by touch or keyboard): the
- * workspace shown, the others to open one, and their management.
+ * workspace shown, the others to open one, and their management. A button on a phone; from the tablet on, the
+ * name of the workspace as plain text, before the name of the page.
+ * @param {{ variant?: 'button' | 'text' }} props Component props.
+ * @param {'button' | 'text'} [props.variant='button'] Look of the target. Optional. Default = button.
  * @returns {JSX.Element} Switcher.
  */
-export function WorkspaceSwitcher() {
+export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' | 'text' }) {
   const { data } = useWorkspaces();
   const { workspace } = useActiveWorkspace();
+  const label = `Espace : ${workspace?.name ?? ''}. Changer d’espace`;
   return (
     <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-start" shadow="md" withinPortal>
       <Menu.Target>
-        <Button
-          variant="subtle"
-          size="xs"
-          leftSection={workspace && <WorkspaceKindIcon kind={workspace.kind} />}
-          rightSection={<CaretDownIcon aria-hidden size={12} />}
-          aria-label={`Espace : ${workspace?.name ?? ''}. Changer d’espace`}
-          aria-haspopup="menu"
-          maw={220}
-        >
-          {workspace?.name ?? 'Espace'}
-        </Button>
+        {variant === 'text' ? (
+          <UnstyledButton className={classes.text} aria-label={label} aria-haspopup="menu">
+            {workspace?.name ?? 'Espace'}
+          </UnstyledButton>
+        ) : (
+          <Button
+            variant="subtle"
+            size="xs"
+            leftSection={workspace && <WorkspaceKindIcon kind={workspace.kind} />}
+            rightSection={<CaretDownIcon aria-hidden size={12} />}
+            aria-label={label}
+            aria-haspopup="menu"
+            maw={220}
+          >
+            {workspace?.name ?? 'Espace'}
+          </Button>
+        )}
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>Espaces</Menu.Label>

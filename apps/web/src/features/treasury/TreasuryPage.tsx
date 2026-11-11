@@ -18,7 +18,6 @@ import {
   Text,
   TextInput,
   ThemeIcon,
-  Title,
   Tooltip,
 } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
@@ -49,6 +48,7 @@ import { EntryForm } from './EntryForm';
 import { SettingsPanel } from './SettingsPanel';
 import { BudgetsPanel } from './BudgetsPanel';
 import { LoansPanel } from './LoansPanel';
+import { PageTitle } from '../../components/PageTitle';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -245,9 +245,7 @@ export function TreasuryPage() {
 
   const header = (
     <Group justify="space-between">
-      <Title order={1} size="h2">
-        Trésorerie
-      </Title>
+      <PageTitle>Trésorerie</PageTitle>
       {!!accounts?.length && (
         <Group gap="xs">
           <Button variant="light" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'entry', status: 'FORECAST' })}>

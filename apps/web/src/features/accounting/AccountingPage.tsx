@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Group, Menu, Paper, Select, Skeleton, Stack, Table, Tabs, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Menu, Paper, Select, Skeleton, Stack, Table, Tabs, Text, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
 import {
@@ -30,6 +30,7 @@ import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from './labels';
 import { openDocumentsZip, openNewDocument } from './new-document';
 import { openRecurringForm } from './recurring-form';
 import { DocumentStatusSettings } from './DocumentStatusSettings';
+import { PageTitle } from '../../components/PageTitle';
 
 const TABS = [
   { value: 'QUOTE', label: 'Devis' },
@@ -195,9 +196,7 @@ export function AccountingPage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between">
-        <Title order={1} size="h2">
-          Facturation
-        </Title>
+        <PageTitle>Facturation</PageTitle>
         <Group gap="sm">
           <Button variant="default" leftSection={<FileZipIcon aria-hidden />} onClick={() => openDocumentsZip({ year, years })}>
             Télécharger (ZIP)

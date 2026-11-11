@@ -1,10 +1,11 @@
-import { Alert, Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { Alert, Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { AlarmIcon, BellRingingIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTaskContext } from '../tasks/use-task-context';
 import { AlarmList } from './AlarmList';
 import { useAlarms } from './api';
 import { useAlarmForm } from './use-alarm-form';
+import { PageTitle } from '../../components/PageTitle';
 
 /**
  * Alarms page: one-off and recurring reminders, alarms when no timer runs, and alarms during the timer.
@@ -24,9 +25,7 @@ export function AlarmsPage() {
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end">
         <Stack gap={4}>
-          <Title order={1} size="h2">
-            Alarmes
-          </Title>
+          <PageTitle>Alarmes</PageTitle>
         </Stack>
         <Button
           leftSection={<PlusIcon aria-hidden />}

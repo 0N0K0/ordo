@@ -36,8 +36,8 @@
   }
 
   /*
-   * Top bar: its sides share the width evenly, the date and time in the middle: centered while the sides fit in
-   * their half, otherwise right after the left side (a side never gets narrower than its content).
+   * Top bar: its sides share the width evenly, the workspace and the page in the middle: centered while the sides
+   * fit in their half, otherwise right after the left side (a side never gets narrower than its content).
    */
   .header {
     /* Agencement */
@@ -52,10 +52,29 @@
     padding-inline: var(--mantine-spacing-md);
     column-gap: var(--mantine-spacing-sm);
 
-    /* The right side stays in the last column, also without the date and time (hidden on a phone). */
+    /* The right side stays in the last column, also without the middle (hidden on a phone). */
     & > :last-child {
       /* Agencement */
       grid-column: 3;
+    }
+  }
+
+  /* Only on a phone: below md (720px = 45em, by the breakpoints of the design system). */
+  .phoneOnly {
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: none;
+    }
+  }
+
+  /* From the tablet on: md (720px = 45em) and wider. */
+  .fromTablet {
+    /* Agencement */
+    display: none;
+
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: contents;
     }
   }
 

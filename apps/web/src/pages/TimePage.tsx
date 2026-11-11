@@ -13,6 +13,7 @@ import { useTimeEntryDialogs } from '../features/time/use-time-dialogs';
 import { descendantIds } from '../features/workspace/api';
 import { localToday } from '../lib/dates';
 import { useActiveWorkspace } from '../features/workspaces/api';
+import { PageTitle } from '../components/PageTitle';
 
 type Period = 'week' | 'month' | 'quarter' | 'all';
 
@@ -80,9 +81,7 @@ export function TimePage() {
 
   return (
     <Stack gap="lg">
-      <Title order={1} size="h2">
-        Chronos
-      </Title>
+      <PageTitle>Chronos</PageTitle>
       <TimerCard />
       {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
       {!perso && <PlannedTime />}

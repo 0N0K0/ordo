@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, Modal, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, GearSixIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
@@ -18,6 +18,7 @@ import { openSearchForm } from './open-search-form';
 import { ScheduledMailsList } from './ScheduledMailsList';
 import { MailAccountsManager } from './settings/MailAccountsManager';
 import { useMailComposer } from './use-mail-composer';
+import { PageTitle } from '../../components/PageTitle';
 
 type DoneFilter = 'all' | 'todo' | 'done';
 
@@ -108,9 +109,7 @@ export function MailPage() {
   if (!isPending && accounts?.length === 0) {
     return (
       <Stack gap="lg">
-        <Title order={1} size="h2">
-          Mails
-        </Title>
+        <PageTitle>Mails</PageTitle>
         <Paper withBorder radius="md" p="xl">
           <Stack align="center" gap="sm">
             <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
@@ -138,9 +137,7 @@ export function MailPage() {
         {accountsOpen && <MailAccountsManager />}
       </Modal>
       <Group justify="space-between">
-        <Title order={1} size="h2">
-          Mails
-        </Title>
+        <PageTitle>Mails</PageTitle>
         <Group gap="sm">
           <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
             <Button variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
