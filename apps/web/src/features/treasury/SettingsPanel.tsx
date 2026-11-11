@@ -398,7 +398,8 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
       <Text size="xs" c="dimmed" mb="sm">
         Ce qui est attendu des factures validées (prévisionnel) et leurs règlements comptent dans les budgets de ces catégories.
       </Text>
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+      {/* Side by side when the sidebar is wide enough (its width, not the window's). */}
+      <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
         <Select
           label="Règlements des factures"
           placeholder="Aucune (hors budget)"
@@ -441,13 +442,12 @@ export function SettingsPanel() {
   return (
     <Stack gap="md">
       <TeamPanel />
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-        <CategoryList direction="IN" categories={categories} open={setDialog} />
-        <CategoryList direction="OUT" categories={categories} open={setDialog} />
-      </SimpleGrid>
+      {/* One column: these settings are in the settings sidebar. */}
+      <CategoryList direction="IN" categories={categories} open={setDialog} />
+      <CategoryList direction="OUT" categories={categories} open={setDialog} />
       {!perso && <InvoiceCategories categories={categories} />}
 
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+      <Stack gap="md">
         <Paper withBorder radius="md" p="md">
           <Group justify="space-between" mb="xs">
             <Title order={3} size="h5">
@@ -564,7 +564,7 @@ export function SettingsPanel() {
             </Table>
           )}
         </Paper>
-      </SimpleGrid>
+      </Stack>
 
       <Modal
         opened={dialog !== null}

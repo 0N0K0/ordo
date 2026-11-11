@@ -165,7 +165,8 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         . Toujours synchronisés : titre, description et commentaires ; pour les issues, l’ouverture / fermeture, le jalon, le parent (sous-issues), les
         dépendances (« bloquée par »), les relations (« relative à ») et le numéro (celui de l’issue). Choisissez où vont les autres champs.
       </Text>
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+      {/* By the width of the settings sidebar, not the window's. */}
+      <SimpleGrid type="container" cols={{ base: 1, '480px': 2, '760px': 3 }} spacing="sm">
         <Select label="Statut" placeholder="Non synchronisé" clearable data={fieldsOf('SINGLE_SELECT')} value={values.statusFieldId} onChange={(statusFieldId) => change({ statusFieldId, statusOptions: {} })} />
         <Select label="Priorité" placeholder="Non synchronisée" clearable data={fieldsOf('SINGLE_SELECT')} value={values.priorityFieldId} onChange={(priorityFieldId) => change({ priorityFieldId, priorityOptions: {} })} />
         <Select
@@ -205,7 +206,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         </Text>
       )}
       {(values.statusFieldId || values.priorityFieldId || values.typeSource) && (
-        <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+        <SimpleGrid type="container" cols={{ base: 1, '760px': 3 }} spacing="lg">
           {values.statusFieldId && (
             <Stack gap={4}>
               <Text size="sm" fw={600}>
