@@ -1,16 +1,25 @@
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
-/** Narrowest the settings sidebar is: dragged below, it closes; a double click on its handle brings it back here. */
-export const MIN_ASIDE_WIDTH = 480;
 const DEFAULT_WIDTH = 640;
+/** Narrowest the settings sidebar is, whatever the window. */
+const MIN_PIXELS = 480;
+
+/**
+ * Narrowest the settings sidebar is: a quarter of the window, and never under 480px. Dragged below, it closes; a
+ * double click on its handle brings it back here.
+ * @returns {number} Width in px.
+ */
+function minWidth(): number {
+  return Math.round(Math.max(MIN_PIXELS, window.innerWidth / 4));
+}
 
 /**
  * Widest the settings sidebar may be: 1280px, and never more than 90% of the window (it lies over the page).
  * @returns {number} Width in px.
  */
 function maxWidth(): number {
-  return Math.max(MIN_ASIDE_WIDTH, Math.min(1280, window.innerWidth * 0.9));
+  return Math.max(minWidth(), Math.min(1280, window.innerWidth * 0.9));
 }
 
 /**
@@ -23,17 +32,17 @@ function maxWidth(): number {
 export function useResizableAside(setOpened: (opened: boolean) => void) {
   const [width, setWidth] = useLocalStorage({ key: 'ordo.settings.width', sync: false, defaultValue: DEFAULT_WIDTH });
   const [resizing, setResizing] = useState(false);
-  const [limit, setLimit] = useState(maxWidth);
+  const [limits, setLimits] = useState(() => ({ min: minWidth(), max: maxWidth() }));
   const frame = useRef(0);
   const closed = useRef(false);
 
   useEffect(() => {
-    const update = () => setLimit(maxWidth());
+    const update = () => setLimits({ min: minWidth(), max: maxWidth() });
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
   const chosen = Number.isFinite(width) ? width : DEFAULT_WIDTH;
-  const shown = Math.round(Math.max(MIN_ASIDE_WIDTH, Math.min(chosen, limit)));
+  const shown = Math.round(Math.max(limits.min, Math.min(chosen, limits.max)));
 
   /**
    * Starts resizing from the handle: the width is the distance from the pointer to the right of the window.
@@ -50,7 +59,7 @@ export function useResizableAside(setOpened: (opened: boolean) => void) {
         frame.current = requestAnimationFrame(() => {
           const next = window.innerWidth - moveEvent.clientX;
           // Opened or closed only when crossing the minimum: not on every move.
-          if (next < MIN_ASIDE_WIDTH) {
+          if (next < minWidth()) {
             if (!closed.current) setOpened(false);
             closed.current = true;
           } else {
@@ -71,5 +80,5 @@ export function useResizableAside(setOpened: (opened: boolean) => void) {
     [setOpened, setWidth],
   );
 
-  return { width: shown, resizing, onResizeStart, onResizeReset: () => setWidth(MIN_ASIDE_WIDTH) };
+  return { width: shown, resizing, onResizeStart, onResizeReset: () => setWidth(minWidth()) };
 }
