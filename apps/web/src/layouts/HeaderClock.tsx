@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react';
 import classes from './HeaderClock.module.css';
 
-const weekdayInitial = new Intl.DateTimeFormat('fr-FR', { weekday: 'narrow' });
+const weekdayName = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' });
 const numericDate = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Text with a capital first letter.
+ * @param {string} text Text.
+ * @returns {string} Text.
+ */
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /**
  * Current time, refreshed at each new minute.
@@ -30,7 +37,7 @@ function useMinute(): Date {
 }
 
 /**
- * Date and time of the app header, on the left above the sidebar: « M 11/11/26 07:52 » (initial of the weekday);
+ * Date and time of the app header, on the left above the sidebar: « Mercredi 11/11/26 07:52 »;
  * none on a phone.
  * @returns {JSX.Element} Clock.
  */
@@ -38,7 +45,7 @@ export function HeaderClock() {
   const now = useMinute();
   return (
     <time className={classes.clock} dateTime={now.toISOString()}>
-      <span>{`${weekdayInitial.format(now).toUpperCase()} ${numericDate.format(now)}`}</span>
+      <span>{`${capitalized(weekdayName.format(now))} ${numericDate.format(now)}`}</span>
       <span className={classes.time}>{timeFormat.format(now)}</span>
     </time>
   );
