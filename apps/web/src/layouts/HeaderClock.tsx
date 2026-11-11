@@ -37,8 +37,8 @@ function useMinute(): Date {
 }
 
 /**
- * Date and time in the middle of the app header: the full date on large screens, shortened on medium ones, the
- * time alone on very small ones.
+ * Date and time in the middle of the app header (centered when the sides leave room, else next to the left one):
+ * the full date on large screens, shortened on medium ones, the time alone on very small ones.
  * @returns {JSX.Element} Clock.
  */
 export function HeaderClock() {

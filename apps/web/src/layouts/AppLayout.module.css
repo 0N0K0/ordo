@@ -35,6 +35,24 @@
     }
   }
 
+  /*
+   * Top bar: its sides share the width evenly, the date and time in the middle: centered while the sides fit in
+   * their half, otherwise right after the left side (a side never gets narrower than its content).
+   */
+  .header {
+    /* Agencement */
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+    align-items: center;
+
+    /* Dimension */
+    height: 100%;
+
+    /* Espacement */
+    padding-inline: var(--mantine-spacing-md);
+    column-gap: var(--mantine-spacing-sm);
+  }
+
   .resizeHandle {
     --handle-width: 6px;
 

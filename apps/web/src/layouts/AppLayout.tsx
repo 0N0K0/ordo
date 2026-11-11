@@ -62,8 +62,7 @@ export function AppLayout() {
           className={classes.shell}
         >
           <AppShell.Header>
-            <Group h="100%" px="md" justify="space-between" wrap="nowrap" pos="relative">
-              <HeaderClock />
+            <div className={classes.header}>
               <Group gap="sm" wrap="nowrap">
                 <Burger
                   opened={sidebarOpened}
@@ -74,7 +73,8 @@ export function AppLayout() {
                 <WorkspaceSwitcher />
                 <QuickActions />
               </Group>
-              <Group gap="sm" wrap="nowrap">
+              <HeaderClock />
+              <Group gap="sm" wrap="nowrap" justify="flex-end">
                 <TimerWidget />
                 {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
                 <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-end" shadow="md" withinPortal>
@@ -102,7 +102,7 @@ export function AppLayout() {
                   </Menu.Dropdown>
                 </Menu>
               </Group>
-            </Group>
+            </div>
           </AppShell.Header>
 
           <AlarmCenter />
