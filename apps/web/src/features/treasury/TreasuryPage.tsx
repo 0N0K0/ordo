@@ -253,8 +253,9 @@ export function TreasuryPage() {
   const header = (
     <Group justify="space-between">
       <PageTitle>Trésorerie</PageTitle>
+      {/* On the right, also when the title is hidden (from the tablet on). */}
       {!!accounts?.length && (
-        <Group gap="xs">
+        <Group gap="xs" ml="auto">
           <Button variant="light" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'entry', status: 'FORECAST' })}>
             Prévision
           </Button>

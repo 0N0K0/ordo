@@ -146,7 +146,8 @@ export function MailPage() {
       </PageSettings>
       <Group justify="space-between">
         <PageTitle>Mails</PageTitle>
-        <Group gap="sm">
+        {/* On the right, also when the title is hidden (from the tablet on). */}
+        <Group gap="sm" ml="auto">
           <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
             <Button variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
               Relever
