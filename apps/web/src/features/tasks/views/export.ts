@@ -3,7 +3,7 @@ import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
 import { COLUMN_LABELS } from './columns-meta';
-import { eventWhen } from './event-format';
+import { EVENT_STATES, eventState, eventWhen } from './event-format';
 import type { DisplayRow } from './task-rows';
 
 export interface ExportRow {
@@ -108,7 +108,7 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
 }
 
 /**
- * Text of an event cell (title, project, people, dates; empty elsewhere).
+ * Text of an event cell (title, project, people, status, tracked time, dates; empty elsewhere).
  * @param {EventOccurrence} event Occurrence.
  * @param {TaskColumn} column Column.
  * @param {TaskContext} context Task context.
@@ -125,6 +125,10 @@ function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskCont
         .map((id) => context.contributorById.get(id)?.name)
         .filter(Boolean)
         .join(', ');
+    case 'status':
+      return EVENT_STATES[eventState(event, Date.now())].label;
+    case 'trackedTime':
+      return event.trackedSeconds ? formatDuration(event.trackedSeconds) : '';
     case 'startDate':
       return eventWhen(event, 'start', true);
     case 'endDate':

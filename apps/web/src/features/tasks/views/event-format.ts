@@ -19,3 +19,27 @@ export function eventWhen(event: EventOccurrence, side: 'start' | 'end', numeric
   }
   return (numeric ? numericDateTime : dateTimeFormat).format(new Date(String(side === 'start' ? event.start : event.end)));
 }
+
+/** Where an event stands: to come, ongoing, over, cancelled or postponed. */
+export type EventState = 'upcoming' | 'ongoing' | 'over' | 'cancelled' | 'postponed';
+
+export const EVENT_STATES: Record<EventState, { label: string; color: string }> = {
+  upcoming: { label: 'À venir', color: 'blue' },
+  ongoing: { label: 'En cours', color: 'green' },
+  over: { label: 'Terminé', color: 'gray' },
+  cancelled: { label: 'Annulé', color: 'red' },
+  postponed: { label: 'Reporté', color: 'orange' },
+};
+
+/**
+ * Where an event stands now.
+ * @param {EventOccurrence} event Occurrence.
+ * @param {number} now Now (ms).
+ * @returns {EventState} State.
+ */
+export function eventState(event: EventOccurrence, now: number): EventState {
+  if (event.calledOff) return 'cancelled';
+  if (event.postponedTo.length > 0) return 'postponed';
+  if (now < new Date(String(event.start)).getTime()) return 'upcoming';
+  return now < new Date(String(event.end)).getTime() ? 'ongoing' : 'over';
+}
