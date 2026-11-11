@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   CloseButton,
+  Indicator,
   Collapse,
   Divider,
   Group,
@@ -25,12 +26,14 @@ import {
   type TaskViewConfig,
 } from '@ordo/shared';
 import {
+  ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowUpIcon,
   CaretDownIcon,
   ColumnsIcon,
   FileCsvIcon,
   FilePdfIcon,
+  FloppyDiskIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
   PlusIcon,
@@ -185,20 +188,40 @@ interface ViewToolbarProps {
   exporting: boolean;
   /** Something is listed. */
   canExport: boolean;
+  /** The current view has unsaved changes: saved or reverted from the top of the options. */
+  dirty: boolean;
+  onSave: () => void;
+  onRevert: () => void;
 }
 
 /**
- * Options of a view, in one panel: display (grouping, sub-tasks flat, archived tasks, events and their period),
- * columns (folded: the list is long) and exports.
+ * Options of a view, in one panel: its unsaved changes to save or revert (at the top), display (grouping, sub-tasks
+ * flat, archived tasks, events and their period), columns (folded: the list is long) and exports.
  * @param {Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>} props Component props.
  * @returns {JSX.Element} Panel.
  */
-function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport }: Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>) {
+function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport, dirty, onSave, onRevert }: Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>) {
   const [columnsOpened, setColumnsOpened] = useState(false);
   // The lists open in the panel: rendered in a portal, a click in them would close it.
   const inPanel = { withinPortal: false } as const;
   return (
     <Stack gap="sm">
+      {dirty && (
+        <>
+          <Text size="sm" c="orange">
+            Modifications non enregistrées
+          </Text>
+          <Group gap="xs" grow>
+            <Button variant="default" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
+              Annuler
+            </Button>
+            <Button leftSection={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
+              Enregistrer
+            </Button>
+          </Group>
+          <Divider />
+        </>
+      )}
       <Text size="xs" fw={600} c="dimmed" tt="uppercase">
         Affichage
       </Text>
@@ -285,17 +308,16 @@ function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onEx
 }
 
 /**
- * Toolbar of the current view: search, filters, sorting, and one « Options » menu with the display (grouping,
- * sub-tasks flat, archived tasks, events and their period), the columns and the exports.
+ * Toolbar of the current view: the search on all the width left, filters, sorting, and one « Options » menu (a dot
+ * on it while the view has unsaved changes) with those changes to save or revert, the display (grouping, sub-tasks
+ * flat, archived tasks, events and their period), the columns and the exports.
  * @param {ViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport }: ViewToolbarProps) {
+export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport, dirty, onSave, onRevert }: ViewToolbarProps) {
   const filterCount = countConditions(config.filter);
-  // Display options set, told on the « Options » button.
-  const optionCount = [config.groupBy, config.flat, config.includeArchived, config.events.show].filter(Boolean).length;
   return (
-    <Group gap="sm" wrap="wrap">
+    <Group gap="sm" wrap="nowrap">
       <TextInput
         placeholder="Rechercher (#12, titre, description)"
         aria-label="Rechercher une tâche"
@@ -310,7 +332,8 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
           const search = event.currentTarget.value;
           change((current) => ({ ...current, search }));
         }}
-        w={{ base: '100%', sm: 280 }}
+        // Every width left by the buttons.
+        style={{ flex: 1, minWidth: 0 }}
       />
 
       <Popover
@@ -357,30 +380,31 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
         </Popover.Dropdown>
       </Popover>
 
-      {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
-      <Popover position="bottom-end" shadow="md" withinPortal width={340} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
-        <Popover.Target>
-          <Button
-            variant={optionCount ? 'light' : 'default'}
-            ml="auto"
-            leftSection={<SlidersHorizontalIcon aria-hidden />}
-            rightSection={optionCount ? <Badge size="xs" circle>{optionCount}</Badge> : <CaretDownIcon aria-hidden />}
-          >
-            Options
-          </Button>
-        </Popover.Target>
-        <Popover.Dropdown style={{ overflowY: 'auto' }}>
-          <ViewOptions
-            config={config}
-            change={change}
-            eventPeriodLocked={eventPeriodLocked}
-            eventPeriodLabel={eventPeriodLabel}
-            onExport={onExport}
-            exporting={exporting}
-            canExport={canExport}
-          />
-        </Popover.Dropdown>
-      </Popover>
+      {/* A dot while the view has unsaved changes. */}
+      <Indicator disabled={!dirty} size={8} offset={4} position="top-end" color="orange">
+        {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
+        <Popover position="bottom-end" shadow="md" withinPortal width={340} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
+          <Popover.Target>
+            <Button variant="default" leftSection={<SlidersHorizontalIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
+              Options
+            </Button>
+          </Popover.Target>
+          <Popover.Dropdown style={{ overflowY: 'auto' }}>
+            <ViewOptions
+              dirty={dirty}
+              onSave={onSave}
+              onRevert={onRevert}
+              config={config}
+              change={change}
+              eventPeriodLocked={eventPeriodLocked}
+              eventPeriodLabel={eventPeriodLabel}
+              onExport={onExport}
+              exporting={exporting}
+              canExport={canExport}
+            />
+          </Popover.Dropdown>
+        </Popover>
+      </Indicator>
     </Group>
   );
 }

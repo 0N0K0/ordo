@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Button, Group, Indicator, Menu, Stack, Tabs, Text, TextInput, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { taskViewNameSchema } from '@ordo/shared';
-import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import type { TaskView, TaskViewState } from './use-task-view';
@@ -120,7 +120,8 @@ function SortableTab(props: TabsTabProps & { value: string }) {
 }
 
 /**
- * Tabs of the saved views, reordered by drag and drop, with the save / revert actions of the current one.
+ * Tabs of the saved views, reordered by drag and drop; the menu of the current one saves or reverts its changes
+ * (also at the top of the « Options » menu).
  * @param {{ state: TaskViewState }} props Component props.
  * @returns {JSX.Element} Tabs.
  */
@@ -188,6 +189,18 @@ export function ViewTabs({ state }: { state: TaskViewState }) {
                               </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
+                              {dirty && (
+                                <>
+                                  <Menu.Label>Modifications non enregistrées</Menu.Label>
+                                  <Menu.Item leftSection={<FloppyDiskIcon aria-hidden />} onClick={state.save}>
+                                    Enregistrer
+                                  </Menu.Item>
+                                  <Menu.Item leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={state.revert}>
+                                    Annuler les modifications
+                                  </Menu.Item>
+                                  <Menu.Divider />
+                                </>
+                              )}
                               <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => promptName('Renommer la vue', view.name, 'Renommer', (name) => state.rename(view.id, name))}>
                                 Renommer
                               </Menu.Item>
@@ -238,20 +251,6 @@ export function ViewTabs({ state }: { state: TaskViewState }) {
           </Menu.Dropdown>
         </Menu>
       </Group>
-
-      {dirty && (
-        <Group gap="xs" wrap="nowrap">
-          <Text size="xs" c="orange" visibleFrom="sm">
-            Modifications non enregistrées
-          </Text>
-          <Button size="xs" variant="default" onClick={state.revert}>
-            Annuler les modifications
-          </Button>
-          <Button size="xs" leftSection={<FloppyDiskIcon aria-hidden />} onClick={state.save}>
-            Enregistrer
-          </Button>
-        </Group>
-      )}
     </Group>
   );
 }

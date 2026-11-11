@@ -223,6 +223,9 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
           onExport={exportRows}
           exporting={exporting}
           canExport={rows.length > 0}
+          dirty={view.dirty}
+          onSave={view.save}
+          onRevert={view.revert}
         />
       )}
 
