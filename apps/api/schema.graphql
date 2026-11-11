@@ -1389,12 +1389,12 @@ type Mutation {
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
-  createShoppingCategory(input: ShoppingLabelInput!): ID!
+  createShoppingCategory(input: ShoppingCategoryInput!): ID!
 
   """Creates a list, empty or with the missing products of the base list."""
   createShoppingList(fromMissing: Boolean!, name: String!, taskId: ID): ID!
   createShoppingProduct(input: ShoppingProductInput!): ID!
-  createShoppingStore(input: ShoppingLabelInput!): ID!
+  createShoppingStore(input: ShoppingStoreInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createTask(input: TaskInput!): Task!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
@@ -1579,7 +1579,6 @@ type Mutation {
   ): Boolean!
   moveProjectResource(id: ID!, index: Int!): Boolean!
   moveProjectStatus(id: ID!, index: Int!): Boolean!
-  moveShoppingCategory(id: ID!, index: Int!): Boolean!
   moveShoppingStore(id: ID!, index: Int!): Boolean!
 
   """
@@ -1819,11 +1818,11 @@ type Mutation {
   updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
   updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
-  updateShoppingCategory(id: ID!, input: ShoppingLabelPatch!): Boolean!
+  updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
   updateShoppingList(id: ID!, name: String!, taskId: ID): Boolean!
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
-  updateShoppingStore(id: ID!, input: ShoppingLabelPatch!): Boolean!
+  updateShoppingStore(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
   updateTaskComment(body: String!, id: ID!): TaskComment!
@@ -2152,7 +2151,7 @@ type Query {
   """
   searchAddresses(near: GeoPointInput, text: String!): [AddressSuggestion!]!
 
-  """Categories of the shopping products, in the order of the aisles."""
+  """Categories of the shopping products (a tree)."""
   shoppingCategories: [ShoppingCategory!]!
 
   """Shopping lists, latest first: all, or those of a task."""
@@ -2381,14 +2380,18 @@ input SendMailInput {
   to: [String!]!
 }
 
-"""
-Category of the shopping products; their order is the order of the aisles.
-"""
+"""Category of the shopping products, in a tree."""
 type ShoppingCategory {
-  color: String!
+  color: String
   id: ID!
   name: String!
-  position: Int!
+  parentId: ID
+}
+
+input ShoppingCategoryInput {
+  color: String
+  name: String!
+  parentId: ID
 }
 
 """
@@ -2423,18 +2426,6 @@ input ShoppingItemInput {
   unit: String
   unitPrice: Float
   url: String
-}
-
-"""Shopping category or store."""
-input ShoppingLabelInput {
-  color: String!
-  name: String!
-}
-
-"""Changes of a shopping category or store (omitted fields unchanged)."""
-input ShoppingLabelPatch {
-  color: String
-  name: String
 }
 
 """
@@ -2493,6 +2484,18 @@ type ShoppingStore {
   id: ID!
   name: String!
   position: Int!
+}
+
+"""Shopping store."""
+input ShoppingStoreInput {
+  color: String!
+  name: String!
+}
+
+"""Changes of a shopping store (omitted fields unchanged)."""
+input ShoppingStorePatch {
+  color: String
+  name: String
 }
 
 """Period of a project the tasks of its project tree are planned in."""
@@ -2927,6 +2930,7 @@ type TreasuryBudgetReportRow {
 }
 
 type TreasuryCategory {
+  color: String
   direction: TreasuryDirection!
   entryCount: Int!
   id: ID!
@@ -2935,6 +2939,8 @@ type TreasuryCategory {
 }
 
 input TreasuryCategoryInput {
+  """Hex color; empty clears it, omitted leaves it."""
+  color: String
   direction: TreasuryDirection!
   name: String!
   parentId: ID

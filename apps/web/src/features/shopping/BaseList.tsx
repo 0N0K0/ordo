@@ -43,7 +43,7 @@ function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
 }
 
 /**
- * Base list: the products usually bought, grouped by category (in the order of the aisles) or by store, each
+ * Base list: the products usually bought, grouped by category (in tree order) or by store, each
  * marked missing or not; the missing ones make a new list.
  * @returns {JSX.Element} Base list.
  */
@@ -67,7 +67,7 @@ export function BaseList() {
           value={grouping}
           onChange={(value) => setGrouping(value as ShoppingGrouping)}
           data={[
-            { value: 'category', label: 'Par rayon' },
+            { value: 'category', label: 'Par catégorie' },
             { value: 'store', label: 'Par magasin' },
           ]}
           aria-label="Regrouper"

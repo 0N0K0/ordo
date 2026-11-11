@@ -30,8 +30,69 @@ export interface ShoppingGroup<T> {
   items: T[];
 }
 
+const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+
+/** Category placed in its tree. */
+export interface PlacedShoppingCategory {
+  category: ShoppingCategory;
+  /** 0 for a top-level category. */
+  depth: number;
+  /** "Parent › Enfant". */
+  path: string;
+  /** Its color, or the one of its closest parent with one. */
+  color: string | null;
+}
+
 /**
- * Products or items grouped by category (in the order of the aisles) or by store; the ones without come last.
+ * Categories in tree order: each one followed by its sub-categories, by name (as the treasury categories).
+ * @param {readonly ShoppingCategory[]} categories All categories.
+ * @returns {PlacedShoppingCategory[]} Placed categories.
+ */
+export function shoppingCategoryTree(categories: readonly ShoppingCategory[]): PlacedShoppingCategory[] {
+  const ids = new Set(categories.map((category) => category.id));
+  const children = new Map<string | null, ShoppingCategory[]>();
+  for (const category of categories) {
+    const parent = category.parentId && ids.has(category.parentId) ? category.parentId : null;
+    children.set(parent, [...(children.get(parent) ?? []), category]);
+  }
+  const placed: PlacedShoppingCategory[] = [];
+  /**
+   * Adds the sub-categories of a parent, recursively.
+   * @param {string | null} parent Parent id, null for the top level.
+   * @param {number} depth Depth of the children.
+   * @param {string} prefix Path of the parent.
+   * @param {string | null} inherited Color of the parent.
+   * @returns {void}
+   */
+  const visit = (parent: string | null, depth: number, prefix: string, inherited: string | null) => {
+    for (const category of [...(children.get(parent) ?? [])].sort((a, b) => collator.compare(a.name, b.name))) {
+      const path = prefix ? `${prefix} › ${category.name}` : category.name;
+      const color = category.color ?? inherited;
+      placed.push({ category, depth, path, color });
+      visit(category.id, depth + 1, path, color);
+    }
+  };
+  visit(null, 0, '', null);
+  return placed;
+}
+
+/**
+ * Select options of the categories, sub-categories indented under their parent.
+ * @param {readonly ShoppingCategory[]} categories All categories.
+ * @param {string} [exclude] Category left out with its sub-categories (a category cannot be its own parent). Optional.
+ * @returns {{ value: string, label: string }[]} Options.
+ */
+export function shoppingCategoryOptions(categories: readonly ShoppingCategory[], exclude?: string): { value: string; label: string }[] {
+  const tree = shoppingCategoryTree(categories);
+  const excluded = exclude ? tree.find((item) => item.category.id === exclude) : undefined;
+  return tree
+    .filter((item) => !excluded || (item.path !== excluded.path && !item.path.startsWith(`${excluded.path} › `)))
+    .map((item) => ({ value: item.category.id, label: `${'\u2003'.repeat(item.depth)}${item.category.name}` }));
+}
+
+/**
+ * Products or items grouped by category (in tree order, named by their path) or by store; the ones without come
+ * last.
  * @param {T[]} items Products or items.
  * @param {ShoppingGrouping} grouping Grouping.
  * @param {{ categories: ShoppingCategory[], stores: ShoppingStore[] }} labels Categories and stores.
@@ -42,11 +103,12 @@ export function groupShopping<T extends { categoryId?: string | null; storeId?: 
   grouping: ShoppingGrouping,
   { categories, stores }: { categories: ShoppingCategory[]; stores: ShoppingStore[] },
 ): ShoppingGroup<T>[] {
-  const labels = grouping === 'category' ? categories : stores;
   const key = (item: T) => (grouping === 'category' ? item.categoryId : item.storeId) ?? null;
-  const groups: ShoppingGroup<T>[] = [...labels]
-    .sort((a, b) => a.position - b.position)
-    .map((label) => ({ id: label.id, name: label.name, color: label.color, items: items.filter((item) => key(item) === label.id) }));
+  const labels =
+    grouping === 'category'
+      ? shoppingCategoryTree(categories).map(({ category, path, color }) => ({ id: category.id, name: path, color }))
+      : [...stores].sort((a, b) => a.position - b.position).map((store) => ({ id: store.id, name: store.name, color: store.color }));
+  const groups: ShoppingGroup<T>[] = labels.map((label) => ({ ...label, items: items.filter((item) => key(item) === label.id) }));
   const known = new Set(labels.map((label) => label.id));
   groups.push({ id: null, name: grouping === 'category' ? 'Sans catégorie' : 'Sans magasin', color: null, items: items.filter((item) => !known.has(key(item) ?? '')) });
   return groups.filter((group) => group.items.length > 0);

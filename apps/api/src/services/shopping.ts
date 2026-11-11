@@ -1,15 +1,17 @@
 import {
   shoppingItemSchema,
-  shoppingLabelSchema,
+  shoppingCategorySchema,
   shoppingListNameSchema,
   shoppingProductSchema,
+  shoppingStoreSchema,
   shoppingShares,
   type ShoppingItemInput,
-  type ShoppingLabelInput,
+  type ShoppingCategoryInput,
   type ShoppingProductInput,
+  type ShoppingStoreInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
-import { Prisma, type ShoppingItem, type ShoppingList, type ShoppingProduct } from '../generated/prisma/client';
+import { Prisma, type ShoppingCategory, type ShoppingItem, type ShoppingList, type ShoppingProduct, type ShoppingStore } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { moveInOrder } from './ordering';
 import { isMember } from './treasury-team';
@@ -81,80 +83,114 @@ async function parseShopping<T extends typeof shoppingItemSchema | typeof shoppi
   return parsed;
 }
 
-// Categories and stores ------------------------------------------------------------------------------------------
-
-type LabelModel = 'shoppingCategory' | 'shoppingStore';
-const LABEL_NAMES: Record<LabelModel, { what: string; taken: string }> = {
-  shoppingCategory: { what: 'Catégorie', taken: 'Cette catégorie existe déjà.' },
-  shoppingStore: { what: 'Magasin', taken: 'Ce magasin existe déjà.' },
-};
+// Categories ------------------------------------------------------------------------------------------------------
 
 /**
- * Delegate of a category or store model (both have the same fields).
- * @param {LabelModel} model Model.
- * @returns {typeof prisma.shoppingCategory} Delegate.
+ * Validates a category: its parent exists and is not the category or one of its sub-categories.
+ * @param {ShoppingCategoryInput} input Category.
+ * @param {string} [id] Category edited. Optional.
+ * @returns {Promise<ReturnType<typeof shoppingCategorySchema.parse>>} Category.
  */
-const delegate = (model: LabelModel) => prisma[model] as unknown as typeof prisma.shoppingCategory;
-
-/**
- * Creates a category or a store, after the others.
- * @param {LabelModel} model Categories or stores.
- * @param {ShoppingLabelInput} input Name and color.
- * @returns {Promise<{ id: string }>} Row.
- */
-export async function createLabel(model: LabelModel, input: ShoppingLabelInput): Promise<{ id: string }> {
-  const data = parseInput(shoppingLabelSchema, input);
-  const rows = delegate(model);
-  if (await rows.findFirst({ where: { name: data.name } })) throw clientError('BAD_USER_INPUT', LABEL_NAMES[model].taken, { fields: { name: LABEL_NAMES[model].taken } });
-  const { _max } = await rows.aggregate({ _max: { position: true } });
-  return rows.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+async function parseCategory(input: ShoppingCategoryInput, id?: string) {
+  const data = parseInput(shoppingCategorySchema, input);
+  if (!data.parentId) return data;
+  if (!(await prisma.shoppingCategory.findUnique({ where: { id: data.parentId }, select: { id: true } }))) throw notFound('Catégorie parente');
+  if (id) {
+    const all = await prisma.shoppingCategory.findMany({ select: { id: true, parentId: true } });
+    const parentOf = new Map(all.map((category) => [category.id, category.parentId]));
+    for (let current: string | null | undefined = data.parentId; current; current = parentOf.get(current)) {
+      if (current === id) throw clientError('BAD_USER_INPUT', 'Une catégorie ne peut pas être rangée sous elle-même.', { fields: { parentId: 'Choisissez une autre catégorie parente.' } });
+    }
+  }
+  return data;
 }
 
 /**
- * Updates the name and/or the color of a category or a store.
- * @param {LabelModel} model Categories or stores.
- * @param {string} id Row id.
- * @param {Partial<ShoppingLabelInput>} input Changes.
+ * Creates a category.
+ * @param {ShoppingCategoryInput} input Category.
+ * @returns {Promise<ShoppingCategory>} Category.
+ */
+export async function createCategory(input: ShoppingCategoryInput): Promise<ShoppingCategory> {
+  return prisma.shoppingCategory.create({ data: await parseCategory(input) });
+}
+
+/**
+ * Updates a category.
+ * @param {string} id Category id.
+ * @param {ShoppingCategoryInput} input Category.
+ * @returns {Promise<ShoppingCategory>} Category.
+ */
+export async function updateCategory(id: string, input: ShoppingCategoryInput): Promise<ShoppingCategory> {
+  if (!(await prisma.shoppingCategory.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Catégorie');
+  return prisma.shoppingCategory.update({ where: { id }, data: await parseCategory(input, id) });
+}
+
+/**
+ * Deletes a category: its sub-categories go up a level, its products and items are left without one.
+ * @param {string} id Category id.
  * @returns {Promise<void>}
  */
-export async function updateLabel(model: LabelModel, id: string, input: Partial<ShoppingLabelInput>): Promise<void> {
-  const rows = delegate(model);
-  const current = await rows.findUnique({ where: { id } });
-  if (!current) throw notFound(LABEL_NAMES[model].what);
-  const data = parseInput(shoppingLabelSchema, { name: input.name ?? current.name, color: input.color ?? current.color });
-  if (await rows.findFirst({ where: { name: data.name, id: { not: id } } })) throw clientError('BAD_USER_INPUT', LABEL_NAMES[model].taken, { fields: { name: LABEL_NAMES[model].taken } });
-  await rows.update({ where: { id }, data });
+export async function deleteCategory(id: string): Promise<void> {
+  const category = await prisma.shoppingCategory.findUnique({ where: { id } });
+  if (!category) throw notFound('Catégorie');
+  await prisma.$transaction([prisma.shoppingCategory.updateMany({ where: { parentId: id }, data: { parentId: category.parentId } }), prisma.shoppingCategory.delete({ where: { id } })]);
+}
+
+// Stores ----------------------------------------------------------------------------------------------------------
+
+const STORE_TAKEN = 'Ce magasin existe déjà.';
+
+/**
+ * Creates a store, after the others.
+ * @param {ShoppingStoreInput} input Name and color.
+ * @returns {Promise<ShoppingStore>} Store.
+ */
+export async function createStore(input: ShoppingStoreInput): Promise<ShoppingStore> {
+  const data = parseInput(shoppingStoreSchema, input);
+  if (await prisma.shoppingStore.findFirst({ where: { name: data.name } })) throw clientError('BAD_USER_INPUT', STORE_TAKEN, { fields: { name: STORE_TAKEN } });
+  const { _max } = await prisma.shoppingStore.aggregate({ _max: { position: true } });
+  return prisma.shoppingStore.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
 }
 
 /**
- * Deletes a category or a store: its products and items are left without one.
- * @param {LabelModel} model Categories or stores.
- * @param {string} id Row id.
+ * Updates the name and/or the color of a store.
+ * @param {string} id Store id.
+ * @param {Partial<ShoppingStoreInput>} input Changes.
  * @returns {Promise<void>}
  */
-export async function deleteLabel(model: LabelModel, id: string): Promise<void> {
-  const rows = delegate(model);
-  if (!(await rows.findUnique({ where: { id } }))) throw notFound(LABEL_NAMES[model].what);
-  await rows.delete({ where: { id } });
+export async function updateStore(id: string, input: Partial<ShoppingStoreInput>): Promise<void> {
+  const current = await prisma.shoppingStore.findUnique({ where: { id } });
+  if (!current) throw notFound('Magasin');
+  const data = parseInput(shoppingStoreSchema, { name: input.name ?? current.name, color: input.color ?? current.color });
+  if (await prisma.shoppingStore.findFirst({ where: { name: data.name, id: { not: id } } })) throw clientError('BAD_USER_INPUT', STORE_TAKEN, { fields: { name: STORE_TAKEN } });
+  await prisma.shoppingStore.update({ where: { id }, data });
 }
 
 /**
- * Moves a category (the order of the aisles) or a store.
- * @param {LabelModel} model Categories or stores.
- * @param {string} id Row id.
+ * Deletes a store: its products and items are left without one.
+ * @param {string} id Store id.
+ * @returns {Promise<void>}
+ */
+export async function deleteStore(id: string): Promise<void> {
+  if (!(await prisma.shoppingStore.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Magasin');
+  await prisma.shoppingStore.delete({ where: { id } });
+}
+
+/**
+ * Moves a store among the others.
+ * @param {string} id Store id.
  * @param {number} index Target index.
  * @returns {Promise<void>}
  */
-export async function moveLabel(model: LabelModel, id: string, index: number): Promise<void> {
-  const rows = delegate(model);
-  const all = await rows.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
-  if (!all.some((row) => row.id === id)) throw notFound(LABEL_NAMES[model].what);
+export async function moveStore(id: string, index: number): Promise<void> {
+  const all = await prisma.shoppingStore.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  if (!all.some((store) => store.id === id)) throw notFound('Magasin');
   const order = moveInOrder(
-    all.map((row) => row.id),
+    all.map((store) => store.id),
     id,
     index,
   );
-  await prisma.$transaction(order.map((rowId, position) => rows.update({ where: { id: rowId }, data: { position } })));
+  await prisma.$transaction(order.map((storeId, position) => prisma.shoppingStore.update({ where: { id: storeId }, data: { position } })));
 }
 
 // Base list ------------------------------------------------------------------------------------------------------

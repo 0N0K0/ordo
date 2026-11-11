@@ -201,6 +201,7 @@ const SettingsDocument = graphql(`
     treasuryCategories {
       id
       name
+      color
       direction
       parentId
       entryCount

@@ -181,6 +181,7 @@ builder.prismaObject('TreasuryCategory', {
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
+    color: t.exposeString('color', { nullable: true }),
     direction: t.field({ type: DirectionEnum, resolve: (category) => category.direction }),
     parentId: t.exposeID('parentId', { nullable: true }),
     entryCount: t.relationCount('entries'),
@@ -668,6 +669,7 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
 const CategoryInput = builder.inputType('TreasuryCategoryInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
+    color: t.string({ description: 'Hex color; empty clears it, omitted leaves it.' }),
     direction: t.field({ type: DirectionEnum, required: true }),
     parentId: t.id(),
   }),

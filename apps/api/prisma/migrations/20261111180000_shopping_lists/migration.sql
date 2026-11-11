@@ -1,11 +1,8 @@
--- AlterTable
-ALTER TABLE "TreasuryEntry" ADD COLUMN     "url" TEXT;
-
 -- CreateTable
 CREATE TABLE "ShoppingCategory" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "color" TEXT NOT NULL,
+    "color" TEXT,
     "position" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "workspaceId" TEXT NOT NULL DEFAULT current_setting('ordo.workspace'::text),
@@ -17,7 +14,6 @@ CREATE TABLE "ShoppingCategory" (
 CREATE TABLE "ShoppingStore" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "color" TEXT NOT NULL,
     "position" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "workspaceId" TEXT NOT NULL DEFAULT current_setting('ordo.workspace'::text),

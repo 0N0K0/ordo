@@ -10,6 +10,7 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
 import { BaseList } from './BaseList';
+import { ShoppingCategories } from './ShoppingCategories';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
 import { money } from './shopping-format';
@@ -135,7 +136,7 @@ function ListsPanel() {
 
 /**
  * Shopping page (consumables in a professional workspace): the base list, where what is missing is marked, and the
- * lists made from it; the settings hold the categories (aisles) and the stores.
+ * lists made from it; the settings hold the categories (a tree) and the stores.
  * @returns {JSX.Element} Page.
  */
 export function ShoppingPage() {
@@ -152,18 +153,7 @@ export function ShoppingPage() {
       <PageTitle>Courses</PageTitle>
       <PageSettings title="Paramètres des courses">
         <Stack gap="md">
-          <LabelManager
-            title="Rayons"
-            description="Catégories des produits. Leur ordre est celui des rayons : les listes le suivent."
-            noun="le rayon"
-            usageNoun="produits"
-            labels={data?.shoppingCategories ?? []}
-            usage={usageOf((row) => row.categoryId, rows)}
-            create={mutations.createCategory}
-            update={mutations.updateCategory}
-            remove={mutations.deleteCategory}
-            move={mutations.moveCategory}
-          />
+          <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usageOf((row) => row.categoryId, rows)} />
           <LabelManager
             title="Magasins"
             description={perso ? 'Où vous achetez les produits.' : 'Magasins et fournisseurs des produits.'}

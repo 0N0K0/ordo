@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { colorSchema, labelNameSchema } from './workspace';
+import { colorSchema, labelNameSchema, optionalColorSchema } from './workspace';
 
 const optionalText = (max: number) =>
   z
@@ -17,9 +17,17 @@ const linkSchema = z
 const quantitySchema = z.number({ error: 'Nombre attendu.' }).positive('La quantité doit être positive.').max(999_999, 'Quantité trop grande.').nullable();
 const priceSchema = z.number({ error: 'Montant attendu.' }).min(0, 'Le prix ne peut pas être négatif.').max(9_999_999, 'Prix trop grand.').nullable();
 
-/** Shopping category or store: a name and a color. */
-export const shoppingLabelSchema = z.object({ name: labelNameSchema, color: colorSchema });
-export type ShoppingLabelInput = z.input<typeof shoppingLabelSchema>;
+/** Store: a name and a color. */
+export const shoppingStoreSchema = z.object({ name: labelNameSchema, color: colorSchema });
+export type ShoppingStoreInput = z.input<typeof shoppingStoreSchema>;
+
+/** Category of products, in a tree. */
+export const shoppingCategorySchema = z.object({
+  name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
+  color: optionalColorSchema,
+  parentId: z.string().nullable(),
+});
+export type ShoppingCategoryInput = z.input<typeof shoppingCategorySchema>;
 
 /** Fields shared by a product of the base list and an item of a list. */
 const shoppingFields = {

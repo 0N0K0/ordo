@@ -4,7 +4,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
-import { usePeople } from './shopping-format';
+import { shoppingCategoryOptions, usePeople } from './shopping-format';
 
 /** Units offered (any other can be typed). */
 const UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton'];
@@ -105,7 +105,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             placeholder="Aucune"
             clearable
             searchable
-            data={(data?.shoppingCategories ?? []).map((item) => ({ value: item.id, label: item.name }))}
+            data={shoppingCategoryOptions(data?.shoppingCategories ?? [])}
             {...form.getInputProps('categoryId')}
           />
           <Select

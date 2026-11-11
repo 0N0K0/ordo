@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { recurrenceSchema } from './recurrence';
-import { colorSchema } from './workspace';
+import { colorSchema, optionalColorSchema } from './workspace';
 
 export const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
 export type DocumentStatusScope = (typeof DOCUMENT_STATUS_SCOPES)[number];
@@ -57,6 +57,7 @@ const name = z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caract
 /** Category of entries, for money in or out, possibly under a parent of the same direction. */
 export const treasuryCategorySchema = z.object({
   name,
+  color: optionalColorSchema.optional(),
   direction: z.enum(TREASURY_DIRECTIONS),
   parentId: z.string().nullable(),
 });

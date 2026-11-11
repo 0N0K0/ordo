@@ -219,14 +219,13 @@ type Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": typeof types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": typeof types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": typeof types.DeleteMailSearchDocument,
-    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingProducts {\n      id\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": typeof types.ShoppingDataDocument,
+    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingProducts {\n      id\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": typeof types.ShoppingDataDocument,
     "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": typeof types.ShoppingListsDocument,
-    "\n  mutation CreateShoppingCategory($input: ShoppingLabelInput!) {\n    createShoppingCategory(input: $input)\n  }\n": typeof types.CreateShoppingCategoryDocument,
-    "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingLabelPatch!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingCategoryDocument,
+    "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": typeof types.CreateShoppingCategoryDocument,
+    "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": typeof types.DeleteShoppingCategoryDocument,
-    "\n  mutation MoveShoppingCategory($id: ID!, $index: Int!) {\n    moveShoppingCategory(id: $id, index: $index)\n  }\n": typeof types.MoveShoppingCategoryDocument,
-    "\n  mutation CreateShoppingStore($input: ShoppingLabelInput!) {\n    createShoppingStore(input: $input)\n  }\n": typeof types.CreateShoppingStoreDocument,
-    "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingLabelPatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingStoreDocument,
+    "\n  mutation CreateShoppingStore($input: ShoppingStoreInput!) {\n    createShoppingStore(input: $input)\n  }\n": typeof types.CreateShoppingStoreDocument,
+    "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingStoreDocument,
     "\n  mutation DeleteShoppingStore($id: ID!) {\n    deleteShoppingStore(id: $id)\n  }\n": typeof types.DeleteShoppingStoreDocument,
     "\n  mutation MoveShoppingStore($id: ID!, $index: Int!) {\n    moveShoppingStore(id: $id, index: $index)\n  }\n": typeof types.MoveShoppingStoreDocument,
     "\n  mutation CreateShoppingProduct($input: ShoppingProductInput!) {\n    createShoppingProduct(input: $input)\n  }\n": typeof types.CreateShoppingProductDocument,
@@ -326,7 +325,7 @@ type Documents = {
     "\n  query TreasuryEntries($from: Date!, $to: Date!, $accountId: ID) {\n    treasuryEntries(from: $from, to: $to, accountId: $accountId) {\n      ...TreasuryEntryFields\n    }\n  }\n": typeof types.TreasuryEntriesDocument,
     "\n  query ForecastEntries {\n    forecastEntries {\n      ...TreasuryEntryFields\n    }\n  }\n": typeof types.ForecastEntriesDocument,
     "\n  query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {\n    treasuryProjection(today: $today, from: $from, until: $until) {\n      balance\n      series {\n        date\n        balance\n        forecast\n      }\n      items {\n        date\n        dueDate\n        label\n        payerName\n        amount\n        kind\n        overdue\n        entryId\n        documentId\n        importedDocumentId\n        recurringInvoiceId\n        accountId\n      }\n    }\n  }\n": typeof types.TreasuryProjectionDocument,
-    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": typeof types.TreasurySettingsDocument,
+    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": typeof types.TreasurySettingsDocument,
     "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n      lines {\n        id\n        label\n        mode\n        value\n      }\n    }\n  }\n": typeof types.TreasuryEntrySearchDocument,
     "\n  mutation CreateTreasuryCategory($input: TreasuryCategoryInput!) {\n    createTreasuryCategory(input: $input)\n  }\n": typeof types.CreateTreasuryCategoryDocument,
     "\n  mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {\n    updateTreasuryCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateTreasuryCategoryDocument,
@@ -598,14 +597,13 @@ const documents: Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": types.DeleteMailSearchDocument,
-    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingProducts {\n      id\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": types.ShoppingDataDocument,
+    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingProducts {\n      id\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": types.ShoppingDataDocument,
     "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": types.ShoppingListsDocument,
-    "\n  mutation CreateShoppingCategory($input: ShoppingLabelInput!) {\n    createShoppingCategory(input: $input)\n  }\n": types.CreateShoppingCategoryDocument,
-    "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingLabelPatch!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": types.UpdateShoppingCategoryDocument,
+    "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": types.CreateShoppingCategoryDocument,
+    "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": types.DeleteShoppingCategoryDocument,
-    "\n  mutation MoveShoppingCategory($id: ID!, $index: Int!) {\n    moveShoppingCategory(id: $id, index: $index)\n  }\n": types.MoveShoppingCategoryDocument,
-    "\n  mutation CreateShoppingStore($input: ShoppingLabelInput!) {\n    createShoppingStore(input: $input)\n  }\n": types.CreateShoppingStoreDocument,
-    "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingLabelPatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": types.UpdateShoppingStoreDocument,
+    "\n  mutation CreateShoppingStore($input: ShoppingStoreInput!) {\n    createShoppingStore(input: $input)\n  }\n": types.CreateShoppingStoreDocument,
+    "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": types.UpdateShoppingStoreDocument,
     "\n  mutation DeleteShoppingStore($id: ID!) {\n    deleteShoppingStore(id: $id)\n  }\n": types.DeleteShoppingStoreDocument,
     "\n  mutation MoveShoppingStore($id: ID!, $index: Int!) {\n    moveShoppingStore(id: $id, index: $index)\n  }\n": types.MoveShoppingStoreDocument,
     "\n  mutation CreateShoppingProduct($input: ShoppingProductInput!) {\n    createShoppingProduct(input: $input)\n  }\n": types.CreateShoppingProductDocument,
@@ -705,7 +703,7 @@ const documents: Documents = {
     "\n  query TreasuryEntries($from: Date!, $to: Date!, $accountId: ID) {\n    treasuryEntries(from: $from, to: $to, accountId: $accountId) {\n      ...TreasuryEntryFields\n    }\n  }\n": types.TreasuryEntriesDocument,
     "\n  query ForecastEntries {\n    forecastEntries {\n      ...TreasuryEntryFields\n    }\n  }\n": types.ForecastEntriesDocument,
     "\n  query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {\n    treasuryProjection(today: $today, from: $from, until: $until) {\n      balance\n      series {\n        date\n        balance\n        forecast\n      }\n      items {\n        date\n        dueDate\n        label\n        payerName\n        amount\n        kind\n        overdue\n        entryId\n        documentId\n        importedDocumentId\n        recurringInvoiceId\n        accountId\n      }\n    }\n  }\n": types.TreasuryProjectionDocument,
-    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": types.TreasurySettingsDocument,
+    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": types.TreasurySettingsDocument,
     "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n      lines {\n        id\n        label\n        mode\n        value\n      }\n    }\n  }\n": types.TreasuryEntrySearchDocument,
     "\n  mutation CreateTreasuryCategory($input: TreasuryCategoryInput!) {\n    createTreasuryCategory(input: $input)\n  }\n": types.CreateTreasuryCategoryDocument,
     "\n  mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {\n    updateTreasuryCategory(id: $id, input: $input)\n  }\n": types.UpdateTreasuryCategoryDocument,
@@ -1592,7 +1590,7 @@ export function graphql(source: "\n  mutation DeleteMailSearch($id: ID!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingProducts {\n      id\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n"): typeof import('./graphql').ShoppingDataDocument;
+export function graphql(source: "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingProducts {\n      id\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n"): typeof import('./graphql').ShoppingDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1600,11 +1598,11 @@ export function graphql(source: "\n  query ShoppingLists($taskId: ID) {\n    sho
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateShoppingCategory($input: ShoppingLabelInput!) {\n    createShoppingCategory(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingCategoryDocument;
+export function graphql(source: "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingCategoryDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingLabelPatch!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingCategoryDocument;
+export function graphql(source: "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingCategoryDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1612,15 +1610,11 @@ export function graphql(source: "\n  mutation DeleteShoppingCategory($id: ID!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MoveShoppingCategory($id: ID!, $index: Int!) {\n    moveShoppingCategory(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveShoppingCategoryDocument;
+export function graphql(source: "\n  mutation CreateShoppingStore($input: ShoppingStoreInput!) {\n    createShoppingStore(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingStoreDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateShoppingStore($input: ShoppingLabelInput!) {\n    createShoppingStore(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingStoreDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingLabelPatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingStoreDocument;
+export function graphql(source: "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingStoreDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2020,7 +2014,7 @@ export function graphql(source: "\n  query TreasuryProjection($today: Date!, $fr
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n"): typeof import('./graphql').TreasurySettingsDocument;
+export function graphql(source: "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      direction\n      parentId\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n"): typeof import('./graphql').TreasurySettingsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

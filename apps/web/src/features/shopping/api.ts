@@ -1,4 +1,4 @@
-import type { ShoppingItemInput, ShoppingLabelInput, ShoppingProductInput } from '@ordo/shared';
+import type { ShoppingCategoryInput, ShoppingItemInput, ShoppingProductInput, ShoppingStoreInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type { ShoppingDataQuery, ShoppingListsQuery } from '../../graphql/graphql';
@@ -18,7 +18,7 @@ const ShoppingDataDocument = graphql(`
       id
       name
       color
-      position
+      parentId
     }
     shoppingStores {
       id
@@ -83,12 +83,12 @@ const ShoppingListsDocument = graphql(`
 `);
 
 const CreateCategory = graphql(`
-  mutation CreateShoppingCategory($input: ShoppingLabelInput!) {
+  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {
     createShoppingCategory(input: $input)
   }
 `);
 const UpdateCategory = graphql(`
-  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingLabelPatch!) {
+  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {
     updateShoppingCategory(id: $id, input: $input)
   }
 `);
@@ -97,18 +97,13 @@ const DeleteCategory = graphql(`
     deleteShoppingCategory(id: $id)
   }
 `);
-const MoveCategory = graphql(`
-  mutation MoveShoppingCategory($id: ID!, $index: Int!) {
-    moveShoppingCategory(id: $id, index: $index)
-  }
-`);
 const CreateStore = graphql(`
-  mutation CreateShoppingStore($input: ShoppingLabelInput!) {
+  mutation CreateShoppingStore($input: ShoppingStoreInput!) {
     createShoppingStore(input: $input)
   }
 `);
 const UpdateStore = graphql(`
-  mutation UpdateShoppingStore($id: ID!, $input: ShoppingLabelPatch!) {
+  mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {
     updateShoppingStore(id: $id, input: $input)
   }
 `);
@@ -257,12 +252,11 @@ function usePurchaseMutation() {
 export function useShoppingMutations() {
   const queryClient = useQueryClient();
   return {
-    createCategory: useShoppingMutation(async (input: ShoppingLabelInput) => (await execute(CreateCategory, { input })).createShoppingCategory),
-    updateCategory: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingLabelInput> }) => (await execute(UpdateCategory, variables)).updateShoppingCategory),
-    deleteCategory: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteCategory, { id })).deleteShoppingCategory),
-    moveCategory: useShoppingMutation(async (variables: { id: string; index: number }) => (await execute(MoveCategory, variables)).moveShoppingCategory),
-    createStore: useShoppingMutation(async (input: ShoppingLabelInput) => (await execute(CreateStore, { input })).createShoppingStore),
-    updateStore: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingLabelInput> }) => (await execute(UpdateStore, variables)).updateShoppingStore),
+    createCategory: useShoppingMutation(async (input: ShoppingCategoryInput) => (await execute(CreateCategory, { input })).createShoppingCategory),
+    updateCategory: useShoppingMutation(async (variables: { id: string; input: ShoppingCategoryInput }) => (await execute(UpdateCategory, variables)).updateShoppingCategory),
+    deleteCategory: useShoppingMutation(async (id: string) => (await execute(DeleteCategory, { id })).deleteShoppingCategory),
+    createStore: useShoppingMutation(async (input: ShoppingStoreInput) => (await execute(CreateStore, { input })).createShoppingStore),
+    updateStore: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateStore, variables)).updateShoppingStore),
     deleteStore: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteStore, { id })).deleteShoppingStore),
     moveStore: useShoppingMutation(async (variables: { id: string; index: number }) => (await execute(MoveStore, variables)).moveShoppingStore),
     createProduct: useShoppingMutation(async (input: ShoppingProductInput) => (await execute(CreateProduct, { input: productVariables(input) })).createShoppingProduct),

@@ -1938,6 +1938,7 @@ enum TreasuryDirection {
 model TreasuryCategory {
   id                 String              @id @default(cuid())
   name               String
+  color              String?
   direction          TreasuryDirection
   parentId           String?
   parent             TreasuryCategory?   @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -2081,20 +2082,22 @@ model Place {
   @@unique([workspaceId, name])
 }
 
-/// Category of the shopping products; its position is the order of the aisles.
+/// Category of the shopping products, in a tree (as the treasury categories).
 model ShoppingCategory {
-  id          String            @id @default(cuid())
+  id          String             @id @default(cuid())
   name        String
-  color       String
-  position    Int               @default(0)
-  createdAt   DateTime          @default(now())
+  color       String?
+  parentId    String?
+  parent      ShoppingCategory?  @relation("ShoppingCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    ShoppingCategory[] @relation("ShoppingCategoryTree")
+  createdAt   DateTime           @default(now())
   products    ShoppingProduct[]
   items       ShoppingItem[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, name])
+  @@index([parentId])
   @@index([workspaceId])
 }
 

@@ -290,7 +290,7 @@ function confirmDestructive(title: string, message: string, onConfirm: () => voi
 }
 
 /**
- * Page of a shopping list: its items by aisle or by store, ticked as bought (their products of the base list
+ * Page of a shopping list: its items by category or by store, ticked as bought (their products of the base list
  * follow), products of the base list or other items added, the estimated total; its task and the treasury entry
  * paying it; copy, export, store mode, archive and deletion.
  * @returns {JSX.Element} Page.
@@ -387,7 +387,7 @@ export function ShoppingListPage() {
           value={grouping}
           onChange={(value) => setGrouping(value as ShoppingGrouping)}
           data={[
-            { value: 'category', label: 'Par rayon' },
+            { value: 'category', label: 'Par catégorie' },
             { value: 'store', label: 'Par magasin' },
           ]}
           aria-label="Regrouper"

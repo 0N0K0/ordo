@@ -5,12 +5,12 @@ import { builder } from '../builder';
 const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
 
 builder.prismaObject('ShoppingCategory', {
-  description: 'Category of the shopping products; their order is the order of the aisles.',
+  description: 'Category of the shopping products, in a tree.',
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
-    color: t.exposeString('color'),
-    position: t.exposeInt('position'),
+    color: t.exposeString('color', { nullable: true }),
+    parentId: t.exposeID('parentId', { nullable: true }),
   }),
 });
 
@@ -84,13 +84,17 @@ builder.prismaObject('ShoppingList', {
   }),
 });
 
-const LabelInput = builder.inputType('ShoppingLabelInput', {
-  description: 'Shopping category or store.',
+const CategoryInput = builder.inputType('ShoppingCategoryInput', {
+  fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id() }),
+});
+
+const LabelInput = builder.inputType('ShoppingStoreInput', {
+  description: 'Shopping store.',
   fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
 });
 
-const LabelPatch = builder.inputType('ShoppingLabelPatch', {
-  description: 'Changes of a shopping category or store (omitted fields unchanged).',
+const LabelPatch = builder.inputType('ShoppingStorePatch', {
+  description: 'Changes of a shopping store (omitted fields unchanged).',
   fields: (t) => ({ name: t.string(), color: t.string() }),
 });
 
@@ -134,8 +138,8 @@ const itemInput = (input: typeof ItemInput.$inferInput) => ({
 builder.queryFields((t) => ({
   shoppingCategories: t.prismaField({
     type: ['ShoppingCategory'],
-    description: 'Categories of the shopping products, in the order of the aisles.',
-    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+    description: 'Categories of the shopping products (a tree).',
+    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: { name: 'asc' } }),
   }),
   shoppingStores: t.prismaField({
     type: ['ShoppingStore'],
@@ -156,52 +160,45 @@ builder.queryFields((t) => ({
 
 builder.mutationFields((t) => ({
   createShoppingCategory: t.id({
-    args: { input: t.arg({ type: LabelInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createLabel('shoppingCategory', input)).id,
+    args: { input: t.arg({ type: CategoryInput, required: true }) },
+    resolve: async (_root, { input }) => (await shopping.createCategory({ name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null })).id,
   }),
   updateShoppingCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelPatch, required: true }) },
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await shopping.updateLabel('shoppingCategory', String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
+      await shopping.updateCategory(String(id), { name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null });
       return true;
     },
   }),
   deleteShoppingCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {
-      await shopping.deleteLabel('shoppingCategory', String(id));
-      return true;
-    },
-  }),
-  moveShoppingCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await shopping.moveLabel('shoppingCategory', String(id), index);
+      await shopping.deleteCategory(String(id));
       return true;
     },
   }),
   createShoppingStore: t.id({
     args: { input: t.arg({ type: LabelInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createLabel('shoppingStore', input)).id,
+    resolve: async (_root, { input }) => (await shopping.createStore(input)).id,
   }),
   updateShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelPatch, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await shopping.updateLabel('shoppingStore', String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
+      await shopping.updateStore(String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
       return true;
     },
   }),
   deleteShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }) => {
-      await shopping.deleteLabel('shoppingStore', String(id));
+      await shopping.deleteStore(String(id));
       return true;
     },
   }),
   moveShoppingStore: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
     resolve: async (_root, { id, index }) => {
-      await shopping.moveLabel('shoppingStore', String(id), index);
+      await shopping.moveStore(String(id), index);
       return true;
     },
   }),
