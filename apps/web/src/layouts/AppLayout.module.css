@@ -15,10 +15,17 @@
       --page-gutter: 48px;
     }
 
+    /* The settings sidebar, over the page: lifted from it. */
+    & :global(.mantine-AppShell-aside) {
+      /* Effets */
+      box-shadow: var(--mantine-shadow-xl);
+    }
+
     & :global(.mantine-AppShell-main) {
       /* Espacement */
       padding-inline-start: calc(var(--app-shell-navbar-offset, 0rem) + var(--page-gutter));
-      padding-inline-end: calc(var(--app-shell-aside-offset, 0rem) + var(--page-gutter));
+      /* The settings sidebar lies over the page: it does not narrow it. */
+      padding-inline-end: var(--page-gutter);
     }
 
     /* No width animation and no text selection while resizing the sidebar. */

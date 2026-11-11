@@ -2,15 +2,15 @@ import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 /** Narrowest the settings sidebar is: dragged below, it closes; a double click on its handle brings it back here. */
-export const MIN_ASIDE_WIDTH = 320;
-const DEFAULT_WIDTH = 380;
+export const MIN_ASIDE_WIDTH = 480;
+const DEFAULT_WIDTH = 640;
 
 /**
- * Widest the settings sidebar may be: 720px, and never more than half the window.
+ * Widest the settings sidebar may be: 1280px, and never more than 90% of the window (it lies over the page).
  * @returns {number} Width in px.
  */
 function maxWidth(): number {
-  return Math.max(MIN_ASIDE_WIDTH, Math.min(720, window.innerWidth * 0.5));
+  return Math.max(MIN_ASIDE_WIDTH, Math.min(1280, window.innerWidth * 0.9));
 }
 
 /**
