@@ -26,16 +26,6 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
 
   return (
     <Stack gap="lg">
-      {/* One timer runs at a time: the one running shows in the top bar. */}
-      {!archived && (
-        <Group justify="flex-end">
-          <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
-            <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
-              Lancer un chrono
-            </Button>
-          </Tooltip>
-        </Group>
-      )}
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
           <Title order={2} size="h4">
@@ -46,9 +36,19 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
             {total > 0 && (unbilled > 0 ? `, dont ${formatDuration(unbilled)} à facturer (depuis une facture, « Temps passé »)` : ', tout est facturé')}.
           </Text>
         </Stack>
-        <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>
-          Ajouter un temps
-        </Button>
+        {/* One timer runs at a time: the one running shows in the top bar. */}
+        <Group gap="sm">
+          <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>
+            Ajouter un temps
+          </Button>
+          {!archived && (
+            <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
+              <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
+                Lancer un chrono
+              </Button>
+            </Tooltip>
+          )}
+        </Group>
       </Group>
       <TimeLog entries={entries.data} context={context} projectId={projectId} emptyMessage="Aucun temps sur ce projet." onEdit={openForm} onDuplicate={duplicate} onDelete={confirmDelete} />
     </Stack>

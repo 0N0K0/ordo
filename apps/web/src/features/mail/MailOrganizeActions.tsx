@@ -17,15 +17,18 @@ interface MailOrganizeActionsProps {
   onMoved?: () => void;
   /** Opens the flags settings. */
   onManageLabels: () => void;
+  /** No move to another folder (where the folders are not shown: the mails of a project). Optional. */
+  noMove?: boolean;
 }
 
 /**
  * Organizing actions on one or several mails, possibly from several folders and accounts: done / to do, flags,
- * spam (or not spam when they are all in the junk folder), move to another folder (mails of one account).
+ * spam (or not spam when they are all in the junk folder), move to another folder (mails of one account, unless
+ * noMove).
  * @param {MailOrganizeActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
  */
-export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageLabels }: MailOrganizeActionsProps) {
+export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageLabels, noMove }: MailOrganizeActionsProps) {
   const { mark, spam, move } = useMailActions();
   const { data: labels } = useMailLabels();
   const accountIds = [...new Set(groups.map((group) => group.accountId))];
@@ -104,7 +107,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
           {junk ? <TrayIcon aria-hidden /> : <ProhibitIcon aria-hidden />}
         </ActionIcon>
       </Tooltip>
-      {oneAccount && (
+      {oneAccount && !noMove && (
         <Menu position="bottom-end" shadow="md" withinPortal>
           <Menu.Target>
             <Tooltip label="Déplacer vers…">
@@ -147,6 +150,8 @@ interface MailSelectionBarProps {
   onGone: () => void;
   onClear: () => void;
   onManageLabels: () => void;
+  /** No move to another folder (the mails of a project). Optional. */
+  noMove?: boolean;
 }
 
 /**
@@ -155,7 +160,7 @@ interface MailSelectionBarProps {
  * @param {MailSelectionBarProps} props Component props.
  * @returns {JSX.Element} Bar.
  */
-export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onManageLabels }: MailSelectionBarProps) {
+export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onManageLabels, noMove }: MailSelectionBarProps) {
   const { setSeen, remove } = useMailActions();
   const count = groups.reduce((sum, group) => sum + group.uids.length, 0);
   const onError = (error: Error) => notifyError(error.message);
@@ -199,7 +204,7 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
       <Text size="xs" c="dimmed" mr="auto">
         {count} sélectionné{count > 1 ? 's' : ''}
       </Text>
-      <MailOrganizeActions groups={groups} done={done} labelIds={labelIds} onMoved={onGone} onManageLabels={onManageLabels} />
+      <MailOrganizeActions groups={groups} done={done} labelIds={labelIds} onMoved={onGone} onManageLabels={onManageLabels} noMove={noMove} />
       <Tooltip label="Marquer comme lu">
         <ActionIcon variant="subtle" color="gray" aria-label="Marquer comme lu" onClick={() => void Promise.all(groups.map((group) => setSeen.mutateAsync({ ...group, seen: true }))).catch(onError)}>
           <EnvelopeOpenIcon aria-hidden />

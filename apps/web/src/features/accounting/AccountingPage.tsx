@@ -5,6 +5,7 @@ import { formatMoney, recurrenceSchema } from '@ordo/shared';
 import {
   ArrowsClockwiseIcon,
   BellRingingIcon,
+  BuildingsIcon,
   CalendarBlankIcon,
   CaretDownIcon,
   FileArrowUpIcon,
@@ -29,6 +30,7 @@ import { DocumentsTable } from './DocumentsTable';
 import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from './labels';
 import { openNewDocument } from './new-document';
 import { DocumentsZipForm } from './DocumentsZipForm';
+import { CompanySettings } from './CompanySettings';
 import { openRecurringForm } from './recurring-form';
 import { DocumentStatusSettings } from './DocumentStatusSettings';
 import { PageTitle } from '../../components/PageTitle';
@@ -37,7 +39,7 @@ import { SETTINGS_PARAM } from '../../layouts/page-settings';
 import { useEffect } from 'react';
 
 /** Tabs of the settings sidebar. */
-type SettingsTab = 'statuses' | 'zip';
+type SettingsTab = 'zip' | 'statuses' | 'company';
 
 const TABS = [
   { value: 'QUOTE', label: 'Devis' },
@@ -187,6 +189,15 @@ export function AccountingPage() {
   const currentYear = localToday().slice(0, 4);
   const year = params.get('year') ?? currentYear;
   const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({ key: 'ordo.accounting.settingsTab', defaultValue: 'zip' });
+  // A tab of the settings asked in the address (the former company settings): opened, then dropped from it.
+  useEffect(() => {
+    const asked = params.get('settingsTab');
+    if (!asked) return;
+    if (asked === 'zip' || asked === 'statuses' || asked === 'company') setSettingsTab(asked);
+    const next = new URLSearchParams(params);
+    next.delete('settingsTab');
+    setParams(next, { replace: true });
+  }, [params, setParams, setSettingsTab]);
   const yearOf = (date: unknown) => String(date).slice(0, 4);
   const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), currentYear])]
     .sort()
@@ -315,7 +326,7 @@ export function AccountingPage() {
           <CatalogPanel />
         </Tabs.Panel>
       </Tabs>
-      {/* In the settings sidebar: the download of a period as a ZIP, and the tracking statuses of the documents. */}
+      {/* In the settings sidebar: the download of a period as a ZIP, the tracking statuses of the documents and the company. */}
       <PageSettings title="Paramètres de la facturation">
         <Tabs value={settingsTab} onChange={(value) => value && setSettingsTab(value as SettingsTab)}>
           <Tabs.List mb="md">
@@ -323,9 +334,15 @@ export function AccountingPage() {
               Export ZIP
             </Tabs.Tab>
             <Tabs.Tab value="statuses">Suivi</Tabs.Tab>
+            <Tabs.Tab value="company" leftSection={<BuildingsIcon aria-hidden />}>
+              Ma société
+            </Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="statuses">
             <DocumentStatusSettings />
+          </Tabs.Panel>
+          <Tabs.Panel value="company">
+            <CompanySettings />
           </Tabs.Panel>
           <Tabs.Panel value="zip">
             <Paper withBorder p="lg" radius="md" component="section">

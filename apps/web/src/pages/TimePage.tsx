@@ -106,14 +106,6 @@ export function TimePage() {
   return (
     <Stack gap="lg">
       <PageTitle>Chronos</PageTitle>
-      {/* One timer runs at a time: the one running shows in the top bar. */}
-      <Group justify="flex-end">
-        <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
-          <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context)} disabled={!context || Boolean(running.data)}>
-            Lancer un chrono
-          </Button>
-        </Tooltip>
-      </Group>
       {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
       {!perso && <PlannedTime />}
       <Group justify="space-between" align="flex-end" gap="sm">
@@ -126,9 +118,17 @@ export function TimePage() {
             {total > 0 && (unbilled > 0 ? `, dont ${formatDuration(unbilled)} non facturé` : ', tout est facturé')}.
           </Text>
         </Stack>
-        <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
-          Ajouter un temps
-        </Button>
+        {/* One timer runs at a time: the one running shows in the top bar. */}
+        <Group gap="sm">
+          <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
+            Ajouter un temps
+          </Button>
+          <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
+            <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context)} disabled={!context || Boolean(running.data)}>
+              Lancer un chrono
+            </Button>
+          </Tooltip>
+        </Group>
       </Group>
       <Group gap="sm" align="flex-end">
         <SegmentedControl aria-label="Période" data={PERIODS} value={period} onChange={(value) => setParamsTo({ period: value === 'week' ? null : value, from: null, to: null })} />

@@ -102,6 +102,8 @@ interface MailSearchListProps {
   query: { id: string } | { criteria: MailSearchCriteria; sort?: 'date' | 'correspondent' | 'subject'; ascending?: boolean };
   /** Message without any mail. Optional. */
   empty?: string;
+  /** No move to another folder (the mails of a project). Optional. */
+  noMove?: boolean;
   page: number;
   onPage: (page: number) => void;
   /** Mail open. */
@@ -125,7 +127,7 @@ const mailKey = (mail: { accountId: string; folder: string; uid: number }) => `$
  * @param {MailSearchListProps} props Component props.
  * @returns {JSX.Element} List.
  */
-export function MailSearchList({ query, empty, page, onPage, open, onOpen, onOpenGone, onManageLabels }: MailSearchListProps) {
+export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpen, onOpenGone, onManageLabels }: MailSearchListProps) {
   const results = useMailSearchResults({ ...query, page: page - 1 });
   // Ticked mails, for the page of results shown.
   const pageKey = `${JSON.stringify(query)}|${page}`;
@@ -185,6 +187,7 @@ export function MailSearchList({ query, empty, page, onPage, open, onOpen, onOpe
             }}
             onClear={() => setSelected([])}
             onManageLabels={onManageLabels}
+            noMove={noMove}
           />
         ) : (
           <Text size="xs" c="dimmed">

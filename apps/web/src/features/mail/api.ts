@@ -728,8 +728,9 @@ export function useTodoMailCount(enabled: boolean) {
  * @param {string} projectId Project.
  * @returns {UseQueryResult} Query state.
  */
-export function useProjectMails(projectId: string) {
+export function useProjectMails(projectId: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [...mailQueryKey, 'project', projectId],
     queryFn: async () => (await execute(ProjectMailsDocument, { projectId })).projectMails,
   });
