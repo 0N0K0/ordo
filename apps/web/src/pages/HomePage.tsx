@@ -1,4 +1,4 @@
-import { Button, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Button, Group, SimpleGrid, Stack, Title } from '@mantine/core';
 import { addDays, formatDuration } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { ArrowCounterClockwiseIcon, FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
@@ -19,17 +19,9 @@ import { useEntityActions } from '../features/workspace/use-entity-actions';
 import { useActiveWorkspace } from '../features/workspaces/api';
 import { localToday } from '../lib/dates';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
 
 type CardId = 'tasks' | 'agenda' | 'chrono' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'milestones' | 'time';
 const DEFAULT_ORDER: CardId[] = ['tasks', 'agenda', 'chrono', 'billing', 'quotes', 'treasury', 'mail', 'milestones', 'time'];
-
-/**
- * Text with a capital first letter.
- * @param {string} text Text.
- * @returns {string} Text.
- */
-const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** Cards a personal workspace does not have (no invoicing). */
 const PRO_CARDS = new Set<CardId>(['billing', 'quotes']);
@@ -78,12 +70,9 @@ export function HomePage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="flex-start" gap="sm">
-        <Stack gap={0}>
-          <Title order={1} size="h2">
-            Bonjour {user?.username}
-          </Title>
-          <Text c="dimmed">{capitalized(dateFormat.format(new Date(`${today}T00:00:00Z`)))}</Text>
-        </Stack>
+        <Title order={1} size="h2">
+          Bonjour {user?.username}
+        </Title>
         <Group gap="sm">
           {!perso && (
             <Button variant="default" leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>

@@ -14,6 +14,7 @@ import { WorkspaceGate } from '../features/workspaces/WorkspaceGate';
 import { WorkspaceSwitcher } from '../features/workspaces/WorkspaceSwitcher';
 import { notifyError } from '../lib/notify';
 import classes from './AppLayout.module.css';
+import { HeaderClock } from './HeaderClock';
 import { QuickActions } from './QuickActions';
 import { TimerWidget } from '../features/time/TimerWidget';
 import { useResizableSidebar } from './use-resizable-sidebar';
@@ -61,7 +62,8 @@ export function AppLayout() {
           className={classes.shell}
         >
           <AppShell.Header>
-            <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+            <Group h="100%" px="md" justify="space-between" wrap="nowrap" pos="relative">
+              <HeaderClock />
               <Group gap="sm" wrap="nowrap">
                 <Burger
                   opened={sidebarOpened}

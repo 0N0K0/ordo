@@ -1,0 +1,59 @@
+@layer app {
+  /*
+   * Centered on the header whatever the width of its sides; by the breakpoints of the design system: the full date
+   * from md (720px = 45em), shortened from sm (464px = 29em), the time alone below.
+   */
+  .clock {
+    /* Position */
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+
+    /* Agencement */
+    display: flex;
+    align-items: baseline;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+
+    /* Interaction */
+    pointer-events: none;
+  }
+
+  .time {
+    /* Typographie */
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-text);
+  }
+
+  .long,
+  .short {
+    /* Agencement */
+    display: none;
+  }
+
+  @media (min-width: 29em) {
+    .short {
+      /* Agencement */
+      display: inline;
+    }
+  }
+
+  @media (min-width: 45em) {
+    .short {
+      /* Agencement */
+      display: none;
+    }
+
+    .long {
+      /* Agencement */
+      display: inline;
+    }
+  }
+}
