@@ -12,6 +12,7 @@ import { useTaskContext } from '../features/tasks/use-task-context';
 import { useRunningTimer } from '../features/time/api';
 import { TimerStartForm } from '../features/time/TimerCard';
 import { useActiveWorkspace } from '../features/workspaces/api';
+import classes from './QuickActions.module.css';
 
 interface QuickAction {
   /** Name of the item (menu, screen readers). */
@@ -66,8 +67,18 @@ export function QuickActions() {
   return (
     <Menu trigger="click-hover" openDelay={60} closeDelay={150} position="bottom-start" shadow="md" withinPortal>
       <Menu.Target>
-        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden size={12} />} disabled={!context} aria-haspopup="menu">
-          Ajouter
+        {/* On a very small screen, only the plus (the name stays for screen readers). */}
+        <Button
+          className={classes.add}
+          size="xs"
+          variant="light"
+          leftSection={<PlusIcon aria-hidden />}
+          rightSection={<CaretDownIcon aria-hidden size={12} />}
+          disabled={!context}
+          aria-haspopup="menu"
+          aria-label="Ajouter"
+        >
+          <span className={classes.label}>Ajouter</span>
         </Button>
       </Menu.Target>
       <Menu.Dropdown>
