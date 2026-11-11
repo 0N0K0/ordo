@@ -1,5 +1,5 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
@@ -13,7 +13,8 @@ import { ProjectMailsPanel } from '../../mail/ProjectMailsPanel';
 import { ProjectTimePanel } from '../../time/ProjectTimePanel';
 import { TaskBoard } from '../../tasks/TaskBoard';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { descendantIds, useWorkspace } from '../api';
+import { descendantIds, useWorkspace, type Project } from '../api';
+import { ProjectForm } from '../ProjectForm';
 import { canHaveChildren } from '../tree';
 import { useEntityActions } from '../use-entity-actions';
 import { EntityHeader } from './EntityHeader';
@@ -52,16 +53,17 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Sections of the settings tab of a project. */
-const SETTINGS_SECTIONS = ['milestones', 'sprints', 'contributors', 'github'] as const;
+const SETTINGS_SECTIONS = ['milestones', 'sprints', 'contributors', 'github', 'project'] as const;
 type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /**
  * Settings of a project, in the settings sidebar, one section at a time (chosen above it): milestones, sprints,
- * contributors, GitHub.
- * @param {{ projectId: string, section: SettingsSection, onSection: (section: SettingsSection) => void }} props Project, section shown and its change.
+ * contributors, GitHub, and the project itself (title, client, parent, status, dates, color, icon…).
+ * @param {{ project: Project, section: SettingsSection, onSection: (section: SettingsSection) => void }} props Project, section shown and its change.
  * @returns {JSX.Element} Settings.
  */
-function ProjectSettings({ projectId, section, onSection }: { projectId: string; section: SettingsSection; onSection: (section: SettingsSection) => void }) {
+function ProjectSettings({ project, section, onSection }: { project: Project; section: SettingsSection; onSection: (section: SettingsSection) => void }) {
+  const projectId = project.id;
   return (
     <Tabs variant="pills" value={section} onChange={(value) => value && onSection(value as SettingsSection)} keepMounted={false}>
       <Tabs.List mb="md">
@@ -77,6 +79,9 @@ function ProjectSettings({ projectId, section, onSection }: { projectId: string;
         <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
           GitHub
         </Tabs.Tab>
+        <Tabs.Tab value="project" leftSection={<PencilSimpleIcon aria-hidden />}>
+          Projet
+        </Tabs.Tab>
       </Tabs.List>
       <Tabs.Panel value="milestones" style={{ minWidth: 0 }}>
         <MilestonesPanel projectId={projectId} />
@@ -86,6 +91,9 @@ function ProjectSettings({ projectId, section, onSection }: { projectId: string;
       </Tabs.Panel>
       <Tabs.Panel value="contributors" style={{ minWidth: 0 }}>
         <ProjectContributors projectId={projectId} />
+      </Tabs.Panel>
+      <Tabs.Panel value="project" style={{ minWidth: 0 }}>
+        <ProjectForm key={project.id} project={project} />
       </Tabs.Panel>
       <Tabs.Panel value="github" style={{ minWidth: 0 }}>
         <ProjectGithubPanel projectId={projectId} />
@@ -300,10 +308,10 @@ export function ProjectPage() {
           <ProjectMailsPanel projectId={project.id} />
         </Tabs.Panel>
       </Tabs>
-      {/* Milestones, sprints, contributors, GitHub: in the settings sidebar. */}
+      {/* Milestones, sprints, contributors, GitHub and the project itself: in the settings sidebar. */}
       <PageSettings title="Paramètres du projet">
         <ProjectSettings
-          projectId={project.id}
+          project={project}
           section={section}
           onSection={(next) =>
             setParams(

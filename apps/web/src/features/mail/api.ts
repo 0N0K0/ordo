@@ -466,8 +466,8 @@ const MailSearchResultsDocument = graphql(`
 `);
 
 const MailAdvancedSearchDocument = graphql(`
-  query MailAdvancedSearch($criteria: JSON!, $page: Int!) {
-    mailAdvancedSearch(criteria: $criteria, page: $page) {
+  query MailAdvancedSearch($criteria: JSON!, $page: Int!, $sort: String, $ascending: Boolean) {
+    mailAdvancedSearch(criteria: $criteria, page: $page, sort: $sort, ascending: $ascending) {
       total
       pageSize
       messages {
@@ -559,16 +559,18 @@ export function useMailSearches() {
 }
 
 /**
- * A page of the mails of a search folder, or of an advanced search (fetched every 10 minutes).
- * @param {object | null} params Search (or criteria) and page; null when none is open.
+ * A page of the mails of a search folder, or of an advanced search, optionally sorted (fetched every 10 minutes).
+ * @param {object | null} params Search (or criteria, and order) and page; null when none is open.
  * @returns {UseQueryResult} Query state.
  */
-export function useMailSearchResults(params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number } | null) {
+export function useMailSearchResults(
+  params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number; sort?: 'date' | 'correspondent' | 'subject'; ascending?: boolean } | null,
+) {
   return useQuery({
     queryKey: [...mailQueryKey, 'search-results', params],
     queryFn: async () =>
       params && 'criteria' in params
-        ? (await execute(MailAdvancedSearchDocument, { criteria: params.criteria, page: params.page })).mailAdvancedSearch
+        ? (await execute(MailAdvancedSearchDocument, { criteria: params.criteria, page: params.page, sort: params.sort, ascending: params.ascending })).mailAdvancedSearch
         : (await execute(MailSearchResultsDocument, params as { id: string; page: number })).mailSearchResults,
     enabled: params !== null,
     placeholderData: keepPreviousData,

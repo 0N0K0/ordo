@@ -1,14 +1,14 @@
-import { Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Button, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
-import { PlusIcon } from '@phosphor-icons/react';
+import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import { useTaskContext } from '../tasks/use-task-context';
-import { useTimeEntries } from './api';
+import { useRunningTimer, useTimeEntries } from './api';
+import { openTimerForm } from './open-timer-form';
 import { TimeLog } from './TimeLog';
-import { TimerCard } from './TimerCard';
 import { useTimeEntryDialogs } from './use-time-dialogs';
 
 /**
- * Time tab of a project: the timer, time added by hand, and the tracked times of the project and its
+ * Time tab of a project: a button starting a timer on it (in a modal), time added by hand, and the tracked times of the project and its
  * sub-projects by day, with day and overall totals and what is billed.
  * @param {{ projectId: string }} props Component props.
  * @returns {JSX.Element} Panel.
@@ -18,6 +18,7 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
   const entries = useTimeEntries(projectId);
   const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context, projectId);
   const archived = context?.projectById.get(projectId)?.archived;
+  const running = useRunningTimer();
 
   const finished = (entries.data ?? []).filter((entry) => entry.endedAt !== null);
   const total = finished.reduce((sum, entry) => sum + entrySeconds(entry), 0);
@@ -25,7 +26,16 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
 
   return (
     <Stack gap="lg">
-      {!archived && <TimerCard projectId={projectId} />}
+      {/* One timer runs at a time: the one running shows in the top bar. */}
+      {!archived && (
+        <Group justify="flex-end">
+          <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
+            <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
+              Lancer un chrono
+            </Button>
+          </Tooltip>
+        </Group>
+      )}
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
           <Title order={2} size="h4">

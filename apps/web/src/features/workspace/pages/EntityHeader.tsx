@@ -1,11 +1,11 @@
-import { ActionIcon, Badge, Button, Group, Stack, Title, Tooltip } from '@mantine/core';
-import { ArchiveIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
+import { ActionIcon, Badge, Group, Stack, Title, Tooltip } from '@mantine/core';
+import { ArchiveIcon, StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { EntityAvatar } from '../EntityAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../use-entity-actions';
 
 /**
- * Detail page header: avatar, name or title, state badges, favorite and edit actions (a project only: a client is
+ * Detail page header: avatar, name or title, state badges, favorite and other actions (a client or a project is
  * edited in the settings sidebar of its page).
  * @param {object} props Component props.
  * @param {EntityRef} props.entity Client or project.
@@ -60,11 +60,6 @@ export function EntityHeader({
           </Tooltip>
         )}
         {extraActions}
-        {entity.type === 'project' && (
-          <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => actions.openProjectForm(entity.item)}>
-            Modifier
-          </Button>
-        )}
       </Group>
     </Group>
   );

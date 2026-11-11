@@ -51,6 +51,8 @@ export const mailSearchCriteriaSchema = z
     since: z.iso.date().nullable().default(null),
     until: z.iso.date().nullable().default(null),
     attachments: z.boolean().default(false),
+    /** Mails linked to this project (their copies in Ordo), found in the folders, the sent ones too. */
+    projectId: z.string().max(100).nullable().default(null),
   })
   .superRefine((criteria, context) => {
     if (criteria.scope === 'folder' && (!criteria.folder || criteria.accountIds.length !== 1)) {
@@ -80,4 +82,5 @@ export const EMPTY_MAIL_SEARCH: MailSearchCriteria = {
   since: null,
   until: null,
   attachments: false,
+  projectId: null,
 };

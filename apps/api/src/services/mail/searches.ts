@@ -8,6 +8,16 @@ import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader'
 
 /** Folders a search does not look into, with "every folder". */
 const SKIPPED = new Set(['\\Trash', '\\Junk', '\\Drafts', '\\Sent']);
+/** Folders a search of the mails of a project does not look into: its sent mails are part of it. */
+const SKIPPED_FOR_PROJECT = new Set(['\\Trash', '\\Junk', '\\Drafts']);
+/** Message-IDs looked for in one IMAP search. */
+const IDS_PER_SEARCH = 25;
+
+/** Order of the mails found: latest first by default. */
+export interface SearchSort {
+  by: 'date' | 'correspondent' | 'subject';
+  ascending: boolean;
+}
 /** Latest mails looked at in each folder. */
 const PER_FOLDER = 200;
 
@@ -79,6 +89,7 @@ export async function deleteSearch(id: string): Promise<void> {
  * @param {string} folderName Folder name.
  * @param {MailSearchCriteria} criteria Criteria.
  * @param {ReadonlyMap<string, { labelIds: string[], done: boolean }>} marks Marks kept in Ordo for the account.
+ * @param {string[] | null} messageIds Message-IDs the mails must have (those of a project), or null.
  * @returns {Promise<MailSearchHit[]>} Mails found.
  */
 async function searchFolder(
@@ -87,6 +98,7 @@ async function searchFolder(
   folderName: string,
   criteria: MailSearchCriteria,
   marks: ReadonlyMap<string, { labelIds: string[]; done: boolean }>,
+  messageIds: string[] | null,
 ): Promise<MailSearchHit[]> {
   return withImap(accountId, async (client) => {
     const lock = await client.getMailboxLock(folder);
@@ -106,6 +118,15 @@ async function searchFolder(
         ...(keywords && criteria.state === 'todo' ? { unKeyword: DONE_KEYWORD } : {}),
         ...(keywords && criteria.labelIds.length ? { or: criteria.labelIds.map((id) => ({ keyword: labelKeyword(id) })) } : {}),
       });
+      // The mails of a project, by their Message-ID header (a few at a time: one "or" per search).
+      if (messageIds && uids.size) {
+        const linked = new Set<number>();
+        for (let start = 0; start < messageIds.length; start += IDS_PER_SEARCH) {
+          const headers = messageIds.slice(start, start + IDS_PER_SEARCH).map((id) => ({ header: { 'message-id': id } }));
+          for (const uid of await search(headers.length > 1 ? { or: headers } : headers[0]!)) linked.add(uid);
+        }
+        uids = new Set([...uids].filter((uid) => linked.has(uid)));
+      }
       // The text, searched apart (one "or" per search).
       if (criteria.text && uids.size) {
         const text = criteria.text;
@@ -124,7 +145,8 @@ async function searchFolder(
           return !criteria.labelIds.length || criteria.labelIds.some((id) => mark?.labelIds.includes(id));
         });
       }
-      latest = latest.slice(0, PER_FOLDER);
+      // Every mail of a project (they are few), the latest ones otherwise.
+      if (!messageIds) latest = latest.slice(0, PER_FOLDER);
       const hits: MailSearchHit[] = [];
       if (!latest.length) return hits;
       for await (const message of client.fetch(latest, SUMMARY_FETCH, { uid: true })) hits.push({ ...toSummary(message, keywords, marks), accountId, folder, folderName });
@@ -152,21 +174,45 @@ export async function searchResults(id: string, page: number): Promise<{ message
  * A page of the mails matching criteria (advanced search, not saved), latest first.
  * @param {unknown} input Criteria.
  * @param {number} page Page, from 0.
+ * @param {SearchSort} [sort] Order of the mails. Optional. Default = latest first.
  * @returns {Promise<{ messages: MailSearchHit[], total: number }>} Mails and total count.
  */
-export async function advancedSearch(input: unknown, page: number): Promise<{ messages: MailSearchHit[]; total: number }> {
-  return runSearch(parseInput(mailSearchCriteriaSchema, input), page);
+export async function advancedSearch(input: unknown, page: number, sort?: SearchSort): Promise<{ messages: MailSearchHit[]; total: number }> {
+  return runSearch(parseInput(mailSearchCriteriaSchema, input), page, sort);
 }
 
 /**
- * Runs a search across its accounts and folders (the latest mails of each folder); unreachable accounts are
- * left out.
+ * Text a mail found is sorted on.
+ * @param {MailSearchHit} hit Mail.
+ * @param {'correspondent' | 'subject'} by Field.
+ * @returns {string} Text.
+ */
+function sortText(hit: MailSearchHit, by: 'correspondent' | 'subject'): string {
+  if (by === 'subject') return hit.subject;
+  const first = hit.from[0];
+  return first?.name || first?.address || '';
+}
+
+/**
+ * Runs a search across its accounts and folders (the latest mails of each folder; every mail of a project, in
+ * the accounts it has mails of); unreachable accounts are left out.
  * @param {MailSearchCriteria} criteria Criteria.
  * @param {number} page Page, from 0.
+ * @param {SearchSort} [sort] Order of the mails. Optional. Default = latest first.
  * @returns {Promise<{ messages: MailSearchHit[], total: number }>} Mails and total count.
  */
-async function runSearch(criteria: MailSearchCriteria, page: number): Promise<{ messages: MailSearchHit[]; total: number }> {
-  const accounts = await prisma.mailAccount.findMany({ where: criteria.accountIds.length ? { id: { in: criteria.accountIds } } : {}, select: { id: true } });
+async function runSearch(criteria: MailSearchCriteria, page: number, sort: SearchSort = { by: 'date', ascending: false }): Promise<{ messages: MailSearchHit[]; total: number }> {
+  // The copies of the mails of a project: their Message-IDs, by account.
+  const linked = criteria.projectId ? await prisma.mailMessage.findMany({ where: { projectId: criteria.projectId, accountId: { not: null } }, select: { accountId: true, messageId: true } }) : null;
+  const linkedIds = new Map<string, string[]>();
+  for (const copy of linked ?? []) linkedIds.set(copy.accountId!, [...(linkedIds.get(copy.accountId!) ?? []), copy.messageId]);
+  if (linked && !linkedIds.size) return { messages: [], total: 0 };
+  const accountFilter = [...(criteria.accountIds.length ? [criteria.accountIds] : []), ...(linked ? [[...linkedIds.keys()]] : [])];
+  const accounts = await prisma.mailAccount.findMany({
+    where: accountFilter.length ? { AND: accountFilter.map((ids) => ({ id: { in: ids } })) } : {},
+    select: { id: true },
+  });
+  const skipped = linked ? SKIPPED_FOR_PROJECT : SKIPPED;
   const found = await Promise.all(
     accounts.map(async ({ id: accountId }) => {
       try {
@@ -175,12 +221,12 @@ async function runSearch(criteria: MailSearchCriteria, page: number): Promise<{ 
           (await client.list())
             .filter((folder) => !folder.flags.has('\\Noselect') && !folder.flags.has('\\NonExistent'))
             .filter((folder) =>
-              criteria.scope === 'folder' ? folder.path === criteria.folder : criteria.scope === 'inbox' ? folder.path.toUpperCase() === 'INBOX' : !SKIPPED.has(folder.specialUse ?? ''),
+              criteria.scope === 'folder' ? folder.path === criteria.folder : criteria.scope === 'inbox' ? folder.path.toUpperCase() === 'INBOX' : !skipped.has(folder.specialUse ?? ''),
             )
             .map((folder) => ({ path: folder.path, name: folder.path.toUpperCase() === 'INBOX' ? 'Réception' : folder.name })),
         );
         const hits: MailSearchHit[] = [];
-        for (const folder of folders) hits.push(...(await searchFolder(accountId, folder.path, folder.name, criteria, marks)));
+        for (const folder of folders) hits.push(...(await searchFolder(accountId, folder.path, folder.name, criteria, marks, linked ? (linkedIds.get(accountId) ?? []) : null)));
         return hits;
       } catch (error) {
         console.warn('Dossier de recherche : boîte injoignable.', error);
@@ -188,6 +234,9 @@ async function runSearch(criteria: MailSearchCriteria, page: number): Promise<{ 
       }
     }),
   );
-  const all = found.flat().sort((a, b) => b.date.getTime() - a.date.getTime());
+  const all = found.flat().sort((a, b) => {
+    const order = sort.by === 'date' ? a.date.getTime() - b.date.getTime() : sortText(a, sort.by).localeCompare(sortText(b, sort.by), 'fr', { sensitivity: 'base' });
+    return sort.ascending ? order : -order;
+  });
   return { messages: all.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), total: all.length };
 }

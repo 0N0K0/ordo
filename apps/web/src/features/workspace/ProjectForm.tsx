@@ -17,15 +17,16 @@ interface ProjectFormProps {
   project?: Project;
   /** Client or parent preselected when creating. */
   defaults?: { clientId?: string; parentId?: string };
-  onDone: () => void;
+  /** Called after saving or cancelling; none (in the settings sidebar): no cancel, the form stays. */
+  onDone?: () => void;
 }
 
 /**
- * Project creation / edition form, displayed in a modal.
+ * Project creation / edition form: in a modal, or in the settings sidebar of the project page.
  * @param {ProjectFormProps} props Component props.
  * @param {Project} [props.project] Project to edit. Optional.
  * @param {{ clientId?: string, parentId?: string }} [props.defaults] Client or parent preselected on creation. Optional.
- * @param {() => void} props.onDone Called after saving or cancelling.
+ * @param {() => void} [props.onDone] Called after saving or cancelling. Optional.
  * @returns {JSX.Element} Form.
  */
 export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
@@ -95,7 +96,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
     const callbacks = {
       onSuccess: () => {
         notifySuccess(project ? 'Projet modifié.' : 'Projet créé.');
-        onDone();
+        onDone?.();
       },
       onError: (error: Error) => showFormError(form, error),
     };
@@ -110,7 +111,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
+        <TextInput label="Titre" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('title')} />
         <SimpleGrid cols={{ base: 1, xs: perso ? 1 : 2 }} spacing="md">
           <Select
             label="Projet parent"
@@ -182,9 +183,11 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
           error={form.errors.icon as string | undefined}
         />
         <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
+          {onDone && (
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+          )}
           <Button type="submit" loading={pending}>
             {project ? 'Enregistrer' : 'Créer le projet'}
           </Button>
