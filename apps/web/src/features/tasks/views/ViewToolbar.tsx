@@ -317,7 +317,7 @@ function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onEx
 export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport, dirty, onSave, onRevert }: ViewToolbarProps) {
   const filterCount = countConditions(config.filter);
   return (
-    <Group gap="sm" wrap="nowrap">
+    <Group gap="sm" wrap="wrap">
       <TextInput
         placeholder="Rechercher (#12, titre, description)"
         aria-label="Rechercher une tâche"
@@ -332,8 +332,8 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
           const search = event.currentTarget.value;
           change((current) => ({ ...current, search }));
         }}
-        // Every width left by the buttons.
-        style={{ flex: 1, minWidth: 0 }}
+        // Every width left by the buttons, but never under a minimum: without room, the buttons go to the next line.
+        style={{ flex: '1 1 14rem', minWidth: 'min(100%, 14rem)' }}
       />
 
       <Popover
