@@ -55,7 +55,9 @@ export function AppLayout() {
           navbar={{
             width: sidebar.width,
             breakpoint: 'sm',
-            collapsed: { mobile: !mobileOpened, desktop: !sidebar.opened },
+            // One open state for both: at exactly the breakpoint, Mantine applies its mobile and its desktop rules at
+            // once, which must not disagree (the sidebar could then not be closed).
+            collapsed: { mobile: !sidebarOpened, desktop: !sidebarOpened },
           }}
           padding="md"
           data-resizing={sidebar.resizing || undefined}
