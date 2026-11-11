@@ -1,7 +1,7 @@
 @layer app {
   /*
-   * In the middle column of the header, from md on (tablet and desktop: 720px = 45em, by the breakpoints of the
-   * design system); none on a phone.
+   * In the middle column of the header, by the breakpoints of the design system: from md on (tablet, 720px = 45em)
+   * with a numeric date, from lg on (desktop, 1120px = 70em) with the full date; none on a phone.
    */
   .clock {
     /* Agencement */
@@ -19,6 +19,23 @@
     @media (min-width: 45em) {
       /* Agencement */
       display: flex;
+    }
+  }
+
+  .desktop {
+    /* Agencement */
+    display: none;
+
+    @media (min-width: 70em) {
+      /* Agencement */
+      display: inline;
+    }
+  }
+
+  .tablet {
+    @media (min-width: 70em) {
+      /* Agencement */
+      display: none;
     }
   }
 
