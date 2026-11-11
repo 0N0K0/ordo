@@ -1,7 +1,8 @@
-import { ActionIcon, Badge, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip, VisuallyHidden } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
+import { useFillHeight } from '../tasks/column-fit';
 import { TaskRef } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { TimeEntry } from './api';
@@ -31,7 +32,7 @@ interface EntryRowProps {
 }
 
 /**
- * One tracked time: hours, duration, sub-project, tasks and description.
+ * One tracked time, a row of the table: hours, duration, project, tasks, description, invoice and actions.
  * @param {EntryRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
@@ -39,33 +40,23 @@ function EntryRow({ entry, context, projectId, onEdit, onDuplicate, onDelete }: 
   const running = entry.endedAt === null;
   const tasks = entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined);
   return (
-    <Group gap="md" wrap="nowrap" align="flex-start" className={classes.entry}>
-      <Stack gap={0} className={classes.hours}>
-        <Text size="sm" fw={600} ff="monospace">
-          {running ? '…' : formatDuration(entrySeconds(entry))}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {timeFormat.format(new Date(entry.startedAt))}
-          {entry.endedAt && ` – ${timeFormat.format(new Date(entry.endedAt))}`}
-        </Text>
-      </Stack>
-      <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-        <Group gap="xs">
-          {running && (
-            <Badge size="sm" color="red" variant="light">
-              En cours
-            </Badge>
-          )}
-          {entry.documentId && (
-            <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
-              {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Sur un brouillon de facture'}
-            </Badge>
-          )}
-          {entry.projectId !== projectId && (
-            <Badge size="sm" variant="light" color="gray">
-              {context.projectById.get(entry.projectId)?.title}
-            </Badge>
-          )}
+    <Table.Tr>
+      <Table.Td className={classes.nowrap}>
+        {timeFormat.format(new Date(entry.startedAt))}
+        {entry.endedAt && ` – ${timeFormat.format(new Date(entry.endedAt))}`}
+      </Table.Td>
+      <Table.Td className={classes.nowrap} ff="monospace">
+        {running ? (
+          <Badge size="sm" color="red" variant="light">
+            En cours
+          </Badge>
+        ) : (
+          formatDuration(entrySeconds(entry))
+        )}
+      </Table.Td>
+      <Table.Td>{entry.projectId !== projectId ? context.projectById.get(entry.projectId)?.title : null}</Table.Td>
+      <Table.Td>
+        <Group gap={4}>
           {tasks.map((task) => (
             <TaskRef key={task.id} task={task} blocked={context.isBlocked(task)} />
           ))}
@@ -75,41 +66,48 @@ function EntryRow({ entry, context, projectId, onEdit, onDuplicate, onDelete }: 
             </Text>
           )}
         </Group>
-        {entry.description ? (
-          <Text size="sm" className={classes.description}>
-            {entry.description}
-          </Text>
-        ) : (
-          <Text size="sm" c="dimmed" fs="italic">
+      </Table.Td>
+      <Table.Td className={classes.description}>
+        {entry.description || (
+          <Text span size="sm" c="dimmed" fs="italic">
             Sans description
           </Text>
         )}
-      </Stack>
-      {/* The running timer is edited from the timer card; time on a final invoice is part of it (copied still). */}
-      {!running && (
-        <Group gap={2} wrap="nowrap">
-          {!entry.documentNumber && (
-            <Tooltip label="Modifier">
-              <ActionIcon variant="subtle" color="gray" aria-label="Modifier ce temps" onClick={onEdit}>
-                <PencilSimpleIcon aria-hidden />
+      </Table.Td>
+      <Table.Td>
+        {entry.documentId && (
+          <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
+            {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}
+          </Badge>
+        )}
+      </Table.Td>
+      <Table.Td>
+        {/* The running timer is edited from the timer; time on a final invoice is part of it (copied still). */}
+        {!running && (
+          <Group gap={2} wrap="nowrap" justify="flex-end">
+            {!entry.documentNumber && (
+              <Tooltip label="Modifier">
+                <ActionIcon variant="subtle" color="gray" aria-label="Modifier ce temps" onClick={onEdit}>
+                  <PencilSimpleIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            <Tooltip label="Dupliquer">
+              <ActionIcon variant="subtle" color="gray" aria-label="Dupliquer ce temps" onClick={onDuplicate}>
+                <CopyIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
-          )}
-          <Tooltip label="Dupliquer">
-            <ActionIcon variant="subtle" color="gray" aria-label="Dupliquer ce temps" onClick={onDuplicate}>
-              <CopyIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-          {!entry.documentNumber && (
-            <Tooltip label="Supprimer">
-              <ActionIcon variant="subtle" color="red" aria-label="Supprimer ce temps" onClick={onDelete}>
-                <TrashIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
-        </Group>
-      )}
-    </Group>
+            {!entry.documentNumber && (
+              <Tooltip label="Supprimer">
+                <ActionIcon variant="subtle" color="red" aria-label="Supprimer ce temps" onClick={onDelete}>
+                  <TrashIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </Group>
+        )}
+      </Table.Td>
+    </Table.Tr>
   );
 }
 
@@ -124,11 +122,13 @@ interface TimeLogProps {
 }
 
 /**
- * Tracked times by day, latest first, with the total of each day.
+ * Tracked times in a table, by day (latest first), each day headed by its total.
  * @param {TimeLogProps} props Component props.
- * @returns {JSX.Element} List.
+ * @returns {JSX.Element} Table.
  */
 export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete }: TimeLogProps) {
+  // Scrolling inside the height left by the page: the header stays on top, the total at the bottom.
+  const [fillRef, fillHeight] = useFillHeight();
   if (!entries || !context) {
     return (
       <Stack gap="xs" aria-label="Chargement">
@@ -155,22 +155,51 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
     );
   }
   return (
-    <Stack gap="lg">
-      {[...days.entries()].map(([day, dayEntries]) => (
-        <Paper key={day} withBorder radius="md" component="section">
-          <Group justify="space-between" className={classes.dayHeader}>
-            <Text size="sm" fw={600}>
-              {dayFormat.format(new Date(`${day}T12:00:00`)).replace(/^./, (letter) => letter.toUpperCase())}
-            </Text>
-            <Text size="sm" fw={600} ff="monospace">
-              {formatDuration(dayEntries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
-            </Text>
-          </Group>
-          {dayEntries.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} context={context} projectId={projectId} onEdit={() => onEdit(entry)} onDuplicate={() => onDuplicate(entry)} onDelete={() => onDelete(entry)} />
+    <Paper withBorder radius="md">
+      <div ref={fillRef} className={classes.scroller} style={{ maxHeight: fillHeight }}>
+        <Table verticalSpacing="xs" highlightOnHover stickyHeader miw={900}>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Horaires</Table.Th>
+              <Table.Th>Durée</Table.Th>
+              <Table.Th>Projet</Table.Th>
+              <Table.Th>Tâches</Table.Th>
+              <Table.Th>Description</Table.Th>
+              <Table.Th>Facture</Table.Th>
+              <Table.Th>
+                <VisuallyHidden>Actions</VisuallyHidden>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          {[...days.entries()].map(([day, dayEntries]) => (
+            <Table.Tbody key={day}>
+              {/* The day and its total, heading its times. */}
+              <Table.Tr className={classes.dayRow}>
+                <Table.Th colSpan={6} scope="rowgroup">
+                  {dayFormat.format(new Date(`${day}T12:00:00`)).replace(/^./, (letter) => letter.toUpperCase())}
+                </Table.Th>
+                <Table.Th ff="monospace" ta="right">
+                  {formatDuration(dayEntries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
+                </Table.Th>
+              </Table.Tr>
+              {dayEntries.map((entry) => (
+                <EntryRow key={entry.id} entry={entry} context={context} projectId={projectId} onEdit={() => onEdit(entry)} onDuplicate={() => onDuplicate(entry)} onDelete={() => onDelete(entry)} />
+              ))}
+            </Table.Tbody>
           ))}
-        </Paper>
-      ))}
-    </Stack>
+          {/* Total of the times shown (finished ones: a running timer counts once stopped). */}
+          <Table.Tfoot className={classes.total}>
+            <Table.Tr>
+              <Table.Th colSpan={6} scope="row">
+                Total
+              </Table.Th>
+              <Table.Th ff="monospace" ta="right" className={classes.nowrap}>
+                {formatDuration(entries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
+              </Table.Th>
+            </Table.Tr>
+          </Table.Tfoot>
+        </Table>
+      </div>
+    </Paper>
   );
 }

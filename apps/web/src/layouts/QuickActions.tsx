@@ -1,5 +1,4 @@
 import { Button, Menu } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { AlarmIcon, CalendarPlusIcon, CaretDownIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useMatch } from 'react-router';
@@ -10,7 +9,7 @@ import { useMailComposer } from '../features/mail/use-mail-composer';
 import { useTaskActions } from '../features/tasks/use-task-actions';
 import { useTaskContext } from '../features/tasks/use-task-context';
 import { useRunningTimer } from '../features/time/api';
-import { TimerStartForm } from '../features/time/TimerCard';
+import { openTimerForm } from '../features/time/open-timer-form';
 import { useActiveWorkspace } from '../features/workspaces/api';
 import classes from './QuickActions.module.css';
 
@@ -44,13 +43,7 @@ export function QuickActions() {
    * @returns {void}
    */
   const openTimer = () => {
-    if (!context) return;
-    const modalId = 'new-timer';
-    modals.open({
-      modalId,
-      title: 'Nouveau chrono',
-      children: <TimerStartForm context={context} defaultProjectId={project?.id} popover onStarted={() => modals.close(modalId)} />,
-    });
+    if (context) openTimerForm(context, project?.id);
   };
 
   const actions: QuickAction[] = [
