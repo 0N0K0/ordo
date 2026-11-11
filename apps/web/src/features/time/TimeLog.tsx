@@ -175,10 +175,8 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
             <Table.Tbody key={day}>
               {/* The day and its total, heading its times. */}
               <Table.Tr className={classes.dayRow}>
-                <Table.Th colSpan={6} scope="rowgroup">
-                  {dayFormat.format(new Date(`${day}T12:00:00`)).replace(/^./, (letter) => letter.toUpperCase())}
-                </Table.Th>
-                <Table.Th ff="monospace" ta="right">
+                <Table.Th colSpan={7} scope="rowgroup">
+                  {dayFormat.format(new Date(`${day}T12:00:00`)).replace(/^./, (letter) => letter.toUpperCase())}&nbsp;:{' '}
                   {formatDuration(dayEntries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
                 </Table.Th>
               </Table.Tr>
