@@ -222,7 +222,8 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
           </Button>
         </Group>
       </Group>
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+      {/* By the width of what holds it (the settings sidebar). */}
+      <SimpleGrid type="container" cols={{ base: 1, '640px': 2 }} spacing="md">
         <Paper withBorder radius="md" p="md">
           <Stack gap="xs">
             <Group gap="xs">

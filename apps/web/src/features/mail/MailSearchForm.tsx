@@ -1,9 +1,10 @@
-import { Button, Divider, Group, MultiSelect, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Button, Divider, Group, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, type MailSearch } from './api';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 /**
  * Search folder: name, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
@@ -54,7 +55,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           Un dossier de recherche rassemble les mails qui répondent à ses critères, dans une ou plusieurs boîtes. Il n’existe que dans Ordo : rien n’est créé sur le serveur.
         </Text>
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-        <MultiSelect
+        <BatchMultiSelect
           label="Boîtes"
           placeholder={values.accountIds.length ? undefined : 'Toutes les boîtes'}
           data={(accounts ?? []).map((account) => ({ value: account.id, label: `${account.name} (${account.email})` }))}
@@ -89,7 +90,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
             onChange={(state) => form.setFieldValue('state', state as MailSearchCriteria['state'])}
           />
         </Stack>
-        <MultiSelect
+        <BatchMultiSelect
           label="Drapeaux"
           description="Les mails ayant l’un de ces drapeaux."
           placeholder={values.labelIds.length ? undefined : 'Peu importe'}

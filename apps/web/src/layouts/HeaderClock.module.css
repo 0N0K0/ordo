@@ -1,0 +1,31 @@
+@layer app {
+  /*
+   * On the left of the header, above the sidebar, from md on (tablet, 720px = 45em, by the breakpoints of the
+   * design system); none on a phone.
+   */
+  .clock {
+    /* Agencement */
+    display: none;
+    align-items: baseline;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: flex;
+    }
+  }
+
+  .time {
+    /* Typographie */
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-text);
+  }
+}

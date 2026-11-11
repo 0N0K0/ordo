@@ -2297,6 +2297,8 @@ export type MailSearchResultsQuery = { mailSearchResults: { total: number, pageS
 export type MailAdvancedSearchQueryVariables = Exact<{
   criteria: unknown;
   page: number;
+  sort?: string | null | undefined;
+  ascending?: boolean | null | undefined;
 }>;
 
 
@@ -5958,8 +5960,13 @@ export const MailSearchResultsDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MailSearchResultsQuery, MailSearchResultsQueryVariables>;
 export const MailAdvancedSearchDocument = new TypedDocumentString(`
-    query MailAdvancedSearch($criteria: JSON!, $page: Int!) {
-  mailAdvancedSearch(criteria: $criteria, page: $page) {
+    query MailAdvancedSearch($criteria: JSON!, $page: Int!, $sort: String, $ascending: Boolean) {
+  mailAdvancedSearch(
+    criteria: $criteria
+    page: $page
+    sort: $sort
+    ascending: $ascending
+  ) {
     total
     pageSize
     messages {

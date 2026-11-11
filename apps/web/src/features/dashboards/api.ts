@@ -139,7 +139,7 @@ export function useDashboardMutations() {
     create: useDashboardMutation(async (variables: { name: string; projectId: string | null }) => (await execute(CreateDashboard, variables)).createDashboard),
     rename: useDashboardMutation(async (variables: { id: string; name: string }) => (await execute(RenameDashboard, variables)).renameDashboard),
     remove: useDashboardMutation(async (id: string) => (await execute(DeleteDashboard, { id })).deleteDashboard),
-    move: useDashboardMutation(async (variables: { id: string; index: number }) => (await execute(MoveDashboard, variables)).moveDashboard),
+    move: useMoveDashboard(),
     createChart: useDashboardMutation(async (variables: { dashboardId: string; input: ChartValues }) => (await execute(CreateChart, variables)).createDashboardChart),
     updateChart: useDashboardMutation(async (variables: { id: string; input: ChartValues }) => (await execute(UpdateChart, variables)).updateDashboardChart),
     duplicateChart: useDashboardMutation(async (id: string) => (await execute(DuplicateChart, { id })).duplicateDashboardChart),
@@ -147,6 +147,32 @@ export function useDashboardMutations() {
     removeChart: useDashboardMutation(async (id: string) => (await execute(DeleteChart, { id })).deleteDashboardChart),
     moveChart: useMoveChart(),
   };
+}
+
+/**
+ * Moves a dashboard among those of its scope, reordering the cached dashboards at once (drag and drop of its tab).
+ * @returns {UseMutationResult} Mutation state.
+ */
+function useMoveDashboard() {
+  const queryClient = useQueryClient();
+  return useMutation<boolean, Error, { id: string; index: number }, { previous: [readonly unknown[], Dashboard[] | undefined][] }>({
+    mutationFn: async (variables) => (await execute(MoveDashboard, variables)).moveDashboard,
+    onMutate: async ({ id, index }) => {
+      await queryClient.cancelQueries({ queryKey: dashboardsKey });
+      const previous = queryClient.getQueriesData<Dashboard[]>({ queryKey: dashboardsKey });
+      queryClient.setQueriesData<Dashboard[]>({ queryKey: dashboardsKey }, (dashboards) => {
+        const moved = dashboards?.find((dashboard) => dashboard.id === id);
+        if (!dashboards || !moved) return dashboards;
+        const others = dashboards.filter((dashboard) => dashboard.id !== id);
+        return [...others.slice(0, index), moved, ...others.slice(index)];
+      });
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      for (const [key, data] of context?.previous ?? []) queryClient.setQueryData(key, data);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: dashboardsKey }),
+  });
 }
 
 /**

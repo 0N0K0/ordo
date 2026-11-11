@@ -1,0 +1,20 @@
+@layer app {
+  /*
+   * Below the sm breakpoint of the design system (4 columns: 4 × 96 + 3 × 16 gutters + 2 × 16 padding = 464px = 29em),
+   * the « Ajouter » button shows its plus only.
+   */
+  @media (max-width: 28.999em) {
+    .add {
+      & .label,
+      & [data-position='right'] {
+        /* Agencement */
+        display: none;
+      }
+
+      & [data-position='left'] {
+        /* Espacement */
+        margin-inline-end: 0;
+      }
+    }
+  }
+}

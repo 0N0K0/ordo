@@ -1,5 +1,33 @@
 @layer app {
   .shell {
+    /*
+     * Horizontal margins of the page content, by the breakpoints of the design system: 16px on a phone, 32px on a
+     * tablet (from md: 6 columns, 6 × 96 + 5 × 16 + 2 × 32 = 720px = 45em), 48px on a desktop (from lg: 9 columns,
+     * 9 × 96 + 8 × 16 + 2 × 64 = 1120px = 70em). The vertical ones stay Mantine's (the calendar height counts on them).
+     */
+    --page-gutter: 16px;
+
+    @media (min-width: 45em) {
+      --page-gutter: 32px;
+    }
+
+    @media (min-width: 70em) {
+      --page-gutter: 48px;
+    }
+
+    /* The settings sidebar, over the page: lifted from it. */
+    & :global(.mantine-AppShell-aside) {
+      /* Effets */
+      box-shadow: var(--mantine-shadow-xl);
+    }
+
+    & :global(.mantine-AppShell-main) {
+      /* Espacement */
+      padding-inline-start: calc(var(--app-shell-navbar-offset, 0rem) + var(--page-gutter));
+      /* The settings sidebar lies over the page: it does not narrow it. */
+      padding-inline-end: var(--page-gutter);
+    }
+
     /* No width animation and no text selection while resizing the sidebar. */
     &[data-resizing] {
       /* Interaction */
@@ -7,10 +35,54 @@
       user-select: none;
 
       & :global(.mantine-AppShell-navbar),
+      & :global(.mantine-AppShell-aside),
       & :global(.mantine-AppShell-main) {
         /* Animation */
         transition: none;
       }
+    }
+  }
+
+  /*
+   * Top bar: its sides share the width evenly, the workspace and the page in the middle: centered while the sides
+   * fit in their half, otherwise right after the left side (a side never gets narrower than its content).
+   */
+  .header {
+    /* Agencement */
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+    align-items: center;
+
+    /* Dimension */
+    height: 100%;
+
+    /* Espacement */
+    padding-inline: var(--mantine-spacing-md);
+    column-gap: var(--mantine-spacing-sm);
+
+    /* The right side stays in the last column, also without the middle (hidden on a phone). */
+    & > :last-child {
+      /* Agencement */
+      grid-column: 3;
+    }
+  }
+
+  /* Only on a phone: below md (720px = 45em, by the breakpoints of the design system). */
+  .phoneOnly {
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: none;
+    }
+  }
+
+  /* From the tablet on: md (720px = 45em) and wider. */
+  .fromTablet {
+    /* Agencement */
+    display: none;
+
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: contents;
     }
   }
 

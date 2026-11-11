@@ -16,7 +16,6 @@ import {
   Text,
   TextInput,
   ThemeIcon,
-  Title,
   Tooltip,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
@@ -51,6 +50,7 @@ import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { dndId, libraryCollision } from './library-dnd';
 import { DroppableFolderLink, SortableRow } from './LibraryDnd';
+import { PageTitle } from '../../components/PageTitle';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -450,9 +450,7 @@ export function LibraryPage() {
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end" wrap="wrap">
         <Stack gap={2}>
-          <Title order={1} size="h2">
-            Documents
-          </Title>
+          <PageTitle>Documents</PageTitle>
           <Text size="sm" c="dimmed">
             Documents de l’entreprise : Kbis, statuts, logo, attestations… en fichiers ou en liens vers votre cloud.
           </Text>

@@ -373,9 +373,15 @@ builder.queryFields((t) => ({
   }),
   mailAdvancedSearch: t.field({
     type: MailSearchPage,
-    description: 'A page of the mails matching criteria (shared mail search criteria), latest first; not saved.',
-    args: { criteria: t.arg({ type: 'JSON', required: true }), page: t.arg.int({ required: true }) },
-    resolve: (_root, { criteria, page }) => searches.advancedSearch(criteria, Math.max(0, page)),
+    description: 'A page of the mails matching criteria (shared mail search criteria; a project: its linked mails, in every folder), latest first by default; not saved.',
+    args: {
+      criteria: t.arg({ type: 'JSON', required: true }),
+      page: t.arg.int({ required: true }),
+      sort: t.arg.string({ description: 'date (default), correspondent or subject.' }),
+      ascending: t.arg.boolean({ description: 'Ascending order (descending by default).' }),
+    },
+    resolve: (_root, { criteria, page, sort, ascending }) =>
+      searches.advancedSearch(criteria, Math.max(0, page), { by: sort === 'correspondent' || sort === 'subject' ? sort : 'date', ascending: ascending ?? false }),
   }),
   mailLabels: t.prismaField({
     type: ['MailLabel'],

@@ -1,4 +1,4 @@
-import { Button, Group, MultiSelect, Stack, TextInput } from '@mantine/core';
+import { Button, Group, Stack, TextInput } from '@mantine/core';
 import { contributorFormSchema, suggestHandle, type ContributorFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -7,6 +7,7 @@ import { useWorkspace } from '../../workspace/api';
 import { IconField, type IconValue } from '../../workspace/IconField';
 import { projectPath } from '../../workspace/tree';
 import { useContributorMutations, type Contributor } from '../api';
+import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 
 interface ContributorFormProps {
   contributor?: Contributor;
@@ -78,7 +79,7 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
         <IconField value={avatar} onChange={setAvatar} currentUrl={contributor?.avatarUrl ?? null} name={form.values.name} />
         {/* The app user belongs to every project. */}
         {!contributor?.isMe && (
-          <MultiSelect
+          <BatchMultiSelect
             label="Projets"
             description="Le contributeur est aussi rattaché à leurs sous-projets."
             placeholder={projectIds.length ? undefined : 'Aucun'}

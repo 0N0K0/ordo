@@ -65,7 +65,7 @@ import {
   TitleCell,
 } from './views/inline-cells';
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
-import { EventPeopleCell, EventTitleCell, EventWhenCell } from './views/event-cells';
+import { EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './views/event-cells';
 import { AddTaskRow, SummaryRow } from './views/table-extras';
 import type { DisplayRow, TaskRow } from './views/task-rows';
 import { contentWidth, useFillHeight } from './column-fit';
@@ -366,6 +366,9 @@ export function TaskTable({
           </Text>
         ) : null,
       assignees: (event) => <EventPeopleCell event={event} context={context} />,
+      // Where it stands (read only), the time of its timers, and its start and end, edited in place.
+      status: (event) => <EventStatusCell event={event} />,
+      trackedTime: (event) => <EventTimeCell event={event} />,
       startDate: (event) => <EventWhenCell event={event} side="start" />,
       endDate: (event) => <EventWhenCell event={event} side="end" />,
     };

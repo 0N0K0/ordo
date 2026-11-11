@@ -6,7 +6,6 @@ import {
   ColorSwatch,
   Divider,
   Group,
-  MultiSelect,
   Paper,
   SegmentedControl,
   Select,
@@ -31,6 +30,7 @@ import { useActiveWorkspace } from '../workspaces/api';
 import { useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
 import { ScheduleCasesEditor } from './ScheduleCasesEditor';
 import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
@@ -413,7 +413,7 @@ export function WorkSchedulesManager() {
               value={search}
               onChange={(event) => setSearch(event.currentTarget.value)}
             />
-            <MultiSelect
+            <BatchMultiSelect
               size="xs"
               w={220}
               aria-label="Types"

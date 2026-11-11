@@ -4,10 +4,11 @@ import {
   Badge,
   Button,
   CloseButton,
+  Indicator,
+  Collapse,
+  Divider,
   Group,
-  Menu,
   Popover,
-  ScrollArea,
   SegmentedControl,
   Select,
   Stack,
@@ -25,19 +26,22 @@ import {
   type TaskViewConfig,
 } from '@ordo/shared';
 import {
+  ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowUpIcon,
   CaretDownIcon,
   ColumnsIcon,
-  DownloadSimpleIcon,
   FileCsvIcon,
   FilePdfIcon,
+  FloppyDiskIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  SlidersHorizontalIcon,
   SortAscendingIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
+import { useState } from 'react';
 import type { TaskContext } from '../use-task-context';
 import { GROUP_BY_LABELS, SORT_LABELS } from './columns-meta';
 import { FilterBuilder } from './FilterBuilder';
@@ -165,15 +169,8 @@ function SortPanel({ sorting, onChange }: SortPanelProps) {
  * @returns {JSX.Element} Panel.
  */
 function ViewColumnsPanel({ config, change }: { config: TaskViewConfig; change: Change }) {
-  return (
-    <ScrollArea.Autosize mah={420} type="auto">
-      <ColumnsPanel
-        columnOrder={config.columnOrder}
-        hiddenColumns={config.hiddenColumns}
-        onChange={(columns) => change((current) => ({ ...current, ...columns }))}
-      />
-    </ScrollArea.Autosize>
-  );
+  // The options panel scrolls as a whole: no scroll of its own.
+  return <ColumnsPanel columnOrder={config.columnOrder} hiddenColumns={config.hiddenColumns} onChange={(columns) => change((current) => ({ ...current, ...columns }))} />;
 }
 
 interface ViewToolbarProps {
@@ -191,15 +188,133 @@ interface ViewToolbarProps {
   exporting: boolean;
   /** Something is listed. */
   canExport: boolean;
+  /** The current view has unsaved changes: saved or reverted from the top of the options. */
+  dirty: boolean;
+  onSave: () => void;
+  onRevert: () => void;
 }
 
 /**
- * Toolbar of the current view: search, filters, sorting, columns, grouping, display toggles, the events listed
- * with the tasks and their period, and the exports.
+ * Options of a view, in one panel: its unsaved changes to save or revert (at the top), display (grouping, sub-tasks
+ * flat, archived tasks, events and their period), columns (folded: the list is long) and exports.
+ * @param {Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>} props Component props.
+ * @returns {JSX.Element} Panel.
+ */
+function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport, dirty, onSave, onRevert }: Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>) {
+  const [columnsOpened, setColumnsOpened] = useState(false);
+  // The lists open in the panel: rendered in a portal, a click in them would close it.
+  const inPanel = { withinPortal: false } as const;
+  return (
+    <Stack gap="sm">
+      {dirty && (
+        <>
+          <Text size="sm" c="orange">
+            Modifications non enregistrées
+          </Text>
+          <Group gap="xs" grow>
+            <Button variant="default" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
+              Annuler
+            </Button>
+            <Button leftSection={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
+              Enregistrer
+            </Button>
+          </Group>
+          <Divider />
+        </>
+      )}
+      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+        Affichage
+      </Text>
+      <Select
+        label="Grouper par"
+        placeholder="Aucun groupe"
+        data={TASK_GROUP_BY.map((groupBy) => ({ value: groupBy, label: GROUP_BY_LABELS[groupBy] }))}
+        value={config.groupBy}
+        onChange={(groupBy) => change((current) => ({ ...current, groupBy: (groupBy as TaskGroupBy | null) ?? null }))}
+        clearable
+        comboboxProps={inPanel}
+      />
+      <Switch
+        label="Sous-tâches à plat"
+        checked={config.flat}
+        onChange={(event) => {
+          const flat = event.currentTarget.checked;
+          change((current) => ({ ...current, flat }));
+        }}
+      />
+      <Switch
+        label="Archivées"
+        checked={config.includeArchived}
+        onChange={(event) => {
+          const includeArchived = event.currentTarget.checked;
+          change((current) => ({ ...current, includeArchived }));
+        }}
+      />
+      <Switch
+        label="Évènements"
+        checked={config.events.show}
+        onChange={(event) => {
+          const show = event.currentTarget.checked;
+          change((current) => ({ ...current, events: { ...current.events, show } }));
+        }}
+      />
+      {config.events.show && eventPeriodLocked && eventPeriodLabel && (
+        <Text size="sm" c="dimmed">
+          {eventPeriodLabel}
+        </Text>
+      )}
+      {config.events.show && !eventPeriodLocked && (
+        <Select
+          label="Période des évènements"
+          data={EVENT_PERIODS.map((period) => ({ value: period, label: EVENT_PERIOD_LABELS[period] }))}
+          value={config.events.period}
+          allowDeselect={false}
+          onChange={(period) => period && change((current) => ({ ...current, events: { ...current.events, period: period as EventPeriod } }))}
+          comboboxProps={inPanel}
+        />
+      )}
+
+      <Divider />
+      <Button
+        variant="subtle"
+        color="gray"
+        justify="space-between"
+        leftSection={<ColumnsIcon aria-hidden />}
+        rightSection={<CaretDownIcon aria-hidden style={{ transform: columnsOpened ? 'rotate(180deg)' : undefined }} />}
+        onClick={() => setColumnsOpened((opened) => !opened)}
+        aria-expanded={columnsOpened}
+        fullWidth
+      >
+        Colonnes
+      </Button>
+      <Collapse expanded={columnsOpened}>
+        <ViewColumnsPanel config={config} change={change} />
+      </Collapse>
+
+      <Divider />
+      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+        Exporter
+      </Text>
+      <Group gap="xs" grow>
+        <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} onClick={() => onExport('csv')} loading={exporting} disabled={!canExport}>
+          CSV
+        </Button>
+        <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => onExport('pdf')} loading={exporting} disabled={!canExport}>
+          PDF
+        </Button>
+      </Group>
+    </Stack>
+  );
+}
+
+/**
+ * Toolbar of the current view: the search on all the width left, filters, sorting, and one « Options » menu (a dot
+ * on it while the view has unsaved changes) with those changes to save or revert, the display (grouping, sub-tasks
+ * flat, archived tasks, events and their period), the columns and the exports.
  * @param {ViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport }: ViewToolbarProps) {
+export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport, dirty, onSave, onRevert }: ViewToolbarProps) {
   const filterCount = countConditions(config.filter);
   return (
     <Group gap="sm" wrap="wrap">
@@ -217,7 +332,8 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
           const search = event.currentTarget.value;
           change((current) => ({ ...current, search }));
         }}
-        w={{ base: '100%', sm: 280 }}
+        // Every width left by the buttons, but never under a minimum: without room, the buttons go to the next line.
+        style={{ flex: '1 1 14rem', minWidth: 'min(100%, 14rem)' }}
       />
 
       <Popover
@@ -264,90 +380,31 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
         </Popover.Dropdown>
       </Popover>
 
-      <Popover position="bottom-start" shadow="md" withinPortal>
-        <Popover.Target>
-          <Button variant="default" leftSection={<ColumnsIcon aria-hidden />}>
-            Colonnes
-          </Button>
-        </Popover.Target>
-        <Popover.Dropdown>
-          <ViewColumnsPanel config={config} change={change} />
-        </Popover.Dropdown>
-      </Popover>
-
-      <Select
-        aria-label="Grouper par"
-        placeholder="Grouper par…"
-        data={TASK_GROUP_BY.map((groupBy) => ({ value: groupBy, label: `Grouper par : ${GROUP_BY_LABELS[groupBy]}` }))}
-        value={config.groupBy}
-        onChange={(groupBy) => change((current) => ({ ...current, groupBy: (groupBy as TaskGroupBy | null) ?? null }))}
-        clearable
-        w={230}
-      />
-
-      <Switch
-        label="Sous-tâches à plat"
-        checked={config.flat}
-        onChange={(event) => {
-          const flat = event.currentTarget.checked;
-          change((current) => ({ ...current, flat }));
-        }}
-      />
-      <Switch
-        label="Archivées"
-        checked={config.includeArchived}
-        onChange={(event) => {
-          const includeArchived = event.currentTarget.checked;
-          change((current) => ({ ...current, includeArchived }));
-        }}
-      />
-      <Switch
-        label="Évènements"
-        checked={config.events.show}
-        onChange={(event) => {
-          const show = event.currentTarget.checked;
-          change((current) => ({ ...current, events: { ...current.events, show } }));
-        }}
-      />
-      {config.events.show && eventPeriodLocked && eventPeriodLabel && (
-        <Text size="sm" c="dimmed">
-          {eventPeriodLabel}
-        </Text>
-      )}
-      {config.events.show && !eventPeriodLocked && (
-        <Select
-          aria-label="Période des évènements"
-          data={EVENT_PERIODS.map((period) => ({ value: period, label: EVENT_PERIOD_LABELS[period] }))}
-          value={config.events.period}
-          allowDeselect={false}
-          onChange={(period) => period && change((current) => ({ ...current, events: { ...current.events, period: period as EventPeriod } }))}
-          w={190}
-        />
-      )}
-
-      <Menu position="bottom-end" shadow="md">
-        <Menu.Target>
-          <Button
-            variant="default"
-            ml="auto"
-            leftSection={<DownloadSimpleIcon aria-hidden />}
-            rightSection={<CaretDownIcon aria-hidden />}
-            loading={exporting}
-            disabled={!canExport}
-          >
-            Exporter
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-          <Menu.Label>Ce que la vue liste, colonnes visibles</Menu.Label>
-          <Menu.Item leftSection={<FileCsvIcon aria-hidden />} onClick={() => onExport('csv')}>
-            CSV (tableur)
-          </Menu.Item>
-          <Menu.Item leftSection={<FilePdfIcon aria-hidden />} onClick={() => onExport('pdf')}>
-            PDF
-          </Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
+      {/* A dot while the view has unsaved changes. */}
+      <Indicator disabled={!dirty} size={8} offset={4} position="top-end" color="orange">
+        {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
+        <Popover position="bottom-end" shadow="md" withinPortal width={340} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
+          <Popover.Target>
+            <Button variant="default" leftSection={<SlidersHorizontalIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
+              Options
+            </Button>
+          </Popover.Target>
+          <Popover.Dropdown style={{ overflowY: 'auto' }}>
+            <ViewOptions
+              dirty={dirty}
+              onSave={onSave}
+              onRevert={onRevert}
+              config={config}
+              change={change}
+              eventPeriodLocked={eventPeriodLocked}
+              eventPeriodLabel={eventPeriodLabel}
+              onExport={onExport}
+              exporting={exporting}
+              canExport={canExport}
+            />
+          </Popover.Dropdown>
+        </Popover>
+      </Indicator>
     </Group>
   );
 }

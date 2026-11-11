@@ -1,9 +1,11 @@
-import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
 import {
   ArrowBendUpRightIcon,
   ArrowDownIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
   ArrowsHorizontalIcon,
   ArrowUpIcon,
   BankIcon,
@@ -22,7 +24,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { horizontalListSortingStrategy, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -367,7 +369,26 @@ interface DashboardBoardProps {
 }
 
 /**
- * Dashboards of a scope: tabs (created, renamed, reordered, deleted), grid of charts on the tasks, chart editor,
+ * Tab of a dashboard that can be dragged along the tab list (a click still selects it: the drag starts after a few
+ * pixels).
+ * @param {TabsTabProps & { value: string }} props Tab props.
+ * @returns {JSX.Element} Tab.
+ */
+function SortableTab(props: TabsTabProps & { value: string }) {
+  // Pointer only: the tab keeps its role and keyboard navigation (its menu moves the dashboard with the keyboard).
+  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: props.value });
+  return (
+    <Tabs.Tab
+      ref={setNodeRef}
+      {...props}
+      {...listeners}
+      style={{ transform: CSS.Translate.toString(transform && { ...transform, y: 0 }), transition, zIndex: isDragging ? 1 : undefined, cursor: isDragging ? 'grabbing' : undefined }}
+    />
+  );
+}
+
+/**
+ * Dashboards of a scope: tabs (created, renamed, reordered by drag and drop or from their menu, deleted), grid of charts on the tasks, chart editor,
  * exports of one chart (PNG, PDF) or of a whole dashboard (PDF).
  * @param {DashboardBoardProps} props Component props.
  * @returns {JSX.Element} Board.
@@ -382,6 +403,18 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
   const [exporting, setExporting] = useState(false);
   const current: Dashboard | undefined = dashboards?.find((item) => item.id === params.get('dashboard')) ?? dashboards?.[0];
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const tabSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  /**
+   * Moves the dropped dashboard tab to its new place.
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleTabDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!dashboards || !over || active.id === over.id) return;
+    const index = dashboards.findIndex((dashboard) => dashboard.id === over.id);
+    if (index >= 0) mutations.move.mutate({ id: String(active.id), index }, { onError: (moveError) => notifyError(moveError.message) });
+  };
 
   /**
    * Moves the dropped chart to its new place.
@@ -575,25 +608,67 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
     );
   }
 
-  const index = dashboards.findIndex((item) => item.id === current.id);
   return (
     <Stack gap="md">
       <Group justify="space-between" wrap="wrap" gap="sm">
-        <Tabs value={current.id} onChange={(id) => id && select(id)}>
-          <Tabs.List>
-            {dashboards.map((dashboard) => (
-              <Tabs.Tab key={dashboard.id} value={dashboard.id}>
-                {dashboard.name}
-              </Tabs.Tab>
-            ))}
-            <Tooltip label="Nouveau tableau de bord">
-              <ActionIcon variant="subtle" color="gray" aria-label="Nouveau tableau de bord" onClick={() => askName()} style={{ alignSelf: 'center' }}>
-                <PlusIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          </Tabs.List>
-        </Tabs>
-        <Group gap="xs">
+        <Group gap={0} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+          <Tabs value={current.id} onChange={(id) => id && select(id)} style={{ minWidth: 0 }}>
+            <DndContext sensors={tabSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
+              <SortableContext items={dashboards.map((dashboard) => dashboard.id)} strategy={horizontalListSortingStrategy}>
+                <Tabs.List>
+                  {dashboards.map((dashboard, index) => (
+                    <SortableTab
+                      key={dashboard.id}
+                      value={dashboard.id}
+                      rightSection={
+                        dashboard.id === current.id ? (
+                          <Menu position="bottom-end" withinPortal shadow="md">
+                            <Menu.Target>
+                              <ActionIcon component="span" variant="subtle" color="gray" size="xs" aria-label={`Actions sur ${dashboard.name}`} onClick={(event) => event.stopPropagation()}>
+                                <CaretDownIcon aria-hidden />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => askName(dashboard)}>
+                                Renommer
+                              </Menu.Item>
+                              <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={index === 0} onClick={() => mutations.move.mutate({ id: dashboard.id, index: index - 1 })}>
+                                Déplacer à gauche
+                              </Menu.Item>
+                              <Menu.Item
+                                leftSection={<ArrowRightIcon aria-hidden />}
+                                disabled={index === dashboards.length - 1}
+                                onClick={() => mutations.move.mutate({ id: dashboard.id, index: index + 1 })}
+                              >
+                                Déplacer à droite
+                              </Menu.Item>
+                              <Menu.Divider />
+                              <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(dashboard)}>
+                                Supprimer
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        ) : undefined
+                      }
+                    >
+                      {dashboard.name}
+                    </SortableTab>
+                  ))}
+                </Tabs.List>
+              </SortableContext>
+            </DndContext>
+          </Tabs>
+          <Tooltip label="Nouveau tableau de bord">
+            <ActionIcon variant="subtle" color="gray" ml="xs" aria-label="Nouveau tableau de bord" onClick={() => askName()}>
+              <PlusIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+        {/* The new chart at the far right. */}
+        <Group gap="xs" ml="auto">
+          <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
+            Exporter en PDF
+          </Button>
           <Menu position="bottom-end" shadow="md">
             <Menu.Target>
               <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
@@ -609,31 +684,6 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
               </Menu.Item>
               <Menu.Item leftSection={<BankIcon aria-hidden />} onClick={() => openEditor(undefined, 'treasury')}>
                 Trésorerie
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
-          <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
-            Exporter en PDF
-          </Button>
-          <Menu position="bottom-end" shadow="md">
-            <Menu.Target>
-              <ActionIcon variant="default" size="lg" aria-label={`Actions sur ${current.name}`}>
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => askName(current)}>
-                Renommer
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowUpIcon aria-hidden />} disabled={index === 0} onClick={() => mutations.move.mutate({ id: current.id, index: index - 1 })}>
-                Déplacer avant
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowDownIcon aria-hidden />} disabled={index === dashboards.length - 1} onClick={() => mutations.move.mutate({ id: current.id, index: index + 1 })}>
-                Déplacer après
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => confirmDelete(current)}>
-                Supprimer
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>

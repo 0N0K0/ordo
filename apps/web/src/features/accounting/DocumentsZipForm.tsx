@@ -24,7 +24,7 @@ const ZIP_PERIODS: { value: ZipPeriod; label: string }[] = [
  * @param {{ onDone: () => void, year?: string | null, years?: string[] }} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] }: { onDone: () => void; year?: string | null; years?: string[] }) {
+export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] }: { onDone?: () => void; year?: string | null; years?: string[] }) {
   const today = localToday();
   const [preset, setPreset] = useState<ZipPeriod>(initialYear ? 'calendarYear' : 'lastMonth');
   const [year, setYear] = useState(initialYear ?? today.slice(0, 4));
@@ -54,7 +54,7 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
       link.click();
       URL.revokeObjectURL(url);
       notifySuccess('Archive téléchargée.');
-      onDone();
+      onDone?.();
     } catch (error) {
       notifyError(error instanceof Error ? error.message : 'Archive impossible.');
     } finally {
@@ -65,7 +65,7 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
   return (
     <Stack gap="md">
       <Group grow align="flex-end">
-        <Select label="Période" data={ZIP_PERIODS} value={preset} onChange={(value) => value && setPreset(value as ZipPeriod)} allowDeselect={false} data-autofocus />
+        <Select label="Période" data={ZIP_PERIODS} value={preset} onChange={(value) => value && setPreset(value as ZipPeriod)} allowDeselect={false} />
         {preset === 'calendarYear' && <Select label="Année" data={yearOptions} value={year} onChange={(value) => value && setYear(value)} allowDeselect={false} />}
       </Group>
       <SimpleGrid cols={2}>
@@ -91,9 +91,11 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
         Documents validés dont la date d’émission tombe dans la période, rangés dans un dossier par type. Les brouillons ne sont pas inclus.
       </Text>
       <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
+        {onDone && (
+          <Button variant="default" onClick={onDone}>
+            Annuler
+          </Button>
+        )}
         <Button onClick={() => void download()} disabled={!valid} loading={loading}>
           Télécharger le ZIP
         </Button>

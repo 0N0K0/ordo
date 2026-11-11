@@ -1,0 +1,42 @@
+@layer app {
+  /*
+   * Mails of the boxes, on wide screens (list and reader side by side, as on the page Mails): the height left by
+   * the page (measured, --fill-height), each pane scrolling on its own. Below, one under the other, the page
+   * scrolls.
+   */
+  .panes {
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: var(--fill-height, auto);
+    }
+  }
+
+  .grid,
+  .gridInner,
+  .column {
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: 100%;
+    }
+  }
+
+  .pane {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    @media (min-width: 88em) {
+      /* Dimension */
+      height: 100%;
+      overflow: hidden;
+    }
+  }
+
+  .scroll {
+    @media (min-width: 88em) {
+      /* Dimension */
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+  }
+}

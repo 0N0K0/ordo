@@ -1,4 +1,4 @@
-import { ActionIcon, Anchor, Button, Group, Paper, Skeleton, Stack, Text, Textarea, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
 import { PauseIcon, PlayIcon, StopIcon, TrashIcon } from '@phosphor-icons/react';
@@ -6,9 +6,9 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
-import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
+import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useRunningTimer, useTimeMutations, type TimeEntry } from './api';
+import { useTimeMutations, type TimeEntry } from './api';
 import classes from './TimerCard.module.css';
 import { TimeTasksSelect } from './TimeTasksSelect';
 import { useNow } from './use-now';
@@ -208,38 +208,5 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
         onBlur={() => description !== (entry.description ?? '') && save({ description })}
       />
     </Stack>
-  );
-}
-
-/**
- * Timer card (home page, project time tab): the running timer, or the form starting one.
- * @param {{ projectId?: string }} props Component props: project preselected to start a timer.
- * @returns {JSX.Element} Card.
- */
-export function TimerCard({ projectId }: { projectId?: string }) {
-  const { context } = useTaskContext();
-  const running = useRunningTimer();
-  return (
-    <Paper withBorder radius="md" p="md" component="section" aria-label="Chrono">
-      <Stack gap="sm">
-        <Title order={2} size="h4">
-          Chrono
-        </Title>
-        {!context || running.isPending ? (
-          <Skeleton height={120} />
-        ) : running.data ? (
-          <>
-            {projectId && running.data.projectId !== projectId && (
-              <Text size="xs" c="dimmed">
-                Un chrono tourne sur un autre projet : en démarrer un nouveau l’arrêtera.
-              </Text>
-            )}
-            <RunningTimer key={running.data.id} entry={running.data} context={context} />
-          </>
-        ) : (
-          <TimerStartForm key={projectId} context={context} defaultProjectId={projectId} />
-        )}
-      </Stack>
-    </Paper>
   );
 }

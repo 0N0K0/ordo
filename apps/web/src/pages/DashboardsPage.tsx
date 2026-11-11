@@ -1,5 +1,6 @@
-import { Stack, Title } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { DashboardBoard } from '../features/dashboards/DashboardBoard';
+import { PageTitle } from '../components/PageTitle';
 
 /**
  * Global dashboards: charts on every task.
@@ -8,9 +9,7 @@ import { DashboardBoard } from '../features/dashboards/DashboardBoard';
 export function DashboardsPage() {
   return (
     <Stack gap="lg">
-      <Title order={1} size="h2">
-        Tableaux de bord
-      </Title>
+      <PageTitle>Tableaux de bord</PageTitle>
       <DashboardBoard projectId={null} baseFilter={null} title="Tous les projets" />
     </Stack>
   );

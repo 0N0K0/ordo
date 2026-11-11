@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Divider, Group, Modal, MultiSelect, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Divider, Group, Modal, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { formatMoney, treasuryEntrySchema, type Recurrence, type TreasuryAllocationInput } from '@ordo/shared';
 import { LinkIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
@@ -17,6 +17,7 @@ import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
 import { ContextForm, RelationForm } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { projectOptions } from '../workspace/tree';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -412,7 +413,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           </Text>
         ) : (
           <>
-            <MultiSelect
+            <BatchMultiSelect
               label="Pièces justificatives"
               description="Documents de la bibliothèque ou des projets."
               placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}

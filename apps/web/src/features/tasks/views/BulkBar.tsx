@@ -10,10 +10,9 @@ import {
   TimerIcon,
   TagIcon,
   TrashIcon,
-  UserMinusIcon,
   UserPlusIcon,
 } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task, type TaskLabel } from '../api';
@@ -21,6 +20,7 @@ import { ProjectSelect } from '../task-ui';
 import type { TaskContext } from '../use-task-context';
 import classes from './BulkBar.module.css';
 import { useBulkUndo } from './bulk-undo';
+import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 
 /**
  * "3 tâches" / "1 tâche".
@@ -239,78 +239,63 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
   );
 
   /**
-   * Menu adding or removing an assignee.
-   * @param {boolean} add Whether to add (or remove).
-   * @returns {JSX.Element} Menu.
+   * Multi-select of the selection: what at least one selected task has (« (2/5) » when not all of them), checked
+   * or unchecked in one go; saved once its list closes: an option checked is added to every selected task, one
+   * unchecked removed from all of them, the others left as they are.
+   * @param {object} options Options.
+   * @param {string} options.label Name of the field.
+   * @param {ReactNode} options.icon Icon.
+   * @param {(task: Task) => string[]} options.of Values of a task.
+   * @param {{ value: string, label: string }[]} options.choices Options that may be added.
+   * @param {(id: string) => ReactNode} options.renderIcon Icon of an option.
+   * @param {(added: string[], removed: string[]) => BulkChanges} options.changes Changes of the selection.
+   * @returns {JSX.Element} Multi-select.
    */
-  const assigneeMenu = (add: boolean) => {
-    // Adding: contributors of the selected tasks' projects. Removing: current assignees.
-    const assigned = new Set(tasks.flatMap((task) => task.assigneeIds));
-    const choices = add
-      ? context.assignableFor(tasks.map((task) => task.projectId))
-      : context.contributors.filter((contributor) => assigned.has(contributor.id));
+  const selectionSelect = ({
+    label,
+    icon,
+    of,
+    choices,
+    renderIcon,
+    changes,
+  }: {
+    label: string;
+    icon: ReactNode;
+    of: (task: Task) => string[];
+    choices: { value: string; label: string }[];
+    renderIcon: (id: string) => ReactNode;
+    changes: (added: string[], removed: string[]) => BulkChanges;
+  }) => {
+    const counts = new Map<string, number>();
+    for (const task of tasks) for (const id of of(task)) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const present = [...counts.keys()];
+    const data = choices.map((choice) => {
+      const count = counts.get(choice.value) ?? 0;
+      return { value: choice.value, label: count > 0 && count < tasks.length ? `${choice.label} (${count}/${tasks.length})` : choice.label };
+    });
     return (
-      <Menu position="top-start" withinPortal shadow="md">
-        <Menu.Target>
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={add ? <UserPlusIcon aria-hidden /> : <UserMinusIcon aria-hidden />}
-            disabled={choices.length === 0}
-          >
-            {add ? 'Assigner' : 'Désassigner'}
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {choices.map((contributor) => (
-            <Menu.Item
-              key={contributor.id}
-              leftSection={<Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={20} />}
-              onClick={() =>
-                apply(
-                  add ? { addAssigneeIds: [contributor.id] } : { removeAssigneeIds: [contributor.id] },
-                  `${contributor.name} ${add ? 'assigné à' : 'retiré de'} ${tasksLabel(ids.length)}.`,
-                )
-              }
-            >
-              {context.contributorName(contributor)}
-            </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
-    );
-  };
-
-  /**
-   * Menu adding or removing a tag on the selected tasks.
-   * @param {boolean} add Adding (else removing).
-   * @returns {JSX.Element} Menu.
-   */
-  const tagMenu = (add: boolean) => {
-    // Adding: every tag. Removing: tags of the selected tasks.
-    const used = new Set(tasks.flatMap((task) => task.tagIds));
-    const choices = add ? context.tags : context.tags.filter((tag) => used.has(tag.id));
-    return (
-      <Menu position="top-start" withinPortal shadow="md">
-        <Menu.Target>
-          <Button size="xs" variant="default" leftSection={<TagIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />} disabled={choices.length === 0}>
-            {add ? 'Étiqueter' : 'Retirer une étiquette'}
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {choices.map((tag) => (
-            <Menu.Item
-              key={tag.id}
-              leftSection={<ColorSwatch color={tag.color} size={10} />}
-              onClick={() =>
-                apply(add ? { addTagIds: [tag.id] } : { removeTagIds: [tag.id] }, `Étiquette « ${tag.name} » ${add ? 'ajoutée à' : 'retirée de'} ${tasksLabel(ids.length)}.`)
-              }
-            >
-              {tag.name}
-            </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
+      <BatchMultiSelect
+        size="xs"
+        w={240}
+        aria-label={`${label} des tâches sélectionnées`}
+        placeholder={present.length ? undefined : label}
+        leftSection={icon}
+        data={data}
+        value={present}
+        renderOption={({ option }) => (
+          <Group gap="xs" wrap="nowrap">
+            {renderIcon(option.value)}
+            {option.label}
+          </Group>
+        )}
+        onChange={(next) => {
+          const added = next.filter((id) => !present.includes(id));
+          const removed = present.filter((id) => !next.includes(id));
+          if (added.length || removed.length) apply(changes(added, removed), `${label} modifiés sur ${tasksLabel(ids.length)}.`);
+        }}
+        comboboxProps={{ position: 'top-start', withinPortal: true }}
+        searchable
+      />
     );
   };
 
@@ -371,10 +356,31 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
             )}
           </Menu.Dropdown>
         </Menu>
-        {assigneeMenu(true)}
-        {assigneeMenu(false)}
-        {tagMenu(true)}
-        {tagMenu(false)}
+        {selectionSelect({
+          label: 'Assignés',
+          icon: <UserPlusIcon aria-hidden />,
+          of: (task) => task.assigneeIds,
+          // Contributors of the selected tasks' projects, and those already assigned.
+          choices: context
+            .assignableFor(
+              tasks.map((task) => task.projectId),
+              tasks.flatMap((task) => task.assigneeIds),
+            )
+            .map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) })),
+          renderIcon: (id) => {
+            const contributor = context.contributorById.get(id);
+            return <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />;
+          },
+          changes: (added, removed) => ({ addAssigneeIds: added, removeAssigneeIds: removed }),
+        })}
+        {selectionSelect({
+          label: 'Étiquettes',
+          icon: <TagIcon aria-hidden />,
+          of: (task) => task.tagIds,
+          choices: context.tags.map((tag) => ({ value: tag.id, label: tag.name })),
+          renderIcon: (id) => <ColorSwatch color={context.tagById.get(id)?.color ?? 'gray'} size={10} />,
+          changes: (added, removed) => ({ addTagIds: added, removeTagIds: removed }),
+        })}
         <Button size="xs" variant="default" leftSection={<ArrowsLeftRightIcon aria-hidden />} onClick={() => openDialog('Transférer les tâches', BulkTransferDialog)}>
           Transférer
         </Button>

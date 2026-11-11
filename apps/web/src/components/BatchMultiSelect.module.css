@@ -1,0 +1,32 @@
+@layer app {
+  /*
+   * The pills stay on one line: the field keeps its height. They scroll sideways (no bar), the search field coming
+   * into view when it gets the focus.
+   */
+  .pillsList {
+    /* Agencement */
+    flex-wrap: nowrap;
+
+    /* Dimension */
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    /* Interaction */
+    scrollbar-width: none;
+
+    & > * {
+      /* Agencement */
+      flex-shrink: 0;
+    }
+  }
+
+  /* A line between the groups of options: the selected ones, then the others. */
+  .group + .group {
+    /* Espacement */
+    margin-top: 4px;
+    padding-top: 4px;
+
+    /* Bordures */
+    border-top: 1px solid var(--mantine-color-default-border);
+  }
+}

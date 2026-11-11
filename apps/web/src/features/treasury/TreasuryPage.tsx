@@ -18,14 +18,13 @@ import {
   Text,
   TextInput,
   ThemeIcon,
-  Title,
   Tooltip,
 } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
-import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, GearIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
@@ -49,6 +48,9 @@ import { EntryForm } from './EntryForm';
 import { SettingsPanel } from './SettingsPanel';
 import { BudgetsPanel } from './BudgetsPanel';
 import { LoansPanel } from './LoansPanel';
+import { PageTitle } from '../../components/PageTitle';
+import { PageSettings } from '../../layouts/PageSettings';
+import { SETTINGS_PARAM } from '../../layouts/page-settings';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -224,7 +226,12 @@ type Dialog =
 export function TreasuryPage() {
   const today = localToday();
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') ?? 'forecast';
+  // The old settings tab: its settings, in the sidebar.
+  const asked = params.get('tab') ?? 'forecast';
+  const tab = asked === 'settings' ? 'forecast' : asked;
+  useEffect(() => {
+    if (asked === 'settings') setParams({ [SETTINGS_PARAM]: '1' }, { replace: true });
+  }, [asked, setParams]);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
   const [scale, setScale] = useState<ChartScale>('month');
   const [periodFirst, setPeriodFirst] = useState(() => periodStart('month', today));
@@ -245,11 +252,10 @@ export function TreasuryPage() {
 
   const header = (
     <Group justify="space-between">
-      <Title order={1} size="h2">
-        Trésorerie
-      </Title>
+      <PageTitle>Trésorerie</PageTitle>
+      {/* On the right, also when the title is hidden (from the tablet on). */}
       {!!accounts?.length && (
-        <Group gap="xs">
+        <Group gap="xs" ml="auto">
           <Button variant="light" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'entry', status: 'FORECAST' })}>
             Prévision
           </Button>
@@ -423,16 +429,27 @@ export function TreasuryPage() {
         )}
       </Paper>
 
-      <Tabs value={tab} onChange={(value) => setParams(value && value !== 'forecast' ? { tab: value } : {}, { replace: true })} keepMounted={false}>
+      <Tabs
+        value={tab}
+        onChange={(value) =>
+          // The settings sidebar stays as it is.
+          setParams(
+            (current) => {
+              const next = new URLSearchParams(current.get(SETTINGS_PARAM) ? { [SETTINGS_PARAM]: '1' } : {});
+              if (value && value !== 'forecast') next.set('tab', value);
+              return next;
+            },
+            { replace: true },
+          )
+        }
+        keepMounted={false}
+      >
         <Tabs.List>
           <Tabs.Tab value="forecast">Prévisionnel</Tabs.Tab>
           <Tabs.Tab value="entries">Mouvements</Tabs.Tab>
           <Tabs.Tab value="budgets">Budgets</Tabs.Tab>
           <Tabs.Tab value="loans">Prêts</Tabs.Tab>
           <Tabs.Tab value="accounts">Comptes</Tabs.Tab>
-          <Tabs.Tab value="settings" leftSection={<GearIcon aria-hidden />}>
-            Paramètres
-          </Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="forecast" pt="md">
@@ -653,10 +670,11 @@ export function TreasuryPage() {
           </Stack>
         </Tabs.Panel>
 
-        <Tabs.Panel value="settings" pt="md">
-          <SettingsPanel />
-        </Tabs.Panel>
       </Tabs>
+      {/* Categories, payment methods, counterparties: in the settings sidebar. */}
+      <PageSettings title="Paramètres de la trésorerie">
+        <SettingsPanel />
+      </PageSettings>
       {dialogs}
     </Stack>
   );

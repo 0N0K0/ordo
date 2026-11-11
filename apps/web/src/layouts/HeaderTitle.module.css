@@ -1,0 +1,30 @@
+@layer app {
+  /* From md on (tablet, 720px = 45em, by the breakpoints of the design system); none on a phone. */
+  .title {
+    /* Agencement */
+    display: none;
+    align-items: center;
+
+    /* Dimension */
+    min-width: 0;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+
+    @media (min-width: 45em) {
+      /* Agencement */
+      display: flex;
+    }
+  }
+
+  /* A long crumb is cut, the others stay readable. */
+  .crumb {
+    /* Dimension */
+    min-width: 0;
+    overflow: hidden;
+
+    /* Typographie */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
