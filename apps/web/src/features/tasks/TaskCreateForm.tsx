@@ -1,4 +1,4 @@
-import { Button, Group, MultiSelect, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Button, Group, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
 import { useTaskLink } from './use-task-link';
@@ -9,6 +9,7 @@ import { useCreateTask } from './api';
 import { linkableTasks } from './task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskSelect } from './task-ui';
 import type { TaskContext } from './use-task-context';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -125,7 +126,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           nothingFoundMessage="Aucun jalon dans ce projet"
           {...form.getInputProps('milestoneId')}
         />
-        <MultiSelect
+        <BatchMultiSelect
           label="Sprints"
           placeholder={!form.values.projectId ? 'Choisissez d’abord un projet' : form.values.sprintIds.length ? undefined : 'Aucun'}
           disabled={!form.values.projectId}

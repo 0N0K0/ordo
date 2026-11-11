@@ -18,5 +18,24 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Multi-selects check several options in one go: BatchMultiSelect, not Mantine's directly.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@mantine/core',
+              importNames: ['MultiSelect'],
+              message: 'Utiliser BatchMultiSelect (components/BatchMultiSelect) : plusieurs choix en une fois.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/components/BatchMultiSelect.tsx'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 ])

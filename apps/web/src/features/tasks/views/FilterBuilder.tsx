@@ -2,7 +2,6 @@ import {
   ActionIcon,
   Button,
   Group,
-  MultiSelect,
   NumberInput,
   Paper,
   SegmentedControl,
@@ -38,6 +37,7 @@ import {
   operatorsOf,
   PERIOD_LABELS,
 } from './filter-meta';
+import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -236,7 +236,7 @@ function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEd
       editor = operator === 'within' ? <PeriodValue value={value} onChange={set} /> : <DayValue value={value} onChange={set} />;
     } else if (kind === 'reference' || kind === 'multiReference' || kind === 'sprint' || kind === 'category') {
       editor = (
-        <MultiSelect
+        <BatchMultiSelect
           comboboxProps={INLINE}
           size="xs"
           aria-label="Valeurs"

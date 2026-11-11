@@ -1,9 +1,10 @@
-import { ActionIcon, Badge, Button, Checkbox, Group, MultiSelect, Select, Stack, Text } from '@mantine/core';
+import { ActionIcon, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { LinkIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTreasuryEntrySearch } from './api';
 import { describeLink, type LineLink, type LineValues } from './lines';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 interface LineAttachmentsProps {
   line: LineValues;
@@ -79,7 +80,7 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         onChange={(date) => onChange({ date: date ? String(date) : null })}
       />
       <Select label="Projet" clearable searchable data={projects} value={line.projectId} onChange={(projectId) => onChange({ projectId })} />
-      <MultiSelect
+      <BatchMultiSelect
         label="Pièces justificatives"
         description="Documents de la bibliothèque ou des projets."
         placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}

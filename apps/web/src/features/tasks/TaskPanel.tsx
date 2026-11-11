@@ -10,7 +10,6 @@ import {
   Grid,
   Group,
   Menu,
-  MultiSelect,
   NumberInput,
   Progress,
   Select,
@@ -52,6 +51,7 @@ import { AssigneesSelect, LabelSelect, TagsSelect, TaskRef, TaskSelect, TaskStat
 import { useTaskActions } from './use-task-actions';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 /**
  * Property block of the side column.
@@ -473,7 +473,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               searchable
               nothingFoundMessage="Aucun jalon dans ce projet"
             />
-            <MultiSelect
+            <BatchMultiSelect
               label="Sprints"
               placeholder={task.sprintIds.length ? undefined : 'Aucun'}
               data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: sprint.name }))}

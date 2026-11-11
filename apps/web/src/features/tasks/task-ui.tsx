@@ -5,7 +5,6 @@ import {
   Badge,
   ColorSwatch,
   Group,
-  MultiSelect,
   Select,
   Text,
   Tooltip,
@@ -17,6 +16,7 @@ import { Link } from 'react-router';
 import { useTaskLink } from './use-task-link';
 import type { Contributor, Task, TaskLabel } from './api';
 import type { TaskContext } from './use-task-context';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 /**
  * Colored badge of a status, priority or type.
@@ -131,7 +131,7 @@ interface TagsSelectProps {
  */
 export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
   return (
-    <MultiSelect
+    <BatchMultiSelect
       label="Étiquettes"
       placeholder={value.length ? undefined : 'Aucune'}
       data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
@@ -165,7 +165,7 @@ interface AssigneesSelectProps {
  */
 export function AssigneesSelect({ contributors, value, onChange, label = 'Assignés', error }: AssigneesSelectProps) {
   return (
-    <MultiSelect
+    <BatchMultiSelect
       label={label}
       placeholder={value.length ? undefined : 'Personne'}
       data={contributors.map((contributor) => ({

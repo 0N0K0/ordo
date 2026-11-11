@@ -4,7 +4,6 @@ import {
   ColorInput,
   ColorSwatch,
   Group,
-  MultiSelect,
   Popover,
   Select,
   Stack,
@@ -17,6 +16,7 @@ import { useState } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { useCreateProjectCategory, useCreateProjectStatus, type ProjectCategory, type ProjectStatus } from './api';
 import { useColorSwatches } from './use-color-swatches';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 /**
  * Option renderer showing the label color.
@@ -108,7 +108,7 @@ interface CategoriesInputProps {
 export function CategoriesInput({ categories, value, onChange, error }: CategoriesInputProps) {
   return (
     <Group gap="xs" align="flex-end" wrap="nowrap">
-      <MultiSelect
+      <BatchMultiSelect
         label="Catégories"
         placeholder={value.length ? undefined : 'Aucune'}
         data={categories.map((category) => ({ value: category.id, label: category.name, color: category.color }))}

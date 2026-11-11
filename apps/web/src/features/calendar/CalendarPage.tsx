@@ -4,7 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Alert, Button, Checkbox, Group, Modal, MultiSelect, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Checkbox, Group, Modal, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, GearSixIcon, PlusIcon } from '@phosphor-icons/react';
@@ -50,6 +50,7 @@ import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
 import { PageTitle } from '../../components/PageTitle';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -614,7 +615,7 @@ export function CalendarPage() {
         <Switch label="Tâches" checked={filters.tasks} onChange={(event) => setFilters({ ...filters, tasks: event.currentTarget.checked })} />
         <Switch label={perso ? 'Plages' : 'Plages de travail'} checked={filters.workHours !== false} onChange={(event) => setFilters({ ...filters, workHours: event.currentTarget.checked })} />
         <Switch label="Chronos" checked={showTimers} onChange={(event) => setFilters({ ...filters, timers: event.currentTarget.checked })} />
-        <MultiSelect
+        <BatchMultiSelect
           size="xs"
           placeholder={filters.projectIds.length ? undefined : 'Tous les projets'}
           aria-label="Filtrer par projet"
@@ -625,7 +626,7 @@ export function CalendarPage() {
           clearable
           w={240}
         />
-        <MultiSelect
+        <BatchMultiSelect
           size="xs"
           placeholder={filters.categoryIds.length ? undefined : 'Toutes les catégories'}
           aria-label="Filtrer par catégorie"
@@ -636,7 +637,7 @@ export function CalendarPage() {
           clearable
           w={240}
         />
-        <MultiSelect
+        <BatchMultiSelect
           size="xs"
           placeholder={filters.contributorIds.length ? undefined : 'Tous les contributeurs'}
           aria-label="Filtrer par contributeur"

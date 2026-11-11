@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, MultiSelect, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
@@ -21,6 +21,7 @@ import { useScopeQuestion } from './ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from './category-tree';
 import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from './event-input';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -460,7 +461,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             )}
           />
           <ProjectSelect context={context} label="Projet" clearable placeholder="Aucun" {...form.getInputProps('projectId')} />
-          <MultiSelect
+          <BatchMultiSelect
             label="Contributeurs"
             placeholder={values.contributorIds.length ? undefined : 'Aucun'}
             data={context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
@@ -468,7 +469,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             clearable
             {...form.getInputProps('contributorIds')}
           />
-          <MultiSelect
+          <BatchMultiSelect
             label="Relations"
             description="Personnes hors de l’équipe, sans contributeur"
             placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
@@ -478,7 +479,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             nothingFoundMessage="Ajoutez des relations dans Paramètres › Équipe (ou Foyer) et contributeurs"
             {...form.getInputProps('relationIds')}
           />
-          <MultiSelect
+          <BatchMultiSelect
             label="Catégories"
             placeholder={values.categoryIds.length ? undefined : 'Aucune'}
             data={categoryOptions(categories ?? [])}
@@ -487,7 +488,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"
             {...form.getInputProps('categoryIds')}
           />
-          <MultiSelect
+          <BatchMultiSelect
             label="Tâches"
             placeholder={values.taskIds?.length ? undefined : 'Aucune'}
             description={values.projectId ? 'Tâches du projet et de ses sous-projets.' : undefined}
@@ -501,7 +502,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             value={values.taskIds ?? []}
             onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
           />
-          <MultiSelect
+          <BatchMultiSelect
             label="Rappels"
             placeholder={values.reminders.length ? undefined : 'Aucun'}
             data={REMINDER_PRESETS.map((preset) => ({ value: String(preset.value), label: preset.label }))}

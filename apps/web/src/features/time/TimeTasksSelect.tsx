@@ -1,6 +1,7 @@
-import { MultiSelect, type MultiSelectProps } from '@mantine/core';
+import type { MultiSelectProps } from '@mantine/core';
 import type { TaskContext } from '../tasks/use-task-context';
 import { timeTasks } from './time-tasks';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 interface TimeTasksSelectProps extends Omit<MultiSelectProps, 'data' | 'value' | 'onChange'> {
   context: TaskContext;
@@ -18,7 +19,7 @@ interface TimeTasksSelectProps extends Omit<MultiSelectProps, 'data' | 'value' |
 export function TimeTasksSelect({ context, projectId, value, onChange, ...props }: TimeTasksSelectProps) {
   const tasks = timeTasks(context, projectId, value);
   return (
-    <MultiSelect
+    <BatchMultiSelect
       label="Tâches"
       description={value.length > 1 ? `Le temps est réparti à parts égales entre les ${value.length} tâches.` : undefined}
       placeholder={value.length ? undefined : projectId ? 'Aucune' : 'Choisissez d’abord un projet'}

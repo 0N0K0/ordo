@@ -1,9 +1,10 @@
-import { Button, Group, MultiSelect, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Button, Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
 import { FloppyDiskIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useMailLabels } from './api';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 /** Where an advanced search looks: the folder shown, every folder of its account, or every account. */
 type Where = 'folder' | 'account' | 'everywhere';
@@ -81,7 +82,7 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
               onChange={(until) => set({ until })}
             />
           </SimpleGrid>
-          <MultiSelect
+          <BatchMultiSelect
             size="xs"
             label="Drapeaux (l’un d’eux)"
             placeholder={criteria.labelIds.length ? undefined : 'Peu importe'}

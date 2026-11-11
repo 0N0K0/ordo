@@ -3,7 +3,6 @@ import {
   ColorSwatch,
   Combobox,
   Group,
-  MultiSelect,
   NumberInput,
   Select,
   Text,
@@ -23,6 +22,7 @@ import type { TaskContext } from '../use-task-context';
 import { useTaskLink } from '../use-task-link';
 import { useCellEdit } from './cell-edit';
 import classes from './inline-cells.module.css';
+import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 
 /**
  * Stops the click from reaching the row.
@@ -231,7 +231,7 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
 export function TagsCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'tags');
   return (
-    <MultiSelect
+    <BatchMultiSelect
       {...cellCombobox}
       classNames={{ ...cellField.classNames, pillsList: classes.pills }}
       aria-label={fieldLabel('Étiquettes', task, count)}
@@ -264,7 +264,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
 export function SprintCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'sprint');
   return (
-    <MultiSelect
+    <BatchMultiSelect
       {...cellCombobox}
       classNames={{ ...cellField.classNames, pillsList: classes.pills }}
       aria-label={fieldLabel('Sprints', task, count)}
@@ -291,7 +291,7 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
 export function AssigneesCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'assignees');
   return (
-    <MultiSelect
+    <BatchMultiSelect
       {...cellCombobox}
       classNames={{ ...cellField.classNames, pillsList: classes.pills }}
       aria-label={fieldLabel('Assignés', task, count)}
@@ -336,7 +336,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .filter((item) => item !== undefined);
   const onError = { onError: (error: Error) => notifyError(error.message) };
   return (
-    <MultiSelect
+    <BatchMultiSelect
       {...cellCombobox}
       classNames={{ ...cellField.classNames, pillsList: classes.pills }}
       aria-label={`Tâches dont dépend la tâche #${task.number}`}
