@@ -4,10 +4,10 @@ import {
   Badge,
   Button,
   CloseButton,
+  Collapse,
+  Divider,
   Group,
-  Menu,
   Popover,
-  ScrollArea,
   SegmentedControl,
   Select,
   Stack,
@@ -29,15 +29,16 @@ import {
   ArrowUpIcon,
   CaretDownIcon,
   ColumnsIcon,
-  DownloadSimpleIcon,
   FileCsvIcon,
   FilePdfIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  SlidersHorizontalIcon,
   SortAscendingIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
+import { useState } from 'react';
 import type { TaskContext } from '../use-task-context';
 import { GROUP_BY_LABELS, SORT_LABELS } from './columns-meta';
 import { FilterBuilder } from './FilterBuilder';
@@ -165,15 +166,8 @@ function SortPanel({ sorting, onChange }: SortPanelProps) {
  * @returns {JSX.Element} Panel.
  */
 function ViewColumnsPanel({ config, change }: { config: TaskViewConfig; change: Change }) {
-  return (
-    <ScrollArea.Autosize mah={420} type="auto">
-      <ColumnsPanel
-        columnOrder={config.columnOrder}
-        hiddenColumns={config.hiddenColumns}
-        onChange={(columns) => change((current) => ({ ...current, ...columns }))}
-      />
-    </ScrollArea.Autosize>
-  );
+  // The options panel scrolls as a whole: no scroll of its own.
+  return <ColumnsPanel columnOrder={config.columnOrder} hiddenColumns={config.hiddenColumns} onChange={(columns) => change((current) => ({ ...current, ...columns }))} />;
 }
 
 interface ViewToolbarProps {
@@ -194,13 +188,112 @@ interface ViewToolbarProps {
 }
 
 /**
- * Toolbar of the current view: search, filters, sorting, columns, grouping, display toggles, the events listed
- * with the tasks and their period, and the exports.
+ * Options of a view, in one panel: display (grouping, sub-tasks flat, archived tasks, events and their period),
+ * columns (folded: the list is long) and exports.
+ * @param {Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>} props Component props.
+ * @returns {JSX.Element} Panel.
+ */
+function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport }: Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>) {
+  const [columnsOpened, setColumnsOpened] = useState(false);
+  // The lists open in the panel: rendered in a portal, a click in them would close it.
+  const inPanel = { withinPortal: false } as const;
+  return (
+    <Stack gap="sm">
+      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+        Affichage
+      </Text>
+      <Select
+        label="Grouper par"
+        placeholder="Aucun groupe"
+        data={TASK_GROUP_BY.map((groupBy) => ({ value: groupBy, label: GROUP_BY_LABELS[groupBy] }))}
+        value={config.groupBy}
+        onChange={(groupBy) => change((current) => ({ ...current, groupBy: (groupBy as TaskGroupBy | null) ?? null }))}
+        clearable
+        comboboxProps={inPanel}
+      />
+      <Switch
+        label="Sous-tâches à plat"
+        checked={config.flat}
+        onChange={(event) => {
+          const flat = event.currentTarget.checked;
+          change((current) => ({ ...current, flat }));
+        }}
+      />
+      <Switch
+        label="Archivées"
+        checked={config.includeArchived}
+        onChange={(event) => {
+          const includeArchived = event.currentTarget.checked;
+          change((current) => ({ ...current, includeArchived }));
+        }}
+      />
+      <Switch
+        label="Évènements"
+        checked={config.events.show}
+        onChange={(event) => {
+          const show = event.currentTarget.checked;
+          change((current) => ({ ...current, events: { ...current.events, show } }));
+        }}
+      />
+      {config.events.show && eventPeriodLocked && eventPeriodLabel && (
+        <Text size="sm" c="dimmed">
+          {eventPeriodLabel}
+        </Text>
+      )}
+      {config.events.show && !eventPeriodLocked && (
+        <Select
+          label="Période des évènements"
+          data={EVENT_PERIODS.map((period) => ({ value: period, label: EVENT_PERIOD_LABELS[period] }))}
+          value={config.events.period}
+          allowDeselect={false}
+          onChange={(period) => period && change((current) => ({ ...current, events: { ...current.events, period: period as EventPeriod } }))}
+          comboboxProps={inPanel}
+        />
+      )}
+
+      <Divider />
+      <Button
+        variant="subtle"
+        color="gray"
+        justify="space-between"
+        leftSection={<ColumnsIcon aria-hidden />}
+        rightSection={<CaretDownIcon aria-hidden style={{ transform: columnsOpened ? 'rotate(180deg)' : undefined }} />}
+        onClick={() => setColumnsOpened((opened) => !opened)}
+        aria-expanded={columnsOpened}
+        fullWidth
+      >
+        Colonnes
+      </Button>
+      <Collapse expanded={columnsOpened}>
+        <ViewColumnsPanel config={config} change={change} />
+      </Collapse>
+
+      <Divider />
+      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+        Exporter
+      </Text>
+      <Group gap="xs" grow>
+        <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} onClick={() => onExport('csv')} loading={exporting} disabled={!canExport}>
+          CSV
+        </Button>
+        <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => onExport('pdf')} loading={exporting} disabled={!canExport}>
+          PDF
+        </Button>
+      </Group>
+    </Stack>
+  );
+}
+
+/**
+ * Toolbar of the current view: search, filters, sorting, and one « Options » menu with the display (grouping,
+ * sub-tasks flat, archived tasks, events and their period), the columns and the exports.
  * @param {ViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
 export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport }: ViewToolbarProps) {
   const filterCount = countConditions(config.filter);
+  // Display options set, told on the « Options » button.
+  const optionCount = [config.groupBy, config.flat, config.includeArchived, config.events.show].filter(Boolean).length;
   return (
     <Group gap="sm" wrap="wrap">
       <TextInput
@@ -264,90 +357,30 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
         </Popover.Dropdown>
       </Popover>
 
-      <Popover position="bottom-start" shadow="md" withinPortal>
+      {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
+      <Popover position="bottom-end" shadow="md" withinPortal width={340} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
         <Popover.Target>
-          <Button variant="default" leftSection={<ColumnsIcon aria-hidden />}>
-            Colonnes
+          <Button
+            variant={optionCount ? 'light' : 'default'}
+            ml="auto"
+            leftSection={<SlidersHorizontalIcon aria-hidden />}
+            rightSection={optionCount ? <Badge size="xs" circle>{optionCount}</Badge> : <CaretDownIcon aria-hidden />}
+          >
+            Options
           </Button>
         </Popover.Target>
-        <Popover.Dropdown>
-          <ViewColumnsPanel config={config} change={change} />
+        <Popover.Dropdown style={{ overflowY: 'auto' }}>
+          <ViewOptions
+            config={config}
+            change={change}
+            eventPeriodLocked={eventPeriodLocked}
+            eventPeriodLabel={eventPeriodLabel}
+            onExport={onExport}
+            exporting={exporting}
+            canExport={canExport}
+          />
         </Popover.Dropdown>
       </Popover>
-
-      <Select
-        aria-label="Grouper par"
-        placeholder="Grouper par…"
-        data={TASK_GROUP_BY.map((groupBy) => ({ value: groupBy, label: `Grouper par : ${GROUP_BY_LABELS[groupBy]}` }))}
-        value={config.groupBy}
-        onChange={(groupBy) => change((current) => ({ ...current, groupBy: (groupBy as TaskGroupBy | null) ?? null }))}
-        clearable
-        w={230}
-      />
-
-      <Switch
-        label="Sous-tâches à plat"
-        checked={config.flat}
-        onChange={(event) => {
-          const flat = event.currentTarget.checked;
-          change((current) => ({ ...current, flat }));
-        }}
-      />
-      <Switch
-        label="Archivées"
-        checked={config.includeArchived}
-        onChange={(event) => {
-          const includeArchived = event.currentTarget.checked;
-          change((current) => ({ ...current, includeArchived }));
-        }}
-      />
-      <Switch
-        label="Évènements"
-        checked={config.events.show}
-        onChange={(event) => {
-          const show = event.currentTarget.checked;
-          change((current) => ({ ...current, events: { ...current.events, show } }));
-        }}
-      />
-      {config.events.show && eventPeriodLocked && eventPeriodLabel && (
-        <Text size="sm" c="dimmed">
-          {eventPeriodLabel}
-        </Text>
-      )}
-      {config.events.show && !eventPeriodLocked && (
-        <Select
-          aria-label="Période des évènements"
-          data={EVENT_PERIODS.map((period) => ({ value: period, label: EVENT_PERIOD_LABELS[period] }))}
-          value={config.events.period}
-          allowDeselect={false}
-          onChange={(period) => period && change((current) => ({ ...current, events: { ...current.events, period: period as EventPeriod } }))}
-          w={190}
-        />
-      )}
-
-      <Menu position="bottom-end" shadow="md">
-        <Menu.Target>
-          <Button
-            variant="default"
-            ml="auto"
-            leftSection={<DownloadSimpleIcon aria-hidden />}
-            rightSection={<CaretDownIcon aria-hidden />}
-            loading={exporting}
-            disabled={!canExport}
-          >
-            Exporter
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-          <Menu.Label>Ce que la vue liste, colonnes visibles</Menu.Label>
-          <Menu.Item leftSection={<FileCsvIcon aria-hidden />} onClick={() => onExport('csv')}>
-            CSV (tableur)
-          </Menu.Item>
-          <Menu.Item leftSection={<FilePdfIcon aria-hidden />} onClick={() => onExport('pdf')}>
-            PDF
-          </Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
     </Group>
   );
 }
