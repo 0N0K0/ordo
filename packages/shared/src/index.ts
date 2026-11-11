@@ -13,3 +13,4 @@ export * from './treasury';
 export * from './dashboards';
 export * from './work-schedules';
 export * from './geo';
+export * from './shopping';

@@ -253,6 +253,7 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
     counterpartyId: entry.counterpartyId,
     projectId: entry.projectId,
     note: entry.note,
+    url: entry.url ?? null,
     recurrence: entry.recurrence ? (entry.recurrence as Prisma.InputJsonValue) : Prisma.DbNull,
   };
 }
@@ -374,6 +375,7 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
     counterpartyId: forecast.counterpartyId,
     projectId: forecast.projectId,
     note: forecast.note,
+    url: forecast.url,
     recurrence: null,
     allocations: [],
     linkedEntryIds: [],

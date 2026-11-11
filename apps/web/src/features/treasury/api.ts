@@ -62,6 +62,7 @@ graphql(`
     }
     projectId
     note
+    url
     recurrence
     lines {
       id

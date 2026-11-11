@@ -224,6 +224,11 @@ export const treasuryEntrySchema = z
     counterpartyId: z.string().nullable(),
     projectId: z.string().nullable(),
     note: optionalText(2000),
+    /** Page about it on the internet (an online order…). */
+    url: z
+      .union([z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }), z.literal('')])
+      .transform((value) => value || null)
+      .nullish(),
     /** Forecast only. */
     recurrence: recurrenceSchema.nullable(),
     /** Actual only: documents it settles. */

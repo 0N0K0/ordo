@@ -72,6 +72,8 @@ interface EntryValues extends Record<string, unknown> {
   counterpartyId: string | null;
   projectId: string | null;
   note: string;
+  /** Page about it on the internet (an online order…). */
+  url: string;
   recurrence: Recurrence | null;
   allocations: TreasuryAllocationInput[];
   linkedEntryIds: string[];
@@ -130,6 +132,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
       counterpartyId: entry?.counterpartyId ?? null,
       projectId: entry?.projectId ?? null,
       note: entry?.note ?? '',
+      url: entry?.url ?? '',
       recurrence: (entry?.recurrence as Recurrence | null) ?? null,
       // A copy settles no document: the original already does.
       allocations: (copy ? [] : (entry?.allocations ?? [])).map((allocation) => ({
@@ -363,6 +366,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
         </WithCreate>
         {!split && <Select label="Projet" clearable searchable data={projectChoices} {...form.getInputProps('projectId')} />}
         <Textarea label="Note" autosize minRows={1} {...form.getInputProps('note')} />
+        <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
 
         <Divider label="Répartition" labelPosition="left" />
         <LinesEditor

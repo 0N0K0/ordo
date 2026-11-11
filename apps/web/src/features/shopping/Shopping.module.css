@@ -1,0 +1,82 @@
+@layer app {
+  /* Group of products or items (a category or a store): its rows scroll sideways on a phone. */
+  .group {
+    /* Dimension */
+    overflow: hidden;
+  }
+
+  .scroller {
+    /* Dimension */
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .nowrap {
+    /* Typographie */
+    white-space: nowrap;
+  }
+
+  /* Item bought: struck through, dimmed. */
+  .purchased {
+    /* Typographie */
+    text-decoration: line-through;
+
+    /* Effets */
+    opacity: 0.55;
+  }
+
+  /* Store mode: one big row per item, easy to tick with a thumb. */
+  .storeRow {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    min-height: calc(2 * var(--onoko-vertical-step, 24px));
+    border-radius: var(--mantine-radius-md);
+
+    /* Espacement */
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default);
+
+    /* Bordures */
+    border: 1px solid var(--mantine-color-default-border);
+
+    /* Animation */
+    transition: opacity 150ms ease;
+
+    /* Interaction */
+    cursor: pointer;
+    user-select: none;
+
+    &[data-purchased] {
+      /* Typographie */
+      text-decoration: line-through;
+
+      /* Effets */
+      opacity: 0.55;
+    }
+  }
+
+  .storeName {
+    /* Agencement */
+    flex: 1;
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-lg);
+    overflow-wrap: anywhere;
+  }
+
+  /* Store mode content: one column, at most the width of a phone held in portrait on a larger screen. */
+  .storeList {
+    /* Dimension */
+    width: min(100%, calc(5 * var(--column, 96px) + 4 * var(--gutter, 16px)));
+
+    /* Espacement */
+    margin-inline: auto;
+  }
+}

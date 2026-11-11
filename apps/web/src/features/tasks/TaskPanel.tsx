@@ -43,6 +43,7 @@ import { localToday } from '../../lib/dates';
 import { notifyError } from '../../lib/notify';
 import { useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskAlarms } from '../alarms/TaskAlarms';
+import { TaskShopping } from '../shopping/TaskShopping';
 import { TaskTime } from '../time/TaskTime';
 import { TaskComments } from './TaskComments';
 import { TaskRecurrence } from './TaskRecurrence';
@@ -381,6 +382,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
 
             <Divider />
             <TaskAlarms task={task} context={context} />
+
+            <Divider />
+            <TaskShopping task={task} />
 
             <Divider />
             <Stack gap="xs">
