@@ -5,7 +5,8 @@ import { EntityAvatar } from '../EntityAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../use-entity-actions';
 
 /**
- * Detail page header: avatar, name or title, state badges, favorite and edit actions.
+ * Detail page header: avatar, name or title, state badges, favorite and edit actions (a project only: a client is
+ * edited in the settings sidebar of its page).
  * @param {object} props Component props.
  * @param {EntityRef} props.entity Client or project.
  * @param {ReactNode} [props.subtitle] Line under the name. Optional.
@@ -59,15 +60,11 @@ export function EntityHeader({
           </Tooltip>
         )}
         {extraActions}
-        <Button
-          variant="default"
-          leftSection={<PencilSimpleIcon aria-hidden />}
-          onClick={() =>
-            entity.type === 'client' ? actions.openClientForm(entity.item) : actions.openProjectForm(entity.item)
-          }
-        >
-          Modifier
-        </Button>
+        {entity.type === 'project' && (
+          <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => actions.openProjectForm(entity.item)}>
+            Modifier
+          </Button>
+        )}
       </Group>
     </Group>
   );

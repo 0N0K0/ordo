@@ -8,14 +8,23 @@ import { openNewDocument } from './new-document';
 
 /**
  * Billing tab of a project or documents section of a client: its quotes, invoices, deposit invoices and
- * credit notes, imported ones among them.
- * @param {{ clientId?: string | null, projectId?: string }} props Client (for new documents) and project, or client alone.
+ * credit notes, imported ones among them. For a client with projects given: its documents and those of these
+ * projects (also those not addressed to it).
+ * @param {{ clientId?: string | null, projectId?: string, projectIds?: Set<string> }} props Client (for new documents) and project, or client alone (and its projects).
  * @returns {JSX.Element} Panel.
  */
-export function ProjectBillingPanel({ clientId, projectId }: { clientId?: string | null; projectId?: string }) {
-  const filter = projectId ? { projectId } : { clientId: clientId ?? undefined };
+export function ProjectBillingPanel({ clientId, projectId, projectIds }: { clientId?: string | null; projectId?: string; projectIds?: Set<string> }) {
+  // A client and its projects: every document, sorted out here (the same cache as the accounting page).
+  const ofProjects = !projectId && Boolean(projectIds);
+  const filter = projectId ? { projectId } : ofProjects ? {} : { clientId: clientId ?? undefined };
   const documents = useAccountingDocuments(filter);
   const imported = useImportedDocuments(filter);
+  /**
+   * Document of the client or of one of its projects.
+   * @param {{ clientId?: string | null, projectId?: string | null }} document Document.
+   * @returns {boolean} Kept.
+   */
+  const kept = (document: { clientId?: string | null; projectId?: string | null }) => !ofProjects || document.clientId === clientId || (document.projectId != null && projectIds!.has(document.projectId));
   return (
     <Stack gap="md">
       <Group justify="space-between">
@@ -49,7 +58,7 @@ export function ProjectBillingPanel({ clientId, projectId }: { clientId?: string
       {documents.isPending || imported.isPending ? (
         <Skeleton height={120} />
       ) : (
-        <DocumentsTable documents={documents.data ?? []} imported={imported.data ?? []} showType showClient={!projectId && !clientId} empty="Aucun document comptable." />
+        <DocumentsTable documents={(documents.data ?? []).filter(kept)} imported={(imported.data ?? []).filter(kept)} showType showClient={!projectId && !clientId} empty="Aucun document comptable." />
       )}
     </Stack>
   );
