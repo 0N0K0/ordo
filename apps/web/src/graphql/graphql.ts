@@ -563,6 +563,51 @@ export type SendMailInput = {
   to: Array<string>;
 };
 
+export type ShoppingCategoryInput = {
+  color?: string | null | undefined;
+  name: string;
+  parentId?: string | number | null | undefined;
+};
+
+export type ShoppingItemInput = {
+  categoryId?: string | number | null | undefined;
+  memberIds: Array<string | number>;
+  name: string;
+  note?: string | null | undefined;
+  quantity?: number | null | undefined;
+  relationIds: Array<string | number>;
+  storeId?: string | number | null | undefined;
+  unit?: string | null | undefined;
+  unitPrice?: number | null | undefined;
+  url?: string | null | undefined;
+};
+
+export type ShoppingProductInput = {
+  categoryId?: string | number | null | undefined;
+  memberIds: Array<string | number>;
+  missing: boolean;
+  name: string;
+  note?: string | null | undefined;
+  quantity?: number | null | undefined;
+  relationIds: Array<string | number>;
+  storeId?: string | number | null | undefined;
+  unit?: string | null | undefined;
+  unitPrice?: number | null | undefined;
+  url?: string | null | undefined;
+};
+
+/** Shopping store. */
+export type ShoppingStoreInput = {
+  color: string;
+  name: string;
+};
+
+/** Changes of a shopping store (omitted fields unchanged). */
+export type ShoppingStorePatch = {
+  color?: string | null | undefined;
+  name?: string | null | undefined;
+};
+
 export type SprintInput = {
   endDate: string;
   goal?: string | null | undefined;
@@ -718,6 +763,8 @@ export type TreasuryBudgetInput = {
 };
 
 export type TreasuryCategoryInput = {
+  /** Hex color; empty clears it, omitted leaves it. */
+  color?: string | null | undefined;
   direction: TreasuryDirection;
   name: string;
   parentId?: string | number | null | undefined;
@@ -764,6 +811,8 @@ export type TreasuryEntryInput = {
   projectResourceIds?: Array<string | number> | null | undefined;
   recurrence?: unknown;
   status: TreasuryEntryStatus;
+  /** Page about it on the internet (an online order…). */
+  url?: string | null | undefined;
   /** The execution date when omitted. */
   valueDate?: string | null | undefined;
 };
@@ -2335,6 +2384,187 @@ export type DeleteMailSearchMutationVariables = Exact<{
 
 export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 
+export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, shoppingStores: Array<{ id: string, name: string, color: string, position: number }>, shoppingProducts: Array<{ id: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string> }> };
+
+export type ShoppingListsQueryVariables = Exact<{
+  taskId?: string | number | null | undefined;
+}>;
+
+
+export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskId: string | null, entryId: string | null, closed: boolean, closedAt: string | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, purchasedAt: string | null, position: number, memberIds: Array<string>, relationIds: Array<string> }> }> };
+
+export type CreateShoppingCategoryMutationVariables = Exact<{
+  input: ShoppingCategoryInput;
+}>;
+
+
+export type CreateShoppingCategoryMutation = { createShoppingCategory: string };
+
+export type UpdateShoppingCategoryMutationVariables = Exact<{
+  id: string | number;
+  input: ShoppingCategoryInput;
+}>;
+
+
+export type UpdateShoppingCategoryMutation = { updateShoppingCategory: boolean };
+
+export type DeleteShoppingCategoryMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteShoppingCategoryMutation = { deleteShoppingCategory: boolean };
+
+export type CreateShoppingStoreMutationVariables = Exact<{
+  input: ShoppingStoreInput;
+}>;
+
+
+export type CreateShoppingStoreMutation = { createShoppingStore: string };
+
+export type UpdateShoppingStoreMutationVariables = Exact<{
+  id: string | number;
+  input: ShoppingStorePatch;
+}>;
+
+
+export type UpdateShoppingStoreMutation = { updateShoppingStore: boolean };
+
+export type DeleteShoppingStoreMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteShoppingStoreMutation = { deleteShoppingStore: boolean };
+
+export type MoveShoppingStoreMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveShoppingStoreMutation = { moveShoppingStore: boolean };
+
+export type CreateShoppingProductMutationVariables = Exact<{
+  input: ShoppingProductInput;
+}>;
+
+
+export type CreateShoppingProductMutation = { createShoppingProduct: string };
+
+export type UpdateShoppingProductMutationVariables = Exact<{
+  id: string | number;
+  input: ShoppingProductInput;
+}>;
+
+
+export type UpdateShoppingProductMutation = { updateShoppingProduct: boolean };
+
+export type SetShoppingProductsMissingMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  missing: boolean;
+}>;
+
+
+export type SetShoppingProductsMissingMutation = { setShoppingProductsMissing: boolean };
+
+export type DeleteShoppingProductMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteShoppingProductMutation = { deleteShoppingProduct: boolean };
+
+export type CreateShoppingListMutationVariables = Exact<{
+  name: string;
+  taskId?: string | number | null | undefined;
+  fromMissing: boolean;
+}>;
+
+
+export type CreateShoppingListMutation = { createShoppingList: string };
+
+export type UpdateShoppingListMutationVariables = Exact<{
+  id: string | number;
+  name: string;
+  taskId?: string | number | null | undefined;
+}>;
+
+
+export type UpdateShoppingListMutation = { updateShoppingList: boolean };
+
+export type SetShoppingListClosedMutationVariables = Exact<{
+  id: string | number;
+  closed: boolean;
+}>;
+
+
+export type SetShoppingListClosedMutation = { setShoppingListClosed: boolean };
+
+export type DuplicateShoppingListMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DuplicateShoppingListMutation = { duplicateShoppingList: string };
+
+export type DeleteShoppingListMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteShoppingListMutation = { deleteShoppingList: boolean };
+
+export type AttachShoppingListEntryMutationVariables = Exact<{
+  id: string | number;
+  entryId?: string | number | null | undefined;
+}>;
+
+
+export type AttachShoppingListEntryMutation = { attachShoppingListEntry: boolean };
+
+export type AddShoppingItemMutationVariables = Exact<{
+  listId: string | number;
+  productId?: string | number | null | undefined;
+  input?: ShoppingItemInput | null | undefined;
+}>;
+
+
+export type AddShoppingItemMutation = { addShoppingItem: string };
+
+export type UpdateShoppingItemMutationVariables = Exact<{
+  id: string | number;
+  input: ShoppingItemInput;
+}>;
+
+
+export type UpdateShoppingItemMutation = { updateShoppingItem: boolean };
+
+export type SetShoppingItemPurchasedMutationVariables = Exact<{
+  id: string | number;
+  purchased: boolean;
+}>;
+
+
+export type SetShoppingItemPurchasedMutation = { setShoppingItemPurchased: boolean };
+
+export type SaveShoppingItemToBaseMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type SaveShoppingItemToBaseMutation = { saveShoppingItemToBase: string };
+
+export type DeleteShoppingItemMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteShoppingItemMutation = { deleteShoppingItem: boolean };
+
 export type ContributorFieldsFragment = { id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> };
 
 export type SprintFieldsFragment = { id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string };
@@ -2856,7 +3086,7 @@ export type DeleteTimeEntryMutationVariables = Exact<{
 
 export type DeleteTimeEntryMutation = { deleteTimeEntry: boolean };
 
-export type TreasuryEntryFieldsFragment = { id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, relationId: string | null, loan: boolean, date: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> };
+export type TreasuryEntryFieldsFragment = { id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, url: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, relationId: string | null, loan: boolean, date: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> };
 
 export type TreasuryEntryDocumentFieldsFragment = { id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string };
 
@@ -2877,12 +3107,12 @@ export type TreasuryEntriesQueryVariables = Exact<{
 }>;
 
 
-export type TreasuryEntriesQuery = { treasuryEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, relationId: string | null, loan: boolean, date: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
+export type TreasuryEntriesQuery = { treasuryEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, url: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, relationId: string | null, loan: boolean, date: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
 
 export type ForecastEntriesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForecastEntriesQuery = { forecastEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, relationId: string | null, loan: boolean, date: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
+export type ForecastEntriesQuery = { forecastEntries: Array<{ id: string, accountId: string, accountName: string, status: TreasuryEntryStatus, date: string, valueDate: string, label: string, amount: number, categoryId: string | null, methodId: string | null, methodName: string | null, clientId: string | null, counterpartyId: string | null, payerName: string | null, projectId: string | null, note: string | null, url: string | null, recurrence: unknown, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }>, lines: Array<{ id: string, label: string | null, mode: TreasuryLineMode, value: number, memberId: string | null, relationId: string | null, loan: boolean, date: string | null, categoryId: string | null, contextId: string | null, projectId: string | null, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }>, linkedLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, linkedEntries: Array<{ id: string, date: string, label: string, amount: number, status: TreasuryEntryStatus }> }>, linkedByLines: Array<{ id: string, entryId: string, entryLabel: string, date: string, label: string | null, amount: number, status: TreasuryEntryStatus }>, allocations: Array<{ id: string, amount: number, documentId: string | null, importedDocumentId: string | null, documentLabel: string }>, documents: Array<{ id: string, source: string, kind: string, title: string, url: string, projectId: string | null, place: string }> }> };
 
 export type TreasuryProjectionQueryVariables = Exact<{
   today: string;
@@ -2896,7 +3126,7 @@ export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, s
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, direction: TreasuryDirection, parentId: string | null, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
+export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, color: string | null, direction: TreasuryDirection, parentId: string | null, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
 
 export type TreasuryEntrySearchQueryVariables = Exact<{
   text: string;
@@ -3900,6 +4130,7 @@ export const TreasuryEntryFieldsFragmentDoc = new TypedDocumentString(`
   }
   projectId
   note
+  url
   recurrence
   lines {
     id
@@ -6013,6 +6244,184 @@ export const DeleteMailSearchDocument = new TypedDocumentString(`
   deleteMailSearch(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteMailSearchMutation, DeleteMailSearchMutationVariables>;
+export const ShoppingDataDocument = new TypedDocumentString(`
+    query ShoppingData {
+  shoppingCategories {
+    id
+    name
+    color
+    parentId
+  }
+  shoppingStores {
+    id
+    name
+    color
+    position
+  }
+  shoppingProducts {
+    id
+    name
+    categoryId
+    storeId
+    url
+    note
+    quantity
+    unit
+    unitPrice
+    missing
+    lastPurchasedAt
+    lastPrice
+    memberIds
+    relationIds
+  }
+}
+    `) as unknown as TypedDocumentString<ShoppingDataQuery, ShoppingDataQueryVariables>;
+export const ShoppingListsDocument = new TypedDocumentString(`
+    query ShoppingLists($taskId: ID) {
+  shoppingLists(taskId: $taskId) {
+    id
+    name
+    taskId
+    entryId
+    entry {
+      id
+      date
+      label
+      amount
+    }
+    closed
+    closedAt
+    createdAt
+    items {
+      id
+      listId
+      productId
+      name
+      categoryId
+      storeId
+      url
+      note
+      quantity
+      unit
+      unitPrice
+      purchasedAt
+      position
+      memberIds
+      relationIds
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ShoppingListsQuery, ShoppingListsQueryVariables>;
+export const CreateShoppingCategoryDocument = new TypedDocumentString(`
+    mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {
+  createShoppingCategory(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateShoppingCategoryMutation, CreateShoppingCategoryMutationVariables>;
+export const UpdateShoppingCategoryDocument = new TypedDocumentString(`
+    mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {
+  updateShoppingCategory(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateShoppingCategoryMutation, UpdateShoppingCategoryMutationVariables>;
+export const DeleteShoppingCategoryDocument = new TypedDocumentString(`
+    mutation DeleteShoppingCategory($id: ID!) {
+  deleteShoppingCategory(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteShoppingCategoryMutation, DeleteShoppingCategoryMutationVariables>;
+export const CreateShoppingStoreDocument = new TypedDocumentString(`
+    mutation CreateShoppingStore($input: ShoppingStoreInput!) {
+  createShoppingStore(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateShoppingStoreMutation, CreateShoppingStoreMutationVariables>;
+export const UpdateShoppingStoreDocument = new TypedDocumentString(`
+    mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {
+  updateShoppingStore(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateShoppingStoreMutation, UpdateShoppingStoreMutationVariables>;
+export const DeleteShoppingStoreDocument = new TypedDocumentString(`
+    mutation DeleteShoppingStore($id: ID!) {
+  deleteShoppingStore(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteShoppingStoreMutation, DeleteShoppingStoreMutationVariables>;
+export const MoveShoppingStoreDocument = new TypedDocumentString(`
+    mutation MoveShoppingStore($id: ID!, $index: Int!) {
+  moveShoppingStore(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveShoppingStoreMutation, MoveShoppingStoreMutationVariables>;
+export const CreateShoppingProductDocument = new TypedDocumentString(`
+    mutation CreateShoppingProduct($input: ShoppingProductInput!) {
+  createShoppingProduct(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateShoppingProductMutation, CreateShoppingProductMutationVariables>;
+export const UpdateShoppingProductDocument = new TypedDocumentString(`
+    mutation UpdateShoppingProduct($id: ID!, $input: ShoppingProductInput!) {
+  updateShoppingProduct(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateShoppingProductMutation, UpdateShoppingProductMutationVariables>;
+export const SetShoppingProductsMissingDocument = new TypedDocumentString(`
+    mutation SetShoppingProductsMissing($ids: [ID!]!, $missing: Boolean!) {
+  setShoppingProductsMissing(ids: $ids, missing: $missing)
+}
+    `) as unknown as TypedDocumentString<SetShoppingProductsMissingMutation, SetShoppingProductsMissingMutationVariables>;
+export const DeleteShoppingProductDocument = new TypedDocumentString(`
+    mutation DeleteShoppingProduct($id: ID!) {
+  deleteShoppingProduct(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteShoppingProductMutation, DeleteShoppingProductMutationVariables>;
+export const CreateShoppingListDocument = new TypedDocumentString(`
+    mutation CreateShoppingList($name: String!, $taskId: ID, $fromMissing: Boolean!) {
+  createShoppingList(name: $name, taskId: $taskId, fromMissing: $fromMissing)
+}
+    `) as unknown as TypedDocumentString<CreateShoppingListMutation, CreateShoppingListMutationVariables>;
+export const UpdateShoppingListDocument = new TypedDocumentString(`
+    mutation UpdateShoppingList($id: ID!, $name: String!, $taskId: ID) {
+  updateShoppingList(id: $id, name: $name, taskId: $taskId)
+}
+    `) as unknown as TypedDocumentString<UpdateShoppingListMutation, UpdateShoppingListMutationVariables>;
+export const SetShoppingListClosedDocument = new TypedDocumentString(`
+    mutation SetShoppingListClosed($id: ID!, $closed: Boolean!) {
+  setShoppingListClosed(id: $id, closed: $closed)
+}
+    `) as unknown as TypedDocumentString<SetShoppingListClosedMutation, SetShoppingListClosedMutationVariables>;
+export const DuplicateShoppingListDocument = new TypedDocumentString(`
+    mutation DuplicateShoppingList($id: ID!) {
+  duplicateShoppingList(id: $id)
+}
+    `) as unknown as TypedDocumentString<DuplicateShoppingListMutation, DuplicateShoppingListMutationVariables>;
+export const DeleteShoppingListDocument = new TypedDocumentString(`
+    mutation DeleteShoppingList($id: ID!) {
+  deleteShoppingList(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteShoppingListMutation, DeleteShoppingListMutationVariables>;
+export const AttachShoppingListEntryDocument = new TypedDocumentString(`
+    mutation AttachShoppingListEntry($id: ID!, $entryId: ID) {
+  attachShoppingListEntry(id: $id, entryId: $entryId)
+}
+    `) as unknown as TypedDocumentString<AttachShoppingListEntryMutation, AttachShoppingListEntryMutationVariables>;
+export const AddShoppingItemDocument = new TypedDocumentString(`
+    mutation AddShoppingItem($listId: ID!, $productId: ID, $input: ShoppingItemInput) {
+  addShoppingItem(listId: $listId, productId: $productId, input: $input)
+}
+    `) as unknown as TypedDocumentString<AddShoppingItemMutation, AddShoppingItemMutationVariables>;
+export const UpdateShoppingItemDocument = new TypedDocumentString(`
+    mutation UpdateShoppingItem($id: ID!, $input: ShoppingItemInput!) {
+  updateShoppingItem(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateShoppingItemMutation, UpdateShoppingItemMutationVariables>;
+export const SetShoppingItemPurchasedDocument = new TypedDocumentString(`
+    mutation SetShoppingItemPurchased($id: ID!, $purchased: Boolean!) {
+  setShoppingItemPurchased(id: $id, purchased: $purchased)
+}
+    `) as unknown as TypedDocumentString<SetShoppingItemPurchasedMutation, SetShoppingItemPurchasedMutationVariables>;
+export const SaveShoppingItemToBaseDocument = new TypedDocumentString(`
+    mutation SaveShoppingItemToBase($id: ID!) {
+  saveShoppingItemToBase(id: $id)
+}
+    `) as unknown as TypedDocumentString<SaveShoppingItemToBaseMutation, SaveShoppingItemToBaseMutationVariables>;
+export const DeleteShoppingItemDocument = new TypedDocumentString(`
+    mutation DeleteShoppingItem($id: ID!) {
+  deleteShoppingItem(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteShoppingItemMutation, DeleteShoppingItemMutationVariables>;
 export const TasksDataDocument = new TypedDocumentString(`
     query TasksData {
   tasks {
@@ -6722,6 +7131,7 @@ export const TreasuryEntriesDocument = new TypedDocumentString(`
   }
   projectId
   note
+  url
   recurrence
   lines {
     id
@@ -6814,6 +7224,7 @@ export const ForecastEntriesDocument = new TypedDocumentString(`
   }
   projectId
   note
+  url
   recurrence
   lines {
     id
@@ -6907,6 +7318,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
   treasuryCategories {
     id
     name
+    color
     direction
     parentId
     entryCount

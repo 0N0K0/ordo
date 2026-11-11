@@ -181,6 +181,7 @@ builder.prismaObject('TreasuryCategory', {
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
+    color: t.exposeString('color', { nullable: true }),
     direction: t.field({ type: DirectionEnum, resolve: (category) => category.direction }),
     parentId: t.exposeID('parentId', { nullable: true }),
     entryCount: t.relationCount('entries'),
@@ -407,6 +408,7 @@ builder.prismaObject('TreasuryEntry', {
     }),
     projectId: t.exposeID('projectId', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
+    url: t.exposeString('url', { nullable: true, description: 'Page about it on the internet (an online order…).' }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (entry) => entry.recurrence }),
     allocations: t.relation('allocations'),
     lines: t.relation('lines', { description: 'Split of the amount; what the lines leave is "not split".', query: { orderBy: { position: 'asc' } } }),
@@ -654,6 +656,7 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
     counterpartyId: t.id(),
     projectId: t.id(),
     note: t.string(),
+    url: t.string({ description: 'Page about it on the internet (an online order…).' }),
     recurrence: t.field({ type: 'JSON' }),
     allocations: t.field({ type: [AllocationInput], required: true }),
     linkedEntryIds: t.idList(),
@@ -666,6 +669,7 @@ const EntryInput = builder.inputType('TreasuryEntryInput', {
 const CategoryInput = builder.inputType('TreasuryCategoryInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
+    color: t.string({ description: 'Hex color; empty clears it, omitted leaves it.' }),
     direction: t.field({ type: DirectionEnum, required: true }),
     parentId: t.id(),
   }),
@@ -704,6 +708,7 @@ const entryInput = (input: typeof EntryInput.$inferInput): TreasuryEntryInput =>
   libraryDocumentIds: input.libraryDocumentIds ?? [],
   projectResourceIds: input.projectResourceIds ?? [],
   note: input.note ?? null,
+  url: input.url ?? null,
   recurrence: (input.recurrence ?? null) as TreasuryEntryInput['recurrence'],
   allocations: input.allocations.map((allocation) => ({
     documentId: allocation.documentId ?? null,

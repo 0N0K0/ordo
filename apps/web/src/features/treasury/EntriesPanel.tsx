@@ -22,6 +22,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryEntries, useTreasuryMutations, useTreasurySettings, type TreasuryAccount, type TreasuryEntry } from './api';
 import { categoryPaths } from './categories';
 import { confirmDeletion } from './confirm-deletion';
+import { EntryUrl } from './EntryUrl';
 import { StatementForm } from './StatementForm';
 import { StatementImport } from './StatementImport';
 import { handleFileClick } from '../files/open-file';
@@ -242,7 +243,10 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                             </ActionIcon>
                           )}
                           <div>
-                            <Text size="sm">{entry.label}</Text>
+                            <Group gap={4} wrap="nowrap">
+                              <Text size="sm">{entry.label}</Text>
+                              <EntryUrl url={entry.url} label={entry.label} />
+                            </Group>
                             <Text size="xs" c="dimmed">
                               {[
                                 entry.categoryId ? paths.get(entry.categoryId) : null,

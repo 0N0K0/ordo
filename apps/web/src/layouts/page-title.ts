@@ -5,6 +5,7 @@ const PAGE_TITLES: Record<string, string> = {
   calendar: 'Agenda',
   time: 'Chronos',
   alarms: 'Alarmes',
+  shopping: 'Courses',
   accounting: 'Facturation',
   treasury: 'Trésorerie',
   mail: 'Mails',

@@ -1315,6 +1315,11 @@ type Mutation {
   addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
   addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
 
+  """
+  Adds a product of the base list (productId) or an item of this list only (input) to a list.
+  """
+  addShoppingItem(input: ShoppingItemInput, listId: ID!, productId: ID): ID!
+
   """blockerId blocks blockedId."""
   addTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   addTaskComment(body: String!, taskId: ID!): TaskComment!
@@ -1324,6 +1329,11 @@ type Mutation {
   Adds a member: an existing contributor, or a new contributor of this name.
   """
   addTreasuryMember(contributorId: ID, name: String): ID!
+
+  """
+  Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).
+  """
+  attachShoppingListEntry(entryId: ID, id: ID!): Boolean!
   bulkDeleteTasks(
     """false moves unselected sub-tasks up."""
     deleteSubtasks: Boolean!
@@ -1379,6 +1389,12 @@ type Mutation {
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
+  createShoppingCategory(input: ShoppingCategoryInput!): ID!
+
+  """Creates a list, empty or with the missing products of the base list."""
+  createShoppingList(fromMissing: Boolean!, name: String!, taskId: ID): ID!
+  createShoppingProduct(input: ShoppingProductInput!): ID!
+  createShoppingStore(input: ShoppingStoreInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createTask(input: TaskInput!): Task!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
@@ -1447,6 +1463,11 @@ type Mutation {
 
   """Deletes a kind of time slots (its schedules stay, without kind)."""
   deleteScheduleType(id: ID!): Boolean!
+  deleteShoppingCategory(id: ID!): Boolean!
+  deleteShoppingItem(id: ID!): Boolean!
+  deleteShoppingList(id: ID!): Boolean!
+  deleteShoppingProduct(id: ID!): Boolean!
+  deleteShoppingStore(id: ID!): Boolean!
   deleteSprint(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
@@ -1483,6 +1504,7 @@ type Mutation {
   deleteWorkspace(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateDashboardChart(id: ID!): ID!
+  duplicateShoppingList(id: ID!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
 
   """Makes a draft final; returns its number."""
@@ -1557,6 +1579,7 @@ type Mutation {
   ): Boolean!
   moveProjectResource(id: ID!, index: Int!): Boolean!
   moveProjectStatus(id: ID!, index: Int!): Boolean!
+  moveShoppingStore(id: ID!, index: Int!): Boolean!
 
   """
   Places a task before another one in the manual order (at the end when beforeId is null), and under parentId when given (null: top-level task; omitted: parent unchanged).
@@ -1625,6 +1648,9 @@ type Mutation {
   saveMailDraft(input: SaveMailDraftInput!): SavedMailDraft!
   savePlace(id: ID, input: PlaceInput!): ID!
   saveScheduleType(id: ID, input: ScheduleTypeInput!): ID!
+
+  """Adds an item of a list to the base list; returns the product."""
+  saveShoppingItemToBase(id: ID!): ID!
 
   """Creates a budget (without id), or changes one and its repetitions."""
   saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
@@ -1702,6 +1728,9 @@ type Mutation {
   Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).
   """
   setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
+  setShoppingItemPurchased(id: ID!, purchased: Boolean!): Boolean!
+  setShoppingListClosed(closed: Boolean!, id: ID!): Boolean!
+  setShoppingProductsMissing(ids: [ID!]!, missing: Boolean!): Boolean!
 
   """
   Archiving cascades to sub-tasks; restoring restores them and the archived parents.
@@ -1789,6 +1818,11 @@ type Mutation {
   updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
   updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
+  updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
+  updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
+  updateShoppingList(id: ID!, name: String!, taskId: ID): Boolean!
+  updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
+  updateShoppingStore(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
   updateTaskComment(body: String!, id: ID!): TaskComment!
@@ -2117,6 +2151,16 @@ type Query {
   """
   searchAddresses(near: GeoPointInput, text: String!): [AddressSuggestion!]!
 
+  """Categories of the shopping products (a tree)."""
+  shoppingCategories: [ShoppingCategory!]!
+
+  """Shopping lists, latest first: all, or those of a task."""
+  shoppingLists(taskId: ID): [ShoppingList!]!
+
+  """Products of the base list."""
+  shoppingProducts: [ShoppingProduct!]!
+  shoppingStores: [ShoppingStore!]!
+
   """
   Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).
   """
@@ -2334,6 +2378,124 @@ input SendMailInput {
   references: [String!]
   subject: String!
   to: [String!]!
+}
+
+"""Category of the shopping products, in a tree."""
+type ShoppingCategory {
+  color: String
+  id: ID!
+  name: String!
+  parentId: ID
+}
+
+input ShoppingCategoryInput {
+  color: String
+  name: String!
+  parentId: ID
+}
+
+"""
+Item of a shopping list: a copy of a product of the base list, or an item of this list only.
+"""
+type ShoppingItem {
+  categoryId: ID
+  id: ID!
+  listId: ID!
+  memberIds: [ID!]!
+  name: String!
+  note: String
+  position: Int!
+  productId: ID
+  purchasedAt: DateTime
+  quantity: Float
+  relationIds: [ID!]!
+  storeId: ID
+  unit: String
+  unitPrice: Float
+  url: String
+}
+
+input ShoppingItemInput {
+  categoryId: ID
+  memberIds: [ID!]!
+  name: String!
+  note: String
+  quantity: Float
+  relationIds: [ID!]!
+  storeId: ID
+  unit: String
+  unitPrice: Float
+  url: String
+}
+
+"""
+Shopping list, possibly attached to a task and to the treasury entry paying it.
+"""
+type ShoppingList {
+  """Closed by hand, or along with its task."""
+  closed: Boolean!
+  closedAt: DateTime
+  createdAt: DateTime!
+
+  """Treasury entry paying the list."""
+  entry: TreasuryEntry
+  entryId: ID
+  id: ID!
+  items: [ShoppingItem!]!
+  name: String!
+  taskId: ID
+}
+
+"""Product of the base list: what is usually bought, marked when missing."""
+type ShoppingProduct {
+  categoryId: ID
+  id: ID!
+  lastPrice: Float
+  lastPurchasedAt: DateTime
+  memberIds: [ID!]!
+  missing: Boolean!
+  name: String!
+  note: String
+  quantity: Float
+  relationIds: [ID!]!
+  storeId: ID
+  unit: String
+  unitPrice: Float
+  url: String
+}
+
+input ShoppingProductInput {
+  categoryId: ID
+  memberIds: [ID!]!
+  missing: Boolean!
+  name: String!
+  note: String
+  quantity: Float
+  relationIds: [ID!]!
+  storeId: ID
+  unit: String
+  unitPrice: Float
+  url: String
+}
+
+"""Store (or supplier) a product is bought at."""
+type ShoppingStore {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+"""Shopping store."""
+input ShoppingStoreInput {
+  color: String!
+  name: String!
+}
+
+"""Changes of a shopping store (omitted fields unchanged)."""
+input ShoppingStorePatch {
+  color: String
+  name: String
 }
 
 """Period of a project the tasks of its project tree are planned in."""
@@ -2768,6 +2930,7 @@ type TreasuryBudgetReportRow {
 }
 
 type TreasuryCategory {
+  color: String
   direction: TreasuryDirection!
   entryCount: Int!
   id: ID!
@@ -2776,6 +2939,8 @@ type TreasuryCategory {
 }
 
 input TreasuryCategoryInput {
+  """Hex color; empty clears it, omitted leaves it."""
+  color: String
   direction: TreasuryDirection!
   name: String!
   parentId: ID
@@ -2865,6 +3030,9 @@ type TreasuryEntry {
   projectId: ID
   recurrence: JSON
   status: TreasuryEntryStatus!
+
+  """Page about it on the internet (an online order…)."""
+  url: String
   valueDate: Date!
 }
 
@@ -2905,6 +3073,9 @@ input TreasuryEntryInput {
   projectResourceIds: [ID!]
   recurrence: JSON
   status: TreasuryEntryStatus!
+
+  """Page about it on the internet (an online order…)."""
+  url: String
 
   """The execution date when omitted."""
   valueDate: Date

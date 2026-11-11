@@ -3,6 +3,8 @@ import {
   Badge,
   Button,
   Checkbox,
+  ColorInput,
+  ColorSwatch,
   Group,
   Modal,
   Paper,
@@ -29,6 +31,7 @@ import { categoryOptions, categoryTree } from './categories';
 import { confirmDeletion } from './confirm-deletion';
 import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
+import { useColorSwatches } from '../workspace/use-color-swatches';
 
 const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OUT: 'Sorties' };
 
@@ -114,8 +117,11 @@ interface CategoryFormProps {
  */
 export function CategoryForm({ category, direction = 'OUT', parentId = null, categories, onDone }: CategoryFormProps) {
   const { createCategory, updateCategory } = useTreasuryMutations();
-  const form = useAppForm<{ name: string; direction: TreasuryDirection; parentId: string | null }>({
-    initialValues: { name: category?.name ?? '', direction: category?.direction ?? direction, parentId: category?.parentId ?? parentId },
+  const swatches = useColorSwatches();
+  // A new category takes the color of its parent (or the first of the palette).
+  const parentColor = parentId ? categories.find((item) => item.id === parentId)?.color : null;
+  const form = useAppForm<{ name: string; color: string; direction: TreasuryDirection; parentId: string | null }>({
+    initialValues: { name: category?.name ?? '', color: category ? (category.color ?? '') : (parentColor ?? swatches[0]), direction: category?.direction ?? direction, parentId: category?.parentId ?? parentId },
     schema: treasuryCategorySchema,
   });
   return (
@@ -151,6 +157,7 @@ export function CategoryForm({ category, direction = 'OUT', parentId = null, cat
     >
       <Stack gap="sm">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        <ColorInput label="Couleur" format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
         <Stack gap={4}>
           <Text size="sm" fw={500}>
             Sens
@@ -335,9 +342,12 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
             {tree.map(({ category, depth, path }) => (
               <Table.Tr key={category.id}>
                 <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
-                  <Text size="sm" fw={depth === 0 ? 600 : undefined}>
-                    {category.name}
-                  </Text>
+                  <Group gap="xs" wrap="nowrap">
+                    {category.color && <ColorSwatch color={category.color} size={12} />}
+                    <Text size="sm" fw={depth === 0 ? 600 : undefined}>
+                      {category.name}
+                    </Text>
+                  </Group>
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs" c="dimmed">

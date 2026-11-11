@@ -62,6 +62,7 @@ graphql(`
     }
     projectId
     note
+    url
     recurrence
     lines {
       id
@@ -200,6 +201,7 @@ const SettingsDocument = graphql(`
     treasuryCategories {
       id
       name
+      color
       direction
       parentId
       entryCount
