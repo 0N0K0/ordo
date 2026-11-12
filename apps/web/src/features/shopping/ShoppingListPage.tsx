@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney } from '@ordo/shared';
-import { ArrowLeftIcon, BankIcon, BasketIcon, CalendarPlusIcon, CaretDownIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowLeftIcon, BankIcon, BasketIcon, CalendarPlusIcon, DotsThreeVerticalIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
@@ -248,9 +248,9 @@ export function ShoppingListPage() {
             grouping={grouping}
             onDeleted={() => navigate('/shopping?tab=lists')}
             target={
-              <Button variant="default" rightSection={<CaretDownIcon aria-hidden size={12} />}>
-                Actions
-              </Button>
+              <ActionIcon variant="default" size="input-sm" aria-label={`Actions de la liste ${list.name}`}>
+                <DotsThreeVerticalIcon aria-hidden />
+              </ActionIcon>
             }
           />
         </Group>
