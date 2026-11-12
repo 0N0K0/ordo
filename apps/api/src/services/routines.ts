@@ -1,8 +1,20 @@
-import { formatDay, parseDay, routineCategorySchema, routineOccurrences, routineSchema, type RoutineCategoryInput, type RoutineInput } from '@ordo/shared';
+import {
+  formatDay,
+  parseDay,
+  routineCategorySchema,
+  routineOccurrences,
+  routineSchema,
+  scheduleOccurrences,
+  scheduleWindow,
+  type RoutineAnchor,
+  type RoutineCategoryInput,
+  type RoutineInput,
+} from '@ordo/shared';
 import { prisma } from '../db';
-import type { Routine, RoutineCategory } from '../generated/prisma/client';
+import type { Routine, RoutineCategory, WorkSchedule } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { storedRecurrence } from './calendar-events';
+import { scheduleRule } from './work-schedules';
 
 /**
  * Today in Paris, as a calendar date.
@@ -32,6 +44,34 @@ function reaches(parentOf: Map<string, string | null>, start: string, id: string
     seen.add(current);
   }
   return false;
+}
+
+/** Routine with what its occurrences are computed from. */
+export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'scheduleAnchor'> & { schedule: WorkSchedule | null };
+
+/**
+ * Current and next occurrences of a routine today: the days of its calendar schedule when it follows one, else those of
+ * its repetition.
+ * @param {RoutineTiming} routine Routine with its schedule.
+ * @param {string} [today] Today. Optional. Default = today in Paris.
+ * @returns {{ current: string | null, next: string | null }} Dates.
+ */
+export function occurrencesOf(routine: RoutineTiming, today = routineToday()): { current: string | null; next: string | null } {
+  const start = formatDay(routine.startDate);
+  if (routine.schedule) return scheduleOccurrences(scheduleRule(routine.schedule), start, today);
+  const rule = storedRecurrence(routine.recurrence);
+  return rule ? routineOccurrences(rule, start, today) : { current: null, next: null };
+}
+
+/**
+ * Time window of a routine following a calendar schedule, on a day (its current or next occurrence).
+ * @param {RoutineTiming} routine Routine with its schedule.
+ * @param {string | null} date Day.
+ * @returns {{ fromTime: string | null, dueTime: string | null } | null} Window, null when it follows no schedule.
+ */
+export function scheduleWindowOf(routine: RoutineTiming, date: string | null): { fromTime: string | null; dueTime: string | null } | null {
+  if (!routine.schedule || !routine.scheduleAnchor) return null;
+  return date ? scheduleWindow(scheduleRule(routine.schedule), routine.scheduleAnchor as RoutineAnchor, date) : { fromTime: null, dueTime: null };
 }
 
 // Categories ------------------------------------------------------------------------------------------------------
@@ -113,6 +153,10 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   data.requiredIds = [...new Set(data.requiredIds)];
   if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
   if ((await prisma.routineCategory.count({ where: { id: { in: data.categoryIds } } })) !== data.categoryIds.length) throw fieldError('categoryIds', 'Catégorie introuvable.');
+  if (data.scheduleId && !(await prisma.workSchedule.findUnique({ where: { id: data.scheduleId }, select: { id: true } }))) throw fieldError('scheduleId', 'Plage introuvable.');
+  // Following a schedule, its times come from it.
+  if (data.scheduleId) Object.assign(data, { fromTime: null, dueTime: null });
+  else data.scheduleAnchor = null;
   if (data.projectId && !(await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true } }))) throw fieldError('projectId', 'Projet introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.assigneeIds } } })) !== data.assigneeIds.length) throw fieldError('assigneeIds', 'Assigné introuvable.');
 
@@ -154,6 +198,15 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   startDate: parseDay(data.startDate),
   recurrence: data.recurrence,
   estimate: data.estimate,
+  fromTime: data.fromTime,
+  dueTime: data.dueTime,
+  scheduleId: data.scheduleId,
+  scheduleAnchor: data.scheduleAnchor,
+  location: data.location,
+  locationLat: data.location ? data.locationLat : null,
+  locationLon: data.location ? data.locationLon : null,
+  travelBefore: data.travelBefore,
+  travelAfter: data.travelAfter,
   projectId: data.projectId,
 });
 
@@ -223,6 +276,15 @@ async function inputOf(id: string): Promise<RoutineInput> {
     startDate: formatDay(routine.startDate),
     recurrence: storedRecurrence(routine.recurrence) ?? (routine.recurrence as RoutineInput['recurrence']),
     estimate: routine.estimate,
+    fromTime: routine.fromTime,
+    dueTime: routine.dueTime,
+    scheduleId: routine.scheduleId,
+    scheduleAnchor: routine.scheduleAnchor as RoutineAnchor | null,
+    location: routine.location,
+    locationLat: routine.locationLat,
+    locationLon: routine.locationLon,
+    travelBefore: routine.travelBefore,
+    travelAfter: routine.travelAfter,
     projectId: routine.projectId,
     assigneeIds: routine.assignees.map((assignee) => assignee.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
@@ -251,6 +313,9 @@ export interface RoutineBulkChanges {
   estimate?: number | null;
   /** Null: none, undefined: unchanged. */
   projectId?: string | null;
+  /** Null: no limit, undefined: unchanged. */
+  fromTime?: string | null;
+  dueTime?: string | null;
   startDate?: string;
   recurrence?: unknown;
 }
@@ -282,6 +347,10 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
         ...(changes.estimate !== undefined && { estimate: changes.estimate }),
         ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+        // Times or a repetition of its own: it no longer follows its schedule.
+        ...((changes.fromTime !== undefined || changes.dueTime !== undefined || changes.recurrence !== undefined) && { scheduleId: null, scheduleAnchor: null }),
+        ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),
+        ...(changes.dueTime !== undefined && { dueTime: changes.dueTime }),
         ...(changes.startDate !== undefined && { startDate: changes.startDate }),
         ...(changes.recurrence !== undefined && { recurrence: changes.recurrence as RoutineInput['recurrence'] }),
       };
@@ -372,10 +441,9 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
  * @returns {Promise<string>} Occurrence date.
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null): Promise<string> {
-  const routine = await findRoutine(id);
-  const rule = storedRecurrence(routine.recurrence);
-  if (!rule) throw clientError('BAD_USER_INPUT', 'Répétition invalide.');
-  const occurrence = date ?? routineOccurrences(rule, formatDay(routine.startDate), routineToday()).current;
+  const routine = await prisma.routine.findUnique({ where: { id }, include: { schedule: true } });
+  if (!routine) throw notFound('Routine');
+  const occurrence = date ?? occurrencesOf(routine).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
   if (occurrence > routineToday()) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
   const key = { routineId_date: { routineId: id, date: parseDay(occurrence) } };
@@ -393,9 +461,8 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
 export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise<number> {
   const today = routineToday();
   let count = 0;
-  for (const routine of await prisma.routine.findMany({ where: { id: { in: ids } } })) {
-    const rule = storedRecurrence(routine.recurrence);
-    const current = rule ? routineOccurrences(rule, formatDay(routine.startDate), today).current : null;
+  for (const routine of await prisma.routine.findMany({ where: { id: { in: ids } }, include: { schedule: true } })) {
+    const current = occurrencesOf(routine, today).current;
     if (!current) continue;
     await setRoutineDone(routine.id, done, current);
     count += 1;

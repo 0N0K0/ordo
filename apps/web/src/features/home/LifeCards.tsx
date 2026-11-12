@@ -1,9 +1,10 @@
-import { Badge, Checkbox, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData } from '../routines/api';
-import { stateOf, waitingFor } from '../routines/routine-format';
+import { DoneToggle } from '../routines/DoneToggle';
+import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../routines/routine-format';
 import { useShoppingData, useShoppingLists } from '../shopping/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
@@ -24,7 +25,13 @@ export function RoutinesCard({ today }: { today: string }) {
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const todo = routines
     .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today)))
-    .sort((a, b) => (a.currentDate ?? '').localeCompare(b.currentDate ?? '') || a.title.localeCompare(b.title, 'fr'));
+    // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
+    .sort(
+      (a, b) =>
+        (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
+        (scheduleOf(a).leaveAt ?? a.windowFrom ?? a.windowTo ?? '99').localeCompare(scheduleOf(b).leaveAt ?? b.windowFrom ?? b.windowTo ?? '99') ||
+        a.title.localeCompare(b.title, 'fr'),
+    );
 
   return (
     <HomeCard title="Routines du jour" icon={<ArrowsClockwiseIcon aria-hidden />} to="/routines" loading={!data}>
@@ -36,15 +43,17 @@ export function RoutinesCard({ today }: { today: string }) {
             const late = routine.currentDate !== null && routine.currentDate < today;
             return (
               <Group key={routine.id} justify="space-between" wrap="nowrap" gap="xs" className={classes.row}>
-                <Checkbox
-                  size="sm"
-                  checked={false}
-                  label={routine.title}
-                  aria-label={`${routine.title} faite`}
-                  onChange={() => setDone.mutate({ id: routine.id, done: true }, { onError: (error) => notifyError(error.message) })}
-                  styles={{ body: { alignItems: 'center' }, label: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }}
-                  miw={0}
-                />
+                <Group gap="xs" wrap="nowrap" miw={0}>
+                  <DoneToggle
+                    title={routine.title}
+                    done={false}
+                    date={routine.currentDate}
+                    onChange={(done) => setDone.mutate({ id: routine.id, done }, { onError: (error) => notifyError(error.message) })}
+                  />
+                  <Text size="sm" truncate>
+                    {routine.title}
+                  </Text>
+                </Group>
                 <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
                   {waiting.length > 0 && (
                     <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
@@ -56,7 +65,12 @@ export function RoutinesCard({ today }: { today: string }) {
                       {daysBetween(routine.currentDate, today)} j de retard
                     </Badge>
                   )}
-                  {routine.estimate && (
+                  {(routine.windowFrom || routine.windowTo) && (
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                      {[scheduleOf(routine).leaveAt && `départ ${scheduleOf(routine).leaveAt}`, windowText(windowOf(routine))].filter(Boolean).join(' · ')}
+                    </Text>
+                  )}
+                  {!routine.windowFrom && !routine.windowTo && routine.estimate && (
                     <Text size="xs" c="dimmed">
                       {routine.estimate} min
                     </Text>

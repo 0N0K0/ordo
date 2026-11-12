@@ -393,7 +393,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
         <RecurrenceEditor
-          value={values.recurrence ?? null}
+          value={values.recurrence ? { ...values.recurrence, weekParity: values.recurrence.weekParity ?? null } : null}
           onChange={(recurrence) => form.setFieldValue('recurrence', recurrence)}
           start={ruleStart}
         />

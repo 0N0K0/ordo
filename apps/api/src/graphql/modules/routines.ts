@@ -1,6 +1,5 @@
-import { formatDay, parseDay, routineOccurrences, type RoutineInput } from '@ordo/shared';
+import { parseDay, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../db';
-import { storedRecurrence } from '../../services/calendar-events';
 import * as routines from '../../services/routines';
 import { builder } from '../builder';
 
@@ -14,15 +13,24 @@ builder.prismaObject('RoutineCategory', {
   }),
 });
 
+/** Selection computing the occurrences and window of a routine. */
+const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true } as const;
+
 /**
- * Current and next occurrences of a stored routine, today.
- * @param {{ startDate: Date, recurrence: unknown }} routine Routine.
- * @returns {{ current: Date | null, next: Date | null }} Dates.
+ * Calendar date as a Date (the Date scalar), or null.
+ * @param {string | null} date YYYY-MM-DD.
+ * @returns {Date | null} Date.
  */
-const occurrencesOf = (routine: { startDate: Date; recurrence: unknown }) => {
-  const rule = storedRecurrence(routine.recurrence);
-  const { current, next } = rule ? routineOccurrences(rule, formatDay(routine.startDate), routines.routineToday()) : { current: null, next: null };
-  return { current: current ? parseDay(current) : null, next: next ? parseDay(next) : null };
+const asDate = (date: string | null) => (date ? parseDay(date) : null);
+
+/**
+ * Window of a routine following a schedule, on its current occurrence (or its next one before it starts).
+ * @param {routines.RoutineTiming} routine Routine.
+ * @returns {{ fromTime: string | null, dueTime: string | null } | null} Window.
+ */
+const windowOf = (routine: routines.RoutineTiming) => {
+  const { current, next } = routines.occurrencesOf(routine);
+  return routines.scheduleWindowOf(routine, current ?? next);
 };
 
 /** Ticked occurrences loaded with a routine (the latest ones). */
@@ -44,6 +52,27 @@ builder.prismaObject('Routine', {
     recurrence: t.expose('recurrence', { type: 'JSON' }),
     estimate: t.exposeInt('estimate', { nullable: true, description: 'Minutes.' }),
     projectId: t.exposeID('projectId', { nullable: true }),
+    fromTime: t.exposeString('fromTime', { nullable: true, description: 'Time to do it from (HH:MM), its own (see windowFrom).' }),
+    scheduleId: t.exposeID('scheduleId', { nullable: true, description: 'Calendar schedule it follows (its days and times).' }),
+    scheduleAnchor: t.exposeString('scheduleAnchor', { nullable: true, description: 'START, WHOLE or END of the schedule.' }),
+    windowFrom: t.string({
+      nullable: true,
+      description: 'Time to do it from on its current (or next) occurrence: its own, or the one of its schedule.',
+      select: { ...TIMING, fromTime: true },
+      resolve: (routine) => (routine.schedule ? (windowOf(routine)?.fromTime ?? null) : routine.fromTime),
+    }),
+    windowTo: t.string({
+      nullable: true,
+      description: 'Latest time to do it by on its current (or next) occurrence: its own, or the one of its schedule.',
+      select: { ...TIMING, dueTime: true },
+      resolve: (routine) => (routine.schedule ? (windowOf(routine)?.dueTime ?? null) : routine.dueTime),
+    }),
+    dueTime: t.exposeString('dueTime', { nullable: true, description: 'Latest time to do it by (HH:MM).' }),
+    location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    travelBefore: t.exposeInt('travelBefore', { description: 'Minutes to get there.' }),
+    travelAfter: t.exposeInt('travelAfter', { description: 'Minutes to get back.' }),
     position: t.exposeInt('position'),
     archived: t.boolean({ resolve: (routine) => routine.archivedAt !== null }),
     assigneeIds: t.idList({ select: { assignees: { select: { id: true } } }, resolve: (routine) => routine.assignees.map((assignee) => assignee.id) }),
@@ -56,15 +85,15 @@ builder.prismaObject('Routine', {
       type: 'Date',
       nullable: true,
       description: 'Current occurrence: the last one on or before today (null before the start or after the end).',
-      select: { startDate: true, recurrence: true },
-      resolve: (routine) => occurrencesOf(routine).current,
+      select: TIMING,
+      resolve: (routine) => asDate(routines.occurrencesOf(routine).current),
     }),
     nextDate: t.field({
       type: 'Date',
       nullable: true,
       description: 'First occurrence after today.',
-      select: { startDate: true, recurrence: true },
-      resolve: (routine) => occurrencesOf(routine).next,
+      select: TIMING,
+      resolve: (routine) => asDate(routines.occurrencesOf(routine).next),
     }),
     doneDates: t.field({
       type: ['Date'],
@@ -101,6 +130,15 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     startDate: t.field({ type: 'Date', required: true }),
     recurrence: t.field({ type: 'JSON', required: true }),
     estimate: t.int({ description: 'Minutes.' }),
+    fromTime: t.string({ description: 'HH:MM.' }),
+    scheduleId: t.id(),
+    scheduleAnchor: t.string({ description: 'START, WHOLE or END.' }),
+    dueTime: t.string({ description: 'HH:MM.' }),
+    location: t.string(),
+    locationLat: t.float(),
+    locationLon: t.float(),
+    travelBefore: t.int(),
+    travelAfter: t.int(),
     projectId: t.id(),
     assigneeIds: t.idList({ required: true }),
     requiredIds: t.idList({ required: true }),
@@ -117,6 +155,8 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     assigneeIds: t.idList(),
     requiredIds: t.idList(),
     projectId: t.id({ description: 'Null: none.' }),
+    fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
+    dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
     startDate: t.field({ type: 'Date' }),
     recurrence: t.field({ type: 'JSON' }),
   }),
@@ -133,6 +173,8 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     removeRequiredIds: t.idList(),
     estimate: t.int({ description: 'Minutes.' }),
     projectId: t.id(),
+    fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
+    dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
     startDate: t.field({ type: 'Date' }),
     recurrence: t.field({ type: 'JSON' }),
   }),
@@ -158,6 +200,15 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   startDate: input.startDate,
   recurrence: input.recurrence as RoutineInput['recurrence'],
   estimate: input.estimate ?? null,
+  fromTime: input.fromTime ?? null,
+  scheduleId: idOrNull(input.scheduleId),
+  scheduleAnchor: (input.scheduleAnchor ?? null) as RoutineInput['scheduleAnchor'],
+  dueTime: input.dueTime ?? null,
+  location: input.location ?? null,
+  locationLat: input.locationLat ?? null,
+  locationLon: input.locationLon ?? null,
+  travelBefore: input.travelBefore ?? 0,
+  travelAfter: input.travelAfter ?? 0,
   projectId: idOrNull(input.projectId),
   assigneeIds: input.assigneeIds.map(String),
   requiredIds: input.requiredIds.map(String),
@@ -225,6 +276,11 @@ builder.mutationFields((t) => ({
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
       if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
+      // Times or a repetition of its own: it no longer follows its schedule.
+      if (input.fromTime !== undefined || input.dueTime !== undefined || (input.recurrence !== undefined && input.recurrence !== null))
+        Object.assign(changes, { scheduleId: null, scheduleAnchor: null });
+      if (input.fromTime !== undefined) changes.fromTime = input.fromTime;
+      if (input.dueTime !== undefined) changes.dueTime = input.dueTime;
       if (input.startDate) changes.startDate = input.startDate;
       if (input.recurrence !== undefined && input.recurrence !== null) changes.recurrence = input.recurrence as RoutineInput['recurrence'];
       await routines.patchRoutine(String(id), changes);
@@ -258,6 +314,8 @@ builder.mutationFields((t) => ({
         removeRequiredIds: list(changes.removeRequiredIds),
         estimate: changes.estimate,
         projectId: changes.projectId === undefined ? undefined : idOrNull(changes.projectId),
+        fromTime: changes.fromTime,
+        dueTime: changes.dueTime,
         startDate: changes.startDate ?? undefined,
         recurrence: changes.recurrence ?? undefined,
       });

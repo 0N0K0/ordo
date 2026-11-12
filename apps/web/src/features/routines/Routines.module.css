@@ -102,6 +102,34 @@
     touch-action: none;
   }
 
+  /* Row selection (bulk actions): shown on the hovered or focused row, and on every row once something is selected. */
+  .select {
+    /* Effets */
+    opacity: 0;
+
+    .row:hover &,
+    .row:focus-within &,
+    thead tr:hover &,
+    thead tr:focus-within &,
+    .table[data-selecting] &,
+    &:has(input:checked),
+    &:has(input:focus-visible) {
+      opacity: 1;
+    }
+
+    /* Animation */
+    transition: opacity 150ms ease;
+  }
+
+  /* Done toggle of a routine: a circle, a filled green check once done. */
+  .doneToggle {
+    /* Dimension */
+    flex-shrink: 0;
+
+    /* Typographie */
+    font-size: var(--mantine-font-size-lg);
+  }
+
   .overlay {
     /* Interaction */
     cursor: grabbing;

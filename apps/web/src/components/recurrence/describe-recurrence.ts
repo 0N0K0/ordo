@@ -45,7 +45,8 @@ export function describeRecurrence(rule: Recurrence, start: string): string {
     case 'WEEKLY': {
       const days = (rule.weekdays.length ? rule.weekdays : [((day.getUTCDay() + 6) % 7) + 1]).map((weekday) => WEEKDAY_NAMES[weekday - 1]);
       const list = days.length === 5 && !days.includes('samedi') && !days.includes('dimanche') ? 'du lundi au vendredi' : `le ${days.join(', le ')}`;
-      text = `${n === 1 ? 'Toutes les semaines' : `Toutes les ${n} semaines`} ${list}`;
+      const weeks = rule.weekParity ? `Les semaines ${rule.weekParity === 'EVEN' ? 'paires' : 'impaires'}` : n === 1 ? 'Toutes les semaines' : `Toutes les ${n} semaines`;
+      text = `${weeks} ${list}`;
       break;
     }
     case 'MONTHLY':

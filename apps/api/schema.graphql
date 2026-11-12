@@ -2376,10 +2376,19 @@ type Routine {
   """Latest ticked occurrences (30 at most), latest first."""
   doneDates: [Date!]!
 
+  """Latest time to do it by (HH:MM)."""
+  dueTime: String
+
   """Minutes."""
   estimate: Int
+
+  """Time to do it from (HH:MM), its own (see windowFrom)."""
+  fromTime: String
   id: ID!
   lastDoneAt: DateTime
+  location: String
+  locationLat: Float
+  locationLon: Float
 
   """First occurrence after today."""
   nextDate: Date
@@ -2390,11 +2399,33 @@ type Routine {
 
   """Routines to do before this one."""
   requiredIds: [ID!]!
+
+  """START, WHOLE or END of the schedule."""
+  scheduleAnchor: String
+
+  """Calendar schedule it follows (its days and times)."""
+  scheduleId: ID
   startDate: Date!
   title: String!
 
   """Time tracked on it, finished entries only."""
   trackedSeconds: Int!
+
+  """Minutes to get back."""
+  travelAfter: Int!
+
+  """Minutes to get there."""
+  travelBefore: Int!
+
+  """
+  Time to do it from on its current (or next) occurrence: its own, or the one of its schedule.
+  """
+  windowFrom: String
+
+  """
+  Latest time to do it by on its current (or next) occurrence: its own, or the one of its schedule.
+  """
+  windowTo: String
 }
 
 """
@@ -2405,8 +2436,14 @@ input RoutineBulkChanges {
   addCategoryIds: [ID!]
   addRequiredIds: [ID!]
 
+  """HH:MM; null: no limit."""
+  dueTime: String
+
   """Minutes."""
   estimate: Int
+
+  """HH:MM; null: no limit."""
+  fromTime: String
   projectId: ID
   recurrence: JSON
   removeAssigneeIds: [ID!]
@@ -2434,21 +2471,42 @@ input RoutineInput {
   categoryIds: [ID!]!
   description: String
 
+  """HH:MM."""
+  dueTime: String
+
   """Minutes."""
   estimate: Int
+
+  """HH:MM."""
+  fromTime: String
+  location: String
+  locationLat: Float
+  locationLon: Float
   parentId: ID
   projectId: ID
   recurrence: JSON!
   requiredIds: [ID!]!
+
+  """START, WHOLE or END."""
+  scheduleAnchor: String
+  scheduleId: ID
   startDate: Date!
   title: String!
+  travelAfter: Int
+  travelBefore: Int
 }
 
 """Changes of a routine (omitted fields unchanged)."""
 input RoutinePatch {
   assigneeIds: [ID!]
   categoryIds: [ID!]
+
+  """HH:MM; null: no limit."""
+  dueTime: String
   estimate: Int
+
+  """HH:MM; null: no limit."""
+  fromTime: String
 
   """Null: top level."""
   parentId: ID

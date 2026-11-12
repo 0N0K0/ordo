@@ -1,17 +1,19 @@
-import { Avatar, Button, Group, NumberInput, Popover, Select, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { routineSchema, type Recurrence } from '@ordo/shared';
-import { useState, type KeyboardEvent } from 'react';
+import { Anchor, Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnchor } from '@ordo/shared';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { notifyError } from '../../lib/notify';
+import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import classes from '../tasks/views/inline-cells.module.css';
 import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
-import { DAILY, ruleOf } from './routine-format';
+import { DAILY, ruleOf, scheduleOf, windowOf, windowText } from './routine-format';
+import { openRoutineForm } from './open-routine-form';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -146,28 +148,186 @@ export function EstimateCell({ routine, readOnly = false }: CellProps) {
 }
 
 /**
- * Categories cell: multi-select of the categories (as their path). On a column selection, adding a category adds it to
- * every selected routine and removing one removes it.
+ * Time window cell: from when and by when to do it, typed in place (each one optional); under them, when to leave and
+ * when back (from its travel times and time to spend on it). On a column selection, the time changed applies to every
+ * selected routine.
+ * @param {CellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
+  const { apply, count } = useRoutineCellEdit(routine, 'time');
+  const [drafts, setDrafts] = useState<{ fromTime?: string; dueTime?: string }>({});
+  const { data: schedules } = useWorkSchedules();
+  const { leaveAt, backAt } = scheduleOf(routine);
+  const schedule = routine.scheduleId ? schedules?.find((item) => item.id === routine.scheduleId) : undefined;
+
+  /**
+   * Saves one of the times when valid and changed.
+   * @param {'fromTime' | 'dueTime'} field Time edited.
+   * @returns {void}
+   */
+  const save = (field: 'fromTime' | 'dueTime') => {
+    const draft = drafts[field];
+    if (draft === undefined) return;
+    setDrafts((current) => ({ ...current, [field]: undefined }));
+    const result = routineSchema.shape[field].safeParse(draft || null);
+    if (!result.success) {
+      notifyError(`${result.error.issues[0]?.message ?? 'Heure invalide.'} Rien n’a été modifié.`);
+      return;
+    }
+    const window = { fromTime: routine.fromTime, dueTime: routine.dueTime, [field]: result.data };
+    if (count === 1 && window.fromTime && window.dueTime && window.fromTime >= window.dueTime) {
+      notifyError('L’heure maximale doit suivre l’heure de début. Rien n’a été modifié.');
+      return;
+    }
+    if (result.data !== routine[field] || count > 1) apply({ [field]: result.data }, { [field]: result.data });
+  };
+
+  /**
+   * One of the times.
+   * @param {'fromTime' | 'dueTime'} field Time.
+   * @param {string} name Its name.
+   * @returns {JSX.Element} Field.
+   */
+  const input = (field: 'fromTime' | 'dueTime', name: string) => (
+    <TimeInput
+      {...cellField}
+      aria-label={fieldLabel(name, routine, count)}
+      readOnly={readOnly}
+      value={drafts[field] ?? routine[field] ?? ''}
+      onChange={(event) => setDrafts((current) => ({ ...current, [field]: event.currentTarget.value }))}
+      onBlur={() => save(field)}
+      onKeyDown={(event) => cellKeys(event, () => setDrafts((current) => ({ ...current, [field]: undefined })))}
+      style={{ flex: 1, minWidth: 0 }}
+    />
+  );
+
+  return (
+    <Stack gap={0}>
+      {routine.scheduleId ? (
+        <UnstyledButton
+          className={classes.root}
+          onClick={() => openRoutineForm({ routine })}
+          disabled={readOnly}
+          aria-label={`Horaire de ${routine.title} : plage ${schedule?.name ?? ''}, ${ROUTINE_ANCHOR_LABELS[routine.scheduleAnchor as RoutineAnchor]?.toLowerCase() ?? ''}`}
+        >
+          <Text size="xs" truncate>
+            {schedule?.name ?? 'Plage'} · {ROUTINE_ANCHOR_LABELS[routine.scheduleAnchor as RoutineAnchor]?.toLowerCase()}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {windowText(windowOf(routine)) || 'pas de créneau'}
+          </Text>
+        </UnstyledButton>
+      ) : (
+        <Group gap={2} wrap="nowrap">
+          {input('fromTime', 'À partir de')}
+          <Text size="xs" c="dimmed" aria-hidden>
+            –
+          </Text>
+          {input('dueTime', 'Avant')}
+        </Group>
+      )}
+      {(leaveAt || backAt) && (
+        <Tooltip
+          label={[
+            leaveAt && `Partir à ${leaveAt} (trajet ${routine.travelBefore} min${routine.estimate && routine.windowTo ? `, ${routine.estimate} min sur place` : ''})`,
+            backAt && `Retour vers ${backAt}`,
+            routine.location,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        >
+          <Text size="xs" c="dimmed" className={classes.input} style={{ whiteSpace: 'nowrap' }}>
+            {leaveAt && `Départ ${leaveAt}`}
+            {leaveAt && backAt && ' · '}
+            {backAt && `retour ${backAt}`}
+          </Text>
+        </Tooltip>
+      )}
+    </Stack>
+  );
+}
+
+/** Categories listed in a cell before « X de plus ». */
+const SHOWN_CATEGORIES = 3;
+
+/**
+ * Categories cell: the categories one under the other (3 at most, the others behind « X de plus »); a click opens the
+ * multi-select of the categories (as their path). On a column selection, adding a category adds it to every selected
+ * routine and removing one removes it.
  * @param {CellProps & { categories: RoutineCategory[] }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function CategoriesCell({ routine, readOnly = false, categories }: CellProps & { categories: RoutineCategory[] }) {
   const { apply, count } = useRoutineCellEdit(routine, 'categories');
+  const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const placed = categoryTree(categories);
+  const chosen = placed.filter((item) => routine.categoryIds.includes(item.category.id));
+  const shown = expanded ? chosen : chosen.slice(0, SHOWN_CATEGORIES);
+  const hidden = chosen.length - SHOWN_CATEGORIES;
+
+  // The select opens as soon as it shows (as if clicked), its choices given when its list closes.
+  useEffect(() => {
+    if (!editing) return;
+    const input = container.current?.querySelector('input');
+    input?.focus();
+    input?.click();
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <div ref={container}>
+        <BatchMultiSelect
+          {...cellMulti}
+          aria-label={fieldLabel('Catégories', routine, count)}
+          data={placed.map((item) => ({ value: item.category.id, label: item.path }))}
+          value={routine.categoryIds}
+          onChange={(categoryIds) => {
+            const { added, removed } = diff(routine.categoryIds, categoryIds);
+            apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
+          }}
+          onDropdownClose={() => setEditing(false)}
+          placeholder={routine.categoryIds.length ? undefined : '—'}
+          nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
+          searchable
+        />
+      </div>
+    );
+  }
+
   return (
-    <BatchMultiSelect
-      {...cellMulti}
-      aria-label={fieldLabel('Catégories', routine, count)}
-      readOnly={readOnly}
-      data={categoryTree(categories).map((item) => ({ value: item.category.id, label: item.path }))}
-      value={routine.categoryIds}
-      onChange={(categoryIds) => {
-        const { added, removed } = diff(routine.categoryIds, categoryIds);
-        apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
-      }}
-      placeholder={readOnly || routine.categoryIds.length ? undefined : '—'}
-      nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
-      searchable
-    />
+    <Stack gap={2} align="flex-start">
+      <UnstyledButton
+        className={classes.root}
+        onClick={() => setEditing(true)}
+        disabled={readOnly}
+        aria-label={`${fieldLabel('Catégories', routine, count)} : ${chosen.map((item) => item.path).join(', ') || 'aucune'}`}
+        style={{ width: '100%' }}
+      >
+        <Stack gap={2}>
+          {chosen.length === 0 && (
+            <Text size="xs" c="dimmed">
+              {readOnly ? '' : '—'}
+            </Text>
+          )}
+          {shown.map((item) => (
+            <Group key={item.category.id} gap={6} wrap="nowrap" title={item.path}>
+              {item.color && <ColorSwatch color={item.color} size={8} style={{ flexShrink: 0 }} />}
+              <Text size="xs" truncate>
+                {item.category.name}
+              </Text>
+            </Group>
+          ))}
+        </Stack>
+      </UnstyledButton>
+      {hidden > 0 && (
+        <Anchor component="button" type="button" size="xs" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+          {expanded ? 'Moins' : `${hidden} de plus`}
+        </Anchor>
+      )}
+    </Stack>
   );
 }
 
@@ -268,6 +428,7 @@ export function ProjectCell({ routine, readOnly = false, context }: CellProps & 
  */
 export function RepetitionCell({ routine, readOnly = false }: CellProps) {
   const { apply, count } = useRoutineCellEdit(routine, 'repetition');
+  const { data: schedules } = useWorkSchedules();
   const [opened, setOpened] = useState(false);
   const [startDate, setStartDate] = useState(routine.startDate);
   const [rule, setRule] = useState<Recurrence>(ruleOf(routine) ?? DAILY);
@@ -282,6 +443,16 @@ export function RepetitionCell({ routine, readOnly = false }: CellProps) {
     setRule(current ?? DAILY);
     setOpened(true);
   };
+
+  if (routine.scheduleId) {
+    return (
+      <UnstyledButton onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Répétition de ${routine.title} : jours de sa plage`} style={{ width: '100%' }}>
+        <Text size="xs" c="dimmed" lineClamp={2}>
+          Les jours de « {schedules?.find((item) => item.id === routine.scheduleId)?.name ?? 'sa plage'} »
+        </Text>
+      </UnstyledButton>
+    );
+  }
 
   return (
     <Popover opened={opened} onChange={setOpened} position="bottom-start" width={420} shadow="md" trapFocus withinPortal>
