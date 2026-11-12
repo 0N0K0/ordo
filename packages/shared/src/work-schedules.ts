@@ -14,28 +14,36 @@ export type TimeRange = z.infer<typeof timeRangeSchema>;
 export const SCHEDULE_PATTERNS = ['DAILY', 'WEEKLY', 'EVERY_N_DAYS', 'MONTHLY', 'YEARLY'] as const;
 export type SchedulePattern = (typeof SCHEDULE_PATTERNS)[number];
 
+/** Days of a case (a schedule's, or a routine's): its pattern and rhythm. */
+export const scheduleDaysShape = {
+  pattern: z.enum(SCHEDULE_PATTERNS),
+  /** WEEKLY: 1 (Monday) to 7 (Sunday). */
+  weekdays: z.array(z.number().int().min(1).max(7)).max(7).default([]),
+  /** WEEKLY: every n weeks; EVERY_N_DAYS: every n days; MONTHLY: every n months; YEARLY: every n years. */
+  every: z.number().int().min(1, 'Au moins 1.').max(366, '366 au plus.').default(1),
+  /** MONTHLY, YEARLY: a day number (the 15th, the last day when the month has fewer), or the nth weekday. */
+  monthlyMode: z.enum(['DAY', 'WEEKDAY']).default('DAY'),
+  monthDay: z.number().int().min(1).max(31).default(1),
+  /** WEEKDAY mode: 1 to 4, or -1 for the last one of the month… */
+  position: z.union([z.literal(-1), z.number().int().min(1).max(4)]).default(1),
+  /** …of this weekday, 1 (Monday) to 7. */
+  weekday: z.number().int().min(1).max(7).default(1),
+  /** YEARLY: month, 1 to 12. */
+  month: z.number().int().min(1).max(12).default(1),
+  /** First day of the rhythm (its week for WEEKLY); none: the start of the period. */
+  from: isoDate.nullable().default(null),
+};
+
+/** Days of a case, as the functions below read them. */
+export type ScheduleDays = { [K in keyof typeof scheduleDaysShape]: z.infer<(typeof scheduleDaysShape)[K]> };
+
 /**
  * A case of a schedule: on which days (every day, weekdays every n weeks, every n days) and with which hours (time
  * ranges, or the whole day). The same hours on all its days.
  */
 export const scheduleCaseSchema = z
   .object({
-    pattern: z.enum(SCHEDULE_PATTERNS),
-    /** WEEKLY: 1 (Monday) to 7 (Sunday). */
-    weekdays: z.array(z.number().int().min(1).max(7)).max(7).default([]),
-    /** WEEKLY: every n weeks; EVERY_N_DAYS: every n days; MONTHLY: every n months; YEARLY: every n years. */
-    every: z.number().int().min(1, 'Au moins 1.').max(366, '366 au plus.').default(1),
-    /** MONTHLY, YEARLY: a day number (the 15th, the last day when the month has fewer), or the nth weekday. */
-    monthlyMode: z.enum(['DAY', 'WEEKDAY']).default('DAY'),
-    monthDay: z.number().int().min(1).max(31).default(1),
-    /** WEEKDAY mode: 1 to 4, or -1 for the last one of the month… */
-    position: z.union([z.literal(-1), z.number().int().min(1).max(4)]).default(1),
-    /** …of this weekday, 1 (Monday) to 7. */
-    weekday: z.number().int().min(1).max(7).default(1),
-    /** YEARLY: month, 1 to 12. */
-    month: z.number().int().min(1).max(12).default(1),
-    /** First day of the rhythm (its week for WEEKLY); none: the start of the period. */
-    from: isoDate.nullable().default(null),
+    ...scheduleDaysShape,
     allDay: z.boolean().default(false),
     ranges: z.array(timeRangeSchema).max(12, '12 tranches au plus.').default([]),
   })
@@ -153,11 +161,11 @@ export function periodRhythm(from: string, to: string | null): 'DAY' | 'WEEK' | 
 /**
  * Whether a date is the day a monthly or yearly case asks for in its month: a day number (the last day when the
  * month is shorter), or the nth (or last) weekday.
- * @param {ScheduleCase} item Case.
+ * @param {ScheduleDays} item Days of a case.
  * @param {string} date YYYY-MM-DD.
  * @returns {boolean} That day.
  */
-function dayOfMonthMatches(item: ScheduleCase, date: string): boolean {
+function dayOfMonthMatches(item: ScheduleDays, date: string): boolean {
   const day = Number(date.slice(8, 10));
   const lastDay = new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)), 0)).getUTCDate();
   if (item.monthlyMode === 'DAY') return day === Math.min(item.monthDay, lastDay);
@@ -166,13 +174,13 @@ function dayOfMonthMatches(item: ScheduleCase, date: string): boolean {
 }
 
 /**
- * Whether a case is on a date (its period checked apart).
- * @param {ScheduleCase} item Case.
+ * Whether the days of a case include a date (its period checked apart).
+ * @param {ScheduleDays} item Days of a case.
  * @param {string} periodStart First day of its period (rhythm start without `from`).
  * @param {string} date YYYY-MM-DD.
  * @returns {boolean} On that day.
  */
-function caseOn(item: ScheduleCase, periodStart: string, date: string): boolean {
+export function caseOn(item: ScheduleDays, periodStart: string, date: string): boolean {
   const anchor = item.from ?? periodStart;
   if (item.pattern === 'DAILY') return true;
   if (item.pattern === 'EVERY_N_DAYS') {

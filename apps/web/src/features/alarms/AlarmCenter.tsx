@@ -92,8 +92,8 @@ export function AlarmCenter() {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
       ringReminders(upcoming.current, now, [link('Voir l’agenda', '/calendar')]);
-      ringRoutineReminders(latest.current.routinesData?.routines ?? [], now, [link('Voir les routines', '/routines')], (routine) =>
-        latest.current.setDone.mutate({ id: routine.id, done: true }, { onError: (error) => notifyError(error.message) }),
+      ringRoutineReminders(latest.current.routinesData?.routines ?? [], now, [link('Voir les routines', '/routines')], (routine, slot) =>
+        latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: (error) => notifyError(error.message) }),
       );
       if (!list) return;
       const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));

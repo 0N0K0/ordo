@@ -1781,7 +1781,14 @@ type Mutation {
   """
   Ticks or unticks an occurrence (by default the current one); returns its date.
   """
-  setRoutineDone(date: Date, done: Boolean!, id: ID!): Date!
+  setRoutineDone(
+    date: Date
+    done: Boolean!
+    id: ID!
+
+    """Time of the day (index); 0 by default."""
+    slot: Int
+  ): Date!
 
   """
   Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).
@@ -2364,6 +2371,9 @@ type Routine {
   archived: Boolean!
   assigneeIds: [ID!]!
 
+  """Cases (days and times of the day); empty: its repetition."""
+  cases: JSON!
+
   """Categories it is shown in."""
   categoryIds: [ID!]!
 
@@ -2372,6 +2382,9 @@ type Routine {
   """
   currentDate: Date
   description: String
+
+  """Its current occurrence is done: every required time of the day ticked."""
+  done: Boolean!
 
   """Latest ticked occurrences (30 at most), latest first."""
   doneDates: [Date!]!
@@ -2410,6 +2423,11 @@ type Routine {
 
   """Calendar schedule it follows (its days and times)."""
   scheduleId: ID
+
+  """
+  Times of the day of its current occurrence (its next one before it starts), with those ticked.
+  """
+  slots: [RoutineSlot!]!
   startDate: Date!
   title: String!
 
@@ -2423,12 +2441,12 @@ type Routine {
   travelBefore: Int!
 
   """
-  Time to do it from on its current (or next) occurrence: its own, or the one of its schedule.
+  Time to do it from on its current (or next) occurrence, for its time of the day to come: its own, its case’s or its schedule’s.
   """
   windowFrom: String
 
   """
-  Latest time to do it by on its current (or next) occurrence: its own, or the one of its schedule.
+  Latest time to do it by on its current (or next) occurrence, for its time of the day to come.
   """
   windowTo: String
 }
@@ -2473,6 +2491,9 @@ input RoutineCategoryInput {
 
 input RoutineInput {
   assigneeIds: [ID!]!
+
+  """Cases (days and times of the day); empty: the repetition."""
+  cases: JSON
   categoryIds: [ID!]!
   description: String
 
@@ -2530,6 +2551,15 @@ enum RoutinePlace {
   AFTER
   BEFORE
   INSIDE
+}
+
+"""Time of the day of an occurrence of a routine."""
+type RoutineSlot {
+  done: Boolean!
+  dueTime: String
+  fromTime: String
+  index: Int!
+  optional: Boolean!
 }
 
 input SaveMailDraftInput {
