@@ -7,7 +7,9 @@ import { builder } from '../builder';
 builder.prismaObject('TimeEntry', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    projectId: t.exposeID('projectId'),
+    projectId: t.exposeID('projectId', { nullable: true }),
+    routineId: t.exposeID('routineId', { nullable: true, description: 'Routine the time is spent on.' }),
+    routineTitle: t.string({ nullable: true, select: { routine: { select: { title: true } } }, resolve: (entry) => entry.routine?.title ?? null }),
     description: t.exposeString('description', { nullable: true }),
     startedAt: t.expose('startedAt', { type: 'DateTime' }),
     endedAt: t.expose('endedAt', { type: 'DateTime', nullable: true }),
@@ -71,8 +73,10 @@ const eventLink = (event: { eventId: string | number; occurrenceDate?: string | 
   event === undefined ? undefined : event === null ? null : { eventId: String(event.eventId), occurrenceDate: event.occurrenceDate ?? null };
 
 const TimerInput = builder.inputType('TimerInput', {
+  description: 'A project, a routine (its project by default) or both.',
   fields: (t) => ({
-    projectId: t.id({ required: true }),
+    projectId: t.id(),
+    routineId: t.id(),
     taskIds: t.idList({ required: true }),
     description: t.string(),
     event: t.field({ type: TimeEventInput }),
@@ -80,8 +84,10 @@ const TimerInput = builder.inputType('TimerInput', {
 });
 
 const TimeEntryInput = builder.inputType('TimeEntryInput', {
+  description: 'A project, a routine (its project by default) or both.',
   fields: (t) => ({
-    projectId: t.id({ required: true }),
+    projectId: t.id(),
+    routineId: t.id(),
     taskIds: t.idList({ required: true }),
     description: t.string(),
     startedAt: t.field({ type: 'DateTime', required: true }),
@@ -94,6 +100,7 @@ const TimeEntryUpdateInput = builder.inputType('TimeEntryUpdateInput', {
   description: 'Omitted fields are left unchanged. The duration of the running timer cannot be changed.',
   fields: (t) => ({
     projectId: t.id(),
+    routineId: t.id({ description: 'Null: no routine; omitted: unchanged.' }),
     taskIds: t.idList(),
     description: t.string(),
     startedAt: t.field({ type: 'DateTime' }),
@@ -139,9 +146,10 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
 builder.queryFields((t) => ({
   timeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Time entries, latest first: those of a project and its sub-projects, or every entry; optionally only those started since a moment.',
-    args: { projectId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
-    resolve: async (query, _root, { projectId, since }) => {
+    description:
+      'Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.',
+    args: { projectId: t.arg.id(), routineId: t.arg.id(), since: t.arg({ type: 'DateTime' }) },
+    resolve: async (query, _root, { projectId, routineId, since }) => {
       let projectIds: string[] | undefined;
       if (projectId) {
         const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
@@ -152,7 +160,11 @@ builder.queryFields((t) => ({
       }
       return prisma.timeEntry.findMany({
         ...query,
-        where: { ...(projectIds ? { projectId: { in: projectIds } } : {}), ...(since ? { startedAt: { gte: since } } : {}) },
+        where: {
+          ...(projectIds ? { projectId: { in: projectIds } } : {}),
+          ...(routineId ? { routineId: String(routineId) } : {}),
+          ...(since ? { startedAt: { gte: since } } : {}),
+        },
         orderBy: { startedAt: 'desc' },
       });
     },

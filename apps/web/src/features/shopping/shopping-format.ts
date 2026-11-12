@@ -1,3 +1,4 @@
+import { categoryOptions, categoryTree, type PlacedCategory } from '../../components/category-tree/category-tree';
 import { useTreasurySettings } from '../treasury/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { ShoppingItemInput } from '@ordo/shared';
@@ -131,65 +132,18 @@ export function categoriesForBaseList(categories: readonly ShoppingCategory[], b
 /** Way products and items are grouped. */
 export type ShoppingGrouping = 'category' | 'store';
 
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
-
 /** Category placed in its tree. */
-export interface PlacedShoppingCategory {
-  category: ShoppingCategory;
-  /** 0 for a top-level category. */
-  depth: number;
-  /** "Parent › Enfant". */
-  path: string;
-  /** Its color, or the one of its closest parent with one. */
-  color: string | null;
-}
+export type PlacedShoppingCategory = PlacedCategory<ShoppingCategory>;
 
 /**
  * Categories in tree order: each one followed by its sub-categories, by name (as the treasury categories).
  * @param {readonly ShoppingCategory[]} categories All categories.
  * @returns {PlacedShoppingCategory[]} Placed categories.
  */
-export function shoppingCategoryTree(categories: readonly ShoppingCategory[]): PlacedShoppingCategory[] {
-  const ids = new Set(categories.map((category) => category.id));
-  const children = new Map<string | null, ShoppingCategory[]>();
-  for (const category of categories) {
-    const parent = category.parentId && ids.has(category.parentId) ? category.parentId : null;
-    children.set(parent, [...(children.get(parent) ?? []), category]);
-  }
-  const placed: PlacedShoppingCategory[] = [];
-  /**
-   * Adds the sub-categories of a parent, recursively.
-   * @param {string | null} parent Parent id, null for the top level.
-   * @param {number} depth Depth of the children.
-   * @param {string} prefix Path of the parent.
-   * @param {string | null} inherited Color of the parent.
-   * @returns {void}
-   */
-  const visit = (parent: string | null, depth: number, prefix: string, inherited: string | null) => {
-    for (const category of [...(children.get(parent) ?? [])].sort((a, b) => collator.compare(a.name, b.name))) {
-      const path = prefix ? `${prefix} › ${category.name}` : category.name;
-      const color = category.color ?? inherited;
-      placed.push({ category, depth, path, color });
-      visit(category.id, depth + 1, path, color);
-    }
-  };
-  visit(null, 0, '', null);
-  return placed;
-}
+export const shoppingCategoryTree = (categories: readonly ShoppingCategory[]): PlacedShoppingCategory[] => categoryTree(categories);
 
-/**
- * Select options of the categories, sub-categories indented under their parent.
- * @param {readonly ShoppingCategory[]} categories All categories.
- * @param {string} [exclude] Category left out with its sub-categories (a category cannot be its own parent). Optional.
- * @returns {{ value: string, label: string }[]} Options.
- */
-export function shoppingCategoryOptions(categories: readonly ShoppingCategory[], exclude?: string): { value: string; label: string }[] {
-  const tree = shoppingCategoryTree(categories);
-  const excluded = exclude ? tree.find((item) => item.category.id === exclude) : undefined;
-  return tree
-    .filter((item) => !excluded || (item.path !== excluded.path && !item.path.startsWith(`${excluded.path} › `)))
-    .map((item) => ({ value: item.category.id, label: `${'\u2003'.repeat(item.depth)}${item.category.name}` }));
-}
+/** Select options of the categories, indented as their tree (without the one edited and its sub-categories). */
+export const shoppingCategoryOptions = categoryOptions;
 
 /** Row of a shopping table: a category (or store) heading, or a product or an item under it. */
 export type ShoppingRow<T> =

@@ -6,6 +6,7 @@ const PAGE_TITLES: Record<string, string> = {
   time: 'Chronos',
   alarms: 'Alarmes',
   shopping: 'Courses',
+  routines: 'Routines',
   accounting: 'Facturation',
   treasury: 'Trésorerie',
   mail: 'Mails',

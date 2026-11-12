@@ -1392,6 +1392,8 @@ type Mutation {
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
+  createRoutine(input: RoutineInput!): ID!
+  createRoutineCategory(input: RoutineCategoryInput!): ID!
   createShoppingBaseList(name: String!): ID!
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
 
@@ -1465,6 +1467,8 @@ type Mutation {
   deleteProjectResource(id: ID!): Boolean!
   deleteProjectStatus(id: ID!): Boolean!
   deleteRecurringInvoice(id: ID!): Boolean!
+  deleteRoutine(id: ID!): Boolean!
+  deleteRoutineCategory(id: ID!): Boolean!
 
   """Deletes a kind of time slots (its schedules stay, without kind)."""
   deleteScheduleType(id: ID!): Boolean!
@@ -1595,6 +1599,11 @@ type Mutation {
   ): Boolean!
   moveProjectResource(id: ID!, index: Int!): Boolean!
   moveProjectStatus(id: ID!, index: Int!): Boolean!
+
+  """
+  Moves a category under another one (parentId), or to the top level (parentId null).
+  """
+  moveRoutineCategory(id: ID!, parentId: ID): Boolean!
   moveShoppingBaseList(id: ID!, index: Int!): Boolean!
 
   """
@@ -1614,6 +1623,9 @@ type Mutation {
   moveTaskType(id: ID!, index: Int!): Boolean!
   moveTaskView(id: ID!, index: Int!): Boolean!
   moveWorkspace(id: ID!, index: Int!): Boolean!
+
+  """Changes some fields of a routine (inline edits)."""
+  patchRoutine(id: ID!, input: RoutinePatch!): Boolean!
 
   """
   Cancels an event (or one occurrence) and creates its postponement, linked to it.
@@ -1747,6 +1759,12 @@ type Mutation {
   """
   setProjectContributors(contributorIds: [ID!]!, projectId: ID!): Boolean!
   setProjectFavorite(favorite: Boolean!, id: ID!): Project!
+  setRoutineArchived(archived: Boolean!, id: ID!): Boolean!
+
+  """
+  Ticks or unticks an occurrence (by default the current one); returns its date.
+  """
+  setRoutineDone(date: Date, done: Boolean!, id: ID!): Date!
 
   """
   Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).
@@ -1842,6 +1860,8 @@ type Mutation {
   updateProjectResource(id: ID!, note: String, title: String!, url: String): Boolean!
   updateProjectStatus(id: ID!, input: ProjectStatusUpdateInput!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
+  updateRoutine(id: ID!, input: RoutineInput!): Boolean!
+  updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
   updateShoppingList(id: ID!, name: String!, taskId: ID): Boolean!
@@ -2165,6 +2185,10 @@ type Query {
 
   """Address of a point (a click on the map)."""
   reverseAddress(point: GeoPointInput!): AddressSuggestion
+  routineCategories: [RoutineCategory!]!
+
+  """Every routine, archived ones included, in manual order."""
+  routines: [Routine!]!
   runningTimeEntry: TimeEntry
   scheduleTypes: [ScheduleType!]!
 
@@ -2234,9 +2258,9 @@ type Query {
   tasks: [Task!]!
 
   """
-  Time entries, latest first: those of a project and its sub-projects, or every entry; optionally only those started since a moment.
+  Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.
   """
-  timeEntries(projectId: ID, since: DateTime): [TimeEntry!]!
+  timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
 
   """
   Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
@@ -2314,6 +2338,85 @@ type ReminderResult {
   """Null when sent, else why it was not."""
   error: String
   number: String!
+}
+
+"""
+Task repeating on a calendar rule, ticked once done for its current occurrence.
+"""
+type Routine {
+  archived: Boolean!
+  assigneeIds: [ID!]!
+  categoryId: ID
+
+  """
+  Current occurrence: the last one on or before today (null before the start or after the end).
+  """
+  currentDate: Date
+  description: String
+
+  """Latest ticked occurrences (30 at most), latest first."""
+  doneDates: [Date!]!
+
+  """Minutes."""
+  estimate: Int
+  id: ID!
+  lastDoneAt: DateTime
+
+  """First occurrence after today."""
+  nextDate: Date
+  parentId: ID
+  position: Int!
+  projectId: ID
+  recurrence: JSON!
+
+  """Routines to do before this one."""
+  requiredIds: [ID!]!
+  startDate: Date!
+  title: String!
+
+  """Time tracked on it, finished entries only."""
+  trackedSeconds: Int!
+}
+
+"""Category of the routines, in a tree."""
+type RoutineCategory {
+  color: String
+  id: ID!
+  name: String!
+  parentId: ID
+}
+
+input RoutineCategoryInput {
+  color: String
+  name: String!
+  parentId: ID
+}
+
+input RoutineInput {
+  assigneeIds: [ID!]!
+  categoryId: ID
+  description: String
+
+  """Minutes."""
+  estimate: Int
+  parentId: ID
+  projectId: ID
+  recurrence: JSON!
+  requiredIds: [ID!]!
+  startDate: Date!
+  title: String!
+}
+
+"""Changes of a routine (omitted fields unchanged)."""
+input RoutinePatch {
+  assigneeIds: [ID!]
+  categoryId: ID
+  estimate: Int
+
+  """Null: top level."""
+  parentId: ID
+  requiredIds: [ID!]
+  title: String
 }
 
 input SaveMailDraftInput {
@@ -2837,18 +2940,24 @@ type TimeEntry {
   id: ID!
   pausedAt: DateTime
   pausedSeconds: Int!
-  projectId: ID!
+  projectId: ID
+
+  """Routine the time is spent on."""
+  routineId: ID
+  routineTitle: String
   startedAt: DateTime!
   taskIds: [ID!]!
 }
 
+"""A project, a routine (its project by default) or both."""
 input TimeEntryInput {
   description: String
 
   """Seconds."""
   duration: Int!
   event: TimeEventInput
-  projectId: ID!
+  projectId: ID
+  routineId: ID
   startedAt: DateTime!
   taskIds: [ID!]!
 }
@@ -2865,6 +2974,9 @@ input TimeEntryUpdateInput {
   """Null: no event; omitted: unchanged."""
   event: TimeEventInput
   projectId: ID
+
+  """Null: no routine; omitted: unchanged."""
+  routineId: ID
   startedAt: DateTime
   taskIds: [ID!]
 }
@@ -2877,10 +2989,12 @@ input TimeEventInput {
   occurrenceDate: Date
 }
 
+"""A project, a routine (its project by default) or both."""
 input TimerInput {
   description: String
   event: TimeEventInput
-  projectId: ID!
+  projectId: ID
+  routineId: ID
   taskIds: [ID!]!
 }
 

@@ -54,7 +54,14 @@ function EntryRow({ entry, context, projectId, onEdit, onDuplicate, onDelete }: 
           formatDuration(entrySeconds(entry))
         )}
       </Table.Td>
-      <Table.Td>{entry.projectId !== projectId ? context.projectById.get(entry.projectId)?.title : null}</Table.Td>
+      <Table.Td>
+        {entry.projectId && entry.projectId !== projectId ? context.projectById.get(entry.projectId)?.title : null}
+        {entry.routineTitle && (
+          <Text size="xs" c="dimmed">
+            Routine : {entry.routineTitle}
+          </Text>
+        )}
+      </Table.Td>
       <Table.Td>
         <Group gap={4}>
           {tasks.map((task) => (

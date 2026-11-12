@@ -45,6 +45,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
   const form = useAppForm<TimeEntryFormValues>({
     initialValues: {
       projectId: entry?.projectId ?? defaultProjectId ?? '',
+      routineId: entry?.routineId ?? null,
       taskIds: entry?.taskIds ?? [],
       description: entry?.description ?? '',
       date: initial.date,
@@ -68,7 +69,8 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
 
   const handleSubmit = form.onSubmit((values) => {
     const input = {
-      projectId: values.projectId,
+      projectId: values.projectId || null,
+      routineId: values.routineId,
       taskIds: values.taskIds,
       description: values.description,
       // Local day and time.
@@ -93,7 +95,9 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
         <ProjectSelect
           context={context}
           label="Projet"
-          required
+          required={!form.values.routineId}
+          description={entry?.routineTitle ? `Temps de la routine « ${entry.routineTitle} » : le projet est facultatif.` : undefined}
+          clearable={Boolean(form.values.routineId)}
           data-autofocus
           {...form.getInputProps('projectId')}
           onChange={(projectId) => {

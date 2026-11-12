@@ -1,0 +1,80 @@
+@layer app {
+  /* Editable table: category headings, routine rows, drop targets while dragging. */
+  .table {
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+  }
+
+  .scroller {
+    /* Dimension */
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .groupRow {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+
+    &[data-depth='0'] {
+      /* Arrière-Plan */
+      background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    }
+
+    &[data-over] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: -2px;
+    }
+  }
+
+  .row {
+    /* Arrière-Plan */
+    &:hover {
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    &[data-over] {
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    /* Effets */
+    &[data-dragging] {
+      opacity: 0.4;
+    }
+
+    &[data-done],
+    &[data-archived] {
+      opacity: 0.55;
+    }
+
+    &[data-done] input[aria-label^='Titre'] {
+      /* Typographie */
+      text-decoration: line-through;
+    }
+
+    /* Animation */
+    transition:
+      background-color 150ms ease,
+      opacity 150ms ease;
+  }
+
+  .handle {
+    /* Interaction */
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .overlay {
+    /* Interaction */
+    cursor: grabbing;
+  }
+
+  .nowrap {
+    /* Typographie */
+    white-space: nowrap;
+  }
+}

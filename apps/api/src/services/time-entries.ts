@@ -37,13 +37,36 @@ async function eventLinkData(link: TimeEventLink | null | undefined): Promise<{ 
 }
 
 /**
+ * Project and routine of a time entry: the routine's project by default; at least one of them.
+ * @param {string | null | undefined} projectId Project given.
+ * @param {string | null | undefined} routineId Routine given.
+ * @returns {Promise<{ projectId: string | null, routineId: string | null }>} Both.
+ */
+async function placeOf(
+  projectId: string | null | undefined,
+  routineId: string | null | undefined,
+): Promise<{ projectId: string | null; routineId: string | null }> {
+  if (!routineId) {
+    if (!projectId) throw fieldError('projectId', 'Le projet est requis.');
+    return { projectId, routineId: null };
+  }
+  const routine = await prisma.routine.findUnique({ where: { id: routineId }, select: { projectId: true } });
+  if (!routine) throw fieldError('routineId', 'Routine introuvable.');
+  return { projectId: projectId ?? routine.projectId, routineId };
+}
+
+/**
  * Checks the project of a time entry and that its tasks belong to the project or its sub-projects.
- * @param {string} projectId Project.
+ * @param {string | null} projectId Project (none: no task either).
  * @param {string[]} taskIds Tasks.
  * @param {boolean} active Whether the project must not be archived (new time).
  * @returns {Promise<void>}
  */
-async function assertProjectAndTasks(projectId: string, taskIds: string[], active: boolean): Promise<void> {
+async function assertProjectAndTasks(projectId: string | null, taskIds: string[], active: boolean): Promise<void> {
+  if (!projectId) {
+    if (taskIds.length) throw fieldError('taskIds', 'Choisissez d’abord le projet des tâches.');
+    return;
+  }
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true, archivedAt: true } });
   const project = projects.find((item) => item.id === projectId);
   if (!project) throw fieldError('projectId', 'Projet introuvable.');
@@ -112,19 +135,27 @@ export async function stopTimer(): Promise<TimeEntry | null> {
 /**
  * Starts a timer; the running one, if any, is stopped first.
  * @param {object} input Timer input.
- * @param {string} input.projectId Project.
+ * @param {string | null} [input.projectId] Project (the routine's by default). Optional.
+ * @param {string | null} [input.routineId] Routine the time is spent on. Optional.
  * @param {string[]} input.taskIds Tasks the time is spent on.
  * @param {string | null} [input.description] What is being done. Optional.
  * @returns {Promise<TimeEntry>} Running entry.
  */
-export async function startTimer(input: { projectId: string; taskIds: string[]; description?: string | null; event?: TimeEventLink | null }): Promise<TimeEntry> {
+export async function startTimer(input: {
+  projectId?: string | null;
+  routineId?: string | null;
+  taskIds: string[];
+  description?: string | null;
+  event?: TimeEventLink | null;
+}): Promise<TimeEntry> {
   const description = parseInput(timeDescriptionSchema, input.description ?? null);
-  await assertProjectAndTasks(input.projectId, input.taskIds, true);
+  const place = await placeOf(input.projectId, input.routineId);
+  await assertProjectAndTasks(place.projectId, input.taskIds, true);
   const link = await eventLinkData(input.event ?? null);
   await stopTimer();
   return prisma.timeEntry.create({
     data: {
-      projectId: input.projectId,
+      ...place,
       description,
       ...link,
       startedAt: new Date(),
@@ -152,6 +183,8 @@ export async function setTimerPaused(paused: boolean): Promise<TimeEntry> {
 
 export interface TimeEntryInput {
   projectId?: string | null;
+  /** Routine the time is spent on (null: none, undefined: unchanged). */
+  routineId?: string | null;
   taskIds?: string[] | null;
   description?: string | null;
   startedAt?: Date | null;
@@ -163,22 +196,21 @@ export interface TimeEntryInput {
 
 /**
  * Adds a time entry by hand.
- * @param {TimeEntryInput & { projectId: string, startedAt: Date, duration: number }} input Entry.
+ * @param {TimeEntryInput & { startedAt: Date, duration: number }} input Entry (a project, a routine or both).
  * @returns {Promise<TimeEntry>} Created entry.
  */
-export async function createTimeEntry(
-  input: TimeEntryInput & { projectId: string; startedAt: Date; duration: number },
-): Promise<TimeEntry> {
+export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date; duration: number }): Promise<TimeEntry> {
   const { description, duration } = parseInput(z.object({ description: timeDescriptionSchema, duration: durationSchema }), {
     description: input.description ?? null,
     duration: input.duration,
   });
   const taskIds = input.taskIds ?? [];
-  await assertProjectAndTasks(input.projectId, taskIds, true);
+  const place = await placeOf(input.projectId, input.routineId);
+  await assertProjectAndTasks(place.projectId, taskIds, true);
   const link = await eventLinkData(input.event ?? null);
   return prisma.timeEntry.create({
     data: {
-      projectId: input.projectId,
+      ...place,
       description,
       ...link,
       startedAt: input.startedAt,
@@ -207,9 +239,12 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   if (running && input.startedAt && input.startedAt.getTime() > Date.now()) {
     throw fieldError('startedAt', 'Le début ne peut pas être dans le futur.');
   }
-  const projectId = input.projectId ?? entry.projectId;
+  const place = await placeOf(
+    input.projectId === undefined ? entry.projectId : input.projectId,
+    input.routineId === undefined ? entry.routineId : input.routineId,
+  );
   const taskIds = input.taskIds ?? entry.tasks.map((task) => task.id);
-  await assertProjectAndTasks(projectId, taskIds, false);
+  await assertProjectAndTasks(place.projectId, taskIds, false);
 
   const startedAt = input.startedAt ?? entry.startedAt;
   const seconds = duration ?? entry.duration;
@@ -217,7 +252,7 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   return prisma.timeEntry.update({
     where: { id },
     data: {
-      projectId,
+      ...place,
       description,
       ...link,
       startedAt,

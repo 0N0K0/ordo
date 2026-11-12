@@ -18,6 +18,7 @@ import {
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import {
   AlarmIcon,
+  ArrowsClockwiseIcon,
   BasketIcon,
   ArchiveIcon,
   BankIcon,
@@ -133,6 +134,7 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: <SquaresFourIcon aria-hidden />,
     links: [
       { to: '/tasks', label: 'Mes tâches', icon: <CheckSquareOffsetIcon aria-hidden />, badge: <TasksNavBadge /> },
+      { to: '/routines', label: 'Routines', icon: <ArrowsClockwiseIcon aria-hidden /> },
       { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
       { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge /> },
       { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },

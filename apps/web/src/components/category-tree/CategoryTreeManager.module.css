@@ -1,0 +1,47 @@
+@layer app {
+  /* Row of the tree: highlighted while a category is dragged over it. */
+  .row {
+    /* Animation */
+    transition: background-color 150ms ease;
+
+    &:hover {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    &[data-over] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    &[data-dragging] {
+      /* Effets */
+      opacity: 0.4;
+    }
+  }
+
+  /* Drop zone making a category a top-level one. */
+  .rootZone {
+    /* Bordures */
+    border-style: dashed;
+
+    &[data-over] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      border-color: var(--mantine-primary-color-filled);
+    }
+  }
+
+  .handle {
+    /* Interaction */
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .overlay {
+    /* Interaction */
+    cursor: grabbing;
+  }
+}
