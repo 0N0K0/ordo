@@ -1,5 +1,5 @@
 import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineState } from '@ordo/shared';
-import { describeDays } from '../calendar/schedule-text';
+import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import type { Routine, RoutineCategory } from './api';
 
@@ -199,15 +199,16 @@ export function windowText({ fromTime, dueTime }: { fromTime: string | null; due
  * @returns {RoutineCase} Case.
  */
 export function newRoutineCase(fromTime: string | null, dueTime: string | null): RoutineCase {
-  return { pattern: 'DAILY', weekdays: [], every: 1, monthlyMode: 'DAY', monthDay: 1, position: 1, weekday: 1, month: 1, from: null, slots: [{ fromTime, dueTime, optional: false }] };
+  return { recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
 }
 
 /**
- * Days and times of a routine case in words: "Tous les jours · avant 08:00, 12:00–14:00, dès 20:00 (facultatif)".
+ * Repetition and times of a routine case in words: "Tous les jours · avant 08:00, 12:00–14:00, dès 20:00 (facultatif)".
  * @param {RoutineCase} item Case.
+ * @param {string} start First date of the routine.
  * @returns {string} Description.
  */
-export function describeRoutineCase(item: RoutineCase): string {
+export function describeRoutineCase(item: RoutineCase, start: string): string {
   const times = item.slots.map((slot) => `${windowText(slot) || 'dans la journée'}${slot.optional ? ' (facultatif)' : ''}`).join(', ');
-  return `${describeDays(item)} · ${times}`;
+  return `${describeRecurrence(item.recurrence, start)} · ${times}`;
 }

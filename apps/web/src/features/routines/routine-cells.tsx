@@ -430,7 +430,7 @@ export function RepetitionText({ routine }: { routine: Routine }) {
   const cases = routine.cases as RoutineCase[];
   const rule = ruleOf(routine);
   const text = cases.length
-    ? cases.map(describeRoutineCase).join(' ; ')
+    ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
     : routine.scheduleId
       ? `Les jours de « ${schedules?.find((item) => item.id === routine.scheduleId)?.name ?? 'sa plage'} »`
       : rule

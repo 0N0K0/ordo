@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence } from './recurrence';
-import { caseOn, plannedSlots, scheduleDaysShape, type ScheduleDays, type WorkScheduleRule } from './work-schedules';
+import { plannedSlots, type WorkScheduleRule } from './work-schedules';
 import { optionalColorSchema } from './workspace';
 
 /** Category of routines, in a tree. */
@@ -34,16 +34,13 @@ export const routineSlotSchema = z
   .refine((slot) => !slot.fromTime || !slot.dueTime || slot.fromTime < slot.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' });
 export type RoutineSlot = z.infer<typeof routineSlotSchema>;
 
-/** A case of a routine: on which days (as the cases of the calendar schedules), and its times of the day. */
+/** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
 export const routineCaseSchema = z
   .object({
-    ...scheduleDaysShape,
+    recurrence: recurrenceSchema,
     slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
   })
-  .superRefine((item, context) => {
-    if (item.pattern === 'WEEKLY' && !item.weekdays.length) context.addIssue({ code: 'custom', path: ['weekdays'], message: 'Choisissez au moins un jour.' });
-    if (item.slots.every((slot) => slot.optional)) context.addIssue({ code: 'custom', path: ['slots'], message: 'Au moins un moment doit être obligatoire.' });
-  });
+  .refine((item) => item.slots.some((slot) => !slot.optional), { path: ['slots'], message: 'Au moins un moment doit être obligatoire.' });
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 
@@ -256,7 +253,7 @@ export function routineAlertTime(routine: { fromTime: string | null; dueTime: st
 }
 
 /**
- * Case of a routine on a date: the first of its cases including it, from its first date.
+ * Case of a routine on a date: the first of its cases whose repetition (from the first date of the routine) includes it.
  * @param {readonly RoutineCase[]} cases Cases.
  * @param {string} start First date of the routine.
  * @param {string} date Day.
@@ -264,11 +261,11 @@ export function routineAlertTime(routine: { fromTime: string | null; dueTime: st
  */
 export function routineCaseOn(cases: readonly RoutineCase[], start: string, date: string): RoutineCase | null {
   if (date < start) return null;
-  return cases.find((item) => caseOn(item as ScheduleDays, start, date)) ?? null;
+  return cases.find((item) => occurrenceDates(item.recurrence, start, date, date).length > 0) ?? null;
 }
 
 /**
- * Current and next occurrences of a routine with cases: the days one of its cases includes.
+ * Current and next occurrences of a routine with cases: the latest and the next of the days of their repetitions.
  * @param {readonly RoutineCase[]} cases Cases.
  * @param {string} start First date of the routine.
  * @param {string} today Today.
@@ -276,18 +273,11 @@ export function routineCaseOn(cases: readonly RoutineCase[], start: string, date
  */
 export function casesOccurrences(cases: readonly RoutineCase[], start: string, today: string): { current: string | null; next: string | null } {
   let current: string | null = null;
-  for (let date = today, days = 0; date >= start && days <= SCHEDULE_SPAN; date = addDays(date, -1), days += 1) {
-    if (routineCaseOn(cases, start, date)) {
-      current = date;
-      break;
-    }
-  }
   let next: string | null = null;
-  for (let date = addDays(today, 1) < start ? start : addDays(today, 1), days = 0; days <= SCHEDULE_SPAN; date = addDays(date, 1), days += 1) {
-    if (routineCaseOn(cases, start, date)) {
-      next = date;
-      break;
-    }
+  for (const item of cases) {
+    const found = routineOccurrences(item.recurrence, start, today);
+    if (found.current && (!current || found.current > current)) current = found.current;
+    if (found.next && (!next || found.next < next)) next = found.next;
   }
   return { current, next };
 }

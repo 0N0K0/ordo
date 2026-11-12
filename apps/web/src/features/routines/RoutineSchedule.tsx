@@ -1,13 +1,12 @@
-import { ActionIcon, Button, Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { ActionIcon, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { TimeInput } from '@mantine/dates';
-import { ROUTINE_ANCHOR_LABELS, ROUTINE_ANCHORS, routineSchedule, type Recurrence, type RoutineAnchor, type RoutineCase } from '@ordo/shared';
-import { BellIcon, CarIcon, ClockIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { ROUTINE_ANCHOR_LABELS, ROUTINE_ANCHORS, routineSchedule, type Recurrence, type RoutineAnchor, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { BellIcon, CarIcon, ClockIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { useWorkSchedules } from '../calendar/api';
-import { ScheduleCasesEditor, type CaseHoursProps } from '../calendar/ScheduleCasesEditor';
 import { DAILY, describeRoutineCase, newRoutineCase } from './routine-format';
 import { EventLocation } from '../geo/EventLocation';
 import { TravelCalculator } from '../geo/TravelCalculator';
@@ -17,13 +16,22 @@ type RepetitionMode = 'rule' | 'cases' | 'schedule';
 
 /**
  * Times of the day of a routine case: from when and by when (each optional), optional or not.
- * @param {CaseHoursProps<RoutineCase>} props Component props.
+ * @param {{ item: RoutineCase, onChange: (changes: Partial<RoutineCase>) => void, index: number }} props Component props.
  * @returns {JSX.Element} Times.
  */
-function SlotsEditor({ item, onChange, index }: CaseHoursProps<RoutineCase>) {
-  const update = (position: number, changes: Partial<RoutineCase['slots'][number]>) => onChange({ slots: item.slots.map((slot, other) => (other === position ? { ...slot, ...changes } : slot)) });
+function SlotsEditor({ item, onChange, index }: { item: RoutineCase; onChange: (changes: Partial<RoutineCase>) => void; index: number }) {
+  /**
+   * Changes a time of the day.
+   * @param {number} position Its index.
+   * @param {Partial<RoutineSlot>} changes Changes.
+   * @returns {void}
+   */
+  const update = (position: number, changes: Partial<RoutineSlot>) => onChange({ slots: item.slots.map((slot, other) => (other === position ? { ...slot, ...changes } : slot)) });
   return (
     <Stack gap={4}>
+      <Text size="sm" fw={500}>
+        Moments de la journée
+      </Text>
       {item.slots.map((slot, position) => (
         <Group key={position} gap={6} wrap="nowrap">
           <TimeInput
@@ -57,6 +65,51 @@ function SlotsEditor({ item, onChange, index }: CaseHoursProps<RoutineCase>) {
       <div>
         <Button size="compact-xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange({ slots: [...item.slots, { fromTime: null, dueTime: null, optional: false }] })}>
           Ajouter un moment
+        </Button>
+      </div>
+    </Stack>
+  );
+}
+
+/**
+ * Cases of a routine: each with its repetition (as the events': yearly on the first Saturday of April, even weeks,
+ * pauses…) and its times of the day.
+ * @param {{ cases: RoutineCase[], start: string, onChange: (cases: RoutineCase[]) => void }} props Component props.
+ * @returns {JSX.Element} Editor.
+ */
+function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; start: string; onChange: (cases: RoutineCase[]) => void }) {
+  /**
+   * Changes a case.
+   * @param {number} index Its index.
+   * @param {Partial<RoutineCase>} changes Changes.
+   * @returns {void}
+   */
+  const update = (index: number, changes: Partial<RoutineCase>) => onChange(cases.map((item, other) => (other === index ? { ...item, ...changes } : item)));
+  return (
+    <Stack gap="xs">
+      {cases.map((item, index) => (
+        <Paper key={index} withBorder radius="sm" p="sm">
+          <Stack gap="xs">
+            <Group justify="space-between" wrap="nowrap">
+              <Text size="xs" c="dimmed">
+                Cas {index + 1} · {describeRoutineCase(item, start)}
+              </Text>
+              {cases.length > 1 && (
+                <Tooltip label="Retirer le cas">
+                  <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Retirer le cas ${index + 1}`} onClick={() => onChange(cases.filter((_, other) => other !== index))}>
+                    <TrashIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </Group>
+            <RecurrenceEditor value={item.recurrence} onChange={(rule) => update(index, { recurrence: rule ?? DAILY })} start={start} />
+            <SlotsEditor item={item} index={index} onChange={(changes) => update(index, changes)} />
+          </Stack>
+        </Paper>
+      ))}
+      <div>
+        <Button size="compact-xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...cases, newRoutineCase(null, null)])}>
+          Ajouter un cas
         </Button>
       </div>
     </Stack>
@@ -156,13 +209,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
       )}
       {mode === 'cases' && (
         <Stack gap={4}>
-          <ScheduleCasesEditor<RoutineCase>
-            cases={values.cases}
-            onChange={(cases) => onChange({ cases })}
-            rhythm="ANY"
-            periodStart={values.startDate || localToday()}
-            kind={{ create: () => newRoutineCase(null, null), describe: describeRoutineCase, hours: (props) => <SlotsEditor {...props} /> }}
-          />
+          <RoutineCasesEditor cases={values.cases} start={values.startDate || localToday()} onChange={(cases) => onChange({ cases })} />
           <Text size="xs" c="dimmed">
             Chaque cas a ses jours et ses moments de la journée (se brosser les dents le matin, le midi et le soir), cochés chacun ; un moment facultatif n’est pas nécessaire pour que la journée soit
             faite (2 à 3 fois par jour). Un jour pris par plusieurs cas suit le premier.
