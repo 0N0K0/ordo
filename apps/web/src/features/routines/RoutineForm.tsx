@@ -28,6 +28,8 @@ interface RoutineFormValues extends Record<string, unknown> {
 export interface RoutineFormProps {
   /** Routine edited. */
   routine?: Routine;
+  /** The routine is copied into a new one (its ticks and tracked time are not). */
+  copy?: boolean;
   /** Parent of a new sub-routine (its category, rule and assignees are taken by default). */
   parent?: Routine;
   /** Category of a new routine. */
@@ -61,7 +63,7 @@ function subtreeOf(routines: Routine[], id: string): Set<string> {
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function RoutineForm({ routine, parent, categoryId = null, onDone }: RoutineFormProps) {
+export function RoutineForm({ routine, copy = false, parent, categoryId = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
   const { create, update } = useRoutineMutations();
@@ -69,7 +71,7 @@ export function RoutineForm({ routine, parent, categoryId = null, onDone }: Rout
   const source = routine ?? parent;
   const form = useAppForm<RoutineFormValues>({
     initialValues: {
-      title: routine?.title ?? '',
+      title: routine ? (copy ? `${routine.title} (copie)` : routine.title) : '',
       description: routine?.description ?? '',
       categoryId: routine ? routine.categoryId : (parent?.categoryId ?? categoryId),
       parentId: routine ? routine.parentId : (parent?.id ?? null),
@@ -83,7 +85,7 @@ export function RoutineForm({ routine, parent, categoryId = null, onDone }: Rout
     schema: routineSchema,
   });
   // Neither the routine nor its sub-routines can be its parent; it cannot depend on itself.
-  const excluded = routine ? subtreeOf(routines, routine.id) : new Set<string>();
+  const excluded = routine && !copy ? subtreeOf(routines, routine.id) : new Set<string>();
   const routineOptions = (filter: (item: Routine) => boolean) =>
     routines
       .filter((item) => !item.archived && filter(item))
@@ -94,12 +96,12 @@ export function RoutineForm({ routine, parent, categoryId = null, onDone }: Rout
     const input = { ...values, description: values.description || null };
     const callbacks = {
       onSuccess: () => {
-        notifySuccess(routine ? 'Routine modifiée.' : 'Routine créée.');
+        notifySuccess(copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.');
         onDone();
       },
       onError: (error: Error) => showFormError(form, error),
     };
-    if (routine) update.mutate({ id: routine.id, input }, callbacks);
+    if (routine && !copy) update.mutate({ id: routine.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });
 
@@ -147,7 +149,7 @@ export function RoutineForm({ routine, parent, categoryId = null, onDone }: Rout
           label="Dépend de"
           description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
           placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
-          data={routineOptions((item) => item.id !== routine?.id)}
+          data={routineOptions((item) => copy || item.id !== routine?.id)}
           searchable
           clearable
           {...form.getInputProps('requiredIds')}
@@ -167,7 +169,7 @@ export function RoutineForm({ routine, parent, categoryId = null, onDone }: Rout
             Annuler
           </Button>
           <Button type="submit" loading={create.isPending || update.isPending}>
-            {routine ? 'Enregistrer' : 'Créer'}
+            {routine && !copy ? 'Enregistrer' : 'Créer'}
           </Button>
         </Group>
       </Stack>

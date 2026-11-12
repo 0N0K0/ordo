@@ -20,6 +20,7 @@ import {
   ArrowCounterClockwiseIcon,
   CaretDownIcon,
   CaretRightIcon,
+  CopyIcon,
   DotsSixVerticalIcon,
   DotsThreeVerticalIcon,
   HourglassMediumIcon,
@@ -306,6 +307,9 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
                 </Menu.Item>
               </>
             )}
+            <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => openRoutineForm({ routine, copy: true })}>
+              Dupliquer
+            </Menu.Item>
             <Menu.Item
               leftSection={readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
               onClick={() =>
