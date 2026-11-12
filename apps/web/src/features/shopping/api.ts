@@ -335,7 +335,17 @@ export function useShoppingMutations() {
     createBaseList: useShoppingMutation(async ({ name }: { name: string }) => (await execute(CreateBaseList, { name })).createShoppingBaseList),
     renameBaseList: useShoppingMutation(async (variables: { id: string; name: string }) => (await execute(RenameBaseList, variables)).renameShoppingBaseList),
     deleteBaseList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteBaseList, { id })).deleteShoppingBaseList),
-    moveBaseList: useShoppingMutation(async (variables: { id: string; index: number }) => (await execute(MoveBaseList, variables)).moveShoppingBaseList),
+    moveBaseList: useOptimisticMutation(
+      async (variables: { id: string; index: number }) => (await execute(MoveBaseList, variables)).moveShoppingBaseList,
+      (client, { id, index }) =>
+        client.setQueryData<ShoppingDataQuery>([...shoppingKey, 'data'], (data) => {
+          const moved = data?.shoppingBaseLists.find((baseList) => baseList.id === id);
+          if (!data || !moved) return data;
+          const order = data.shoppingBaseLists.filter((baseList) => baseList.id !== id);
+          order.splice(index, 0, moved);
+          return { ...data, shoppingBaseLists: order.map((baseList, position) => ({ ...baseList, position })) };
+        }),
+    ),
     createProduct: useShoppingMutation(async (input: ShoppingProductInput) => (await execute(CreateProduct, { input: productVariables(input) })).createShoppingProduct),
     updateProduct: useOptimisticMutation(
       async ({ id, input }: { id: string; input: ShoppingProductInput }) => (await execute(UpdateProduct, { id, input: productVariables(input) })).updateShoppingProduct,

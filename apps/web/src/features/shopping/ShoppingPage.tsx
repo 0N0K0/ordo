@@ -1,11 +1,14 @@
-import { Anchor, Badge, Button, Group, Paper, SegmentedControl, Skeleton, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
-import { BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
+import { ActionIcon, Anchor, Badge, Button, Group, Paper, SegmentedControl, Skeleton, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
+import { BasketIcon, DotsThreeVerticalIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { LabelManager } from '../../components/settings/LabelManager';
 import { PageSettings } from '../../layouts/PageSettings';
-import { TaskRef } from '../tasks/task-ui';
+import { notifyError, notifySuccess } from '../../lib/notify';
+import cellClasses from '../tasks/views/inline-cells.module.css';
+import { TaskRef, TaskSelect } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
@@ -13,7 +16,8 @@ import { BaseLists } from './BaseLists';
 import { ShoppingCategories } from './ShoppingCategories';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
-import { money } from './shopping-format';
+import { ListActionsMenu } from './ListActions';
+import { money, taskChoices, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -34,12 +38,16 @@ function usageOf(key: (row: { categoryId?: string | null; storeId?: string | nul
 }
 
 /**
- * Shopping lists, open or archived (by hand, or along with their task), latest first.
+ * Shopping lists, open or archived (by hand, or along with their task), latest first: the task of an open one chosen
+ * in place, the actions of each one in its menu (as on its page).
  * @returns {JSX.Element} Lists.
  */
 function ListsPanel() {
   const { data: lists, isPending } = useShoppingLists();
   const { context } = useTaskContext();
+  const { updateList } = useShoppingMutations();
+  const [grouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
+  const { tasks, labelOf } = taskChoices(context);
   const [state, setState] = useState<'open' | 'closed'>('open');
   const closedOf = (list: ShoppingList) => list.closed || Boolean(list.taskId && context?.taskById.get(list.taskId)?.closed);
   const shown = (lists ?? []).filter((list) => closedOf(list) === (state === 'closed'));
@@ -89,6 +97,7 @@ function ListsPanel() {
                   <Table.Th>Achats</Table.Th>
                   <Table.Th ta="right">Total estimé</Table.Th>
                   <Table.Th>Créée le</Table.Th>
+                  <Table.Th w={1} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -110,7 +119,29 @@ function ListsPanel() {
                           )}
                         </Group>
                       </Table.Td>
-                      <Table.Td>{task && <TaskRef task={task} blocked={context?.isBlocked(task)} />}</Table.Td>
+                      <Table.Td miw={200}>
+                        {closedOf(list) || !context ? (
+                          task && <TaskRef task={task} blocked={context?.isBlocked(task)} />
+                        ) : (
+                          <TaskSelect
+                            variant="unstyled"
+                            size="xs"
+                            classNames={{ root: cellClasses.root, input: cellClasses.input, section: cellClasses.section }}
+                            comboboxProps={{ withinPortal: true, width: 'max-content', position: 'bottom-start' }}
+                            aria-label={`Tâche de la liste ${list.name}`}
+                            placeholder="—"
+                            tasks={task && !tasks.includes(task) ? [task, ...tasks] : tasks}
+                            labelOf={labelOf}
+                            value={list.taskId ?? null}
+                            onChange={(taskId) =>
+                              updateList.mutate(
+                                { id: list.id, name: list.name, taskId: taskId ?? null },
+                                { onSuccess: () => notifySuccess(taskId ? 'Liste rattachée à la tâche.' : 'Liste détachée de sa tâche.'), onError: (error) => notifyError(error.message) },
+                              )
+                            }
+                          />
+                        )}
+                      </Table.Td>
                       <Table.Td className={classes.nowrap}>
                         <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
                           {bought} / {list.items.length}
@@ -120,6 +151,17 @@ function ListsPanel() {
                         {total > 0 ? money(total) : null}
                       </Table.Td>
                       <Table.Td className={classes.nowrap}>{dayFormat.format(new Date(list.createdAt))}</Table.Td>
+                      <Table.Td>
+                        <ListActionsMenu
+                          list={list}
+                          grouping={grouping}
+                          target={
+                            <ActionIcon variant="subtle" color="gray" aria-label={`Actions de la liste ${list.name}`}>
+                              <DotsThreeVerticalIcon aria-hidden />
+                            </ActionIcon>
+                          }
+                        />
+                      </Table.Td>
                     </Table.Tr>
                   );
                 })}

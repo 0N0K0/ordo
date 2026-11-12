@@ -1,7 +1,10 @@
-import { ActionIcon, Button, Group, Menu, Paper, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
-import { ArrowLeftIcon, ArrowRightIcon, DotsThreeVerticalIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -65,8 +68,27 @@ function BaseListForm({ baseList, onDone }: { baseList?: ShoppingBaseList; onDon
 }
 
 /**
+ * Tab of a base list dragged along the tab list (a click still selects it: the drag starts after a few pixels), as the
+ * tabs of the task views.
+ * @param {TabsTabProps & { value: string }} props Tab props.
+ * @returns {JSX.Element} Tab.
+ */
+function SortableTab(props: TabsTabProps & { value: string }) {
+  // Pointer only: the tab keeps its role and keyboard navigation (its menu moves the base list with the keyboard).
+  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: props.value });
+  return (
+    <Tabs.Tab
+      ref={setNodeRef}
+      {...props}
+      {...listeners}
+      style={{ transform: CSS.Translate.toString(transform && { ...transform, y: 0 }), transition, zIndex: isDragging ? 1 : undefined, cursor: isDragging ? 'grabbing' : undefined }}
+    />
+  );
+}
+
+/**
  * Base lists ("listes types": food, school supplies, children's clothes…), one tab each, created, renamed, moved and
- * deleted here; the products of the one chosen below.
+ * deleted from the menu of its tab, reordered by drag and drop; the products of the one chosen below.
  * @returns {JSX.Element} Base lists.
  */
 export function BaseLists() {
@@ -75,7 +97,15 @@ export function BaseLists() {
   const [params, setParams] = useSearchParams();
   const baseLists = data?.shoppingBaseLists ?? [];
   const current = baseLists.find((baseList) => baseList.id === params.get('base')) ?? baseLists[0];
-  const index = current ? baseLists.indexOf(current) : -1;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  /**
+   * Moves a base list among the others.
+   * @param {string} id Base list id.
+   * @param {number} target Target index.
+   * @returns {void}
+   */
+  const move = (id: string, target: number) => mutations.moveBaseList.mutate({ id, index: target }, { onError: (error) => notifyError(error.message) });
 
   /**
    * Shows a base list.
@@ -173,56 +203,84 @@ export function BaseLists() {
     );
   }
 
+  /**
+   * Moves the dropped base list to its new place.
+   * @param {DragEndEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const target = baseLists.findIndex((baseList) => baseList.id === over.id);
+    if (target >= 0) move(String(active.id), target);
+  };
+
   return (
     <Stack gap="md">
-      <Group gap="xs" wrap="nowrap" align="center">
-        <Tabs value={current.id} onChange={select} variant="pills" style={{ minWidth: 0 }}>
-          <Tabs.List>
-            {baseLists.map((baseList) => {
-              const missing = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id && product.missing).length;
-              return (
-                <Tabs.Tab key={baseList.id} value={baseList.id} rightSection={missing ? <Text size="xs">{missing}</Text> : undefined}>
-                  {baseList.name}
-                </Tabs.Tab>
-              );
-            })}
-          </Tabs.List>
+      <Group gap={0} wrap="nowrap">
+        <Tabs value={current.id} onChange={select} style={{ minWidth: 0 }}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={baseLists.map((baseList) => baseList.id)} strategy={horizontalListSortingStrategy}>
+              <Tabs.List>
+                {baseLists.map((baseList, position) => {
+                  const missing = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id && product.missing).length;
+                  return (
+                    <SortableTab
+                      key={baseList.id}
+                      value={baseList.id}
+                      rightSection={
+                        baseList.id === current.id ? (
+                          <Menu position="bottom-end" withinPortal shadow="md">
+                            <Menu.Target>
+                              <ActionIcon
+                                component="span"
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                                aria-label={`Actions sur la liste type ${baseList.name}`}
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                <CaretDownIcon aria-hidden />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(baseList)}>
+                                Renommer
+                              </Menu.Item>
+                              <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={position === 0} onClick={() => move(baseList.id, position - 1)}>
+                                Déplacer à gauche
+                              </Menu.Item>
+                              <Menu.Item leftSection={<ArrowRightIcon aria-hidden />} disabled={position === baseLists.length - 1} onClick={() => move(baseList.id, position + 1)}>
+                                Déplacer à droite
+                              </Menu.Item>
+                              <Menu.Divider />
+                              <Menu.Item color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => confirmDelete(baseList)}>
+                                Supprimer
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        ) : undefined
+                      }
+                    >
+                      <Group gap={6} wrap="nowrap">
+                        {baseList.name}
+                        {missing > 0 && (
+                          <Badge size="xs" variant="light" color="orange" aria-label={`${missing} manquant(s)`}>
+                            {missing}
+                          </Badge>
+                        )}
+                      </Group>
+                    </SortableTab>
+                  );
+                })}
+              </Tabs.List>
+            </SortableContext>
+          </DndContext>
         </Tabs>
         <Tooltip label="Nouvelle liste type">
-          <ActionIcon variant="subtle" color="gray" aria-label="Nouvelle liste type" onClick={() => openForm()}>
+          <ActionIcon variant="subtle" color="gray" ml="xs" aria-label="Nouvelle liste type" onClick={() => openForm()}>
             <PlusIcon aria-hidden />
           </ActionIcon>
         </Tooltip>
-        <Menu position="bottom-end" shadow="md" withinPortal>
-          <Menu.Target>
-            <ActionIcon variant="subtle" color="gray" aria-label={`Actions de la liste type ${current.name}`} ml="auto">
-              <DotsThreeVerticalIcon aria-hidden />
-            </ActionIcon>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openForm(current)}>
-              Renommer
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<ArrowLeftIcon aria-hidden />}
-              disabled={index <= 0}
-              onClick={() => mutations.moveBaseList.mutate({ id: current.id, index: index - 1 }, { onError: (error) => notifyError(error.message) })}
-            >
-              Déplacer vers la gauche
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<ArrowRightIcon aria-hidden />}
-              disabled={index >= baseLists.length - 1}
-              onClick={() => mutations.moveBaseList.mutate({ id: current.id, index: index + 1 }, { onError: (error) => notifyError(error.message) })}
-            >
-              Déplacer vers la droite
-            </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => confirmDelete(current)}>
-              Supprimer
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
       </Group>
       <BaseList key={current.id} baseList={current} />
     </Stack>
