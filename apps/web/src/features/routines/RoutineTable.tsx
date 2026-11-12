@@ -16,7 +16,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core';
 import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
-import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
+import { entrySeconds, formatClock, formatDuration, routineSchedule, routineSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
@@ -43,7 +43,7 @@ import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { confirmDestructive } from '../shopping/list-modals';
 import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
-import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RequiresCell, TitleCell } from './routine-cells';
+import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RequiresCell, TitleCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { DoneToggle } from './DoneToggle';
@@ -52,7 +52,7 @@ import { DAILY, isDone, NO_CATEGORY, routineRows, stateOf, visibleRoutineRows, w
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
-const COLUMNS = 12;
+const COLUMNS = 13;
 
 const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -96,6 +96,38 @@ const collision: CollisionDetection = (args) => {
 };
 
 /**
+ * Badge of a routine due today: past its latest time (late), time to leave (its way there has started), or its time window
+ * (grey before it opens).
+ * @param {{ routine: Routine }} props Component props.
+ * @returns {JSX.Element} Badge.
+ */
+function DueBadge({ routine }: { routine: Routine }) {
+  const now = new Date().toTimeString().slice(0, 5);
+  const { leaveAt } = routineSchedule(routine);
+  if (routine.dueTime && now > routine.dueTime) {
+    return (
+      <Badge variant="light" color="red" tt="none">
+        Après {routine.dueTime}
+      </Badge>
+    );
+  }
+  if (leaveAt && now >= leaveAt) {
+    return (
+      <Badge variant="filled" color="orange" tt="none">
+        Partir maintenant
+      </Badge>
+    );
+  }
+  const window =
+    routine.fromTime && routine.dueTime ? `entre ${routine.fromTime} et ${routine.dueTime}` : routine.dueTime ? `avant ${routine.dueTime}` : routine.fromTime ? `à partir de ${routine.fromTime}` : '';
+  return (
+    <Badge variant="light" color={routine.fromTime && now < routine.fromTime ? 'gray' : undefined} tt="none">
+      Aujourd’hui{window ? ` ${window}` : ''}
+    </Badge>
+  );
+}
+
+/**
  * Where a routine stands today: due, late since a date, done, or its next date.
  * @param {{ routine: Routine, today: string }} props Component props.
  * @returns {JSX.Element} Badge or text.
@@ -111,11 +143,7 @@ function StateCell({ routine, today }: { routine: Routine; today: string }) {
             Fait
           </Badge>
         )}
-        {state === 'due' && (
-          <Badge variant="light" tt="none">
-            Aujourd’hui
-          </Badge>
-        )}
+        {state === 'due' && <DueBadge routine={routine} />}
         {state === 'late' && (
           <Badge variant="light" color="orange" tt="none">
             Depuis {dayText(routine.currentDate!)}
@@ -306,6 +334,9 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
       </Table.Td>
       <Table.Td miw={160} {...cell('repetition')}>
         <RepetitionCell routine={routine} readOnly={readOnly} />
+      </Table.Td>
+      <Table.Td w={150} {...cell('time')}>
+        <TimeWindowCell routine={routine} readOnly={readOnly} />
       </Table.Td>
       <Table.Td miw={160} {...cell('categories')}>
         <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />
@@ -709,6 +740,7 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
               <Table.Th>Routine</Table.Th>
               <Table.Th>Quand</Table.Th>
               <Table.Th>Répétition</Table.Th>
+              <Table.Th>Horaire</Table.Th>
               <Table.Th>Catégories</Table.Th>
               <Table.Th>Assignés</Table.Th>
               <Table.Th>Temps prévu</Table.Th>

@@ -3,9 +3,9 @@ import { notifyError, notifyWithUndo } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from './api';
 
 /** Columns of the routine table edited together on a cell selection. */
-export type RoutineColumn = 'categories' | 'repetition' | 'assignees' | 'estimate' | 'requires' | 'project';
+export type RoutineColumn = 'categories' | 'repetition' | 'time' | 'assignees' | 'estimate' | 'requires' | 'project';
 
-export const BULK_COLUMNS: readonly RoutineColumn[] = ['categories', 'repetition', 'assignees', 'estimate', 'requires', 'project'];
+export const BULK_COLUMNS: readonly RoutineColumn[] = ['categories', 'repetition', 'time', 'assignees', 'estimate', 'requires', 'project'];
 
 /** Cells selected in one column, by row key (a routine can show on several rows, one per category). */
 export interface RoutineCellSelection {

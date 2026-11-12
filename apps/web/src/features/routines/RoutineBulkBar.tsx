@@ -1,7 +1,20 @@
 import { Avatar, Button, CloseButton, ColorSwatch, Group, Menu, NumberInput, Paper, Popover, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { routineSchema, type Recurrence } from '@ordo/shared';
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CaretDownIcon, CheckCircleIcon, ClockIcon, FolderIcon, LinkIcon, TagIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
+import {
+  AlarmIcon,
+  ArchiveIcon,
+  ArrowCounterClockwiseIcon,
+  ArrowsClockwiseIcon,
+  CaretDownIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  FolderIcon,
+  LinkIcon,
+  TagIcon,
+  TrashIcon,
+  UserPlusIcon,
+} from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
@@ -40,6 +53,8 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
   const allArchived = routines.every((routine) => routine.archived);
   const allDone = routines.every((routine) => routine.currentDate === null || isDone(routine));
   const [estimate, setEstimate] = useState<string | number>('');
+  const [fromTime, setFromTime] = useState('');
+  const [dueTime, setDueTime] = useState('');
   const [startDate, setStartDate] = useState(localToday());
   const [rule, setRule] = useState<Recurrence>(DAILY);
   const [repetitionOpened, setRepetitionOpened] = useState(false);
@@ -188,6 +203,28 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
                 </Button>
               </Group>
             </Stack>
+          </Popover.Dropdown>
+        </Popover>
+        <Popover position="top-start" shadow="md" trapFocus withinPortal>
+          <Popover.Target>
+            <Button size="xs" variant="default" leftSection={<AlarmIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
+              Horaire
+            </Button>
+          </Popover.Target>
+          <Popover.Dropdown>
+            <Group gap="xs" align="flex-end" wrap="nowrap">
+              <TimeInput size="xs" label="À partir de" value={fromTime} onChange={(event) => setFromTime(event.currentTarget.value)} w={110} data-autofocus />
+              <TimeInput size="xs" label="Avant" value={dueTime} onChange={(event) => setDueTime(event.currentTarget.value)} w={110} />
+              <Button
+                size="xs"
+                onClick={() => {
+                  if (fromTime && dueTime && fromTime >= dueTime) return notifyError('L’heure maximale doit suivre l’heure de début.');
+                  apply({ fromTime: fromTime || null, dueTime: dueTime || null }, `Horaire appliqué à ${label}.`);
+                }}
+              >
+                Appliquer
+              </Button>
+            </Group>
           </Popover.Dropdown>
         </Popover>
         <Popover position="top-start" shadow="md" trapFocus withinPortal>

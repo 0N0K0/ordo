@@ -1,4 +1,5 @@
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { routineSchedule } from '@ordo/shared';
 import { ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError } from '../../lib/notify';
@@ -25,7 +26,13 @@ export function RoutinesCard({ today }: { today: string }) {
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const todo = routines
     .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today)))
-    .sort((a, b) => (a.currentDate ?? '').localeCompare(b.currentDate ?? '') || a.title.localeCompare(b.title, 'fr'));
+    // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
+    .sort(
+      (a, b) =>
+        (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
+        (routineSchedule(a).leaveAt ?? a.fromTime ?? a.dueTime ?? '99').localeCompare(routineSchedule(b).leaveAt ?? b.fromTime ?? b.dueTime ?? '99') ||
+        a.title.localeCompare(b.title, 'fr'),
+    );
 
   return (
     <HomeCard title="Routines du jour" icon={<ArrowsClockwiseIcon aria-hidden />} to="/routines" loading={!data}>
@@ -59,7 +66,17 @@ export function RoutinesCard({ today }: { today: string }) {
                       {daysBetween(routine.currentDate, today)} j de retard
                     </Badge>
                   )}
-                  {routine.estimate && (
+                  {(routine.fromTime || routine.dueTime) && (
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                      {[
+                        routineSchedule(routine).leaveAt && `départ ${routineSchedule(routine).leaveAt}`,
+                        routine.fromTime && routine.dueTime ? `${routine.fromTime}–${routine.dueTime}` : routine.dueTime ? `avant ${routine.dueTime}` : `dès ${routine.fromTime}`,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  )}
+                  {!routine.fromTime && !routine.dueTime && routine.estimate && (
                     <Text size="xs" c="dimmed">
                       {routine.estimate} min
                     </Text>

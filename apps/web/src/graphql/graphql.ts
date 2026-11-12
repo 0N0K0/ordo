@@ -518,8 +518,12 @@ export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
   addRequiredIds?: Array<string | number> | null | undefined;
+  /** HH:MM; null: no limit. */
+  dueTime?: string | null | undefined;
   /** Minutes. */
   estimate?: number | null | undefined;
+  /** HH:MM; null: no limit. */
+  fromTime?: string | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   removeAssigneeIds?: Array<string | number> | null | undefined;
@@ -538,21 +542,34 @@ export type RoutineInput = {
   assigneeIds: Array<string | number>;
   categoryIds: Array<string | number>;
   description?: string | null | undefined;
+  /** HH:MM. */
+  dueTime?: string | null | undefined;
   /** Minutes. */
   estimate?: number | null | undefined;
+  /** HH:MM. */
+  fromTime?: string | null | undefined;
+  location?: string | null | undefined;
+  locationLat?: number | null | undefined;
+  locationLon?: number | null | undefined;
   parentId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence: unknown;
   requiredIds: Array<string | number>;
   startDate: string;
   title: string;
+  travelAfter?: number | null | undefined;
+  travelBefore?: number | null | undefined;
 };
 
 /** Changes of a routine (omitted fields unchanged). */
 export type RoutinePatch = {
   assigneeIds?: Array<string | number> | null | undefined;
   categoryIds?: Array<string | number> | null | undefined;
+  /** HH:MM; null: no limit. */
+  dueTime?: string | null | undefined;
   estimate?: number | null | undefined;
+  /** HH:MM; null: no limit. */
+  fromTime?: string | null | undefined;
   /** Null: top level. */
   parentId?: string | number | null | undefined;
   /** Null: none. */
@@ -2457,7 +2474,7 @@ export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -6539,6 +6556,13 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     startDate
     recurrence
     estimate
+    fromTime
+    dueTime
+    location
+    locationLat
+    locationLon
+    travelBefore
+    travelAfter
     projectId
     position
     archived

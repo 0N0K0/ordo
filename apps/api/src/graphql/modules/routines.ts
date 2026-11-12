@@ -44,6 +44,13 @@ builder.prismaObject('Routine', {
     recurrence: t.expose('recurrence', { type: 'JSON' }),
     estimate: t.exposeInt('estimate', { nullable: true, description: 'Minutes.' }),
     projectId: t.exposeID('projectId', { nullable: true }),
+    fromTime: t.exposeString('fromTime', { nullable: true, description: 'Time to do it from (HH:MM).' }),
+    dueTime: t.exposeString('dueTime', { nullable: true, description: 'Latest time to do it by (HH:MM).' }),
+    location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    travelBefore: t.exposeInt('travelBefore', { description: 'Minutes to get there.' }),
+    travelAfter: t.exposeInt('travelAfter', { description: 'Minutes to get back.' }),
     position: t.exposeInt('position'),
     archived: t.boolean({ resolve: (routine) => routine.archivedAt !== null }),
     assigneeIds: t.idList({ select: { assignees: { select: { id: true } } }, resolve: (routine) => routine.assignees.map((assignee) => assignee.id) }),
@@ -101,6 +108,13 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     startDate: t.field({ type: 'Date', required: true }),
     recurrence: t.field({ type: 'JSON', required: true }),
     estimate: t.int({ description: 'Minutes.' }),
+    fromTime: t.string({ description: 'HH:MM.' }),
+    dueTime: t.string({ description: 'HH:MM.' }),
+    location: t.string(),
+    locationLat: t.float(),
+    locationLon: t.float(),
+    travelBefore: t.int(),
+    travelAfter: t.int(),
     projectId: t.id(),
     assigneeIds: t.idList({ required: true }),
     requiredIds: t.idList({ required: true }),
@@ -117,6 +131,8 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     assigneeIds: t.idList(),
     requiredIds: t.idList(),
     projectId: t.id({ description: 'Null: none.' }),
+    fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
+    dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
     startDate: t.field({ type: 'Date' }),
     recurrence: t.field({ type: 'JSON' }),
   }),
@@ -133,6 +149,8 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     removeRequiredIds: t.idList(),
     estimate: t.int({ description: 'Minutes.' }),
     projectId: t.id(),
+    fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
+    dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
     startDate: t.field({ type: 'Date' }),
     recurrence: t.field({ type: 'JSON' }),
   }),
@@ -158,6 +176,13 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   startDate: input.startDate,
   recurrence: input.recurrence as RoutineInput['recurrence'],
   estimate: input.estimate ?? null,
+  fromTime: input.fromTime ?? null,
+  dueTime: input.dueTime ?? null,
+  location: input.location ?? null,
+  locationLat: input.locationLat ?? null,
+  locationLon: input.locationLon ?? null,
+  travelBefore: input.travelBefore ?? 0,
+  travelAfter: input.travelAfter ?? 0,
   projectId: idOrNull(input.projectId),
   assigneeIds: input.assigneeIds.map(String),
   requiredIds: input.requiredIds.map(String),
@@ -225,6 +250,8 @@ builder.mutationFields((t) => ({
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
       if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
+      if (input.fromTime !== undefined) changes.fromTime = input.fromTime;
+      if (input.dueTime !== undefined) changes.dueTime = input.dueTime;
       if (input.startDate) changes.startDate = input.startDate;
       if (input.recurrence !== undefined && input.recurrence !== null) changes.recurrence = input.recurrence as RoutineInput['recurrence'];
       await routines.patchRoutine(String(id), changes);
@@ -258,6 +285,8 @@ builder.mutationFields((t) => ({
         removeRequiredIds: list(changes.removeRequiredIds),
         estimate: changes.estimate,
         projectId: changes.projectId === undefined ? undefined : idOrNull(changes.projectId),
+        fromTime: changes.fromTime,
+        dueTime: changes.dueTime,
         startDate: changes.startDate ?? undefined,
         recurrence: changes.recurrence ?? undefined,
       });

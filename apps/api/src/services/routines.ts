@@ -154,6 +154,13 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   startDate: parseDay(data.startDate),
   recurrence: data.recurrence,
   estimate: data.estimate,
+  fromTime: data.fromTime,
+  dueTime: data.dueTime,
+  location: data.location,
+  locationLat: data.location ? data.locationLat : null,
+  locationLon: data.location ? data.locationLon : null,
+  travelBefore: data.travelBefore,
+  travelAfter: data.travelAfter,
   projectId: data.projectId,
 });
 
@@ -223,6 +230,13 @@ async function inputOf(id: string): Promise<RoutineInput> {
     startDate: formatDay(routine.startDate),
     recurrence: storedRecurrence(routine.recurrence) ?? (routine.recurrence as RoutineInput['recurrence']),
     estimate: routine.estimate,
+    fromTime: routine.fromTime,
+    dueTime: routine.dueTime,
+    location: routine.location,
+    locationLat: routine.locationLat,
+    locationLon: routine.locationLon,
+    travelBefore: routine.travelBefore,
+    travelAfter: routine.travelAfter,
     projectId: routine.projectId,
     assigneeIds: routine.assignees.map((assignee) => assignee.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
@@ -251,6 +265,9 @@ export interface RoutineBulkChanges {
   estimate?: number | null;
   /** Null: none, undefined: unchanged. */
   projectId?: string | null;
+  /** Null: no limit, undefined: unchanged. */
+  fromTime?: string | null;
+  dueTime?: string | null;
   startDate?: string;
   recurrence?: unknown;
 }
@@ -282,6 +299,8 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
         ...(changes.estimate !== undefined && { estimate: changes.estimate }),
         ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+        ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),
+        ...(changes.dueTime !== undefined && { dueTime: changes.dueTime }),
         ...(changes.startDate !== undefined && { startDate: changes.startDate }),
         ...(changes.recurrence !== undefined && { recurrence: changes.recurrence as RoutineInput['recurrence'] }),
       };

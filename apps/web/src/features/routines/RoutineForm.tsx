@@ -11,6 +11,7 @@ import { AssigneesSelect, ProjectSelect } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { DAILY, ruleOf } from './routine-format';
+import { RoutineSchedule } from './RoutineSchedule';
 
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
@@ -20,6 +21,13 @@ interface RoutineFormValues extends Record<string, unknown> {
   startDate: string;
   recurrence: Recurrence;
   estimate: number | null;
+  fromTime: string | null;
+  dueTime: string | null;
+  location: string;
+  locationLat: number | null;
+  locationLon: number | null;
+  travelBefore: number;
+  travelAfter: number;
   projectId: string | null;
   assigneeIds: string[];
   requiredIds: string[];
@@ -78,6 +86,13 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       startDate: routine?.startDate ?? (parent && parent.startDate > localToday() ? parent.startDate : localToday()),
       recurrence: (source && ruleOf(source)) ?? DAILY,
       estimate: routine?.estimate ?? null,
+      fromTime: routine?.fromTime ?? null,
+      dueTime: routine?.dueTime ?? null,
+      location: routine?.location ?? '',
+      locationLat: routine?.locationLat ?? null,
+      locationLon: routine?.locationLon ?? null,
+      travelBefore: routine?.travelBefore ?? 0,
+      travelAfter: routine?.travelAfter ?? 0,
       projectId: routine ? routine.projectId : (parent?.projectId ?? null),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
       requiredIds: routine?.requiredIds ?? [],
@@ -137,6 +152,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
           />
         </SimpleGrid>
         <RecurrenceEditor value={form.values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule ?? DAILY)} start={form.values.startDate || localToday()} />
+        <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
         {context && (
           <AssigneesSelect
             contributors={context.contributors}

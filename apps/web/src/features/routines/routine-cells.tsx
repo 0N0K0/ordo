@@ -1,6 +1,6 @@
-import { Anchor, Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { routineSchema, type Recurrence } from '@ordo/shared';
+import { Anchor, Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { routineSchedule, routineSchema, type Recurrence } from '@ordo/shared';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
@@ -142,6 +142,89 @@ export function EstimateCell({ routine, readOnly = false }: CellProps) {
       onBlur={save}
       onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
     />
+  );
+}
+
+/**
+ * Time window cell: from when and by when to do it, typed in place (each one optional); under them, when to leave and
+ * when back (from its travel times and time to spend on it). On a column selection, the time changed applies to every
+ * selected routine.
+ * @param {CellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
+  const { apply, count } = useRoutineCellEdit(routine, 'time');
+  const [drafts, setDrafts] = useState<{ fromTime?: string; dueTime?: string }>({});
+  const { leaveAt, backAt } = routineSchedule(routine);
+
+  /**
+   * Saves one of the times when valid and changed.
+   * @param {'fromTime' | 'dueTime'} field Time edited.
+   * @returns {void}
+   */
+  const save = (field: 'fromTime' | 'dueTime') => {
+    const draft = drafts[field];
+    if (draft === undefined) return;
+    setDrafts((current) => ({ ...current, [field]: undefined }));
+    const result = routineSchema.shape[field].safeParse(draft || null);
+    if (!result.success) {
+      notifyError(`${result.error.issues[0]?.message ?? 'Heure invalide.'} Rien n’a été modifié.`);
+      return;
+    }
+    const window = { fromTime: routine.fromTime, dueTime: routine.dueTime, [field]: result.data };
+    if (count === 1 && window.fromTime && window.dueTime && window.fromTime >= window.dueTime) {
+      notifyError('L’heure maximale doit suivre l’heure de début. Rien n’a été modifié.');
+      return;
+    }
+    if (result.data !== routine[field] || count > 1) apply({ [field]: result.data }, { [field]: result.data });
+  };
+
+  /**
+   * One of the times.
+   * @param {'fromTime' | 'dueTime'} field Time.
+   * @param {string} name Its name.
+   * @returns {JSX.Element} Field.
+   */
+  const input = (field: 'fromTime' | 'dueTime', name: string) => (
+    <TimeInput
+      {...cellField}
+      aria-label={fieldLabel(name, routine, count)}
+      readOnly={readOnly}
+      value={drafts[field] ?? routine[field] ?? ''}
+      onChange={(event) => setDrafts((current) => ({ ...current, [field]: event.currentTarget.value }))}
+      onBlur={() => save(field)}
+      onKeyDown={(event) => cellKeys(event, () => setDrafts((current) => ({ ...current, [field]: undefined })))}
+      style={{ flex: 1, minWidth: 0 }}
+    />
+  );
+
+  return (
+    <Stack gap={0}>
+      <Group gap={2} wrap="nowrap">
+        {input('fromTime', 'À partir de')}
+        <Text size="xs" c="dimmed" aria-hidden>
+          –
+        </Text>
+        {input('dueTime', 'Avant')}
+      </Group>
+      {(leaveAt || backAt) && (
+        <Tooltip
+          label={[
+            leaveAt && `Partir à ${leaveAt} (trajet ${routine.travelBefore} min${routine.estimate && routine.dueTime ? `, ${routine.estimate} min sur place` : ''})`,
+            backAt && `Retour vers ${backAt}`,
+            routine.location,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        >
+          <Text size="xs" c="dimmed" className={classes.input} style={{ whiteSpace: 'nowrap' }}>
+            {leaveAt && `Départ ${leaveAt}`}
+            {leaveAt && backAt && ' · '}
+            {backAt && `retour ${backAt}`}
+          </Text>
+        </Tooltip>
+      )}
+    </Stack>
   );
 }
 
