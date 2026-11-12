@@ -1,5 +1,6 @@
+import { TimeField } from '../../components/TimeField';
 import { Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
 import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase } from '@ordo/shared';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
@@ -192,14 +193,21 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
    * @returns {JSX.Element} Field.
    */
   const input = (field: 'fromTime' | 'dueTime', name: string) => (
-    <TimeInput
+    <TimeField
       {...cellField}
       aria-label={fieldLabel(name, routine, count)}
       readOnly={readOnly}
       value={drafts[field] ?? routine[field] ?? ''}
-      onChange={(event) => setDrafts((current) => ({ ...current, [field]: event.currentTarget.value }))}
+      onChange={(value) => setDrafts((current) => ({ ...current, [field]: value }))}
       onBlur={() => save(field)}
-      onKeyDown={(event) => cellKeys(event, () => setDrafts((current) => ({ ...current, [field]: undefined })))}
+      onKeyDown={(event) => {
+        // Enter saves (by leaving the field), Escape gives up the draft.
+        if (event.key === 'Enter') (document.activeElement as HTMLElement | null)?.blur();
+        if (event.key === 'Escape') {
+          setDrafts((current) => ({ ...current, [field]: undefined }));
+          (document.activeElement as HTMLElement | null)?.blur();
+        }
+      }}
       style={{ flex: 1, minWidth: 0 }}
     />
   );

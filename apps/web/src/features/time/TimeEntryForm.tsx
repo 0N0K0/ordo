@@ -1,5 +1,6 @@
+import { TimeField } from '../../components/TimeField';
 import { Button, Group, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
@@ -114,7 +115,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
         />
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
           <DatePickerInput label="Jour" required valueFormat="D MMM YYYY" {...form.getInputProps('date')} />
-          <TimeInput label="Début" required {...form.getInputProps('start')} />
+          <TimeField label="Début" required {...form.getInputProps('start')} />
           <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
         </SimpleGrid>
         <Select

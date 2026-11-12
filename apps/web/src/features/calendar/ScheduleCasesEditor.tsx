@@ -1,5 +1,6 @@
+import { TimeField } from '../../components/TimeField';
 import { ActionIcon, Button, Checkbox, Chip, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, Tooltip } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
 import { isoWeek, type ScheduleCase, type SchedulePattern } from '@ordo/shared';
 import { PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { describeCase, MONTH_NAMES, newCase, parityStart, WEEKDAY_NAMES } from './schedule-text';
@@ -215,18 +216,18 @@ function CaseEditor({ item, onChange, onRemove, rhythm, periodStart, index }: Ca
             <Stack gap={4}>
               {item.ranges.map((range, position) => (
                 <Group key={position} gap={6} wrap="nowrap">
-                  <TimeInput
+                  <TimeField
                     size="xs"
                     aria-label={`Début, cas ${index + 1}`}
                     value={range.start}
-                    onChange={(event) => onChange({ ranges: item.ranges.map((other, otherIndex) => (otherIndex === position ? { ...other, start: event.currentTarget.value } : other)) })}
+                    onChange={(value) => onChange({ ranges: item.ranges.map((other, otherIndex) => (otherIndex === position ? { ...other, start: value } : other)) })}
                   />
                   <Text size="sm">à</Text>
-                  <TimeInput
+                  <TimeField
                     size="xs"
                     aria-label={`Fin, cas ${index + 1}`}
                     value={range.end}
-                    onChange={(event) => onChange({ ranges: item.ranges.map((other, otherIndex) => (otherIndex === position ? { ...other, end: event.currentTarget.value } : other)) })}
+                    onChange={(value) => onChange({ ranges: item.ranges.map((other, otherIndex) => (otherIndex === position ? { ...other, end: value } : other)) })}
                   />
                   <ActionIcon
                     variant="subtle"

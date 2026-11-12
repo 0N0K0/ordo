@@ -1,5 +1,6 @@
+import { TimeField } from '../../components/TimeField';
 import { ActionIcon, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
-import { TimeInput } from '@mantine/dates';
+
 import { ROUTINE_ANCHOR_LABELS, ROUTINE_ANCHORS, routineSchedule, type Recurrence, type RoutineAnchor, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BellIcon, CarIcon, ClockIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -34,19 +35,19 @@ function SlotsEditor({ item, onChange, index }: { item: RoutineCase; onChange: (
       </Text>
       {item.slots.map((slot, position) => (
         <Group key={position} gap={6} wrap="nowrap">
-          <TimeInput
+          <TimeField
             size="xs"
             aria-label={`À partir de, moment ${position + 1}, cas ${index + 1}`}
             leftSection={<Text size="xs">dès</Text>}
             value={slot.fromTime ?? ''}
-            onChange={(event) => update(position, { fromTime: event.currentTarget.value || null })}
+            onChange={(value) => update(position, { fromTime: value || null })}
           />
-          <TimeInput
+          <TimeField
             size="xs"
             aria-label={`Avant, moment ${position + 1}, cas ${index + 1}`}
             leftSection={<Text size="xs">avant</Text>}
             value={slot.dueTime ?? ''}
-            onChange={(event) => update(position, { dueTime: event.currentTarget.value || null })}
+            onChange={(value) => update(position, { dueTime: value || null })}
           />
           <Checkbox size="xs" label="Facultatif" checked={slot.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
           {item.slots.length > 1 && (
@@ -186,18 +187,18 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
           <RecurrenceEditor value={values.recurrence} onChange={(rule) => onChange({ recurrence: rule ?? DAILY })} start={values.startDate || localToday()} />
           <Stack gap={4}>
             <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-              <TimeInput
+              <TimeField
                 label="À partir de"
                 leftSection={<ClockIcon aria-hidden />}
                 value={values.fromTime ?? ''}
-                onChange={(event) => onChange({ fromTime: event.currentTarget.value || null })}
+                onChange={(value) => onChange({ fromTime: value || null })}
                 error={errors.fromTime}
               />
-              <TimeInput
+              <TimeField
                 label="Avant"
                 leftSection={<ClockIcon aria-hidden />}
                 value={values.dueTime ?? ''}
-                onChange={(event) => onChange({ dueTime: event.currentTarget.value || null })}
+                onChange={(value) => onChange({ dueTime: value || null })}
                 error={errors.dueTime}
               />
             </SimpleGrid>

@@ -52,7 +52,7 @@ import { DAILY, isDone, NO_CATEGORY, routineRows, scheduleOf, stateOf, visibleRo
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
-const COLUMNS = 12;
+const COLUMNS = 11;
 
 const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -330,26 +330,26 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           <StateCell routine={routine} today={today} />
         </RepetitionCell>
       </Table.Td>
+      <Table.Td w={96} {...cell('estimate')}>
+        <EstimateCell routine={routine} readOnly={readOnly} />
+      </Table.Td>
       <Table.Td w={150} {...cell('time')}>
         <TimeWindowCell routine={routine} readOnly={readOnly} />
       </Table.Td>
-      <Table.Td miw={160} {...cell('categories')}>
-        <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />
+      <Table.Td>
+        <ChronoCell routine={routine} running={running} />
       </Table.Td>
       <Table.Td miw={140} {...cell('assignees')}>
         <AssigneesCell routine={routine} readOnly={readOnly} context={context} />
       </Table.Td>
-      <Table.Td w={96} {...cell('estimate')}>
-        <EstimateCell routine={routine} readOnly={readOnly} />
+      <Table.Td miw={160} {...cell('categories')}>
+        <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />
       </Table.Td>
       <Table.Td miw={160} {...cell('requires')}>
         <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />
       </Table.Td>
       <Table.Td miw={140} {...cell('project')}>
         <ProjectCell routine={routine} readOnly={readOnly} context={context} />
-      </Table.Td>
-      <Table.Td>
-        <ChronoCell routine={routine} running={running} />
       </Table.Td>
       <Table.Td w={1}>
         <Menu position="bottom-end" shadow="md" withinPortal>
@@ -442,8 +442,8 @@ function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | 
 
   return (
     <Table.Tr className={addClasses.addRow}>
-      <Table.Td colSpan={2} />
-      <Table.Td colSpan={COLUMNS - 2} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
+      <Table.Td />
+      <Table.Td colSpan={COLUMNS - 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
         <TextInput
           variant="unstyled"
           size="xs"
@@ -733,14 +733,14 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
                 </Group>
               </Table.Th>
               <Table.Th>Routine</Table.Th>
-              <Table.Th>Quand</Table.Th>
-              <Table.Th>Horaire</Table.Th>
-              <Table.Th>Catégories</Table.Th>
+              <Table.Th>Prochaine échéance</Table.Th>
+              <Table.Th>Temps estimé</Table.Th>
+              <Table.Th>Horaires</Table.Th>
+              <Table.Th>Chrono</Table.Th>
               <Table.Th>Assignés</Table.Th>
-              <Table.Th>Temps prévu</Table.Th>
+              <Table.Th>Catégories</Table.Th>
               <Table.Th>Dépend de</Table.Th>
               <Table.Th>Projet</Table.Th>
-              <Table.Th>Chrono</Table.Th>
               <Table.Th />
             </Table.Tr>
           </Table.Thead>

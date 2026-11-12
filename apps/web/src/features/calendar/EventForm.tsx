@@ -1,5 +1,6 @@
+import { TimeField } from '../../components/TimeField';
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
 import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -66,8 +67,8 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
       <TextInput label="Titre" required value={values.title} onChange={(event) => setValues({ ...values, title: event.currentTarget.value })} />
       <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
         <DatePickerInput label="Nouvelle date" required valueFormat="ddd D MMM YYYY" value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
-        {!fields.allDay && <TimeInput label="Début" required value={values.startTime ?? ''} onChange={(event) => setValues({ ...values, startTime: event.currentTarget.value || null })} />}
-        {!fields.allDay && <TimeInput label="Fin" required value={values.endTime ?? ''} onChange={(event) => setValues({ ...values, endTime: event.currentTarget.value || null })} />}
+        {!fields.allDay && <TimeField label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
+        {!fields.allDay && <TimeField label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
       </SimpleGrid>
       <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
       <Group justify="flex-end" gap="sm">
@@ -354,9 +355,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               form.setValues({ startDate, endDate: addDays(startDate, Math.max(0, span)) });
             }}
           />
-          {!values.allDay && <TimeInput label="Heure de début" required {...form.getInputProps('startTime')} />}
+          {!values.allDay && <TimeField label="Heure de début" required {...form.getInputProps('startTime')} />}
           <DatePickerInput label="Fin" required valueFormat="ddd D MMM YYYY" minDate={values.startDate} {...form.getInputProps('endDate')} />
-          {!values.allDay && <TimeInput label="Heure de fin" required {...form.getInputProps('endTime')} />}
+          {!values.allDay && <TimeField label="Heure de fin" required {...form.getInputProps('endTime')} />}
         </SimpleGrid>
         {!values.allDay && (
           <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
