@@ -4,10 +4,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
-import { shoppingCategoryOptions, usePeople } from './shopping-format';
-
-/** Units offered (any other can be typed). */
-const UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton'];
+import { shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
 
 /**
  * Names of the people a product or an item is for, as small badges.
@@ -40,13 +37,13 @@ type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 
 };
 
 export interface ShoppingFormProps {
-  /** Product of the base list, or item of a list (edited when given). */
-  target: { kind: 'product'; product?: ShoppingProduct } | { kind: 'item'; listId: string; item?: ShoppingItem };
+  /** Product of a base list, or item of a list (edited when given). */
+  target: { kind: 'product'; baseListId: string; product?: ShoppingProduct } | { kind: 'item'; listId: string; item?: ShoppingItem };
   onDone: () => void;
 }
 
 /**
- * Product of the base list or item of a list: name, category, store, quantity and unit, unit price, link, note and
+ * Product of a base list or item of a list: name, category, store, quantity and unit, unit price, link, note and
  * the people it is for; a product is also marked missing or not.
  * @param {ShoppingFormProps} props Component props.
  * @returns {JSX.Element} Form.
@@ -68,6 +65,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       unitPrice: current?.unitPrice ?? null,
       memberIds: current?.memberIds ?? [],
       relationIds: current?.relationIds ?? [],
+      baseListId: target.kind === 'product' ? (target.product?.baseListId ?? target.baseListId) : '',
       // A new product is usually added because it is missing.
       missing: target.kind === 'product' ? (target.product?.missing ?? true) : false,
     },
@@ -89,7 +87,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       return;
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { missing: _missing, ...input } = values;
+    const { missing: _missing, baseListId: _baseListId, ...input } = values;
     if (target.item) mutations.updateItem.mutate({ id: target.item.id, input }, callbacks);
     else mutations.addItem.mutate({ listId: target.listId, input }, callbacks);
   });
@@ -99,6 +97,15 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+        {target.kind === 'product' && (
+          <Select
+            label="Liste type"
+            required
+            allowDeselect={false}
+            data={(data?.shoppingBaseLists ?? []).map((baseList) => ({ value: baseList.id, label: baseList.name }))}
+            {...form.getInputProps('baseListId')}
+          />
+        )}
         <SimpleGrid cols={{ base: 1, xs: 2 }}>
           <Select label="Catégorie" placeholder="Aucune" clearable searchable data={shoppingCategoryOptions(data?.shoppingCategories ?? [])} {...form.getInputProps('categoryId')} />
           <Select

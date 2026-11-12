@@ -1,12 +1,13 @@
 @layer app {
-  /* Content of the shopping pages: 9 columns of the design system at most (9 × 96 + 8 × 16 = 992px), centered. */
+  /* Content of the shopping pages: 12 columns of the design system at most (12 × 96 + 11 × 16 = 1328px, room for
+     the editable tables), centered. */
   .root {
     --column: 96px;
     --gutter: 16px;
 
     /* Dimension */
     width: 100%;
-    max-width: calc(9 * var(--column) + 8 * var(--gutter));
+    max-width: calc(12 * var(--column) + 11 * var(--gutter));
 
     /* Espacement */
     margin-inline: auto;
@@ -23,6 +24,72 @@
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: contain;
+  }
+
+  /* Editable table: category headings, product rows, drop targets while dragging. */
+  .table {
+    /* Typographie */
+    font-size: var(--mantine-font-size-sm);
+  }
+
+  .groupRow {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+
+    &[data-depth='0'] {
+      /* Arrière-Plan */
+      background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    }
+
+    &[data-over] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      outline: 2px solid var(--mantine-primary-color-filled);
+      outline-offset: -2px;
+    }
+  }
+
+  .itemRow {
+    /* Animation */
+    transition: background-color 150ms ease;
+
+    &:hover {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    &[data-over] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+    }
+
+    &[data-dragging] {
+      /* Effets */
+      opacity: 0.4;
+    }
+
+    &[data-done] input {
+      /* Typographie */
+      text-decoration: line-through;
+    }
+
+    &[data-done] {
+      /* Effets */
+      opacity: 0.55;
+    }
+  }
+
+  .handle {
+    /* Interaction */
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .overlay {
+    /* Interaction */
+    cursor: grabbing;
   }
 
   .nowrap {

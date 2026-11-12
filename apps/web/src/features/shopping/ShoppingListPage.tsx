@@ -12,10 +12,8 @@ import {
   Modal,
   Paper,
   SegmentedControl,
-  Select,
   Skeleton,
   Stack,
-  Table,
   Text,
   TextInput,
   ThemeIcon,
@@ -25,12 +23,11 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useLocalStorage } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
-import { formatMoney, shoppingCost, shoppingListNameSchema } from '@ordo/shared';
+import { formatMoney, shoppingListNameSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
   ArrowLeftIcon,
-  ArrowSquareOutIcon,
   BankIcon,
   BasketIcon,
   CaretDownIcon,
@@ -56,8 +53,9 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingItem, type ShoppingList } from './api';
 import { downloadShoppingPdf, shoppingText, shoppingTotal } from './export';
 import { openShoppingForm } from './open-shopping-form';
-import { groupShopping, money, quantityText, taskChoices, usePeople, type ShoppingGrouping } from './shopping-format';
-import { PeopleBadges } from './ShoppingForm';
+import { ProductPicker } from './ProductPicker';
+import { money, quantityText, shoppingRows, taskChoices, usePeople, type ShoppingGrouping } from './shopping-format';
+import { ShoppingTable } from './ShoppingTable';
 import classes from './Shopping.module.css';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
@@ -180,7 +178,7 @@ function StoreMode({ list, grouping, onClose }: { list: ShoppingList; grouping: 
   const { data } = useShoppingData();
   const { setPurchased } = useShoppingMutations();
   const labels = { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
-  const toBuy = groupShopping(
+  const toBuy = shoppingRows(
     list.items.filter((item) => !item.purchasedAt),
     grouping,
     labels,
@@ -229,17 +227,20 @@ function StoreMode({ list, grouping, onClose }: { list: ShoppingList; grouping: 
             Tout est acheté.
           </Alert>
         )}
-        {toBuy.map((group) => (
-          <Stack key={group.id ?? 'none'} gap="xs">
-            <Group gap="xs">
-              {group.color && <ColorSwatch color={group.color} size={12} />}
-              <Text fw={600} size="sm" tt="uppercase" c="dimmed">
-                {group.name}
-              </Text>
-            </Group>
-            {group.items.map(row)}
-          </Stack>
-        ))}
+        <Stack gap="xs">
+          {toBuy.map((entry) =>
+            entry.kind === 'group' ? (
+              <Group key={`group:${entry.id ?? 'none'}`} gap="xs" mt={entry.depth === 0 ? 'sm' : 0} pl={`calc(${entry.depth} * var(--mantine-spacing-md))`}>
+                {entry.color && <ColorSwatch color={entry.color} size={12} />}
+                <Text fw={entry.depth === 0 ? 700 : 600} size="sm" tt={entry.depth === 0 ? 'uppercase' : undefined} c="dimmed">
+                  {entry.name}
+                </Text>
+              </Group>
+            ) : (
+              row(entry.item)
+            ),
+          )}
+        </Stack>
         {bought.length > 0 && (
           <Stack gap="xs">
             <Text fw={600} size="sm" tt="uppercase" c="dimmed">
@@ -259,11 +260,12 @@ let modalCount = 0;
  * Opens a modal with some content.
  * @param {string} title Title.
  * @param {(close: () => void) => JSX.Element} render Content.
+ * @param {string} [size] Size of the modal. Optional.
  * @returns {void}
  */
-function openModal(title: string, render: (close: () => void) => ReactElement): void {
+function openModal(title: string, render: (close: () => void) => ReactElement, size?: string): void {
   const modalId = `shopping-list-${++modalCount}`;
-  modals.open({ modalId, title, children: render(() => modals.close(modalId)) });
+  modals.open({ modalId, title, size, children: render(() => modals.close(modalId)) });
 }
 
 /**
@@ -335,9 +337,8 @@ export function ShoppingListPage() {
   const task = list.taskId ? context?.taskById.get(list.taskId) : undefined;
   const closed = list.closed || Boolean(task?.closed);
   const labels = { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
-  const groups = groupShopping(list.items, grouping, labels);
-  const inList = new Set(list.items.map((item) => item.productId).filter(Boolean));
-  const products = (data?.shoppingProducts ?? []).filter((product) => !inList.has(product.id));
+  const rows = shoppingRows(list.items, grouping, labels);
+  const baseLists = data?.shoppingBaseLists ?? [];
   const total = shoppingTotal(list.items);
   const spent = shoppingTotal(list.items.filter((item) => item.purchasedAt));
   const bought = list.items.filter((item) => item.purchasedAt).length;
@@ -395,16 +396,14 @@ export function ShoppingListPage() {
         <Group gap="sm" ml="auto" wrap="wrap">
           {!closed && (
             <>
-              <Select
-                placeholder="Ajouter depuis la liste de base"
-                searchable
-                data={products.map((product) => ({ value: product.id, label: product.name }))}
-                value={null}
-                nothingFoundMessage="Aucun produit"
-                onChange={(productId) => productId && mutations.addItem.mutate({ listId: list.id, productId }, { onError })}
-                aria-label="Ajouter un produit de la liste de base"
-                w={260}
-              />
+              <Button
+                variant="default"
+                leftSection={<ListPlusIcon aria-hidden />}
+                disabled={baseLists.length === 0}
+                onClick={() => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg')}
+              >
+                Depuis les listes types
+              </Button>
               <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'item', listId: list.id })}>
                 Hors liste
               </Button>
@@ -456,7 +455,7 @@ export function ShoppingListPage() {
               <Menu.Item
                 leftSection={<TextAlignLeftIcon aria-hidden />}
                 onClick={() =>
-                  void navigator.clipboard.writeText(shoppingText(list, groups, people)).then(
+                  void navigator.clipboard.writeText(shoppingText(list, rows, people)).then(
                     () => notifySuccess('Liste copiée : collez-la dans un message.'),
                     () => notifyError('La liste n’a pas pu être copiée.'),
                   )
@@ -464,7 +463,7 @@ export function ShoppingListPage() {
               >
                 Copier en texte
               </Menu.Item>
-              <Menu.Item leftSection={<FilePdfIcon aria-hidden />} onClick={() => void downloadShoppingPdf(list, groups, people).catch(onError)}>
+              <Menu.Item leftSection={<FilePdfIcon aria-hidden />} onClick={() => void downloadShoppingPdf(list, rows, people).catch(onError)}>
                 Exporter en PDF
               </Menu.Item>
               <Menu.Divider />
@@ -491,7 +490,7 @@ export function ShoppingListPage() {
                 onClick={() =>
                   confirmDestructive(
                     'Supprimer la liste',
-                    `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. La liste de base et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
+                    `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
                     () =>
                       mutations.deleteList.mutate(
                         { id: list.id },
@@ -513,127 +512,88 @@ export function ShoppingListPage() {
         </Group>
       </Group>
 
-      {groups.length === 0 ? (
+      {list.items.length === 0 ? (
         <Paper withBorder radius="md" p="xl">
           <Stack align="center" gap="sm">
             <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
               <ListPlusIcon aria-hidden />
             </ThemeIcon>
             <Text size="sm" c="dimmed">
-              La liste est vide : ajoutez des produits de la liste de base ou d’autres éléments.
+              La liste est vide : ajoutez des produits des listes types ou d’autres éléments.
             </Text>
           </Stack>
         </Paper>
       ) : (
-        groups.map((group) => (
-          <Paper key={group.id ?? 'none'} withBorder radius="md" component="section" className={classes.group}>
-            <Group gap="xs" px="md" py="xs">
-              {group.color && <ColorSwatch color={group.color} size={12} />}
-              <Title order={3} size="h5">
-                {group.name}
-              </Title>
-            </Group>
-            <div className={classes.scroller}>
-              <Table verticalSpacing={4} highlightOnHover miw={640}>
-                <Table.Tbody>
-                  {group.items.map((item) => {
-                    const cost = shoppingCost(item);
-                    return (
-                      <Table.Tr key={item.id} className={item.purchasedAt ? classes.purchased : undefined}>
-                        <Table.Td w={40}>
-                          <Checkbox
-                            aria-label={`${item.name} acheté`}
-                            checked={Boolean(item.purchasedAt)}
-                            onChange={(event) => mutations.setPurchased.mutate({ id: item.id, purchased: event.currentTarget.checked }, { onError })}
-                          />
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap={4} wrap="nowrap">
-                            <Text size="sm">{item.name}</Text>
-                            {item.url && (
-                              <Tooltip label={item.url}>
-                                <ActionIcon
-                                  component="a"
-                                  href={item.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  size="sm"
-                                  variant="subtle"
-                                  color="gray"
-                                  aria-label={`Ouvrir la page de ${item.name}`}
-                                >
-                                  <ArrowSquareOutIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                            )}
-                            {!item.productId && (
-                              <Badge size="xs" variant="outline" color="gray" tt="none">
-                                hors liste
-                              </Badge>
-                            )}
-                          </Group>
-                          {item.note && (
-                            <Text size="xs" c="dimmed" lineClamp={2}>
-                              {item.note}
-                            </Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td className={classes.nowrap}>{quantityText(item)}</Table.Td>
-                        <Table.Td>
-                          <PeopleBadges memberIds={item.memberIds} relationIds={item.relationIds} />
-                        </Table.Td>
-                        <Table.Td ta="right" ff="monospace" className={classes.nowrap}>
-                          {cost !== null ? money(cost) : null}
-                        </Table.Td>
-                        <Table.Td w={112}>
-                          <Group gap={2} wrap="nowrap" justify="flex-end">
-                            {!item.productId && (
-                              <Tooltip label="Ajouter à la liste de base">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="gray"
-                                  aria-label={`Ajouter ${item.name} à la liste de base`}
-                                  onClick={() => mutations.saveToBase.mutate({ id: item.id }, { onSuccess: () => notifySuccess('Ajouté à la liste de base.'), onError })}
-                                >
-                                  <ListPlusIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                            )}
-                            <Tooltip label="Modifier">
-                              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.name}`} onClick={() => openShoppingForm({ kind: 'item', listId: list.id, item })}>
-                                <PencilSimpleIcon aria-hidden />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Retirer de la liste">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                aria-label={`Retirer ${item.name}`}
-                                onClick={() => {
-                                  const remove = () => mutations.deleteItem.mutate({ id: item.id }, { onError });
-                                  // An item of this list only is lost with it; a product of the base list can be added back.
-                                  if (item.productId) remove();
-                                  else
-                                    confirmDestructive(
-                                      'Retirer l’élément',
-                                      `« ${item.name} » n’est pas dans la liste de base : il sera supprimé définitivement. Cette action est irréversible.`,
-                                      remove,
-                                    );
-                                }}
-                              >
-                                <TrashIcon aria-hidden />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })}
-                </Table.Tbody>
-              </Table>
-            </div>
-          </Paper>
-        ))
+        <ShoppingTable
+          items={[...list.items].sort((a, b) => a.position - b.position)}
+          grouping={grouping}
+          label={`Éléments de ${list.name}`}
+          readOnly={closed}
+          onSave={(item, input) => mutations.updateItem.mutate({ id: item.id, input }, { onError })}
+          done={(item) => Boolean(item.purchasedAt)}
+          check={(item) => (
+            <Checkbox
+              aria-label={`${item.name} acheté`}
+              checked={Boolean(item.purchasedAt)}
+              onChange={(event) => mutations.setPurchased.mutate({ id: item.id, purchased: event.currentTarget.checked }, { onError })}
+            />
+          )}
+          badge={(item) =>
+            !item.productId && (
+              <Badge size="xs" variant="outline" color="gray" tt="none" style={{ flex: 'none' }}>
+                hors liste
+              </Badge>
+            )
+          }
+          summary={(items) => `${items.filter((item) => item.purchasedAt).length} / ${items.length}`}
+          actions={(item) => (
+            <>
+              {!item.productId && baseLists.length > 0 && (
+                <Menu position="bottom-end" shadow="md" withinPortal>
+                  <Menu.Target>
+                    <Tooltip label="Ajouter à une liste type">
+                      <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter ${item.name} à une liste type`}>
+                        <ListPlusIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Label>Ajouter à la liste type</Menu.Label>
+                    {baseLists.map((baseList) => (
+                      <Menu.Item
+                        key={baseList.id}
+                        onClick={() => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, { onSuccess: () => notifySuccess(`Ajouté à « ${baseList.name} ».`), onError })}
+                      >
+                        {baseList.name}
+                      </Menu.Item>
+                    ))}
+                  </Menu.Dropdown>
+                </Menu>
+              )}
+              <Tooltip label="Modifier (catégorie, note…)">
+                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.name}`} disabled={closed} onClick={() => openShoppingForm({ kind: 'item', listId: list.id, item })}>
+                  <PencilSimpleIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Retirer de la liste">
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  aria-label={`Retirer ${item.name}`}
+                  disabled={closed}
+                  onClick={() => {
+                    const remove = () => mutations.deleteItem.mutate({ id: item.id }, { onError });
+                    // An item of this list only is lost with it; a product of a base list can be added back.
+                    if (item.productId) remove();
+                    else confirmDestructive('Retirer l’élément', `« ${item.name} » n’est dans aucune liste type : il sera supprimé définitivement. Cette action est irréversible.`, remove);
+                  }}
+                >
+                  <TrashIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            </>
+          )}
+        />
       )}
       {total > 0 && (
         <Group justify="flex-end">

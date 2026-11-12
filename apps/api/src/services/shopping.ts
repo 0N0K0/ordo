@@ -1,4 +1,5 @@
 import {
+  shoppingBaseListNameSchema,
   shoppingItemSchema,
   shoppingCategorySchema,
   shoppingListNameSchema,
@@ -11,7 +12,7 @@ import {
   type ShoppingStoreInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
-import { Prisma, type ShoppingCategory, type ShoppingItem, type ShoppingList, type ShoppingProduct, type ShoppingStore } from '../generated/prisma/client';
+import { Prisma, type ShoppingBaseList, type ShoppingCategory, type ShoppingItem, type ShoppingList, type ShoppingProduct, type ShoppingStore } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { moveInOrder } from './ordering';
 import { isMember } from './treasury-team';
@@ -193,16 +194,77 @@ export async function moveStore(id: string, index: number): Promise<void> {
   await prisma.$transaction(order.map((storeId, position) => prisma.shoppingStore.update({ where: { id: storeId }, data: { position } })));
 }
 
-// Base list ------------------------------------------------------------------------------------------------------
+// Base lists -----------------------------------------------------------------------------------------------------
 
 /**
- * Adds a product to the base list.
+ * Checks a base list.
+ * @param {string} id Base list id.
+ * @returns {Promise<void>}
+ */
+async function assertBaseList(id: string): Promise<void> {
+  if (!(await prisma.shoppingBaseList.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Liste type');
+}
+
+/**
+ * Creates a base list, after the others.
+ * @param {string} name Name.
+ * @returns {Promise<ShoppingBaseList>} Base list.
+ */
+export async function createBaseList(name: string): Promise<ShoppingBaseList> {
+  const data = { name: parseInput(shoppingBaseListNameSchema, name) };
+  const { _max } = await prisma.shoppingBaseList.aggregate({ _max: { position: true } });
+  return prisma.shoppingBaseList.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+}
+
+/**
+ * Renames a base list.
+ * @param {string} id Base list id.
+ * @param {string} name Name.
+ * @returns {Promise<ShoppingBaseList>} Base list.
+ */
+export async function renameBaseList(id: string, name: string): Promise<ShoppingBaseList> {
+  await assertBaseList(id);
+  return prisma.shoppingBaseList.update({ where: { id }, data: { name: parseInput(shoppingBaseListNameSchema, name) } });
+}
+
+/**
+ * Deletes a base list with its products (the items of the lists made from them stay).
+ * @param {string} id Base list id.
+ * @returns {Promise<void>}
+ */
+export async function deleteBaseList(id: string): Promise<void> {
+  await assertBaseList(id);
+  await prisma.shoppingBaseList.delete({ where: { id } });
+}
+
+/**
+ * Moves a base list among the others.
+ * @param {string} id Base list id.
+ * @param {number} index Target index.
+ * @returns {Promise<void>}
+ */
+export async function moveBaseList(id: string, index: number): Promise<void> {
+  const all = await prisma.shoppingBaseList.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  if (!all.some((baseList) => baseList.id === id)) throw notFound('Liste type');
+  const order = moveInOrder(
+    all.map((baseList) => baseList.id),
+    id,
+    index,
+  );
+  await prisma.$transaction(order.map((baseListId, position) => prisma.shoppingBaseList.update({ where: { id: baseListId }, data: { position } })));
+}
+
+// Products -------------------------------------------------------------------------------------------------------
+
+/**
+ * Adds a product to a base list.
  * @param {ShoppingProductInput} input Product.
  * @returns {Promise<ShoppingProduct>} Product.
  */
 export async function createProduct(input: ShoppingProductInput): Promise<ShoppingProduct> {
   const data = await parseShopping(shoppingProductSchema, input);
-  return prisma.shoppingProduct.create({ data: { ...fields(data), missing: data.missing, ...people(data, 'connect') } });
+  await assertBaseList(data.baseListId);
+  return prisma.shoppingProduct.create({ data: { ...fields(data), baseListId: data.baseListId, missing: data.missing, ...people(data, 'connect') } });
 }
 
 /**
@@ -214,7 +276,8 @@ export async function createProduct(input: ShoppingProductInput): Promise<Shoppi
 export async function updateProduct(id: string, input: ShoppingProductInput): Promise<ShoppingProduct> {
   if (!(await prisma.shoppingProduct.findUnique({ where: { id } }))) throw notFound('Produit');
   const data = await parseShopping(shoppingProductSchema, input);
-  return prisma.shoppingProduct.update({ where: { id }, data: { ...fields(data), missing: data.missing, ...people(data, 'set') } });
+  await assertBaseList(data.baseListId);
+  return prisma.shoppingProduct.update({ where: { id }, data: { ...fields(data), baseListId: data.baseListId, missing: data.missing, ...people(data, 'set') } });
 }
 
 /**
@@ -242,6 +305,30 @@ export async function deleteProduct(id: string): Promise<void> {
 
 const withPeople = { members: { select: { id: true } }, relations: { select: { id: true } } } as const;
 
+type WithPeople = { members: { id: string }[]; relations: { id: string }[] };
+
+/**
+ * Item data copied from a product of a base list (or from another item).
+ * @param {ShoppingProduct | ShoppingItem} source Product or item, with its people.
+ * @param {string | null} productId Product the item comes from.
+ * @param {number} position Position in the list.
+ * @returns {object} Nested item creation.
+ */
+const copyOf = (source: (ShoppingProduct | ShoppingItem) & WithPeople, productId: string | null, position: number) => ({
+  productId,
+  name: source.name,
+  categoryId: source.categoryId,
+  storeId: source.storeId,
+  url: source.url,
+  note: source.note,
+  quantity: source.quantity,
+  unit: source.unit,
+  unitPrice: source.unitPrice,
+  position,
+  members: { connect: source.members },
+  relations: { connect: source.relations },
+});
+
 /**
  * Loads a list or throws NOT_FOUND.
  * @param {string} id List id.
@@ -263,35 +350,17 @@ async function assertTask(taskId: string | null): Promise<void> {
 }
 
 /**
- * Creates a list: empty, or with the missing products of the base list.
- * @param {{ name: string, taskId: string | null, fromMissing: boolean }} input List.
+ * Creates a list: empty, or with the missing products of some base lists.
+ * @param {{ name: string, taskId: string | null, baseListIds: string[] }} input List.
  * @returns {Promise<ShoppingList>} List.
  */
-export async function createList({ name, taskId, fromMissing }: { name: string; taskId: string | null; fromMissing: boolean }): Promise<ShoppingList> {
+export async function createList({ name, taskId, baseListIds }: { name: string; taskId: string | null; baseListIds: string[] }): Promise<ShoppingList> {
   const data = { name: parseInput(shoppingListNameSchema, name), taskId };
   await assertTask(taskId);
-  const products = fromMissing ? await prisma.shoppingProduct.findMany({ where: { missing: true }, include: withPeople, orderBy: { name: 'asc' } }) : [];
-  return prisma.shoppingList.create({
-    data: {
-      ...data,
-      items: {
-        create: products.map((product, position) => ({
-          productId: product.id,
-          name: product.name,
-          categoryId: product.categoryId,
-          storeId: product.storeId,
-          url: product.url,
-          note: product.note,
-          quantity: product.quantity,
-          unit: product.unit,
-          unitPrice: product.unitPrice,
-          position,
-          members: { connect: product.members },
-          relations: { connect: product.relations },
-        })),
-      },
-    },
-  });
+  const ids = [...new Set(baseListIds)];
+  if ((await prisma.shoppingBaseList.count({ where: { id: { in: ids } } })) !== ids.length) throw notFound('Liste type');
+  const products = ids.length ? await prisma.shoppingProduct.findMany({ where: { missing: true, baseListId: { in: ids } }, include: withPeople, orderBy: { name: 'asc' } }) : [];
+  return prisma.shoppingList.create({ data: { ...data, items: { create: products.map((product, position) => copyOf(product, product.id, position)) } } });
 }
 
 /**
@@ -331,22 +400,7 @@ export async function duplicateList(id: string): Promise<ShoppingList> {
   return prisma.shoppingList.create({
     data: {
       name: `${list.name} (copie)`.slice(0, 120),
-      items: {
-        create: list.items.map((item, position) => ({
-          productId: item.productId,
-          name: item.name,
-          categoryId: item.categoryId,
-          storeId: item.storeId,
-          url: item.url,
-          note: item.note,
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: item.unitPrice,
-          position,
-          members: { connect: item.members },
-          relations: { connect: item.relations },
-        })),
-      },
+      items: { create: list.items.map((item, position) => copyOf(item, item.productId, position)) },
     },
   });
 }
@@ -422,38 +476,44 @@ async function findItem(id: string): Promise<ShoppingItem> {
 }
 
 /**
- * Adds an item to a list: a product of the base list (copied), or an item of this list only.
+ * Next position in a list.
  * @param {string} listId List.
- * @param {{ productId: string | null, input: ShoppingItemInput | null }} source Product, or item.
+ * @returns {Promise<number>} Position.
+ */
+async function nextPosition(listId: string): Promise<number> {
+  const { _max } = await prisma.shoppingItem.aggregate({ where: { listId }, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
+}
+
+/**
+ * Adds an item of this list only (not from a base list).
+ * @param {string} listId List.
+ * @param {ShoppingItemInput} input Item.
  * @returns {Promise<ShoppingItem>} Item.
  */
-export async function addItem(listId: string, source: { productId: string | null; input: ShoppingItemInput | null }): Promise<ShoppingItem> {
+export async function addItem(listId: string, input: ShoppingItemInput): Promise<ShoppingItem> {
   await findList(listId);
-  const { _max } = await prisma.shoppingItem.aggregate({ where: { listId }, _max: { position: true } });
-  const position = (_max.position ?? -1) + 1;
-  if (source.productId) {
-    const product = await prisma.shoppingProduct.findUnique({ where: { id: source.productId }, include: withPeople });
-    if (!product) throw notFound('Produit');
-    return prisma.shoppingItem.create({
-      data: {
-        listId,
-        productId: product.id,
-        name: product.name,
-        categoryId: product.categoryId,
-        storeId: product.storeId,
-        url: product.url,
-        note: product.note,
-        quantity: product.quantity,
-        unit: product.unit,
-        unitPrice: product.unitPrice,
-        position,
-        members: { connect: product.members },
-        relations: { connect: product.relations },
-      },
-    });
-  }
-  const data = await parseShopping(shoppingItemSchema, source.input);
-  return prisma.shoppingItem.create({ data: { ...fields(data), listId, position, ...people(data, 'connect') } });
+  const data = await parseShopping(shoppingItemSchema, input);
+  return prisma.shoppingItem.create({ data: { ...fields(data), listId, position: await nextPosition(listId), ...people(data, 'connect') } });
+}
+
+/**
+ * Adds products of base lists to a list (copied); those already in it are left out.
+ * @param {string} listId List.
+ * @param {string[]} productIds Products.
+ * @returns {Promise<number>} Number of items added.
+ */
+export async function addProducts(listId: string, productIds: string[]): Promise<number> {
+  await findList(listId);
+  const ids = [...new Set(productIds)];
+  if (ids.length > 500) throw clientError('BAD_USER_INPUT', '500 produits au plus à la fois.');
+  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: ids } }, include: withPeople, orderBy: { name: 'asc' } });
+  if (products.length !== ids.length) throw notFound('Produit');
+  const present = new Set((await prisma.shoppingItem.findMany({ where: { listId, productId: { in: ids } }, select: { productId: true } })).map((item) => item.productId));
+  const added = products.filter((product) => !present.has(product.id));
+  const start = await nextPosition(listId);
+  await prisma.shoppingList.update({ where: { id: listId }, data: { items: { create: added.map((product, index) => copyOf(product, product.id, start + index)) } } });
+  return added.length;
 }
 
 /**
@@ -493,17 +553,20 @@ export async function setItemPurchased(id: string, purchased: boolean): Promise<
 }
 
 /**
- * Adds an item of a list to the base list, and links it to the new product.
+ * Adds an item of a list to a base list, and links it to the new product.
  * @param {string} id Item id.
+ * @param {string} baseListId Base list.
  * @returns {Promise<ShoppingProduct>} Product.
  */
-export async function saveItemToBase(id: string): Promise<ShoppingProduct> {
+export async function saveItemToBase(id: string, baseListId: string): Promise<ShoppingProduct> {
   const item = await prisma.shoppingItem.findUnique({ where: { id }, include: withPeople });
   if (!item) throw notFound('Élément');
-  if (item.productId) throw clientError('BAD_USER_INPUT', 'Cet élément est déjà dans la liste de base.');
+  if (item.productId) throw clientError('BAD_USER_INPUT', 'Cet élément est déjà dans une liste type.');
+  await assertBaseList(baseListId);
   return prisma.$transaction(async (tx) => {
     const product = await tx.shoppingProduct.create({
       data: {
+        baseListId,
         name: item.name,
         categoryId: item.categoryId,
         storeId: item.storeId,

@@ -3,14 +3,14 @@ import { NewListForm } from './NewListForm';
 
 /**
  * Opens the form of a new list.
- * @param {{ fromMissing?: boolean, missingCount: number, taskId?: string | null }} options Defaults.
+ * @param {{ baseListIds?: string[], taskId?: string | null }} [options] Base lists whose missing products it takes, task. Optional.
  * @returns {void}
  */
-export function openNewList({ fromMissing = true, missingCount, taskId = null }: { fromMissing?: boolean; missingCount: number; taskId?: string | null }): void {
+export function openNewList({ baseListIds = [], taskId = null }: { baseListIds?: string[]; taskId?: string | null } = {}): void {
   const modalId = 'new-shopping-list';
   modals.open({
     modalId,
     title: 'Nouvelle liste',
-    children: <NewListForm fromMissing={fromMissing} missingCount={missingCount} taskId={taskId} onDone={() => modals.close(modalId)} />,
+    children: <NewListForm baseListIds={baseListIds} taskId={taskId} onDone={() => modals.close(modalId)} />,
   });
 }

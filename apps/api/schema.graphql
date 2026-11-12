@@ -1315,10 +1315,13 @@ type Mutation {
   addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
   addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
 
+  """Adds an item of this list only (not from a base list) to a list."""
+  addShoppingItem(input: ShoppingItemInput!, listId: ID!): ID!
+
   """
-  Adds a product of the base list (productId) or an item of this list only (input) to a list.
+  Adds products of base lists to a list (those already in it are left out); returns the number added.
   """
-  addShoppingItem(input: ShoppingItemInput, listId: ID!, productId: ID): ID!
+  addShoppingProducts(listId: ID!, productIds: [ID!]!): Int!
 
   """blockerId blocks blockedId."""
   addTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
@@ -1389,10 +1392,11 @@ type Mutation {
   createProjectCategory(input: ProjectCategoryInput!): ProjectCategory!
   createProjectStatus(input: ProjectStatusInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
+  createShoppingBaseList(name: String!): ID!
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
 
-  """Creates a list, empty or with the missing products of the base list."""
-  createShoppingList(fromMissing: Boolean!, name: String!, taskId: ID): ID!
+  """Creates a list, empty or with the missing products of some base lists."""
+  createShoppingList(baseListIds: [ID!]!, name: String!, taskId: ID): ID!
   createShoppingProduct(input: ShoppingProductInput!): ID!
   createShoppingStore(input: ShoppingStoreInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
@@ -1463,6 +1467,11 @@ type Mutation {
 
   """Deletes a kind of time slots (its schedules stay, without kind)."""
   deleteScheduleType(id: ID!): Boolean!
+
+  """
+  Deletes a base list with its products (the lists made from them keep their items).
+  """
+  deleteShoppingBaseList(id: ID!): Boolean!
   deleteShoppingCategory(id: ID!): Boolean!
   deleteShoppingItem(id: ID!): Boolean!
   deleteShoppingList(id: ID!): Boolean!
@@ -1579,6 +1588,7 @@ type Mutation {
   ): Boolean!
   moveProjectResource(id: ID!, index: Int!): Boolean!
   moveProjectStatus(id: ID!, index: Int!): Boolean!
+  moveShoppingBaseList(id: ID!, index: Int!): Boolean!
   moveShoppingStore(id: ID!, index: Int!): Boolean!
 
   """
@@ -1613,6 +1623,7 @@ type Mutation {
 
   """Renames a folder; returns its new path."""
   renameMailFolder(accountId: ID!, name: String!, path: String!): String!
+  renameShoppingBaseList(id: ID!, name: String!): Boolean!
 
   """
   Moves a folder among the folders of a parent (into that parent first when it is another one).
@@ -1649,8 +1660,8 @@ type Mutation {
   savePlace(id: ID, input: PlaceInput!): ID!
   saveScheduleType(id: ID, input: ScheduleTypeInput!): ID!
 
-  """Adds an item of a list to the base list; returns the product."""
-  saveShoppingItemToBase(id: ID!): ID!
+  """Adds an item of a list to a base list; returns the product."""
+  saveShoppingItemToBase(baseListId: ID!, id: ID!): ID!
 
   """Creates a budget (without id), or changes one and its repetitions."""
   saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
@@ -2151,13 +2162,16 @@ type Query {
   """
   searchAddresses(near: GeoPointInput, text: String!): [AddressSuggestion!]!
 
+  """Base lists ("listes types")."""
+  shoppingBaseLists: [ShoppingBaseList!]!
+
   """Categories of the shopping products (a tree)."""
   shoppingCategories: [ShoppingCategory!]!
 
   """Shopping lists, latest first: all, or those of a task."""
   shoppingLists(taskId: ID): [ShoppingList!]!
 
-  """Products of the base list."""
+  """Products of all the base lists."""
   shoppingProducts: [ShoppingProduct!]!
   shoppingStores: [ShoppingStore!]!
 
@@ -2380,6 +2394,13 @@ input SendMailInput {
   to: [String!]!
 }
 
+"""Base list ("liste type"): products usually bought together."""
+type ShoppingBaseList {
+  id: ID!
+  name: String!
+  position: Int!
+}
+
 """Category of the shopping products, in a tree."""
 type ShoppingCategory {
   color: String
@@ -2446,8 +2467,9 @@ type ShoppingList {
   taskId: ID
 }
 
-"""Product of the base list: what is usually bought, marked when missing."""
+"""Product of a base list: what is usually bought, marked when missing."""
 type ShoppingProduct {
+  baseListId: ID!
   categoryId: ID
   id: ID!
   lastPrice: Float
@@ -2465,6 +2487,7 @@ type ShoppingProduct {
 }
 
 input ShoppingProductInput {
+  baseListId: ID!
   categoryId: ID
   memberIds: [ID!]!
   missing: Boolean!

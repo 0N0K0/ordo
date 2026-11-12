@@ -9,7 +9,7 @@ import { TaskRef } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
-import { BaseList } from './BaseList';
+import { BaseLists } from './BaseLists';
 import { ShoppingCategories } from './ShoppingCategories';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
@@ -39,12 +39,10 @@ function usageOf(key: (row: { categoryId?: string | null; storeId?: string | nul
  */
 function ListsPanel() {
   const { data: lists, isPending } = useShoppingLists();
-  const { data } = useShoppingData();
   const { context } = useTaskContext();
   const [state, setState] = useState<'open' | 'closed'>('open');
   const closedOf = (list: ShoppingList) => list.closed || Boolean(list.taskId && context?.taskById.get(list.taskId)?.closed);
   const shown = (lists ?? []).filter((list) => closedOf(list) === (state === 'closed'));
-  const missingCount = (data?.shoppingProducts ?? []).filter((product) => product.missing).length;
 
   return (
     <Stack gap="md">
@@ -59,7 +57,7 @@ function ListsPanel() {
           ]}
           aria-label="Listes affichées"
         />
-        <Button ml="auto" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ fromMissing: missingCount > 0, missingCount })}>
+        <Button ml="auto" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
           Nouvelle liste
         </Button>
       </Group>
@@ -135,8 +133,8 @@ function ListsPanel() {
 }
 
 /**
- * Shopping page (consumables in a professional workspace): the base list, where what is missing is marked, and the
- * lists made from it; the settings hold the categories (a tree) and the stores.
+ * Shopping page (consumables in a professional workspace): the base lists ("listes types"), where what is missing is
+ * marked, and the lists made from them; the settings hold the categories (a tree) and the stores.
  * @returns {JSX.Element} Page.
  */
 export function ShoppingPage() {
@@ -185,14 +183,14 @@ export function ShoppingPage() {
       >
         <Tabs.List mb="md">
           <Tabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>
-            Liste de base
+            Listes types
           </Tabs.Tab>
           <Tabs.Tab value="lists" leftSection={<ListChecksIcon aria-hidden />}>
             Listes
           </Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="base">
-          <BaseList />
+          <BaseLists />
         </Tabs.Panel>
         <Tabs.Panel value="lists">
           <ListsPanel />

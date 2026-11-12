@@ -24,10 +24,20 @@ builder.prismaObject('ShoppingStore', {
   }),
 });
 
-builder.prismaObject('ShoppingProduct', {
-  description: 'Product of the base list: what is usually bought, marked when missing.',
+builder.prismaObject('ShoppingBaseList', {
+  description: 'Base list ("liste type"): products usually bought together.',
   fields: (t) => ({
     id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    position: t.exposeInt('position'),
+  }),
+});
+
+builder.prismaObject('ShoppingProduct', {
+  description: 'Product of a base list: what is usually bought, marked when missing.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    baseListId: t.exposeID('baseListId'),
     name: t.exposeString('name'),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     storeId: t.exposeID('storeId', { nullable: true }),
@@ -112,7 +122,7 @@ const shoppingFields = (t: Parameters<Parameters<typeof builder.inputType>[1]['f
 });
 
 const ProductInput = builder.inputType('ShoppingProductInput', {
-  fields: (t) => ({ ...shoppingFields(t), missing: t.boolean({ required: true }) }),
+  fields: (t) => ({ ...shoppingFields(t), baseListId: t.id({ required: true }), missing: t.boolean({ required: true }) }),
 });
 
 const ItemInput = builder.inputType('ShoppingItemInput', { fields: (t) => shoppingFields(t) });
@@ -145,9 +155,14 @@ builder.queryFields((t) => ({
     type: ['ShoppingStore'],
     resolve: (query) => prisma.shoppingStore.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
   }),
+  shoppingBaseLists: t.prismaField({
+    type: ['ShoppingBaseList'],
+    description: 'Base lists ("listes types").',
+    resolve: (query) => prisma.shoppingBaseList.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
   shoppingProducts: t.prismaField({
     type: ['ShoppingProduct'],
-    description: 'Products of the base list.',
+    description: 'Products of all the base lists.',
     resolve: (query) => prisma.shoppingProduct.findMany({ ...query, orderBy: { name: 'asc' } }),
   }),
   shoppingLists: t.prismaField({
@@ -202,14 +217,40 @@ builder.mutationFields((t) => ({
       return true;
     },
   }),
+  createShoppingBaseList: t.id({
+    args: { name: t.arg.string({ required: true }) },
+    resolve: async (_root, { name }) => (await shopping.createBaseList(name)).id,
+  }),
+  renameShoppingBaseList: t.boolean({
+    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }) },
+    resolve: async (_root, { id, name }) => {
+      await shopping.renameBaseList(String(id), name);
+      return true;
+    },
+  }),
+  deleteShoppingBaseList: t.boolean({
+    description: 'Deletes a base list with its products (the lists made from them keep their items).',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await shopping.deleteBaseList(String(id));
+      return true;
+    },
+  }),
+  moveShoppingBaseList: t.boolean({
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, index }) => {
+      await shopping.moveBaseList(String(id), index);
+      return true;
+    },
+  }),
   createShoppingProduct: t.id({
     args: { input: t.arg({ type: ProductInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createProduct({ ...itemInput(input), missing: input.missing })).id,
+    resolve: async (_root, { input }) => (await shopping.createProduct({ ...itemInput(input), baseListId: String(input.baseListId), missing: input.missing })).id,
   }),
   updateShoppingProduct: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ProductInput, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await shopping.updateProduct(String(id), { ...itemInput(input), missing: input.missing });
+      await shopping.updateProduct(String(id), { ...itemInput(input), baseListId: String(input.baseListId), missing: input.missing });
       return true;
     },
   }),
@@ -228,9 +269,9 @@ builder.mutationFields((t) => ({
     },
   }),
   createShoppingList: t.id({
-    description: 'Creates a list, empty or with the missing products of the base list.',
-    args: { name: t.arg.string({ required: true }), taskId: t.arg.id(), fromMissing: t.arg.boolean({ required: true }) },
-    resolve: async (_root, { name, taskId, fromMissing }) => (await shopping.createList({ name, taskId: taskId ? String(taskId) : null, fromMissing })).id,
+    description: 'Creates a list, empty or with the missing products of some base lists.',
+    args: { name: t.arg.string({ required: true }), taskId: t.arg.id(), baseListIds: t.arg.idList({ required: true }) },
+    resolve: async (_root, { name, taskId, baseListIds }) => (await shopping.createList({ name, taskId: taskId ? String(taskId) : null, baseListIds: baseListIds.map(String) })).id,
   }),
   updateShoppingList: t.boolean({
     args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), taskId: t.arg.id() },
@@ -266,9 +307,14 @@ builder.mutationFields((t) => ({
     },
   }),
   addShoppingItem: t.id({
-    description: 'Adds a product of the base list (productId) or an item of this list only (input) to a list.',
-    args: { listId: t.arg.id({ required: true }), productId: t.arg.id(), input: t.arg({ type: ItemInput }) },
-    resolve: async (_root, { listId, productId, input }) => (await shopping.addItem(String(listId), { productId: productId ? String(productId) : null, input: input ? itemInput(input) : null })).id,
+    description: 'Adds an item of this list only (not from a base list) to a list.',
+    args: { listId: t.arg.id({ required: true }), input: t.arg({ type: ItemInput, required: true }) },
+    resolve: async (_root, { listId, input }) => (await shopping.addItem(String(listId), itemInput(input))).id,
+  }),
+  addShoppingProducts: t.int({
+    description: 'Adds products of base lists to a list (those already in it are left out); returns the number added.',
+    args: { listId: t.arg.id({ required: true }), productIds: t.arg.idList({ required: true }) },
+    resolve: (_root, { listId, productIds }) => shopping.addProducts(String(listId), productIds.map(String)),
   }),
   updateShoppingItem: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ItemInput, required: true }) },
@@ -285,9 +331,9 @@ builder.mutationFields((t) => ({
     },
   }),
   saveShoppingItemToBase: t.id({
-    description: 'Adds an item of a list to the base list; returns the product.',
-    args: { id: t.arg.id({ required: true }) },
-    resolve: async (_root, { id }) => (await shopping.saveItemToBase(String(id))).id,
+    description: 'Adds an item of a list to a base list; returns the product.',
+    args: { id: t.arg.id({ required: true }), baseListId: t.arg.id({ required: true }) },
+    resolve: async (_root, { id, baseListId }) => (await shopping.saveItemToBase(String(id), String(baseListId))).id,
   }),
   deleteShoppingItem: t.boolean({
     args: { id: t.arg.id({ required: true }) },

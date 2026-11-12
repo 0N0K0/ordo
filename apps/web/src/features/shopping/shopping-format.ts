@@ -1,5 +1,6 @@
 import { useTreasurySettings } from '../treasury/api';
 import type { TaskContext } from '../tasks/use-task-context';
+import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from './api';
 
 const moneyFormat = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
@@ -19,16 +20,44 @@ export const money = (value: number) => moneyFormat.format(value);
  */
 export const quantityText = ({ quantity, unit }: { quantity?: number | null; unit?: string | null }) => [quantity != null ? quantityFormat.format(quantity) : null, unit].filter(Boolean).join(' ');
 
+/** Units offered (any other can be typed). */
+export const UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton', 'paire'];
+
+/** Fields shared by a product of a base list and an item of a list, as shown in a table. */
+export interface ShoppingFields {
+  id: string;
+  name: string;
+  categoryId?: string | null;
+  storeId?: string | null;
+  url?: string | null;
+  note?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPrice?: number | null;
+  memberIds: string[];
+  relationIds: string[];
+}
+
+/**
+ * Input of a product or an item, from its current fields (to change some of them).
+ * @param {ShoppingFields} row Product or item.
+ * @returns {ShoppingItemInput} Input.
+ */
+export const inputOf = (row: ShoppingFields): ShoppingItemInput => ({
+  name: row.name,
+  categoryId: row.categoryId ?? null,
+  storeId: row.storeId ?? null,
+  url: row.url ?? null,
+  note: row.note ?? null,
+  quantity: row.quantity ?? null,
+  unit: row.unit ?? null,
+  unitPrice: row.unitPrice ?? null,
+  memberIds: row.memberIds,
+  relationIds: row.relationIds,
+});
+
 /** Way products and items are grouped. */
 export type ShoppingGrouping = 'category' | 'store';
-
-export interface ShoppingGroup<T> {
-  /** Category or store id, null for the items without one. */
-  id: string | null;
-  name: string;
-  color: string | null;
-  items: T[];
-}
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -90,29 +119,93 @@ export function shoppingCategoryOptions(categories: readonly ShoppingCategory[],
     .map((item) => ({ value: item.category.id, label: `${'\u2003'.repeat(item.depth)}${item.category.name}` }));
 }
 
+/** Row of a shopping table: a category (or store) heading, or a product or an item under it. */
+export type ShoppingRow<T> =
+  | {
+      kind: 'group';
+      /** Category or store id, null for the rows without one. */
+      id: string | null;
+      name: string;
+      color: string | null;
+      depth: number;
+      /** Ids of the categories above it. */
+      parents: string[];
+      /** Products or items in it and in its sub-categories. */
+      items: T[];
+    }
+  | {
+      kind: 'item';
+      item: T;
+      depth: number;
+      /** Category or store it is in (null: none). */
+      groupId: string | null;
+      /** Ids of the categories above it (its own included). */
+      parents: string[];
+    };
+
+/** Key of the group without category or store, in the collapsed groups. */
+export const NO_GROUP = 'none';
+
 /**
- * Products or items grouped by category (in tree order, named by their path) or by store; the ones without come
- * last.
- * @param {T[]} items Products or items.
+ * Rows of a shopping table: by category, each heading followed by its products or items then by its sub-categories
+ * (a tree, as the treasury categories), or by store; the rows without category or store come last.
+ * @param {T[]} items Products or items, in their order.
  * @param {ShoppingGrouping} grouping Grouping.
  * @param {{ categories: ShoppingCategory[], stores: ShoppingStore[] }} labels Categories and stores.
- * @returns {ShoppingGroup<T>[]} Groups (empty ones left out).
+ * @param {boolean} [showEmpty=false] Also the empty categories or stores (to drop something in them). Optional.
+ * @returns {ShoppingRow<T>[]} Rows.
  */
-export function groupShopping<T extends { categoryId?: string | null; storeId?: string | null }>(
+export function shoppingRows<T extends { categoryId?: string | null; storeId?: string | null }>(
   items: T[],
   grouping: ShoppingGrouping,
   { categories, stores }: { categories: ShoppingCategory[]; stores: ShoppingStore[] },
-): ShoppingGroup<T>[] {
+  showEmpty = false,
+): ShoppingRow<T>[] {
   const key = (item: T) => (grouping === 'category' ? item.categoryId : item.storeId) ?? null;
-  const labels =
+  const groups =
     grouping === 'category'
-      ? shoppingCategoryTree(categories).map(({ category, path, color }) => ({ id: category.id, name: path, color }))
-      : [...stores].sort((a, b) => a.position - b.position).map((store) => ({ id: store.id, name: store.name, color: store.color }));
-  const groups: ShoppingGroup<T>[] = labels.map((label) => ({ ...label, items: items.filter((item) => key(item) === label.id) }));
-  const known = new Set(labels.map((label) => label.id));
-  groups.push({ id: null, name: grouping === 'category' ? 'Sans catégorie' : 'Sans magasin', color: null, items: items.filter((item) => !known.has(key(item) ?? '')) });
-  return groups.filter((group) => group.items.length > 0);
+      ? shoppingCategoryTree(categories).map(({ category, depth, color }) => ({ id: category.id, name: category.name, color, depth, parentId: category.parentId ?? null }))
+      : [...stores].sort((a, b) => a.position - b.position).map((store) => ({ id: store.id, name: store.name, color: store.color, depth: 0, parentId: null }));
+  const known = new Set(groups.map((group) => group.id));
+  const parentOf = new Map(groups.map((group) => [group.id, group.parentId && known.has(group.parentId) ? group.parentId : null]));
+  /**
+   * Ids of a group and of the groups above it, the top one first.
+   * @param {string} id Group id.
+   * @returns {string[]} Ids.
+   */
+  const chain = (id: string): string[] => {
+    const ids: string[] = [];
+    for (let current: string | null | undefined = id; current; current = parentOf.get(current)) ids.unshift(current);
+    return ids;
+  };
+  const inSubtree = new Map<string, T[]>(groups.map((group) => [group.id, []]));
+  for (const item of items) {
+    const id = key(item);
+    if (id && known.has(id)) for (const above of chain(id)) inSubtree.get(above)?.push(item);
+  }
+  const rows: ShoppingRow<T>[] = [];
+  for (const group of groups) {
+    const subtree = inSubtree.get(group.id) ?? [];
+    if (!showEmpty && subtree.length === 0) continue;
+    const parents = chain(group.id).slice(0, -1);
+    rows.push({ kind: 'group', id: group.id, name: group.name, color: group.color, depth: group.depth, parents, items: subtree });
+    for (const item of items) if (key(item) === group.id) rows.push({ kind: 'item', item, depth: group.depth + 1, groupId: group.id, parents: [...parents, group.id] });
+  }
+  const others = items.filter((item) => !known.has(key(item) ?? ''));
+  if (others.length || showEmpty) {
+    rows.push({ kind: 'group', id: null, name: grouping === 'category' ? 'Sans catégorie' : 'Sans magasin', color: null, depth: 0, parents: [], items: others });
+    for (const item of others) rows.push({ kind: 'item', item, depth: 1, groupId: null, parents: [NO_GROUP] });
+  }
+  return rows;
 }
+
+/**
+ * Rows left once the collapsed groups are folded (their headings stay).
+ * @param {ShoppingRow<T>[]} rows Rows.
+ * @param {ReadonlySet<string>} collapsed Collapsed groups (NO_GROUP for the one without).
+ * @returns {ShoppingRow<T>[]} Rows shown.
+ */
+export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<string>) => rows.filter((row) => !row.parents.some((id) => collapsed.has(id)));
 
 /**
  * Members of the team or household and relations, by id, to name the people of a product or an item.

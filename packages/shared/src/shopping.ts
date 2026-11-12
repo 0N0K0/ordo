@@ -45,11 +45,15 @@ const shoppingFields = {
   relationIds: z.array(z.string()).max(50).default([]),
 };
 
-export const shoppingProductSchema = z.object({ ...shoppingFields, missing: z.boolean() });
+/** Product of a base list: its fields, the base list holding it and whether it is missing. */
+export const shoppingProductSchema = z.object({ ...shoppingFields, baseListId: z.string().min(1, 'La liste type est requise.'), missing: z.boolean() });
 export type ShoppingProductInput = z.input<typeof shoppingProductSchema>;
 
 export const shoppingItemSchema = z.object(shoppingFields);
 export type ShoppingItemInput = z.input<typeof shoppingItemSchema>;
+
+/** Base list ("liste type"): its name. */
+export const shoppingBaseListNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(80, '80 caractères maximum.');
 
 export const shoppingListNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(120, '120 caractères maximum.');
 
