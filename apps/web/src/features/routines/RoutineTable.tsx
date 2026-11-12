@@ -62,7 +62,26 @@ const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'num
 const dayText = (date: string) => shortDate.format(new Date(`${date}T00:00:00Z`));
 
 /** What a routine is dropped on: a category heading (or the one without), or another routine. */
-type DropData = { kind: 'group'; categoryId: string | null } | { kind: 'routine'; routine: Routine };
+type DropData = { kind: 'group'; categoryId: string | null } | { kind: 'routine'; routine: Routine; groupId: string | null };
+
+/** Routine dragged, with the category it is dragged from. */
+interface DragData {
+  routine: Routine;
+  groupId: string | null;
+}
+
+/**
+ * Categories of a routine moved from a category to another: the one it leaves is replaced by the one it goes to (none:
+ * without any category).
+ * @param {string[]} categoryIds Its categories.
+ * @param {string | null} from Category it leaves.
+ * @param {string | null} to Category it goes to.
+ * @returns {string[]} New categories.
+ */
+function movedCategories(categoryIds: string[], from: string | null, to: string | null): string[] {
+  if (to === null) return [];
+  return [...new Set([...categoryIds.filter((id) => id !== from), to])];
+}
 
 /**
  * Where a dragged routine goes: the heading or row under the pointer; with the keyboard, the closest one.
@@ -209,8 +228,18 @@ interface RoutineRowProps {
 function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, onToggle }: RoutineRowProps) {
   const { routine, depth, children } = row;
   const { patch, setDone, setArchived, remove } = useRoutineMutations();
-  const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: routine.id, disabled: routine.archived });
-  const { setNodeRef: setDropRef } = useDroppable({ id: `routine:${routine.id}`, data: { kind: 'routine', routine } satisfies DropData });
+  const {
+    setNodeRef: setDragRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    isDragging,
+  } = useDraggable({
+    id: row.key,
+    data: { routine, groupId: row.groupId } satisfies DragData,
+    disabled: routine.archived,
+  });
+  const { setNodeRef: setDropRef } = useDroppable({ id: `routine:${row.key}`, data: { kind: 'routine', routine, groupId: row.groupId } satisfies DropData });
   const done = isDone(routine);
   const waiting = waitingFor(routine, byId);
   const rule = ruleOf(routine);
@@ -346,7 +375,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
 
 /**
  * Row at the end of a category (or of the table): a title typed then Enter adds a routine in it, every day from today.
- * @param {{ categoryId: string | null, depth: number, groupName: string }} props Component props.
+ * @param {{ categoryId: string | null, depth: number, groupName: string }} props Component props (the category of the routines added).
  * @returns {JSX.Element} Row.
  */
 function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | null; depth: number; groupName: string }) {
@@ -364,7 +393,18 @@ function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | 
       return;
     }
     create.mutate(
-      { title: result.data, description: null, categoryId, parentId: null, startDate: localToday(), recurrence: DAILY, estimate: null, projectId: null, assigneeIds: [], requiredIds: [] },
+      {
+        title: result.data,
+        description: null,
+        categoryIds: categoryId ? [categoryId] : [],
+        parentId: null,
+        startDate: localToday(),
+        recurrence: DAILY,
+        estimate: null,
+        projectId: null,
+        assigneeIds: [],
+        requiredIds: [],
+      },
       { onSuccess: () => setTitle(''), onError: (error) => notifyError(error.message) },
     );
   };
@@ -416,7 +456,8 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
   const { patch, move } = useRoutineMutations();
   const { data: running } = useRunningTimer();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const [dragged, setDragged] = useState<Routine | null>(null);
+  const [draggedRow, setDragged] = useState<DragData | null>(null);
+  const dragged = draggedRow?.routine ?? null;
   const [drop, setDrop] = useState<{ id: string; place: RoutinePlace } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const today = localToday();
@@ -426,7 +467,7 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
 
   /**
    * Folds or unfolds a category or a routine.
-   * @param {string} key Category id (NO_CATEGORY for none) or routine id.
+   * @param {string} key Category id (NO_CATEGORY for none) or routine row key.
    * @returns {void}
    */
   const toggle = (key: string) =>
@@ -478,24 +519,30 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
     const place = drop?.place ?? 'INSIDE';
     setDragged(null);
     setDrop(null);
-    const moved = byId.get(String(active.id));
+    const source = active.data.current as DragData | undefined;
     const target = over?.data.current as DropData | undefined;
-    if (!moved || !target) return;
+    if (!source || !target) return;
+    const moved = source.routine;
     const onError = (error: Error) => notifyError(error.message);
     if (target.kind === 'routine') {
-      if (canPlace(moved, target.routine, place)) move.mutate({ id: moved.id, targetId: target.routine.id, place }, { onError });
+      if (!canPlace(moved, target.routine, place)) return;
+      // Next to a top routine of another category: it moves to that category.
+      const changesCategory = place !== 'INSIDE' && target.routine.parentId === null && target.groupId !== source.groupId;
+      const categoryIds = changesCategory ? movedCategories(moved.categoryIds, source.groupId, target.groupId) : null;
+      move.mutate({ id: moved.id, targetId: target.routine.id, place, categoryIds }, { onError });
       return;
     }
-    if (moved.parentId === null && moved.categoryId === target.categoryId) return;
-    patch.mutate({ id: moved.id, input: { parentId: null, categoryId: target.categoryId } }, { onError });
+    if (moved.parentId === null && source.groupId === target.categoryId) return;
+    patch.mutate({ id: moved.id, input: { parentId: null, categoryIds: movedCategories(moved.categoryIds, source.groupId, target.categoryId) } }, { onError });
   };
 
   /**
    * Where the dragged routine would go on a row, if it is the one under the pointer and the move is allowed.
-   * @param {Routine} target Routine of the row.
+   * @param {Extract<RoutineRow, { kind: 'routine' }>} row Row.
    * @returns {RoutinePlace | null} Place.
    */
-  const dropOn = (target: Routine): RoutinePlace | null => (dragged !== null && drop?.id === `routine:${target.id}` && canPlace(dragged, target, drop.place) ? drop.place : null);
+  const dropOn = (row: Extract<RoutineRow, { kind: 'routine' }>): RoutinePlace | null =>
+    dragged !== null && drop?.id === `routine:${row.key}` && canPlace(dragged, row.routine, drop.place) ? drop.place : null;
 
   /**
    * Rows of the body, with the "add" row at the end of each unfolded category.
@@ -510,16 +557,16 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
       } else {
         out.push(
           <RoutineRowView
-            key={row.routine.id}
+            key={row.key}
             row={row}
             routines={routines}
             byId={byId}
             context={context}
             today={today}
             running={running}
-            collapsed={collapsed.has(row.routine.id)}
-            drop={dropOn(row.routine)}
-            onToggle={() => toggle(row.routine.id)}
+            collapsed={collapsed.has(row.key)}
+            drop={dropOn(row)}
+            onToggle={() => toggle(row.key)}
           />,
         );
       }
@@ -542,7 +589,7 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
       sensors={sensors}
       collisionDetection={collision}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-      onDragStart={({ active }) => setDragged(byId.get(String(active.id)) ?? null)}
+      onDragStart={({ active }) => setDragged((active.data.current as DragData | undefined) ?? null)}
       onDragOver={handleDragMove}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}

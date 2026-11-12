@@ -2,7 +2,7 @@ import { Button, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextIn
 import { DatePickerInput } from '@mantine/dates';
 import { routineSchema, type Recurrence } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { categoryOptions } from '../../components/category-tree/category-tree';
+import { categoryTree } from '../../components/category-tree/category-tree';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -15,7 +15,7 @@ import { DAILY, ruleOf } from './routine-format';
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
   description: string;
-  categoryId: string | null;
+  categoryIds: string[];
   parentId: string | null;
   startDate: string;
   recurrence: Recurrence;
@@ -73,7 +73,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     initialValues: {
       title: routine ? (copy ? `${routine.title} (copie)` : routine.title) : '',
       description: routine?.description ?? '',
-      categoryId: routine ? routine.categoryId : (parent?.categoryId ?? categoryId),
+      categoryIds: routine ? routine.categoryIds : (parent?.categoryIds ?? (categoryId ? [categoryId] : [])),
       parentId: routine ? routine.parentId : (parent?.id ?? null),
       startDate: routine?.startDate ?? (parent && parent.startDate > localToday() ? parent.startDate : localToday()),
       recurrence: (source && ruleOf(source)) ?? DAILY,
@@ -111,14 +111,14 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
         <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
         <Textarea label="Description" autosize minRows={2} maxRows={8} {...form.getInputProps('description')} />
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-          <Select
-            label="Catégorie"
-            placeholder="Aucune"
+          <BatchMultiSelect
+            label="Catégories"
+            placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
             clearable
             searchable
-            data={categoryOptions(data?.routineCategories ?? [])}
+            data={categoryTree(data?.routineCategories ?? []).map((item) => ({ value: item.category.id, label: item.path }))}
             nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
-            {...form.getInputProps('categoryId')}
+            {...form.getInputProps('categoryIds')}
           />
           <Select label="Routine parente" placeholder="Aucune" clearable searchable data={routineOptions((item) => !excluded.has(item.id))} {...form.getInputProps('parentId')} />
         </SimpleGrid>

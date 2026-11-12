@@ -22,7 +22,7 @@ const RoutinesDataDocument = graphql(`
       id
       title
       description
-      categoryId
+      categoryIds
       parentId
       startDate
       recurrence
@@ -84,8 +84,8 @@ const PatchRoutineDocument = graphql(`
 `);
 
 const MoveRoutineDocument = graphql(`
-  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {
-    moveRoutine(id: $id, targetId: $targetId, place: $place)
+  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {
+    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)
   }
 `);
 
@@ -153,17 +153,25 @@ const patchRoutine = (data: RoutinesDataQuery, id: string, change: (routine: Rou
 /** Where a routine is dropped, relative to another one. */
 export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
 
+/** Move of a routine next to or under another one; its new categories, if they change. */
+export interface RoutineMove {
+  id: string;
+  targetId: string;
+  place: RoutinePlace;
+  categoryIds?: string[] | null;
+}
+
 /**
  * Moves a routine in the cached data: next to the target (its parent and category), or last under it.
  * @param {RoutinesDataQuery} data Cached data.
- * @param {{ id: string, targetId: string, place: RoutinePlace }} move Move.
+ * @param {RoutineMove} move Move.
  * @returns {RoutinesDataQuery} New data.
  */
-function moveInCache(data: RoutinesDataQuery, { id, targetId, place }: { id: string; targetId: string; place: RoutinePlace }): RoutinesDataQuery {
+function moveInCache(data: RoutinesDataQuery, { id, targetId, place, categoryIds }: RoutineMove): RoutinesDataQuery {
   const moved = data.routines.find((routine) => routine.id === id);
   const target = data.routines.find((routine) => routine.id === targetId);
   if (!moved || !target) return data;
-  const placed = place === 'INSIDE' ? { ...moved, parentId: target.id } : { ...moved, parentId: target.parentId, categoryId: target.categoryId };
+  const placed = { ...moved, parentId: place === 'INSIDE' ? target.id : target.parentId, categoryIds: categoryIds ?? moved.categoryIds };
   const rest = data.routines.filter((routine) => routine.id !== id);
   const index = rest.indexOf(target);
   rest.splice(place === 'INSIDE' ? rest.length : place === 'BEFORE' ? index : index + 1, 0, placed);
@@ -173,7 +181,7 @@ function moveInCache(data: RoutinesDataQuery, { id, targetId, place }: { id: str
 /** Inline changes of a routine. */
 export interface RoutinePatchValues {
   title?: string;
-  categoryId?: string | null;
+  categoryIds?: string[];
   parentId?: string | null;
   estimate?: number | null;
   assigneeIds?: string[];
@@ -199,7 +207,7 @@ export function useRoutineMutations() {
       async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),
     ),
-    move: useRoutineMutation(async (variables: { id: string; targetId: string; place: RoutinePlace }) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
+    move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
     setDone: useRoutineMutation(
       async (variables: { id: string; done: boolean; date?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date }) =>

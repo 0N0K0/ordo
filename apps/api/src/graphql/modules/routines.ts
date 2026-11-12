@@ -34,7 +34,11 @@ builder.prismaObject('Routine', {
     id: t.exposeID('id'),
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
+    categoryIds: t.idList({
+      description: 'Categories it is shown in.',
+      select: { categories: { select: { id: true } } },
+      resolve: (routine) => routine.categories.map((category) => category.id),
+    }),
     parentId: t.exposeID('parentId', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date' }),
     recurrence: t.expose('recurrence', { type: 'JSON' }),
@@ -92,7 +96,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
   fields: (t) => ({
     title: t.string({ required: true }),
     description: t.string(),
-    categoryId: t.id(),
+    categoryIds: t.idList({ required: true }),
     parentId: t.id(),
     startDate: t.field({ type: 'Date', required: true }),
     recurrence: t.field({ type: 'JSON', required: true }),
@@ -107,7 +111,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
   description: 'Changes of a routine (omitted fields unchanged).',
   fields: (t) => ({
     title: t.string(),
-    categoryId: t.id(),
+    categoryIds: t.idList(),
     parentId: t.id({ description: 'Null: top level.' }),
     estimate: t.int(),
     assigneeIds: t.idList(),
@@ -130,7 +134,7 @@ const idOrNull = (id: string | number | null | undefined) => (id === null || id 
 const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput => ({
   title: input.title,
   description: input.description ?? null,
-  categoryId: idOrNull(input.categoryId),
+  categoryIds: input.categoryIds.map(String),
   parentId: idOrNull(input.parentId),
   startDate: input.startDate,
   recurrence: input.recurrence as RoutineInput['recurrence'],
@@ -196,7 +200,7 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { id, input }) => {
       const changes: Partial<RoutineInput> = {};
       if (input.title !== undefined && input.title !== null) changes.title = input.title;
-      if (input.categoryId !== undefined) changes.categoryId = idOrNull(input.categoryId);
+      if (input.categoryIds) changes.categoryIds = input.categoryIds.map(String);
       if (input.parentId !== undefined) changes.parentId = idOrNull(input.parentId);
       if (input.estimate !== undefined) changes.estimate = input.estimate;
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
@@ -206,10 +210,15 @@ builder.mutationFields((t) => ({
     },
   }),
   moveRoutine: t.boolean({
-    description: 'Moves a routine before or after another one (same parent and category), or last under it.',
-    args: { id: t.arg.id({ required: true }), targetId: t.arg.id({ required: true }), place: t.arg({ type: RoutinePlaceEnum, required: true }) },
-    resolve: async (_root, { id, targetId, place }) => {
-      await routines.moveRoutine(String(id), String(targetId), place);
+    description: 'Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.',
+    args: {
+      id: t.arg.id({ required: true }),
+      targetId: t.arg.id({ required: true }),
+      place: t.arg({ type: RoutinePlaceEnum, required: true }),
+      categoryIds: t.arg.idList(),
+    },
+    resolve: async (_root, { id, targetId, place, categoryIds }) => {
+      await routines.moveRoutine(String(id), String(targetId), place, categoryIds ? categoryIds.map(String) : null);
       return true;
     },
   }),

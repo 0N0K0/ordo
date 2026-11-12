@@ -219,7 +219,7 @@ type Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": typeof types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": typeof types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": typeof types.DeleteMailSearchDocument,
-    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n    }\n    routines {\n      id\n      title\n      description\n      categoryId\n      parentId\n      startDate\n      recurrence\n      estimate\n      projectId\n      position\n      archived\n      assigneeIds\n      requiredIds\n      currentDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n    }\n  }\n": typeof types.RoutinesDataDocument,
+    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      projectId\n      position\n      archived\n      assigneeIds\n      requiredIds\n      currentDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n    }\n  }\n": typeof types.RoutinesDataDocument,
     "\n  mutation CreateRoutineCategory($input: RoutineCategoryInput!) {\n    createRoutineCategory(input: $input)\n  }\n": typeof types.CreateRoutineCategoryDocument,
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID) {\n    moveRoutineCategory(id: $id, parentId: $parentId)\n  }\n": typeof types.MoveRoutineCategoryDocument,
@@ -227,7 +227,7 @@ type Documents = {
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": typeof types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": typeof types.PatchRoutineDocument,
-    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place)\n  }\n": typeof types.MoveRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {\n    setRoutineDone(id: $id, done: $done, date: $date)\n  }\n": typeof types.SetRoutineDoneDocument,
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": typeof types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": typeof types.DeleteRoutineDocument,
@@ -620,7 +620,7 @@ const documents: Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": types.DeleteMailSearchDocument,
-    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n    }\n    routines {\n      id\n      title\n      description\n      categoryId\n      parentId\n      startDate\n      recurrence\n      estimate\n      projectId\n      position\n      archived\n      assigneeIds\n      requiredIds\n      currentDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n    }\n  }\n": types.RoutinesDataDocument,
+    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      projectId\n      position\n      archived\n      assigneeIds\n      requiredIds\n      currentDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n    }\n  }\n": types.RoutinesDataDocument,
     "\n  mutation CreateRoutineCategory($input: RoutineCategoryInput!) {\n    createRoutineCategory(input: $input)\n  }\n": types.CreateRoutineCategoryDocument,
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID) {\n    moveRoutineCategory(id: $id, parentId: $parentId)\n  }\n": types.MoveRoutineCategoryDocument,
@@ -628,7 +628,7 @@ const documents: Documents = {
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": types.PatchRoutineDocument,
-    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place)\n  }\n": types.MoveRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {\n    setRoutineDone(id: $id, done: $done, date: $date)\n  }\n": types.SetRoutineDoneDocument,
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": types.DeleteRoutineDocument,
@@ -1636,7 +1636,7 @@ export function graphql(source: "\n  mutation DeleteMailSearch($id: ID!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n    }\n    routines {\n      id\n      title\n      description\n      categoryId\n      parentId\n      startDate\n      recurrence\n      estimate\n      projectId\n      position\n      archived\n      assigneeIds\n      requiredIds\n      currentDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n    }\n  }\n"): typeof import('./graphql').RoutinesDataDocument;
+export function graphql(source: "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      projectId\n      position\n      archived\n      assigneeIds\n      requiredIds\n      currentDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n    }\n  }\n"): typeof import('./graphql').RoutinesDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1668,7 +1668,7 @@ export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: Rou
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
+export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

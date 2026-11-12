@@ -1601,9 +1601,9 @@ type Mutation {
   moveProjectStatus(id: ID!, index: Int!): Boolean!
 
   """
-  Moves a routine before or after another one (same parent and category), or last under it.
+  Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.
   """
-  moveRoutine(id: ID!, place: RoutinePlace!, targetId: ID!): Boolean!
+  moveRoutine(categoryIds: [ID!], id: ID!, place: RoutinePlace!, targetId: ID!): Boolean!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null).
@@ -2351,7 +2351,9 @@ Task repeating on a calendar rule, ticked once done for its current occurrence.
 type Routine {
   archived: Boolean!
   assigneeIds: [ID!]!
-  categoryId: ID
+
+  """Categories it is shown in."""
+  categoryIds: [ID!]!
 
   """
   Current occurrence: the last one on or before today (null before the start or after the end).
@@ -2399,7 +2401,7 @@ input RoutineCategoryInput {
 
 input RoutineInput {
   assigneeIds: [ID!]!
-  categoryId: ID
+  categoryIds: [ID!]!
   description: String
 
   """Minutes."""
@@ -2415,7 +2417,7 @@ input RoutineInput {
 """Changes of a routine (omitted fields unchanged)."""
 input RoutinePatch {
   assigneeIds: [ID!]
-  categoryId: ID
+  categoryIds: [ID!]
   estimate: Int
 
   """Null: top level."""

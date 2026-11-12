@@ -18,7 +18,8 @@ export const routineSchema = z.object({
     .max(4000, '4 000 caractères maximum.')
     .transform((value) => (value.trim() ? value.trim() : null))
     .nullable(),
-  categoryId: z.string().nullable(),
+  /** Categories it is shown in. */
+  categoryIds: z.array(z.string()).max(100),
   parentId: z.string().nullable(),
   startDate: z.iso.date({ error: 'La date de début est requise.' }),
   recurrence: recurrenceSchema,

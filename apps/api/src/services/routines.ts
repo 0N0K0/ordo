@@ -109,9 +109,10 @@ export async function deleteCategory(id: string): Promise<void> {
 async function parseRoutine(input: RoutineInput, id?: string) {
   const data = parseInput(routineSchema, input);
   data.assigneeIds = [...new Set(data.assigneeIds)];
+  data.categoryIds = [...new Set(data.categoryIds)];
   data.requiredIds = [...new Set(data.requiredIds)];
   if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
-  if (data.categoryId && !(await prisma.routineCategory.findUnique({ where: { id: data.categoryId }, select: { id: true } }))) throw fieldError('categoryId', 'Catégorie introuvable.');
+  if ((await prisma.routineCategory.count({ where: { id: { in: data.categoryIds } } })) !== data.categoryIds.length) throw fieldError('categoryIds', 'Catégorie introuvable.');
   if (data.projectId && !(await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true } }))) throw fieldError('projectId', 'Projet introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.assigneeIds } } })) !== data.assigneeIds.length) throw fieldError('assigneeIds', 'Assigné introuvable.');
 
@@ -149,7 +150,6 @@ async function parseRoutine(input: RoutineInput, id?: string) {
 const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   title: data.title,
   description: data.description,
-  categoryId: data.categoryId,
   parentId: data.parentId,
   startDate: parseDay(data.startDate),
   recurrence: data.recurrence,
@@ -166,7 +166,9 @@ export async function createRoutine(input: RoutineInput): Promise<Routine> {
   const data = await parseRoutine(input);
   const position = ((await prisma.routine.aggregate({ where: { parentId: data.parentId }, _max: { position: true } }))._max.position ?? -1) + 1;
   return prisma.$transaction(async (tx) => {
-    const routine = await tx.routine.create({ data: { ...scalars(data), position, assignees: { connect: data.assigneeIds.map((id) => ({ id })) } } });
+    const routine = await tx.routine.create({
+      data: { ...scalars(data), position, assignees: { connect: data.assigneeIds.map((id) => ({ id })) }, categories: { connect: data.categoryIds.map((id) => ({ id })) } },
+    });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: routine.id, requiredId })) });
     return routine;
   });
@@ -195,7 +197,10 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
   return prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });
-    return tx.routine.update({ where: { id }, data: { ...scalars(data), assignees: { set: data.assigneeIds.map((assigneeId) => ({ id: assigneeId })) } } });
+    return tx.routine.update({
+      where: { id },
+      data: { ...scalars(data), assignees: { set: data.assigneeIds.map((assigneeId) => ({ id: assigneeId })) }, categories: { set: data.categoryIds.map((categoryId) => ({ id: categoryId })) } },
+    });
   });
 }
 
@@ -208,13 +213,13 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
 export async function patchRoutine(id: string, changes: Partial<RoutineInput>): Promise<Routine> {
   const routine = await prisma.routine.findUnique({
     where: { id },
-    include: { assignees: { select: { id: true } }, requires: { select: { requiredId: true } } },
+    include: { assignees: { select: { id: true } }, categories: { select: { id: true } }, requires: { select: { requiredId: true } } },
   });
   if (!routine) throw notFound('Routine');
   return updateRoutine(id, {
     title: routine.title,
     description: routine.description,
-    categoryId: routine.categoryId,
+    categoryIds: routine.categories.map((category) => category.id),
     parentId: routine.parentId,
     startDate: formatDay(routine.startDate),
     recurrence: storedRecurrence(routine.recurrence) ?? (routine.recurrence as RoutineInput['recurrence']),
@@ -251,21 +256,21 @@ export async function deleteRoutine(id: string): Promise<void> {
 export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
 
 /**
- * Moves a routine next to another one (before or after it: same parent and category), or last under it (a
- * sub-routine), then numbers the siblings in their new order.
+ * Moves a routine next to another one (before or after it: same parent), or last under it (a sub-routine), then
+ * numbers the siblings in their new order; its categories may change with it (moved from a category to another).
  * @param {string} id Routine moved.
  * @param {string} targetId Routine it is dropped on.
  * @param {RoutinePlace} place Before, after or inside the target.
+ * @param {string[] | null} [categoryIds] New categories. Optional. Default = unchanged.
  * @returns {Promise<void>}
  */
-export async function moveRoutine(id: string, targetId: string, place: RoutinePlace): Promise<void> {
+export async function moveRoutine(id: string, targetId: string, place: RoutinePlace, categoryIds: string[] | null = null): Promise<void> {
   if (id === targetId) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être déplacée sur elle-même.');
   const routine = await findRoutine(id);
   const target = await findRoutine(targetId);
   const parentId = place === 'INSIDE' ? target.id : target.parentId;
-  const categoryId = place === 'INSIDE' ? routine.categoryId : target.categoryId;
   // The parent is checked (no loop) by the regular update.
-  if (parentId !== routine.parentId || categoryId !== routine.categoryId) await patchRoutine(id, { parentId, categoryId });
+  if (parentId !== routine.parentId || categoryIds) await patchRoutine(id, { parentId, ...(categoryIds && { categoryIds }) });
   const siblings = (await prisma.routine.findMany({ where: { parentId, id: { not: id } }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } })).map((sibling) => sibling.id);
   const index = siblings.indexOf(target.id);
   siblings.splice(place === 'INSIDE' || index === -1 ? siblings.length : place === 'BEFORE' ? index : index + 1, 0, id);
