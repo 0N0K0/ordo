@@ -273,7 +273,7 @@ export function CalendarPage() {
         if (dayOf(start) > range.to) continue;
         const running = entry.endedAt === null;
         const end = entry.endedAt ? new Date(entry.endedAt) : entry.pausedAt ? new Date(entry.pausedAt) : new Date(minute * 60_000 + 60_000);
-        const project = context.projectById.get(entry.projectId);
+        const project = entry.projectId ? context.projectById.get(entry.projectId) : undefined;
         const color = project?.color ?? 'var(--mantine-color-gray-6)';
         const stop = end > start ? end : new Date(start.getTime() + 60_000);
         let parts: [Date, Date][] = [[start, stop]];

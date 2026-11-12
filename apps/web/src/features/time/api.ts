@@ -10,6 +10,8 @@ graphql(`
   fragment TimeEntryFields on TimeEntry {
     id
     projectId
+    routineId
+    routineTitle
     description
     startedAt
     endedAt
@@ -147,7 +149,10 @@ function useTimeMutation<TVariables, TResult>(mutationFn: (variables: TVariables
 }
 
 export interface TimeEntryValues {
-  projectId: string;
+  /** Project (null: none, for the time of a routine). */
+  projectId: string | null;
+  /** Routine the time is spent on. */
+  routineId?: string | null;
   taskIds: string[];
   description: string | null;
   startedAt: string;
@@ -164,7 +169,7 @@ export interface TimeEntryValues {
 export function useTimeMutations() {
   return {
     start: useTimeMutation(
-      async (input: { projectId: string; taskIds: string[]; description?: string | null; event?: { eventId: string; occurrenceDate: string | null } | null }) =>
+      async (input: { projectId?: string | null; routineId?: string | null; taskIds: string[]; description?: string | null; event?: { eventId: string; occurrenceDate: string | null } | null }) =>
         (await execute(StartTimerDocument, { input })).startTimer,
     ),
     setPaused: useTimeMutation(async (paused: boolean) => (await execute(SetTimerPausedDocument, { paused })).setTimerPaused),

@@ -67,20 +67,6 @@
     }
   }
 
-  /* Drop zone making a category a top-level one. */
-  .rootZone {
-    /* Bordures */
-    border-style: dashed;
-
-    &[data-over] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      border-color: var(--mantine-primary-color-filled);
-    }
-  }
-
   .handle {
     /* Interaction */
     cursor: grab;

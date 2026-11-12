@@ -17,5 +17,6 @@ import './modules/dashboards';
 import './modules/github';
 import './modules/library';
 import './modules/shopping';
+import './modules/routines';
 
 export const schema = builder.toSchema();

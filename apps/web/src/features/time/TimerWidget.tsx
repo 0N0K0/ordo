@@ -22,7 +22,7 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
   const [opened, { toggle, close }] = useDisclosure(false);
   const paused = entry.pausedAt !== null;
   const now = useNow(!paused);
-  const project = context?.projectById.get(entry.projectId);
+  const project = entry.projectId ? context?.projectById.get(entry.projectId) : undefined;
 
   return (
     <Group gap={4} wrap="nowrap" className={classes.running} data-paused={paused || undefined}>
@@ -31,7 +31,7 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
           <UnstyledButton className={classes.summary} onClick={toggle} aria-label="Détails du chrono">
             <span className={classes.dot} aria-hidden />
             <Text size="sm" truncate maw={160} visibleFrom="sm">
-              {project?.title ?? 'Chrono'}
+              {project?.title ?? entry.routineTitle ?? 'Chrono'}
             </Text>
             <Text size="sm" ff="monospace" fw={600}>
               {formatClock(entrySeconds(entry, now))}

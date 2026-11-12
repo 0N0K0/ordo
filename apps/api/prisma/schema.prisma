@@ -107,6 +107,10 @@ model Workspace {
   shoppingProducts          ShoppingProduct[]
   shoppingLists             ShoppingList[]
   shoppingItems             ShoppingItem[]
+  routineCategories         RoutineCategory[]
+  routines                  Routine[]
+  routineDependencies       RoutineDependency[]
+  routineChecks             RoutineCheck[]
 }
 
 /// Kind of notification a workspace can give while another one is open.
@@ -328,6 +332,8 @@ model Project {
   treasury      TreasuryEntry[]
   /// Lines of split treasury entries attached to the project.
   treasuryLines TreasuryEntryLine[]
+  /// Routines whose tracked time goes to the project.
+  routines      Routine[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId   String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace     Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -398,6 +404,8 @@ model Contributor {
   /// Shopping products and items it is for (member of the team or household).
   shoppingProducts  ShoppingProduct[]   @relation("ShoppingProductMembers")
   shoppingItems     ShoppingItem[]      @relation("ShoppingItemMembers")
+  /// Routines it is assigned to.
+  routines          Routine[]           @relation("RoutineAssignees")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId       String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace         Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -876,8 +884,12 @@ model Attachment {
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
   id                     String              @id @default(cuid())
-  projectId              String
-  project                Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Project the time is spent on; null for the time of a routine without project.
+  projectId              String?
+  project                Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// Routine the time is spent on (an entry has a project, a routine, or both).
+  routineId              String?
+  routine                Routine?            @relation(fields: [routineId], references: [id], onDelete: SetNull)
   /// What was done (plain text, several lines).
   description            String?
   startedAt              DateTime
@@ -905,6 +917,7 @@ model TimeEntry {
   workspace              Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@index([routineId])
   @@index([calendarEventId])
   @@index([startedAt])
   @@index([endedAt])
@@ -2261,5 +2274,97 @@ model ShoppingItem {
   @@index([listId])
   @@index([productId])
   @@index([storageId])
+  @@index([workspaceId])
+}
+
+/// Category of the routines, in a tree (as the shopping categories).
+model RoutineCategory {
+  id          String            @id @default(cuid())
+  name        String
+  color       String?
+  parentId    String?
+  parent      RoutineCategory?  @relation("RoutineCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    RoutineCategory[] @relation("RoutineCategoryTree")
+  createdAt   DateTime          @default(now())
+  routines    Routine[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
+  @@index([workspaceId])
+}
+
+/// Task repeating on a calendar rule, simply ticked once done for its current occurrence.
+model Routine {
+  id          String              @id @default(cuid())
+  title       String
+  /// Plain text, several lines.
+  description String?
+  categoryId  String?
+  category    RoutineCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  /// Parent routine (null for a top-level one). Deleting a routine puts its sub-routines one level up.
+  parentId    String?
+  parent      Routine?            @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Routine[]           @relation("RoutineTree")
+  /// First occurrence: the rule repeats from it.
+  startDate   DateTime            @db.Date
+  /// Repetition (the shared recurrence rule of the events and tasks).
+  recurrence  Json
+  /// Time to spend on it, in minutes.
+  estimate    Int?
+  /// Project its tracked time goes to, if any.
+  projectId   String?
+  project     Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Manual order among siblings.
+  position    Int                 @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  assignees   Contributor[]       @relation("RoutineAssignees")
+  /// Routines to do before this one ("étendre le linge" requires "laver le linge").
+  requires    RoutineDependency[] @relation("RoutineDependent")
+  /// Routines requiring this one.
+  requiredBy  RoutineDependency[] @relation("RoutineRequired")
+  /// Occurrences ticked as done.
+  checks      RoutineCheck[]
+  timeEntries TimeEntry[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([parentId])
+  @@index([projectId])
+  @@index([workspaceId])
+}
+
+/// "routine requires required": the required one comes first on each occurrence.
+model RoutineDependency {
+  routineId   String
+  routine     Routine   @relation("RoutineDependent", fields: [routineId], references: [id], onDelete: Cascade)
+  requiredId  String
+  required    Routine   @relation("RoutineRequired", fields: [requiredId], references: [id], onDelete: Cascade)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([routineId, requiredId])
+  @@index([requiredId])
+  @@index([workspaceId])
+}
+
+/// Occurrence of a routine ticked as done.
+model RoutineCheck {
+  routineId   String
+  routine     Routine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  /// Date of the occurrence.
+  date        DateTime  @db.Date
+  doneAt      DateTime  @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([routineId, date])
   @@index([workspaceId])
 }
