@@ -564,6 +564,7 @@ export type SendMailInput = {
 };
 
 export type ShoppingCategoryInput = {
+  baseListIds?: Array<string | number> | null | undefined;
   color?: string | null | undefined;
   name: string;
   parentId?: string | number | null | undefined;
@@ -571,11 +572,14 @@ export type ShoppingCategoryInput = {
 
 export type ShoppingItemInput = {
   categoryId?: string | number | null | undefined;
+  expiresAt?: string | null | undefined;
   memberIds: Array<string | number>;
   name: string;
   note?: string | null | undefined;
+  perishable?: boolean | null | undefined;
   quantity?: number | null | undefined;
   relationIds: Array<string | number>;
+  storageId?: string | number | null | undefined;
   storeId?: string | number | null | undefined;
   unit?: string | null | undefined;
   unitPrice?: number | null | undefined;
@@ -585,12 +589,15 @@ export type ShoppingItemInput = {
 export type ShoppingProductInput = {
   baseListId: string | number;
   categoryId?: string | number | null | undefined;
+  expiresAt?: string | null | undefined;
   memberIds: Array<string | number>;
   missing: boolean;
   name: string;
   note?: string | null | undefined;
+  perishable?: boolean | null | undefined;
   quantity?: number | null | undefined;
   relationIds: Array<string | number>;
+  storageId?: string | number | null | undefined;
   storeId?: string | number | null | undefined;
   unit?: string | null | undefined;
   unitPrice?: number | null | undefined;
@@ -2388,14 +2395,14 @@ export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, shoppingStores: Array<{ id: string, name: string, color: string, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string> }> };
+export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, baseListIds: Array<string> }>, shoppingStorages: Array<{ id: string, name: string, color: string, position: number }>, shoppingStores: Array<{ id: string, name: string, color: string, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string> }> };
 
 export type ShoppingListsQueryVariables = Exact<{
   taskId?: string | number | null | undefined;
 }>;
 
 
-export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskId: string | null, entryId: string | null, closed: boolean, closedAt: string | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, purchasedAt: string | null, position: number, memberIds: Array<string>, relationIds: Array<string> }> }> };
+export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskId: string | null, entryId: string | null, closed: boolean, closedAt: string | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, position: number, memberIds: Array<string>, relationIds: Array<string> }> }> };
 
 export type CreateShoppingCategoryMutationVariables = Exact<{
   input: ShoppingCategoryInput;
@@ -2418,6 +2425,51 @@ export type DeleteShoppingCategoryMutationVariables = Exact<{
 
 
 export type DeleteShoppingCategoryMutation = { deleteShoppingCategory: boolean };
+
+export type MoveShoppingCategoryMutationVariables = Exact<{
+  id: string | number;
+  parentId?: string | number | null | undefined;
+}>;
+
+
+export type MoveShoppingCategoryMutation = { moveShoppingCategory: boolean };
+
+export type CreateShoppingStorageMutationVariables = Exact<{
+  input: ShoppingStoreInput;
+}>;
+
+
+export type CreateShoppingStorageMutation = { createShoppingStorage: string };
+
+export type UpdateShoppingStorageMutationVariables = Exact<{
+  id: string | number;
+  input: ShoppingStorePatch;
+}>;
+
+
+export type UpdateShoppingStorageMutation = { updateShoppingStorage: boolean };
+
+export type DeleteShoppingStorageMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteShoppingStorageMutation = { deleteShoppingStorage: boolean };
+
+export type MoveShoppingStorageMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveShoppingStorageMutation = { moveShoppingStorage: boolean };
+
+export type DuplicateShoppingItemMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DuplicateShoppingItemMutation = { duplicateShoppingItem: string };
 
 export type CreateShoppingStoreMutationVariables = Exact<{
   input: ShoppingStoreInput;
@@ -6290,6 +6342,13 @@ export const ShoppingDataDocument = new TypedDocumentString(`
     name
     color
     parentId
+    baseListIds
+  }
+  shoppingStorages {
+    id
+    name
+    color
+    position
   }
   shoppingStores {
     id
@@ -6313,6 +6372,9 @@ export const ShoppingDataDocument = new TypedDocumentString(`
     quantity
     unit
     unitPrice
+    perishable
+    storageId
+    expiresAt
     missing
     lastPurchasedAt
     lastPrice
@@ -6349,6 +6411,9 @@ export const ShoppingListsDocument = new TypedDocumentString(`
       quantity
       unit
       unitPrice
+      perishable
+      storageId
+      expiresAt
       purchasedAt
       position
       memberIds
@@ -6372,6 +6437,36 @@ export const DeleteShoppingCategoryDocument = new TypedDocumentString(`
   deleteShoppingCategory(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteShoppingCategoryMutation, DeleteShoppingCategoryMutationVariables>;
+export const MoveShoppingCategoryDocument = new TypedDocumentString(`
+    mutation MoveShoppingCategory($id: ID!, $parentId: ID) {
+  moveShoppingCategory(id: $id, parentId: $parentId)
+}
+    `) as unknown as TypedDocumentString<MoveShoppingCategoryMutation, MoveShoppingCategoryMutationVariables>;
+export const CreateShoppingStorageDocument = new TypedDocumentString(`
+    mutation CreateShoppingStorage($input: ShoppingStoreInput!) {
+  createShoppingStorage(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateShoppingStorageMutation, CreateShoppingStorageMutationVariables>;
+export const UpdateShoppingStorageDocument = new TypedDocumentString(`
+    mutation UpdateShoppingStorage($id: ID!, $input: ShoppingStorePatch!) {
+  updateShoppingStorage(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateShoppingStorageMutation, UpdateShoppingStorageMutationVariables>;
+export const DeleteShoppingStorageDocument = new TypedDocumentString(`
+    mutation DeleteShoppingStorage($id: ID!) {
+  deleteShoppingStorage(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteShoppingStorageMutation, DeleteShoppingStorageMutationVariables>;
+export const MoveShoppingStorageDocument = new TypedDocumentString(`
+    mutation MoveShoppingStorage($id: ID!, $index: Int!) {
+  moveShoppingStorage(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveShoppingStorageMutation, MoveShoppingStorageMutationVariables>;
+export const DuplicateShoppingItemDocument = new TypedDocumentString(`
+    mutation DuplicateShoppingItem($id: ID!) {
+  duplicateShoppingItem(id: $id)
+}
+    `) as unknown as TypedDocumentString<DuplicateShoppingItemMutation, DuplicateShoppingItemMutationVariables>;
 export const CreateShoppingStoreDocument = new TypedDocumentString(`
     mutation CreateShoppingStore($input: ShoppingStoreInput!) {
   createShoppingStore(input: $input)

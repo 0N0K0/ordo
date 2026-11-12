@@ -17,8 +17,8 @@ import { ActionIcon, ColorSwatch, Group, Paper, Table, Text, Tooltip } from '@ma
 import type { ShoppingItemInput } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { useShoppingData } from './api';
-import { NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
+import { useShoppingData, type ShoppingCategory } from './api';
+import { ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
 import { inputOf, NO_GROUP, shoppingRows, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
 
@@ -59,9 +59,11 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   summary?: (items: T[]) => ReactNode;
   /** Row shown struck through (bought). */
   done?: (row: T) => boolean;
+  /** Categories of the tree (all by default; those of a base list). Optional. */
+  categories?: ShoppingCategory[];
 }
 
-interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary'> {
+interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories'> {
   row: Extract<ShoppingRow<T>, { kind: 'item' }>;
   over: boolean;
 }
@@ -129,6 +131,19 @@ function ItemRow<T extends ShoppingFields>({ row, over, readOnly = false, onSave
         <NumberCell kind="price" value={item.unitPrice ?? null} label={`Prix unitaire estimé de ${name}`} readOnly={readOnly} onSave={(unitPrice) => save({ unitPrice })} />
       </Table.Td>
       <Table.Td>
+        <ConservationCell
+          perishable={item.perishable}
+          storageId={item.storageId ?? null}
+          storages={data?.shoppingStorages ?? []}
+          label={`Conservation de ${name}`}
+          readOnly={readOnly}
+          onSave={(conservation) => save({ ...conservation, expiresAt: conservation.perishable ? (item.expiresAt ?? null) : null })}
+        />
+      </Table.Td>
+      <Table.Td>
+        <ExpiryCell value={item.expiresAt ?? null} disabled={!item.perishable} label={`Date de péremption de ${name}`} readOnly={readOnly} onSave={(expiresAt) => save({ expiresAt })} />
+      </Table.Td>
+      <Table.Td>
         <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Pour qui est ${name}`} readOnly={readOnly} onSave={(people) => save(people)} />
       </Table.Td>
       <Table.Td>
@@ -189,16 +204,16 @@ function GroupRow<T>({ row, columns, over, collapsed, onToggle, summary }: Group
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, ...rowProps }: ShoppingTableProps<T>) {
+export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, ...rowProps }: ShoppingTableProps<T>) {
   const { data } = useShoppingData();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [active, setActive] = useState<T | null>(null);
   // Group under the dragged row: undefined for none, null for the one without category (or store).
   const [overGroup, setOverGroup] = useState<string | null | undefined>(undefined);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
-  const labels = { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
+  const labels = { categories: categories ?? data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
   const rows = visibleRows(shoppingRows(items, grouping, labels, active !== null), collapsed);
-  const columns = 10 + (rowProps.extra ? 1 : 0);
+  const columns = 12 + (rowProps.extra ? 1 : 0);
   const field = grouping === 'category' ? 'categoryId' : 'storeId';
 
   /**
@@ -251,7 +266,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
     >
       <Paper withBorder radius="md" className={classes.group}>
         <div className={classes.scroller}>
-          <Table verticalSpacing={2} miw={1040} aria-label={label} className={classes.table}>
+          <Table verticalSpacing={2} miw={1300} aria-label={label} className={classes.table}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th w={32} px={4} />
@@ -265,6 +280,8 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
                 <Table.Th w={104} ta="right">
                   Prix unitaire
                 </Table.Th>
+                <Table.Th w={150}>Conservation</Table.Th>
+                <Table.Th w={120}>Péremption</Table.Th>
                 <Table.Th w={170}>Pour</Table.Th>
                 <Table.Th w={150}>Lien</Table.Th>
                 {rowProps.extra && <Table.Th w={120}>{rowProps.extra.title}</Table.Th>}

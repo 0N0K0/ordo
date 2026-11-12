@@ -36,7 +36,24 @@ export interface ShoppingFields {
   unitPrice?: number | null;
   memberIds: string[];
   relationIds: string[];
+  perishable: boolean;
+  storageId?: string | null;
+  /** "Best before" date, YYYY-MM-DD. */
+  expiresAt?: string | null;
 }
+
+/**
+ * Today, as the dates of the products are written (YYYY-MM-DD, local time).
+ * @returns {string} Date.
+ */
+export const todayIso = () => new Date().toLocaleDateString('sv-SE');
+
+/**
+ * Whether a perishable product or item is past its date.
+ * @param {{ perishable: boolean, expiresAt?: string | null }} row Product or item.
+ * @returns {boolean} Expired.
+ */
+export const isExpired = ({ perishable, expiresAt }: { perishable: boolean; expiresAt?: string | null }) => perishable && Boolean(expiresAt) && (expiresAt ?? '') < todayIso();
 
 /**
  * Input of a product or an item, from its current fields (to change some of them).
@@ -54,7 +71,41 @@ export const inputOf = (row: ShoppingFields): ShoppingItemInput => ({
   unitPrice: row.unitPrice ?? null,
   memberIds: row.memberIds,
   relationIds: row.relationIds,
+  perishable: row.perishable,
+  storageId: row.storageId ?? null,
+  expiresAt: row.expiresAt ?? null,
 });
+
+/**
+ * Categories offered in a base list: those attached to it, and those attached to none (a sub-category without any
+ * takes those of its parent); the parents of the ones offered stay, to keep the tree.
+ * @param {readonly ShoppingCategory[]} categories All categories.
+ * @param {string} baseListId Base list.
+ * @returns {ShoppingCategory[]} Categories offered.
+ */
+export function categoriesForBaseList(categories: readonly ShoppingCategory[], baseListId: string): ShoppingCategory[] {
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  /**
+   * Base lists a category is offered in, its own or those of the closest parent with some (none: all).
+   * @param {ShoppingCategory} category Category.
+   * @returns {string[]} Base lists.
+   */
+  const listsOf = (category: ShoppingCategory): string[] => {
+    const seen = new Set<string>();
+    for (let current: ShoppingCategory | undefined = category; current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
+      seen.add(current.id);
+      if (current.baseListIds.length) return current.baseListIds;
+    }
+    return [];
+  };
+  const kept = new Set<string>();
+  for (const category of categories) {
+    const lists = listsOf(category);
+    if (lists.length && !lists.includes(baseListId)) continue;
+    for (let current: ShoppingCategory | undefined = category; current && !kept.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) kept.add(current.id);
+  }
+  return categories.filter((category) => kept.has(category.id));
+}
 
 /** Way products and items are grouped. */
 export type ShoppingGrouping = 'category' | 'store';

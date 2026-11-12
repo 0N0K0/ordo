@@ -1,10 +1,11 @@
+import { DatePickerInput } from '@mantine/dates';
 import { Autocomplete, Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
-import { shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
+import { categoriesForBaseList, shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
 
 /**
  * Names of the people a product or an item is for, as small badges.
@@ -26,7 +27,10 @@ export function PeopleBadges({ memberIds, relationIds }: { memberIds: string[]; 
   );
 }
 
-type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit'> & {
+type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
+  perishable: boolean;
+  storageId: string | null;
+  expiresAt: string | null;
   quantity: number | null;
   unitPrice: number | null;
   url: string;
@@ -65,6 +69,9 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       unitPrice: current?.unitPrice ?? null,
       memberIds: current?.memberIds ?? [],
       relationIds: current?.relationIds ?? [],
+      perishable: current?.perishable ?? false,
+      storageId: current?.storageId ?? null,
+      expiresAt: current?.expiresAt ?? null,
       baseListId: target.kind === 'product' ? (target.product?.baseListId ?? target.baseListId) : '',
       // A new product is usually added because it is missing.
       missing: target.kind === 'product' ? (target.product?.missing ?? true) : false,
@@ -107,7 +114,14 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
           />
         )}
         <SimpleGrid cols={{ base: 1, xs: 2 }}>
-          <Select label="Catégorie" placeholder="Aucune" clearable searchable data={shoppingCategoryOptions(data?.shoppingCategories ?? [])} {...form.getInputProps('categoryId')} />
+          <Select
+            label="Catégorie"
+            placeholder="Aucune"
+            clearable
+            searchable
+            data={shoppingCategoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? []))}
+            {...form.getInputProps('categoryId')}
+          />
           <Select
             label="Magasin"
             placeholder="Aucun"
@@ -139,6 +153,26 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             onChange={(value) => form.setFieldValue('unitPrice', typeof value === 'number' ? value : null)}
           />
         </SimpleGrid>
+        <Checkbox label="Périssable" description="À conserver d’une certaine façon, jusqu’à une date de péremption." {...form.getInputProps('perishable', { type: 'checkbox' })} />
+        {values.perishable && (
+          <SimpleGrid cols={{ base: 1, xs: 2 }}>
+            <Select
+              label="Mode de conservation"
+              placeholder={(data?.shoppingStorages ?? []).length ? 'Aucun' : 'Aucun (ajoutez-en dans les paramètres)'}
+              clearable
+              data={(data?.shoppingStorages ?? []).map((storage) => ({ value: storage.id, label: storage.name }))}
+              {...form.getInputProps('storageId')}
+            />
+            <DatePickerInput
+              label="Date de péremption"
+              description={target.kind === 'product' ? 'Passée, le produit est marqué manquant.' : undefined}
+              placeholder="Aucune"
+              valueFormat="D MMM YYYY"
+              clearable
+              {...form.getInputProps('expiresAt')}
+            />
+          </SimpleGrid>
+        )}
         <BatchMultiSelect
           label="Pour"
           description="Membres et relations concernés : la répartition d’un mouvement de trésorerie qui paie la liste."

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { colorSchema, labelNameSchema, optionalColorSchema } from './workspace';
+import { colorSchema, dateSchema, labelNameSchema, optionalColorSchema } from './workspace';
 
 const optionalText = (max: number) =>
   z
@@ -21,11 +21,16 @@ const priceSchema = z.number({ error: 'Montant attendu.' }).min(0, 'Le prix ne p
 export const shoppingStoreSchema = z.object({ name: labelNameSchema, color: colorSchema });
 export type ShoppingStoreInput = z.input<typeof shoppingStoreSchema>;
 
+/** Storage mode of perishable products (fresh, frozen…): a name and a color, as a store. */
+export const shoppingStorageSchema = shoppingStoreSchema;
+
 /** Category of products, in a tree. */
 export const shoppingCategorySchema = z.object({
   name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
+  /** Base lists it is offered in (none: all; a sub-category without any takes those of its parent). */
+  baseListIds: z.array(z.string()).max(100).default([]),
 });
 export type ShoppingCategoryInput = z.input<typeof shoppingCategorySchema>;
 
@@ -43,6 +48,11 @@ const shoppingFields = {
   memberIds: z.array(z.string()).max(50).default([]),
   /** Relations (out of the team or household) it is for. */
   relationIds: z.array(z.string()).max(50).default([]),
+  /** Perishable: kept in a storage mode until a "best before" date (both ignored otherwise). */
+  perishable: z.boolean().default(false),
+  storageId: z.string().nullable().default(null),
+  /** "Best before" date, YYYY-MM-DD. */
+  expiresAt: dateSchema.default(null),
 };
 
 /** Product of a base list: its fields, the base list holding it and whether it is missing. */

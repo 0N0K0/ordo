@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney } from '@ordo/shared';
-import { ArrowLeftIcon, BankIcon, BasketIcon, CaretDownIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowLeftIcon, BankIcon, BasketIcon, CalendarPlusIcon, CaretDownIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
@@ -313,6 +313,19 @@ export function ShoppingListPage() {
                     ))}
                   </Menu.Dropdown>
                 </Menu>
+              )}
+              {item.perishable && (
+                <Tooltip label="Ajouter une autre date (le même produit, acheté avec une autre date de péremption)">
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    aria-label={`Ajouter ${item.name} avec une autre date`}
+                    disabled={closed}
+                    onClick={() => mutations.duplicateItem.mutate({ id: item.id }, { onSuccess: () => notifySuccess('Ligne ajoutée : indiquez sa date.'), onError })}
+                  >
+                    <CalendarPlusIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
               )}
               <Tooltip label="Modifier (catégorie, note…)">
                 <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.name}`} disabled={closed} onClick={() => openShoppingForm({ kind: 'item', listId: list.id, item })}>

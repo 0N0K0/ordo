@@ -219,11 +219,17 @@ type Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": typeof types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": typeof types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": typeof types.DeleteMailSearchDocument,
-    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": typeof types.ShoppingDataDocument,
-    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": typeof types.ShoppingListsDocument,
+    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": typeof types.ShoppingDataDocument,
+    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": typeof types.ShoppingListsDocument,
     "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": typeof types.CreateShoppingCategoryDocument,
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": typeof types.DeleteShoppingCategoryDocument,
+    "\n  mutation MoveShoppingCategory($id: ID!, $parentId: ID) {\n    moveShoppingCategory(id: $id, parentId: $parentId)\n  }\n": typeof types.MoveShoppingCategoryDocument,
+    "\n  mutation CreateShoppingStorage($input: ShoppingStoreInput!) {\n    createShoppingStorage(input: $input)\n  }\n": typeof types.CreateShoppingStorageDocument,
+    "\n  mutation UpdateShoppingStorage($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStorage(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingStorageDocument,
+    "\n  mutation DeleteShoppingStorage($id: ID!) {\n    deleteShoppingStorage(id: $id)\n  }\n": typeof types.DeleteShoppingStorageDocument,
+    "\n  mutation MoveShoppingStorage($id: ID!, $index: Int!) {\n    moveShoppingStorage(id: $id, index: $index)\n  }\n": typeof types.MoveShoppingStorageDocument,
+    "\n  mutation DuplicateShoppingItem($id: ID!) {\n    duplicateShoppingItem(id: $id)\n  }\n": typeof types.DuplicateShoppingItemDocument,
     "\n  mutation CreateShoppingStore($input: ShoppingStoreInput!) {\n    createShoppingStore(input: $input)\n  }\n": typeof types.CreateShoppingStoreDocument,
     "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingStoreDocument,
     "\n  mutation DeleteShoppingStore($id: ID!) {\n    deleteShoppingStore(id: $id)\n  }\n": typeof types.DeleteShoppingStoreDocument,
@@ -602,11 +608,17 @@ const documents: Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": types.DeleteMailSearchDocument,
-    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": types.ShoppingDataDocument,
-    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": types.ShoppingListsDocument,
+    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": types.ShoppingDataDocument,
+    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": types.ShoppingListsDocument,
     "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": types.CreateShoppingCategoryDocument,
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": types.DeleteShoppingCategoryDocument,
+    "\n  mutation MoveShoppingCategory($id: ID!, $parentId: ID) {\n    moveShoppingCategory(id: $id, parentId: $parentId)\n  }\n": types.MoveShoppingCategoryDocument,
+    "\n  mutation CreateShoppingStorage($input: ShoppingStoreInput!) {\n    createShoppingStorage(input: $input)\n  }\n": types.CreateShoppingStorageDocument,
+    "\n  mutation UpdateShoppingStorage($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStorage(id: $id, input: $input)\n  }\n": types.UpdateShoppingStorageDocument,
+    "\n  mutation DeleteShoppingStorage($id: ID!) {\n    deleteShoppingStorage(id: $id)\n  }\n": types.DeleteShoppingStorageDocument,
+    "\n  mutation MoveShoppingStorage($id: ID!, $index: Int!) {\n    moveShoppingStorage(id: $id, index: $index)\n  }\n": types.MoveShoppingStorageDocument,
+    "\n  mutation DuplicateShoppingItem($id: ID!) {\n    duplicateShoppingItem(id: $id)\n  }\n": types.DuplicateShoppingItemDocument,
     "\n  mutation CreateShoppingStore($input: ShoppingStoreInput!) {\n    createShoppingStore(input: $input)\n  }\n": types.CreateShoppingStoreDocument,
     "\n  mutation UpdateShoppingStore($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStore(id: $id, input: $input)\n  }\n": types.UpdateShoppingStoreDocument,
     "\n  mutation DeleteShoppingStore($id: ID!) {\n    deleteShoppingStore(id: $id)\n  }\n": types.DeleteShoppingStoreDocument,
@@ -1600,11 +1612,11 @@ export function graphql(source: "\n  mutation DeleteMailSearch($id: ID!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n"): typeof import('./graphql').ShoppingDataDocument;
+export function graphql(source: "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n"): typeof import('./graphql').ShoppingDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n"): typeof import('./graphql').ShoppingListsDocument;
+export function graphql(source: "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n"): typeof import('./graphql').ShoppingListsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1617,6 +1629,30 @@ export function graphql(source: "\n  mutation UpdateShoppingCategory($id: ID!, $
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n"): typeof import('./graphql').DeleteShoppingCategoryDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveShoppingCategory($id: ID!, $parentId: ID) {\n    moveShoppingCategory(id: $id, parentId: $parentId)\n  }\n"): typeof import('./graphql').MoveShoppingCategoryDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateShoppingStorage($input: ShoppingStoreInput!) {\n    createShoppingStorage(input: $input)\n  }\n"): typeof import('./graphql').CreateShoppingStorageDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateShoppingStorage($id: ID!, $input: ShoppingStorePatch!) {\n    updateShoppingStorage(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateShoppingStorageDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteShoppingStorage($id: ID!) {\n    deleteShoppingStorage(id: $id)\n  }\n"): typeof import('./graphql').DeleteShoppingStorageDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveShoppingStorage($id: ID!, $index: Int!) {\n    moveShoppingStorage(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveShoppingStorageDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DuplicateShoppingItem($id: ID!) {\n    duplicateShoppingItem(id: $id)\n  }\n"): typeof import('./graphql').DuplicateShoppingItemDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

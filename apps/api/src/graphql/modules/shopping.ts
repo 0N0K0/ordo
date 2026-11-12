@@ -11,6 +11,21 @@ builder.prismaObject('ShoppingCategory', {
     name: t.exposeString('name'),
     color: t.exposeString('color', { nullable: true }),
     parentId: t.exposeID('parentId', { nullable: true }),
+    baseListIds: t.idList({
+      description: 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).',
+      select: { baseLists: { select: { id: true } } },
+      resolve: (category) => category.baseLists.map((baseList) => baseList.id),
+    }),
+  }),
+});
+
+builder.prismaObject('ShoppingStorage', {
+  description: 'Storage mode of perishable products (fresh, frozen…).',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
+    position: t.exposeInt('position'),
   }),
 });
 
@@ -46,6 +61,9 @@ builder.prismaObject('ShoppingProduct', {
     quantity: t.float({ nullable: true, resolve: (product) => float(product.quantity) }),
     unit: t.exposeString('unit', { nullable: true }),
     unitPrice: t.float({ nullable: true, resolve: (product) => float(product.unitPrice) }),
+    perishable: t.exposeBoolean('perishable'),
+    storageId: t.exposeID('storageId', { nullable: true }),
+    expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true, description: 'Date of the last purchase: once past, the product is marked missing.' }),
     missing: t.exposeBoolean('missing'),
     lastPurchasedAt: t.expose('lastPurchasedAt', { type: 'DateTime', nullable: true }),
     lastPrice: t.float({ nullable: true, resolve: (product) => float(product.lastPrice) }),
@@ -68,6 +86,9 @@ builder.prismaObject('ShoppingItem', {
     quantity: t.float({ nullable: true, resolve: (item) => float(item.quantity) }),
     unit: t.exposeString('unit', { nullable: true }),
     unitPrice: t.float({ nullable: true, resolve: (item) => float(item.unitPrice) }),
+    perishable: t.exposeBoolean('perishable'),
+    storageId: t.exposeID('storageId', { nullable: true }),
+    expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true }),
     purchasedAt: t.expose('purchasedAt', { type: 'DateTime', nullable: true }),
     position: t.exposeInt('position'),
     memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (item) => item.members.map((member) => member.id) }),
@@ -95,7 +116,7 @@ builder.prismaObject('ShoppingList', {
 });
 
 const CategoryInput = builder.inputType('ShoppingCategoryInput', {
-  fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id() }),
+  fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id(), baseListIds: t.idList() }),
 });
 
 const LabelInput = builder.inputType('ShoppingStoreInput', {
@@ -119,6 +140,9 @@ const shoppingFields = (t: Parameters<Parameters<typeof builder.inputType>[1]['f
   unitPrice: t.float(),
   memberIds: t.idList({ required: true }),
   relationIds: t.idList({ required: true }),
+  perishable: t.boolean(),
+  storageId: t.id(),
+  expiresAt: t.field({ type: 'Date' }),
 });
 
 const ProductInput = builder.inputType('ShoppingProductInput', {
@@ -143,6 +167,21 @@ const itemInput = (input: typeof ItemInput.$inferInput) => ({
   unitPrice: input.unitPrice ?? null,
   memberIds: input.memberIds.map(String),
   relationIds: input.relationIds.map(String),
+  perishable: input.perishable ?? false,
+  storageId: input.storageId ? String(input.storageId) : null,
+  expiresAt: input.expiresAt ?? null,
+});
+
+/**
+ * Category input with omitted optional fields as null.
+ * @param {typeof CategoryInput.$inferInput} input GraphQL input.
+ * @returns {object} Service input.
+ */
+const categoryInput = (input: typeof CategoryInput.$inferInput) => ({
+  name: input.name,
+  color: input.color ?? null,
+  parentId: input.parentId ? String(input.parentId) : null,
+  baseListIds: (input.baseListIds ?? []).map(String),
 });
 
 builder.queryFields((t) => ({
@@ -160,10 +199,18 @@ builder.queryFields((t) => ({
     description: 'Base lists ("listes types").',
     resolve: (query) => prisma.shoppingBaseList.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
   }),
+  shoppingStorages: t.prismaField({
+    type: ['ShoppingStorage'],
+    description: 'Storage modes of the perishable products.',
+    resolve: (query) => prisma.shoppingStorage.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
   shoppingProducts: t.prismaField({
     type: ['ShoppingProduct'],
-    description: 'Products of all the base lists.',
-    resolve: (query) => prisma.shoppingProduct.findMany({ ...query, orderBy: { name: 'asc' } }),
+    description: 'Products of all the base lists (the perishable ones past their date are marked missing first).',
+    resolve: async (query) => {
+      await shopping.markExpired();
+      return prisma.shoppingProduct.findMany({ ...query, orderBy: { name: 'asc' } });
+    },
   }),
   shoppingLists: t.prismaField({
     type: ['ShoppingList'],
@@ -176,12 +223,20 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createShoppingCategory: t.id({
     args: { input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: async (_root, { input }) => (await shopping.createCategory({ name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null })).id,
+    resolve: async (_root, { input }) => (await shopping.createCategory(categoryInput(input))).id,
   }),
   updateShoppingCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await shopping.updateCategory(String(id), { name: input.name, color: input.color ?? null, parentId: input.parentId ? String(input.parentId) : null });
+      await shopping.updateCategory(String(id), categoryInput(input));
+      return true;
+    },
+  }),
+  moveShoppingCategory: t.boolean({
+    description: 'Moves a category under another one (parentId), or to the top level (parentId null).',
+    args: { id: t.arg.id({ required: true }), parentId: t.arg.id() },
+    resolve: async (_root, { id, parentId }) => {
+      await shopping.moveCategory(String(id), parentId ? String(parentId) : null);
       return true;
     },
   }),
@@ -214,6 +269,31 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
     resolve: async (_root, { id, index }) => {
       await shopping.moveStore(String(id), index);
+      return true;
+    },
+  }),
+  createShoppingStorage: t.id({
+    args: { input: t.arg({ type: LabelInput, required: true }) },
+    resolve: async (_root, { input }) => (await shopping.createStorage(input)).id,
+  }),
+  updateShoppingStorage: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelPatch, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await shopping.updateStorage(String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
+      return true;
+    },
+  }),
+  deleteShoppingStorage: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await shopping.deleteStorage(String(id));
+      return true;
+    },
+  }),
+  moveShoppingStorage: t.boolean({
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, index }) => {
+      await shopping.moveStorage(String(id), index);
       return true;
     },
   }),
@@ -322,6 +402,11 @@ builder.mutationFields((t) => ({
       await shopping.updateItem(String(id), itemInput(input));
       return true;
     },
+  }),
+  duplicateShoppingItem: t.id({
+    description: 'Adds the same item again to its list, not bought, without date (the same product bought with another date).',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => (await shopping.duplicateItem(String(id))).id,
   }),
   setShoppingItemPurchased: t.boolean({
     args: { id: t.arg.id({ required: true }), purchased: t.arg.boolean({ required: true }) },

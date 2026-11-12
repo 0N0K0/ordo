@@ -1398,6 +1398,7 @@ type Mutation {
   """Creates a list, empty or with the missing products of some base lists."""
   createShoppingList(baseListIds: [ID!]!, name: String!, taskId: ID): ID!
   createShoppingProduct(input: ShoppingProductInput!): ID!
+  createShoppingStorage(input: ShoppingStoreInput!): ID!
   createShoppingStore(input: ShoppingStoreInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createTask(input: TaskInput!): Task!
@@ -1476,6 +1477,7 @@ type Mutation {
   deleteShoppingItem(id: ID!): Boolean!
   deleteShoppingList(id: ID!): Boolean!
   deleteShoppingProduct(id: ID!): Boolean!
+  deleteShoppingStorage(id: ID!): Boolean!
   deleteShoppingStore(id: ID!): Boolean!
   deleteSprint(id: ID!): Boolean!
   deleteTask(
@@ -1513,6 +1515,11 @@ type Mutation {
   deleteWorkspace(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateDashboardChart(id: ID!): ID!
+
+  """
+  Adds the same item again to its list, not bought, without date (the same product bought with another date).
+  """
+  duplicateShoppingItem(id: ID!): ID!
   duplicateShoppingList(id: ID!): ID!
   duplicateTaskView(id: ID!, name: String!): TaskView!
 
@@ -1589,6 +1596,12 @@ type Mutation {
   moveProjectResource(id: ID!, index: Int!): Boolean!
   moveProjectStatus(id: ID!, index: Int!): Boolean!
   moveShoppingBaseList(id: ID!, index: Int!): Boolean!
+
+  """
+  Moves a category under another one (parentId), or to the top level (parentId null).
+  """
+  moveShoppingCategory(id: ID!, parentId: ID): Boolean!
+  moveShoppingStorage(id: ID!, index: Int!): Boolean!
   moveShoppingStore(id: ID!, index: Int!): Boolean!
 
   """
@@ -1833,6 +1846,7 @@ type Mutation {
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
   updateShoppingList(id: ID!, name: String!, taskId: ID): Boolean!
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
+  updateShoppingStorage(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateShoppingStore(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
@@ -2171,8 +2185,13 @@ type Query {
   """Shopping lists, latest first: all, or those of a task."""
   shoppingLists(taskId: ID): [ShoppingList!]!
 
-  """Products of all the base lists."""
+  """
+  Products of all the base lists (the perishable ones past their date are marked missing first).
+  """
   shoppingProducts: [ShoppingProduct!]!
+
+  """Storage modes of the perishable products."""
+  shoppingStorages: [ShoppingStorage!]!
   shoppingStores: [ShoppingStore!]!
 
   """
@@ -2403,6 +2422,10 @@ type ShoppingBaseList {
 
 """Category of the shopping products, in a tree."""
 type ShoppingCategory {
+  """
+  Base lists it is offered in (none: all; a sub-category without any takes those of its parent).
+  """
+  baseListIds: [ID!]!
   color: String
   id: ID!
   name: String!
@@ -2410,6 +2433,7 @@ type ShoppingCategory {
 }
 
 input ShoppingCategoryInput {
+  baseListIds: [ID!]
   color: String
   name: String!
   parentId: ID
@@ -2420,16 +2444,19 @@ Item of a shopping list: a copy of a product of the base list, or an item of thi
 """
 type ShoppingItem {
   categoryId: ID
+  expiresAt: Date
   id: ID!
   listId: ID!
   memberIds: [ID!]!
   name: String!
   note: String
+  perishable: Boolean!
   position: Int!
   productId: ID
   purchasedAt: DateTime
   quantity: Float
   relationIds: [ID!]!
+  storageId: ID
   storeId: ID
   unit: String
   unitPrice: Float
@@ -2438,11 +2465,14 @@ type ShoppingItem {
 
 input ShoppingItemInput {
   categoryId: ID
+  expiresAt: Date
   memberIds: [ID!]!
   name: String!
   note: String
+  perishable: Boolean
   quantity: Float
   relationIds: [ID!]!
+  storageId: ID
   storeId: ID
   unit: String
   unitPrice: Float
@@ -2471,6 +2501,9 @@ type ShoppingList {
 type ShoppingProduct {
   baseListId: ID!
   categoryId: ID
+
+  """Date of the last purchase: once past, the product is marked missing."""
+  expiresAt: Date
   id: ID!
   lastPrice: Float
   lastPurchasedAt: DateTime
@@ -2478,8 +2511,10 @@ type ShoppingProduct {
   missing: Boolean!
   name: String!
   note: String
+  perishable: Boolean!
   quantity: Float
   relationIds: [ID!]!
+  storageId: ID
   storeId: ID
   unit: String
   unitPrice: Float
@@ -2489,16 +2524,27 @@ type ShoppingProduct {
 input ShoppingProductInput {
   baseListId: ID!
   categoryId: ID
+  expiresAt: Date
   memberIds: [ID!]!
   missing: Boolean!
   name: String!
   note: String
+  perishable: Boolean
   quantity: Float
   relationIds: [ID!]!
+  storageId: ID
   storeId: ID
   unit: String
   unitPrice: Float
   url: String
+}
+
+"""Storage mode of perishable products (fresh, frozen…)."""
+type ShoppingStorage {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
 }
 
 """Store (or supplier) a product is bought at."""

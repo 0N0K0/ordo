@@ -8,7 +8,7 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
-import { money, type ShoppingGrouping } from './shopping-format';
+import { categoriesForBaseList, money, type ShoppingGrouping } from './shopping-format';
 import { ShoppingTable } from './ShoppingTable';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -117,6 +117,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         <ShoppingTable
           items={shown}
           grouping={grouping}
+          categories={categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id)}
           label={`Produits de ${baseList.name}`}
           onSave={(product, input) => mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, { onError })}
           check={(product) => (

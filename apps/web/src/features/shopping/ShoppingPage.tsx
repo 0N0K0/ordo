@@ -28,7 +28,10 @@ const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-d
  * @param {{ categoryId?: string | null, storeId?: string | null }[]} rows Products and items.
  * @returns {Map<string, number>} Usage by id.
  */
-function usageOf(key: (row: { categoryId?: string | null; storeId?: string | null }) => string | null | undefined, rows: { categoryId?: string | null; storeId?: string | null }[]) {
+function usageOf(
+  key: (row: { categoryId?: string | null; storeId?: string | null; storageId?: string | null }) => string | null | undefined,
+  rows: { categoryId?: string | null; storeId?: string | null; storageId?: string | null }[],
+) {
   const usage = new Map<string, number>();
   for (const row of rows) {
     const id = key(row);
@@ -205,6 +208,18 @@ export function ShoppingPage() {
             update={mutations.updateStore}
             remove={mutations.deleteStore}
             move={mutations.moveStore}
+          />
+          <LabelManager
+            title="Modes de conservation"
+            description="Comment se conservent les produits périssables : frais, congélation, à l’abri de la lumière…"
+            noun="le mode de conservation"
+            usageNoun="produits"
+            labels={data?.shoppingStorages ?? []}
+            usage={usageOf((row) => row.storageId, rows)}
+            create={mutations.createStorage}
+            update={mutations.updateStorage}
+            remove={mutations.deleteStorage}
+            move={mutations.moveStorage}
           />
         </Stack>
       </PageSettings>

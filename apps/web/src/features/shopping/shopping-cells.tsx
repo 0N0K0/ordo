@@ -1,12 +1,13 @@
 import { ActionIcon, Autocomplete, ColorSwatch, Group, NumberInput, Select, TextInput, Tooltip } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import { shoppingItemSchema } from '@ordo/shared';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError } from '../../lib/notify';
 import classes from '../tasks/views/inline-cells.module.css';
-import type { ShoppingStore } from './api';
-import { UNITS, usePeople } from './shopping-format';
+import type { ShoppingStorage, ShoppingStore } from './api';
+import { todayIso, UNITS, usePeople } from './shopping-format';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -264,6 +265,94 @@ export function PeopleCell({ memberIds, relationIds, label, readOnly = false, on
       onChange={(keys) =>
         onSave({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
       }
+    />
+  );
+}
+
+/** Value of the conservation cell for a perishable row without storage mode. */
+const PERISHABLE = 'perishable';
+/** Value of the conservation cell for a row that is not perishable. */
+const LASTING = 'lasting';
+
+interface ConservationCellProps {
+  perishable: boolean;
+  storageId: string | null;
+  storages: ShoppingStorage[];
+  label: string;
+  readOnly?: boolean;
+  onSave: (conservation: { perishable: boolean; storageId: string | null }) => void;
+}
+
+/**
+ * Conservation cell: not perishable, perishable, or perishable in one of the storage modes of the settings.
+ * @param {ConservationCellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function ConservationCell({ perishable, storageId, storages, label, readOnly = false, onSave }: ConservationCellProps) {
+  const value = !perishable ? LASTING : (storageId ?? PERISHABLE);
+  const color = perishable ? storages.find((storage) => storage.id === storageId)?.color : undefined;
+  return (
+    <Select
+      {...cellCombobox}
+      aria-label={label}
+      readOnly={readOnly}
+      allowDeselect={false}
+      data={[
+        { value: LASTING, label: 'Non périssable' },
+        { value: PERISHABLE, label: 'Périssable' },
+        ...(storages.length ? [{ group: 'Périssable, à conserver', items: storages.map((storage) => ({ value: storage.id, label: storage.name })) }] : []),
+      ]}
+      renderOption={({ option }) => {
+        const swatch = storages.find((storage) => storage.id === option.value)?.color;
+        return (
+          <Group gap="xs" wrap="nowrap">
+            {swatch && <ColorSwatch color={swatch} size={10} />}
+            {option.label}
+          </Group>
+        );
+      }}
+      leftSection={color ? <ColorSwatch color={color} size={10} /> : undefined}
+      value={value}
+      onChange={(next) => {
+        if (!next || next === value) return;
+        onSave(next === LASTING ? { perishable: false, storageId: null } : { perishable: true, storageId: next === PERISHABLE ? null : next });
+      }}
+      c={perishable ? undefined : 'dimmed'}
+    />
+  );
+}
+
+interface ExpiryCellProps {
+  value: string | null;
+  label: string;
+  /** Not perishable: no date. */
+  disabled?: boolean;
+  readOnly?: boolean;
+  onSave: (value: string | null) => void;
+}
+
+/**
+ * "Best before" date cell of a perishable row, in red once past.
+ * @param {ExpiryCellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function ExpiryCell({ value, label, disabled = false, readOnly = false, onSave }: ExpiryCellProps) {
+  if (disabled) return null;
+  const expired = Boolean(value) && (value ?? '') < todayIso();
+  return (
+    <DatePickerInput
+      {...cellField}
+      aria-label={label}
+      valueFormat="D MMM YYYY"
+      value={value}
+      readOnly={readOnly}
+      clearable={!readOnly}
+      placeholder={readOnly ? undefined : '—'}
+      popoverProps={{ withinPortal: true }}
+      onChange={(date) => date !== value && onSave(date)}
+      c={expired ? 'red' : undefined}
+      fw={expired ? 600 : undefined}
+      title={expired ? 'Date dépassée' : undefined}
     />
   );
 }
