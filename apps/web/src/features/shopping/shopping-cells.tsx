@@ -6,6 +6,7 @@ import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError } from '../../lib/notify';
 import classes from '../tasks/views/inline-cells.module.css';
+import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import type { ShoppingCategory, ShoppingStorage, ShoppingStore } from './api';
 import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, UNITS, usePeople } from './shopping-format';
 
@@ -252,19 +253,30 @@ interface PeopleCellProps {
  */
 export function PeopleCell({ memberIds, relationIds, label, readOnly = false, onSave }: PeopleCellProps) {
   const people = usePeople();
+  const value = [...memberIds.map((id) => `m:${id}`), ...relationIds.map((id) => `r:${id}`)];
   return (
-    <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={label}
-      placeholder={readOnly || memberIds.length + relationIds.length ? undefined : '—'}
+    <StackedMultiCell
+      label={label}
       readOnly={readOnly}
-      data={people.options}
-      searchable
-      value={[...memberIds.map((id) => `m:${id}`), ...relationIds.map((id) => `r:${id}`)]}
-      onChange={(keys) =>
-        onSave({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
-      }
+      items={[
+        ...memberIds.flatMap((id) => (people.members.has(id) ? [{ id: `m:${id}`, label: people.members.get(id)! }] : [])),
+        ...relationIds.flatMap((id) => (people.relations.has(id) ? [{ id: `r:${id}`, label: people.relations.get(id)! }] : [])),
+      ]}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={label}
+          data={people.options}
+          searchable
+          value={value}
+          onChange={(keys) =>
+            onSave({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
+          }
+          onDropdownClose={onDropdownClose}
+          placeholder={value.length ? undefined : '—'}
+        />
+      )}
     />
   );
 }

@@ -51,6 +51,17 @@ export const routineSchema = z
     /** Calendar schedule it follows instead of its own times and repetition (its days, and the times of its slots). */
     scheduleId: z.string().nullable().default(null),
     scheduleAnchor: z.enum(ROUTINE_ANCHORS).nullable().default(null),
+    /** Alerts, in minutes before its moment (when to leave, else its start, else its latest time). */
+    reminders: z
+      .array(
+        z
+          .number()
+          .int()
+          .min(0)
+          .max(24 * 60),
+      )
+      .max(10, '10 alertes maximum.')
+      .default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: z
       .string()
@@ -199,4 +210,14 @@ export function scheduleWindow(schedule: WorkScheduleRule, anchor: RoutineAnchor
   if (anchor === 'START') return { fromTime: null, dueTime: first };
   if (anchor === 'END') return { fromTime: last === '24:00' ? null : last, dueTime: null };
   return { fromTime: first, dueTime: last === '24:00' ? null : last };
+}
+
+/**
+ * Moment the alerts of a routine count from, on a day: when to leave (its way there), else the start of its window,
+ * else its latest time.
+ * @param {{ fromTime: string | null, dueTime: string | null, estimate: number | null, travelBefore: number, travelAfter: number }} routine Routine and its window that day.
+ * @returns {string | null} HH:MM, null without any time.
+ */
+export function routineAlertTime(routine: { fromTime: string | null; dueTime: string | null; estimate: number | null; travelBefore: number; travelAfter: number }): string | null {
+  return routineSchedule(routine).leaveAt ?? routine.fromTime ?? routine.dueTime;
 }

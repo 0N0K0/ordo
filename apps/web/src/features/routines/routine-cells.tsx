@@ -1,8 +1,8 @@
-import { Anchor, Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnchor } from '@ordo/shared';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
@@ -11,6 +11,7 @@ import { notifyError } from '../../lib/notify';
 import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import classes from '../tasks/views/inline-cells.module.css';
+import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
 import { DAILY, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
@@ -249,89 +250,6 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
   );
 }
 
-/** Values listed in a cell before « X de plus ». */
-const SHOWN_VALUES = 3;
-
-/** Value listed in a stacked cell. */
-interface StackedItem {
-  id: string;
-  /** Name shown. */
-  label: string;
-  /** Full name (a category path), on hover. */
-  title?: string;
-  /** Swatch, avatar… */
-  icon?: ReactNode;
-}
-
-interface StackedMultiCellProps {
-  /** Field name, for the accessible label. */
-  field: string;
-  routine: Routine;
-  count: number;
-  readOnly: boolean;
-  /** Values chosen, in their order. */
-  items: StackedItem[];
-  /** Multi-select opened by a click, given the value and its changes. */
-  renderSelect: (props: { onDropdownClose: () => void }) => ReactNode;
-}
-
-/**
- * Multi-value cell: its values one under the other (3 at most, the others behind « X de plus »); a click opens its
- * multi-select, its choices given when its list closes.
- * @param {StackedMultiCellProps} props Component props.
- * @returns {JSX.Element} Cell.
- */
-function StackedMultiCell({ field, routine, count, readOnly, items, renderSelect }: StackedMultiCellProps) {
-  const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const container = useRef<HTMLDivElement>(null);
-  const shown = expanded ? items : items.slice(0, SHOWN_VALUES);
-  const hidden = items.length - SHOWN_VALUES;
-
-  // The select opens as soon as it shows (as if clicked).
-  useEffect(() => {
-    if (!editing) return;
-    const input = container.current?.querySelector('input');
-    input?.focus();
-    input?.click();
-  }, [editing]);
-
-  if (editing) return <div ref={container}>{renderSelect({ onDropdownClose: () => setEditing(false) })}</div>;
-
-  return (
-    <Stack gap={2} align="flex-start">
-      <UnstyledButton
-        className={classes.root}
-        onClick={() => setEditing(true)}
-        disabled={readOnly}
-        aria-label={`${fieldLabel(field, routine, count)} : ${items.map((item) => item.title ?? item.label).join(', ') || 'aucun'}`}
-        style={{ width: '100%' }}
-      >
-        <Stack gap={2}>
-          {items.length === 0 && (
-            <Text size="xs" c="dimmed">
-              {readOnly ? '' : '—'}
-            </Text>
-          )}
-          {shown.map((item) => (
-            <Group key={item.id} gap={6} wrap="nowrap" title={item.title}>
-              {item.icon}
-              <Text size="xs" truncate>
-                {item.label}
-              </Text>
-            </Group>
-          ))}
-        </Stack>
-      </UnstyledButton>
-      {hidden > 0 && (
-        <Anchor component="button" type="button" size="xs" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
-          {expanded ? 'Moins' : `${hidden} de plus`}
-        </Anchor>
-      )}
-    </Stack>
-  );
-}
-
 /**
  * Categories cell: the categories one under the other; a click opens the multi-select of the categories (as their
  * path). On a column selection, adding a category adds it to every selected routine and removing one removes it.
@@ -343,9 +261,7 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
   const placed = categoryTree(categories);
   return (
     <StackedMultiCell
-      field="Catégories"
-      routine={routine}
-      count={count}
+      label={fieldLabel('Catégories', routine, count)}
       readOnly={readOnly}
       items={placed
         .filter((item) => routine.categoryIds.includes(item.category.id))
@@ -380,9 +296,7 @@ export function AssigneesCell({ routine, readOnly = false, context }: CellProps 
   const { apply, count } = useRoutineCellEdit(routine, 'assignees');
   return (
     <StackedMultiCell
-      field="Assignés"
-      routine={routine}
-      count={count}
+      label={fieldLabel('Assignés', routine, count)}
       readOnly={readOnly}
       items={routine.assigneeIds.flatMap((id) => {
         const contributor = context.contributorById.get(id);
@@ -431,9 +345,7 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
   const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
   return (
     <StackedMultiCell
-      field="Dépendances"
-      routine={routine}
-      count={count}
+      label={fieldLabel('Dépendances', routine, count)}
       readOnly={readOnly}
       items={routine.requiredIds.flatMap((id) => {
         const required = byId.get(id);

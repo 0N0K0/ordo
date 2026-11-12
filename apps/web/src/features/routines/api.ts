@@ -31,6 +31,7 @@ const RoutinesDataDocument = graphql(`
       dueTime
       scheduleId
       scheduleAnchor
+      reminders
       windowFrom
       windowTo
       location
@@ -262,6 +263,7 @@ export function routineInputOf(routine: Routine): RoutineInput {
     dueTime: routine.dueTime,
     scheduleId: routine.scheduleId,
     scheduleAnchor: routine.scheduleAnchor as RoutineInput['scheduleAnchor'],
+    reminders: routine.reminders,
     location: routine.location,
     locationLat: routine.locationLat,
     locationLon: routine.locationLon,

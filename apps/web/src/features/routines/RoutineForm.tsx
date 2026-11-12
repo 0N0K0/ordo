@@ -25,6 +25,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   dueTime: string | null;
   scheduleId: string | null;
   scheduleAnchor: RoutineAnchor | null;
+  reminders: number[];
   location: string;
   locationLat: number | null;
   locationLon: number | null;
@@ -90,6 +91,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       estimate: routine?.estimate ?? null,
       fromTime: routine?.fromTime ?? null,
       scheduleId: routine?.scheduleId ?? null,
+      reminders: routine?.reminders ?? [],
       scheduleAnchor: (routine?.scheduleAnchor as RoutineAnchor | null | undefined) ?? null,
       dueTime: routine?.dueTime ?? null,
       location: routine?.location ?? '',
