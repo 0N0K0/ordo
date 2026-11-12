@@ -53,7 +53,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
             onChange(frequency === 'NONE' || !frequency ? null : { ...(rule ?? DEFAULT_RECURRENCE), frequency: frequency as RecurrenceFrequency })
           }
         />
-        {rule && (
+        {rule && !(rule.frequency === 'WEEKLY' && rule.weekParity) && (
           <NumberInput
             label="Tous les"
             suffix={` ${UNITS[rule.frequency]}`}
@@ -66,6 +66,19 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
         )}
       </Group>
 
+      {rule?.frequency === 'WEEKLY' && (
+        <SegmentedControl
+          size="xs"
+          aria-label="Semaines"
+          value={rule.weekParity ?? 'ALL'}
+          onChange={(value) => update({ weekParity: value === 'ALL' ? null : (value as 'EVEN' | 'ODD') })}
+          data={[
+            { value: 'ALL', label: rule.interval > 1 ? `Toutes les ${rule.interval} semaines` : 'Toutes les semaines' },
+            { value: 'EVEN', label: 'Semaines paires' },
+            { value: 'ODD', label: 'Semaines impaires' },
+          ]}
+        />
+      )}
       {rule?.frequency === 'WEEKLY' && (
         <Chip.Group multiple value={rule.weekdays.map(String)} onChange={(days) => update({ weekdays: days.map(Number).sort() })}>
           <Group gap={6}>

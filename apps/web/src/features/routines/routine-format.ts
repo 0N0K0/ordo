@@ -1,4 +1,4 @@
-import { DEFAULT_RECURRENCE, recurrenceSchema, routineState, type Recurrence, type RoutineState } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineState } from '@ordo/shared';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import type { Routine, RoutineCategory } from './api';
 
@@ -163,4 +163,30 @@ export function routineRows(routines: Routine[], categories: RoutineCategory[], 
  */
 export function visibleRoutineRows(rows: RoutineRow[], folded: ReadonlySet<string>): RoutineRow[] {
   return rows.filter((row) => !row.parents.some((id) => folded.has(id)));
+}
+
+/**
+ * Time window of a routine on its current (or next) occurrence: its own times, or those of its calendar schedule.
+ * @param {Routine} routine Routine.
+ * @returns {{ fromTime: string | null, dueTime: string | null }} Window.
+ */
+export const windowOf = (routine: Routine) => ({ fromTime: routine.windowFrom, dueTime: routine.windowTo });
+
+/**
+ * When to leave and when back for a routine, from its window (its own or its schedule's), travel times and time to
+ * spend on it.
+ * @param {Routine} routine Routine.
+ * @returns {{ leaveAt: string | null, backAt: string | null }} Times.
+ */
+export const scheduleOf = (routine: Routine) => routineSchedule({ ...routine, ...windowOf(routine) });
+
+/**
+ * Window as words: "8:20–8:30", "avant 8:30", "dès 16:30", or empty.
+ * @param {{ fromTime: string | null, dueTime: string | null }} window Window.
+ * @returns {string} Text.
+ */
+export function windowText({ fromTime, dueTime }: { fromTime: string | null; dueTime: string | null }): string {
+  if (fromTime && dueTime) return `${fromTime}–${dueTime}`;
+  if (dueTime) return `avant ${dueTime}`;
+  return fromTime ? `dès ${fromTime}` : '';
 }

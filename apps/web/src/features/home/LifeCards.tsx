@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { notifyError } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData } from '../routines/api';
 import { DoneToggle } from '../routines/DoneToggle';
-import { stateOf, waitingFor } from '../routines/routine-format';
+import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../routines/routine-format';
 import { useShoppingData, useShoppingLists } from '../shopping/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
@@ -25,7 +25,13 @@ export function RoutinesCard({ today }: { today: string }) {
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const todo = routines
     .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today)))
-    .sort((a, b) => (a.currentDate ?? '').localeCompare(b.currentDate ?? '') || a.title.localeCompare(b.title, 'fr'));
+    // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
+    .sort(
+      (a, b) =>
+        (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
+        (scheduleOf(a).leaveAt ?? a.windowFrom ?? a.windowTo ?? '99').localeCompare(scheduleOf(b).leaveAt ?? b.windowFrom ?? b.windowTo ?? '99') ||
+        a.title.localeCompare(b.title, 'fr'),
+    );
 
   return (
     <HomeCard title="Routines du jour" icon={<ArrowsClockwiseIcon aria-hidden />} to="/routines" loading={!data}>
@@ -59,7 +65,12 @@ export function RoutinesCard({ today }: { today: string }) {
                       {daysBetween(routine.currentDate, today)} j de retard
                     </Badge>
                   )}
-                  {routine.estimate && (
+                  {(routine.windowFrom || routine.windowTo) && (
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                      {[scheduleOf(routine).leaveAt && `départ ${scheduleOf(routine).leaveAt}`, windowText(windowOf(routine))].filter(Boolean).join(' · ')}
+                    </Text>
+                  )}
+                  {!routine.windowFrom && !routine.windowTo && routine.estimate && (
                     <Text size="xs" c="dimmed">
                       {routine.estimate} min
                     </Text>

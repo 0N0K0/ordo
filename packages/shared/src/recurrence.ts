@@ -16,6 +16,8 @@ export const recurrenceSchema = z
     interval: z.number().int().min(1, 'Au moins 1.').max(999, '999 maximum.'),
     /** Weekly: days, 1 (Monday) to 7 (Sunday); empty: the weekday of the first date. */
     weekdays: z.array(z.number().int().min(1).max(7)).max(7),
+    /** Weekly: only on even or odd ISO weeks (instead of every n weeks); null: every n weeks. */
+    weekParity: z.enum(['EVEN', 'ODD']).nullable().default(null),
     /** Monthly: same day number (the 14th), or same weekday of the month (the 2nd Tuesday, the last Friday). */
     monthlyMode: z.enum(['DAY', 'WEEKDAY']),
     /** Last date, included. */
@@ -37,6 +39,7 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   frequency: 'WEEKLY',
   interval: 1,
   weekdays: [],
+  weekParity: null,
   monthlyMode: 'DAY',
   until: null,
   count: null,
@@ -94,6 +97,18 @@ function isoWeekday(date: Date): number {
 }
 
 /**
+ * ISO week number of a date (1 to 53; the week of January 4th is the first one).
+ * @param {Date} date UTC date.
+ * @returns {number} Week number.
+ */
+function weekOfYear(date: Date): number {
+  // The Thursday of the week tells its year.
+  const thursday = new Date(date.getTime() + (4 - isoWeekday(date)) * DAY_MS);
+  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1);
+  return Math.floor((thursday.getTime() - yearStart) / DAY_MS / 7) + 1;
+}
+
+/**
  * Weekday of the month of a date: 1 to 4, or -1 when it is the last one of the month.
  * @param {Date} date UTC date.
  * @returns {number} Position.
@@ -120,8 +135,11 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
     case 'WEEKLY': {
       const weekdays = rule.weekdays.length ? rule.weekdays : [isoWeekday(start)];
       const startMonday = start.getTime() - (isoWeekday(start) - 1) * DAY_MS;
+      if (!weekdays.includes(isoWeekday(day))) return false;
+      // Even or odd weeks of the year, whatever the interval.
+      if (rule.weekParity) return weekOfYear(day) % 2 === (rule.weekParity === 'EVEN' ? 0 : 1);
       const weeks = Math.floor(Math.round((day.getTime() - startMonday) / DAY_MS) / 7);
-      return weekdays.includes(isoWeekday(day)) && weeks % rule.interval === 0;
+      return weeks % rule.interval === 0;
     }
     case 'MONTHLY': {
       const months = (day.getUTCFullYear() - start.getUTCFullYear()) * 12 + day.getUTCMonth() - start.getUTCMonth();

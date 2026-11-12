@@ -27,6 +27,17 @@ const RoutinesDataDocument = graphql(`
       startDate
       recurrence
       estimate
+      fromTime
+      dueTime
+      scheduleId
+      scheduleAnchor
+      windowFrom
+      windowTo
+      location
+      locationLat
+      locationLon
+      travelBefore
+      travelAfter
       projectId
       position
       archived
@@ -211,6 +222,8 @@ export interface RoutinePatchValues {
   assigneeIds?: string[];
   requiredIds?: string[];
   projectId?: string | null;
+  fromTime?: string | null;
+  dueTime?: string | null;
   startDate?: string;
   recurrence?: Recurrence;
 }
@@ -225,6 +238,8 @@ export interface RoutineBulkChanges {
   removeRequiredIds?: string[];
   estimate?: number | null;
   projectId?: string | null;
+  fromTime?: string | null;
+  dueTime?: string | null;
   startDate?: string;
   recurrence?: Recurrence;
 }
@@ -243,6 +258,15 @@ export function routineInputOf(routine: Routine): RoutineInput {
     startDate: routine.startDate,
     recurrence: routine.recurrence as Recurrence,
     estimate: routine.estimate,
+    fromTime: routine.fromTime,
+    dueTime: routine.dueTime,
+    scheduleId: routine.scheduleId,
+    scheduleAnchor: routine.scheduleAnchor as RoutineInput['scheduleAnchor'],
+    location: routine.location,
+    locationLat: routine.locationLat,
+    locationLon: routine.locationLon,
+    travelBefore: routine.travelBefore,
+    travelAfter: routine.travelAfter,
     projectId: routine.projectId,
     assigneeIds: routine.assigneeIds,
     requiredIds: routine.requiredIds,
@@ -272,6 +296,8 @@ function withBulkChanges(routine: Routine, changes: RoutineBulkChanges): Routine
     requiredIds: changedList(routine.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((id) => id !== routine.id),
     ...(changes.estimate !== undefined && { estimate: changes.estimate }),
     ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+    ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),
+    ...(changes.dueTime !== undefined && { dueTime: changes.dueTime }),
     ...(changes.startDate !== undefined && { startDate: changes.startDate }),
     ...(changes.recurrence !== undefined && { recurrence: changes.recurrence }),
   };

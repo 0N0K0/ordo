@@ -1359,6 +1359,8 @@ model WorkSchedule {
   exceptions    Json          @default("[]")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  /// Routines following it.
+  routines      Routine[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId   String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2297,44 +2299,61 @@ model RoutineCategory {
 
 /// Task repeating on a calendar rule, simply ticked once done for its current occurrence.
 model Routine {
-  id          String              @id @default(cuid())
-  title       String
+  id             String              @id @default(cuid())
+  title          String
   /// Plain text, several lines.
-  description String?
+  description    String?
   /// Categories it is shown in (a sub-routine is shown under its parent).
-  categories  RoutineCategory[]   @relation("RoutineCategories")
+  categories     RoutineCategory[]   @relation("RoutineCategories")
   /// Parent routine (null for a top-level one). Deleting a routine puts its sub-routines one level up.
-  parentId    String?
-  parent      Routine?            @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Routine[]           @relation("RoutineTree")
+  parentId       String?
+  parent         Routine?            @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Routine[]           @relation("RoutineTree")
   /// First occurrence: the rule repeats from it.
-  startDate   DateTime            @db.Date
+  startDate      DateTime            @db.Date
   /// Repetition (the shared recurrence rule of the events and tasks).
-  recurrence  Json
+  recurrence     Json
   /// Time to spend on it, in minutes.
-  estimate    Int?
+  estimate       Int?
+  /// Time window to do it in ("HH:MM", Paris time), e.g. dropping the children at school between 8:20 and 8:30:
+  /// from fromTime (null: from the start of the day) to dueTime at the latest (null: until the end of the day).
+  fromTime       String?
+  dueTime        String?
+  /// Calendar schedule ("plage") it follows instead of its own times and repetition: it occurs on the days of the
+  /// schedule, before its start (START), during it (WHOLE) or after its end (END).
+  scheduleId     String?
+  schedule       WorkSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleAnchor String?
+  /// Where it is done: free text, and its point when chosen from the map or a search.
+  location       String?
+  locationLat    Float?
+  locationLon    Float?
+  /// Travel time to the place and back from it, in minutes.
+  travelBefore   Int                 @default(0)
+  travelAfter    Int                 @default(0)
   /// Project its tracked time goes to, if any.
-  projectId   String?
-  project     Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
   /// Manual order among siblings.
-  position    Int                 @default(0)
-  archivedAt  DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  assignees   Contributor[]       @relation("RoutineAssignees")
+  position       Int                 @default(0)
+  archivedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  assignees      Contributor[]       @relation("RoutineAssignees")
   /// Routines to do before this one ("étendre le linge" requires "laver le linge").
-  requires    RoutineDependency[] @relation("RoutineDependent")
+  requires       RoutineDependency[] @relation("RoutineDependent")
   /// Routines requiring this one.
-  requiredBy  RoutineDependency[] @relation("RoutineRequired")
+  requiredBy     RoutineDependency[] @relation("RoutineRequired")
   /// Occurrences ticked as done.
-  checks      RoutineCheck[]
-  timeEntries TimeEntry[]
+  checks         RoutineCheck[]
+  timeEntries    TimeEntry[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId    String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
   @@index([projectId])
+  @@index([scheduleId])
   @@index([workspaceId])
 }
 
