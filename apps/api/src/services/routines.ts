@@ -109,9 +109,10 @@ export async function deleteCategory(id: string): Promise<void> {
 async function parseRoutine(input: RoutineInput, id?: string) {
   const data = parseInput(routineSchema, input);
   data.assigneeIds = [...new Set(data.assigneeIds)];
+  data.categoryIds = [...new Set(data.categoryIds)];
   data.requiredIds = [...new Set(data.requiredIds)];
   if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
-  if (data.categoryId && !(await prisma.routineCategory.findUnique({ where: { id: data.categoryId }, select: { id: true } }))) throw fieldError('categoryId', 'Catégorie introuvable.');
+  if ((await prisma.routineCategory.count({ where: { id: { in: data.categoryIds } } })) !== data.categoryIds.length) throw fieldError('categoryIds', 'Catégorie introuvable.');
   if (data.projectId && !(await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true } }))) throw fieldError('projectId', 'Projet introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.assigneeIds } } })) !== data.assigneeIds.length) throw fieldError('assigneeIds', 'Assigné introuvable.');
 
@@ -149,7 +150,6 @@ async function parseRoutine(input: RoutineInput, id?: string) {
 const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   title: data.title,
   description: data.description,
-  categoryId: data.categoryId,
   parentId: data.parentId,
   startDate: parseDay(data.startDate),
   recurrence: data.recurrence,
@@ -166,7 +166,9 @@ export async function createRoutine(input: RoutineInput): Promise<Routine> {
   const data = await parseRoutine(input);
   const position = ((await prisma.routine.aggregate({ where: { parentId: data.parentId }, _max: { position: true } }))._max.position ?? -1) + 1;
   return prisma.$transaction(async (tx) => {
-    const routine = await tx.routine.create({ data: { ...scalars(data), position, assignees: { connect: data.assigneeIds.map((id) => ({ id })) } } });
+    const routine = await tx.routine.create({
+      data: { ...scalars(data), position, assignees: { connect: data.assigneeIds.map((id) => ({ id })) }, categories: { connect: data.categoryIds.map((id) => ({ id })) } },
+    });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: routine.id, requiredId })) });
     return routine;
   });
@@ -195,8 +197,36 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
   return prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });
-    return tx.routine.update({ where: { id }, data: { ...scalars(data), assignees: { set: data.assigneeIds.map((assigneeId) => ({ id: assigneeId })) } } });
+    return tx.routine.update({
+      where: { id },
+      data: { ...scalars(data), assignees: { set: data.assigneeIds.map((assigneeId) => ({ id: assigneeId })) }, categories: { set: data.categoryIds.map((categoryId) => ({ id: categoryId })) } },
+    });
   });
+}
+
+/**
+ * Current form of a routine as an input.
+ * @param {string} id Routine id.
+ * @returns {Promise<RoutineInput>} Input.
+ */
+async function inputOf(id: string): Promise<RoutineInput> {
+  const routine = await prisma.routine.findUnique({
+    where: { id },
+    include: { assignees: { select: { id: true } }, categories: { select: { id: true } }, requires: { select: { requiredId: true } } },
+  });
+  if (!routine) throw notFound('Routine');
+  return {
+    title: routine.title,
+    description: routine.description,
+    categoryIds: routine.categories.map((category) => category.id),
+    parentId: routine.parentId,
+    startDate: formatDay(routine.startDate),
+    recurrence: storedRecurrence(routine.recurrence) ?? (routine.recurrence as RoutineInput['recurrence']),
+    estimate: routine.estimate,
+    projectId: routine.projectId,
+    assigneeIds: routine.assignees.map((assignee) => assignee.id),
+    requiredIds: routine.requires.map((dependency) => dependency.requiredId),
+  };
 }
 
 /**
@@ -206,24 +236,61 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
  * @returns {Promise<Routine>} Routine.
  */
 export async function patchRoutine(id: string, changes: Partial<RoutineInput>): Promise<Routine> {
-  const routine = await prisma.routine.findUnique({
-    where: { id },
-    include: { assignees: { select: { id: true } }, requires: { select: { requiredId: true } } },
-  });
-  if (!routine) throw notFound('Routine');
-  return updateRoutine(id, {
-    title: routine.title,
-    description: routine.description,
-    categoryId: routine.categoryId,
-    parentId: routine.parentId,
-    startDate: formatDay(routine.startDate),
-    recurrence: storedRecurrence(routine.recurrence) ?? (routine.recurrence as RoutineInput['recurrence']),
-    estimate: routine.estimate,
-    projectId: routine.projectId,
-    assigneeIds: routine.assignees.map((assignee) => assignee.id),
-    requiredIds: routine.requires.map((dependency) => dependency.requiredId),
-    ...changes,
-  });
+  return updateRoutine(id, { ...(await inputOf(id)), ...changes });
+}
+
+/** Same changes for several routines: values set, or ids added to and removed from their lists. */
+export interface RoutineBulkChanges {
+  addCategoryIds?: string[];
+  removeCategoryIds?: string[];
+  addAssigneeIds?: string[];
+  removeAssigneeIds?: string[];
+  addRequiredIds?: string[];
+  removeRequiredIds?: string[];
+  /** Minutes, null: none, undefined: unchanged. */
+  estimate?: number | null;
+  /** Null: none, undefined: unchanged. */
+  projectId?: string | null;
+  startDate?: string;
+  recurrence?: unknown;
+}
+
+/**
+ * List with ids added and removed.
+ * @param {string[]} list Current ids.
+ * @param {string[]} [added] Added ids. Optional.
+ * @param {string[]} [removed] Removed ids. Optional.
+ * @returns {string[]} New ids.
+ */
+const changedList = (list: string[], added: string[] = [], removed: string[] = []) => [...new Set([...list.filter((id) => !removed.includes(id)), ...added])];
+
+/**
+ * Applies the same changes to several routines; every routine is checked before any is saved.
+ * @param {string[]} ids Routine ids.
+ * @param {RoutineBulkChanges} changes Changes.
+ * @returns {Promise<number>} Number of routines changed.
+ */
+export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChanges): Promise<number> {
+  const inputs = await Promise.all(
+    [...new Set(ids)].map(async (id) => {
+      const current = await inputOf(id);
+      const input: RoutineInput = {
+        ...current,
+        categoryIds: changedList(current.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
+        assigneeIds: changedList(current.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
+        // A routine never depends on itself, even when the selection does.
+        requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
+        ...(changes.estimate !== undefined && { estimate: changes.estimate }),
+        ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+        ...(changes.startDate !== undefined && { startDate: changes.startDate }),
+        ...(changes.recurrence !== undefined && { recurrence: changes.recurrence as RoutineInput['recurrence'] }),
+      };
+      return { id, input };
+    }),
+  );
+  for (const { id, input } of inputs) await parseRoutine(input, id);
+  for (const { id, input } of inputs) await updateRoutine(id, input);
+  return inputs.length;
 }
 
 /**
@@ -238,6 +305,31 @@ export async function setRoutineArchived(id: string, archived: boolean): Promise
 }
 
 /**
+ * Archives or restores several routines.
+ * @param {string[]} ids Routine ids.
+ * @param {boolean} archived Target state.
+ * @returns {Promise<number>} Number of routines changed.
+ */
+export async function bulkSetRoutinesArchived(ids: string[], archived: boolean): Promise<number> {
+  return (await prisma.routine.updateMany({ where: { id: { in: ids } }, data: { archivedAt: archived ? new Date() : null } })).count;
+}
+
+/**
+ * Deletes several routines (see deleteRoutine).
+ * @param {string[]} ids Routine ids.
+ * @returns {Promise<number>} Number of routines deleted.
+ */
+export async function bulkDeleteRoutines(ids: string[]): Promise<number> {
+  let count = 0;
+  for (const id of new Set(ids)) {
+    if (!(await prisma.routine.findUnique({ where: { id }, select: { id: true } }))) continue;
+    await deleteRoutine(id);
+    count += 1;
+  }
+  return count;
+}
+
+/**
  * Deletes a routine: its sub-routines go one level up, its tracked time stays (without it).
  * @param {string} id Routine id.
  * @returns {Promise<void>}
@@ -245,6 +337,31 @@ export async function setRoutineArchived(id: string, archived: boolean): Promise
 export async function deleteRoutine(id: string): Promise<void> {
   const routine = await findRoutine(id);
   await prisma.$transaction([prisma.routine.updateMany({ where: { parentId: id }, data: { parentId: routine.parentId } }), prisma.routine.delete({ where: { id } })]);
+}
+
+/** Where a routine is dropped, relative to another one. */
+export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
+
+/**
+ * Moves a routine next to another one (before or after it: same parent), or last under it (a sub-routine), then
+ * numbers the siblings in their new order; its categories may change with it (moved from a category to another).
+ * @param {string} id Routine moved.
+ * @param {string} targetId Routine it is dropped on.
+ * @param {RoutinePlace} place Before, after or inside the target.
+ * @param {string[] | null} [categoryIds] New categories. Optional. Default = unchanged.
+ * @returns {Promise<void>}
+ */
+export async function moveRoutine(id: string, targetId: string, place: RoutinePlace, categoryIds: string[] | null = null): Promise<void> {
+  if (id === targetId) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être déplacée sur elle-même.');
+  const routine = await findRoutine(id);
+  const target = await findRoutine(targetId);
+  const parentId = place === 'INSIDE' ? target.id : target.parentId;
+  // The parent is checked (no loop) by the regular update.
+  if (parentId !== routine.parentId || categoryIds) await patchRoutine(id, { parentId, ...(categoryIds && { categoryIds }) });
+  const siblings = (await prisma.routine.findMany({ where: { parentId, id: { not: id } }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } })).map((sibling) => sibling.id);
+  const index = siblings.indexOf(target.id);
+  siblings.splice(place === 'INSIDE' || index === -1 ? siblings.length : place === 'BEFORE' ? index : index + 1, 0, id);
+  await prisma.$transaction(siblings.map((siblingId, position) => prisma.routine.update({ where: { id: siblingId }, data: { position } })));
 }
 
 /**
@@ -265,4 +382,23 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
   if (done) await prisma.routineCheck.upsert({ where: key, create: { routineId: id, date: parseDay(occurrence) }, update: {} });
   else await prisma.routineCheck.deleteMany({ where: { routineId: id, date: parseDay(occurrence) } });
   return occurrence;
+}
+
+/**
+ * Ticks or unticks the current occurrence of several routines (those not started yet are left aside).
+ * @param {string[]} ids Routine ids.
+ * @param {boolean} done Target state.
+ * @returns {Promise<number>} Number of routines changed.
+ */
+export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise<number> {
+  const today = routineToday();
+  let count = 0;
+  for (const routine of await prisma.routine.findMany({ where: { id: { in: ids } } })) {
+    const rule = storedRecurrence(routine.recurrence);
+    const current = rule ? routineOccurrences(rule, formatDay(routine.startDate), today).current : null;
+    if (!current) continue;
+    await setRoutineDone(routine.id, done, current);
+    count += 1;
+  }
+  return count;
 }

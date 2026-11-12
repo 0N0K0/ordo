@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { RoutineCategoryInput, RoutineInput } from '@ordo/shared';
+import type { Recurrence, RoutineCategoryInput, RoutineInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type { RoutinesDataQuery } from '../../graphql/graphql';
@@ -22,7 +22,7 @@ const RoutinesDataDocument = graphql(`
       id
       title
       description
-      categoryId
+      categoryIds
       parentId
       startDate
       recurrence
@@ -80,6 +80,36 @@ const UpdateRoutineDocument = graphql(`
 const PatchRoutineDocument = graphql(`
   mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {
     patchRoutine(id: $id, input: $input)
+  }
+`);
+
+const MoveRoutineDocument = graphql(`
+  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {
+    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)
+  }
+`);
+
+const BulkUpdateRoutinesDocument = graphql(`
+  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {
+    bulkUpdateRoutines(ids: $ids, changes: $changes)
+  }
+`);
+
+const BulkSetRoutinesArchivedDocument = graphql(`
+  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {
+    bulkSetRoutinesArchived(ids: $ids, archived: $archived)
+  }
+`);
+
+const BulkSetRoutinesDoneDocument = graphql(`
+  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {
+    bulkSetRoutinesDone(ids: $ids, done: $done)
+  }
+`);
+
+const BulkDeleteRoutinesDocument = graphql(`
+  mutation BulkDeleteRoutines($ids: [ID!]!) {
+    bulkDeleteRoutines(ids: $ids)
   }
 `);
 
@@ -144,14 +174,107 @@ const patchRoutine = (data: RoutinesDataQuery, id: string, change: (routine: Rou
   routines: data.routines.map((routine) => (routine.id === id ? change(routine) : routine)),
 });
 
+/** Where a routine is dropped, relative to another one. */
+export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
+
+/** Move of a routine next to or under another one; its new categories, if they change. */
+export interface RoutineMove {
+  id: string;
+  targetId: string;
+  place: RoutinePlace;
+  categoryIds?: string[] | null;
+}
+
+/**
+ * Moves a routine in the cached data: next to the target (its parent and category), or last under it.
+ * @param {RoutinesDataQuery} data Cached data.
+ * @param {RoutineMove} move Move.
+ * @returns {RoutinesDataQuery} New data.
+ */
+function moveInCache(data: RoutinesDataQuery, { id, targetId, place, categoryIds }: RoutineMove): RoutinesDataQuery {
+  const moved = data.routines.find((routine) => routine.id === id);
+  const target = data.routines.find((routine) => routine.id === targetId);
+  if (!moved || !target) return data;
+  const placed = { ...moved, parentId: place === 'INSIDE' ? target.id : target.parentId, categoryIds: categoryIds ?? moved.categoryIds };
+  const rest = data.routines.filter((routine) => routine.id !== id);
+  const index = rest.indexOf(target);
+  rest.splice(place === 'INSIDE' ? rest.length : place === 'BEFORE' ? index : index + 1, 0, placed);
+  return { ...data, routines: rest };
+}
+
 /** Inline changes of a routine. */
 export interface RoutinePatchValues {
   title?: string;
-  categoryId?: string | null;
+  categoryIds?: string[];
   parentId?: string | null;
   estimate?: number | null;
   assigneeIds?: string[];
   requiredIds?: string[];
+  projectId?: string | null;
+  startDate?: string;
+  recurrence?: Recurrence;
+}
+
+/** Same changes for several routines: values set, or ids added to and removed from their lists. */
+export interface RoutineBulkChanges {
+  addCategoryIds?: string[];
+  removeCategoryIds?: string[];
+  addAssigneeIds?: string[];
+  removeAssigneeIds?: string[];
+  addRequiredIds?: string[];
+  removeRequiredIds?: string[];
+  estimate?: number | null;
+  projectId?: string | null;
+  startDate?: string;
+  recurrence?: Recurrence;
+}
+
+/**
+ * Routine as the input of a full update (to put it back as it was).
+ * @param {Routine} routine Routine.
+ * @returns {RoutineInput} Input.
+ */
+export function routineInputOf(routine: Routine): RoutineInput {
+  return {
+    title: routine.title,
+    description: routine.description,
+    categoryIds: routine.categoryIds,
+    parentId: routine.parentId,
+    startDate: routine.startDate,
+    recurrence: routine.recurrence as Recurrence,
+    estimate: routine.estimate,
+    projectId: routine.projectId,
+    assigneeIds: routine.assigneeIds,
+    requiredIds: routine.requiredIds,
+  };
+}
+
+/**
+ * List with ids added and removed.
+ * @param {string[]} list Current ids.
+ * @param {string[]} [added] Added ids. Optional.
+ * @param {string[]} [removed] Removed ids. Optional.
+ * @returns {string[]} New ids.
+ */
+const changedList = (list: string[], added: string[] = [], removed: string[] = []) => [...new Set([...list.filter((id) => !removed.includes(id)), ...added])];
+
+/**
+ * A routine with bulk changes applied (for the cache).
+ * @param {Routine} routine Routine.
+ * @param {RoutineBulkChanges} changes Changes.
+ * @returns {Routine} Changed routine.
+ */
+function withBulkChanges(routine: Routine, changes: RoutineBulkChanges): Routine {
+  return {
+    ...routine,
+    categoryIds: changedList(routine.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
+    assigneeIds: changedList(routine.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
+    requiredIds: changedList(routine.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((id) => id !== routine.id),
+    ...(changes.estimate !== undefined && { estimate: changes.estimate }),
+    ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+    ...(changes.startDate !== undefined && { startDate: changes.startDate }),
+    ...(changes.recurrence !== undefined && { recurrence: changes.recurrence }),
+  };
 }
 
 /**
@@ -173,6 +296,7 @@ export function useRoutineMutations() {
       async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),
     ),
+    move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
     setDone: useRoutineMutation(
       async (variables: { id: string; done: boolean; date?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date }) =>
@@ -188,5 +312,31 @@ export function useRoutineMutations() {
       (data, { id, archived }) => patchRoutine(data, id, (routine) => ({ ...routine, archived })),
     ),
     remove: useRoutineMutation(async (id: string) => (await execute(DeleteRoutineDocument, { id })).deleteRoutine),
+    bulkUpdate: useRoutineMutation(
+      async (variables: { ids: string[]; changes: RoutineBulkChanges }) => (await execute(BulkUpdateRoutinesDocument, variables)).bulkUpdateRoutines,
+      (data, { ids, changes }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? withBulkChanges(routine, changes) : routine)) }),
+    ),
+    bulkArchive: useRoutineMutation(
+      async (variables: { ids: string[]; archived: boolean }) => (await execute(BulkSetRoutinesArchivedDocument, variables)).bulkSetRoutinesArchived,
+      (data, { ids, archived }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? { ...routine, archived } : routine)) }),
+    ),
+    bulkDone: useRoutineMutation(
+      async (variables: { ids: string[]; done: boolean }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
+      (data, { ids, done }) => ({
+        ...data,
+        routines: data.routines.map((routine) => {
+          const day = routine.currentDate;
+          if (!ids.includes(routine.id) || !day) return routine;
+          const others = routine.doneDates.filter((value) => value !== day);
+          return { ...routine, doneDates: done ? [day, ...others].sort().reverse() : others };
+        }),
+      }),
+    ),
+    bulkRemove: useRoutineMutation(async (ids: string[]) => (await execute(BulkDeleteRoutinesDocument, { ids })).bulkDeleteRoutines),
+    /** Puts routines back as they were (undo of a bulk change). */
+    restore: useRoutineMutation(async (routines: Routine[]) => {
+      for (const routine of routines) await execute(UpdateRoutineDocument, { id: routine.id, input: routineInputOf(routine) });
+      return routines.length;
+    }),
   };
 }

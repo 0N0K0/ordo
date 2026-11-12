@@ -2286,7 +2286,7 @@ model RoutineCategory {
   parent      RoutineCategory?  @relation("RoutineCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children    RoutineCategory[] @relation("RoutineCategoryTree")
   createdAt   DateTime          @default(now())
-  routines    Routine[]
+  routines    Routine[]         @relation("RoutineCategories")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2301,8 +2301,8 @@ model Routine {
   title       String
   /// Plain text, several lines.
   description String?
-  categoryId  String?
-  category    RoutineCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  /// Categories it is shown in (a sub-routine is shown under its parent).
+  categories  RoutineCategory[]   @relation("RoutineCategories")
   /// Parent routine (null for a top-level one). Deleting a routine puts its sub-routines one level up.
   parentId    String?
   parent      Routine?            @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -2333,7 +2333,6 @@ model Routine {
   workspaceId String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@index([categoryId])
   @@index([parentId])
   @@index([projectId])
   @@index([workspaceId])

@@ -1,6 +1,6 @@
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { addDays, formatDuration, nextOccurrence } from '@ordo/shared';
-import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon, FlagIcon } from '@phosphor-icons/react';
+import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useAlarms } from '../alarms/api';
@@ -177,49 +177,6 @@ export function TimeCard({ context, time }: TimeCardProps) {
               </Link>
             ))
           )}
-        </Stack>
-      )}
-    </HomeCard>
-  );
-}
-
-/**
- * Milestones of the coming 30 days, with their open tasks.
- * @param {{ context: TaskContext | null, today: string }} props Component props.
- * @returns {JSX.Element} Card.
- */
-export function MilestonesCard({ context, today }: { context: TaskContext | null; today: string }) {
-  const milestones = useMemo(() => {
-    if (!context) return null;
-    const until = addDays(today, 30);
-    return context.milestones
-      .filter((milestone) => milestone.dueDate && milestone.dueDate.slice(0, 10) >= today && milestone.dueDate.slice(0, 10) <= until)
-      .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))
-      .map((milestone) => ({ milestone, open: context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived && !task.closed).length }));
-  }, [context, today]);
-
-  return (
-    <HomeCard title="Jalons" icon={<FlagIcon aria-hidden />} loading={!milestones || !context}>
-      {milestones && milestones.length === 0 && <HomeEmpty icon={<FlagIcon aria-hidden />}>Aucun jalon dans les 30 jours.</HomeEmpty>}
-      {milestones && context && milestones.length > 0 && (
-        <Stack gap={0}>
-          {milestones.slice(0, MAX_ROWS).map(({ milestone, open }) => (
-            <Link key={milestone.id} to={`/projects/${milestone.projectId}?settings=1&section=milestones`} className={classes.row}>
-              <Group justify="space-between" wrap="nowrap" gap="xs">
-                <Stack gap={0} miw={0}>
-                  <Text size="sm" truncate>
-                    {milestone.title}
-                  </Text>
-                  <Text size="xs" c="dimmed" truncate>
-                    {context.projectById.get(milestone.projectId)?.title ?? 'Projet inconnu'} · {open} tâche{open > 1 ? 's' : ''} ouverte{open > 1 ? 's' : ''}
-                  </Text>
-                </Stack>
-                <Badge variant="light" color={daysBetween(today, milestone.dueDate!.slice(0, 10)) <= 7 ? 'orange' : 'gray'} style={{ flexShrink: 0 }}>
-                  {dayLabel(milestone.dueDate!.slice(0, 10), today)}
-                </Badge>
-              </Group>
-            </Link>
-          ))}
         </Stack>
       )}
     </HomeCard>

@@ -513,6 +513,21 @@ export type RecurringInvoiceInput = {
   startDate: string;
 };
 
+/** Same changes for several routines (omitted fields unchanged; null clears estimate and projectId). */
+export type RoutineBulkChanges = {
+  addAssigneeIds?: Array<string | number> | null | undefined;
+  addCategoryIds?: Array<string | number> | null | undefined;
+  addRequiredIds?: Array<string | number> | null | undefined;
+  /** Minutes. */
+  estimate?: number | null | undefined;
+  projectId?: string | number | null | undefined;
+  recurrence?: unknown;
+  removeAssigneeIds?: Array<string | number> | null | undefined;
+  removeCategoryIds?: Array<string | number> | null | undefined;
+  removeRequiredIds?: Array<string | number> | null | undefined;
+  startDate?: string | null | undefined;
+};
+
 export type RoutineCategoryInput = {
   color?: string | null | undefined;
   name: string;
@@ -521,7 +536,7 @@ export type RoutineCategoryInput = {
 
 export type RoutineInput = {
   assigneeIds: Array<string | number>;
-  categoryId?: string | number | null | undefined;
+  categoryIds: Array<string | number>;
   description?: string | null | undefined;
   /** Minutes. */
   estimate?: number | null | undefined;
@@ -536,13 +551,23 @@ export type RoutineInput = {
 /** Changes of a routine (omitted fields unchanged). */
 export type RoutinePatch = {
   assigneeIds?: Array<string | number> | null | undefined;
-  categoryId?: string | number | null | undefined;
+  categoryIds?: Array<string | number> | null | undefined;
   estimate?: number | null | undefined;
   /** Null: top level. */
   parentId?: string | number | null | undefined;
+  /** Null: none. */
+  projectId?: string | number | null | undefined;
+  recurrence?: unknown;
   requiredIds?: Array<string | number> | null | undefined;
+  startDate?: string | null | undefined;
   title?: string | null | undefined;
 };
+
+/** Where a routine is dropped, relative to another one. */
+export type RoutinePlace =
+  | 'AFTER'
+  | 'BEFORE'
+  | 'INSIDE';
 
 export type SaveMailDraftInput = {
   accountId: string | number;
@@ -2432,7 +2457,7 @@ export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, routines: Array<{ id: string, title: string, description: string | null, categoryId: string | null, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -2486,6 +2511,47 @@ export type PatchRoutineMutationVariables = Exact<{
 
 
 export type PatchRoutineMutation = { patchRoutine: boolean };
+
+export type MoveRoutineMutationVariables = Exact<{
+  id: string | number;
+  targetId: string | number;
+  place: RoutinePlace;
+  categoryIds?: Array<string | number> | string | number | null | undefined;
+}>;
+
+
+export type MoveRoutineMutation = { moveRoutine: boolean };
+
+export type BulkUpdateRoutinesMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  changes: RoutineBulkChanges;
+}>;
+
+
+export type BulkUpdateRoutinesMutation = { bulkUpdateRoutines: number };
+
+export type BulkSetRoutinesArchivedMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  archived: boolean;
+}>;
+
+
+export type BulkSetRoutinesArchivedMutation = { bulkSetRoutinesArchived: number };
+
+export type BulkSetRoutinesDoneMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  done: boolean;
+}>;
+
+
+export type BulkSetRoutinesDoneMutation = { bulkSetRoutinesDone: number };
+
+export type BulkDeleteRoutinesMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+}>;
+
+
+export type BulkDeleteRoutinesMutation = { bulkDeleteRoutines: number };
 
 export type SetRoutineDoneMutationVariables = Exact<{
   id: string | number;
@@ -6468,7 +6534,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     id
     title
     description
-    categoryId
+    categoryIds
     parentId
     startDate
     recurrence
@@ -6521,6 +6587,36 @@ export const PatchRoutineDocument = new TypedDocumentString(`
   patchRoutine(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<PatchRoutineMutation, PatchRoutineMutationVariables>;
+export const MoveRoutineDocument = new TypedDocumentString(`
+    mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {
+  moveRoutine(
+    id: $id
+    targetId: $targetId
+    place: $place
+    categoryIds: $categoryIds
+  )
+}
+    `) as unknown as TypedDocumentString<MoveRoutineMutation, MoveRoutineMutationVariables>;
+export const BulkUpdateRoutinesDocument = new TypedDocumentString(`
+    mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {
+  bulkUpdateRoutines(ids: $ids, changes: $changes)
+}
+    `) as unknown as TypedDocumentString<BulkUpdateRoutinesMutation, BulkUpdateRoutinesMutationVariables>;
+export const BulkSetRoutinesArchivedDocument = new TypedDocumentString(`
+    mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {
+  bulkSetRoutinesArchived(ids: $ids, archived: $archived)
+}
+    `) as unknown as TypedDocumentString<BulkSetRoutinesArchivedMutation, BulkSetRoutinesArchivedMutationVariables>;
+export const BulkSetRoutinesDoneDocument = new TypedDocumentString(`
+    mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {
+  bulkSetRoutinesDone(ids: $ids, done: $done)
+}
+    `) as unknown as TypedDocumentString<BulkSetRoutinesDoneMutation, BulkSetRoutinesDoneMutationVariables>;
+export const BulkDeleteRoutinesDocument = new TypedDocumentString(`
+    mutation BulkDeleteRoutines($ids: [ID!]!) {
+  bulkDeleteRoutines(ids: $ids)
+}
+    `) as unknown as TypedDocumentString<BulkDeleteRoutinesMutation, BulkDeleteRoutinesMutationVariables>;
 export const SetRoutineDoneDocument = new TypedDocumentString(`
     mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {
   setRoutineDone(id: $id, done: $done, date: $date)

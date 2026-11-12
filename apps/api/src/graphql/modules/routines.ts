@@ -34,7 +34,11 @@ builder.prismaObject('Routine', {
     id: t.exposeID('id'),
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
-    categoryId: t.exposeID('categoryId', { nullable: true }),
+    categoryIds: t.idList({
+      description: 'Categories it is shown in.',
+      select: { categories: { select: { id: true } } },
+      resolve: (routine) => routine.categories.map((category) => category.id),
+    }),
     parentId: t.exposeID('parentId', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date' }),
     recurrence: t.expose('recurrence', { type: 'JSON' }),
@@ -82,6 +86,8 @@ builder.prismaObject('Routine', {
   }),
 });
 
+const RoutinePlaceEnum = builder.enumType('RoutinePlace', { values: ['BEFORE', 'AFTER', 'INSIDE'] as const, description: 'Where a routine is dropped, relative to another one.' });
+
 const CategoryInput = builder.inputType('RoutineCategoryInput', {
   fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id() }),
 });
@@ -90,7 +96,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
   fields: (t) => ({
     title: t.string({ required: true }),
     description: t.string(),
-    categoryId: t.id(),
+    categoryIds: t.idList({ required: true }),
     parentId: t.id(),
     startDate: t.field({ type: 'Date', required: true }),
     recurrence: t.field({ type: 'JSON', required: true }),
@@ -105,11 +111,30 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
   description: 'Changes of a routine (omitted fields unchanged).',
   fields: (t) => ({
     title: t.string(),
-    categoryId: t.id(),
+    categoryIds: t.idList(),
     parentId: t.id({ description: 'Null: top level.' }),
     estimate: t.int(),
     assigneeIds: t.idList(),
     requiredIds: t.idList(),
+    projectId: t.id({ description: 'Null: none.' }),
+    startDate: t.field({ type: 'Date' }),
+    recurrence: t.field({ type: 'JSON' }),
+  }),
+});
+
+const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
+  description: 'Same changes for several routines (omitted fields unchanged; null clears estimate and projectId).',
+  fields: (t) => ({
+    addCategoryIds: t.idList(),
+    removeCategoryIds: t.idList(),
+    addAssigneeIds: t.idList(),
+    removeAssigneeIds: t.idList(),
+    addRequiredIds: t.idList(),
+    removeRequiredIds: t.idList(),
+    estimate: t.int({ description: 'Minutes.' }),
+    projectId: t.id(),
+    startDate: t.field({ type: 'Date' }),
+    recurrence: t.field({ type: 'JSON' }),
   }),
 });
 
@@ -128,7 +153,7 @@ const idOrNull = (id: string | number | null | undefined) => (id === null || id 
 const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput => ({
   title: input.title,
   description: input.description ?? null,
-  categoryId: idOrNull(input.categoryId),
+  categoryIds: input.categoryIds.map(String),
   parentId: idOrNull(input.parentId),
   startDate: input.startDate,
   recurrence: input.recurrence as RoutineInput['recurrence'],
@@ -194,14 +219,62 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { id, input }) => {
       const changes: Partial<RoutineInput> = {};
       if (input.title !== undefined && input.title !== null) changes.title = input.title;
-      if (input.categoryId !== undefined) changes.categoryId = idOrNull(input.categoryId);
+      if (input.categoryIds) changes.categoryIds = input.categoryIds.map(String);
       if (input.parentId !== undefined) changes.parentId = idOrNull(input.parentId);
       if (input.estimate !== undefined) changes.estimate = input.estimate;
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
       if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
+      if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
+      if (input.startDate) changes.startDate = input.startDate;
+      if (input.recurrence !== undefined && input.recurrence !== null) changes.recurrence = input.recurrence as RoutineInput['recurrence'];
       await routines.patchRoutine(String(id), changes);
       return true;
     },
+  }),
+  moveRoutine: t.boolean({
+    description: 'Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.',
+    args: {
+      id: t.arg.id({ required: true }),
+      targetId: t.arg.id({ required: true }),
+      place: t.arg({ type: RoutinePlaceEnum, required: true }),
+      categoryIds: t.arg.idList(),
+    },
+    resolve: async (_root, { id, targetId, place, categoryIds }) => {
+      await routines.moveRoutine(String(id), String(targetId), place, categoryIds ? categoryIds.map(String) : null);
+      return true;
+    },
+  }),
+  bulkUpdateRoutines: t.int({
+    description: 'Applies the same changes to several routines; returns how many changed.',
+    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }) },
+    resolve: (_root, { ids, changes }) => {
+      const list = (value: (string | number)[] | null | undefined) => (value ? value.map(String) : undefined);
+      return routines.bulkUpdateRoutines(ids.map(String), {
+        addCategoryIds: list(changes.addCategoryIds),
+        removeCategoryIds: list(changes.removeCategoryIds),
+        addAssigneeIds: list(changes.addAssigneeIds),
+        removeAssigneeIds: list(changes.removeAssigneeIds),
+        addRequiredIds: list(changes.addRequiredIds),
+        removeRequiredIds: list(changes.removeRequiredIds),
+        estimate: changes.estimate,
+        projectId: changes.projectId === undefined ? undefined : idOrNull(changes.projectId),
+        startDate: changes.startDate ?? undefined,
+        recurrence: changes.recurrence ?? undefined,
+      });
+    },
+  }),
+  bulkSetRoutinesArchived: t.int({
+    args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
+    resolve: (_root, { ids, archived }) => routines.bulkSetRoutinesArchived(ids.map(String), archived),
+  }),
+  bulkSetRoutinesDone: t.int({
+    description: 'Ticks or unticks the current occurrence of several routines; returns how many changed.',
+    args: { ids: t.arg.idList({ required: true }), done: t.arg.boolean({ required: true }) },
+    resolve: (_root, { ids, done }) => routines.bulkSetRoutinesDone(ids.map(String), done),
+  }),
+  bulkDeleteRoutines: t.int({
+    args: { ids: t.arg.idList({ required: true }) },
+    resolve: (_root, { ids }) => routines.bulkDeleteRoutines(ids.map(String)),
   }),
   setRoutineDone: t.field({
     type: 'Date',
