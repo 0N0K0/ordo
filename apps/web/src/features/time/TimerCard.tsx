@@ -157,9 +157,15 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
           <Text size="xs" c="dimmed">
             {paused ? 'En pause' : 'En cours'} — depuis{' '}
             {new Date(entry.startedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} ·{' '}
-            <Anchor component={Link} to={`/projects/${entry.projectId}?tab=time`} size="xs">
-              {context.projectById.get(entry.projectId)?.title ?? 'Projet'}
-            </Anchor>
+            {entry.projectId ? (
+              <Anchor component={Link} to={`/projects/${entry.projectId}?tab=time`} size="xs">
+                {context.projectById.get(entry.projectId)?.title ?? 'Projet'}
+              </Anchor>
+            ) : (
+              <Anchor component={Link} to="/routines" size="xs">
+                {entry.routineTitle ?? 'Routine'}
+              </Anchor>
+            )}
           </Text>
         </Stack>
         <Group gap="xs" wrap="nowrap">

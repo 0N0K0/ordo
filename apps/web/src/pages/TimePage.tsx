@@ -74,7 +74,7 @@ export function TimePage() {
     const inPeriod = end ? entries.data.filter((entry) => localDay(entry.startedAt) <= end) : entries.data;
     if (!projectId || !context) return inPeriod;
     const tree = new Set([projectId, ...descendantIds(context.projects, projectId)]);
-    return inPeriod.filter((entry) => tree.has(entry.projectId));
+    return inPeriod.filter((entry) => entry.projectId !== null && tree.has(entry.projectId));
   }, [entries.data, end, projectId, context]);
 
   const finished = (shown ?? []).filter((entry) => entry.endedAt !== null);

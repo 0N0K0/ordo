@@ -15,15 +15,21 @@ export const durationSchema = z
   .min(60, 'Au moins 1 minute.')
   .max(24 * 3600, '24 heures maximum.');
 
-/** Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). */
-export const timeEntryFormSchema = z.object({
-  projectId: z.string({ error: 'Le projet est requis.' }).min(1, 'Le projet est requis.'),
-  taskIds: z.array(z.string()),
-  description: z.string().max(4000, '4 000 caractères maximum.'),
-  date: z.string({ error: 'La date est requise.' }).regex(/^\d{4}-\d{2}-\d{2}$/, 'La date est requise.'),
-  start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).'),
-  duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
-});
+/**
+ * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). The project may be
+ * left empty for the time of a routine.
+ */
+export const timeEntryFormSchema = z
+  .object({
+    projectId: z.string(),
+    routineId: z.string().nullable(),
+    taskIds: z.array(z.string()),
+    description: z.string().max(4000, '4 000 caractères maximum.'),
+    date: z.string({ error: 'La date est requise.' }).regex(/^\d{4}-\d{2}-\d{2}$/, 'La date est requise.'),
+    start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).'),
+    duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
+  })
+  .refine((values) => values.projectId !== '' || values.routineId !== null, { path: ['projectId'], message: 'Le projet est requis.' });
 export type TimeEntryFormValues = z.infer<typeof timeEntryFormSchema>;
 
 /**

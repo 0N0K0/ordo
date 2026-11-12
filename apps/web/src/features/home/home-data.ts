@@ -161,7 +161,7 @@ export function useWeekTime(today: string): WeekTime | null {
       const seconds = entrySeconds(entry, now);
       time.week += seconds;
       if (localDayOf(entry.startedAt) === today) time.today += seconds;
-      byProject.set(entry.projectId, (byProject.get(entry.projectId) ?? 0) + seconds);
+      if (entry.projectId) byProject.set(entry.projectId, (byProject.get(entry.projectId) ?? 0) + seconds);
     }
     time.byProject = [...byProject.entries()].map(([projectId, seconds]) => ({ projectId, seconds })).sort((a, b) => b.seconds - a.seconds);
     return time;
