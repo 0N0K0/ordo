@@ -4,7 +4,7 @@ import { ShoppingForm, type ShoppingFormProps } from './ShoppingForm';
 let modalCount = 0;
 
 /**
- * Opens the form of a product of the base list or of an item of a list.
+ * Opens the form of a product of a base list or of an item of a list.
  * @param {ShoppingFormProps['target']} target Product or item, edited when given.
  * @returns {void}
  */
@@ -14,7 +14,7 @@ export function openShoppingForm(target: ShoppingFormProps['target']): void {
   modals.open({
     modalId,
     size: 'lg',
-    title: target.kind === 'product' ? (editing ? 'Modifier le produit' : 'Nouveau produit de la liste de base') : editing ? 'Modifier l’élément' : 'Élément hors liste de base',
+    title: target.kind === 'product' ? (editing ? 'Modifier le produit' : 'Nouveau produit') : editing ? 'Modifier l’élément' : 'Élément hors listes types',
     children: <ShoppingForm target={target} onDone={() => modals.close(modalId)} />,
   });
 }

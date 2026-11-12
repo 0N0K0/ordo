@@ -1,22 +1,21 @@
-import { ActionIcon, Anchor, Button, Checkbox, ColorSwatch, Group, Paper, SegmentedControl, Skeleton, Stack, Table, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Button, Checkbox, Group, Paper, SegmentedControl, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
-import { shoppingCost } from '@ordo/shared';
-import { ArrowSquareOutIcon, BasketIcon, ListPlusIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BasketIcon, ListPlusIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
-import { useShoppingData, useShoppingMutations, type ShoppingProduct } from './api';
+import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
-import { groupShopping, money, quantityText, type ShoppingGrouping } from './shopping-format';
-import { PeopleBadges } from './ShoppingForm';
-import classes from './Shopping.module.css';
+import { blankInput, categoriesForBaseList, money, type ShoppingGrouping } from './shopping-format';
+import { ShoppingTable } from './ShoppingTable';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 /**
- * Asks for confirmation before removing a product from the base list.
+ * Asks for confirmation before removing a product from its base list.
  * @param {ShoppingProduct} product Product.
  * @param {() => void} onConfirm Removal.
  * @returns {void}
@@ -28,7 +27,7 @@ function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
     title: 'Retirer le produit',
     children: (
       <Stack gap="md">
-        <Text size="sm">« {product.name} » sera retiré de la liste de base, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</Text>
+        <Text size="sm">« {product.name} » sera retiré de la liste type, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</Text>
         <DestructiveActions
           loading={false}
           onCancel={() => modals.close(modalId)}
@@ -43,21 +42,23 @@ function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
 }
 
 /**
- * Base list: the products usually bought, grouped by category (in tree order) or by store, each
- * marked missing or not; the missing ones make a new list.
+ * A base list: its products as the tree of their categories (or by store), each marked missing or not and changed
+ * in place, moved to another category by drag and drop; the missing ones make a new list.
+ * @param {{ baseList: ShoppingBaseList }} props Component props.
  * @returns {JSX.Element} Base list.
  */
-export function BaseList() {
+export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const { data, isPending } = useShoppingData();
   const mutations = useShoppingMutations();
   const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.baseGrouping', defaultValue: 'category' });
   const [onlyMissing, setOnlyMissing] = useState(false);
+  const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const [search, setSearch] = useState('');
-  const products = data?.shoppingProducts ?? [];
+  const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
   const missing = products.filter((product) => product.missing);
   const needle = search.trim().toLocaleLowerCase('fr');
   const shown = products.filter((product) => (!onlyMissing || product.missing) && (!needle || product.name.toLocaleLowerCase('fr').includes(needle)));
-  const groups = groupShopping(shown, grouping, { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] });
+  const onError = (error: Error) => notifyError(error.message);
 
   return (
     <Stack gap="md">
@@ -81,11 +82,12 @@ export function BaseList() {
           aria-label="Rechercher un produit"
         />
         <Checkbox size="xs" label="Manquants seulement" checked={onlyMissing} onChange={(event) => setOnlyMissing(event.currentTarget.checked)} />
+        <Checkbox size="xs" label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
         <Group gap="sm" ml="auto">
-          <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product' })}>
+          <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
             Ajouter un produit
           </Button>
-          <Button leftSection={<ListPlusIcon aria-hidden />} disabled={missing.length === 0} onClick={() => openNewList({ fromMissing: true, missingCount: missing.length })}>
+          <Button leftSection={<ListPlusIcon aria-hidden />} disabled={missing.length === 0} onClick={() => openNewList({ baseListIds: [baseList.id] })}>
             Générer une liste ({missing.length})
           </Button>
         </Group>
@@ -97,127 +99,80 @@ export function BaseList() {
             <Skeleton key={index} height={48} />
           ))}
         </Stack>
-      ) : groups.length === 0 ? (
+      ) : shown.length === 0 ? (
         <Paper withBorder radius="md" p="xl">
           <Stack align="center" gap="sm">
             <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
               <BasketIcon aria-hidden />
             </ThemeIcon>
             <Text size="sm" c="dimmed">
-              {products.length ? 'Aucun produit ne correspond.' : 'La liste de base est vide : ajoutez-y ce que vous achetez d’habitude.'}
+              {products.length ? 'Aucun produit ne correspond.' : `« ${baseList.name} » est vide : ajoutez-y ce que vous achetez d’habitude.`}
             </Text>
             {!products.length && (
-              <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product' })}>
+              <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
                 Ajouter un produit
               </Button>
             )}
           </Stack>
         </Paper>
       ) : (
-        groups.map((group) => (
-          <Paper key={group.id ?? 'none'} withBorder radius="md" component="section" className={classes.group}>
-            <Group gap="xs" px="md" py="xs">
-              {group.color && <ColorSwatch color={group.color} size={12} />}
-              <Title order={2} size="h5">
-                {group.name}
-              </Title>
-              <Text size="xs" c="dimmed">
-                {group.items.filter((product) => product.missing).length} manquant(s) sur {group.items.length}
-              </Text>
-            </Group>
-            <div className={classes.scroller}>
-              <Table verticalSpacing={4} highlightOnHover miw={720}>
-                <Table.Tbody>
-                  {group.items.map((product) => {
-                    const cost = shoppingCost(product);
-                    return (
-                      <Table.Tr key={product.id}>
-                        <Table.Td w={40}>
-                          <Checkbox
-                            aria-label={`${product.name} manque`}
-                            checked={product.missing}
-                            onChange={(event) => mutations.setMissing.mutate({ ids: [product.id], missing: event.currentTarget.checked }, { onError: (error) => notifyError(error.message) })}
-                          />
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap={4} wrap="nowrap">
-                            <Text size="sm" fw={product.missing ? 600 : undefined}>
-                              {product.name}
-                            </Text>
-                            {product.url && (
-                              <Tooltip label={product.url}>
-                                <ActionIcon
-                                  component="a"
-                                  href={product.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  size="sm"
-                                  variant="subtle"
-                                  color="gray"
-                                  aria-label={`Ouvrir la page de ${product.name}`}
-                                >
-                                  <ArrowSquareOutIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                            )}
-                          </Group>
-                          {product.note && (
-                            <Text size="xs" c="dimmed" lineClamp={1}>
-                              {product.note}
-                            </Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td className={classes.nowrap}>{quantityText(product)}</Table.Td>
-                        <Table.Td>
-                          <PeopleBadges memberIds={product.memberIds} relationIds={product.relationIds} />
-                        </Table.Td>
-                        <Table.Td ta="right" ff="monospace" className={classes.nowrap}>
-                          {cost !== null ? money(cost) : null}
-                        </Table.Td>
-                        <Table.Td>
-                          {product.lastPurchasedAt && (
-                            <Text size="xs" c="dimmed" className={classes.nowrap}>
-                              Acheté le {dayFormat.format(new Date(product.lastPurchasedAt))}
-                              {product.lastPrice !== null && ` · ${money(product.lastPrice)}`}
-                            </Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td w={80}>
-                          <Group gap={2} wrap="nowrap" justify="flex-end">
-                            <Tooltip label="Modifier">
-                              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${product.name}`} onClick={() => openShoppingForm({ kind: 'product', product })}>
-                                <PencilSimpleIcon aria-hidden />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Retirer">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                aria-label={`Retirer ${product.name}`}
-                                onClick={() =>
-                                  confirmDelete(product, () =>
-                                    mutations.deleteProduct.mutate({ id: product.id }, { onSuccess: () => notifySuccess('Produit retiré.'), onError: (error) => notifyError(error.message) }),
-                                  )
-                                }
-                              >
-                                <TrashIcon aria-hidden />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })}
-                </Table.Tbody>
-              </Table>
-            </div>
-          </Paper>
-        ))
+        <ShoppingTable
+          items={shown}
+          grouping={grouping}
+          showEmpty={showEmpty}
+          categories={categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id)}
+          add={{
+            label: 'Ajouter un produit',
+            // A product added is usually missing.
+            onCreate: (name, place) => mutations.createProduct.mutateAsync({ ...blankInput(name, place), baseListId: baseList.id, missing: true }),
+          }}
+          label={`Produits de ${baseList.name}`}
+          onSave={(product, input) => mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, { onError })}
+          check={(product) => (
+            <Tooltip label="Manque : sera sur la prochaine liste générée">
+              <Checkbox
+                aria-label={`${product.name} manque`}
+                checked={product.missing}
+                onChange={(event) => mutations.setMissing.mutate({ ids: [product.id], missing: event.currentTarget.checked }, { onError })}
+              />
+            </Tooltip>
+          )}
+          summary={(items) => `${items.filter((product) => product.missing).length} manquant(s) sur ${items.length}`}
+          extra={{
+            title: 'Dernier achat',
+            render: (product) =>
+              product.lastPurchasedAt && (
+                <Text size="xs" c="dimmed" title={product.lastPrice !== null ? `${money(product.lastPrice)} l’unité` : undefined}>
+                  {dayFormat.format(new Date(product.lastPurchasedAt))}
+                  {product.lastPrice !== null && ` · ${money(product.lastPrice)}`}
+                </Text>
+              ),
+          }}
+          actions={(product) => (
+            <>
+              <Tooltip label="Modifier (catégorie, liste type, note…)">
+                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${product.name}`} onClick={() => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product })}>
+                  <PencilSimpleIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Retirer">
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  aria-label={`Retirer ${product.name}`}
+                  onClick={() => confirmDelete(product, () => mutations.deleteProduct.mutate({ id: product.id }, { onSuccess: () => notifySuccess('Produit retiré.'), onError }))}
+                >
+                  <TrashIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            </>
+          )}
+        />
       )}
       {missing.length > 0 && (
         <Text size="xs" c="dimmed">
           Cocher un produit comme acheté sur une liste le retire des manquants.{' '}
-          <Anchor component="button" type="button" size="xs" onClick={() => mutations.setMissing.mutate({ ids: missing.map((product) => product.id), missing: false })}>
+          <Anchor component="button" type="button" size="xs" onClick={() => mutations.setMissing.mutate({ ids: missing.map((product) => product.id), missing: false }, { onError })}>
             Tout décocher
           </Anchor>
         </Text>

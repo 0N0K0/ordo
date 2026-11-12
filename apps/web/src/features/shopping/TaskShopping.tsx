@@ -3,24 +3,22 @@ import { PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import type { Task } from '../tasks/api';
-import { useShoppingData, useShoppingLists, useShoppingMutations } from './api';
+import { useShoppingLists, useShoppingMutations } from './api';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
 import { money } from './shopping-format';
 
 /**
- * Shopping lists of a task: their progress and total, a new list (from the missing products of the base list),
+ * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
  * or an open list without task attached to it.
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Section.
  */
 export function TaskShopping({ task }: { task: Task }) {
   const { data: lists } = useShoppingLists();
-  const { data } = useShoppingData();
   const { updateList } = useShoppingMutations();
   const own = (lists ?? []).filter((list) => list.taskId === task.id);
   const free = (lists ?? []).filter((list) => !list.taskId && !list.closed);
-  const missingCount = (data?.shoppingProducts ?? []).filter((product) => product.missing).length;
 
   return (
     <Stack gap="xs">
@@ -29,7 +27,7 @@ export function TaskShopping({ task }: { task: Task }) {
           Courses
         </Text>
         {!task.archived && (
-          <Button variant="subtle" size="compact-xs" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ fromMissing: missingCount > 0, missingCount, taskId: task.id })}>
+          <Button variant="subtle" size="compact-xs" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskId: task.id })}>
             Nouvelle liste
           </Button>
         )}
