@@ -1337,15 +1337,27 @@ type Mutation {
   Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).
   """
   attachShoppingListEntry(entryId: ID, id: ID!): Boolean!
+  bulkDeleteRoutines(ids: [ID!]!): Int!
   bulkDeleteTasks(
     """false moves unselected sub-tasks up."""
     deleteSubtasks: Boolean!
     ids: [ID!]!
   ): Boolean!
+  bulkSetRoutinesArchived(archived: Boolean!, ids: [ID!]!): Int!
+
+  """
+  Ticks or unticks the current occurrence of several routines; returns how many changed.
+  """
+  bulkSetRoutinesDone(done: Boolean!, ids: [ID!]!): Int!
   bulkSetTasksArchived(archived: Boolean!, ids: [ID!]!): Boolean!
 
   """Moves the tasks and their sub-tasks to another project."""
   bulkTransferTasks(ids: [ID!]!, projectId: ID!): TaskTransferResult!
+
+  """
+  Applies the same changes to several routines; returns how many changed.
+  """
+  bulkUpdateRoutines(changes: RoutineBulkChanges!, ids: [ID!]!): Int!
   bulkUpdateTasks(changes: BulkTaskInput!, ids: [ID!]!): Boolean!
   cancelEmailChange: User!
 
@@ -2385,6 +2397,24 @@ type Routine {
   trackedSeconds: Int!
 }
 
+"""
+Same changes for several routines (omitted fields unchanged; null clears estimate and projectId).
+"""
+input RoutineBulkChanges {
+  addAssigneeIds: [ID!]
+  addCategoryIds: [ID!]
+  addRequiredIds: [ID!]
+
+  """Minutes."""
+  estimate: Int
+  projectId: ID
+  recurrence: JSON
+  removeAssigneeIds: [ID!]
+  removeCategoryIds: [ID!]
+  removeRequiredIds: [ID!]
+  startDate: Date
+}
+
 """Category of the routines, in a tree."""
 type RoutineCategory {
   color: String
@@ -2422,7 +2452,12 @@ input RoutinePatch {
 
   """Null: top level."""
   parentId: ID
+
+  """Null: none."""
+  projectId: ID
+  recurrence: JSON
   requiredIds: [ID!]
+  startDate: Date
   title: String
 }
 

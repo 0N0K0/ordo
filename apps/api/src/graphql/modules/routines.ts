@@ -116,6 +116,25 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     estimate: t.int(),
     assigneeIds: t.idList(),
     requiredIds: t.idList(),
+    projectId: t.id({ description: 'Null: none.' }),
+    startDate: t.field({ type: 'Date' }),
+    recurrence: t.field({ type: 'JSON' }),
+  }),
+});
+
+const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
+  description: 'Same changes for several routines (omitted fields unchanged; null clears estimate and projectId).',
+  fields: (t) => ({
+    addCategoryIds: t.idList(),
+    removeCategoryIds: t.idList(),
+    addAssigneeIds: t.idList(),
+    removeAssigneeIds: t.idList(),
+    addRequiredIds: t.idList(),
+    removeRequiredIds: t.idList(),
+    estimate: t.int({ description: 'Minutes.' }),
+    projectId: t.id(),
+    startDate: t.field({ type: 'Date' }),
+    recurrence: t.field({ type: 'JSON' }),
   }),
 });
 
@@ -205,6 +224,9 @@ builder.mutationFields((t) => ({
       if (input.estimate !== undefined) changes.estimate = input.estimate;
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
       if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
+      if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
+      if (input.startDate) changes.startDate = input.startDate;
+      if (input.recurrence !== undefined && input.recurrence !== null) changes.recurrence = input.recurrence as RoutineInput['recurrence'];
       await routines.patchRoutine(String(id), changes);
       return true;
     },
@@ -221,6 +243,38 @@ builder.mutationFields((t) => ({
       await routines.moveRoutine(String(id), String(targetId), place, categoryIds ? categoryIds.map(String) : null);
       return true;
     },
+  }),
+  bulkUpdateRoutines: t.int({
+    description: 'Applies the same changes to several routines; returns how many changed.',
+    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }) },
+    resolve: (_root, { ids, changes }) => {
+      const list = (value: (string | number)[] | null | undefined) => (value ? value.map(String) : undefined);
+      return routines.bulkUpdateRoutines(ids.map(String), {
+        addCategoryIds: list(changes.addCategoryIds),
+        removeCategoryIds: list(changes.removeCategoryIds),
+        addAssigneeIds: list(changes.addAssigneeIds),
+        removeAssigneeIds: list(changes.removeAssigneeIds),
+        addRequiredIds: list(changes.addRequiredIds),
+        removeRequiredIds: list(changes.removeRequiredIds),
+        estimate: changes.estimate,
+        projectId: changes.projectId === undefined ? undefined : idOrNull(changes.projectId),
+        startDate: changes.startDate ?? undefined,
+        recurrence: changes.recurrence ?? undefined,
+      });
+    },
+  }),
+  bulkSetRoutinesArchived: t.int({
+    args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
+    resolve: (_root, { ids, archived }) => routines.bulkSetRoutinesArchived(ids.map(String), archived),
+  }),
+  bulkSetRoutinesDone: t.int({
+    description: 'Ticks or unticks the current occurrence of several routines; returns how many changed.',
+    args: { ids: t.arg.idList({ required: true }), done: t.arg.boolean({ required: true }) },
+    resolve: (_root, { ids, done }) => routines.bulkSetRoutinesDone(ids.map(String), done),
+  }),
+  bulkDeleteRoutines: t.int({
+    args: { ids: t.arg.idList({ required: true }) },
+    resolve: (_root, { ids }) => routines.bulkDeleteRoutines(ids.map(String)),
   }),
   setRoutineDone: t.field({
     type: 'Date',

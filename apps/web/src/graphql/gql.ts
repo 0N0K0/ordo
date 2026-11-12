@@ -228,6 +228,10 @@ type Documents = {
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": typeof types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": typeof types.BulkUpdateRoutinesDocument,
+    "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetRoutinesArchivedDocument,
+    "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
+    "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {\n    setRoutineDone(id: $id, done: $done, date: $date)\n  }\n": typeof types.SetRoutineDoneDocument,
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": typeof types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": typeof types.DeleteRoutineDocument,
@@ -629,6 +633,10 @@ const documents: Documents = {
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": types.BulkUpdateRoutinesDocument,
+    "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetRoutinesArchivedDocument,
+    "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
+    "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {\n    setRoutineDone(id: $id, done: $done, date: $date)\n  }\n": types.SetRoutineDoneDocument,
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": types.DeleteRoutineDocument,
@@ -1669,6 +1677,22 @@ export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: Rou
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n"): typeof import('./graphql').BulkUpdateRoutinesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n"): typeof import('./graphql').BulkSetRoutinesArchivedDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n"): typeof import('./graphql').BulkSetRoutinesDoneDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n"): typeof import('./graphql').BulkDeleteRoutinesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

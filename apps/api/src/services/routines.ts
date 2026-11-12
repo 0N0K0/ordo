@@ -205,18 +205,17 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
 }
 
 /**
- * Current form of a routine as an input, with some fields changed.
+ * Current form of a routine as an input.
  * @param {string} id Routine id.
- * @param {Partial<RoutineInput>} changes Changes.
- * @returns {Promise<Routine>} Routine.
+ * @returns {Promise<RoutineInput>} Input.
  */
-export async function patchRoutine(id: string, changes: Partial<RoutineInput>): Promise<Routine> {
+async function inputOf(id: string): Promise<RoutineInput> {
   const routine = await prisma.routine.findUnique({
     where: { id },
     include: { assignees: { select: { id: true } }, categories: { select: { id: true } }, requires: { select: { requiredId: true } } },
   });
   if (!routine) throw notFound('Routine');
-  return updateRoutine(id, {
+  return {
     title: routine.title,
     description: routine.description,
     categoryIds: routine.categories.map((category) => category.id),
@@ -227,8 +226,71 @@ export async function patchRoutine(id: string, changes: Partial<RoutineInput>): 
     projectId: routine.projectId,
     assigneeIds: routine.assignees.map((assignee) => assignee.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
-    ...changes,
-  });
+  };
+}
+
+/**
+ * Current form of a routine as an input, with some fields changed.
+ * @param {string} id Routine id.
+ * @param {Partial<RoutineInput>} changes Changes.
+ * @returns {Promise<Routine>} Routine.
+ */
+export async function patchRoutine(id: string, changes: Partial<RoutineInput>): Promise<Routine> {
+  return updateRoutine(id, { ...(await inputOf(id)), ...changes });
+}
+
+/** Same changes for several routines: values set, or ids added to and removed from their lists. */
+export interface RoutineBulkChanges {
+  addCategoryIds?: string[];
+  removeCategoryIds?: string[];
+  addAssigneeIds?: string[];
+  removeAssigneeIds?: string[];
+  addRequiredIds?: string[];
+  removeRequiredIds?: string[];
+  /** Minutes, null: none, undefined: unchanged. */
+  estimate?: number | null;
+  /** Null: none, undefined: unchanged. */
+  projectId?: string | null;
+  startDate?: string;
+  recurrence?: unknown;
+}
+
+/**
+ * List with ids added and removed.
+ * @param {string[]} list Current ids.
+ * @param {string[]} [added] Added ids. Optional.
+ * @param {string[]} [removed] Removed ids. Optional.
+ * @returns {string[]} New ids.
+ */
+const changedList = (list: string[], added: string[] = [], removed: string[] = []) => [...new Set([...list.filter((id) => !removed.includes(id)), ...added])];
+
+/**
+ * Applies the same changes to several routines; every routine is checked before any is saved.
+ * @param {string[]} ids Routine ids.
+ * @param {RoutineBulkChanges} changes Changes.
+ * @returns {Promise<number>} Number of routines changed.
+ */
+export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChanges): Promise<number> {
+  const inputs = await Promise.all(
+    [...new Set(ids)].map(async (id) => {
+      const current = await inputOf(id);
+      const input: RoutineInput = {
+        ...current,
+        categoryIds: changedList(current.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
+        assigneeIds: changedList(current.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
+        // A routine never depends on itself, even when the selection does.
+        requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
+        ...(changes.estimate !== undefined && { estimate: changes.estimate }),
+        ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+        ...(changes.startDate !== undefined && { startDate: changes.startDate }),
+        ...(changes.recurrence !== undefined && { recurrence: changes.recurrence as RoutineInput['recurrence'] }),
+      };
+      return { id, input };
+    }),
+  );
+  for (const { id, input } of inputs) await parseRoutine(input, id);
+  for (const { id, input } of inputs) await updateRoutine(id, input);
+  return inputs.length;
 }
 
 /**
@@ -240,6 +302,31 @@ export async function patchRoutine(id: string, changes: Partial<RoutineInput>): 
 export async function setRoutineArchived(id: string, archived: boolean): Promise<Routine> {
   await findRoutine(id);
   return prisma.routine.update({ where: { id }, data: { archivedAt: archived ? new Date() : null } });
+}
+
+/**
+ * Archives or restores several routines.
+ * @param {string[]} ids Routine ids.
+ * @param {boolean} archived Target state.
+ * @returns {Promise<number>} Number of routines changed.
+ */
+export async function bulkSetRoutinesArchived(ids: string[], archived: boolean): Promise<number> {
+  return (await prisma.routine.updateMany({ where: { id: { in: ids } }, data: { archivedAt: archived ? new Date() : null } })).count;
+}
+
+/**
+ * Deletes several routines (see deleteRoutine).
+ * @param {string[]} ids Routine ids.
+ * @returns {Promise<number>} Number of routines deleted.
+ */
+export async function bulkDeleteRoutines(ids: string[]): Promise<number> {
+  let count = 0;
+  for (const id of new Set(ids)) {
+    if (!(await prisma.routine.findUnique({ where: { id }, select: { id: true } }))) continue;
+    await deleteRoutine(id);
+    count += 1;
+  }
+  return count;
 }
 
 /**
@@ -295,4 +382,23 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
   if (done) await prisma.routineCheck.upsert({ where: key, create: { routineId: id, date: parseDay(occurrence) }, update: {} });
   else await prisma.routineCheck.deleteMany({ where: { routineId: id, date: parseDay(occurrence) } });
   return occurrence;
+}
+
+/**
+ * Ticks or unticks the current occurrence of several routines (those not started yet are left aside).
+ * @param {string[]} ids Routine ids.
+ * @param {boolean} done Target state.
+ * @returns {Promise<number>} Number of routines changed.
+ */
+export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise<number> {
+  const today = routineToday();
+  let count = 0;
+  for (const routine of await prisma.routine.findMany({ where: { id: { in: ids } } })) {
+    const rule = storedRecurrence(routine.recurrence);
+    const current = rule ? routineOccurrences(rule, formatDay(routine.startDate), today).current : null;
+    if (!current) continue;
+    await setRoutineDone(routine.id, done, current);
+    count += 1;
+  }
+  return count;
 }

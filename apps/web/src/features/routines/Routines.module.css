@@ -3,6 +3,32 @@
   .table {
     /* Typographie */
     font-size: var(--mantine-font-size-sm);
+
+    /* Cells of the column selection (edited together). */
+    & td[data-cell-selected] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-primary-color-light);
+
+      /* Bordures */
+      outline: 1px solid var(--mantine-primary-color-filled);
+      outline-offset: -1px;
+    }
+  }
+
+  /* Bar of the actions on the selected routines, stuck at the bottom of the screen. */
+  .bulkBar {
+    /* Position */
+    position: sticky;
+    bottom: var(--mantine-spacing-md);
+    z-index: 5;
+
+    /* Dimension */
+    width: fit-content;
+    max-width: 100%;
+
+    /* Espacement */
+    margin-inline: auto;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
   }
 
   .scroller {
