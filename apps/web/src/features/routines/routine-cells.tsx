@@ -1,11 +1,17 @@
-import { Avatar, Group, NumberInput, TextInput } from '@mantine/core';
-import { routineSchema } from '@ordo/shared';
+import { Avatar, Button, Group, NumberInput, Popover, Select, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import { routineSchema, type Recurrence } from '@ordo/shared';
 import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { categoryTree } from '../../components/category-tree/category-tree';
+import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
+import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { notifyError } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import classes from '../tasks/views/inline-cells.module.css';
-import type { Routine } from './api';
+import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
+import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
+import { DAILY, ruleOf } from './routine-format';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -16,6 +22,9 @@ const cellField = {
 
 /** Select fields: dropdown as wide as its options. */
 const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true, width: 'max-content', position: 'bottom-start' } } as const;
+
+/** Multi-select fields: their values as pills. */
+const cellMulti = { ...cellCombobox, classNames: { ...cellField.classNames, pillsList: classes.pills } } as const;
 
 /**
  * Keys of a typed cell: Enter saves (by leaving the field), Escape gives up the draft.
@@ -31,19 +40,35 @@ function cellKeys(event: KeyboardEvent<HTMLInputElement>, cancel: () => void): v
   }
 }
 
-interface CellProps<T> {
-  value: T;
-  label: string;
+/**
+ * Accessible label of a cell, with the number of routines it changes on a selection.
+ * @param {string} field Field name.
+ * @param {Routine} routine Routine.
+ * @param {number} count Routines changed by an edit.
+ * @returns {string} Label.
+ */
+const fieldLabel = (field: string, routine: Routine, count: number) => `${field} de ${routine.title}${count > 1 ? ` (${routinesLabel(count)})` : ''}`;
+
+/**
+ * Ids added and removed between two lists.
+ * @param {string[]} before Previous ids.
+ * @param {string[]} after New ids.
+ * @returns {{ added: string[], removed: string[] }} Differences.
+ */
+const diff = (before: string[], after: string[]) => ({ added: after.filter((id) => !before.includes(id)), removed: before.filter((id) => !after.includes(id)) });
+
+interface CellProps {
+  routine: Routine;
   readOnly?: boolean;
-  onSave: (value: T) => void;
 }
 
 /**
- * Title cell: typed in place, saved when leaving the field if valid and changed.
- * @param {CellProps<string>} props Component props.
+ * Title cell: typed in place, saved when leaving the field if valid and changed (one routine at a time).
+ * @param {CellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TitleCell({ value, label, readOnly = false, onSave }: CellProps<string>) {
+export function TitleCell({ routine, readOnly = false }: CellProps) {
+  const { patch } = useRoutineMutations();
   const [draft, setDraft] = useState<string | null>(null);
 
   /**
@@ -58,15 +83,15 @@ export function TitleCell({ value, label, readOnly = false, onSave }: CellProps<
       notifyError(`${result.error.issues[0]?.message ?? 'Titre invalide.'} Rien n’a été modifié.`);
       return;
     }
-    if (result.data !== value) onSave(result.data);
+    if (result.data !== routine.title) patch.mutate({ id: routine.id, input: { title: result.data } }, { onError: (error) => notifyError(error.message) });
   };
 
   return (
     <TextInput
       {...cellField}
-      aria-label={label}
+      aria-label={`Titre de ${routine.title}`}
       readOnly={readOnly}
-      value={draft ?? value}
+      value={draft ?? routine.title}
       onChange={(event) => setDraft(event.currentTarget.value)}
       onBlur={save}
       onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
@@ -78,10 +103,11 @@ export function TitleCell({ value, label, readOnly = false, onSave }: CellProps<
 
 /**
  * Time to spend on it, in minutes: typed in place, saved when leaving the field if valid and changed.
- * @param {CellProps<number | null>} props Component props.
+ * @param {CellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EstimateCell({ value, label, readOnly = false, onSave }: CellProps<number | null>) {
+export function EstimateCell({ routine, readOnly = false }: CellProps) {
+  const { apply, count } = useRoutineCellEdit(routine, 'estimate');
   const [draft, setDraft] = useState<string | number | null>(null);
 
   /**
@@ -96,13 +122,13 @@ export function EstimateCell({ value, label, readOnly = false, onSave }: CellPro
       notifyError(`${result.error.issues[0]?.message ?? 'Durée invalide.'} Rien n’a été modifié.`);
       return;
     }
-    if (result.data !== value) onSave(result.data);
+    if (result.data !== routine.estimate || count > 1) apply({ estimate: result.data }, { estimate: result.data });
   };
 
   return (
     <NumberInput
       {...cellField}
-      aria-label={label}
+      aria-label={fieldLabel('Temps à consacrer', routine, count)}
       placeholder={readOnly ? undefined : '—'}
       readOnly={readOnly}
       min={1}
@@ -111,7 +137,7 @@ export function EstimateCell({ value, label, readOnly = false, onSave }: CellPro
       allowNegative={false}
       suffix=" min"
       hideControls
-      value={draft ?? value ?? ''}
+      value={draft ?? routine.estimate ?? ''}
       onChange={setDraft}
       onBlur={save}
       onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
@@ -120,16 +146,43 @@ export function EstimateCell({ value, label, readOnly = false, onSave }: CellPro
 }
 
 /**
- * Assignees cell: multi-select of the contributors.
- * @param {CellProps<string[]> & { context: TaskContext }} props Component props.
+ * Categories cell: multi-select of the categories (as their path). On a column selection, adding a category adds it to
+ * every selected routine and removing one removes it.
+ * @param {CellProps & { categories: RoutineCategory[] }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function AssigneesCell({ value, label, readOnly = false, onSave, context }: CellProps<string[]> & { context: TaskContext }) {
+export function CategoriesCell({ routine, readOnly = false, categories }: CellProps & { categories: RoutineCategory[] }) {
+  const { apply, count } = useRoutineCellEdit(routine, 'categories');
   return (
     <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={label}
+      {...cellMulti}
+      aria-label={fieldLabel('Catégories', routine, count)}
+      readOnly={readOnly}
+      data={categoryTree(categories).map((item) => ({ value: item.category.id, label: item.path }))}
+      value={routine.categoryIds}
+      onChange={(categoryIds) => {
+        const { added, removed } = diff(routine.categoryIds, categoryIds);
+        apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
+      }}
+      placeholder={readOnly || routine.categoryIds.length ? undefined : '—'}
+      nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
+      searchable
+    />
+  );
+}
+
+/**
+ * Assignees cell: multi-select of the contributors. On a column selection, adding a contributor adds them to every
+ * selected routine and removing one removes them.
+ * @param {CellProps & { context: TaskContext }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function AssigneesCell({ routine, readOnly = false, context }: CellProps & { context: TaskContext }) {
+  const { apply, count } = useRoutineCellEdit(routine, 'assignees');
+  return (
+    <BatchMultiSelect
+      {...cellMulti}
+      aria-label={fieldLabel('Assignés', routine, count)}
       readOnly={readOnly}
       data={context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
       renderOption={({ option }) => {
@@ -141,34 +194,129 @@ export function AssigneesCell({ value, label, readOnly = false, onSave, context 
           </Group>
         );
       }}
-      value={value}
-      onChange={onSave}
-      placeholder={readOnly || value.length ? undefined : '—'}
+      value={routine.assigneeIds}
+      onChange={(assigneeIds) => {
+        const { added, removed } = diff(routine.assigneeIds, assigneeIds);
+        apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed });
+      }}
+      placeholder={readOnly || routine.assigneeIds.length ? undefined : '—'}
       searchable
     />
   );
 }
 
 /**
- * "Dépend de" cell: multi-select of the other routines to do before this one.
- * @param {CellProps<string[]> & { routine: Routine, routines: Routine[] }} props Component props.
+ * "Dépend de" cell: multi-select of the other routines to do before this one. On a column selection, the change
+ * applies to every selected routine (never to itself).
+ * @param {CellProps & { routines: Routine[] }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function RequiresCell({ value, label, readOnly = false, onSave, routine, routines }: CellProps<string[]> & { routine: Routine; routines: Routine[] }) {
+export function RequiresCell({ routine, readOnly = false, routines }: CellProps & { routines: Routine[] }) {
+  const { apply, count } = useRoutineCellEdit(routine, 'requires');
   return (
     <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={label}
+      {...cellMulti}
+      aria-label={fieldLabel('Dépendances', routine, count)}
       readOnly={readOnly}
       data={routines
-        .filter((other) => other.id !== routine.id && (!other.archived || value.includes(other.id)))
+        .filter((other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id)))
         .map((other) => ({ value: other.id, label: other.title }))
         .sort((a, b) => a.label.localeCompare(b.label, 'fr'))}
-      value={value}
-      onChange={onSave}
-      placeholder={readOnly || value.length ? undefined : '—'}
+      value={routine.requiredIds}
+      onChange={(requiredIds) => {
+        const { added, removed } = diff(routine.requiredIds, requiredIds);
+        apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
+      }}
+      placeholder={readOnly || routine.requiredIds.length ? undefined : '—'}
       searchable
     />
+  );
+}
+
+/**
+ * Project cell: the project the tracked time of the routine goes to (none: the time has no project).
+ * @param {CellProps & { context: TaskContext }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function ProjectCell({ routine, readOnly = false, context }: CellProps & { context: TaskContext }) {
+  const { apply, count } = useRoutineCellEdit(routine, 'project');
+  const data = context.projects
+    .filter((project) => !project.archived || project.id === routine.projectId)
+    .map((project) => ({ value: project.id, label: context.projectLabel(project.id) }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  return (
+    <Select
+      {...cellCombobox}
+      aria-label={fieldLabel('Projet', routine, count)}
+      readOnly={readOnly}
+      placeholder={readOnly ? undefined : '—'}
+      clearable={!readOnly}
+      searchable
+      data={data}
+      nothingFoundMessage="Aucun projet"
+      value={routine.projectId}
+      onChange={(projectId) => (projectId !== routine.projectId || count > 1) && apply({ projectId }, { projectId })}
+    />
+  );
+}
+
+/**
+ * Repetition cell: its rule in words; a click opens the first date and the rule, saved together. On a column
+ * selection, they apply to every selected routine.
+ * @param {CellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function RepetitionCell({ routine, readOnly = false }: CellProps) {
+  const { apply, count } = useRoutineCellEdit(routine, 'repetition');
+  const [opened, setOpened] = useState(false);
+  const [startDate, setStartDate] = useState(routine.startDate);
+  const [rule, setRule] = useState<Recurrence>(ruleOf(routine) ?? DAILY);
+  const current = ruleOf(routine);
+
+  /**
+   * Opens the editor on the current values.
+   * @returns {void}
+   */
+  const open = () => {
+    setStartDate(routine.startDate);
+    setRule(current ?? DAILY);
+    setOpened(true);
+  };
+
+  return (
+    <Popover opened={opened} onChange={setOpened} position="bottom-start" width={420} shadow="md" trapFocus withinPortal>
+      <Popover.Target>
+        <UnstyledButton onClick={open} disabled={readOnly} aria-label={fieldLabel('Répétition', routine, count)} style={{ width: '100%' }}>
+          <Text size="xs" c="dimmed" lineClamp={2}>
+            {current ? describeRecurrence(current, routine.startDate) : '—'}
+          </Text>
+        </UnstyledButton>
+      </Popover.Target>
+      <Popover.Dropdown>
+        <Stack gap="sm">
+          {count > 1 && (
+            <Text size="xs" c="dimmed">
+              S’applique à {routinesLabel(count)}.
+            </Text>
+          )}
+          <DatePickerInput label="Première fois" size="xs" valueFormat="D MMM YYYY" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
+          <RecurrenceEditor value={rule} onChange={(value) => setRule(value ?? DAILY)} start={startDate} withinPortal={false} />
+          <Group justify="flex-end" gap="sm">
+            <Button size="xs" variant="default" onClick={() => setOpened(false)}>
+              Annuler
+            </Button>
+            <Button
+              size="xs"
+              onClick={() => {
+                setOpened(false);
+                apply({ startDate, recurrence: rule }, { startDate, recurrence: rule });
+              }}
+            >
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+      </Popover.Dropdown>
+    </Popover>
   );
 }

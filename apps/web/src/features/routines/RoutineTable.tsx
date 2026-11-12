@@ -12,6 +12,8 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragMoveEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core';
 import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
@@ -20,6 +22,7 @@ import {
   ArrowCounterClockwiseIcon,
   CaretDownIcon,
   CaretRightIcon,
+  CopyIcon,
   DotsSixVerticalIcon,
   DotsThreeVerticalIcon,
   HourglassMediumIcon,
@@ -30,8 +33,7 @@ import {
   TrashIcon,
   TreeViewIcon,
 } from '@phosphor-icons/react';
-import { useState, type ReactElement } from 'react';
-import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
+import { useEffect, useRef, useState, type ComponentProps, type ReactElement } from 'react';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import addClasses from '../tasks/views/table-extras.module.css';
@@ -40,14 +42,16 @@ import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { confirmDestructive } from '../shopping/list-modals';
-import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePatchValues } from './api';
-import { AssigneesCell, EstimateCell, RequiresCell, TitleCell } from './routine-cells';
+import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
+import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RequiresCell, TitleCell } from './routine-cells';
+import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
+import { RoutineBulkBar } from './RoutineBulkBar';
 import { openRoutineForm } from './open-routine-form';
-import { DAILY, isDone, NO_CATEGORY, routineRows, ruleOf, stateOf, visibleRoutineRows, waitingFor, type RoutineRow } from './routine-format';
+import { DAILY, isDone, NO_CATEGORY, routineRows, stateOf, visibleRoutineRows, waitingFor, type RoutineRow } from './routine-format';
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
-const COLUMNS = 10;
+const COLUMNS = 13;
 
 const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -59,7 +63,26 @@ const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'num
 const dayText = (date: string) => shortDate.format(new Date(`${date}T00:00:00Z`));
 
 /** What a routine is dropped on: a category heading (or the one without), or another routine. */
-type DropData = { kind: 'group'; categoryId: string | null } | { kind: 'routine'; routine: Routine };
+type DropData = { kind: 'group'; categoryId: string | null } | { kind: 'routine'; routine: Routine; groupId: string | null };
+
+/** Routine dragged, with the category it is dragged from. */
+interface DragData {
+  routine: Routine;
+  groupId: string | null;
+}
+
+/**
+ * Categories of a routine moved from a category to another: the one it leaves is replaced by the one it goes to (none:
+ * without any category).
+ * @param {string[]} categoryIds Its categories.
+ * @param {string | null} from Category it leaves.
+ * @param {string | null} to Category it goes to.
+ * @returns {string[]} New categories.
+ */
+function movedCategories(categoryIds: string[], from: string | null, to: string | null): string[] {
+  if (to === null) return [];
+  return [...new Set([...categoryIds.filter((id) => id !== from), to])];
+}
 
 /**
  * Where a dragged routine goes: the heading or row under the pointer; with the keyboard, the closest one.
@@ -192,33 +215,41 @@ interface RoutineRowProps {
   today: string;
   running: TimeEntry | null | undefined;
   collapsed: boolean;
-  /** A routine is dragged over it (and can go under it). */
-  over: boolean;
+  /** Where the dragged routine would go on it (before, after or under it), null when not over it. */
+  drop: RoutinePlace | null;
   onToggle: () => void;
+  categories: RoutineCategory[];
+  /** Checked in the row selection (bulk actions). */
+  selected: boolean;
+  onSelect: (selected: boolean) => void;
+  /** Props of a bulk-editable cell: its selected state and the Ctrl / Shift + click selecting it. */
+  cell: (column: RoutineColumn) => ComponentProps<'td'>;
 }
 
 /**
- * Row of a routine: moved by its handle (under another routine, or into a category), ticked for its current occurrence,
+ * Row of a routine: moved by its handle (before, after or under another routine, or into a category), ticked for its current occurrence,
  * edited in place.
  * @param {RoutineRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function RoutineRowView({ row, routines, byId, context, today, running, collapsed, over, onToggle }: RoutineRowProps) {
+function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
   const { routine, depth, children } = row;
-  const { patch, setDone, setArchived, remove } = useRoutineMutations();
-  const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: routine.id, disabled: routine.archived });
-  const { setNodeRef: setDropRef } = useDroppable({ id: `routine:${routine.id}`, data: { kind: 'routine', routine } satisfies DropData });
+  const { setDone, setArchived, remove } = useRoutineMutations();
+  const {
+    setNodeRef: setDragRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    isDragging,
+  } = useDraggable({
+    id: row.key,
+    data: { routine, groupId: row.groupId } satisfies DragData,
+    disabled: routine.archived,
+  });
+  const { setNodeRef: setDropRef } = useDroppable({ id: `routine:${row.key}`, data: { kind: 'routine', routine, groupId: row.groupId } satisfies DropData });
   const done = isDone(routine);
   const waiting = waitingFor(routine, byId);
-  const rule = ruleOf(routine);
   const readOnly = routine.archived;
-
-  /**
-   * Saves inline changes.
-   * @param {RoutinePatchValues} input Changes.
-   * @returns {void}
-   */
-  const save = (input: RoutinePatchValues) => patch.mutate({ id: routine.id, input }, { onError: (error) => notifyError(error.message) });
 
   return (
     <Table.Tr
@@ -227,17 +258,22 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
         setDropRef(node);
       }}
       className={classes.row}
-      data-over={over || undefined}
+      data-drop={drop ?? undefined}
       data-dragging={isDragging || undefined}
       data-done={done || undefined}
       data-archived={routine.archived || undefined}
     >
-      <Table.Td w={32} px={4}>
-        {!readOnly && (
-          <ActionIcon ref={setActivatorNodeRef} variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${routine.title}`} className={classes.handle} {...attributes} {...listeners}>
-            <DotsSixVerticalIcon weight="bold" aria-hidden />
-          </ActionIcon>
-        )}
+      <Table.Td w={56} px={4}>
+        <Group gap={2} wrap="nowrap">
+          {!readOnly ? (
+            <ActionIcon ref={setActivatorNodeRef} variant="subtle" color="gray" size="sm" aria-label={`Déplacer ${routine.title}`} className={classes.handle} {...attributes} {...listeners}>
+              <DotsSixVerticalIcon weight="bold" aria-hidden />
+            </ActionIcon>
+          ) : (
+            <span style={{ width: 'var(--ai-size-sm, 22px)', flexShrink: 0 }} />
+          )}
+          <Checkbox size="xs" aria-label={`Sélectionner ${routine.title}`} checked={selected} onChange={(event) => onSelect(event.currentTarget.checked)} />
+        </Group>
       </Table.Td>
       <Table.Td w={36} px={4}>
         <Tooltip label={routine.currentDate ? (done ? 'Décocher' : `Cocher pour le ${dayText(routine.currentDate)}`) : 'Pas encore commencée'}>
@@ -258,7 +294,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           ) : (
             depth > 0 && <span style={{ width: 'var(--ai-size-xs, 18px)', flexShrink: 0 }} />
           )}
-          <TitleCell value={routine.title} label={`Titre de ${routine.title}`} readOnly={readOnly} onSave={(title) => save({ title })} />
+          <TitleCell routine={routine} readOnly={readOnly} />
           {waiting.length > 0 && !done && (
             <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
               <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
@@ -269,21 +305,23 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
       <Table.Td>
         <StateCell routine={routine} today={today} />
       </Table.Td>
-      <Table.Td miw={160}>
-        <UnstyledButton onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}`}>
-          <Text size="xs" c="dimmed" lineClamp={2}>
-            {rule ? describeRecurrence(rule, routine.startDate) : '—'}
-          </Text>
-        </UnstyledButton>
+      <Table.Td miw={160} {...cell('repetition')}>
+        <RepetitionCell routine={routine} readOnly={readOnly} />
       </Table.Td>
-      <Table.Td miw={140}>
-        <AssigneesCell value={routine.assigneeIds} label={`Assignés de ${routine.title}`} readOnly={readOnly} context={context} onSave={(assigneeIds) => save({ assigneeIds })} />
+      <Table.Td miw={160} {...cell('categories')}>
+        <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />
       </Table.Td>
-      <Table.Td w={96}>
-        <EstimateCell value={routine.estimate} label={`Temps à consacrer à ${routine.title}`} readOnly={readOnly} onSave={(estimate) => save({ estimate })} />
+      <Table.Td miw={140} {...cell('assignees')}>
+        <AssigneesCell routine={routine} readOnly={readOnly} context={context} />
       </Table.Td>
-      <Table.Td miw={160}>
-        <RequiresCell value={routine.requiredIds} label={`Dépendances de ${routine.title}`} readOnly={readOnly} routine={routine} routines={routines} onSave={(requiredIds) => save({ requiredIds })} />
+      <Table.Td w={96} {...cell('estimate')}>
+        <EstimateCell routine={routine} readOnly={readOnly} />
+      </Table.Td>
+      <Table.Td miw={160} {...cell('requires')}>
+        <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />
+      </Table.Td>
+      <Table.Td miw={140} {...cell('project')}>
+        <ProjectCell routine={routine} readOnly={readOnly} context={context} />
       </Table.Td>
       <Table.Td>
         <ChronoCell routine={routine} running={running} />
@@ -306,6 +344,9 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
                 </Menu.Item>
               </>
             )}
+            <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => openRoutineForm({ routine, copy: true })}>
+              Dupliquer
+            </Menu.Item>
             <Menu.Item
               leftSection={readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
               onClick={() =>
@@ -340,7 +381,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
 
 /**
  * Row at the end of a category (or of the table): a title typed then Enter adds a routine in it, every day from today.
- * @param {{ categoryId: string | null, depth: number, groupName: string }} props Component props.
+ * @param {{ categoryId: string | null, depth: number, groupName: string }} props Component props (the category of the routines added).
  * @returns {JSX.Element} Row.
  */
 function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | null; depth: number; groupName: string }) {
@@ -358,7 +399,18 @@ function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | 
       return;
     }
     create.mutate(
-      { title: result.data, description: null, categoryId, parentId: null, startDate: localToday(), recurrence: DAILY, estimate: null, projectId: null, assigneeIds: [], requiredIds: [] },
+      {
+        title: result.data,
+        description: null,
+        categoryIds: categoryId ? [categoryId] : [],
+        parentId: null,
+        startDate: localToday(),
+        recurrence: DAILY,
+        estimate: null,
+        projectId: null,
+        assigneeIds: [],
+        requiredIds: [],
+      },
       { onSuccess: () => setTitle(''), onError: (error) => notifyError(error.message) },
     );
   };
@@ -402,25 +454,108 @@ interface RoutineTableProps {
 
 /**
  * Routines as a table: the categories as their tree, each followed by its routines, sub-routines under their parent;
- * categories and parent routines fold. A routine is dragged under another one, or into a category.
+ * categories and parent routines fold. A routine is dragged before, after or under another one, or into a category.
  * @param {RoutineTableProps} props Component props.
  * @returns {JSX.Element} Table.
  */
 export function RoutineTable({ routines, categories, context, keep, addable }: RoutineTableProps) {
-  const { patch } = useRoutineMutations();
+  const { patch, move } = useRoutineMutations();
   const { data: running } = useRunningTimer();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const [dragged, setDragged] = useState<Routine | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [draggedRow, setDragged] = useState<DragData | null>(null);
+  const dragged = draggedRow?.routine ?? null;
+  const [drop, setDrop] = useState<{ id: string; place: RoutinePlace } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const today = localToday();
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const rows = routineRows(routines, categories, keep);
   const shown = visibleRoutineRows(rows, collapsed);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [cellSelection, setCellSelection] = useState<{ column: RoutineColumn; rowKeys: string[] } | null>(null);
+  const anchorRow = useRef<string | null>(null);
+
+  // Only shown routines stay selected (filtered-out or folded ones are never edited).
+  const routineRowsShown = shown.filter((row): row is Extract<RoutineRow, { kind: 'routine' }> => row.kind === 'routine');
+  const rowKeys = routineRowsShown.map((row) => row.key);
+  const routineOfRow = new Map(routineRowsShown.map((row) => [row.key, row.routine.id]));
+  const shownIds = new Set(routineOfRow.values());
+  const selectedRoutines = routines.filter((routine) => selected.has(routine.id) && shownIds.has(routine.id));
+  const shownKeys = cellSelection?.rowKeys.filter((key) => routineOfRow.has(key)) ?? [];
+  const effectiveCellSelection: RoutineCellSelection | null =
+    cellSelection && shownKeys.length > 0 ? { ...cellSelection, rowKeys: shownKeys, routineIds: [...new Set(shownKeys.map((key) => routineOfRow.get(key)!))] } : null;
+
+  // Escape clears the cell selection.
+  useEffect(() => {
+    if (!cellSelection) return;
+    const handleKey = (event: KeyboardEvent) => event.key === 'Escape' && setCellSelection(null);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [cellSelection]);
+
+  /**
+   * Cell selection with the keyboard modifiers: Ctrl / ⌘ + click toggles a cell, Shift + click selects a range in the
+   * column. A plain click outside the selection clears it.
+   * @param {MouseEvent} event Click event (capture phase, before the cell editor).
+   * @param {string} rowKey Row key.
+   * @param {RoutineColumn} column Column.
+   * @returns {void}
+   */
+  const handleCellClick = (event: MouseEvent, rowKey: string, column: RoutineColumn) => {
+    const modifier = event.ctrlKey || event.metaKey || event.shiftKey;
+    if (!modifier) {
+      if (effectiveCellSelection && !(effectiveCellSelection.column === column && effectiveCellSelection.rowKeys.includes(rowKey))) setCellSelection(null);
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const sameColumn = effectiveCellSelection?.column === column ? effectiveCellSelection.rowKeys : [];
+    let keys: string[];
+    if (event.shiftKey && anchorRow.current && rowKeys.includes(anchorRow.current)) {
+      const [from, to] = [rowKeys.indexOf(anchorRow.current), rowKeys.indexOf(rowKey)].sort((a, b) => a - b);
+      keys = [...new Set([...sameColumn, ...rowKeys.slice(from, to + 1)])];
+    } else {
+      keys = sameColumn.includes(rowKey) ? sameColumn.filter((key) => key !== rowKey) : [...sameColumn, rowKey];
+      anchorRow.current = rowKey;
+    }
+    setCellSelection(keys.length ? { column, rowKeys: keys } : null);
+  };
+
+  /**
+   * Props of a bulk-editable cell of a row.
+   * @param {string} rowKey Row key.
+   * @returns {(column: RoutineColumn) => ComponentProps<'td'>} Props by column.
+   */
+  const cellOf =
+    (rowKey: string) =>
+    (column: RoutineColumn): ComponentProps<'td'> => {
+      const cellSelected = effectiveCellSelection?.column === column && effectiveCellSelection.rowKeys.includes(rowKey);
+      return {
+        'data-cell-selected': cellSelected || undefined,
+        'aria-selected': cellSelected || undefined,
+        onClickCapture: (event) => handleCellClick(event.nativeEvent, rowKey, column),
+      } as ComponentProps<'td'>;
+    };
+
+  /**
+   * Checks or unchecks routines in the row selection.
+   * @param {string[]} ids Routine ids.
+   * @param {boolean} checked Target state.
+   * @returns {void}
+   */
+  const select = (ids: string[], checked: boolean) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  const allSelected = shownIds.size > 0 && [...shownIds].every((id) => selected.has(id));
 
   /**
    * Folds or unfolds a category or a routine.
-   * @param {string} key Category id (NO_CATEGORY for none) or routine id.
+   * @param {string} key Category id (NO_CATEGORY for none) or routine row key.
    * @returns {void}
    */
   const toggle = (key: string) =>
@@ -431,13 +566,16 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
     });
 
   /**
-   * Whether the dragged routine can go under a routine: not itself, not one of its sub-routines, not its parent already.
+   * Whether the dragged routine can go before, after or under a routine: never next to or under itself or one of its
+   * sub-routines (it would be its own parent), nor under its parent already.
    * @param {Routine} moved Dragged routine.
    * @param {Routine} target Routine dropped on.
+   * @param {RoutinePlace} place Where.
    * @returns {boolean} Allowed.
    */
-  const canNest = (moved: Routine, target: Routine) => {
-    if (moved.id === target.id || moved.id === target.parentId || target.archived) return false;
+  const canPlace = (moved: Routine, target: Routine, place: RoutinePlace) => {
+    if (moved.id === target.id || target.archived) return false;
+    if (place === 'INSIDE' && moved.parentId === target.id) return false;
     for (let current: Routine | undefined = target; current; current = current.parentId ? byId.get(current.parentId) : undefined) {
       if (current.id === moved.id) return false;
     }
@@ -445,32 +583,54 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
   };
 
   /**
-   * Moves the dropped routine under the routine, or into the category, it was dropped on.
+   * Updates where the dragged routine would go, from the pointer over a row: its top third before it, its bottom third
+   * after it, the middle under it (with the keyboard: under it).
+   * @param {DragMoveEvent | DragOverEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragMove = ({ over, activatorEvent, delta }: DragMoveEvent | DragOverEvent) => {
+    const target = over?.data.current as DropData | undefined;
+    if (!over || !target) return setDrop(null);
+    if (target.kind === 'group') return setDrop((current) => (current?.id === over.id ? current : { id: String(over.id), place: 'INSIDE' }));
+    const pointer = 'clientY' in activatorEvent ? (activatorEvent as PointerEvent).clientY + delta.y : null;
+    const ratio = pointer === null ? 0.5 : (pointer - over.rect.top) / Math.max(1, over.rect.height);
+    const place: RoutinePlace = ratio < 0.3 ? 'BEFORE' : ratio > 0.7 ? 'AFTER' : 'INSIDE';
+    setDrop((current) => (current?.id === over.id && current.place === place ? current : { id: String(over.id), place }));
+  };
+
+  /**
+   * Moves the dropped routine before, after or under the routine it was dropped on, or into the category.
    * @param {DragEndEvent} event Drop.
    * @returns {void}
    */
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    const place = drop?.place ?? 'INSIDE';
     setDragged(null);
-    setOverId(null);
-    const moved = byId.get(String(active.id));
+    setDrop(null);
+    const source = active.data.current as DragData | undefined;
     const target = over?.data.current as DropData | undefined;
-    if (!moved || !target) return;
+    if (!source || !target) return;
+    const moved = source.routine;
     const onError = (error: Error) => notifyError(error.message);
     if (target.kind === 'routine') {
-      if (canNest(moved, target.routine)) patch.mutate({ id: moved.id, input: { parentId: target.routine.id } }, { onError });
+      if (!canPlace(moved, target.routine, place)) return;
+      // Next to a top routine of another category: it moves to that category.
+      const changesCategory = place !== 'INSIDE' && target.routine.parentId === null && target.groupId !== source.groupId;
+      const categoryIds = changesCategory ? movedCategories(moved.categoryIds, source.groupId, target.groupId) : null;
+      move.mutate({ id: moved.id, targetId: target.routine.id, place, categoryIds }, { onError });
       return;
     }
-    if (moved.parentId === null && moved.categoryId === target.categoryId) return;
-    patch.mutate({ id: moved.id, input: { parentId: null, categoryId: target.categoryId } }, { onError });
+    if (moved.parentId === null && source.groupId === target.categoryId) return;
+    patch.mutate({ id: moved.id, input: { parentId: null, categoryIds: movedCategories(moved.categoryIds, source.groupId, target.categoryId) } }, { onError });
   };
 
   /**
-   * Whether a drop target is highlighted.
-   * @param {string} id Droppable id.
-   * @param {Routine} [target] Routine of the row. Optional.
-   * @returns {boolean} Highlighted.
+   * Where the dragged routine would go on a row, if it is the one under the pointer and the move is allowed.
+   * @param {Extract<RoutineRow, { kind: 'routine' }>} row Row.
+   * @returns {RoutinePlace | null} Place.
    */
-  const isOver = (id: string, target?: Routine) => dragged !== null && overId === id && (!target || canNest(dragged, target));
+  const dropOn = (row: Extract<RoutineRow, { kind: 'routine' }>): RoutinePlace | null =>
+    dragged !== null && drop?.id === `routine:${row.key}` && canPlace(dragged, row.routine, drop.place) ? drop.place : null;
 
   /**
    * Rows of the body, with the "add" row at the end of each unfolded category.
@@ -481,20 +641,24 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
     shown.forEach((row, index) => {
       if (row.kind === 'group') {
         const key = row.id ?? NO_CATEGORY;
-        out.push(<GroupRow key={`group:${key}`} row={row} today={today} collapsed={collapsed.has(key)} over={isOver(`group:${key}`)} onToggle={() => toggle(key)} />);
+        out.push(<GroupRow key={`group:${key}`} row={row} today={today} collapsed={collapsed.has(key)} over={dragged !== null && drop?.id === `group:${key}`} onToggle={() => toggle(key)} />);
       } else {
         out.push(
           <RoutineRowView
-            key={row.routine.id}
+            key={row.key}
             row={row}
             routines={routines}
             byId={byId}
             context={context}
             today={today}
             running={running}
-            collapsed={collapsed.has(row.routine.id)}
-            over={isOver(`routine:${row.routine.id}`, row.routine)}
-            onToggle={() => toggle(row.routine.id)}
+            collapsed={collapsed.has(row.key)}
+            drop={dropOn(row)}
+            onToggle={() => toggle(row.key)}
+            categories={categories}
+            selected={selected.has(row.routine.id)}
+            onSelect={(checked) => select([row.routine.id], checked)}
+            cell={cellOf(row.key)}
           />,
         );
       }
@@ -517,19 +681,31 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
       sensors={sensors}
       collisionDetection={collision}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-      onDragStart={({ active }) => setDragged(byId.get(String(active.id)) ?? null)}
-      onDragOver={({ over }) => setOverId(over ? String(over.id) : null)}
+      onDragStart={({ active }) => setDragged((active.data.current as DragData | undefined) ?? null)}
+      onDragOver={handleDragMove}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
         setDragged(null);
-        setOverId(null);
+        setDrop(null);
       }}
     >
       <div className={classes.scroller}>
-        <Table className={classes.table} verticalSpacing={4} miw={1200} aria-label="Routines">
+        <Table className={classes.table} verticalSpacing={4} miw={1500} aria-label="Routines">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th />
+              <Table.Th px={4}>
+                <Group gap={2} wrap="nowrap">
+                  <span style={{ width: 'var(--ai-size-sm, 22px)', flexShrink: 0 }} />
+                  <Checkbox
+                    size="xs"
+                    aria-label="Sélectionner toutes les routines affichées"
+                    checked={allSelected}
+                    indeterminate={!allSelected && selectedRoutines.length > 0}
+                    onChange={(event) => select([...shownIds], event.currentTarget.checked)}
+                  />
+                </Group>
+              </Table.Th>
               <Table.Th>
                 <Text span size="xs" c="dimmed">
                   Fait
@@ -538,16 +714,21 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
               <Table.Th>Routine</Table.Th>
               <Table.Th>Quand</Table.Th>
               <Table.Th>Répétition</Table.Th>
+              <Table.Th>Catégories</Table.Th>
               <Table.Th>Assignés</Table.Th>
               <Table.Th>Temps prévu</Table.Th>
               <Table.Th>Dépend de</Table.Th>
+              <Table.Th>Projet</Table.Th>
               <Table.Th>Chrono</Table.Th>
               <Table.Th />
             </Table.Tr>
           </Table.Thead>
-          <Table.Tbody>{body()}</Table.Tbody>
+          <RoutineCellSelectionContext.Provider value={effectiveCellSelection}>
+            <Table.Tbody>{body()}</Table.Tbody>
+          </RoutineCellSelectionContext.Provider>
         </Table>
       </div>
+      {selectedRoutines.length > 0 && <RoutineBulkBar routines={selectedRoutines} all={routines} categories={categories} context={context} onClear={() => setSelected(new Set())} />}
       <DragOverlay dropAnimation={null}>
         {dragged && (
           <Paper shadow="md" radius="sm" px="sm" py={4} withBorder className={classes.overlay}>

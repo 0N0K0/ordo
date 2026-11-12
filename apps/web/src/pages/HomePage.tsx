@@ -11,7 +11,8 @@ import { StatTile } from '../features/home/HomeCard';
 import { billingSummary, money, useMyTodayTasks, useWeekTime } from '../features/home/home-data';
 import { MailCard } from '../features/home/MailCard';
 import { SortableGrid } from '../features/home/SortableGrid';
-import { AgendaCard, MilestonesCard, TasksCard, TimeCard } from '../features/home/WorkCards';
+import { RoutinesCard, ShoppingCard } from '../features/home/LifeCards';
+import { AgendaCard, TasksCard, TimeCard } from '../features/home/WorkCards';
 import { useMailAccounts, useUnreadMailCount } from '../features/mail/api';
 import { useTaskContext } from '../features/tasks/use-task-context';
 import { useTreasuryProjection } from '../features/treasury/api';
@@ -20,16 +21,16 @@ import { useActiveWorkspace } from '../features/workspaces/api';
 import { localToday } from '../lib/dates';
 
 
-type CardId = 'tasks' | 'agenda' | 'chrono' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'milestones' | 'time';
-const DEFAULT_ORDER: CardId[] = ['tasks', 'agenda', 'chrono', 'billing', 'quotes', 'treasury', 'mail', 'milestones', 'time'];
+type CardId = 'tasks' | 'routines' | 'agenda' | 'chrono' | 'shopping' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'time';
+const DEFAULT_ORDER: CardId[] = ['tasks', 'routines', 'agenda', 'chrono', 'shopping', 'billing', 'quotes', 'treasury', 'mail', 'time'];
 
 /** Cards a personal workspace does not have (no invoicing). */
 const PRO_CARDS = new Set<CardId>(['billing', 'quotes']);
 
 /**
  * Home page: everything at a glance. Quick creation of a client or a project, key figures (tasks, time,
- * mails, invoicing, treasury) linking to their pages, then condensed cards: tasks of the day, agenda, timer
- * and alarms, invoicing, quotes, treasury, unread mails, milestones and time, reordered by drag and drop
+ * mails, invoicing, treasury) linking to their pages, then condensed cards: tasks of the day, routines of the day, agenda,
+ * timer and alarms, shopping, invoicing, quotes, treasury, unread mails and time, reordered by drag and drop
  * (order kept in the browser). A personal workspace has no client, invoicing nor quotes.
  * @returns {JSX.Element} Home page.
  */
@@ -57,13 +58,14 @@ export function HomePage() {
   const shown = perso ? order.filter((id) => !PRO_CARDS.has(id)) : order;
   const cards: Record<CardId, ReactNode> = {
     tasks: <TasksCard context={context} tasks={myTasks.tasks} today={today} />,
+    routines: <RoutinesCard today={today} />,
     agenda: <AgendaCard today={today} />,
     chrono: <ChronoCard context={context} />,
+    shopping: <ShoppingCard />,
     billing: <BillingCard summary={summary} today={today} />,
     quotes: <QuotesCard summary={summary} today={today} />,
     treasury: <TreasuryCard projection={projection.data} today={today} />,
     mail: <MailCard today={today} />,
-    milestones: <MilestonesCard context={context} today={today} />,
     time: <TimeCard context={context} time={time} />,
   };
 

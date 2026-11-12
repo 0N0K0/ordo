@@ -74,7 +74,7 @@ export function RoutineSettings() {
   const { moveCategory, deleteCategory } = useRoutineMutations();
   const categories = data?.routineCategories ?? [];
   const usage = new Map<string, number>();
-  for (const routine of data?.routines ?? []) if (routine.categoryId) usage.set(routine.categoryId, (usage.get(routine.categoryId) ?? 0) + 1);
+  for (const routine of data?.routines ?? []) for (const id of routine.categoryIds) usage.set(id, (usage.get(id) ?? 0) + 1);
   return (
     <PageSettings title="Paramètres des routines">
       <Stack gap="md">
