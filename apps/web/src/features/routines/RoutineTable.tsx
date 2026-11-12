@@ -406,10 +406,11 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
 
 /**
  * Row at the end of a category (or of the table): a title typed then Enter adds a routine in it, every day from today.
- * @param {{ categoryId: string | null, depth: number, groupName: string }} props Component props (the category of the routines added).
+ * @param {{ categoryId: string | null, projectId: string | null, depth: number, groupName: string }} props Component props (the
+ *   category and the project of the routines added).
  * @returns {JSX.Element} Row.
  */
-function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | null; depth: number; groupName: string }) {
+function AddRoutineRow({ categoryId, projectId, depth, groupName }: { categoryId: string | null; projectId: string | null; depth: number; groupName: string }) {
   const { create } = useRoutineMutations();
   const [title, setTitle] = useState('');
 
@@ -432,7 +433,7 @@ function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | 
         startDate: localToday(),
         recurrence: DAILY,
         estimate: null,
-        projectId: null,
+        projectId,
         assigneeIds: [],
         requiredIds: [],
       },
@@ -475,6 +476,8 @@ interface RoutineTableProps {
   keep: (routine: Routine) => boolean;
   /** Routines can be added in the categories. */
   addable: boolean;
+  /** Project of the routines added (on a project page). Optional. */
+  projectId?: string | null;
 }
 
 /**
@@ -483,7 +486,7 @@ interface RoutineTableProps {
  * @param {RoutineTableProps} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function RoutineTable({ routines, categories, context, keep, addable }: RoutineTableProps) {
+export function RoutineTable({ routines, categories, context, keep, addable, projectId = null }: RoutineTableProps) {
   const { patch, move } = useRoutineMutations();
   const { data: running } = useRunningTimer();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -695,9 +698,9 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
         .reverse()
         .find((item): item is Extract<RoutineRow, { kind: 'group' }> => item.kind === 'group');
       if (!group || collapsed.has(group.id ?? NO_CATEGORY)) return;
-      out.push(<AddRoutineRow key={`add:${group.id ?? NO_CATEGORY}`} categoryId={group.id} depth={group.depth + 1} groupName={group.name} />);
+      out.push(<AddRoutineRow key={`add:${group.id ?? NO_CATEGORY}`} categoryId={group.id} projectId={projectId} depth={group.depth + 1} groupName={group.name} />);
     });
-    if (addable && !rows.some((row) => row.kind === 'group')) out.push(<AddRoutineRow key="add" categoryId={null} depth={0} groupName="les routines" />);
+    if (addable && !rows.some((row) => row.kind === 'group')) out.push(<AddRoutineRow key="add" categoryId={null} projectId={projectId} depth={0} groupName="les routines" />);
     return out;
   };
 

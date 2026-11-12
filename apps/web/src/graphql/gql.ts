@@ -236,7 +236,7 @@ type Documents = {
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": typeof types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": typeof types.DeleteRoutineDocument,
     "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": typeof types.ShoppingDataDocument,
-    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": typeof types.ShoppingListsDocument,
+    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskIds\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": typeof types.ShoppingListsDocument,
     "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": typeof types.CreateShoppingCategoryDocument,
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": typeof types.DeleteShoppingCategoryDocument,
@@ -258,8 +258,8 @@ type Documents = {
     "\n  mutation UpdateShoppingProduct($id: ID!, $input: ShoppingProductInput!) {\n    updateShoppingProduct(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingProductDocument,
     "\n  mutation SetShoppingProductsMissing($ids: [ID!]!, $missing: Boolean!) {\n    setShoppingProductsMissing(ids: $ids, missing: $missing)\n  }\n": typeof types.SetShoppingProductsMissingDocument,
     "\n  mutation DeleteShoppingProduct($id: ID!) {\n    deleteShoppingProduct(id: $id)\n  }\n": typeof types.DeleteShoppingProductDocument,
-    "\n  mutation CreateShoppingList($name: String!, $taskId: ID, $baseListIds: [ID!]!) {\n    createShoppingList(name: $name, taskId: $taskId, baseListIds: $baseListIds)\n  }\n": typeof types.CreateShoppingListDocument,
-    "\n  mutation UpdateShoppingList($id: ID!, $name: String!, $taskId: ID) {\n    updateShoppingList(id: $id, name: $name, taskId: $taskId)\n  }\n": typeof types.UpdateShoppingListDocument,
+    "\n  mutation CreateShoppingList($name: String!, $taskIds: [ID!]!, $baseListIds: [ID!]!) {\n    createShoppingList(name: $name, taskIds: $taskIds, baseListIds: $baseListIds)\n  }\n": typeof types.CreateShoppingListDocument,
+    "\n  mutation UpdateShoppingList($id: ID!, $name: String!, $taskIds: [ID!]!) {\n    updateShoppingList(id: $id, name: $name, taskIds: $taskIds)\n  }\n": typeof types.UpdateShoppingListDocument,
     "\n  mutation SetShoppingListClosed($id: ID!, $closed: Boolean!) {\n    setShoppingListClosed(id: $id, closed: $closed)\n  }\n": typeof types.SetShoppingListClosedDocument,
     "\n  mutation DuplicateShoppingList($id: ID!) {\n    duplicateShoppingList(id: $id)\n  }\n": typeof types.DuplicateShoppingListDocument,
     "\n  mutation DeleteShoppingList($id: ID!) {\n    deleteShoppingList(id: $id)\n  }\n": typeof types.DeleteShoppingListDocument,
@@ -641,7 +641,7 @@ const documents: Documents = {
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": types.DeleteRoutineDocument,
     "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n    }\n  }\n": types.ShoppingDataDocument,
-    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": types.ShoppingListsDocument,
+    "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskIds\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": types.ShoppingListsDocument,
     "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": types.CreateShoppingCategoryDocument,
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": types.UpdateShoppingCategoryDocument,
     "\n  mutation DeleteShoppingCategory($id: ID!) {\n    deleteShoppingCategory(id: $id)\n  }\n": types.DeleteShoppingCategoryDocument,
@@ -663,8 +663,8 @@ const documents: Documents = {
     "\n  mutation UpdateShoppingProduct($id: ID!, $input: ShoppingProductInput!) {\n    updateShoppingProduct(id: $id, input: $input)\n  }\n": types.UpdateShoppingProductDocument,
     "\n  mutation SetShoppingProductsMissing($ids: [ID!]!, $missing: Boolean!) {\n    setShoppingProductsMissing(ids: $ids, missing: $missing)\n  }\n": types.SetShoppingProductsMissingDocument,
     "\n  mutation DeleteShoppingProduct($id: ID!) {\n    deleteShoppingProduct(id: $id)\n  }\n": types.DeleteShoppingProductDocument,
-    "\n  mutation CreateShoppingList($name: String!, $taskId: ID, $baseListIds: [ID!]!) {\n    createShoppingList(name: $name, taskId: $taskId, baseListIds: $baseListIds)\n  }\n": types.CreateShoppingListDocument,
-    "\n  mutation UpdateShoppingList($id: ID!, $name: String!, $taskId: ID) {\n    updateShoppingList(id: $id, name: $name, taskId: $taskId)\n  }\n": types.UpdateShoppingListDocument,
+    "\n  mutation CreateShoppingList($name: String!, $taskIds: [ID!]!, $baseListIds: [ID!]!) {\n    createShoppingList(name: $name, taskIds: $taskIds, baseListIds: $baseListIds)\n  }\n": types.CreateShoppingListDocument,
+    "\n  mutation UpdateShoppingList($id: ID!, $name: String!, $taskIds: [ID!]!) {\n    updateShoppingList(id: $id, name: $name, taskIds: $taskIds)\n  }\n": types.UpdateShoppingListDocument,
     "\n  mutation SetShoppingListClosed($id: ID!, $closed: Boolean!) {\n    setShoppingListClosed(id: $id, closed: $closed)\n  }\n": types.SetShoppingListClosedDocument,
     "\n  mutation DuplicateShoppingList($id: ID!) {\n    duplicateShoppingList(id: $id)\n  }\n": types.DuplicateShoppingListDocument,
     "\n  mutation DeleteShoppingList($id: ID!) {\n    deleteShoppingList(id: $id)\n  }\n": types.DeleteShoppingListDocument,
@@ -1712,7 +1712,7 @@ export function graphql(source: "\n  query ShoppingData {\n    shoppingCategorie
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskId\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n"): typeof import('./graphql').ShoppingListsDocument;
+export function graphql(source: "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskIds\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n"): typeof import('./graphql').ShoppingListsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1800,11 +1800,11 @@ export function graphql(source: "\n  mutation DeleteShoppingProduct($id: ID!) {\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateShoppingList($name: String!, $taskId: ID, $baseListIds: [ID!]!) {\n    createShoppingList(name: $name, taskId: $taskId, baseListIds: $baseListIds)\n  }\n"): typeof import('./graphql').CreateShoppingListDocument;
+export function graphql(source: "\n  mutation CreateShoppingList($name: String!, $taskIds: [ID!]!, $baseListIds: [ID!]!) {\n    createShoppingList(name: $name, taskIds: $taskIds, baseListIds: $baseListIds)\n  }\n"): typeof import('./graphql').CreateShoppingListDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateShoppingList($id: ID!, $name: String!, $taskId: ID) {\n    updateShoppingList(id: $id, name: $name, taskId: $taskId)\n  }\n"): typeof import('./graphql').UpdateShoppingListDocument;
+export function graphql(source: "\n  mutation UpdateShoppingList($id: ID!, $name: String!, $taskIds: [ID!]!) {\n    updateShoppingList(id: $id, name: $name, taskIds: $taskIds)\n  }\n"): typeof import('./graphql').UpdateShoppingListDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

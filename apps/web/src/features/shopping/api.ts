@@ -69,7 +69,7 @@ const ShoppingListsDocument = graphql(`
     shoppingLists(taskId: $taskId) {
       id
       name
-      taskId
+      taskIds
       entryId
       entry {
         id
@@ -210,13 +210,13 @@ const DeleteProduct = graphql(`
   }
 `);
 const CreateList = graphql(`
-  mutation CreateShoppingList($name: String!, $taskId: ID, $baseListIds: [ID!]!) {
-    createShoppingList(name: $name, taskId: $taskId, baseListIds: $baseListIds)
+  mutation CreateShoppingList($name: String!, $taskIds: [ID!]!, $baseListIds: [ID!]!) {
+    createShoppingList(name: $name, taskIds: $taskIds, baseListIds: $baseListIds)
   }
 `);
 const UpdateList = graphql(`
-  mutation UpdateShoppingList($id: ID!, $name: String!, $taskId: ID) {
-    updateShoppingList(id: $id, name: $name, taskId: $taskId)
+  mutation UpdateShoppingList($id: ID!, $name: String!, $taskIds: [ID!]!) {
+    updateShoppingList(id: $id, name: $name, taskIds: $taskIds)
   }
 `);
 const SetListClosed = graphql(`
@@ -415,8 +415,8 @@ export function useShoppingMutations() {
       (client, { ids, missing }) => patchProducts(client, (product) => (ids.includes(product.id) ? { ...product, missing } : null)),
     ),
     deleteProduct: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteProduct, { id })).deleteShoppingProduct),
-    createList: useShoppingMutation(async (variables: { name: string; taskId: string | null; baseListIds: string[] }) => (await execute(CreateList, variables)).createShoppingList),
-    updateList: useShoppingMutation(async (variables: { id: string; name: string; taskId: string | null }) => (await execute(UpdateList, variables)).updateShoppingList),
+    createList: useShoppingMutation(async (variables: { name: string; taskIds: string[]; baseListIds: string[] }) => (await execute(CreateList, variables)).createShoppingList),
+    updateList: useShoppingMutation(async (variables: { id: string; name: string; taskIds: string[] }) => (await execute(UpdateList, variables)).updateShoppingList),
     setClosed: useShoppingMutation(async (variables: { id: string; closed: boolean }) => (await execute(SetListClosed, variables)).setShoppingListClosed),
     duplicateList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DuplicateList, { id })).duplicateShoppingList),
     deleteList: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteList, { id })).deleteShoppingList),

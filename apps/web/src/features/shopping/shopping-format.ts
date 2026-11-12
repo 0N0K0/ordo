@@ -258,3 +258,56 @@ export function taskChoices(context: TaskContext | null) {
   const labelOf = (task: (typeof tasks)[number]) => context?.taskLabel(task) ?? `#${task.number} ${task.title}`;
   return { tasks, labelOf };
 }
+
+/**
+ * Options of a multi-select of the tasks of a list: the open tasks, and those already chosen (even closed).
+ * @param {TaskContext | null} context Task context.
+ * @param {string[]} chosen Tasks of the list.
+ * @returns {{ value: string, label: string }[]} Options.
+ */
+export function taskOptions(context: TaskContext | null, chosen: string[]) {
+  const { tasks, labelOf } = taskChoices(context);
+  const extra = chosen.flatMap((id) => {
+    const task = context?.taskById.get(id);
+    return task && !tasks.includes(task) ? [task] : [];
+  });
+  return [...extra, ...tasks].map((task) => ({ value: task.id, label: labelOf(task) }));
+}
+
+/**
+ * Tasks of a list known to the task context.
+ * @param {{ taskIds: string[] }} list List.
+ * @param {TaskContext | null} context Task context.
+ * @returns {TaskContext['tasks']} Tasks.
+ */
+export function listTasks(list: { taskIds: string[] }, context: TaskContext | null) {
+  return list.taskIds.flatMap((id) => {
+    const task = context?.taskById.get(id);
+    return task ? [task] : [];
+  });
+}
+
+/**
+ * Whether a list is closed: by hand, or along with its tasks (all of them closed). The task context gives the state
+ * of the tasks right away (after a task is closed or reopened).
+ * @param {{ closed: boolean, closedAt: string | null, taskIds: string[] }} list List.
+ * @param {TaskContext | null} context Task context.
+ * @returns {boolean} Closed.
+ */
+export function listClosed(list: { closed: boolean; closedAt: string | null; taskIds: string[] }, context: TaskContext | null): boolean {
+  if (list.closedAt) return true;
+  const tasks = listTasks(list, context);
+  if (!context || tasks.length < list.taskIds.length) return list.closed;
+  return tasks.length > 0 && tasks.every((task) => task.closed);
+}
+
+/**
+ * Lists whose tasks belong to some projects.
+ * @param {T[]} lists Lists.
+ * @param {TaskContext | null} context Task context.
+ * @param {ReadonlySet<string>} projectIds Projects.
+ * @returns {T[]} Lists of the projects.
+ */
+export function listsOfProjects<T extends { taskIds: string[] }>(lists: T[], context: TaskContext | null, projectIds: ReadonlySet<string>): T[] {
+  return lists.filter((list) => listTasks(list, context).some((task) => projectIds.has(task.projectId)));
+}

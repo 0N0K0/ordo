@@ -401,3 +401,52 @@ export function CategoryCell({ value, categories, label, readOnly = false, onSav
     />
   );
 }
+
+/**
+ * Tasks of a list, one under the other (3 at most, the others behind « X de plus »); a click opens their multi-select.
+ * @param {object} props Component props.
+ * @param {string} props.label Accessible name of the cell.
+ * @param {{ id: string, label: string }[]} props.items Tasks of the list, labelled.
+ * @param {{ value: string, label: string }[]} props.options Tasks that can be chosen.
+ * @param {string[]} props.value Tasks of the list.
+ * @param {(taskIds: string[]) => void} props.onSave Saves the tasks chosen.
+ * @param {boolean} [props.readOnly] Not editable. Optional.
+ * @returns {JSX.Element} Cell.
+ */
+export function TasksCell({
+  label,
+  items,
+  options,
+  value,
+  onSave,
+  readOnly = false,
+}: {
+  label: string;
+  items: { id: string; label: string }[];
+  options: { value: string; label: string }[];
+  value: string[];
+  onSave: (taskIds: string[]) => void;
+  readOnly?: boolean;
+}) {
+  return (
+    <StackedMultiCell
+      label={label}
+      readOnly={readOnly}
+      items={items}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={label}
+          data={options}
+          searchable
+          nothingFoundMessage="Aucune tâche"
+          value={value}
+          onChange={onSave}
+          onDropdownClose={onDropdownClose}
+          placeholder={value.length ? undefined : '—'}
+        />
+      )}
+    />
+  );
+}

@@ -442,6 +442,13 @@ const copyOf = (source: (ShoppingProduct | ShoppingItem) & WithPeople, productId
 });
 
 /**
+ * Whether the tasks of a list close it: it has some, all closed.
+ * @param {{ closedAt: Date | null }[]} tasks Tasks of the list.
+ * @returns {boolean} Closed along with its tasks.
+ */
+export const tasksClosed = (tasks: { closedAt: Date | null }[]): boolean => tasks.length > 0 && tasks.every((task) => task.closedAt !== null);
+
+/**
  * Loads a list or throws NOT_FOUND.
  * @param {string} id List id.
  * @returns {Promise<ShoppingList>} List.
@@ -453,22 +460,24 @@ async function findList(id: string): Promise<ShoppingList> {
 }
 
 /**
- * Checks the task a list is attached to.
- * @param {string | null} taskId Task.
- * @returns {Promise<void>}
+ * Checks the tasks a list is attached to.
+ * @param {string[]} taskIds Tasks.
+ * @returns {Promise<string[]>} Tasks, without duplicates.
  */
-async function assertTask(taskId: string | null): Promise<void> {
-  if (taskId && !(await prisma.task.findUnique({ where: { id: taskId }, select: { id: true } }))) throw notFound('Tâche');
+async function assertTasks(taskIds: string[]): Promise<string[]> {
+  const ids = [...new Set(taskIds)];
+  if (ids.length && (await prisma.task.count({ where: { id: { in: ids } } })) !== ids.length) throw notFound('Tâche');
+  return ids;
 }
 
 /**
  * Creates a list: empty, or with the missing products of some base lists.
- * @param {{ name: string, taskId: string | null, baseListIds: string[] }} input List.
+ * @param {{ name: string, taskIds: string[], baseListIds: string[] }} input List.
  * @returns {Promise<ShoppingList>} List.
  */
-export async function createList({ name, taskId, baseListIds }: { name: string; taskId: string | null; baseListIds: string[] }): Promise<ShoppingList> {
-  const data = { name: parseInput(shoppingListNameSchema, name), taskId };
-  await assertTask(taskId);
+export async function createList({ name, taskIds, baseListIds }: { name: string; taskIds: string[]; baseListIds: string[] }): Promise<ShoppingList> {
+  const tasks = (await assertTasks(taskIds)).map((id) => ({ id }));
+  const data = { name: parseInput(shoppingListNameSchema, name), tasks: { connect: tasks } };
   const ids = [...new Set(baseListIds)];
   if ((await prisma.shoppingBaseList.count({ where: { id: { in: ids } } })) !== ids.length) throw notFound('Liste type');
   await markExpired();
@@ -477,27 +486,28 @@ export async function createList({ name, taskId, baseListIds }: { name: string; 
 }
 
 /**
- * Renames a list and attaches it to a task (or to none).
+ * Renames a list and attaches it to some tasks (or to none).
  * @param {string} id List id.
- * @param {{ name: string, taskId: string | null }} input List.
+ * @param {{ name: string, taskIds: string[] }} input List.
  * @returns {Promise<ShoppingList>} List.
  */
-export async function updateList(id: string, { name, taskId }: { name: string; taskId: string | null }): Promise<ShoppingList> {
+export async function updateList(id: string, { name, taskIds }: { name: string; taskIds: string[] }): Promise<ShoppingList> {
   await findList(id);
-  await assertTask(taskId);
-  return prisma.shoppingList.update({ where: { id }, data: { name: parseInput(shoppingListNameSchema, name), taskId } });
+  const tasks = (await assertTasks(taskIds)).map((taskId) => ({ id: taskId }));
+  return prisma.shoppingList.update({ where: { id }, data: { name: parseInput(shoppingListNameSchema, name), tasks: { set: tasks } } });
 }
 
 /**
- * Closes (archives) or reopens a list. A list of a closed task stays closed: its task is reopened instead.
+ * Closes (archives) or reopens a list. A list whose tasks are all closed stays closed: one of them is reopened instead.
  * @param {string} id List id.
  * @param {boolean} closed Target state.
  * @returns {Promise<ShoppingList>} List.
  */
 export async function setListClosed(id: string, closed: boolean): Promise<ShoppingList> {
   const list = await findList(id);
-  if (!closed && list.taskId && (await prisma.task.findUnique({ where: { id: list.taskId }, select: { closedAt: true } }))?.closedAt) {
-    throw clientError('BAD_USER_INPUT', 'La tâche de cette liste est fermée : rouvrez la tâche.');
+  const tasks = await prisma.task.findMany({ where: { shoppingLists: { some: { id } } }, select: { closedAt: true } });
+  if (!closed && tasksClosed(tasks)) {
+    throw clientError('BAD_USER_INPUT', tasks.length > 1 ? 'Les tâches de cette liste sont fermées : rouvrez-en une.' : 'La tâche de cette liste est fermée : rouvrez la tâche.');
   }
   return prisma.shoppingList.update({ where: { id }, data: { closedAt: closed ? (list.closedAt ?? new Date()) : null } });
 }

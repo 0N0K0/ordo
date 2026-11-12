@@ -5,39 +5,36 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CopyIcon, FilePdfIcon
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { TaskSelect } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useTreasuryEntrySearch } from '../treasury/api';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from './api';
 import { downloadShoppingPdf, shoppingText } from './export';
 import { confirmDestructive, openModal } from './list-modals';
-import { shoppingRows, taskChoices, usePeople, type ShoppingGrouping } from './shopping-format';
+import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 
-const listSchema = z.object({ name: shoppingListNameSchema, taskId: z.string().nullable() });
+const listSchema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()) });
 
 /**
- * Name and task of a list.
+ * Name and tasks of a list.
  * @param {{ list: ShoppingList, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) {
   const { context } = useTaskContext();
   const { updateList } = useShoppingMutations();
-  const form = useAppForm<z.input<typeof listSchema>>({ initialValues: { name: list.name, taskId: list.taskId ?? null }, schema: listSchema });
-  const { tasks, labelOf } = taskChoices(context);
-  // The task of the list stays offered, even closed.
-  const current = list.taskId ? context?.taskById.get(list.taskId) : undefined;
+  const form = useAppForm<z.input<typeof listSchema>>({ initialValues: { name: list.name, taskIds: list.taskIds }, schema: listSchema });
   return (
     <form
       noValidate
       onSubmit={form.onSubmit((values) =>
         updateList.mutate(
-          { id: list.id, name: values.name, taskId: values.taskId ?? null },
+          { id: list.id, name: values.name, taskIds: values.taskIds },
           {
             onSuccess: () => {
               notifySuccess('Liste modifiée.');
@@ -50,7 +47,17 @@ function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) 
     >
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-        <TaskSelect label="Tâche" placeholder="Aucune" tasks={current && !tasks.includes(current) ? [current, ...tasks] : tasks} labelOf={labelOf} {...form.getInputProps('taskId')} />
+        {/* The tasks of the list stay offered, even closed. */}
+        <BatchMultiSelect
+          label="Tâches"
+          placeholder={form.values.taskIds.length ? undefined : 'Aucune'}
+          data={taskOptions(context, list.taskIds)}
+          searchable
+          clearable
+          nothingFoundMessage="Aucune tâche"
+          disabled={!context}
+          {...form.getInputProps('taskIds')}
+        />
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
             Annuler
@@ -149,8 +156,9 @@ export function ListActionsMenu({ list, grouping, target, onDeleted }: ListActio
   const { context } = useTaskContext();
   const people = usePeople();
   const mutations = useShoppingMutations();
-  const task = list.taskId ? context?.taskById.get(list.taskId) : undefined;
-  const closed = list.closed || Boolean(task?.closed);
+  const closed = listClosed(list, context);
+  // Closed along with its tasks (not by hand): reopened with one of them.
+  const byTasks = closed && !list.closedAt;
   const onError = (error: Error) => notifyError(error.message);
   /**
    * Rows of the list as shown, for the exports.
@@ -218,8 +226,8 @@ export function ListActionsMenu({ list, grouping, target, onDeleted }: ListActio
         {closed ? (
           <Menu.Item
             leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
-            disabled={Boolean(task?.closed)}
-            title={task?.closed ? 'La tâche de la liste est fermée : rouvrez-la pour rouvrir la liste.' : undefined}
+            disabled={byTasks}
+            title={byTasks ? 'Les tâches de la liste sont fermées : rouvrez-en une pour rouvrir la liste.' : undefined}
             onClick={() => mutations.setClosed.mutate({ id: list.id, closed: false }, { onSuccess: () => notifySuccess('Liste rouverte.'), onError })}
           >
             Rouvrir

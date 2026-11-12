@@ -5,8 +5,6 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import cellClasses from '../tasks/views/inline-cells.module.css';
-import { TaskRef, TaskSelect } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
 import { BaseLists } from './BaseLists';
@@ -14,25 +12,28 @@ import { ShoppingSettings } from './ShoppingSettings';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
 import { ListActionsMenu } from './ListActions';
-import { money, taskChoices, type ShoppingGrouping } from './shopping-format';
+import { TasksCell } from './shopping-cells';
+import { listClosed, listsOfProjects, listTasks, money, taskOptions, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 /**
- * Shopping lists, open or archived (by hand, or along with their task), latest first: the task of an open one chosen
- * in place, the actions of each one in its menu (as on its page).
+ * Shopping lists, open or archived (by hand, or along with their tasks), latest first: the tasks of an open one chosen
+ * in place, the actions of each one in its menu (as on its page). On a project page, only the lists of its tasks.
+ * @param {{ projectIds?: ReadonlySet<string> }} props Component props.
+ * @param {ReadonlySet<string>} [props.projectIds] Projects (a project and its sub-projects) whose lists are shown. Optional.
  * @returns {JSX.Element} Lists.
  */
-function ListsPanel() {
+export function ListsPanel({ projectIds }: { projectIds?: ReadonlySet<string> }) {
   const { data: lists, isPending } = useShoppingLists();
   const { context } = useTaskContext();
   const { updateList } = useShoppingMutations();
   const [grouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
-  const { tasks, labelOf } = taskChoices(context);
   const [state, setState] = useState<'open' | 'closed'>('open');
-  const closedOf = (list: ShoppingList) => list.closed || Boolean(list.taskId && context?.taskById.get(list.taskId)?.closed);
-  const shown = (lists ?? []).filter((list) => closedOf(list) === (state === 'closed'));
+  const closedOf = (list: ShoppingList) => listClosed(list, context);
+  const scoped = projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? []);
+  const shown = scoped.filter((list) => closedOf(list) === (state === 'closed'));
 
   return (
     <Stack gap="md">
@@ -47,11 +48,13 @@ function ListsPanel() {
           ]}
           aria-label="Listes affichées"
         />
-        <Button ml="auto" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
-          Nouvelle liste
-        </Button>
+        {!projectIds && (
+          <Button ml="auto" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
+            Nouvelle liste
+          </Button>
+        )}
       </Group>
-      {isPending ? (
+      {isPending || (projectIds && !context) ? (
         <Stack gap="xs" aria-label="Chargement">
           {[0, 1, 2].map((index) => (
             <Skeleton key={index} height={48} />
@@ -64,7 +67,11 @@ function ListsPanel() {
               <ListChecksIcon aria-hidden />
             </ThemeIcon>
             <Text size="sm" c="dimmed">
-              {state === 'open' ? 'Aucune liste en cours.' : 'Aucune liste archivée : une liste l’est à la main, ou quand sa tâche est fermée.'}
+              {state === 'open'
+                ? projectIds
+                  ? 'Aucune liste en cours : une liste rattachée à une tâche du projet s’affiche ici.'
+                  : 'Aucune liste en cours.'
+                : 'Aucune liste archivée : une liste l’est à la main, ou quand ses tâches sont toutes fermées.'}
             </Text>
           </Stack>
         </Paper>
@@ -75,7 +82,7 @@ function ListsPanel() {
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Liste</Table.Th>
-                  <Table.Th>Tâche</Table.Th>
+                  <Table.Th>Tâches</Table.Th>
                   <Table.Th>Achats</Table.Th>
                   <Table.Th ta="right">Total estimé</Table.Th>
                   <Table.Th>Créée le</Table.Th>
@@ -84,7 +91,6 @@ function ListsPanel() {
               </Table.Thead>
               <Table.Tbody>
                 {shown.map((list) => {
-                  const task = list.taskId ? context?.taskById.get(list.taskId) : undefined;
                   const bought = list.items.filter((item) => item.purchasedAt).length;
                   const total = shoppingTotal(list.items);
                   return (
@@ -102,27 +108,19 @@ function ListsPanel() {
                         </Group>
                       </Table.Td>
                       <Table.Td miw={200}>
-                        {closedOf(list) || !context ? (
-                          task && <TaskRef task={task} blocked={context?.isBlocked(task)} />
-                        ) : (
-                          <TaskSelect
-                            variant="unstyled"
-                            size="xs"
-                            classNames={{ root: cellClasses.root, input: cellClasses.input, section: cellClasses.section }}
-                            comboboxProps={{ withinPortal: true, width: 'max-content', position: 'bottom-start' }}
-                            aria-label={`Tâche de la liste ${list.name}`}
-                            placeholder="—"
-                            tasks={task && !tasks.includes(task) ? [task, ...tasks] : tasks}
-                            labelOf={labelOf}
-                            value={list.taskId ?? null}
-                            onChange={(taskId) =>
-                              updateList.mutate(
-                                { id: list.id, name: list.name, taskId: taskId ?? null },
-                                { onSuccess: () => notifySuccess(taskId ? 'Liste rattachée à la tâche.' : 'Liste détachée de sa tâche.'), onError: (error) => notifyError(error.message) },
-                              )
-                            }
-                          />
-                        )}
+                        <TasksCell
+                          label={`Tâches de la liste ${list.name}`}
+                          readOnly={closedOf(list) || !context}
+                          items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `#${task.number} ${task.title}` }))}
+                          options={taskOptions(context, list.taskIds)}
+                          value={list.taskIds}
+                          onSave={(taskIds) =>
+                            updateList.mutate(
+                              { id: list.id, name: list.name, taskIds },
+                              { onSuccess: () => notifySuccess(taskIds.length ? 'Tâches de la liste modifiées.' : 'Liste détachée de ses tâches.'), onError: (error) => notifyError(error.message) },
+                            )
+                          }
+                        />
                       </Table.Td>
                       <Table.Td className={classes.nowrap}>
                         <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
