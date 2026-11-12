@@ -29,6 +29,10 @@ const RoutinesDataDocument = graphql(`
       estimate
       fromTime
       dueTime
+      scheduleId
+      scheduleAnchor
+      windowFrom
+      windowTo
       location
       locationLat
       locationLon
@@ -256,6 +260,8 @@ export function routineInputOf(routine: Routine): RoutineInput {
     estimate: routine.estimate,
     fromTime: routine.fromTime,
     dueTime: routine.dueTime,
+    scheduleId: routine.scheduleId,
+    scheduleAnchor: routine.scheduleAnchor as RoutineInput['scheduleAnchor'],
     location: routine.location,
     locationLat: routine.locationLat,
     locationLon: routine.locationLon,

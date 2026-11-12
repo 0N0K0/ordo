@@ -1,11 +1,10 @@
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { routineSchedule } from '@ordo/shared';
 import { ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData } from '../routines/api';
 import { DoneToggle } from '../routines/DoneToggle';
-import { stateOf, waitingFor } from '../routines/routine-format';
+import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../routines/routine-format';
 import { useShoppingData, useShoppingLists } from '../shopping/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
@@ -30,7 +29,7 @@ export function RoutinesCard({ today }: { today: string }) {
     .sort(
       (a, b) =>
         (a.currentDate ?? '').localeCompare(b.currentDate ?? '') ||
-        (routineSchedule(a).leaveAt ?? a.fromTime ?? a.dueTime ?? '99').localeCompare(routineSchedule(b).leaveAt ?? b.fromTime ?? b.dueTime ?? '99') ||
+        (scheduleOf(a).leaveAt ?? a.windowFrom ?? a.windowTo ?? '99').localeCompare(scheduleOf(b).leaveAt ?? b.windowFrom ?? b.windowTo ?? '99') ||
         a.title.localeCompare(b.title, 'fr'),
     );
 
@@ -66,17 +65,12 @@ export function RoutinesCard({ today }: { today: string }) {
                       {daysBetween(routine.currentDate, today)} j de retard
                     </Badge>
                   )}
-                  {(routine.fromTime || routine.dueTime) && (
+                  {(routine.windowFrom || routine.windowTo) && (
                     <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                      {[
-                        routineSchedule(routine).leaveAt && `départ ${routineSchedule(routine).leaveAt}`,
-                        routine.fromTime && routine.dueTime ? `${routine.fromTime}–${routine.dueTime}` : routine.dueTime ? `avant ${routine.dueTime}` : `dès ${routine.fromTime}`,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {[scheduleOf(routine).leaveAt && `départ ${scheduleOf(routine).leaveAt}`, windowText(windowOf(routine))].filter(Boolean).join(' · ')}
                     </Text>
                   )}
-                  {!routine.fromTime && !routine.dueTime && routine.estimate && (
+                  {!routine.windowFrom && !routine.windowTo && routine.estimate && (
                     <Text size="xs" c="dimmed">
                       {routine.estimate} min
                     </Text>

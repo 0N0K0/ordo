@@ -16,7 +16,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core';
 import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
-import { entrySeconds, formatClock, formatDuration, routineSchedule, routineSchema } from '@ordo/shared';
+import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
@@ -48,7 +48,7 @@ import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineCol
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { DoneToggle } from './DoneToggle';
 import { openRoutineForm } from './open-routine-form';
-import { DAILY, isDone, NO_CATEGORY, routineRows, stateOf, visibleRoutineRows, waitingFor, type RoutineRow } from './routine-format';
+import { DAILY, isDone, NO_CATEGORY, routineRows, scheduleOf, stateOf, visibleRoutineRows, waitingFor, windowOf, windowText, type RoutineRow } from './routine-format';
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
@@ -103,11 +103,12 @@ const collision: CollisionDetection = (args) => {
  */
 function DueBadge({ routine }: { routine: Routine }) {
   const now = new Date().toTimeString().slice(0, 5);
-  const { leaveAt } = routineSchedule(routine);
-  if (routine.dueTime && now > routine.dueTime) {
+  const { fromTime, dueTime } = windowOf(routine);
+  const { leaveAt } = scheduleOf(routine);
+  if (dueTime && now > dueTime) {
     return (
       <Badge variant="light" color="red" tt="none">
-        Après {routine.dueTime}
+        Après {dueTime}
       </Badge>
     );
   }
@@ -118,10 +119,9 @@ function DueBadge({ routine }: { routine: Routine }) {
       </Badge>
     );
   }
-  const window =
-    routine.fromTime && routine.dueTime ? `entre ${routine.fromTime} et ${routine.dueTime}` : routine.dueTime ? `avant ${routine.dueTime}` : routine.fromTime ? `à partir de ${routine.fromTime}` : '';
+  const window = windowText({ fromTime, dueTime });
   return (
-    <Badge variant="light" color={routine.fromTime && now < routine.fromTime ? 'gray' : undefined} tt="none">
+    <Badge variant="light" color={fromTime && now < fromTime ? 'gray' : undefined} tt="none">
       Aujourd’hui{window ? ` ${window}` : ''}
     </Badge>
   );

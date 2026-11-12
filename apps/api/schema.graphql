@@ -2382,7 +2382,7 @@ type Routine {
   """Minutes."""
   estimate: Int
 
-  """Time to do it from (HH:MM)."""
+  """Time to do it from (HH:MM), its own (see windowFrom)."""
   fromTime: String
   id: ID!
   lastDoneAt: DateTime
@@ -2399,6 +2399,12 @@ type Routine {
 
   """Routines to do before this one."""
   requiredIds: [ID!]!
+
+  """START, WHOLE or END of the schedule."""
+  scheduleAnchor: String
+
+  """Calendar schedule it follows (its days and times)."""
+  scheduleId: ID
   startDate: Date!
   title: String!
 
@@ -2410,6 +2416,16 @@ type Routine {
 
   """Minutes to get there."""
   travelBefore: Int!
+
+  """
+  Time to do it from on its current (or next) occurrence: its own, or the one of its schedule.
+  """
+  windowFrom: String
+
+  """
+  Latest time to do it by on its current (or next) occurrence: its own, or the one of its schedule.
+  """
+  windowTo: String
 }
 
 """
@@ -2470,6 +2486,10 @@ input RoutineInput {
   projectId: ID
   recurrence: JSON!
   requiredIds: [ID!]!
+
+  """START, WHOLE or END."""
+  scheduleAnchor: String
+  scheduleId: ID
   startDate: Date!
   title: String!
   travelAfter: Int

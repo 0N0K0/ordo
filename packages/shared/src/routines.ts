@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence } from './recurrence';
+import { plannedSlots, type WorkScheduleRule } from './work-schedules';
 import { optionalColorSchema } from './workspace';
 
 /** Category of routines, in a tree. */
@@ -9,6 +10,11 @@ export const routineCategorySchema = z.object({
   parentId: z.string().nullable(),
 });
 export type RoutineCategoryInput = z.input<typeof routineCategorySchema>;
+
+/** Part of a calendar schedule a routine is tied to: before its start, during it, or after its end. */
+export const ROUTINE_ANCHORS = ['START', 'WHOLE', 'END'] as const;
+export type RoutineAnchor = (typeof ROUTINE_ANCHORS)[number];
+export const ROUTINE_ANCHOR_LABELS: Record<RoutineAnchor, string> = { START: 'Avant le début', WHOLE: 'Pendant', END: 'Après la fin' };
 
 /** Routine fields, as saved. */
 export const routineSchema = z
@@ -42,6 +48,9 @@ export const routineSchema = z
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).')
       .nullable()
       .default(null),
+    /** Calendar schedule it follows instead of its own times and repetition (its days, and the times of its slots). */
+    scheduleId: z.string().nullable().default(null),
+    scheduleAnchor: z.enum(ROUTINE_ANCHORS).nullable().default(null),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: z
       .string()
@@ -70,7 +79,8 @@ export const routineSchema = z
     /** Routines to do before this one. */
     requiredIds: z.array(z.string()).max(100),
   })
-  .refine((routine) => !routine.fromTime || !routine.dueTime || routine.fromTime < routine.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' });
+  .refine((routine) => !routine.fromTime || !routine.dueTime || routine.fromTime < routine.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' })
+  .refine((routine) => !routine.scheduleId || routine.scheduleAnchor !== null, { path: ['scheduleAnchor'], message: 'Choisissez le moment de la plage.' });
 export type RoutineInput = z.input<typeof routineSchema>;
 
 /** Where a routine stands today. */
@@ -149,4 +159,44 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
     };
   }
   return { leaveAt: null, backAt: null };
+}
+
+/** Days scanned to find the occurrences of a routine following a schedule. */
+const SCHEDULE_SPAN = 366;
+
+/**
+ * Current and next occurrences of a routine following a calendar schedule: the days the schedule has slots on, from the
+ * first date of the routine.
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {string} start First date of the routine.
+ * @param {string} today Today.
+ * @returns {{ current: string | null, next: string | null }} Dates.
+ */
+export function scheduleOccurrences(schedule: WorkScheduleRule, start: string, today: string): { current: string | null; next: string | null } {
+  let current: string | null = null;
+  if (start <= today) {
+    const from = daysBetween(start, today) > SCHEDULE_SPAN ? addDays(today, -SCHEDULE_SPAN) : start;
+    current = plannedSlots([schedule], from, today).at(-1)?.date ?? null;
+  }
+  const after = addDays(today, 1) < start ? start : addDays(today, 1);
+  const next = plannedSlots([schedule], after, addDays(after, SCHEDULE_SPAN))[0]?.date ?? null;
+  return { current, next };
+}
+
+/**
+ * Time window of a routine on a day of its schedule: before the start of its first slot, during its slots (first start
+ * to last end), or after the end of its last slot.
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {RoutineAnchor} anchor Part of the schedule.
+ * @param {string} date Day.
+ * @returns {{ fromTime: string | null, dueTime: string | null }} Window (none when the schedule has no slot that day).
+ */
+export function scheduleWindow(schedule: WorkScheduleRule, anchor: RoutineAnchor, date: string): { fromTime: string | null; dueTime: string | null } {
+  const slots = plannedSlots([schedule], date, date).filter((slot) => !slot.allDay);
+  if (!slots.length) return { fromTime: null, dueTime: null };
+  const first = slots[0].start;
+  const last = slots.reduce((end, slot) => (slot.end > end ? slot.end : end), slots[0].end);
+  if (anchor === 'START') return { fromTime: null, dueTime: first };
+  if (anchor === 'END') return { fromTime: last === '24:00' ? null : last, dueTime: null };
+  return { fromTime: first, dueTime: last === '24:00' ? null : last };
 }
