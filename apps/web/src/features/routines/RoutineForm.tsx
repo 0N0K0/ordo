@@ -1,9 +1,8 @@
-import { Button, Group, NumberInput, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { routineSchema, type Recurrence, type RoutineAnchor } from '@ordo/shared';
+import { routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
-import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
@@ -26,6 +25,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   scheduleId: string | null;
   scheduleAnchor: RoutineAnchor | null;
   reminders: number[];
+  cases: RoutineCase[];
   location: string;
   locationLat: number | null;
   locationLon: number | null;
@@ -92,6 +92,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       fromTime: routine?.fromTime ?? null,
       scheduleId: routine?.scheduleId ?? null,
       reminders: routine?.reminders ?? [],
+      cases: (source?.cases as RoutineCase[] | undefined) ?? [],
       scheduleAnchor: (routine?.scheduleAnchor as RoutineAnchor | null | undefined) ?? null,
       dueTime: routine?.dueTime ?? null,
       location: routine?.location ?? '',
@@ -157,13 +158,6 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
             onChange={(value) => form.setFieldValue('estimate', value === '' ? null : Number(value))}
           />
         </SimpleGrid>
-        {form.values.scheduleId ? (
-          <Text size="sm" c="dimmed">
-            Répétition : les jours de la plage choisie ci-dessous.
-          </Text>
-        ) : (
-          <RecurrenceEditor value={form.values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule ?? DAILY)} start={form.values.startDate || localToday()} />
-        )}
         <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
         {context && (
           <AssigneesSelect

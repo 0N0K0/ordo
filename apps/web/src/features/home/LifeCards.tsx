@@ -1,9 +1,8 @@
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifyError } from '../../lib/notify';
-import { useRoutineMutations, useRoutinesData } from '../routines/api';
-import { DoneToggle } from '../routines/DoneToggle';
+import { useRoutinesData } from '../routines/api';
+import { RoutineDoneToggles } from '../routines/DoneToggle';
 import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../routines/routine-format';
 import { useShoppingData, useShoppingLists } from '../shopping/api';
 import classes from './Home.module.css';
@@ -20,7 +19,6 @@ const MAX_ROWS = 7;
  */
 export function RoutinesCard({ today }: { today: string }) {
   const { data } = useRoutinesData();
-  const { setDone } = useRoutineMutations();
   const routines = data?.routines ?? [];
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const todo = routines
@@ -44,12 +42,7 @@ export function RoutinesCard({ today }: { today: string }) {
             return (
               <Group key={routine.id} justify="space-between" wrap="nowrap" gap="xs" className={classes.row}>
                 <Group gap="xs" wrap="nowrap" miw={0}>
-                  <DoneToggle
-                    title={routine.title}
-                    done={false}
-                    date={routine.currentDate}
-                    onChange={(done) => setDone.mutate({ id: routine.id, done }, { onError: (error) => notifyError(error.message) })}
-                  />
+                  <RoutineDoneToggles routine={routine} />
                   <Text size="sm" truncate>
                     {routine.title}
                   </Text>

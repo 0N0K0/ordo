@@ -18,7 +18,7 @@ export const recurrenceSchema = z
     weekdays: z.array(z.number().int().min(1).max(7)).max(7),
     /** Weekly: only on even or odd ISO weeks (instead of every n weeks); null: every n weeks. */
     weekParity: z.enum(['EVEN', 'ODD']).nullable().default(null),
-    /** Monthly: same day number (the 14th), or same weekday of the month (the 2nd Tuesday, the last Friday). */
+    /** Monthly and yearly: same day number (the 14th), or same weekday of the month (the 2nd Tuesday, the first Saturday of April). */
     monthlyMode: z.enum(['DAY', 'WEEKDAY']),
     /** Last date, included. */
     until: isoDate.nullable(),
@@ -154,6 +154,9 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
     case 'YEARLY': {
       const years = day.getUTCFullYear() - start.getUTCFullYear();
       if (years % rule.interval !== 0 || day.getUTCMonth() !== start.getUTCMonth()) return false;
+      if (rule.monthlyMode === 'WEEKDAY') {
+        return isoWeekday(day) === isoWeekday(start) && weekdayPosition(day) === weekdayPosition(start);
+      }
       const lastDay = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
       return day.getUTCDate() === Math.min(start.getUTCDate(), lastDay);
     }

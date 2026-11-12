@@ -29,6 +29,26 @@ export function weekdayOfMonth(date: string): string {
 }
 
 /**
+ * Day and month of a date: "4 avril".
+ * @param {string} date Calendar date.
+ * @returns {string} Label.
+ */
+export function formatDayMonth(date: string): string {
+  const day = parseDay(date);
+  return `${day.getUTCDate()} ${MONTHS[day.getUTCMonth()]}`;
+}
+
+/**
+ * Month of a date after a day of it: "d’avril", "de mai".
+ * @param {string} date Calendar date.
+ * @returns {string} Label.
+ */
+export function monthOf(date: string): string {
+  const month = MONTHS[parseDay(date).getUTCMonth()];
+  return /^[aeiou]/.test(month) ? `d’${month}` : `de ${month}`;
+}
+
+/**
  * Readable repetition: "Toutes les 2 semaines le lundi et le jeudi, jusqu’au 20 décembre 2026".
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
@@ -53,7 +73,7 @@ export function describeRecurrence(rule: Recurrence, start: string): string {
       text = `${n === 1 ? 'Tous les mois' : `Tous les ${n} mois`} ${rule.monthlyMode === 'WEEKDAY' ? weekdayOfMonth(start) : `le ${day.getUTCDate()}`}`;
       break;
     case 'YEARLY':
-      text = `${n === 1 ? 'Tous les ans' : `Tous les ${n} ans`} le ${day.getUTCDate()} ${MONTHS[day.getUTCMonth()]}`;
+      text = `${n === 1 ? 'Tous les ans' : `Tous les ${n} ans`} ${rule.monthlyMode === 'WEEKDAY' ? `${weekdayOfMonth(start)} ${monthOf(start)}` : `le ${day.getUTCDate()} ${MONTHS[day.getUTCMonth()]}`}`;
       break;
   }
   if (rule.until) text += `, jusqu’au ${formatLongDate(rule.until)}`;

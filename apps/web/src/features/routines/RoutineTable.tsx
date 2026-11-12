@@ -15,7 +15,7 @@ import {
   type DragMoveEvent,
   type DragOverEvent,
 } from '@dnd-kit/core';
-import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Stack, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
@@ -43,16 +43,16 @@ import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { confirmDestructive } from '../shopping/list-modals';
 import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
-import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RequiresCell, TitleCell } from './routine-cells';
+import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
-import { DoneToggle } from './DoneToggle';
+import { RoutineDoneToggles } from './DoneToggle';
 import { openRoutineForm } from './open-routine-form';
 import { DAILY, isDone, NO_CATEGORY, routineRows, scheduleOf, stateOf, visibleRoutineRows, waitingFor, windowOf, windowText, type RoutineRow } from './routine-format';
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
-const COLUMNS = 13;
+const COLUMNS = 11;
 
 const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -263,7 +263,7 @@ interface RoutineRowProps {
  */
 function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
   const { routine, depth, children } = row;
-  const { setDone, setArchived, remove } = useRoutineMutations();
+  const { setArchived, remove } = useRoutineMutations();
   const {
     setNodeRef: setDragRef,
     setActivatorNodeRef,
@@ -313,15 +313,11 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           ) : (
             depth > 0 && <span style={{ width: 'var(--ai-size-xs, 18px)', flexShrink: 0 }} />
           )}
-          <DoneToggle
-            title={routine.title}
-            done={done}
-            date={routine.currentDate}
-            dateLabel={routine.currentDate ? dayText(routine.currentDate) : undefined}
-            disabled={readOnly}
-            onChange={(value) => setDone.mutate({ id: routine.id, done: value }, { onError: (error) => notifyError(error.message) })}
-          />
-          <TitleCell routine={routine} readOnly={readOnly} />
+          <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? dayText(routine.currentDate) : undefined} disabled={readOnly} />
+          <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+            <TitleCell routine={routine} readOnly={readOnly} />
+            <RepetitionText routine={routine} />
+          </Stack>
           {waiting.length > 0 && !done && (
             <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
               <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
@@ -329,32 +325,31 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           )}
         </Group>
       </Table.Td>
-      <Table.Td>
-        <StateCell routine={routine} today={today} />
+      <Table.Td {...cell('repetition')}>
+        <RepetitionCell routine={routine} readOnly={readOnly}>
+          <StateCell routine={routine} today={today} />
+        </RepetitionCell>
       </Table.Td>
-      <Table.Td miw={160} {...cell('repetition')}>
-        <RepetitionCell routine={routine} readOnly={readOnly} />
+      <Table.Td w={96} {...cell('estimate')}>
+        <EstimateCell routine={routine} readOnly={readOnly} />
       </Table.Td>
       <Table.Td w={150} {...cell('time')}>
         <TimeWindowCell routine={routine} readOnly={readOnly} />
       </Table.Td>
-      <Table.Td miw={160} {...cell('categories')}>
-        <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />
+      <Table.Td>
+        <ChronoCell routine={routine} running={running} />
       </Table.Td>
       <Table.Td miw={140} {...cell('assignees')}>
         <AssigneesCell routine={routine} readOnly={readOnly} context={context} />
       </Table.Td>
-      <Table.Td w={96} {...cell('estimate')}>
-        <EstimateCell routine={routine} readOnly={readOnly} />
+      <Table.Td miw={160} {...cell('categories')}>
+        <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />
       </Table.Td>
       <Table.Td miw={160} {...cell('requires')}>
         <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />
       </Table.Td>
       <Table.Td miw={140} {...cell('project')}>
         <ProjectCell routine={routine} readOnly={readOnly} context={context} />
-      </Table.Td>
-      <Table.Td>
-        <ChronoCell routine={routine} running={running} />
       </Table.Td>
       <Table.Td w={1}>
         <Menu position="bottom-end" shadow="md" withinPortal>
@@ -447,8 +442,8 @@ function AddRoutineRow({ categoryId, depth, groupName }: { categoryId: string | 
 
   return (
     <Table.Tr className={addClasses.addRow}>
-      <Table.Td colSpan={2} />
-      <Table.Td colSpan={COLUMNS - 2} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
+      <Table.Td />
+      <Table.Td colSpan={COLUMNS - 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
         <TextInput
           variant="unstyled"
           size="xs"
@@ -738,15 +733,14 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
                 </Group>
               </Table.Th>
               <Table.Th>Routine</Table.Th>
-              <Table.Th>Quand</Table.Th>
-              <Table.Th>Répétition</Table.Th>
-              <Table.Th>Horaire</Table.Th>
-              <Table.Th>Catégories</Table.Th>
+              <Table.Th>Prochaine échéance</Table.Th>
+              <Table.Th>Temps estimé</Table.Th>
+              <Table.Th>Horaires</Table.Th>
+              <Table.Th>Chrono</Table.Th>
               <Table.Th>Assignés</Table.Th>
-              <Table.Th>Temps prévu</Table.Th>
+              <Table.Th>Catégories</Table.Th>
               <Table.Th>Dépend de</Table.Th>
               <Table.Th>Projet</Table.Th>
-              <Table.Th>Chrono</Table.Th>
               <Table.Th />
             </Table.Tr>
           </Table.Thead>

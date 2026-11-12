@@ -2,7 +2,7 @@ import { ActionIcon, Button, Chip, Group, NumberInput, SegmentedControl, Select,
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, type Recurrence, type RecurrenceFrequency } from '@ordo/shared';
 import { PauseIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
-import { describeRecurrence, formatLongDate, WEEKDAY_NAMES, weekdayOfMonth } from './describe-recurrence';
+import { describeRecurrence, formatDayMonth, formatLongDate, monthOf, WEEKDAY_NAMES, weekdayOfMonth } from './describe-recurrence';
 
 const FREQUENCIES: { value: RecurrenceFrequency | 'NONE'; label: string }[] = [
   { value: 'NONE', label: 'Ne se répète pas' },
@@ -90,15 +90,22 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
           </Group>
         </Chip.Group>
       )}
-      {rule?.frequency === 'MONTHLY' && (
+      {(rule?.frequency === 'MONTHLY' || rule?.frequency === 'YEARLY') && (
         <SegmentedControl
           size="xs"
           value={rule.monthlyMode}
           onChange={(monthlyMode) => update({ monthlyMode: monthlyMode as Recurrence['monthlyMode'] })}
-          data={[
-            { value: 'DAY', label: `Le ${Number(start.slice(8))} du mois` },
-            { value: 'WEEKDAY', label: weekdayOfMonth(start).replace(/^le /, 'Le ') },
-          ]}
+          data={
+            rule.frequency === 'MONTHLY'
+              ? [
+                  { value: 'DAY', label: `Le ${Number(start.slice(8))} du mois` },
+                  { value: 'WEEKDAY', label: weekdayOfMonth(start).replace(/^le /, 'Le ') },
+                ]
+              : [
+                  { value: 'DAY', label: `Le ${formatDayMonth(start)}` },
+                  { value: 'WEEKDAY', label: `${weekdayOfMonth(start).replace(/^le /, 'Le ')} ${monthOf(start)}` },
+                ]
+          }
         />
       )}
 

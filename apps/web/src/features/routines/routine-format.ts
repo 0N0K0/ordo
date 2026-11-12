@@ -1,4 +1,5 @@
-import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineState } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineState } from '@ordo/shared';
+import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import type { Routine, RoutineCategory } from './api';
 
@@ -23,7 +24,7 @@ export function ruleOf(routine: Routine): Recurrence | null {
  * @param {Routine} routine Routine.
  * @returns {boolean} Done.
  */
-export const isDone = (routine: Routine) => routine.currentDate !== null && routine.doneDates.includes(routine.currentDate);
+export const isDone = (routine: Routine) => routine.done;
 
 /**
  * State of a routine today.
@@ -189,4 +190,25 @@ export function windowText({ fromTime, dueTime }: { fromTime: string | null; due
   if (fromTime && dueTime) return `${fromTime}–${dueTime}`;
   if (dueTime) return `avant ${dueTime}`;
   return fromTime ? `dès ${fromTime}` : '';
+}
+
+/**
+ * New case of a routine: every day, one time of the day.
+ * @param {string | null} fromTime From when.
+ * @param {string | null} dueTime By when.
+ * @returns {RoutineCase} Case.
+ */
+export function newRoutineCase(fromTime: string | null, dueTime: string | null): RoutineCase {
+  return { recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
+}
+
+/**
+ * Repetition and times of a routine case in words: "Tous les jours · avant 08:00, 12:00–14:00, dès 20:00 (facultatif)".
+ * @param {RoutineCase} item Case.
+ * @param {string} start First date of the routine.
+ * @returns {string} Description.
+ */
+export function describeRoutineCase(item: RoutineCase, start: string): string {
+  const times = item.slots.map((slot) => `${windowText(slot) || 'dans la journée'}${slot.optional ? ' (facultatif)' : ''}`).join(', ');
+  return `${describeRecurrence(item.recurrence, start)} · ${times}`;
 }
