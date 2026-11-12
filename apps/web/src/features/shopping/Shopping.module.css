@@ -151,6 +151,33 @@
     overflow-wrap: anywhere;
   }
 
+  /* Store mode: heading of a store or a category, folding its items. */
+  .storeHeading {
+    /* Dimension */
+    width: 100%;
+    min-height: calc(2 * var(--onoko-vertical-step, 24px));
+    border-radius: var(--mantine-radius-md);
+
+    /* Espacement */
+    padding-inline: var(--mantine-spacing-xs);
+
+    /* Animation */
+    transition: background-color 150ms ease;
+
+    /* Interaction */
+    cursor: pointer;
+
+    &[data-depth='0'] {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    &:hover {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-default-hover);
+    }
+  }
+
   /* Store mode content: one column, at most the width of a phone held in portrait on a larger screen. */
   .storeList {
     /* Dimension */

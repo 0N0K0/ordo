@@ -77,6 +77,27 @@ export const inputOf = (row: ShoppingFields): ShoppingItemInput => ({
 });
 
 /**
+ * Input of a new product or item with only a name, in a category (or store).
+ * @param {string} name Name.
+ * @param {{ categoryId: string | null, storeId: string | null }} place Category and store.
+ * @returns {ShoppingItemInput} Input.
+ */
+export const blankInput = (name: string, place: { categoryId: string | null; storeId: string | null }): ShoppingItemInput => ({
+  name,
+  ...place,
+  url: null,
+  note: null,
+  quantity: null,
+  unit: null,
+  unitPrice: null,
+  memberIds: [],
+  relationIds: [],
+  perishable: false,
+  storageId: null,
+  expiresAt: null,
+});
+
+/**
  * Categories offered in a base list: those attached to it, and those attached to none (a sub-category without any
  * takes those of its parent); the parents of the ones offered stay, to keep the tree.
  * @param {readonly ShoppingCategory[]} categories All categories.

@@ -17,8 +17,9 @@ import { ActionIcon, ColorSwatch, Group, Paper, Table, Text, Tooltip } from '@ma
 import type { ShoppingItemInput } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
+import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
-import { ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
+import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
 import { inputOf, NO_GROUP, shoppingRows, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
 
@@ -61,11 +62,19 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   done?: (row: T) => boolean;
   /** Categories of the tree (all by default; those of a base list). Optional. */
   categories?: ShoppingCategory[];
+  /** Row added at the end of each category (or store) and of the table. Optional. */
+  add?: ShoppingAdd;
+  /** Also the categories (or stores) without rows. Optional. */
+  showEmpty?: boolean;
 }
 
-interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories'> {
+interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty'> {
   row: Extract<ShoppingRow<T>, { kind: 'item' }>;
   over: boolean;
+  /** By store: the column shows the category (the store is the group). */
+  grouping: ShoppingGrouping;
+  /** Categories offered. */
+  categories: ShoppingCategory[];
 }
 
 /**
@@ -73,7 +82,7 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
  * @param {ItemRowProps<T>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ItemRow<T extends ShoppingFields>({ row, over, readOnly = false, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
+function ItemRow<T extends ShoppingFields>({ row, over, grouping, categories, readOnly = false, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
   const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: `row:${item.id}`, data: { groupId } satisfies DropData, disabled: readOnly });
@@ -119,7 +128,11 @@ function ItemRow<T extends ShoppingFields>({ row, over, readOnly = false, onSave
         )}
       </Table.Td>
       <Table.Td>
-        <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save({ storeId })} />
+        {grouping === 'store' ? (
+          <CategoryCell value={item.categoryId ?? null} categories={categories} label={`Catégorie de ${name}`} readOnly={readOnly} onSave={(categoryId) => save({ categoryId })} />
+        ) : (
+          <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save({ storeId })} />
+        )}
       </Table.Td>
       <Table.Td>
         <NumberCell kind="quantity" value={item.quantity ?? null} label={`Quantité de ${name}`} readOnly={readOnly} onSave={(quantity) => save({ quantity })} />
@@ -204,7 +217,7 @@ function GroupRow<T>({ row, columns, over, collapsed, onToggle, summary }: Group
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, ...rowProps }: ShoppingTableProps<T>) {
+export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, ...rowProps }: ShoppingTableProps<T>) {
   const { data } = useShoppingData();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [active, setActive] = useState<T | null>(null);
@@ -212,7 +225,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   const [overGroup, setOverGroup] = useState<string | null | undefined>(undefined);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const labels = { categories: categories ?? data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
-  const rows = visibleRows(shoppingRows(items, grouping, labels, active !== null), collapsed);
+  const rows = visibleRows(shoppingRows(items, grouping, labels, showEmpty || active !== null), collapsed);
   const columns = 12 + (rowProps.extra ? 1 : 0);
   const field = grouping === 'category' ? 'categoryId' : 'storeId';
 
@@ -243,6 +256,63 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
     rowProps.onSave(row, { ...inputOf(row), [field]: target.groupId });
   };
 
+  /**
+   * Rows of the table, with a row to add one at the end of each category (or store) shown unfolded, and at the end
+   * of the table when it has no group without category (or store).
+   * @returns {ReactNode[]} Rows.
+   */
+  const body = () => {
+    const out: ReactNode[] = [];
+    let open: Extract<ShoppingRow<T>, { kind: 'group' }> | null = null;
+    /**
+     * Closes the open group with its row to add one.
+     * @returns {void}
+     */
+    const close = () => {
+      if (add && open && !collapsed.has(open.id ?? NO_GROUP) && active === null) out.push(addRow(open.id, open.depth + 1, open.name));
+      open = null;
+    };
+    for (const row of rows) {
+      if (row.kind === 'group') {
+        close();
+        open = row;
+        out.push(
+          <GroupRow
+            key={`group:${row.id ?? NO_GROUP}`}
+            row={row}
+            columns={columns}
+            over={active !== null && overGroup === row.id}
+            collapsed={collapsed.has(row.id ?? NO_GROUP)}
+            onToggle={() => toggle(row.id)}
+            summary={summary}
+          />,
+        );
+      } else out.push(<ItemRow key={row.item.id} row={row} over={active !== null && overGroup === row.groupId} grouping={grouping} categories={labels.categories} {...rowProps} />);
+    }
+    close();
+    if (add && active === null && !rows.some((row) => row.kind === 'group' && row.id === null)) out.push(addRow(null, 1, grouping === 'category' ? 'Sans catégorie' : 'Sans magasin'));
+    return out;
+  };
+
+  /**
+   * Row adding one in a category (or store).
+   * @param {string | null} groupId Category or store, null for none.
+   * @param {number} depth Depth of its rows.
+   * @param {string} groupName Its name.
+   * @returns {JSX.Element} Row.
+   */
+  const addRow = (groupId: string | null, depth: number, groupName: string) =>
+    add && (
+      <AddShoppingRow
+        key={`add:${groupId ?? NO_GROUP}`}
+        {...add}
+        place={{ categoryId: grouping === 'category' ? groupId : null, storeId: grouping === 'store' ? groupId : null }}
+        depth={depth}
+        columns={columns}
+        groupName={groupName}
+      />
+    );
+
   return (
     <DndContext
       sensors={sensors}
@@ -272,7 +342,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
                 <Table.Th w={32} px={4} />
                 <Table.Th w={36} px={4} />
                 <Table.Th miw={200}>Produit</Table.Th>
-                <Table.Th w={150}>Magasin</Table.Th>
+                <Table.Th w={150}>{grouping === 'store' ? 'Catégorie' : 'Magasin'}</Table.Th>
                 <Table.Th w={88} ta="right">
                   Quantité
                 </Table.Th>
@@ -288,23 +358,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
                 <Table.Th />
               </Table.Tr>
             </Table.Thead>
-            <Table.Tbody>
-              {rows.map((row) =>
-                row.kind === 'group' ? (
-                  <GroupRow
-                    key={`group:${row.id ?? NO_GROUP}`}
-                    row={row}
-                    columns={columns}
-                    over={active !== null && overGroup === row.id}
-                    collapsed={collapsed.has(row.id ?? NO_GROUP)}
-                    onToggle={() => toggle(row.id)}
-                    summary={summary}
-                  />
-                ) : (
-                  <ItemRow key={row.item.id} row={row} over={active !== null && overGroup === row.groupId} {...rowProps} />
-                ),
-              )}
-            </Table.Tbody>
+            <Table.Tbody>{body()}</Table.Tbody>
           </Table>
         </div>
       </Paper>

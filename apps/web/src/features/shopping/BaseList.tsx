@@ -8,7 +8,7 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
-import { categoriesForBaseList, money, type ShoppingGrouping } from './shopping-format';
+import { blankInput, categoriesForBaseList, money, type ShoppingGrouping } from './shopping-format';
 import { ShoppingTable } from './ShoppingTable';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -52,6 +52,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const mutations = useShoppingMutations();
   const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.baseGrouping', defaultValue: 'category' });
   const [onlyMissing, setOnlyMissing] = useState(false);
+  const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const [search, setSearch] = useState('');
   const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
   const missing = products.filter((product) => product.missing);
@@ -81,6 +82,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           aria-label="Rechercher un produit"
         />
         <Checkbox size="xs" label="Manquants seulement" checked={onlyMissing} onChange={(event) => setOnlyMissing(event.currentTarget.checked)} />
+        <Checkbox size="xs" label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
         <Group gap="sm" ml="auto">
           <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
             Ajouter un produit
@@ -117,7 +119,13 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         <ShoppingTable
           items={shown}
           grouping={grouping}
+          showEmpty={showEmpty}
           categories={categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id)}
+          add={{
+            label: 'Ajouter un produit',
+            // A product added is usually missing.
+            onCreate: (name, place) => mutations.createProduct.mutateAsync({ ...blankInput(name, place), baseListId: baseList.id, missing: true }),
+          }}
           label={`Produits de ${baseList.name}`}
           onSave={(product, input) => mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, { onError })}
           check={(product) => (

@@ -1,129 +1,38 @@
-import {
-  ActionIcon,
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  Checkbox,
-  CloseButton,
-  ColorSwatch,
-  Group,
-  Menu,
-  Modal,
-  Paper,
-  SegmentedControl,
-  Skeleton,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Menu, Paper, SegmentedControl, Skeleton, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney } from '@ordo/shared';
-import { ArrowLeftIcon, BankIcon, BasketIcon, CalendarPlusIcon, DotsThreeVerticalIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartIcon, TrashIcon } from '@phosphor-icons/react';
+import {
+  ArrowLeftIcon,
+  BankIcon,
+  BasketIcon,
+  CalendarPlusIcon,
+  CaretDownIcon,
+  DotsThreeVerticalIcon,
+  ListPlusIcon,
+  PencilSimpleIcon,
+  PencilSimpleLineIcon,
+  PlusIcon,
+  ShoppingCartIcon,
+  TrashIcon,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { TaskRef } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
-import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingItem, type ShoppingList } from './api';
+import { useShoppingData, useShoppingLists, useShoppingMutations } from './api';
 import { shoppingTotal } from './export';
 import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
 import { confirmDestructive, openModal } from './list-modals';
 import { ProductPicker } from './ProductPicker';
-import { money, quantityText, shoppingRows, type ShoppingGrouping } from './shopping-format';
+import { blankInput, money, type ShoppingGrouping } from './shopping-format';
+import { ShoppingSettings } from './ShoppingSettings';
 import { ShoppingTable } from './ShoppingTable';
-import classes from './Shopping.module.css';
+import { StoreMode } from './StoreMode';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
-
-/**
- * Store mode: the items to buy as big rows ticked with a thumb, the bought ones at the bottom.
- * @param {{ list: ShoppingList, grouping: ShoppingGrouping, onClose: () => void }} props Component props.
- * @returns {JSX.Element} Full screen view.
- */
-function StoreMode({ list, grouping, onClose }: { list: ShoppingList; grouping: ShoppingGrouping; onClose: () => void }) {
-  const { data } = useShoppingData();
-  const { setPurchased } = useShoppingMutations();
-  const labels = { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
-  const toBuy = shoppingRows(
-    list.items.filter((item) => !item.purchasedAt),
-    grouping,
-    labels,
-  );
-  const bought = list.items.filter((item) => item.purchasedAt);
-
-  /**
-   * One item, ticked or unticked by a tap anywhere on its row.
-   * @param {ShoppingItem} item Item.
-   * @returns {JSX.Element} Row.
-   */
-  const row = (item: ShoppingItem) => (
-    <Checkbox.Card
-      key={item.id}
-      className={classes.storeRow}
-      data-purchased={item.purchasedAt ? true : undefined}
-      checked={Boolean(item.purchasedAt)}
-      onClick={() => setPurchased.mutate({ id: item.id, purchased: !item.purchasedAt }, { onError: (error) => notifyError(error.message) })}
-    >
-      <Checkbox.Indicator size="lg" />
-      <Text className={classes.storeName}>{item.name}</Text>
-      {quantityText(item) && (
-        <Text size="md" fw={600} className={classes.nowrap}>
-          {quantityText(item)}
-        </Text>
-      )}
-    </Checkbox.Card>
-  );
-
-  return (
-    <Modal opened onClose={onClose} fullScreen withCloseButton={false} transitionProps={{ transition: 'fade', duration: 150 }}>
-      <Stack gap="md" className={classes.storeList}>
-        <Group justify="space-between" wrap="nowrap">
-          <Stack gap={0}>
-            <Title order={2} size="h3">
-              {list.name}
-            </Title>
-            <Text size="sm" c="dimmed">
-              {bought.length} sur {list.items.length} acheté(s)
-            </Text>
-          </Stack>
-          <CloseButton size="lg" aria-label="Quitter le mode magasin" onClick={onClose} />
-        </Group>
-        {toBuy.length === 0 && (
-          <Alert color="green" icon={<ShoppingCartIcon aria-hidden />}>
-            Tout est acheté.
-          </Alert>
-        )}
-        <Stack gap="xs">
-          {toBuy.map((entry) =>
-            entry.kind === 'group' ? (
-              <Group key={`group:${entry.id ?? 'none'}`} gap="xs" mt={entry.depth === 0 ? 'sm' : 0} pl={`calc(${entry.depth} * var(--mantine-spacing-md))`}>
-                {entry.color && <ColorSwatch color={entry.color} size={12} />}
-                <Text fw={entry.depth === 0 ? 700 : 600} size="sm" tt={entry.depth === 0 ? 'uppercase' : undefined} c="dimmed">
-                  {entry.name}
-                </Text>
-              </Group>
-            ) : (
-              row(entry.item)
-            ),
-          )}
-        </Stack>
-        {bought.length > 0 && (
-          <Stack gap="xs">
-            <Text fw={600} size="sm" tt="uppercase" c="dimmed">
-              Acheté
-            </Text>
-            {bought.map(row)}
-          </Stack>
-        )}
-      </Stack>
-    </Modal>
-  );
-}
 
 /**
  * Page of a shopping list: its items by category or by store, ticked as bought (their products of the base list
@@ -140,6 +49,7 @@ export function ShoppingListPage() {
   const mutations = useShoppingMutations();
   const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
   const [storeMode, setStoreMode] = useState(false);
+  const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const list = lists?.find((item) => item.id === id);
 
   if (isPending) {
@@ -177,6 +87,7 @@ export function ShoppingListPage() {
 
   return (
     <Stack gap="lg">
+      <ShoppingSettings />
       <Group gap="sm" align="flex-start" wrap="nowrap">
         <Tooltip label="Retour aux listes">
           <ActionIcon component={Link} to="/shopping?tab=lists" variant="subtle" color="gray" aria-label="Retour aux listes" mt={4}>
@@ -224,21 +135,28 @@ export function ShoppingListPage() {
           ]}
           aria-label="Regrouper"
         />
+        <Checkbox size="xs" label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
         <Group gap="sm" ml="auto" wrap="wrap">
           {!closed && (
-            <>
-              <Button
-                variant="default"
-                leftSection={<ListPlusIcon aria-hidden />}
-                disabled={baseLists.length === 0}
-                onClick={() => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg')}
-              >
-                Depuis les listes types
-              </Button>
-              <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'item', listId: list.id })}>
-                Hors liste
-              </Button>
-            </>
+            <Menu position="bottom-end" shadow="md" withinPortal>
+              <Menu.Target>
+                <Button variant="default" leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden size={12} />}>
+                  Ajouter un produit
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<ListPlusIcon aria-hidden />}
+                  disabled={baseLists.length === 0}
+                  onClick={() => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg')}
+                >
+                  Depuis les listes types…
+                </Menu.Item>
+                <Menu.Item leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'item', listId: list.id })}>
+                  Hors liste type…
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
           )}
           <Button leftSection={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0} onClick={() => setStoreMode(true)}>
             Mode magasin
@@ -273,6 +191,16 @@ export function ShoppingListPage() {
           grouping={grouping}
           label={`Éléments de ${list.name}`}
           readOnly={closed}
+          showEmpty={showEmpty}
+          add={
+            closed
+              ? undefined
+              : {
+                  label: 'Ajouter un élément hors liste type',
+                  onCreate: (name, place) => mutations.addItem.mutateAsync({ listId: list.id, input: blankInput(name, place) }),
+                  onPick: baseLists.length ? () => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg') : undefined,
+                }
+          }
           onSave={(item, input) => mutations.updateItem.mutate({ id: item.id, input }, { onError })}
           done={(item) => Boolean(item.purchasedAt)}
           check={(item) => (
@@ -359,7 +287,7 @@ export function ShoppingListPage() {
           </Text>
         </Group>
       )}
-      {storeMode && <StoreMode list={list} grouping={grouping} onClose={() => setStoreMode(false)} />}
+      {storeMode && <StoreMode list={list} onClose={() => setStoreMode(false)} />}
     </Stack>
   );
 }

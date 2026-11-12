@@ -6,8 +6,8 @@ import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError } from '../../lib/notify';
 import classes from '../tasks/views/inline-cells.module.css';
-import type { ShoppingStorage, ShoppingStore } from './api';
-import { todayIso, UNITS, usePeople } from './shopping-format';
+import type { ShoppingCategory, ShoppingStorage, ShoppingStore } from './api';
+import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, UNITS, usePeople } from './shopping-format';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -353,6 +353,39 @@ export function ExpiryCell({ value, label, disabled = false, readOnly = false, o
       c={expired ? 'red' : undefined}
       fw={expired ? 600 : undefined}
       title={expired ? 'Date dépassée' : undefined}
+    />
+  );
+}
+
+interface CategoryCellProps {
+  value: string | null;
+  /** Categories offered (those of the base list in a base list). */
+  categories: ShoppingCategory[];
+  label: string;
+  readOnly?: boolean;
+  onSave: (value: string | null) => void;
+}
+
+/**
+ * Category cell (shown when the rows are grouped by store): one of the categories, sub-categories indented, or none.
+ * @param {CategoryCellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function CategoryCell({ value, categories, label, readOnly = false, onSave }: CategoryCellProps) {
+  const color = value ? shoppingCategoryTree(categories).find((placed) => placed.category.id === value)?.color : undefined;
+  return (
+    <Select
+      {...cellCombobox}
+      aria-label={label}
+      placeholder={readOnly ? undefined : '—'}
+      readOnly={readOnly}
+      clearable={!readOnly}
+      searchable
+      data={shoppingCategoryOptions(categories)}
+      leftSection={color ? <ColorSwatch color={color} size={10} /> : undefined}
+      nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
+      value={value}
+      onChange={(categoryId) => categoryId !== value && onSave(categoryId)}
     />
   );
 }
