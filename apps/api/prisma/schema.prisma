@@ -2324,6 +2324,8 @@ model Routine {
   scheduleId     String?
   schedule       WorkSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   scheduleAnchor String?
+  /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
+  reminders      Int[]               @default([])
   /// Where it is done: free text, and its point when chosen from the map or a search.
   location       String?
   locationLat    Float?

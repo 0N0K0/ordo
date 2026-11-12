@@ -13,6 +13,7 @@ import classes from '../TaskTable.module.css';
 import type { TaskContext } from '../use-task-context';
 import { EVENT_STATES, eventState } from './event-format';
 import cellClasses from './inline-cells.module.css';
+import { StackedMultiCell } from './StackedMultiCell';
 
 /**
  * Title of an event row: calendar icon, title (opens the event; struck through when cancelled or postponed) and
@@ -90,26 +91,39 @@ function useEventSave(event: EventOccurrence) {
  */
 export function EventPeopleCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
   const save = useEventSave(event);
+  const label = `Personnes de l’évènement ${event.title}`;
   return (
-    <BatchMultiSelect
-      {...cellField}
-      comboboxProps={{ withinPortal: true, width: 'max-content', position: 'bottom-start' }}
-      classNames={{ ...cellField.classNames, pillsList: cellClasses.pills }}
-      aria-label={`Personnes de l’évènement ${event.title}`}
-      data={context.assignableFor(event.projectId ? [event.projectId] : [], event.contributorIds).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
-      renderOption={({ option }) => {
-        const contributor = context.contributorById.get(option.value);
-        return (
-          <Group gap="xs" wrap="nowrap">
-            <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
-            {option.label}
-          </Group>
-        );
-      }}
-      value={event.contributorIds}
-      onChange={(contributorIds) => void save({ contributorIds })}
-      placeholder={event.contributorIds.length ? undefined : '—'}
-      searchable
+    <StackedMultiCell
+      label={label}
+      items={event.contributorIds.flatMap((id) => {
+        const contributor = context.contributorById.get(id);
+        return contributor
+          ? [{ id, label: context.contributorName(contributor), icon: <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={16} style={{ flexShrink: 0 }} /> }]
+          : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellField}
+          comboboxProps={{ withinPortal: true, width: 'max-content', position: 'bottom-start' }}
+          classNames={{ ...cellField.classNames, pillsList: cellClasses.pills }}
+          aria-label={label}
+          data={context.assignableFor(event.projectId ? [event.projectId] : [], event.contributorIds).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
+          renderOption={({ option }) => {
+            const contributor = context.contributorById.get(option.value);
+            return (
+              <Group gap="xs" wrap="nowrap">
+                <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
+                {option.label}
+              </Group>
+            );
+          }}
+          value={event.contributorIds}
+          onChange={(contributorIds) => void save({ contributorIds })}
+          onDropdownClose={onDropdownClose}
+          placeholder={event.contributorIds.length ? undefined : '—'}
+          searchable
+        />
+      )}
     />
   );
 }

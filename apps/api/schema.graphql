@@ -2397,6 +2397,11 @@ type Routine {
   projectId: ID
   recurrence: JSON!
 
+  """
+  Alerts, in minutes before its moment (when to leave, else its start, else its latest time).
+  """
+  reminders: [Int!]!
+
   """Routines to do before this one."""
   requiredIds: [ID!]!
 
@@ -2485,6 +2490,7 @@ input RoutineInput {
   parentId: ID
   projectId: ID
   recurrence: JSON!
+  reminders: [Int!]
   requiredIds: [ID!]!
 
   """START, WHOLE or END."""
