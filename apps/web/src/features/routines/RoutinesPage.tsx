@@ -1,12 +1,14 @@
-import { Button, Group, Paper, SegmentedControl, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
-import { ArrowsClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
+import { Button, Group, Paper, SegmentedControl, Skeleton, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
 import { stateOf } from './routine-format';
+import { RoutineHistory } from './RoutineHistory';
 import { RoutineSettings } from './RoutineSettings';
 import { RoutineTable } from './RoutineTable';
 
@@ -120,16 +122,62 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
 }
 
 /**
- * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence; the settings hold
- * the categories.
+ * Routines page: tasks repeating on a calendar rule, ticked once done for their current occurrence, and the history of
+ * what was ticked on which day; the settings hold the categories.
  * @returns {JSX.Element} Page.
  */
 export function RoutinesPage() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'history' ? 'history' : 'routines';
+
   return (
     <Stack gap="lg">
       <PageTitle>Routines</PageTitle>
       <RoutineSettings />
-      <RoutinesPanel />
+      <Tabs
+        value={tab}
+        onChange={(value) =>
+          setParams(
+            (current) => {
+              const next = new URLSearchParams(current);
+              next.delete('routine');
+              if (value === 'history') next.set('tab', 'history');
+              else next.delete('tab');
+              return next;
+            },
+            { replace: true },
+          )
+        }
+        keepMounted={false}
+      >
+        <Tabs.List mb="md">
+          <Tabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
+            Routines
+          </Tabs.Tab>
+          <Tabs.Tab value="history" leftSection={<ClockCounterClockwiseIcon aria-hidden />}>
+            Historique
+          </Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="routines">
+          <RoutinesPanel />
+        </Tabs.Panel>
+        <Tabs.Panel value="history">
+          <RoutineHistory
+            routineId={params.get('routine')}
+            onRoutine={(id) =>
+              setParams(
+                (current) => {
+                  const next = new URLSearchParams(current);
+                  if (id) next.set('routine', id);
+                  else next.delete('routine');
+                  return next;
+                },
+                { replace: true },
+              )
+            }
+          />
+        </Tabs.Panel>
+      </Tabs>
     </Stack>
   );
 }

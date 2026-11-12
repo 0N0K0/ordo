@@ -2211,6 +2211,11 @@ type Query {
   reverseAddress(point: GeoPointInput!): AddressSuggestion
   routineCategories: [RoutineCategory!]!
 
+  """
+  Times of the day ticked as done, of the occurrences of a period (both days included), latest first.
+  """
+  routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
+
   """Every routine, archived ones included, in manual order."""
   routines: [Routine!]!
   runningTimeEntry: TimeEntry
@@ -2487,6 +2492,25 @@ input RoutineCategoryInput {
   color: String
   name: String!
   parentId: ID
+}
+
+"""Time of the day of a routine ticked as done, for an occurrence."""
+type RoutineCheck {
+  """Day of the occurrence."""
+  date: Date!
+
+  """When it was ticked."""
+  doneAt: DateTime!
+
+  """End of the time of the day ticked (as the routine is now)."""
+  dueTime: String
+
+  """Start of the time of the day ticked (as the routine is now)."""
+  fromTime: String
+  routineId: ID!
+
+  """Time of the day ticked (its index in the times of that day)."""
+  slot: Int!
 }
 
 input RoutineInput {

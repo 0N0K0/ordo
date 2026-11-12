@@ -22,6 +22,7 @@ import {
   ArrowCounterClockwiseIcon,
   CaretDownIcon,
   CaretRightIcon,
+  ClockCounterClockwiseIcon,
   CopyIcon,
   DotsSixVerticalIcon,
   DotsThreeVerticalIcon,
@@ -34,6 +35,7 @@ import {
   TreeViewIcon,
 } from '@phosphor-icons/react';
 import { useEffect, useRef, useState, type ComponentProps, type ReactElement } from 'react';
+import { Link } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import addClasses from '../tasks/views/table-extras.module.css';
@@ -371,6 +373,9 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
             )}
             <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => openRoutineForm({ routine, copy: true })}>
               Dupliquer
+            </Menu.Item>
+            <Menu.Item leftSection={<ClockCounterClockwiseIcon aria-hidden />} component={Link} to={`/routines?tab=history&routine=${routine.id}`}>
+              Historique
             </Menu.Item>
             <Menu.Item
               leftSection={readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}

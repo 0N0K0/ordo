@@ -140,3 +140,13 @@
     white-space: nowrap;
   }
 }
+
+/* Tick of the history: 36px high, a line between ticks. */
+.historyRow {
+  min-height: 36px;
+  padding-block: 4px;
+
+  & + & {
+    border-top: 1px solid var(--mantine-color-default-border);
+  }
+}

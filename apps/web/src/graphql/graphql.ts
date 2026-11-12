@@ -2601,6 +2601,14 @@ export type DeleteRoutineMutationVariables = Exact<{
 
 export type DeleteRoutineMutation = { deleteRoutine: boolean };
 
+export type RoutineChecksQueryVariables = Exact<{
+  from: string;
+  to: string;
+}>;
+
+
+export type RoutineChecksQuery = { routineChecks: Array<{ routineId: string, date: string, slot: number, doneAt: string, fromTime: string | null, dueTime: string | null }> };
+
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -6677,6 +6685,18 @@ export const DeleteRoutineDocument = new TypedDocumentString(`
   deleteRoutine(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteRoutineMutation, DeleteRoutineMutationVariables>;
+export const RoutineChecksDocument = new TypedDocumentString(`
+    query RoutineChecks($from: Date!, $to: Date!) {
+  routineChecks(from: $from, to: $to) {
+    routineId
+    date
+    slot
+    doneAt
+    fromTime
+    dueTime
+  }
+}
+    `) as unknown as TypedDocumentString<RoutineChecksQuery, RoutineChecksQueryVariables>;
 export const ShoppingDataDocument = new TypedDocumentString(`
     query ShoppingData {
   shoppingCategories {
