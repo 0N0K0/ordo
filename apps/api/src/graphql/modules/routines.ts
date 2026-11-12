@@ -1,4 +1,4 @@
-import { parseDay, type RoutineInput } from '@ordo/shared';
+import { formatDay, parseDay, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as routines from '../../services/routines';
 import { builder } from '../builder';
@@ -13,8 +13,8 @@ builder.prismaObject('RoutineCategory', {
   }),
 });
 
-/** Selection computing the occurrences and window of a routine. */
-const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true } as const;
+/** Selection computing the occurrences and times of the day of a routine. */
+const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, fromTime: true, dueTime: true } as const;
 
 /**
  * Calendar date as a Date (the Date scalar), or null.
@@ -23,15 +23,47 @@ const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedu
  */
 const asDate = (date: string | null) => (date ? parseDay(date) : null);
 
+/** Time of the day of an occurrence, with its state. */
+interface SlotState {
+  index: number;
+  fromTime: string | null;
+  dueTime: string | null;
+  optional: boolean;
+  done: boolean;
+}
+
 /**
- * Window of a routine following a schedule, on its current occurrence (or its next one before it starts).
- * @param {routines.RoutineTiming} routine Routine.
- * @returns {{ fromTime: string | null, dueTime: string | null } | null} Window.
+ * Times of the day of the current occurrence of a routine (its next one before it starts), with those ticked.
+ * @param {routines.RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
+ * @returns {{ date: string | null, slots: SlotState[] }} Day and its times.
  */
-const windowOf = (routine: routines.RoutineTiming) => {
+const slotStates = (routine: routines.RoutineTiming & { checks: { date: Date; slot: number }[] }) => {
   const { current, next } = routines.occurrencesOf(routine);
-  return routines.scheduleWindowOf(routine, current ?? next);
+  const date = current ?? next;
+  const ticked = new Set(routine.checks.filter((check) => current && formatDay(check.date) === current).map((check) => check.slot));
+  return { date, slots: routines.slotsOf(routine, date).map((slot, index) => ({ index, ...slot, done: ticked.has(index) })) };
 };
+
+/**
+ * Time of the day to come: the first not ticked (a required one first), else the first.
+ * @param {SlotState[]} slots Times of the day.
+ * @returns {SlotState | undefined} Time.
+ */
+const pendingSlot = (slots: SlotState[]) => slots.find((slot) => !slot.done && !slot.optional) ?? slots.find((slot) => !slot.done) ?? slots[0];
+
+const RoutineSlotRef = builder.objectRef<SlotState>('RoutineSlot').implement({
+  description: 'Time of the day of an occurrence of a routine.',
+  fields: (t) => ({
+    index: t.exposeInt('index'),
+    fromTime: t.exposeString('fromTime', { nullable: true }),
+    dueTime: t.exposeString('dueTime', { nullable: true }),
+    optional: t.exposeBoolean('optional'),
+    done: t.exposeBoolean('done'),
+  }),
+});
+
+/** Checks loaded to know the times ticked today. */
+const TODAY_CHECKS = { checks: { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } } as const;
 
 /** Ticked occurrences loaded with a routine (the latest ones). */
 const RECENT_CHECKS = 30;
@@ -58,15 +90,15 @@ builder.prismaObject('Routine', {
     reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
     windowFrom: t.string({
       nullable: true,
-      description: 'Time to do it from on its current (or next) occurrence: its own, or the one of its schedule.',
-      select: { ...TIMING, fromTime: true },
-      resolve: (routine) => (routine.schedule ? (windowOf(routine)?.fromTime ?? null) : routine.fromTime),
+      description: 'Time to do it from on its current (or next) occurrence, for its time of the day to come: its own, its case’s or its schedule’s.',
+      select: { ...TIMING, ...TODAY_CHECKS },
+      resolve: (routine) => pendingSlot(slotStates(routine).slots)?.fromTime ?? null,
     }),
     windowTo: t.string({
       nullable: true,
-      description: 'Latest time to do it by on its current (or next) occurrence: its own, or the one of its schedule.',
-      select: { ...TIMING, dueTime: true },
-      resolve: (routine) => (routine.schedule ? (windowOf(routine)?.dueTime ?? null) : routine.dueTime),
+      description: 'Latest time to do it by on its current (or next) occurrence, for its time of the day to come.',
+      select: { ...TIMING, ...TODAY_CHECKS },
+      resolve: (routine) => pendingSlot(slotStates(routine).slots)?.dueTime ?? null,
     }),
     dueTime: t.exposeString('dueTime', { nullable: true, description: 'Latest time to do it by (HH:MM).' }),
     location: t.exposeString('location', { nullable: true }),
@@ -96,11 +128,27 @@ builder.prismaObject('Routine', {
       select: TIMING,
       resolve: (routine) => asDate(routines.occurrencesOf(routine).next),
     }),
+    cases: t.expose('cases', { type: 'JSON', description: 'Cases (days and times of the day); empty: its repetition.' }),
+    slots: t.field({
+      type: [RoutineSlotRef],
+      description: 'Times of the day of its current occurrence (its next one before it starts), with those ticked.',
+      select: { ...TIMING, ...TODAY_CHECKS },
+      resolve: (routine) => slotStates(routine).slots,
+    }),
+    done: t.boolean({
+      description: 'Its current occurrence is done: every required time of the day ticked.',
+      select: { ...TIMING, ...TODAY_CHECKS },
+      resolve: (routine) => {
+        const { current } = routines.occurrencesOf(routine);
+        const { slots } = slotStates(routine);
+        return current !== null && slots.length > 0 && slots.every((slot) => slot.done || slot.optional);
+      },
+    }),
     doneDates: t.field({
       type: ['Date'],
       description: `Latest ticked occurrences (${RECENT_CHECKS} at most), latest first.`,
       select: { checks: { orderBy: { date: 'desc' }, take: RECENT_CHECKS, select: { date: true } } },
-      resolve: (routine) => routine.checks.map((check) => check.date),
+      resolve: (routine) => [...new Set(routine.checks.map((check) => formatDay(check.date)))].map(parseDay),
     }),
     lastDoneAt: t.field({
       type: 'DateTime',
@@ -134,6 +182,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     fromTime: t.string({ description: 'HH:MM.' }),
     scheduleId: t.id(),
     scheduleAnchor: t.string({ description: 'START, WHOLE or END.' }),
+    cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day); empty: the repetition.' }),
     reminders: t.intList(),
     dueTime: t.string({ description: 'HH:MM.' }),
     location: t.string(),
@@ -206,6 +255,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   scheduleId: idOrNull(input.scheduleId),
   scheduleAnchor: (input.scheduleAnchor ?? null) as RoutineInput['scheduleAnchor'],
   reminders: input.reminders ?? [],
+  cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
   location: input.location ?? null,
   locationLat: input.locationLat ?? null,
@@ -281,7 +331,7 @@ builder.mutationFields((t) => ({
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
       // Times or a repetition of its own: it no longer follows its schedule.
       if (input.fromTime !== undefined || input.dueTime !== undefined || (input.recurrence !== undefined && input.recurrence !== null))
-        Object.assign(changes, { scheduleId: null, scheduleAnchor: null });
+        Object.assign(changes, { scheduleId: null, scheduleAnchor: null, cases: [] });
       if (input.fromTime !== undefined) changes.fromTime = input.fromTime;
       if (input.dueTime !== undefined) changes.dueTime = input.dueTime;
       if (input.startDate) changes.startDate = input.startDate;
@@ -340,8 +390,8 @@ builder.mutationFields((t) => ({
   setRoutineDone: t.field({
     type: 'Date',
     description: 'Ticks or unticks an occurrence (by default the current one); returns its date.',
-    args: { id: t.arg.id({ required: true }), done: t.arg.boolean({ required: true }), date: t.arg({ type: 'Date' }) },
-    resolve: async (_root, { id, done, date }) => parseDay(await routines.setRoutineDone(String(id), done, date ?? null)),
+    args: { id: t.arg.id({ required: true }), done: t.arg.boolean({ required: true }), date: t.arg({ type: 'Date' }), slot: t.arg.int({ description: 'Time of the day (index); 0 by default.' }) },
+    resolve: async (_root, { id, done, date, slot }) => parseDay(await routines.setRoutineDone(String(id), done, date ?? null, slot ?? null)),
   }),
   setRoutineArchived: t.boolean({
     args: { id: t.arg.id({ required: true }), archived: t.arg.boolean({ required: true }) },

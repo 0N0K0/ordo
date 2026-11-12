@@ -16,6 +16,34 @@ export const ROUTINE_ANCHORS = ['START', 'WHOLE', 'END'] as const;
 export type RoutineAnchor = (typeof ROUTINE_ANCHORS)[number];
 export const ROUTINE_ANCHOR_LABELS: Record<RoutineAnchor, string> = { START: 'Avant le début', WHOLE: 'Pendant', END: 'Après la fin' };
 
+const timeOfDay = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).')
+  .nullable()
+  .default(null);
+
+/** One time of the day a routine is done in a case (brushing teeth in the morning, at noon, in the evening). */
+export const routineSlotSchema = z
+  .object({
+    /** From when, by when at the latest; null: no limit on that side. */
+    fromTime: timeOfDay,
+    dueTime: timeOfDay,
+    /** Not needed for the day to be done ("2 to 3 times a day": the third one). */
+    optional: z.boolean().default(false),
+  })
+  .refine((slot) => !slot.fromTime || !slot.dueTime || slot.fromTime < slot.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' });
+export type RoutineSlot = z.infer<typeof routineSlotSchema>;
+
+/** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
+export const routineCaseSchema = z
+  .object({
+    recurrence: recurrenceSchema,
+    slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
+  })
+  .refine((item) => item.slots.some((slot) => !slot.optional), { path: ['slots'], message: 'Au moins un moment doit être obligatoire.' });
+export type RoutineCase = z.infer<typeof routineCaseSchema>;
+export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
+
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
@@ -48,6 +76,8 @@ export const routineSchema = z
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).')
       .nullable()
       .default(null),
+    /** Cases (days and times of the day) instead of the repetition and the time window; empty: the repetition. */
+    cases: z.array(routineCaseSchema).max(20, '20 cas au plus.').default([]),
     /** Calendar schedule it follows instead of its own times and repetition (its days, and the times of its slots). */
     scheduleId: z.string().nullable().default(null),
     scheduleAnchor: z.enum(ROUTINE_ANCHORS).nullable().default(null),
@@ -220,4 +250,34 @@ export function scheduleWindow(schedule: WorkScheduleRule, anchor: RoutineAnchor
  */
 export function routineAlertTime(routine: { fromTime: string | null; dueTime: string | null; estimate: number | null; travelBefore: number; travelAfter: number }): string | null {
   return routineSchedule(routine).leaveAt ?? routine.fromTime ?? routine.dueTime;
+}
+
+/**
+ * Case of a routine on a date: the first of its cases whose repetition (from the first date of the routine) includes it.
+ * @param {readonly RoutineCase[]} cases Cases.
+ * @param {string} start First date of the routine.
+ * @param {string} date Day.
+ * @returns {RoutineCase | null} Case.
+ */
+export function routineCaseOn(cases: readonly RoutineCase[], start: string, date: string): RoutineCase | null {
+  if (date < start) return null;
+  return cases.find((item) => occurrenceDates(item.recurrence, start, date, date).length > 0) ?? null;
+}
+
+/**
+ * Current and next occurrences of a routine with cases: the latest and the next of the days of their repetitions.
+ * @param {readonly RoutineCase[]} cases Cases.
+ * @param {string} start First date of the routine.
+ * @param {string} today Today.
+ * @returns {{ current: string | null, next: string | null }} Dates.
+ */
+export function casesOccurrences(cases: readonly RoutineCase[], start: string, today: string): { current: string | null; next: string | null } {
+  let current: string | null = null;
+  let next: string | null = null;
+  for (const item of cases) {
+    const found = routineOccurrences(item.recurrence, start, today);
+    if (found.current && (!current || found.current > current)) current = found.current;
+    if (found.next && (!next || found.next < next)) next = found.next;
+  }
+  return { current, next };
 }

@@ -1,5 +1,6 @@
+import { TimeField } from '../../components/TimeField';
 import { Button, Chip, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
 import { alarmInputSchema, type AlarmFrequency, type AlarmType } from '@ordo/shared';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -142,7 +143,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
                 valueFormat="D MMM YYYY"
                 {...form.getInputProps('startDate')}
               />
-              <TimeInput label="Heure" required {...form.getInputProps('time')} />
+              <TimeField label="Heure" required {...form.getInputProps('time')} />
               <Select
                 label="Répétition"
                 data={FREQUENCIES}

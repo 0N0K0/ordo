@@ -1,8 +1,9 @@
+import { TimeField } from '../../components/TimeField';
 import { Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnchor } from '@ordo/shared';
+import { DatePickerInput } from '@mantine/dates';
+import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase } from '@ordo/shared';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
-import { useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
@@ -14,7 +15,7 @@ import classes from '../tasks/views/inline-cells.module.css';
 import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
-import { DAILY, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
+import { DAILY, describeRoutineCase, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
@@ -192,21 +193,35 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
    * @returns {JSX.Element} Field.
    */
   const input = (field: 'fromTime' | 'dueTime', name: string) => (
-    <TimeInput
+    <TimeField
       {...cellField}
       aria-label={fieldLabel(name, routine, count)}
       readOnly={readOnly}
       value={drafts[field] ?? routine[field] ?? ''}
-      onChange={(event) => setDrafts((current) => ({ ...current, [field]: event.currentTarget.value }))}
+      onChange={(value) => setDrafts((current) => ({ ...current, [field]: value }))}
       onBlur={() => save(field)}
-      onKeyDown={(event) => cellKeys(event, () => setDrafts((current) => ({ ...current, [field]: undefined })))}
+      onKeyDown={(event) => {
+        // Enter saves (by leaving the field), Escape gives up the draft.
+        if (event.key === 'Enter') (document.activeElement as HTMLElement | null)?.blur();
+        if (event.key === 'Escape') {
+          setDrafts((current) => ({ ...current, [field]: undefined }));
+          (document.activeElement as HTMLElement | null)?.blur();
+        }
+      }}
       style={{ flex: 1, minWidth: 0 }}
     />
   );
 
   return (
     <Stack gap={0}>
-      {routine.scheduleId ? (
+      {(routine.cases as RoutineCase[]).length ? (
+        <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : selon ses cas`}>
+          <Text size="xs">Selon le cas</Text>
+          <Text size="xs" c="dimmed">
+            {routine.slots.map((slot) => windowText(slot) || 'dans la journée').join(' · ') || 'pas ce jour-là'}
+          </Text>
+        </UnstyledButton>
+      ) : routine.scheduleId ? (
         <UnstyledButton
           className={classes.root}
           onClick={() => openRoutineForm({ routine })}
@@ -414,14 +429,37 @@ export function ProjectCell({ routine, readOnly = false, context }: CellProps & 
 }
 
 /**
- * Repetition cell: its rule in words; a click opens the first date and the rule, saved together. On a column
- * selection, they apply to every selected routine.
- * @param {CellProps} props Component props.
+ * Repetition of a routine in words, shown under its title: its rule, its cases, or the days of its calendar schedule.
+ * @param {{ routine: Routine }} props Component props.
+ * @returns {JSX.Element} Text.
+ */
+export function RepetitionText({ routine }: { routine: Routine }) {
+  const { data: schedules } = useWorkSchedules();
+  const cases = routine.cases as RoutineCase[];
+  const rule = ruleOf(routine);
+  const text = cases.length
+    ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
+    : routine.scheduleId
+      ? `Les jours de « ${schedules?.find((item) => item.id === routine.scheduleId)?.name ?? 'sa plage'} »`
+      : rule
+        ? describeRecurrence(rule, routine.startDate)
+        : '';
+  return (
+    <Text size="xs" c="dimmed" lineClamp={1} title={text} px={6}>
+      {text}
+    </Text>
+  );
+}
+
+/**
+ * "Quand" cell: where the routine stands today (its content); a click edits its repetition: its first date and rule in
+ * place, or its form for cases and calendar schedules. On a column selection, the rule applies to every selected
+ * routine.
+ * @param {CellProps & { children: ReactNode }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function RepetitionCell({ routine, readOnly = false }: CellProps) {
+export function RepetitionCell({ routine, readOnly = false, children }: CellProps & { children: ReactNode }) {
   const { apply, count } = useRoutineCellEdit(routine, 'repetition');
-  const { data: schedules } = useWorkSchedules();
   const [opened, setOpened] = useState(false);
   const [startDate, setStartDate] = useState(routine.startDate);
   const [rule, setRule] = useState<Recurrence>(ruleOf(routine) ?? DAILY);
@@ -437,12 +475,10 @@ export function RepetitionCell({ routine, readOnly = false }: CellProps) {
     setOpened(true);
   };
 
-  if (routine.scheduleId) {
+  if (routine.scheduleId || (routine.cases as RoutineCase[]).length) {
     return (
-      <UnstyledButton onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Répétition de ${routine.title} : jours de sa plage`} style={{ width: '100%' }}>
-        <Text size="xs" c="dimmed" lineClamp={2}>
-          Les jours de « {schedules?.find((item) => item.id === routine.scheduleId)?.name ?? 'sa plage'} »
-        </Text>
+      <UnstyledButton onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}`}>
+        {children}
       </UnstyledButton>
     );
   }
@@ -450,10 +486,8 @@ export function RepetitionCell({ routine, readOnly = false }: CellProps) {
   return (
     <Popover opened={opened} onChange={setOpened} position="bottom-start" width={420} shadow="md" trapFocus withinPortal>
       <Popover.Target>
-        <UnstyledButton onClick={open} disabled={readOnly} aria-label={fieldLabel('Répétition', routine, count)} style={{ width: '100%' }}>
-          <Text size="xs" c="dimmed" lineClamp={2}>
-            {current ? describeRecurrence(current, routine.startDate) : '—'}
-          </Text>
+        <UnstyledButton onClick={open} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}${count > 1 ? ` (${routinesLabel(count)})` : ''}`}>
+          {children}
         </UnstyledButton>
       </Popover.Target>
       <Popover.Dropdown>
@@ -465,19 +499,24 @@ export function RepetitionCell({ routine, readOnly = false }: CellProps) {
           )}
           <DatePickerInput label="Première fois" size="xs" valueFormat="D MMM YYYY" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
           <RecurrenceEditor value={rule} onChange={(value) => setRule(value ?? DAILY)} start={startDate} withinPortal={false} />
-          <Group justify="flex-end" gap="sm">
-            <Button size="xs" variant="default" onClick={() => setOpened(false)}>
-              Annuler
+          <Group justify="space-between" gap="sm">
+            <Button size="xs" variant="subtle" onClick={() => (setOpened(false), openRoutineForm({ routine }))}>
+              Plusieurs cas, plage…
             </Button>
-            <Button
-              size="xs"
-              onClick={() => {
-                setOpened(false);
-                apply({ startDate, recurrence: rule }, { startDate, recurrence: rule });
-              }}
-            >
-              Enregistrer
-            </Button>
+            <Group gap="sm">
+              <Button size="xs" variant="default" onClick={() => setOpened(false)}>
+                Annuler
+              </Button>
+              <Button
+                size="xs"
+                onClick={() => {
+                  setOpened(false);
+                  apply({ startDate, recurrence: rule }, { startDate, recurrence: rule });
+                }}
+              >
+                Enregistrer
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Popover.Dropdown>

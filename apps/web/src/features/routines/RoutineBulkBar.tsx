@@ -1,5 +1,6 @@
+import { TimeField } from '../../components/TimeField';
 import { Avatar, Button, CloseButton, ColorSwatch, Group, Menu, NumberInput, Paper, Popover, Stack, Text } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
 import { routineSchema, type Recurrence } from '@ordo/shared';
 import {
   AlarmIcon,
@@ -213,8 +214,8 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
           </Popover.Target>
           <Popover.Dropdown>
             <Group gap="xs" align="flex-end" wrap="nowrap">
-              <TimeInput size="xs" label="À partir de" value={fromTime} onChange={(event) => setFromTime(event.currentTarget.value)} w={110} data-autofocus />
-              <TimeInput size="xs" label="Avant" value={dueTime} onChange={(event) => setDueTime(event.currentTarget.value)} w={110} />
+              <TimeField size="xs" label="À partir de" value={fromTime} onChange={(value) => setFromTime(value)} w={110} data-autofocus />
+              <TimeField size="xs" label="Avant" value={dueTime} onChange={(value) => setDueTime(value)} w={110} />
               <Button
                 size="xs"
                 onClick={() => {

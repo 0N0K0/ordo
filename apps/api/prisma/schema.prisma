@@ -2319,6 +2319,9 @@ model Routine {
   /// from fromTime (null: from the start of the day) to dueTime at the latest (null: until the end of the day).
   fromTime       String?
   dueTime        String?
+  /// Cases (days, as the calendar schedules, and times of the day, each ticked apart) instead of the repetition and
+  /// the time window; empty: the repetition.
+  cases          Json                @default("[]")
   /// Calendar schedule ("plage") it follows instead of its own times and repetition: it occurs on the days of the
   /// schedule, before its start (START), during it (WHOLE) or after its end (END).
   scheduleId     String?
@@ -2380,11 +2383,13 @@ model RoutineCheck {
   routine     Routine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
   /// Date of the occurrence.
   date        DateTime  @db.Date
+  /// Time of the day ticked (its index in the case of that day; 0 without cases).
+  slot        Int       @default(0)
   doneAt      DateTime  @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@id([routineId, date])
+  @@id([routineId, date, slot])
   @@index([workspaceId])
 }

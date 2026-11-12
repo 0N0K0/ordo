@@ -32,6 +32,15 @@ const RoutinesDataDocument = graphql(`
       scheduleId
       scheduleAnchor
       reminders
+      cases
+      done
+      slots {
+        index
+        fromTime
+        dueTime
+        optional
+        done
+      }
       windowFrom
       windowTo
       location
@@ -126,8 +135,8 @@ const BulkDeleteRoutinesDocument = graphql(`
 `);
 
 const SetRoutineDoneDocument = graphql(`
-  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {
-    setRoutineDone(id: $id, done: $done, date: $date)
+  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int) {
+    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot)
   }
 `);
 
@@ -172,6 +181,27 @@ function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (dat
     onError: (_error, _variables, context) => context?.previous && queryClient.setQueryData(routinesKey, context.previous),
     onSettled: () => queryClient.invalidateQueries({ queryKey: routinesKey }),
   });
+}
+
+/**
+ * A routine with times of the day of its current occurrence ticked or not (for the cache).
+ * @param {Routine} routine Routine.
+ * @param {number[]} indexes Times of the day.
+ * @param {boolean} done Ticked.
+ * @returns {Routine} Changed routine.
+ */
+function withSlotsDone(routine: Routine, indexes: number[], done: boolean): Routine {
+  if (!routine.currentDate) return routine;
+  const slots = routine.slots.map((slot) => (indexes.includes(slot.index) ? { ...slot, done } : slot));
+  const day = routine.currentDate;
+  const others = routine.doneDates.filter((value) => value !== day);
+  const any = slots.some((slot) => slot.done);
+  return {
+    ...routine,
+    slots,
+    done: slots.length > 0 && slots.every((slot) => slot.done || slot.optional),
+    doneDates: any ? [day, ...others].sort().reverse() : others,
+  };
 }
 
 /**
@@ -264,6 +294,7 @@ export function routineInputOf(routine: Routine): RoutineInput {
     scheduleId: routine.scheduleId,
     scheduleAnchor: routine.scheduleAnchor as RoutineInput['scheduleAnchor'],
     reminders: routine.reminders,
+    cases: routine.cases as RoutineInput['cases'],
     location: routine.location,
     locationLat: routine.locationLat,
     locationLon: routine.locationLon,
@@ -326,14 +357,8 @@ export function useRoutineMutations() {
     ),
     move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
     setDone: useRoutineMutation(
-      async (variables: { id: string; done: boolean; date?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
-      (data, { id, done, date }) =>
-        patchRoutine(data, id, (routine) => {
-          const day = date ?? routine.currentDate;
-          if (!day) return routine;
-          const others = routine.doneDates.filter((value) => value !== day);
-          return { ...routine, doneDates: done ? [day, ...others].sort().reverse() : others };
-        }),
+      async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
+      (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
     ),
     setArchived: useRoutineMutation(
       async (variables: { id: string; archived: boolean }) => (await execute(SetRoutineArchivedDocument, variables)).setRoutineArchived,
@@ -352,12 +377,15 @@ export function useRoutineMutations() {
       async (variables: { ids: string[]; done: boolean }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
       (data, { ids, done }) => ({
         ...data,
-        routines: data.routines.map((routine) => {
-          const day = routine.currentDate;
-          if (!ids.includes(routine.id) || !day) return routine;
-          const others = routine.doneDates.filter((value) => value !== day);
-          return { ...routine, doneDates: done ? [day, ...others].sort().reverse() : others };
-        }),
+        routines: data.routines.map((routine) =>
+          ids.includes(routine.id) && routine.currentDate
+            ? withSlotsDone(
+                routine,
+                routine.slots.map((slot) => slot.index),
+                done,
+              )
+            : routine,
+        ),
       }),
     ),
     bulkRemove: useRoutineMutation(async (ids: string[]) => (await execute(BulkDeleteRoutinesDocument, { ids })).bulkDeleteRoutines),
