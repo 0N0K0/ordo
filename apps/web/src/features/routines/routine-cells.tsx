@@ -1,7 +1,7 @@
-import { Avatar, Button, Group, NumberInput, Popover, Select, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { Anchor, Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { routineSchema, type Recurrence } from '@ordo/shared';
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
@@ -145,29 +145,86 @@ export function EstimateCell({ routine, readOnly = false }: CellProps) {
   );
 }
 
+/** Categories listed in a cell before « X de plus ». */
+const SHOWN_CATEGORIES = 3;
+
 /**
- * Categories cell: multi-select of the categories (as their path). On a column selection, adding a category adds it to
- * every selected routine and removing one removes it.
+ * Categories cell: the categories one under the other (3 at most, the others behind « X de plus »); a click opens the
+ * multi-select of the categories (as their path). On a column selection, adding a category adds it to every selected
+ * routine and removing one removes it.
  * @param {CellProps & { categories: RoutineCategory[] }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function CategoriesCell({ routine, readOnly = false, categories }: CellProps & { categories: RoutineCategory[] }) {
   const { apply, count } = useRoutineCellEdit(routine, 'categories');
+  const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const placed = categoryTree(categories);
+  const chosen = placed.filter((item) => routine.categoryIds.includes(item.category.id));
+  const shown = expanded ? chosen : chosen.slice(0, SHOWN_CATEGORIES);
+  const hidden = chosen.length - SHOWN_CATEGORIES;
+
+  // The select opens as soon as it shows (as if clicked), its choices given when its list closes.
+  useEffect(() => {
+    if (!editing) return;
+    const input = container.current?.querySelector('input');
+    input?.focus();
+    input?.click();
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <div ref={container}>
+        <BatchMultiSelect
+          {...cellMulti}
+          aria-label={fieldLabel('Catégories', routine, count)}
+          data={placed.map((item) => ({ value: item.category.id, label: item.path }))}
+          value={routine.categoryIds}
+          onChange={(categoryIds) => {
+            const { added, removed } = diff(routine.categoryIds, categoryIds);
+            apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
+          }}
+          onDropdownClose={() => setEditing(false)}
+          placeholder={routine.categoryIds.length ? undefined : '—'}
+          nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
+          searchable
+        />
+      </div>
+    );
+  }
+
   return (
-    <BatchMultiSelect
-      {...cellMulti}
-      aria-label={fieldLabel('Catégories', routine, count)}
-      readOnly={readOnly}
-      data={categoryTree(categories).map((item) => ({ value: item.category.id, label: item.path }))}
-      value={routine.categoryIds}
-      onChange={(categoryIds) => {
-        const { added, removed } = diff(routine.categoryIds, categoryIds);
-        apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
-      }}
-      placeholder={readOnly || routine.categoryIds.length ? undefined : '—'}
-      nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
-      searchable
-    />
+    <Stack gap={2} align="flex-start">
+      <UnstyledButton
+        className={classes.root}
+        onClick={() => setEditing(true)}
+        disabled={readOnly}
+        aria-label={`${fieldLabel('Catégories', routine, count)} : ${chosen.map((item) => item.path).join(', ') || 'aucune'}`}
+        style={{ width: '100%' }}
+      >
+        <Stack gap={2}>
+          {chosen.length === 0 && (
+            <Text size="xs" c="dimmed">
+              {readOnly ? '' : '—'}
+            </Text>
+          )}
+          {shown.map((item) => (
+            <Group key={item.category.id} gap={6} wrap="nowrap" title={item.path}>
+              {item.color && <ColorSwatch color={item.color} size={8} style={{ flexShrink: 0 }} />}
+              <Text size="xs" truncate>
+                {item.category.name}
+              </Text>
+            </Group>
+          ))}
+        </Stack>
+      </UnstyledButton>
+      {hidden > 0 && (
+        <Anchor component="button" type="button" size="xs" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+          {expanded ? 'Moins' : `${hidden} de plus`}
+        </Anchor>
+      )}
+    </Stack>
   );
 }
 

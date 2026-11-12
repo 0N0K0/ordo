@@ -46,12 +46,13 @@ import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePl
 import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RequiresCell, TitleCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
+import { DoneToggle } from './DoneToggle';
 import { openRoutineForm } from './open-routine-form';
 import { DAILY, isDone, NO_CATEGORY, routineRows, stateOf, visibleRoutineRows, waitingFor, type RoutineRow } from './routine-format';
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
-const COLUMNS = 13;
+const COLUMNS = 12;
 
 const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -272,18 +273,8 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           ) : (
             <span style={{ width: 'var(--ai-size-sm, 22px)', flexShrink: 0 }} />
           )}
-          <Checkbox size="xs" aria-label={`Sélectionner ${routine.title}`} checked={selected} onChange={(event) => onSelect(event.currentTarget.checked)} />
+          <Checkbox size="xs" className={classes.select} aria-label={`Sélectionner ${routine.title}`} checked={selected} onChange={(event) => onSelect(event.currentTarget.checked)} />
         </Group>
-      </Table.Td>
-      <Table.Td w={36} px={4}>
-        <Tooltip label={routine.currentDate ? (done ? 'Décocher' : `Cocher pour le ${dayText(routine.currentDate)}`) : 'Pas encore commencée'}>
-          <Checkbox
-            aria-label={`${routine.title} faite`}
-            checked={done}
-            disabled={readOnly || !routine.currentDate}
-            onChange={(event) => setDone.mutate({ id: routine.id, done: event.currentTarget.checked }, { onError: (error) => notifyError(error.message) })}
-          />
-        </Tooltip>
       </Table.Td>
       <Table.Td miw={240} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
         <Group gap={4} wrap="nowrap">
@@ -294,6 +285,14 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           ) : (
             depth > 0 && <span style={{ width: 'var(--ai-size-xs, 18px)', flexShrink: 0 }} />
           )}
+          <DoneToggle
+            title={routine.title}
+            done={done}
+            date={routine.currentDate}
+            dateLabel={routine.currentDate ? dayText(routine.currentDate) : undefined}
+            disabled={readOnly}
+            onChange={(value) => setDone.mutate({ id: routine.id, done: value }, { onError: (error) => notifyError(error.message) })}
+          />
           <TitleCell routine={routine} readOnly={readOnly} />
           {waiting.length > 0 && !done && (
             <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
@@ -691,7 +690,7 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
       }}
     >
       <div className={classes.scroller}>
-        <Table className={classes.table} verticalSpacing={4} miw={1500} aria-label="Routines">
+        <Table className={classes.table} data-selecting={selectedRoutines.length > 0 || undefined} verticalSpacing={4} miw={1500} aria-label="Routines">
           <Table.Thead>
             <Table.Tr>
               <Table.Th px={4}>
@@ -699,17 +698,13 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
                   <span style={{ width: 'var(--ai-size-sm, 22px)', flexShrink: 0 }} />
                   <Checkbox
                     size="xs"
+                    className={classes.select}
                     aria-label="Sélectionner toutes les routines affichées"
                     checked={allSelected}
                     indeterminate={!allSelected && selectedRoutines.length > 0}
                     onChange={(event) => select([...shownIds], event.currentTarget.checked)}
                   />
                 </Group>
-              </Table.Th>
-              <Table.Th>
-                <Text span size="xs" c="dimmed">
-                  Fait
-                </Text>
               </Table.Th>
               <Table.Th>Routine</Table.Th>
               <Table.Th>Quand</Table.Th>
