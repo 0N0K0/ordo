@@ -83,6 +83,12 @@ const PatchRoutineDocument = graphql(`
   }
 `);
 
+const MoveRoutineDocument = graphql(`
+  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {
+    moveRoutine(id: $id, targetId: $targetId, place: $place)
+  }
+`);
+
 const SetRoutineDoneDocument = graphql(`
   mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {
     setRoutineDone(id: $id, done: $done, date: $date)
@@ -144,6 +150,26 @@ const patchRoutine = (data: RoutinesDataQuery, id: string, change: (routine: Rou
   routines: data.routines.map((routine) => (routine.id === id ? change(routine) : routine)),
 });
 
+/** Where a routine is dropped, relative to another one. */
+export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
+
+/**
+ * Moves a routine in the cached data: next to the target (its parent and category), or last under it.
+ * @param {RoutinesDataQuery} data Cached data.
+ * @param {{ id: string, targetId: string, place: RoutinePlace }} move Move.
+ * @returns {RoutinesDataQuery} New data.
+ */
+function moveInCache(data: RoutinesDataQuery, { id, targetId, place }: { id: string; targetId: string; place: RoutinePlace }): RoutinesDataQuery {
+  const moved = data.routines.find((routine) => routine.id === id);
+  const target = data.routines.find((routine) => routine.id === targetId);
+  if (!moved || !target) return data;
+  const placed = place === 'INSIDE' ? { ...moved, parentId: target.id } : { ...moved, parentId: target.parentId, categoryId: target.categoryId };
+  const rest = data.routines.filter((routine) => routine.id !== id);
+  const index = rest.indexOf(target);
+  rest.splice(place === 'INSIDE' ? rest.length : place === 'BEFORE' ? index : index + 1, 0, placed);
+  return { ...data, routines: rest };
+}
+
 /** Inline changes of a routine. */
 export interface RoutinePatchValues {
   title?: string;
@@ -173,6 +199,7 @@ export function useRoutineMutations() {
       async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),
     ),
+    move: useRoutineMutation(async (variables: { id: string; targetId: string; place: RoutinePlace }) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
     setDone: useRoutineMutation(
       async (variables: { id: string; done: boolean; date?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date }) =>

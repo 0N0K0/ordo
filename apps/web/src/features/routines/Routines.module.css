@@ -37,11 +37,19 @@
       background-color: var(--mantine-color-default-hover);
     }
 
-    &[data-over] {
+    &[data-drop='INSIDE'] {
       background-color: var(--mantine-primary-color-light);
     }
 
     /* Effets */
+    &[data-drop='BEFORE'] {
+      box-shadow: inset 0 2px 0 var(--mantine-primary-color-filled);
+    }
+
+    &[data-drop='AFTER'] {
+      box-shadow: inset 0 -2px 0 var(--mantine-primary-color-filled);
+    }
+
     &[data-dragging] {
       opacity: 0.4;
     }

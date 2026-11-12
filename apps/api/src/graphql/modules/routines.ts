@@ -82,6 +82,8 @@ builder.prismaObject('Routine', {
   }),
 });
 
+const RoutinePlaceEnum = builder.enumType('RoutinePlace', { values: ['BEFORE', 'AFTER', 'INSIDE'] as const, description: 'Where a routine is dropped, relative to another one.' });
+
 const CategoryInput = builder.inputType('RoutineCategoryInput', {
   fields: (t) => ({ name: t.string({ required: true }), color: t.string(), parentId: t.id() }),
 });
@@ -200,6 +202,14 @@ builder.mutationFields((t) => ({
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
       if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
       await routines.patchRoutine(String(id), changes);
+      return true;
+    },
+  }),
+  moveRoutine: t.boolean({
+    description: 'Moves a routine before or after another one (same parent and category), or last under it.',
+    args: { id: t.arg.id({ required: true }), targetId: t.arg.id({ required: true }), place: t.arg({ type: RoutinePlaceEnum, required: true }) },
+    resolve: async (_root, { id, targetId, place }) => {
+      await routines.moveRoutine(String(id), String(targetId), place);
       return true;
     },
   }),

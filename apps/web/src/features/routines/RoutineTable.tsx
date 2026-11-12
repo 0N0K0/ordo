@@ -12,6 +12,8 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragMoveEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core';
 import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
@@ -41,7 +43,7 @@ import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { confirmDestructive } from '../shopping/list-modals';
-import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePatchValues } from './api';
+import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePatchValues, type RoutinePlace } from './api';
 import { AssigneesCell, EstimateCell, RequiresCell, TitleCell } from './routine-cells';
 import { openRoutineForm } from './open-routine-form';
 import { DAILY, isDone, NO_CATEGORY, routineRows, ruleOf, stateOf, visibleRoutineRows, waitingFor, type RoutineRow } from './routine-format';
@@ -193,18 +195,18 @@ interface RoutineRowProps {
   today: string;
   running: TimeEntry | null | undefined;
   collapsed: boolean;
-  /** A routine is dragged over it (and can go under it). */
-  over: boolean;
+  /** Where the dragged routine would go on it (before, after or under it), null when not over it. */
+  drop: RoutinePlace | null;
   onToggle: () => void;
 }
 
 /**
- * Row of a routine: moved by its handle (under another routine, or into a category), ticked for its current occurrence,
+ * Row of a routine: moved by its handle (before, after or under another routine, or into a category), ticked for its current occurrence,
  * edited in place.
  * @param {RoutineRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function RoutineRowView({ row, routines, byId, context, today, running, collapsed, over, onToggle }: RoutineRowProps) {
+function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, onToggle }: RoutineRowProps) {
   const { routine, depth, children } = row;
   const { patch, setDone, setArchived, remove } = useRoutineMutations();
   const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: routine.id, disabled: routine.archived });
@@ -228,7 +230,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
         setDropRef(node);
       }}
       className={classes.row}
-      data-over={over || undefined}
+      data-drop={drop ?? undefined}
       data-dragging={isDragging || undefined}
       data-done={done || undefined}
       data-archived={routine.archived || undefined}
@@ -406,16 +408,16 @@ interface RoutineTableProps {
 
 /**
  * Routines as a table: the categories as their tree, each followed by its routines, sub-routines under their parent;
- * categories and parent routines fold. A routine is dragged under another one, or into a category.
+ * categories and parent routines fold. A routine is dragged before, after or under another one, or into a category.
  * @param {RoutineTableProps} props Component props.
  * @returns {JSX.Element} Table.
  */
 export function RoutineTable({ routines, categories, context, keep, addable }: RoutineTableProps) {
-  const { patch } = useRoutineMutations();
+  const { patch, move } = useRoutineMutations();
   const { data: running } = useRunningTimer();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [dragged, setDragged] = useState<Routine | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [drop, setDrop] = useState<{ id: string; place: RoutinePlace } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const today = localToday();
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
@@ -435,13 +437,16 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
     });
 
   /**
-   * Whether the dragged routine can go under a routine: not itself, not one of its sub-routines, not its parent already.
+   * Whether the dragged routine can go before, after or under a routine: never next to or under itself or one of its
+   * sub-routines (it would be its own parent), nor under its parent already.
    * @param {Routine} moved Dragged routine.
    * @param {Routine} target Routine dropped on.
+   * @param {RoutinePlace} place Where.
    * @returns {boolean} Allowed.
    */
-  const canNest = (moved: Routine, target: Routine) => {
-    if (moved.id === target.id || moved.id === target.parentId || target.archived) return false;
+  const canPlace = (moved: Routine, target: Routine, place: RoutinePlace) => {
+    if (moved.id === target.id || target.archived) return false;
+    if (place === 'INSIDE' && moved.parentId === target.id) return false;
     for (let current: Routine | undefined = target; current; current = current.parentId ? byId.get(current.parentId) : undefined) {
       if (current.id === moved.id) return false;
     }
@@ -449,19 +454,36 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
   };
 
   /**
-   * Moves the dropped routine under the routine, or into the category, it was dropped on.
+   * Updates where the dragged routine would go, from the pointer over a row: its top third before it, its bottom third
+   * after it, the middle under it (with the keyboard: under it).
+   * @param {DragMoveEvent | DragOverEvent} event Drag event.
+   * @returns {void}
+   */
+  const handleDragMove = ({ over, activatorEvent, delta }: DragMoveEvent | DragOverEvent) => {
+    const target = over?.data.current as DropData | undefined;
+    if (!over || !target) return setDrop(null);
+    if (target.kind === 'group') return setDrop((current) => (current?.id === over.id ? current : { id: String(over.id), place: 'INSIDE' }));
+    const pointer = 'clientY' in activatorEvent ? (activatorEvent as PointerEvent).clientY + delta.y : null;
+    const ratio = pointer === null ? 0.5 : (pointer - over.rect.top) / Math.max(1, over.rect.height);
+    const place: RoutinePlace = ratio < 0.3 ? 'BEFORE' : ratio > 0.7 ? 'AFTER' : 'INSIDE';
+    setDrop((current) => (current?.id === over.id && current.place === place ? current : { id: String(over.id), place }));
+  };
+
+  /**
+   * Moves the dropped routine before, after or under the routine it was dropped on, or into the category.
    * @param {DragEndEvent} event Drop.
    * @returns {void}
    */
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    const place = drop?.place ?? 'INSIDE';
     setDragged(null);
-    setOverId(null);
+    setDrop(null);
     const moved = byId.get(String(active.id));
     const target = over?.data.current as DropData | undefined;
     if (!moved || !target) return;
     const onError = (error: Error) => notifyError(error.message);
     if (target.kind === 'routine') {
-      if (canNest(moved, target.routine)) patch.mutate({ id: moved.id, input: { parentId: target.routine.id } }, { onError });
+      if (canPlace(moved, target.routine, place)) move.mutate({ id: moved.id, targetId: target.routine.id, place }, { onError });
       return;
     }
     if (moved.parentId === null && moved.categoryId === target.categoryId) return;
@@ -469,12 +491,11 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
   };
 
   /**
-   * Whether a drop target is highlighted.
-   * @param {string} id Droppable id.
-   * @param {Routine} [target] Routine of the row. Optional.
-   * @returns {boolean} Highlighted.
+   * Where the dragged routine would go on a row, if it is the one under the pointer and the move is allowed.
+   * @param {Routine} target Routine of the row.
+   * @returns {RoutinePlace | null} Place.
    */
-  const isOver = (id: string, target?: Routine) => dragged !== null && overId === id && (!target || canNest(dragged, target));
+  const dropOn = (target: Routine): RoutinePlace | null => (dragged !== null && drop?.id === `routine:${target.id}` && canPlace(dragged, target, drop.place) ? drop.place : null);
 
   /**
    * Rows of the body, with the "add" row at the end of each unfolded category.
@@ -485,7 +506,7 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
     shown.forEach((row, index) => {
       if (row.kind === 'group') {
         const key = row.id ?? NO_CATEGORY;
-        out.push(<GroupRow key={`group:${key}`} row={row} today={today} collapsed={collapsed.has(key)} over={isOver(`group:${key}`)} onToggle={() => toggle(key)} />);
+        out.push(<GroupRow key={`group:${key}`} row={row} today={today} collapsed={collapsed.has(key)} over={dragged !== null && drop?.id === `group:${key}`} onToggle={() => toggle(key)} />);
       } else {
         out.push(
           <RoutineRowView
@@ -497,7 +518,7 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
             today={today}
             running={running}
             collapsed={collapsed.has(row.routine.id)}
-            over={isOver(`routine:${row.routine.id}`, row.routine)}
+            drop={dropOn(row.routine)}
             onToggle={() => toggle(row.routine.id)}
           />,
         );
@@ -522,11 +543,12 @@ export function RoutineTable({ routines, categories, context, keep, addable }: R
       collisionDetection={collision}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={({ active }) => setDragged(byId.get(String(active.id)) ?? null)}
-      onDragOver={({ over }) => setOverId(over ? String(over.id) : null)}
+      onDragOver={handleDragMove}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
         setDragged(null);
-        setOverId(null);
+        setDrop(null);
       }}
     >
       <div className={classes.scroller}>

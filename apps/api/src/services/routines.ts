@@ -247,6 +247,31 @@ export async function deleteRoutine(id: string): Promise<void> {
   await prisma.$transaction([prisma.routine.updateMany({ where: { parentId: id }, data: { parentId: routine.parentId } }), prisma.routine.delete({ where: { id } })]);
 }
 
+/** Where a routine is dropped, relative to another one. */
+export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
+
+/**
+ * Moves a routine next to another one (before or after it: same parent and category), or last under it (a
+ * sub-routine), then numbers the siblings in their new order.
+ * @param {string} id Routine moved.
+ * @param {string} targetId Routine it is dropped on.
+ * @param {RoutinePlace} place Before, after or inside the target.
+ * @returns {Promise<void>}
+ */
+export async function moveRoutine(id: string, targetId: string, place: RoutinePlace): Promise<void> {
+  if (id === targetId) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être déplacée sur elle-même.');
+  const routine = await findRoutine(id);
+  const target = await findRoutine(targetId);
+  const parentId = place === 'INSIDE' ? target.id : target.parentId;
+  const categoryId = place === 'INSIDE' ? routine.categoryId : target.categoryId;
+  // The parent is checked (no loop) by the regular update.
+  if (parentId !== routine.parentId || categoryId !== routine.categoryId) await patchRoutine(id, { parentId, categoryId });
+  const siblings = (await prisma.routine.findMany({ where: { parentId, id: { not: id } }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } })).map((sibling) => sibling.id);
+  const index = siblings.indexOf(target.id);
+  siblings.splice(place === 'INSIDE' || index === -1 ? siblings.length : place === 'BEFORE' ? index : index + 1, 0, id);
+  await prisma.$transaction(siblings.map((siblingId, position) => prisma.routine.update({ where: { id: siblingId }, data: { position } })));
+}
+
 /**
  * Ticks or unticks an occurrence of a routine (by default its current one).
  * @param {string} id Routine id.

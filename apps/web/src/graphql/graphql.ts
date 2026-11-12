@@ -544,6 +544,12 @@ export type RoutinePatch = {
   title?: string | null | undefined;
 };
 
+/** Where a routine is dropped, relative to another one. */
+export type RoutinePlace =
+  | 'AFTER'
+  | 'BEFORE'
+  | 'INSIDE';
+
 export type SaveMailDraftInput = {
   accountId: string | number;
   attachments?: Array<File> | null | undefined;
@@ -2486,6 +2492,15 @@ export type PatchRoutineMutationVariables = Exact<{
 
 
 export type PatchRoutineMutation = { patchRoutine: boolean };
+
+export type MoveRoutineMutationVariables = Exact<{
+  id: string | number;
+  targetId: string | number;
+  place: RoutinePlace;
+}>;
+
+
+export type MoveRoutineMutation = { moveRoutine: boolean };
 
 export type SetRoutineDoneMutationVariables = Exact<{
   id: string | number;
@@ -6521,6 +6536,11 @@ export const PatchRoutineDocument = new TypedDocumentString(`
   patchRoutine(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<PatchRoutineMutation, PatchRoutineMutationVariables>;
+export const MoveRoutineDocument = new TypedDocumentString(`
+    mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {
+  moveRoutine(id: $id, targetId: $targetId, place: $place)
+}
+    `) as unknown as TypedDocumentString<MoveRoutineMutation, MoveRoutineMutationVariables>;
 export const SetRoutineDoneDocument = new TypedDocumentString(`
     mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {
   setRoutineDone(id: $id, done: $done, date: $date)

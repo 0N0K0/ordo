@@ -1601,6 +1601,11 @@ type Mutation {
   moveProjectStatus(id: ID!, index: Int!): Boolean!
 
   """
+  Moves a routine before or after another one (same parent and category), or last under it.
+  """
+  moveRoutine(id: ID!, place: RoutinePlace!, targetId: ID!): Boolean!
+
+  """
   Moves a category under another one (parentId), or to the top level (parentId null).
   """
   moveRoutineCategory(id: ID!, parentId: ID): Boolean!
@@ -2417,6 +2422,13 @@ input RoutinePatch {
   parentId: ID
   requiredIds: [ID!]
   title: String
+}
+
+"""Where a routine is dropped, relative to another one."""
+enum RoutinePlace {
+  AFTER
+  BEFORE
+  INSIDE
 }
 
 input SaveMailDraftInput {

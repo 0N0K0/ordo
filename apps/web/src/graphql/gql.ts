@@ -227,6 +227,7 @@ type Documents = {
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": typeof types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": typeof types.PatchRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place)\n  }\n": typeof types.MoveRoutineDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {\n    setRoutineDone(id: $id, done: $done, date: $date)\n  }\n": typeof types.SetRoutineDoneDocument,
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": typeof types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": typeof types.DeleteRoutineDocument,
@@ -627,6 +628,7 @@ const documents: Documents = {
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": types.PatchRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place)\n  }\n": types.MoveRoutineDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date) {\n    setRoutineDone(id: $id, done: $done, date: $date)\n  }\n": types.SetRoutineDoneDocument,
     "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": types.SetRoutineArchivedDocument,
     "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": types.DeleteRoutineDocument,
@@ -1663,6 +1665,10 @@ export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: Ro
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n"): typeof import('./graphql').PatchRoutineDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
