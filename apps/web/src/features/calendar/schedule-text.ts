@@ -58,11 +58,11 @@ function monthDayText(item: ScheduleCaseInput): string {
 }
 
 /**
- * Days of a case in words: "En semaine · semaines paires", "Le 15 de chaque mois".
- * @param {Omit<ScheduleCaseInput, 'allDay' | 'ranges'>} item Days of a case.
+ * Days and hours of a case in words: "En semaine · semaines paires · 09:00–12:30, 14:00–18:00".
+ * @param {ScheduleCaseInput} item Case.
  * @returns {string} Description.
  */
-export function describeDays(item: Omit<ScheduleCaseInput, 'allDay' | 'ranges'>): string {
+export function describeCase(item: ScheduleCaseInput): string {
   const every = item.every ?? 1;
   let days: string;
   switch (item.pattern) {
@@ -89,17 +89,8 @@ export function describeDays(item: Omit<ScheduleCaseInput, 'allDay' | 'ranges'>)
       days = `${monthDayText(item)} ${item.monthlyMode === 'WEEKDAY' ? 'de ' : ''}${MONTH_NAMES[(item.month ?? 1) - 1]}${every === 1 ? '' : ` tous les ${every} ans`}`;
       break;
   }
-  return `${days.charAt(0).toUpperCase()}${days.slice(1)}`;
-}
-
-/**
- * Days and hours of a case in words: "En semaine · semaines paires · 09:00–12:30, 14:00–18:00".
- * @param {ScheduleCaseInput} item Case.
- * @returns {string} Description.
- */
-export function describeCase(item: ScheduleCaseInput): string {
   const hours = item.allDay ? 'toute la journée' : (item.ranges ?? []).map((range) => `${range.start}–${range.end}`).join(', ');
-  return `${describeDays(item)} · ${hours}`;
+  return `${days.charAt(0).toUpperCase()}${days.slice(1)} · ${hours}`;
 }
 
 /**
