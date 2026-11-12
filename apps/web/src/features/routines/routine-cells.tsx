@@ -1,7 +1,8 @@
-import { Anchor, Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnchor } from '@ordo/shared';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
+import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
@@ -10,9 +11,10 @@ import { notifyError } from '../../lib/notify';
 import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import classes from '../tasks/views/inline-cells.module.css';
+import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
-import { DAILY, ruleOf, scheduleOf, windowOf, windowText } from './routine-format';
+import { DAILY, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
@@ -248,37 +250,23 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
   );
 }
 
-/** Categories listed in a cell before « X de plus ». */
-const SHOWN_CATEGORIES = 3;
-
 /**
- * Categories cell: the categories one under the other (3 at most, the others behind « X de plus »); a click opens the
- * multi-select of the categories (as their path). On a column selection, adding a category adds it to every selected
- * routine and removing one removes it.
+ * Categories cell: the categories one under the other; a click opens the multi-select of the categories (as their
+ * path). On a column selection, adding a category adds it to every selected routine and removing one removes it.
  * @param {CellProps & { categories: RoutineCategory[] }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function CategoriesCell({ routine, readOnly = false, categories }: CellProps & { categories: RoutineCategory[] }) {
   const { apply, count } = useRoutineCellEdit(routine, 'categories');
-  const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const container = useRef<HTMLDivElement>(null);
   const placed = categoryTree(categories);
-  const chosen = placed.filter((item) => routine.categoryIds.includes(item.category.id));
-  const shown = expanded ? chosen : chosen.slice(0, SHOWN_CATEGORIES);
-  const hidden = chosen.length - SHOWN_CATEGORIES;
-
-  // The select opens as soon as it shows (as if clicked), its choices given when its list closes.
-  useEffect(() => {
-    if (!editing) return;
-    const input = container.current?.querySelector('input');
-    input?.focus();
-    input?.click();
-  }, [editing]);
-
-  if (editing) {
-    return (
-      <div ref={container}>
+  return (
+    <StackedMultiCell
+      label={fieldLabel('Catégories', routine, count)}
+      readOnly={readOnly}
+      items={placed
+        .filter((item) => routine.categoryIds.includes(item.category.id))
+        .map((item) => ({ id: item.category.id, label: item.category.name, title: item.path, icon: item.color ? <ColorSwatch color={item.color} size={8} style={{ flexShrink: 0 }} /> : undefined }))}
+      renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Catégories', routine, count)}
@@ -288,107 +276,112 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
             const { added, removed } = diff(routine.categoryIds, categoryIds);
             apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
           }}
-          onDropdownClose={() => setEditing(false)}
+          onDropdownClose={onDropdownClose}
           placeholder={routine.categoryIds.length ? undefined : '—'}
           nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
           searchable
         />
-      </div>
-    );
-  }
-
-  return (
-    <Stack gap={2} align="flex-start">
-      <UnstyledButton
-        className={classes.root}
-        onClick={() => setEditing(true)}
-        disabled={readOnly}
-        aria-label={`${fieldLabel('Catégories', routine, count)} : ${chosen.map((item) => item.path).join(', ') || 'aucune'}`}
-        style={{ width: '100%' }}
-      >
-        <Stack gap={2}>
-          {chosen.length === 0 && (
-            <Text size="xs" c="dimmed">
-              {readOnly ? '' : '—'}
-            </Text>
-          )}
-          {shown.map((item) => (
-            <Group key={item.category.id} gap={6} wrap="nowrap" title={item.path}>
-              {item.color && <ColorSwatch color={item.color} size={8} style={{ flexShrink: 0 }} />}
-              <Text size="xs" truncate>
-                {item.category.name}
-              </Text>
-            </Group>
-          ))}
-        </Stack>
-      </UnstyledButton>
-      {hidden > 0 && (
-        <Anchor component="button" type="button" size="xs" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
-          {expanded ? 'Moins' : `${hidden} de plus`}
-        </Anchor>
       )}
-    </Stack>
+    />
   );
 }
 
 /**
- * Assignees cell: multi-select of the contributors. On a column selection, adding a contributor adds them to every
- * selected routine and removing one removes them.
+ * Assignees cell: the assignees one under the other; a click opens the multi-select of the contributors. On a column
+ * selection, adding a contributor adds them to every selected routine and removing one removes them.
  * @param {CellProps & { context: TaskContext }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function AssigneesCell({ routine, readOnly = false, context }: CellProps & { context: TaskContext }) {
   const { apply, count } = useRoutineCellEdit(routine, 'assignees');
   return (
-    <BatchMultiSelect
-      {...cellMulti}
-      aria-label={fieldLabel('Assignés', routine, count)}
+    <StackedMultiCell
+      label={fieldLabel('Assignés', routine, count)}
       readOnly={readOnly}
-      data={context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
-      renderOption={({ option }) => {
-        const contributor = context.contributorById.get(option.value);
-        return (
-          <Group gap="xs" wrap="nowrap">
-            <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
-            {option.label}
-          </Group>
-        );
-      }}
-      value={routine.assigneeIds}
-      onChange={(assigneeIds) => {
-        const { added, removed } = diff(routine.assigneeIds, assigneeIds);
-        apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed });
-      }}
-      placeholder={readOnly || routine.assigneeIds.length ? undefined : '—'}
-      searchable
+      items={routine.assigneeIds.flatMap((id) => {
+        const contributor = context.contributorById.get(id);
+        return contributor
+          ? [{ id, label: context.contributorName(contributor), icon: <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={16} style={{ flexShrink: 0 }} /> }]
+          : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellMulti}
+          aria-label={fieldLabel('Assignés', routine, count)}
+          data={context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
+          renderOption={({ option }) => {
+            const contributor = context.contributorById.get(option.value);
+            return (
+              <Group gap="xs" wrap="nowrap">
+                <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
+                {option.label}
+              </Group>
+            );
+          }}
+          value={routine.assigneeIds}
+          onChange={(assigneeIds) => {
+            const { added, removed } = diff(routine.assigneeIds, assigneeIds);
+            apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed });
+          }}
+          onDropdownClose={onDropdownClose}
+          placeholder={routine.assigneeIds.length ? undefined : '—'}
+          searchable
+        />
+      )}
     />
   );
 }
 
 /**
- * "Dépend de" cell: multi-select of the other routines to do before this one. On a column selection, the change
- * applies to every selected routine (never to itself).
+ * "Dépend de" cell: the routines to do before this one, one under the other (those still to do for their current
+ * occurrence marked with an hourglass); a click opens the multi-select of the other routines. On a column selection,
+ * the change applies to every selected routine (never to itself).
  * @param {CellProps & { routines: Routine[] }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function RequiresCell({ routine, readOnly = false, routines }: CellProps & { routines: Routine[] }) {
   const { apply, count } = useRoutineCellEdit(routine, 'requires');
+  const byId = new Map(routines.map((other) => [other.id, other]));
+  const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
   return (
-    <BatchMultiSelect
-      {...cellMulti}
-      aria-label={fieldLabel('Dépendances', routine, count)}
+    <StackedMultiCell
+      label={fieldLabel('Dépendances', routine, count)}
       readOnly={readOnly}
-      data={routines
-        .filter((other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id)))
-        .map((other) => ({ value: other.id, label: other.title }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'fr'))}
-      value={routine.requiredIds}
-      onChange={(requiredIds) => {
-        const { added, removed } = diff(routine.requiredIds, requiredIds);
-        apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
-      }}
-      placeholder={readOnly || routine.requiredIds.length ? undefined : '—'}
-      searchable
+      items={routine.requiredIds.flatMap((id) => {
+        const required = byId.get(id);
+        return required
+          ? [
+              {
+                id,
+                label: required.title,
+                title: waiting.has(id) ? `${required.title} (pas encore faite)` : required.title,
+                icon: waiting.has(id) ? (
+                  <HourglassMediumIcon aria-hidden color="var(--mantine-color-orange-6)" style={{ flexShrink: 0 }} />
+                ) : (
+                  <CheckIcon aria-hidden color="var(--mantine-color-green-6)" style={{ flexShrink: 0 }} />
+                ),
+              },
+            ]
+          : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellMulti}
+          aria-label={fieldLabel('Dépendances', routine, count)}
+          data={routines
+            .filter((other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id)))
+            .map((other) => ({ value: other.id, label: other.title }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'fr'))}
+          value={routine.requiredIds}
+          onChange={(requiredIds) => {
+            const { added, removed } = diff(routine.requiredIds, requiredIds);
+            apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
+          }}
+          onDropdownClose={onDropdownClose}
+          placeholder={routine.requiredIds.length ? undefined : '—'}
+          searchable
+        />
+      )}
     />
   );
 }

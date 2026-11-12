@@ -1,16 +1,29 @@
 import { NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { TimeInput } from '@mantine/dates';
 import { ROUTINE_ANCHOR_LABELS, ROUTINE_ANCHORS, routineSchedule, type RoutineAnchor } from '@ordo/shared';
-import { CarIcon, ClockIcon } from '@phosphor-icons/react';
+import { BellIcon, CarIcon, ClockIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { useWorkSchedules } from '../calendar/api';
 import { EventLocation } from '../geo/EventLocation';
 import { TravelCalculator } from '../geo/TravelCalculator';
+
+/** Alert presets, in minutes before the moment of the routine. */
+const ROUTINE_REMINDERS: { value: number; label: string }[] = [
+  { value: 0, label: 'À l’heure' },
+  { value: 5, label: '5 min avant' },
+  { value: 10, label: '10 min avant' },
+  { value: 15, label: '15 min avant' },
+  { value: 30, label: '30 min avant' },
+  { value: 60, label: '1 h avant' },
+  { value: 120, label: '2 h avant' },
+];
 
 /** Time and place fields of a routine. */
 export interface RoutineScheduleValues {
   scheduleId: string | null;
   scheduleAnchor: RoutineAnchor | null;
+  reminders: number[];
   fromTime: string | null;
   dueTime: string | null;
   estimate: number | null;
@@ -144,6 +157,22 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
           <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ travelBefore: before, travelAfter: after })} />
         </Stack>
       </SimpleGrid>
+      <BatchMultiSelect
+        label="Alertes"
+        description={
+          values.scheduleId || values.fromTime || values.dueTime
+            ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.'
+            : 'Donnez-lui un horaire ou une plage pour pouvoir l’alerter.'
+        }
+        leftSection={<BellIcon aria-hidden />}
+        placeholder={values.reminders.length ? undefined : 'Aucune'}
+        disabled={!values.scheduleId && !values.fromTime && !values.dueTime}
+        data={ROUTINE_REMINDERS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
+        value={values.reminders.map(String)}
+        onChange={(reminders) => onChange({ reminders: reminders.map(Number).sort((a, b) => a - b) })}
+        clearable
+        error={errors.reminders}
+      />
       {(leaveAt || backAt) && (
         <Text size="sm" c="dimmed">
           {leaveAt && `Partir à ${leaveAt.replace(':', ' h ')}${values.estimate && values.dueTime ? ` (trajet et ${values.estimate} min sur place)` : ''}`}

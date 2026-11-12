@@ -55,6 +55,7 @@ builder.prismaObject('Routine', {
     fromTime: t.exposeString('fromTime', { nullable: true, description: 'Time to do it from (HH:MM), its own (see windowFrom).' }),
     scheduleId: t.exposeID('scheduleId', { nullable: true, description: 'Calendar schedule it follows (its days and times).' }),
     scheduleAnchor: t.exposeString('scheduleAnchor', { nullable: true, description: 'START, WHOLE or END of the schedule.' }),
+    reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
     windowFrom: t.string({
       nullable: true,
       description: 'Time to do it from on its current (or next) occurrence: its own, or the one of its schedule.',
@@ -133,6 +134,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     fromTime: t.string({ description: 'HH:MM.' }),
     scheduleId: t.id(),
     scheduleAnchor: t.string({ description: 'START, WHOLE or END.' }),
+    reminders: t.intList(),
     dueTime: t.string({ description: 'HH:MM.' }),
     location: t.string(),
     locationLat: t.float(),
@@ -203,6 +205,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   fromTime: input.fromTime ?? null,
   scheduleId: idOrNull(input.scheduleId),
   scheduleAnchor: (input.scheduleAnchor ?? null) as RoutineInput['scheduleAnchor'],
+  reminders: input.reminders ?? [],
   dueTime: input.dueTime ?? null,
   location: input.location ?? null,
   locationLat: input.locationLat ?? null,

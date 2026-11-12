@@ -11,6 +11,7 @@ import {
   useCombobox,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
+import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -23,6 +24,7 @@ import { useTaskLink } from '../use-task-link';
 import { useCellEdit } from './cell-edit';
 import classes from './inline-cells.module.css';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
+import { StackedMultiCell } from './StackedMultiCell';
 
 /**
  * Stops the click from reaching the row.
@@ -231,26 +233,36 @@ export function MilestoneCell({ task, context }: { task: Task; context: TaskCont
 export function TagsCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'tags');
   return (
-    <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={fieldLabel('Étiquettes', task, count)}
-      data={context.tags.map((tag) => ({ value: tag.id, label: tag.name }))}
-      renderOption={({ option }) => (
-        <Group gap="xs" wrap="nowrap">
-          <ColorSwatch color={context.tagById.get(option.value)?.color ?? 'gray'} size={10} />
-          {option.label}
-        </Group>
+    <StackedMultiCell
+      label={fieldLabel('Étiquettes', task, count)}
+      items={task.tagIds.flatMap((id) => {
+        const tag = context.tagById.get(id);
+        return tag ? [{ id, label: tag.name, icon: <ColorSwatch color={tag.color} size={8} style={{ flexShrink: 0 }} /> }] : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={fieldLabel('Étiquettes', task, count)}
+          data={context.tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+          renderOption={({ option }) => (
+            <Group gap="xs" wrap="nowrap">
+              <ColorSwatch color={context.tagById.get(option.value)?.color ?? 'gray'} size={10} />
+              {option.label}
+            </Group>
+          )}
+          value={task.tagIds}
+          onChange={(tagIds) => {
+            const added = tagIds.filter((id) => !task.tagIds.includes(id));
+            const removed = task.tagIds.filter((id) => !tagIds.includes(id));
+            apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
+          }}
+          onDropdownClose={onDropdownClose}
+          placeholder={task.tagIds.length ? undefined : '—'}
+          searchable
+          nothingFoundMessage="Aucune étiquette (Paramètres › Tâches)"
+        />
       )}
-      value={task.tagIds}
-      onChange={(tagIds) => {
-        const added = tagIds.filter((id) => !task.tagIds.includes(id));
-        const removed = task.tagIds.filter((id) => !tagIds.includes(id));
-        apply({ tagIds }, { addTagIds: added, removeTagIds: removed });
-      }}
-      placeholder={task.tagIds.length ? undefined : '—'}
-      searchable
-      nothingFoundMessage="Aucune étiquette (Paramètres › Tâches)"
     />
   );
 }
@@ -263,21 +275,32 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
  */
 export function SprintCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'sprint');
+  const sprints = context.sprintsFor(task.projectId);
   return (
-    <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={fieldLabel('Sprints', task, count)}
-      data={context.sprintsFor(task.projectId).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
-      value={task.sprintIds}
-      onChange={(sprintIds) => {
-        const added = sprintIds.filter((id) => !task.sprintIds.includes(id));
-        const removed = task.sprintIds.filter((id) => !sprintIds.includes(id));
-        apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
-      }}
-      placeholder={task.sprintIds.length ? undefined : '—'}
-      searchable
-      nothingFoundMessage="Aucun sprint dans ce projet"
+    <StackedMultiCell
+      label={fieldLabel('Sprints', task, count)}
+      items={task.sprintIds.flatMap((id) => {
+        const sprint = sprints.find((item) => item.id === id) ?? context.sprints.find((item) => item.id === id);
+        return sprint ? [{ id, label: sprint.name }] : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={fieldLabel('Sprints', task, count)}
+          data={sprints.map((sprint) => ({ value: sprint.id, label: sprint.name }))}
+          value={task.sprintIds}
+          onChange={(sprintIds) => {
+            const added = sprintIds.filter((id) => !task.sprintIds.includes(id));
+            const removed = task.sprintIds.filter((id) => !sprintIds.includes(id));
+            apply({ sprintIds }, { addSprintIds: added, removeSprintIds: removed });
+          }}
+          onDropdownClose={onDropdownClose}
+          placeholder={task.sprintIds.length ? undefined : '—'}
+          searchable
+          nothingFoundMessage="Aucun sprint dans ce projet"
+        />
+      )}
     />
   );
 }
@@ -291,31 +314,43 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
 export function AssigneesCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'assignees');
   return (
-    <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={fieldLabel('Assignés', task, count)}
-      data={context.assignableFor([task.projectId], task.assigneeIds).map((contributor) => ({
-        value: contributor.id,
-        label: context.contributorName(contributor),
-      }))}
-      renderOption={({ option }) => {
-        const contributor = context.contributorById.get(option.value);
-        return (
-          <Group gap="xs" wrap="nowrap">
-            <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
-            {option.label}
-          </Group>
-        );
-      }}
-      value={task.assigneeIds}
-      onChange={(assigneeIds) => {
-        const added = assigneeIds.filter((id) => !task.assigneeIds.includes(id));
-        const removed = task.assigneeIds.filter((id) => !assigneeIds.includes(id));
-        apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed });
-      }}
-      placeholder={task.assigneeIds.length ? undefined : '—'}
-      searchable
+    <StackedMultiCell
+      label={fieldLabel('Assignés', task, count)}
+      items={task.assigneeIds.flatMap((id) => {
+        const contributor = context.contributorById.get(id);
+        return contributor
+          ? [{ id, label: context.contributorName(contributor), icon: <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={16} style={{ flexShrink: 0 }} /> }]
+          : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={fieldLabel('Assignés', task, count)}
+          data={context.assignableFor([task.projectId], task.assigneeIds).map((contributor) => ({
+            value: contributor.id,
+            label: context.contributorName(contributor),
+          }))}
+          renderOption={({ option }) => {
+            const contributor = context.contributorById.get(option.value);
+            return (
+              <Group gap="xs" wrap="nowrap">
+                <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
+                {option.label}
+              </Group>
+            );
+          }}
+          value={task.assigneeIds}
+          onChange={(assigneeIds) => {
+            const added = assigneeIds.filter((id) => !task.assigneeIds.includes(id));
+            const removed = task.assigneeIds.filter((id) => !assigneeIds.includes(id));
+            apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed });
+          }}
+          onDropdownClose={onDropdownClose}
+          placeholder={task.assigneeIds.length ? undefined : '—'}
+          searchable
+        />
+      )}
     />
   );
 }
@@ -335,24 +370,48 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
   const onError = { onError: (error: Error) => notifyError(error.message) };
+  const label = `Tâches dont dépend la tâche #${task.number}`;
   return (
-    <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={`Tâches dont dépend la tâche #${task.number}`}
-      data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `#${item.number} ${item.title}` }))}
-      value={task.blockedByIds}
-      onChange={(ids) => {
-        for (const id of ids.filter((item) => !task.blockedByIds.includes(item))) {
-          taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, onError);
-        }
-        for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
-          taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, onError);
-        }
-      }}
-      placeholder={task.blockedByIds.length ? undefined : '—'}
-      searchable
-      nothingFoundMessage="Aucune tâche"
+    <StackedMultiCell
+      label={label}
+      items={task.blockedByIds.flatMap((id) => {
+        const blocker = context.taskById.get(id);
+        return blocker
+          ? [
+              {
+                id,
+                label: `#${blocker.number} ${blocker.title}`,
+                title: `#${blocker.number} ${blocker.title}${blocker.closed ? ' (fermée)' : ' (ouverte : bloque la tâche)'}`,
+                icon: blocker.closed ? (
+                  <CheckIcon aria-hidden color="var(--mantine-color-green-6)" style={{ flexShrink: 0 }} />
+                ) : (
+                  <HourglassMediumIcon aria-hidden color="var(--mantine-color-orange-6)" style={{ flexShrink: 0 }} />
+                ),
+              },
+            ]
+          : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={label}
+          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `#${item.number} ${item.title}` }))}
+          value={task.blockedByIds}
+          onChange={(ids) => {
+            for (const id of ids.filter((item) => !task.blockedByIds.includes(item))) {
+              taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, onError);
+            }
+            for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
+              taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, onError);
+            }
+          }}
+          onDropdownClose={onDropdownClose}
+          placeholder={task.blockedByIds.length ? undefined : '—'}
+          searchable
+          nothingFoundMessage="Aucune tâche"
+        />
+      )}
     />
   );
 }

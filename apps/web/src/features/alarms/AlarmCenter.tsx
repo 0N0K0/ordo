@@ -4,18 +4,22 @@ import { useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { fetchCalendarEvents, type EventOccurrence } from '../calendar/api';
 import { useTasksData } from '../tasks/api';
+import { useRoutineMutations, useRoutinesData } from '../routines/api';
 import { useRunningTimer } from '../time/api';
 import { useWorkspace } from '../workspace/api';
 import { useAlarmMutations, useAlarms, type Alarm } from './api';
 import { unlockAudioOnGesture } from './alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
+import { ringRoutineReminders } from './ring-routines';
+import { notifyError } from '../../lib/notify';
 
 const TICK_MS = 15_000;
 
 /**
  * Rings the alarms of the workspace open while the app is: chime, system notification (when allowed) and a
  * toast that stays until closed. Scheduled alarms ring at their times (missed ones, within a few hours, ring
- * on opening); tracking alarms ring after every set duration of the running timer. Renders nothing.
+ * on opening); tracking alarms ring after every set duration of the running timer; event reminders and routine alerts
+ * before their moments. Renders nothing.
  * @returns {null} Nothing.
  */
 export function AlarmCenter() {
@@ -24,6 +28,8 @@ export function AlarmCenter() {
   const { data: tasksData } = useTasksData();
   const { data: workspace } = useWorkspace();
   const { markFired } = useAlarmMutations();
+  const { data: routinesData } = useRoutinesData();
+  const { setDone } = useRoutineMutations();
   // Tracking alarms: last rung step per alarm and timer, so a reload does not ring past steps again.
   const trackingSteps = useRef(new Map<string, number>());
   // Event occurrences of the next days, for their reminders.
@@ -46,10 +52,10 @@ export function AlarmCenter() {
     return () => window.clearInterval(timer);
   }, []);
   const navigate = useNavigate();
-  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate });
+  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone });
 
   useEffect(() => {
-    latest.current = { alarms, running, tasksData, workspace, markFired, navigate };
+    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone };
   });
 
   useEffect(() => unlockAudioOnGesture(), []);
@@ -86,6 +92,9 @@ export function AlarmCenter() {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
       ringReminders(upcoming.current, now, [link('Voir l’agenda', '/calendar')]);
+      ringRoutineReminders(latest.current.routinesData?.routines ?? [], now, [link('Voir les routines', '/routines')], (routine) =>
+        latest.current.setDone.mutate({ id: routine.id, done: true }, { onError: (error) => notifyError(error.message) }),
+      );
       if (!list) return;
       const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));
       for (const { alarm, key } of due) ringAlarm(alarm, key, alarmLinks(alarm));
