@@ -1,9 +1,11 @@
 import {
+  shoppingBaseListNameSchema,
   shoppingItemSchema,
   shoppingCategorySchema,
   shoppingListNameSchema,
   shoppingProductSchema,
   shoppingStoreSchema,
+  shoppingStorageSchema,
   shoppingShares,
   type ShoppingItemInput,
   type ShoppingCategoryInput,
@@ -11,13 +13,20 @@ import {
   type ShoppingStoreInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
-import { Prisma, type ShoppingCategory, type ShoppingItem, type ShoppingList, type ShoppingProduct, type ShoppingStore } from '../generated/prisma/client';
+import { Prisma, type ShoppingBaseList, type ShoppingCategory, type ShoppingItem, type ShoppingList, type ShoppingProduct, type ShoppingStorage, type ShoppingStore } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { moveInOrder } from './ordering';
 import { isMember } from './treasury-team';
 
 const decimal = (value: number | null) => (value === null ? null : new Prisma.Decimal(value));
 const number = (value: Prisma.Decimal | null) => (value === null ? null : Number(value));
+const day = (value: string | null) => (value === null ? null : new Date(`${value}T00:00:00Z`));
+
+/**
+ * Today in France, as a date column holds it.
+ * @returns {Date} Today at 00:00 UTC.
+ */
+const today = () => new Date(`${new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })}T00:00:00Z`);
 
 /**
  * Checks the members of the team or household and the relations a product or an item is for.
@@ -41,6 +50,15 @@ async function assertPlaces({ categoryId, storeId }: { categoryId: string | null
   if (storeId && !(await prisma.shoppingStore.findUnique({ where: { id: storeId }, select: { id: true } }))) throw notFound('Magasin');
 }
 
+/**
+ * Checks the storage mode of a product or an item.
+ * @param {string | null} storageId Storage mode.
+ * @returns {Promise<void>}
+ */
+async function assertStorage(storageId: string | null): Promise<void> {
+  if (storageId && !(await prisma.shoppingStorage.findUnique({ where: { id: storageId }, select: { id: true } }))) throw notFound('Mode de conservation');
+}
+
 type Parsed = ReturnType<typeof shoppingItemSchema.parse>;
 
 /**
@@ -57,6 +75,10 @@ const fields = (input: Parsed) => ({
   quantity: decimal(input.quantity),
   unit: input.unit,
   unitPrice: decimal(input.unitPrice),
+  perishable: input.perishable,
+  // Storage mode and date only for what is perishable.
+  storageId: input.perishable ? input.storageId : null,
+  expiresAt: input.perishable ? day(input.expiresAt) : null,
 });
 
 /**
@@ -79,6 +101,7 @@ const people = (input: Parsed, mode: 'connect' | 'set') => ({
 async function parseShopping<T extends typeof shoppingItemSchema | typeof shoppingProductSchema>(schema: T, input: unknown) {
   const parsed = parseInput(schema, input) as ReturnType<T['parse']>;
   await assertPlaces(parsed);
+  await assertStorage(parsed.perishable ? parsed.storageId : null);
   await assertPeople(parsed.memberIds, parsed.relationIds);
   return parsed;
 }
@@ -93,6 +116,8 @@ async function parseShopping<T extends typeof shoppingItemSchema | typeof shoppi
  */
 async function parseCategory(input: ShoppingCategoryInput, id?: string) {
   const data = parseInput(shoppingCategorySchema, input);
+  data.baseListIds = [...new Set(data.baseListIds)];
+  if ((await prisma.shoppingBaseList.count({ where: { id: { in: data.baseListIds } } })) !== data.baseListIds.length) throw notFound('Liste type');
   if (!data.parentId) return data;
   if (!(await prisma.shoppingCategory.findUnique({ where: { id: data.parentId }, select: { id: true } }))) throw notFound('Catégorie parente');
   if (id) {
@@ -111,7 +136,8 @@ async function parseCategory(input: ShoppingCategoryInput, id?: string) {
  * @returns {Promise<ShoppingCategory>} Category.
  */
 export async function createCategory(input: ShoppingCategoryInput): Promise<ShoppingCategory> {
-  return prisma.shoppingCategory.create({ data: await parseCategory(input) });
+  const { baseListIds, ...data } = await parseCategory(input);
+  return prisma.shoppingCategory.create({ data: { ...data, baseLists: { connect: baseListIds.map((baseListId) => ({ id: baseListId })) } } });
 }
 
 /**
@@ -122,7 +148,20 @@ export async function createCategory(input: ShoppingCategoryInput): Promise<Shop
  */
 export async function updateCategory(id: string, input: ShoppingCategoryInput): Promise<ShoppingCategory> {
   if (!(await prisma.shoppingCategory.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Catégorie');
-  return prisma.shoppingCategory.update({ where: { id }, data: await parseCategory(input, id) });
+  const { baseListIds, ...data } = await parseCategory(input, id);
+  return prisma.shoppingCategory.update({ where: { id }, data: { ...data, baseLists: { set: baseListIds.map((baseListId) => ({ id: baseListId })) } } });
+}
+
+/**
+ * Moves a category under another one (or to the top level), keeping its name, color and base lists.
+ * @param {string} id Category id.
+ * @param {string | null} parentId New parent, null for the top level.
+ * @returns {Promise<ShoppingCategory>} Category.
+ */
+export async function moveCategory(id: string, parentId: string | null): Promise<ShoppingCategory> {
+  const category = await prisma.shoppingCategory.findUnique({ where: { id }, include: { baseLists: { select: { id: true } } } });
+  if (!category) throw notFound('Catégorie');
+  return updateCategory(id, { name: category.name, color: category.color, parentId, baseListIds: category.baseLists.map((baseList) => baseList.id) });
 }
 
 /**
@@ -193,16 +232,134 @@ export async function moveStore(id: string, index: number): Promise<void> {
   await prisma.$transaction(order.map((storeId, position) => prisma.shoppingStore.update({ where: { id: storeId }, data: { position } })));
 }
 
-// Base list ------------------------------------------------------------------------------------------------------
+// Storage modes ---------------------------------------------------------------------------------------------------
+
+const STORAGE_TAKEN = 'Ce mode de conservation existe déjà.';
 
 /**
- * Adds a product to the base list.
+ * Creates a storage mode, after the others.
+ * @param {ShoppingStoreInput} input Name and color.
+ * @returns {Promise<ShoppingStorage>} Storage mode.
+ */
+export async function createStorage(input: ShoppingStoreInput): Promise<ShoppingStorage> {
+  const data = parseInput(shoppingStorageSchema, input);
+  if (await prisma.shoppingStorage.findFirst({ where: { name: data.name } })) throw clientError('BAD_USER_INPUT', STORAGE_TAKEN, { fields: { name: STORAGE_TAKEN } });
+  const { _max } = await prisma.shoppingStorage.aggregate({ _max: { position: true } });
+  return prisma.shoppingStorage.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+}
+
+/**
+ * Updates the name and/or the color of a storage mode.
+ * @param {string} id Storage mode id.
+ * @param {Partial<ShoppingStoreInput>} input Changes.
+ * @returns {Promise<void>}
+ */
+export async function updateStorage(id: string, input: Partial<ShoppingStoreInput>): Promise<void> {
+  const current = await prisma.shoppingStorage.findUnique({ where: { id } });
+  if (!current) throw notFound('Mode de conservation');
+  const data = parseInput(shoppingStorageSchema, { name: input.name ?? current.name, color: input.color ?? current.color });
+  if (await prisma.shoppingStorage.findFirst({ where: { name: data.name, id: { not: id } } })) throw clientError('BAD_USER_INPUT', STORAGE_TAKEN, { fields: { name: STORAGE_TAKEN } });
+  await prisma.shoppingStorage.update({ where: { id }, data });
+}
+
+/**
+ * Deletes a storage mode: its products and items are left without one.
+ * @param {string} id Storage mode id.
+ * @returns {Promise<void>}
+ */
+export async function deleteStorage(id: string): Promise<void> {
+  if (!(await prisma.shoppingStorage.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Mode de conservation');
+  await prisma.shoppingStorage.delete({ where: { id } });
+}
+
+/**
+ * Moves a storage mode among the others.
+ * @param {string} id Storage mode id.
+ * @param {number} index Target index.
+ * @returns {Promise<void>}
+ */
+export async function moveStorage(id: string, index: number): Promise<void> {
+  const all = await prisma.shoppingStorage.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  if (!all.some((storage) => storage.id === id)) throw notFound('Mode de conservation');
+  const order = moveInOrder(
+    all.map((storage) => storage.id),
+    id,
+    index,
+  );
+  await prisma.$transaction(order.map((storageId, position) => prisma.shoppingStorage.update({ where: { id: storageId }, data: { position } })));
+}
+
+// Base lists -----------------------------------------------------------------------------------------------------
+
+/**
+ * Checks a base list.
+ * @param {string} id Base list id.
+ * @returns {Promise<void>}
+ */
+async function assertBaseList(id: string): Promise<void> {
+  if (!(await prisma.shoppingBaseList.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Liste type');
+}
+
+/**
+ * Creates a base list, after the others.
+ * @param {string} name Name.
+ * @returns {Promise<ShoppingBaseList>} Base list.
+ */
+export async function createBaseList(name: string): Promise<ShoppingBaseList> {
+  const data = { name: parseInput(shoppingBaseListNameSchema, name) };
+  const { _max } = await prisma.shoppingBaseList.aggregate({ _max: { position: true } });
+  return prisma.shoppingBaseList.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+}
+
+/**
+ * Renames a base list.
+ * @param {string} id Base list id.
+ * @param {string} name Name.
+ * @returns {Promise<ShoppingBaseList>} Base list.
+ */
+export async function renameBaseList(id: string, name: string): Promise<ShoppingBaseList> {
+  await assertBaseList(id);
+  return prisma.shoppingBaseList.update({ where: { id }, data: { name: parseInput(shoppingBaseListNameSchema, name) } });
+}
+
+/**
+ * Deletes a base list with its products (the items of the lists made from them stay).
+ * @param {string} id Base list id.
+ * @returns {Promise<void>}
+ */
+export async function deleteBaseList(id: string): Promise<void> {
+  await assertBaseList(id);
+  await prisma.shoppingBaseList.delete({ where: { id } });
+}
+
+/**
+ * Moves a base list among the others.
+ * @param {string} id Base list id.
+ * @param {number} index Target index.
+ * @returns {Promise<void>}
+ */
+export async function moveBaseList(id: string, index: number): Promise<void> {
+  const all = await prisma.shoppingBaseList.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  if (!all.some((baseList) => baseList.id === id)) throw notFound('Liste type');
+  const order = moveInOrder(
+    all.map((baseList) => baseList.id),
+    id,
+    index,
+  );
+  await prisma.$transaction(order.map((baseListId, position) => prisma.shoppingBaseList.update({ where: { id: baseListId }, data: { position } })));
+}
+
+// Products -------------------------------------------------------------------------------------------------------
+
+/**
+ * Adds a product to a base list.
  * @param {ShoppingProductInput} input Product.
  * @returns {Promise<ShoppingProduct>} Product.
  */
 export async function createProduct(input: ShoppingProductInput): Promise<ShoppingProduct> {
   const data = await parseShopping(shoppingProductSchema, input);
-  return prisma.shoppingProduct.create({ data: { ...fields(data), missing: data.missing, ...people(data, 'connect') } });
+  await assertBaseList(data.baseListId);
+  return prisma.shoppingProduct.create({ data: { ...fields(data), baseListId: data.baseListId, missing: data.missing, ...people(data, 'connect') } });
 }
 
 /**
@@ -214,7 +371,11 @@ export async function createProduct(input: ShoppingProductInput): Promise<Shoppi
 export async function updateProduct(id: string, input: ShoppingProductInput): Promise<ShoppingProduct> {
   if (!(await prisma.shoppingProduct.findUnique({ where: { id } }))) throw notFound('Produit');
   const data = await parseShopping(shoppingProductSchema, input);
-  return prisma.shoppingProduct.update({ where: { id }, data: { ...fields(data), missing: data.missing, ...people(data, 'set') } });
+  await assertBaseList(data.baseListId);
+  const row = fields(data);
+  // Not missing although past its date: what was bought is still good, the date no longer holds.
+  if (!data.missing && row.expiresAt && row.expiresAt < today()) row.expiresAt = null;
+  return prisma.shoppingProduct.update({ where: { id }, data: { ...row, baseListId: data.baseListId, missing: data.missing, ...people(data, 'set') } });
 }
 
 /**
@@ -225,7 +386,19 @@ export async function updateProduct(id: string, input: ShoppingProductInput): Pr
  */
 export async function setProductsMissing(ids: string[], missing: boolean): Promise<void> {
   if ((await prisma.shoppingProduct.count({ where: { id: { in: ids } } })) !== new Set(ids).size) throw notFound('Produit');
-  await prisma.shoppingProduct.updateMany({ where: { id: { in: ids } }, data: { missing } });
+  await prisma.$transaction([
+    prisma.shoppingProduct.updateMany({ where: { id: { in: ids } }, data: { missing } }),
+    // Unticked although past its date: what was bought is still good, the date no longer holds.
+    ...(missing ? [] : [prisma.shoppingProduct.updateMany({ where: { id: { in: ids }, expiresAt: { lt: today() } }, data: { expiresAt: null } })]),
+  ]);
+}
+
+/**
+ * Marks missing the perishable products whose last purchase is past its date (done when the base lists are read).
+ * @returns {Promise<void>}
+ */
+export async function markExpired(): Promise<void> {
+  await prisma.shoppingProduct.updateMany({ where: { perishable: true, missing: false, expiresAt: { lt: today() } }, data: { missing: true } });
 }
 
 /**
@@ -241,6 +414,32 @@ export async function deleteProduct(id: string): Promise<void> {
 // Lists ----------------------------------------------------------------------------------------------------------
 
 const withPeople = { members: { select: { id: true } }, relations: { select: { id: true } } } as const;
+
+type WithPeople = { members: { id: string }[]; relations: { id: string }[] };
+
+/**
+ * Item data copied from a product of a base list (or from another item).
+ * @param {ShoppingProduct | ShoppingItem} source Product or item, with its people.
+ * @param {string | null} productId Product the item comes from.
+ * @param {number} position Position in the list.
+ * @returns {object} Nested item creation.
+ */
+const copyOf = (source: (ShoppingProduct | ShoppingItem) & WithPeople, productId: string | null, position: number) => ({
+  productId,
+  name: source.name,
+  categoryId: source.categoryId,
+  storeId: source.storeId,
+  url: source.url,
+  note: source.note,
+  quantity: source.quantity,
+  unit: source.unit,
+  unitPrice: source.unitPrice,
+  perishable: source.perishable,
+  storageId: source.storageId,
+  position,
+  members: { connect: source.members },
+  relations: { connect: source.relations },
+});
 
 /**
  * Loads a list or throws NOT_FOUND.
@@ -263,35 +462,18 @@ async function assertTask(taskId: string | null): Promise<void> {
 }
 
 /**
- * Creates a list: empty, or with the missing products of the base list.
- * @param {{ name: string, taskId: string | null, fromMissing: boolean }} input List.
+ * Creates a list: empty, or with the missing products of some base lists.
+ * @param {{ name: string, taskId: string | null, baseListIds: string[] }} input List.
  * @returns {Promise<ShoppingList>} List.
  */
-export async function createList({ name, taskId, fromMissing }: { name: string; taskId: string | null; fromMissing: boolean }): Promise<ShoppingList> {
+export async function createList({ name, taskId, baseListIds }: { name: string; taskId: string | null; baseListIds: string[] }): Promise<ShoppingList> {
   const data = { name: parseInput(shoppingListNameSchema, name), taskId };
   await assertTask(taskId);
-  const products = fromMissing ? await prisma.shoppingProduct.findMany({ where: { missing: true }, include: withPeople, orderBy: { name: 'asc' } }) : [];
-  return prisma.shoppingList.create({
-    data: {
-      ...data,
-      items: {
-        create: products.map((product, position) => ({
-          productId: product.id,
-          name: product.name,
-          categoryId: product.categoryId,
-          storeId: product.storeId,
-          url: product.url,
-          note: product.note,
-          quantity: product.quantity,
-          unit: product.unit,
-          unitPrice: product.unitPrice,
-          position,
-          members: { connect: product.members },
-          relations: { connect: product.relations },
-        })),
-      },
-    },
-  });
+  const ids = [...new Set(baseListIds)];
+  if ((await prisma.shoppingBaseList.count({ where: { id: { in: ids } } })) !== ids.length) throw notFound('Liste type');
+  await markExpired();
+  const products = ids.length ? await prisma.shoppingProduct.findMany({ where: { missing: true, baseListId: { in: ids } }, include: withPeople, orderBy: { name: 'asc' } }) : [];
+  return prisma.shoppingList.create({ data: { ...data, items: { create: products.map((product, position) => copyOf(product, product.id, position)) } } });
 }
 
 /**
@@ -331,22 +513,7 @@ export async function duplicateList(id: string): Promise<ShoppingList> {
   return prisma.shoppingList.create({
     data: {
       name: `${list.name} (copie)`.slice(0, 120),
-      items: {
-        create: list.items.map((item, position) => ({
-          productId: item.productId,
-          name: item.name,
-          categoryId: item.categoryId,
-          storeId: item.storeId,
-          url: item.url,
-          note: item.note,
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: item.unitPrice,
-          position,
-          members: { connect: item.members },
-          relations: { connect: item.relations },
-        })),
-      },
+      items: { create: list.items.map((item, position) => copyOf(item, item.productId, position)) },
     },
   });
 }
@@ -422,38 +589,44 @@ async function findItem(id: string): Promise<ShoppingItem> {
 }
 
 /**
- * Adds an item to a list: a product of the base list (copied), or an item of this list only.
+ * Next position in a list.
  * @param {string} listId List.
- * @param {{ productId: string | null, input: ShoppingItemInput | null }} source Product, or item.
+ * @returns {Promise<number>} Position.
+ */
+async function nextPosition(listId: string): Promise<number> {
+  const { _max } = await prisma.shoppingItem.aggregate({ where: { listId }, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
+}
+
+/**
+ * Adds an item of this list only (not from a base list).
+ * @param {string} listId List.
+ * @param {ShoppingItemInput} input Item.
  * @returns {Promise<ShoppingItem>} Item.
  */
-export async function addItem(listId: string, source: { productId: string | null; input: ShoppingItemInput | null }): Promise<ShoppingItem> {
+export async function addItem(listId: string, input: ShoppingItemInput): Promise<ShoppingItem> {
   await findList(listId);
-  const { _max } = await prisma.shoppingItem.aggregate({ where: { listId }, _max: { position: true } });
-  const position = (_max.position ?? -1) + 1;
-  if (source.productId) {
-    const product = await prisma.shoppingProduct.findUnique({ where: { id: source.productId }, include: withPeople });
-    if (!product) throw notFound('Produit');
-    return prisma.shoppingItem.create({
-      data: {
-        listId,
-        productId: product.id,
-        name: product.name,
-        categoryId: product.categoryId,
-        storeId: product.storeId,
-        url: product.url,
-        note: product.note,
-        quantity: product.quantity,
-        unit: product.unit,
-        unitPrice: product.unitPrice,
-        position,
-        members: { connect: product.members },
-        relations: { connect: product.relations },
-      },
-    });
-  }
-  const data = await parseShopping(shoppingItemSchema, source.input);
-  return prisma.shoppingItem.create({ data: { ...fields(data), listId, position, ...people(data, 'connect') } });
+  const data = await parseShopping(shoppingItemSchema, input);
+  return prisma.shoppingItem.create({ data: { ...fields(data), listId, position: await nextPosition(listId), ...people(data, 'connect') } });
+}
+
+/**
+ * Adds products of base lists to a list (copied); those already in it are left out.
+ * @param {string} listId List.
+ * @param {string[]} productIds Products.
+ * @returns {Promise<number>} Number of items added.
+ */
+export async function addProducts(listId: string, productIds: string[]): Promise<number> {
+  await findList(listId);
+  const ids = [...new Set(productIds)];
+  if (ids.length > 500) throw clientError('BAD_USER_INPUT', '500 produits au plus à la fois.');
+  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: ids } }, include: withPeople, orderBy: { name: 'asc' } });
+  if (products.length !== ids.length) throw notFound('Produit');
+  const present = new Set((await prisma.shoppingItem.findMany({ where: { listId, productId: { in: ids } }, select: { productId: true } })).map((item) => item.productId));
+  const added = products.filter((product) => !present.has(product.id));
+  const start = await nextPosition(listId);
+  await prisma.shoppingList.update({ where: { id: listId }, data: { items: { create: added.map((product, index) => copyOf(product, product.id, start + index)) } } });
+  return added.length;
 }
 
 /**
@@ -465,7 +638,11 @@ export async function addItem(listId: string, source: { productId: string | null
 export async function updateItem(id: string, input: ShoppingItemInput): Promise<ShoppingItem> {
   await findItem(id);
   const data = await parseShopping(shoppingItemSchema, input);
-  return prisma.shoppingItem.update({ where: { id }, data: { ...fields(data), ...people(data, 'set') } });
+  return prisma.$transaction(async (tx) => {
+    const item = await tx.shoppingItem.update({ where: { id }, data: { ...fields(data), ...people(data, 'set') } });
+    if (item.productId && item.purchasedAt) await syncExpiry(tx, item.productId);
+    return item;
+  });
 }
 
 /**
@@ -478,32 +655,58 @@ export async function updateItem(id: string, input: ShoppingItemInput): Promise<
 export async function setItemPurchased(id: string, purchased: boolean): Promise<ShoppingItem> {
   const item = await findItem(id);
   const now = new Date();
-  const [updated] = await prisma.$transaction([
-    prisma.shoppingItem.update({ where: { id }, data: { purchasedAt: purchased ? (item.purchasedAt ?? now) : null } }),
-    ...(item.productId
-      ? [
-          prisma.shoppingProduct.update({
-            where: { id: item.productId },
-            data: purchased ? { missing: false, lastPurchasedAt: now, ...(item.unitPrice !== null ? { lastPrice: item.unitPrice } : {}) } : { missing: true },
-          }),
-        ]
-      : []),
-  ]);
-  return updated;
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.shoppingItem.update({ where: { id }, data: { purchasedAt: purchased ? (item.purchasedAt ?? now) : null } });
+    if (item.productId) {
+      await tx.shoppingProduct.update({
+        where: { id: item.productId },
+        data: purchased ? { missing: false, lastPurchasedAt: now, ...(item.unitPrice !== null ? { lastPrice: item.unitPrice } : {}) } : { missing: true },
+      });
+      await syncExpiry(tx, item.productId);
+    }
+    return updated;
+  });
 }
 
 /**
- * Adds an item of a list to the base list, and links it to the new product.
- * @param {string} id Item id.
- * @returns {Promise<ShoppingProduct>} Product.
+ * Sets the date of a product to the one of its last purchase: the latest date among its items bought on the list of
+ * its last purchase (the same product may be there several times, with other dates).
+ * @param {Prisma.TransactionClient} tx Transaction.
+ * @param {string} productId Product.
+ * @returns {Promise<void>}
  */
-export async function saveItemToBase(id: string): Promise<ShoppingProduct> {
+async function syncExpiry(tx: Prisma.TransactionClient, productId: string): Promise<void> {
+  const last = await tx.shoppingItem.findFirst({ where: { productId, purchasedAt: { not: null } }, orderBy: { purchasedAt: 'desc' }, select: { listId: true } });
+  const { _max } = last ? await tx.shoppingItem.aggregate({ where: { productId, listId: last.listId, purchasedAt: { not: null } }, _max: { expiresAt: true } }) : { _max: { expiresAt: null } };
+  await tx.shoppingProduct.update({ where: { id: productId }, data: { expiresAt: _max.expiresAt } });
+}
+
+/**
+ * Adds the same item again to its list, not bought, without date (the same product bought with another date).
+ * @param {string} id Item id.
+ * @returns {Promise<ShoppingItem>} New item.
+ */
+export async function duplicateItem(id: string): Promise<ShoppingItem> {
   const item = await prisma.shoppingItem.findUnique({ where: { id }, include: withPeople });
   if (!item) throw notFound('Élément');
-  if (item.productId) throw clientError('BAD_USER_INPUT', 'Cet élément est déjà dans la liste de base.');
+  return prisma.shoppingItem.create({ data: { ...copyOf(item, item.productId, await nextPosition(item.listId)), listId: item.listId } });
+}
+
+/**
+ * Adds an item of a list to a base list, and links it to the new product.
+ * @param {string} id Item id.
+ * @param {string} baseListId Base list.
+ * @returns {Promise<ShoppingProduct>} Product.
+ */
+export async function saveItemToBase(id: string, baseListId: string): Promise<ShoppingProduct> {
+  const item = await prisma.shoppingItem.findUnique({ where: { id }, include: withPeople });
+  if (!item) throw notFound('Élément');
+  if (item.productId) throw clientError('BAD_USER_INPUT', 'Cet élément est déjà dans une liste type.');
+  await assertBaseList(baseListId);
   return prisma.$transaction(async (tx) => {
     const product = await tx.shoppingProduct.create({
       data: {
+        baseListId,
         name: item.name,
         categoryId: item.categoryId,
         storeId: item.storeId,
@@ -512,6 +715,9 @@ export async function saveItemToBase(id: string): Promise<ShoppingProduct> {
         quantity: item.quantity,
         unit: item.unit,
         unitPrice: item.unitPrice,
+        perishable: item.perishable,
+        storageId: item.storageId,
+        expiresAt: item.purchasedAt ? item.expiresAt : null,
         missing: item.purchasedAt === null,
         ...(item.purchasedAt ? { lastPurchasedAt: item.purchasedAt, lastPrice: item.unitPrice } : {}),
         members: { connect: item.members },

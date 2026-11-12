@@ -102,6 +102,8 @@ model Workspace {
   treasuryAllocations       TreasuryAllocation[]
   shoppingCategories        ShoppingCategory[]
   shoppingStores            ShoppingStore[]
+  shoppingStorages          ShoppingStorage[]
+  shoppingBaseLists         ShoppingBaseList[]
   shoppingProducts          ShoppingProduct[]
   shoppingLists             ShoppingList[]
   shoppingItems             ShoppingItem[]
@@ -2090,6 +2092,8 @@ model ShoppingCategory {
   parentId    String?
   parent      ShoppingCategory?  @relation("ShoppingCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children    ShoppingCategory[] @relation("ShoppingCategoryTree")
+  /// Base lists it is offered in (none: all; a sub-category without any takes those of its parent).
+  baseLists   ShoppingBaseList[] @relation("ShoppingCategoryBaseLists")
   createdAt   DateTime           @default(now())
   products    ShoppingProduct[]
   items       ShoppingItem[]
@@ -2118,9 +2122,43 @@ model ShoppingStore {
   @@index([workspaceId])
 }
 
-/// Product of the base list: what is usually bought, marked when missing.
+/// Storage mode of a perishable product (fresh, frozen…).
+model ShoppingStorage {
+  id          String            @id @default(cuid())
+  name        String
+  color       String
+  position    Int               @default(0)
+  createdAt   DateTime          @default(now())
+  products    ShoppingProduct[]
+  items       ShoppingItem[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
+/// Base list ("liste type"): products usually bought together (food, school supplies, children's clothes…).
+model ShoppingBaseList {
+  id          String             @id @default(cuid())
+  name        String
+  position    Int                @default(0)
+  createdAt   DateTime           @default(now())
+  products    ShoppingProduct[]
+  categories  ShoppingCategory[] @relation("ShoppingCategoryBaseLists")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+/// Product of a base list: what is usually bought, marked when missing.
 model ShoppingProduct {
   id              String             @id @default(cuid())
+  baseListId      String
+  baseList        ShoppingBaseList   @relation(fields: [baseListId], references: [id], onDelete: Cascade)
   name            String
   categoryId      String?
   category        ShoppingCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -2134,6 +2172,12 @@ model ShoppingProduct {
   unit            String?
   /// Estimated price of one unit.
   unitPrice       Decimal?           @db.Decimal(14, 2)
+  /// Perishable: kept in a storage mode, until a "best before" date.
+  perishable      Boolean            @default(false)
+  storageId       String?
+  storage         ShoppingStorage?   @relation(fields: [storageId], references: [id], onDelete: SetNull)
+  /// Expiry of the last purchase (the latest of its items): once past, the product is marked missing.
+  expiresAt       DateTime?          @db.Date
   /// Missing: put on the next generated list.
   missing         Boolean            @default(false)
   /// Last time it was ticked as bought on a list, and its price then.
@@ -2150,8 +2194,10 @@ model ShoppingProduct {
   workspaceId     String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@index([baseListId])
   @@index([categoryId])
   @@index([storeId])
+  @@index([storageId])
   @@index([workspaceId])
 }
 
@@ -2196,6 +2242,11 @@ model ShoppingItem {
   quantity    Decimal?           @db.Decimal(12, 3)
   unit        String?
   unitPrice   Decimal?           @db.Decimal(14, 2)
+  perishable  Boolean            @default(false)
+  storageId   String?
+  storage     ShoppingStorage?   @relation(fields: [storageId], references: [id], onDelete: SetNull)
+  /// "Best before" date of what was bought (the same product may be on a list several times, with other dates).
+  expiresAt   DateTime?          @db.Date
   /// Ticked as bought.
   purchasedAt DateTime?
   /// Members of the team or household and relations it is for: the split of a treasury entry paying the list.
@@ -2209,5 +2260,6 @@ model ShoppingItem {
 
   @@index([listId])
   @@index([productId])
+  @@index([storageId])
   @@index([workspaceId])
 }

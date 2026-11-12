@@ -1,6 +1,6 @@
 import { shoppingCost } from '@ordo/shared';
 import type { ShoppingItem, ShoppingList } from './api';
-import { money, quantityText, type ShoppingGroup } from './shopping-format';
+import { money, quantityText, type ShoppingRow } from './shopping-format';
 
 /**
  * Names of the people an item is for.
@@ -19,26 +19,30 @@ const peopleText = (item: ShoppingItem, people: { members: Map<string, string>; 
 export const shoppingTotal = (items: ShoppingItem[]) => items.reduce((sum, item) => sum + (shoppingCost(item) ?? 0), 0);
 
 /**
- * List as plain text, to copy in a message: by group, a box per item (ticked when bought), quantity, people, price
- * and link; the estimated total at the end.
+ * List as plain text, to copy in a message: the categories (or stores) indented as their tree, a box per item
+ * (ticked when bought), quantity, people, price and link; the estimated total at the end.
  * @param {ShoppingList} list List.
- * @param {ShoppingGroup<ShoppingItem>[]} groups Items grouped.
+ * @param {ShoppingRow<ShoppingItem>[]} rows Rows of the list.
  * @param {{ members: Map<string, string>, relations: Map<string, string> }} people Names by id.
  * @returns {string} Text.
  */
-export function shoppingText(list: ShoppingList, groups: ShoppingGroup<ShoppingItem>[], people: { members: Map<string, string>; relations: Map<string, string> }): string {
-  const lines = [list.name, ''];
-  for (const group of groups) {
-    lines.push(`${group.name} :`);
-    for (const item of group.items) {
-      const cost = shoppingCost(item);
-      const details = [quantityText(item), peopleText(item, people) ? `pour ${peopleText(item, people)}` : '', cost !== null ? money(cost) : ''].filter(Boolean).join(' · ');
-      lines.push(`${item.purchasedAt ? '☑' : '☐'} ${item.name}${details ? ` (${details})` : ''}`);
-      if (item.note) lines.push(`    ${item.note}`);
-      if (item.url) lines.push(`    ${item.url}`);
+export function shoppingText(list: ShoppingList, rows: ShoppingRow<ShoppingItem>[], people: { members: Map<string, string>; relations: Map<string, string> }): string {
+  const lines = [list.name];
+  for (const row of rows) {
+    const indent = '  '.repeat(row.depth);
+    if (row.kind === 'group') {
+      if (row.depth === 0) lines.push('');
+      lines.push(`${indent}${row.name} :`);
+      continue;
     }
-    lines.push('');
+    const { item } = row;
+    const cost = shoppingCost(item);
+    const details = [quantityText(item), peopleText(item, people) ? `pour ${peopleText(item, people)}` : '', cost !== null ? money(cost) : ''].filter(Boolean).join(' · ');
+    lines.push(`${indent}${item.purchasedAt ? '☑' : '☐'} ${item.name}${details ? ` (${details})` : ''}`);
+    if (item.note) lines.push(`${indent}    ${item.note}`);
+    if (item.url) lines.push(`${indent}    ${item.url}`);
   }
+  lines.push('');
   const total = shoppingTotal(list.items);
   if (total) lines.push(`Total estimé : ${money(total)}`);
   return lines.join('\n').trim();
@@ -47,23 +51,22 @@ export function shoppingText(list: ShoppingList, groups: ShoppingGroup<ShoppingI
 /**
  * Downloads a list as PDF (built by the API, as the tables of the app).
  * @param {ShoppingList} list List.
- * @param {ShoppingGroup<ShoppingItem>[]} groups Items grouped.
+ * @param {ShoppingRow<ShoppingItem>[]} tableRows Rows of the list (the categories as a tree).
  * @param {{ members: Map<string, string>, relations: Map<string, string> }} people Names by id.
  * @returns {Promise<void>}
  */
-export async function downloadShoppingPdf(list: ShoppingList, groups: ShoppingGroup<ShoppingItem>[], people: { members: Map<string, string>; relations: Map<string, string> }): Promise<void> {
+export async function downloadShoppingPdf(list: ShoppingList, tableRows: ShoppingRow<ShoppingItem>[], people: { members: Map<string, string>; relations: Map<string, string> }): Promise<void> {
   const total = shoppingTotal(list.items);
-  const rows = groups.flatMap((group) => [
-    { kind: 'group', depth: 0, cells: [group.name] },
-    ...group.items.map((item) => {
-      const cost = shoppingCost(item);
-      return {
-        kind: 'row',
-        depth: 0,
-        cells: [item.purchasedAt ? 'Oui' : '', item.name, quantityText(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? money(cost) : ''],
-      };
-    }),
-  ]);
+  const rows = tableRows.map((row) => {
+    if (row.kind === 'group') return { kind: 'group', depth: row.depth, cells: [row.name] };
+    const { item } = row;
+    const cost = shoppingCost(item);
+    return {
+      kind: 'row',
+      depth: row.depth,
+      cells: [item.purchasedAt ? 'Oui' : '', item.name, quantityText(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? money(cost) : ''],
+    };
+  });
   const response = await fetch('/api/exports/table.pdf', {
     method: 'POST',
     credentials: 'same-origin',
