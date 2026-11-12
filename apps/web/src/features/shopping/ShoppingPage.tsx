@@ -192,7 +192,7 @@ export function ShoppingPage() {
   const rows = [...(data?.shoppingProducts ?? []), ...(lists ?? []).flatMap((list) => list.items)];
 
   return (
-    <Stack gap="lg" className={classes.root}>
+    <Stack gap="lg">
       <PageTitle>Courses</PageTitle>
       <PageSettings title="Paramètres des courses">
         <Stack gap="md">

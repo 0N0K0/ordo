@@ -144,7 +144,7 @@ export function ShoppingListPage() {
 
   if (isPending) {
     return (
-      <Stack gap="xs" aria-label="Chargement" className={classes.root}>
+      <Stack gap="xs" aria-label="Chargement">
         {[0, 1, 2].map((index) => (
           <Skeleton key={index} height={48} />
         ))}
@@ -153,7 +153,7 @@ export function ShoppingListPage() {
   }
   if (!list) {
     return (
-      <Paper withBorder radius="md" p="xl" className={classes.root}>
+      <Paper withBorder radius="md" p="xl">
         <Stack align="center" gap="sm">
           <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
             <BasketIcon aria-hidden />
@@ -176,7 +176,7 @@ export function ShoppingListPage() {
   const onError = (error: Error) => notifyError(error.message);
 
   return (
-    <Stack gap="lg" className={classes.root}>
+    <Stack gap="lg">
       <Group gap="sm" align="flex-start" wrap="nowrap">
         <Tooltip label="Retour aux listes">
           <ActionIcon component={Link} to="/shopping?tab=lists" variant="subtle" color="gray" aria-label="Retour aux listes" mt={4}>
