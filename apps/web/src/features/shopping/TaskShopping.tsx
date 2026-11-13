@@ -10,15 +10,15 @@ import { money } from './shopping-format';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
- * or an open list without task attached to it.
+ * or an open list attached to it too (a list can be for several tasks).
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Section.
  */
 export function TaskShopping({ task }: { task: Task }) {
   const { data: lists } = useShoppingLists();
   const { updateList } = useShoppingMutations();
-  const own = (lists ?? []).filter((list) => list.taskId === task.id);
-  const free = (lists ?? []).filter((list) => !list.taskId && !list.closed);
+  const own = (lists ?? []).filter((list) => list.taskIds.includes(task.id));
+  const free = (lists ?? []).filter((list) => !list.taskIds.includes(task.id) && !list.closed);
 
   return (
     <Stack gap="xs">
@@ -27,7 +27,7 @@ export function TaskShopping({ task }: { task: Task }) {
           Courses
         </Text>
         {!task.archived && (
-          <Button variant="subtle" size="compact-xs" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskId: task.id })}>
+          <Button variant="subtle" size="compact-xs" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id] })}>
             Nouvelle liste
           </Button>
         )}
@@ -67,7 +67,10 @@ export function TaskShopping({ task }: { task: Task }) {
           onChange={(id) => {
             const list = free.find((item) => item.id === id);
             if (list)
-              updateList.mutate({ id: list.id, name: list.name, taskId: task.id }, { onSuccess: () => notifySuccess('Liste rattachée à la tâche.'), onError: (error) => notifyError(error.message) });
+              updateList.mutate(
+                { id: list.id, name: list.name, taskIds: [...list.taskIds, task.id] },
+                { onSuccess: () => notifySuccess('Liste rattachée à la tâche.'), onError: (error) => notifyError(error.message) },
+              );
           }}
           aria-label="Rattacher une liste de courses existante"
         />

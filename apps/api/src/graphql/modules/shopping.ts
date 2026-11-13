@@ -97,18 +97,18 @@ builder.prismaObject('ShoppingItem', {
 });
 
 builder.prismaObject('ShoppingList', {
-  description: 'Shopping list, possibly attached to a task and to the treasury entry paying it.',
+  description: 'Shopping list, possibly attached to some tasks and to the treasury entry paying it.',
   fields: (t) => ({
     id: t.exposeID('id'),
     name: t.exposeString('name'),
-    taskId: t.exposeID('taskId', { nullable: true }),
+    taskIds: t.idList({ select: { tasks: { select: { id: true } } }, resolve: (list) => list.tasks.map((task) => task.id) }),
     entryId: t.exposeID('entryId', { nullable: true }),
     entry: t.relation('entry', { nullable: true, description: 'Treasury entry paying the list.' }),
     closedAt: t.expose('closedAt', { type: 'DateTime', nullable: true }),
     closed: t.boolean({
-      description: 'Closed by hand, or along with its task.',
-      select: { closedAt: true, task: { select: { closedAt: true } } },
-      resolve: (list) => list.closedAt !== null || Boolean(list.task?.closedAt),
+      description: 'Closed by hand, or along with its tasks (all of them closed).',
+      select: { closedAt: true, tasks: { select: { closedAt: true } } },
+      resolve: (list) => list.closedAt !== null || shopping.tasksClosed(list.tasks),
     }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     items: t.relation('items', { query: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } }),
@@ -216,7 +216,8 @@ builder.queryFields((t) => ({
     type: ['ShoppingList'],
     description: 'Shopping lists, latest first: all, or those of a task.',
     args: { taskId: t.arg.id() },
-    resolve: (query, _root, { taskId }) => prisma.shoppingList.findMany({ ...query, where: taskId ? { taskId: String(taskId) } : {}, orderBy: { createdAt: 'desc' } }),
+    resolve: (query, _root, { taskId }) =>
+      prisma.shoppingList.findMany({ ...query, where: taskId ? { tasks: { some: { id: String(taskId) } } } : {}, orderBy: { createdAt: 'desc' } }),
   }),
 }));
 
@@ -350,13 +351,13 @@ builder.mutationFields((t) => ({
   }),
   createShoppingList: t.id({
     description: 'Creates a list, empty or with the missing products of some base lists.',
-    args: { name: t.arg.string({ required: true }), taskId: t.arg.id(), baseListIds: t.arg.idList({ required: true }) },
-    resolve: async (_root, { name, taskId, baseListIds }) => (await shopping.createList({ name, taskId: taskId ? String(taskId) : null, baseListIds: baseListIds.map(String) })).id,
+    args: { name: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }), baseListIds: t.arg.idList({ required: true }) },
+    resolve: async (_root, { name, taskIds, baseListIds }) => (await shopping.createList({ name, taskIds: taskIds.map(String), baseListIds: baseListIds.map(String) })).id,
   }),
   updateShoppingList: t.boolean({
-    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), taskId: t.arg.id() },
-    resolve: async (_root, { id, name, taskId }) => {
-      await shopping.updateList(String(id), { name, taskId: taskId ? String(taskId) : null });
+    args: { id: t.arg.id({ required: true }), name: t.arg.string({ required: true }), taskIds: t.arg.idList({ required: true }) },
+    resolve: async (_root, { id, name, taskIds }) => {
+      await shopping.updateList(String(id), { name, taskIds: taskIds.map(String) });
       return true;
     },
   }),

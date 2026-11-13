@@ -550,7 +550,7 @@ model Task {
   calendarEvents    CalendarEvent[]    @relation("CalendarEventTasks")
   alarms            Alarm[]
   /// Shopping lists of the task (closed along with it).
-  shoppingLists     ShoppingList[]
+  shoppingLists     ShoppingList[]     @relation("ShoppingListTasks")
   /// Repetition of a recurring task (set on the first task of the series).
   recurrence        Json?
   /// First task of the series this task is an occurrence of.
@@ -2220,9 +2220,9 @@ model ShoppingProduct {
 model ShoppingList {
   id          String         @id @default(cuid())
   name        String
-  taskId      String?
-  task        Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  /// Closed by hand (a list of a closed task is closed too).
+  /// Tasks the list is for (a list whose tasks are all closed is closed too).
+  tasks       Task[]         @relation("ShoppingListTasks")
+  /// Closed by hand.
   closedAt    DateTime?
   /// Treasury entry paying the list.
   entryId     String?
@@ -2234,7 +2234,6 @@ model ShoppingList {
   workspaceId String         @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@index([taskId])
   @@index([entryId])
   @@index([workspaceId])
 }

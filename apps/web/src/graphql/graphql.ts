@@ -2601,6 +2601,14 @@ export type DeleteRoutineMutationVariables = Exact<{
 
 export type DeleteRoutineMutation = { deleteRoutine: boolean };
 
+export type RoutineChecksQueryVariables = Exact<{
+  from: string;
+  to: string;
+}>;
+
+
+export type RoutineChecksQuery = { routineChecks: Array<{ routineId: string, date: string, slot: number, doneAt: string, fromTime: string | null, dueTime: string | null }> };
+
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -2611,7 +2619,7 @@ export type ShoppingListsQueryVariables = Exact<{
 }>;
 
 
-export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskId: string | null, entryId: string | null, closed: boolean, closedAt: string | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, position: number, memberIds: Array<string>, relationIds: Array<string> }> }> };
+export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskIds: Array<string>, entryId: string | null, closed: boolean, closedAt: string | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, position: number, memberIds: Array<string>, relationIds: Array<string> }> }> };
 
 export type CreateShoppingCategoryMutationVariables = Exact<{
   input: ShoppingCategoryInput;
@@ -2772,7 +2780,7 @@ export type DeleteShoppingProductMutation = { deleteShoppingProduct: boolean };
 
 export type CreateShoppingListMutationVariables = Exact<{
   name: string;
-  taskId?: string | number | null | undefined;
+  taskIds: Array<string | number> | string | number;
   baseListIds: Array<string | number> | string | number;
 }>;
 
@@ -2782,7 +2790,7 @@ export type CreateShoppingListMutation = { createShoppingList: string };
 export type UpdateShoppingListMutationVariables = Exact<{
   id: string | number;
   name: string;
-  taskId?: string | number | null | undefined;
+  taskIds: Array<string | number> | string | number;
 }>;
 
 
@@ -6677,6 +6685,18 @@ export const DeleteRoutineDocument = new TypedDocumentString(`
   deleteRoutine(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteRoutineMutation, DeleteRoutineMutationVariables>;
+export const RoutineChecksDocument = new TypedDocumentString(`
+    query RoutineChecks($from: Date!, $to: Date!) {
+  routineChecks(from: $from, to: $to) {
+    routineId
+    date
+    slot
+    doneAt
+    fromTime
+    dueTime
+  }
+}
+    `) as unknown as TypedDocumentString<RoutineChecksQuery, RoutineChecksQueryVariables>;
 export const ShoppingDataDocument = new TypedDocumentString(`
     query ShoppingData {
   shoppingCategories {
@@ -6730,7 +6750,7 @@ export const ShoppingListsDocument = new TypedDocumentString(`
   shoppingLists(taskId: $taskId) {
     id
     name
-    taskId
+    taskIds
     entryId
     entry {
       id
@@ -6870,13 +6890,13 @@ export const DeleteShoppingProductDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteShoppingProductMutation, DeleteShoppingProductMutationVariables>;
 export const CreateShoppingListDocument = new TypedDocumentString(`
-    mutation CreateShoppingList($name: String!, $taskId: ID, $baseListIds: [ID!]!) {
-  createShoppingList(name: $name, taskId: $taskId, baseListIds: $baseListIds)
+    mutation CreateShoppingList($name: String!, $taskIds: [ID!]!, $baseListIds: [ID!]!) {
+  createShoppingList(name: $name, taskIds: $taskIds, baseListIds: $baseListIds)
 }
     `) as unknown as TypedDocumentString<CreateShoppingListMutation, CreateShoppingListMutationVariables>;
 export const UpdateShoppingListDocument = new TypedDocumentString(`
-    mutation UpdateShoppingList($id: ID!, $name: String!, $taskId: ID) {
-  updateShoppingList(id: $id, name: $name, taskId: $taskId)
+    mutation UpdateShoppingList($id: ID!, $name: String!, $taskIds: [ID!]!) {
+  updateShoppingList(id: $id, name: $name, taskIds: $taskIds)
 }
     `) as unknown as TypedDocumentString<UpdateShoppingListMutation, UpdateShoppingListMutationVariables>;
 export const SetShoppingListClosedDocument = new TypedDocumentString(`

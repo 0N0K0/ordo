@@ -1410,7 +1410,7 @@ type Mutation {
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
 
   """Creates a list, empty or with the missing products of some base lists."""
-  createShoppingList(baseListIds: [ID!]!, name: String!, taskId: ID): ID!
+  createShoppingList(baseListIds: [ID!]!, name: String!, taskIds: [ID!]!): ID!
   createShoppingProduct(input: ShoppingProductInput!): ID!
   createShoppingStorage(input: ShoppingStoreInput!): ID!
   createShoppingStore(input: ShoppingStoreInput!): ID!
@@ -1888,7 +1888,7 @@ type Mutation {
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
-  updateShoppingList(id: ID!, name: String!, taskId: ID): Boolean!
+  updateShoppingList(id: ID!, name: String!, taskIds: [ID!]!): Boolean!
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
   updateShoppingStorage(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateShoppingStore(id: ID!, input: ShoppingStorePatch!): Boolean!
@@ -2211,6 +2211,11 @@ type Query {
   reverseAddress(point: GeoPointInput!): AddressSuggestion
   routineCategories: [RoutineCategory!]!
 
+  """
+  Times of the day ticked as done, of the occurrences of a period (both days included), latest first.
+  """
+  routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
+
   """Every routine, archived ones included, in manual order."""
   routines: [Routine!]!
   runningTimeEntry: TimeEntry
@@ -2489,6 +2494,25 @@ input RoutineCategoryInput {
   parentId: ID
 }
 
+"""Time of the day of a routine ticked as done, for an occurrence."""
+type RoutineCheck {
+  """Day of the occurrence."""
+  date: Date!
+
+  """When it was ticked."""
+  doneAt: DateTime!
+
+  """End of the time of the day ticked (as the routine is now)."""
+  dueTime: String
+
+  """Start of the time of the day ticked (as the routine is now)."""
+  fromTime: String
+  routineId: ID!
+
+  """Time of the day ticked (its index in the times of that day)."""
+  slot: Int!
+}
+
 input RoutineInput {
   assigneeIds: [ID!]!
 
@@ -2726,10 +2750,10 @@ input ShoppingItemInput {
 }
 
 """
-Shopping list, possibly attached to a task and to the treasury entry paying it.
+Shopping list, possibly attached to some tasks and to the treasury entry paying it.
 """
 type ShoppingList {
-  """Closed by hand, or along with its task."""
+  """Closed by hand, or along with its tasks (all of them closed)."""
   closed: Boolean!
   closedAt: DateTime
   createdAt: DateTime!
@@ -2740,7 +2764,7 @@ type ShoppingList {
   id: ID!
   items: [ShoppingItem!]!
   name: String!
-  taskId: ID
+  taskIds: [ID!]!
 }
 
 """Product of a base list: what is usually bought, marked when missing."""
