@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 # Deploys the code already pulled on an o2switch app (staging or production): installs, builds, migrates and restarts.
 # Run from anywhere, after `git pull`: `bash scripts/deploy.sh`. BACKUP=1 dumps the database before migrating.
+# FIXTURES=1 (staging only: the main branch, without BACKUP) reloads the fixtures after the restart.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+if [[ "${FIXTURES:-0}" == 1 ]] && { [[ "${BACKUP:-0}" == 1 ]] || [[ "$(git branch --show-current)" != main ]]; }; then
+  echo "Fixtures are loaded on staging only (main branch, no backup): never in production." >&2
+  exit 1
+fi
 
 # cPanel's npm wrapper installs in its own folder and ignores workspaces: the real Node of the app's version.
 export PATH="${NODE_BIN:-/opt/alt/alt-nodejs24/root/usr/bin}:$PATH"
@@ -47,4 +53,10 @@ echo "▶ Migrations"
 echo "▶ Restart"
 mkdir -p tmp
 touch tmp/restart.txt
+
+if [[ "${FIXTURES:-0}" == 1 ]]; then
+  # The demo data of the staging: both workspaces purged and filled again (no prompt, no mailbox without GreenMail).
+  echo "▶ Fixtures"
+  (cd apps/api && ALLOW_FIXTURES=staging npx --no-install prisma db seed -- --force)
+fi
 echo "✔ Deployed $(git log --oneline -1)"
