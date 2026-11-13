@@ -1,7 +1,7 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { confirm } from '@inquirer/prompts';
 import { prisma, unscopedPrisma } from '../src/db';
-import { ensureMeContributor, meContributorId } from '../src/services/workspaces';
+import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspaces';
 import { enterWorkspace } from '../src/workspace-context';
 import type { Project, TaskStatusCategory } from '../src/generated/prisma/client';
 import {
@@ -21,52 +21,59 @@ import {
   TIME_ZONE,
 } from './fixtures/factories';
 import { addDays, DEFAULT_RECURRENCE, emptyFilter, type Recurrence } from '@ordo/shared';
+import { createAlarm } from '../src/services/alarms';
+import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar-events';
+import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/task-recurrence';
 import { createView } from '../src/services/task-views';
-import { saveScheduleType } from '../src/services/work-schedules';
-import { DEMO_COMPANY, seedAccounting } from './fixtures/accounting';
+import { createTimeEntry } from '../src/services/time-entries';
+import { saveScheduleType, subscribeScheduleKind } from '../src/services/work-schedules';
+import { subscribe } from '../src/services/calendars';
+import { seedAccounting } from './fixtures/accounting';
 import { seedSprintsAndDashboards } from './fixtures/dashboards';
+import { initialsIcon } from './fixtures/images';
 import { seedLibrary } from './fixtures/library';
 import { seedMailbox } from './fixtures/mail';
+import { seedPersonal } from './fixtures/personal';
+import { purgeWorkspace } from './fixtures/purge';
+import { rebuildStatusHistory } from './fixtures/history';
 import { seedRoutines } from './fixtures/routines';
 import { seedShopping } from './fixtures/shopping';
 import { seedTeam } from './fixtures/team';
 
-// Fake data for development: purges the business data (clients, projects, tasks, labels, contributors, tracked
-// time, calendar, sprints, dashboards, accounting, treasury, library, places, shopping, routines), keeps the user account, the mail accounts and the alarms, then fills the
-// database, with a demo mailbox on GreenMail (recreated on each run). `npm run db:seed -- --force` skips the confirmation.
+// Fake data for development and staging (never production): fills one professional and one personal workspace
+// (the first of each kind, created when missing) after purging them (every business row: clients, projects, tasks,
+// labels, contributors, time, alarms, calendar, schedules, sprints, dashboards, accounting, treasury, library, places,
+// shopping, routines, mail flags and searches). The user account, the "Moi" contributors, the mail accounts and the
+// other workspaces are kept; the demo mailbox on GreenMail is recreated. `npm run db:seed -- --force` skips the
+// confirmation.
 
 if (process.env.NODE_ENV === 'production') {
   console.error('Les fixtures ne se chargent pas en production.');
   process.exit(1);
 }
 
-// The fixtures fill the first professional workspace; the other workspaces are not touched.
-const workspace = await unscopedPrisma.workspace.findFirst({ where: { kind: 'PRO' }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
-if (!workspace) {
-  console.error('Aucun espace professionnel : les fixtures ne sont pas chargées.');
-  process.exit(1);
-}
-enterWorkspace(workspace);
-
-// Final accounting documents are legal records: the purge would delete them with their clients. Only those
-// issued by the demo company of the fixtures can be reloaded.
-const [{ finalDocuments }] = await prisma.$queryRaw<{ finalDocuments: number }[]>`
-  SELECT count(*)::int AS "finalDocuments" FROM "AccountingDocument"
-  WHERE "workspaceId" = ${workspace.id} AND "status" = 'FINAL' AND coalesce("seller"->>'name', '') <> ${DEMO_COMPANY}`;
-if (finalDocuments > 0) {
-  console.error(`La base contient ${finalDocuments} document(s) comptable(s) définitif(s) : les fixtures ne sont pas chargées.`);
-  process.exit(1);
-}
+/**
+ * First workspace of a kind, created when there is none.
+ * @param {'PRO' | 'PERSO'} kind Kind.
+ * @param {string} name Name of the one created.
+ * @returns {Promise<{ id: string, name: string, kind: 'PRO' | 'PERSO' }>} Workspace.
+ */
+const workspaceOf = async (kind: 'PRO' | 'PERSO', name: string) =>
+  (await unscopedPrisma.workspace.findFirst({ where: { kind }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] })) ?? (await createWorkspace({ name, kind }));
 
 const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
     message:
-      `Dans l’espace « ${workspace.name} », les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, sprints, tableaux de bord, documents comptables, catalogue, trésorerie, bibliothèque, lieux, courses et routines vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail, les alarmes et les autres espaces sont conservés). Continuer ?`,
+      'Le premier espace professionnel et le premier espace personnel (créés s’ils manquent) vont être vidés de toutes leurs données (clients, projets, tâches, temps, alarmes, agenda, plages, documents comptables, trésorerie, bibliothèque, courses, routines…) puis remplis de données de démonstration ; la boîte mail de démo est recréée. Le compte, les boîtes mail et les autres espaces sont conservés. Continuer ?',
     default: false,
   });
   if (!ok) process.exit(0);
 }
+
+const workspace = await workspaceOf('PRO', 'Atelier');
+const personalWorkspace = await workspaceOf('PERSO', 'Maison');
+enterWorkspace(workspace);
 
 // Same data on every run.
 faker.seed(2026);
@@ -77,62 +84,7 @@ if (user) await ensureMeContributor(user);
 const meId = user ? await meContributorId(user.id) : null;
 
 // --- Purge ----------------------------------------------------------------------------------------
-// Alarms are not fixtures: they are kept, without their project or task (purged below).
-const alarms = await prisma.alarm.findMany();
-// Rows other rows forbid to delete go first.
-await prisma.alarm.deleteMany();
-await prisma.treasuryAllocation.deleteMany();
-await prisma.treasuryEntry.deleteMany();
-await prisma.accountingDocument.updateMany({ data: { sourceId: null } });
-await prisma.accountingDocument.deleteMany();
-for (const model of [
-  prisma.routine,
-  prisma.routineCategory,
-  prisma.shoppingList,
-  prisma.shoppingBaseList,
-  prisma.shoppingCategory,
-  prisma.shoppingStore,
-  prisma.shoppingStorage,
-  prisma.place,
-  prisma.libraryDocument,
-  prisma.documentFolder,
-  prisma.importedDocument,
-  prisma.documentSequence,
-  prisma.catalogItem,
-  prisma.treasuryBudget,
-  prisma.treasuryRelation,
-  prisma.treasuryContextPeriod,
-  prisma.treasuryContext,
-  prisma.treasuryAccount,
-  prisma.treasuryCategory,
-  prisma.treasuryPaymentMethod,
-  prisma.treasuryCounterparty,
-  prisma.calendarEvent,
-  prisma.calendarSubscription,
-  prisma.calendar,
-  prisma.calendarCategory,
-  prisma.workScheduleSubscription,
-  prisma.workSchedule,
-  prisma.scheduleType,
-  prisma.timeEntry,
-  prisma.task,
-  prisma.taskView,
-  prisma.dashboard,
-  prisma.project,
-  prisma.client,
-  prisma.projectCategory,
-  prisma.projectStatus,
-  prisma.taskStatus,
-  prisma.taskPriority,
-  prisma.taskType,
-  prisma.taskTag,
-  prisma.attachment,
-] as unknown as { deleteMany: () => Promise<unknown> }[]) {
-  await model.deleteMany();
-}
-await prisma.alarm.createMany({ data: alarms.map((alarm) => ({ ...alarm, projectId: null, taskId: null })) });
-await prisma.contributor.deleteMany({ where: { userId: null } });
-await prisma.icon.deleteMany({ where: { contributors: { none: {} } } });
+await purgeWorkspace();
 
 // --- Labels ---------------------------------------------------------------------------------------
 const statuses = await Promise.all(
@@ -247,6 +199,17 @@ if (archivedProject) {
     subtree.push(...projects.filter((project) => project.parentId === subtree[index]).map((project) => project.id));
   }
   await prisma.project.updateMany({ where: { id: { in: subtree } }, data: { archivedAt: now, archivedByCascade: true } });
+}
+
+// --- Icons: logos of some clients and projects, avatars of some contributors -------------------------------
+for (const [index, client] of clients.slice(0, 3).entries()) {
+  await prisma.client.update({ where: { id: client.id }, data: { iconId: await initialsIcon(client.name, COLORS[(index * 5) % COLORS.length]) } });
+}
+for (const [index, project] of projects.filter((item) => item.parentId === null).slice(0, 3).entries()) {
+  await prisma.project.update({ where: { id: project.id }, data: { iconId: await initialsIcon(project.title, COLORS[(index * 7 + 2) % COLORS.length]) } });
+}
+for (const [index, contributor] of contributors.slice(0, 4).entries()) {
+  await prisma.contributor.update({ where: { id: contributor.id }, data: { iconId: await initialsIcon(contributor.name, COLORS[(index * 3 + 1) % COLORS.length]) } });
 }
 
 // --- Milestones -----------------------------------------------------------------------------------
@@ -485,7 +448,7 @@ await prisma.calendarEventException.create({
 });
 await prisma.calendarEventException.create({ data: { eventId: teamMeeting, date: new Date(`${addDays(monday, 21)}T00:00:00.000Z`), cancelled: true } });
 
-await recurring({
+const standUp = await recurring({
   title: 'Stand-up',
   start: addDays(monday, -14),
   from: 9 * 60,
@@ -506,7 +469,7 @@ await recurring({
   location: 'Salle Turing',
   reminders: [30, 1440],
 });
-await recurring({
+const sportEvent = await recurring({
   title: 'Sport',
   start: addDays(monday, -21),
   from: 18 * 60 + 30,
@@ -647,6 +610,95 @@ await prisma.workSchedule.create({
   },
 });
 
+// --- Recurring tasks: weekly, every other week, monthly (limited), their occurrences around today ---------------
+const repeatable = await prisma.task.findMany({
+  where: { closedAt: null, archivedAt: null, parentId: null, startDate: { not: null }, project: { archivedAt: null } },
+  orderBy: { number: 'asc' },
+  take: 3,
+});
+for (const [index, task] of repeatable.entries()) {
+  const anchor = task.startDate!.toISOString().slice(0, 10);
+  const weekday = new Date(`${anchor}T12:00:00Z`).getUTCDay() || 7;
+  await setTaskRecurrence(
+    task.id,
+    [rule({ weekdays: [weekday] }), rule({ interval: 2, weekdays: [weekday] }), rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', count: 6 })][index],
+  );
+}
+await materializeTaskOccurrences(addDays(today, -28), addDays(today, 31));
+// Past occurrences are mostly done.
+const doneStatus = statuses.find((status) => status.category === 'DONE')!;
+for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: new Date(`${today}T00:00:00.000Z`) } } })) {
+  if (faker.datatype.boolean(0.8)) await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: new Date(`${occurrence.occurrenceDate!.toISOString().slice(0, 10)}T17:00:00`) } });
+}
+
+// --- Events with an address and travel times, with tasks; time spent on events; a postponed occurrence ------
+const eventBase = {
+  description: null,
+  links: [],
+  allDay: false,
+  timeZone: TIME_ZONE,
+  recurrence: null,
+  reminders: [30],
+  calendarId: workCalendar,
+  contributorIds: [],
+  categoryIds: [appointments],
+  taskIds: [],
+};
+const firstRoot = activeRoots[0] ?? null;
+const rootTasks = firstRoot ? await prisma.task.findMany({ where: { projectId: firstRoot.id, closedAt: null }, select: { id: true }, take: 2 }) : [];
+await createCalendarEvent({
+  ...eventBase,
+  title: 'Atelier chez le client',
+  description: 'Recette des maquettes **sur place**, avec l’équipe du client.',
+  location: '20 cours Émile Zola, 69100 Villeurbanne',
+  locationLat: 45.7699,
+  locationLon: 4.8803,
+  travelBefore: 25,
+  travelAfter: 30,
+  startDate: addDays(monday, 2),
+  startTime: '14:00',
+  endDate: addDays(monday, 2),
+  endTime: '16:30',
+  projectId: firstRoot?.id ?? null,
+  contributorIds: contributors.slice(0, 2).map(({ id }) => id),
+  taskIds: rootTasks.map(({ id }) => id),
+  links: [{ url: 'https://www.example.com/plan-acces', label: 'Plan d’accès' }],
+});
+await createCalendarEvent({
+  ...eventBase,
+  title: 'Revue de code',
+  location: 'Visio',
+  startDate: addDays(monday, -3),
+  startTime: '15:00',
+  endDate: addDays(monday, -3),
+  endTime: '16:00',
+  projectId: firstRoot?.id ?? null,
+  taskIds: rootTasks.slice(0, 1).map(({ id }) => id),
+});
+// The stand-ups of the last two weeks were tracked from the event (each occurrence).
+if (firstRoot) {
+  for (let date = addDays(monday, -14); date < today; date = addDays(date, 1)) {
+    const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+    if (weekday === 0 || weekday === 6 || !faker.datatype.boolean(0.7)) continue;
+    await createTimeEntry({ projectId: firstRoot.id, event: { eventId: standUp, occurrenceDate: date }, description: 'Stand-up', startedAt: new Date(`${date}T09:00:00`), duration: 15 * 60 });
+  }
+}
+// The next sport session is moved to the day after (the occurrence is called off and a new event made).
+const sportDay = [1, 3, 8, 10].map((offset) => addDays(monday, offset)).find((date) => date > today)!;
+await postponeCalendarEvent(sportEvent, sportDay, {
+  ...eventBase,
+  title: 'Sport',
+  location: 'Salle de sport',
+  startDate: addDays(sportDay, 1),
+  startTime: '19:00',
+  endDate: addDays(sportDay, 1),
+  endTime: '20:00',
+  projectId: null,
+  calendarId: personalCalendar,
+  categoryIds: [sport],
+  reminders: [60],
+});
+
 // On-call duty: a kind of its own (color, display), every fourth Saturday.
 const onCall = await saveScheduleType(null, { name: 'Astreinte', color: '#fd7e14', dayDisplay: 'SLOT_BORDER', dayBar: true, monthDisplay: 'BORDER' });
 await prisma.workSchedule.create({
@@ -658,6 +710,22 @@ await prisma.workSchedule.create({
     exceptions: [],
   },
 });
+
+// --- Alarms: task alert, reminders at several frequencies, tracking alarms, a disabled one -------------------
+const alarmBase = { note: null, time: '09:00', interval: 1, weekdays: [], endDate: null, minutes: null, projectId: null, taskId: null, enabled: true };
+const alerted = await prisma.task.findFirst({ where: { closedAt: null, deadline: { gte: new Date(`${today}T00:00:00.000Z`) } }, orderBy: { deadline: 'asc' } });
+if (alerted) {
+  await createAlarm({ ...alarmBase, title: `Échéance : ${alerted.title}`, type: 'REMINDER', frequency: 'ONCE', startDate: addDays(alerted.deadline!.toISOString().slice(0, 10), -1), time: '10:00', projectId: alerted.projectId, taskId: alerted.id });
+}
+await createAlarm({ ...alarmBase, title: 'Relancer les devis en attente', type: 'REMINDER', frequency: 'WEEKLY', weekdays: [1], startDate: monday, note: 'Voir l’onglet « Devis » de la facturation.' });
+await createAlarm({ ...alarmBase, title: 'Préparer la déclaration de TVA', type: 'REMINDER', frequency: 'MONTHLY', startDate: addDays(monday, 2), time: '14:00' });
+await createAlarm({ ...alarmBase, title: 'Pense à lancer un chrono', type: 'NOT_TRACKING', frequency: 'DAILY', startDate: addDays(monday, -7), time: '10:00', weekdays: [1, 2, 3, 4, 5] });
+await createAlarm({ ...alarmBase, title: 'Chrono lancé depuis 2 h', type: 'TRACKING_DURATION', frequency: 'ONCE', startDate: null, time: null, minutes: 120 });
+await createAlarm({ ...alarmBase, title: 'Sauvegarde mensuelle', type: 'REMINDER', frequency: 'MONTHLY', interval: 2, startDate: addDays(monday, -30), time: '17:00', enabled: false });
+
+// --- Workspace settings: columns of new task views, notifications given while another workspace is open -------
+await setTaskColumnDefaults({ columnOrder: ['title', 'status', 'priority', 'assignees', 'deadline', 'project', 'effort', 'trackedTime', 'tags', 'type', 'startDate', 'endDate', 'parent', 'milestone', 'sprint', 'blockedBy', 'blocking', 'related', 'comments', 'createdAt', 'updatedAt'], hiddenColumns: ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt', 'type'] });
+await setWorkspaceNotifications(workspace.id, ['MAILS', 'ALARMS']);
 
 // --- Task views (home page and a project) ------------------------------------------------------------------
 const condition = (id: string, field: string, operator: string, value: string | string[] | null = null) => ({ type: 'condition', id, field, operator, value });
@@ -678,23 +746,7 @@ await seedAccounting({ clients, projects, today });
 await seedSprintsAndDashboards({ projects, today });
 
 // --- History of the statuses: created to do (a few weeks ago), started, then closed --------------------------
-// The tasks were all created by the seed, closed ones included: their creation goes back before they started and
-// closed (the trigger only watches the status and the closing), and their history is rebuilt.
-const allTasks = await prisma.task.findMany({ select: { id: true, statusId: true, closedAt: true, startDate: true, status: { select: { category: true } } } });
-const hour = 3_600_000;
-const history: { taskId: string; statusId: string | null; closed: boolean; at: Date }[] = [];
-for (const task of allTasks) {
-  const category = task.status?.category ?? 'TODO';
-  const end = task.closedAt ?? now;
-  const createdAt = new Date(Math.min(end.getTime() - faker.number.int({ min: 1, max: 30 }) * 24 * hour, task.startDate?.getTime() ?? Infinity));
-  await prisma.task.update({ where: { id: task.id }, data: { createdAt } });
-  const started = new Date((createdAt.getTime() + end.getTime()) / 2);
-  history.push({ taskId: task.id, statusId: category === 'TODO' ? task.statusId : statuses[0].id, closed: false, at: createdAt });
-  if (category !== 'TODO' && category !== 'CANCELLED') history.push({ taskId: task.id, statusId: statuses[1].id, closed: false, at: started });
-  if (category !== 'TODO' && task.statusId !== statuses[1].id) history.push({ taskId: task.id, statusId: task.statusId, closed: Boolean(task.closedAt), at: new Date(Math.max(end.getTime(), started.getTime() + hour)) });
-}
-await prisma.taskStatusChange.deleteMany();
-await prisma.taskStatusChange.createMany({ data: history });
+await rebuildStatusHistory(statuses[0].id, statuses[1].id);
 
 // --- Team of the treasury, library, shopping, places and routines ------------------------------------------
 const team = await seedTeam({ contributors, today, monday });
@@ -704,6 +756,12 @@ await seedRoutines({ projects, contributors, meId, scheduleId: workWeek.id });
 
 // --- Mailbox ----------------------------------------------------------------------------------------------
 await seedMailbox({ projects, today });
+
+// --- Personal workspace, then the professional one subscribes to its childcare schedules and family calendar -----
+const household = await seedPersonal({ workspace: personalWorkspace, proWorkspaceId: workspace.id, proCalendarId: workCalendar, user, today, monday });
+enterWorkspace(workspace);
+await subscribeScheduleKind(personalWorkspace.id, household.childcareTypeId);
+await subscribe(household.familyCalendarId);
 
 const counts = {
   clients: await prisma.client.count(),
@@ -733,7 +791,9 @@ const counts = {
   'listes de courses': await prisma.shoppingList.count(),
   routines: await prisma.routine.count(),
   'routines cochées': await prisma.routineCheck.count(),
+  alarmes: await prisma.alarm.count(),
 };
-console.log('Fixtures chargées :', counts);
+console.log(`Fixtures de l’espace professionnel « ${workspace.name} » :`, counts);
+console.log(`Espace personnel : « ${personalWorkspace.name} ».`);
 await prisma.$disconnect();
 

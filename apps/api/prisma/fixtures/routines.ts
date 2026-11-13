@@ -3,6 +3,7 @@ import { addDays, DEFAULT_RECURRENCE, type Recurrence, type RoutineInput } from 
 import { prisma } from '../../src/db';
 import type { Contributor, Project } from '../../src/generated/prisma/client';
 import { savePlace } from '../../src/services/geo';
+import { createTimeEntry } from '../../src/services/time-entries';
 import {
   changeRoutineOccurrence,
   createCategory,
@@ -21,6 +22,35 @@ import {
  * @returns {Recurrence} Rule.
  */
 const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
+
+/**
+ * Ticks most occurrences of the routines of the current workspace over the last four weeks (each time of the day
+ * apart; today, only some first ones): their history.
+ * @param {string} today Today (YYYY-MM-DD).
+ * @returns {Promise<{ routineId: string, date: Date, slot: number, doneAt: Date }[]>} Ticks made.
+ */
+export async function tickRoutines(today: string): Promise<{ routineId: string; date: Date; slot: number; doneAt: Date }[]> {
+  const routines = await prisma.routine.findMany({ where: { archivedAt: null }, include: { schedule: true } });
+  const checks: { routineId: string; date: Date; slot: number; doneAt: Date }[] = [];
+  for (const routine of routines) {
+    for (const date of occurrencesBetween(routine, addDays(today, -28), today)) {
+      const slots = Math.max(1, slotsOf(routine, date).length);
+      for (let slot = 0; slot < slots; slot += 1) {
+        if (date === today && (slot > 0 || faker.datatype.boolean(0.5))) continue;
+        if (!faker.datatype.boolean(0.8)) continue;
+        const hour = faker.number.int({ min: 8, max: 20 });
+        checks.push({
+          routineId: routine.id,
+          date: new Date(`${date}T00:00:00.000Z`),
+          slot,
+          doneAt: new Date(`${date}T${String(hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`),
+        });
+      }
+    }
+  }
+  await prisma.routineCheck.createMany({ data: checks });
+  return checks;
+}
 
 /**
  * Places and routines: categories (with sub-categories), routines with their own rule and time window, with cases
@@ -140,26 +170,17 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
   const watch = await createRoutine(base('Veille techno', -120, rule({ weekdays: [2] }), { categoryIds: [learning], fromTime: '08:30', dueTime: '09:00', estimate: 30 }));
 
   // --- Ticks of the last four weeks (most of them, some late, some forgotten) ----------------------------
+  const checks = await tickRoutines(today);
   const routines = await prisma.routine.findMany({ include: { schedule: true } });
-  const checks: { routineId: string; date: Date; slot: number; doneAt: Date }[] = [];
-  for (const routine of routines) {
-    for (const date of occurrencesBetween(routine, addDays(today, -28), today)) {
-      const slots = Math.max(1, slotsOf(routine, date).length);
-      for (let slot = 0; slot < slots; slot += 1) {
-        // Today, only the first times of the day.
-        if (date === today && (slot > 0 || faker.datatype.boolean(0.5))) continue;
-        if (!faker.datatype.boolean(0.8)) continue;
-        const hour = faker.number.int({ min: 8, max: 20 });
-        checks.push({
-          routineId: routine.id,
-          date: new Date(`${date}T00:00:00.000Z`),
-          slot,
-          doneAt: new Date(`${date}T${String(hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`),
-        });
-      }
-    }
+
+  // --- Time spent on some ticked routines (with the project of the routine, if any) -----------------------------
+  const timed = routines.filter((routine) => routine.estimate && routine.estimate >= 15 && !routine.parentId);
+  for (const check of checks.filter((item) => timed.some((routine) => routine.id === item.routineId)).slice(0, 25)) {
+    const routine = timed.find((item) => item.id === check.routineId)!;
+    if (!faker.datatype.boolean(0.6)) continue;
+    const minutes = Math.max(5, routine.estimate! + faker.number.int({ min: -5, max: 10 }));
+    await createTimeEntry({ routineId: routine.id, projectId: routine.projectId, startedAt: new Date(check.doneAt.getTime() - minutes * 60_000), duration: minutes * 60 });
   }
-  await prisma.routineCheck.createMany({ data: checks });
 
   // --- Exceptions to the rules ---------------------------------------------------------------------------
   const next = async (id: string, after = 0) => {

@@ -1,6 +1,7 @@
 import { addDays } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
+import { createCalendarEvent } from '../../src/services/calendar-events';
 import { createEntry } from '../../src/services/treasury';
 import { saveBudget } from '../../src/services/treasury-budgets';
 import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury-team';
@@ -72,6 +73,35 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
   await budget('Déplacements', 250, { contextId: contextIds.get('Déplacement') ?? null });
   await budget('Repas', 400, { contextId: contextIds.get('Salon') ?? null, repeatEvery: null, month: addDays(monday, 10).slice(0, 7) });
   await budget('Divers', 200, { relationId: friend.id, repeatEvery: 6, repeatUntil: month(9) });
+
+  // Money in: the expected sales, every month.
+  const sales = category('Prestations', 'IN');
+  if (sales) await saveBudget(null, { month: month(-3), memberId: null, contextId: null, categoryId: sales, amount: 6000, repeatEvery: 1, repeatUntil: null });
+
+  // --- An event with a relation (not a contributor), at an address with travel times ---------------------
+  await createCalendarEvent({
+    title: 'Déjeuner avec Julien',
+    description: null,
+    location: 'Les Halles Paul Bocuse, 102 cours Lafayette, 69003 Lyon',
+    locationLat: 45.7629,
+    locationLon: 4.8507,
+    travelBefore: 15,
+    travelAfter: 15,
+    links: [],
+    allDay: false,
+    startDate: addDays(monday, 3),
+    startTime: '12:30',
+    endDate: addDays(monday, 3),
+    endTime: '14:00',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    recurrence: null,
+    reminders: [30],
+    projectId: null,
+    contributorIds: [],
+    relationIds: [friend.id],
+    categoryIds: [],
+    taskIds: [],
+  });
 
   // --- Split movements --------------------------------------------------------------------------------
   if (account) {

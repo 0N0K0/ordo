@@ -17,8 +17,12 @@ import { acceptQuote, documentBalances, markSent, recordPayment, setTrackingStat
 import { importDocument } from '../../src/services/imported-documents';
 import { createRecurringInvoice, issueDueInvoices } from '../../src/services/recurring-invoices';
 import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury';
+import { importStatement } from '../../src/services/treasury-import';
 import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury-settings';
 import { maybe } from './factories';
+import { logoFile } from './images';
+import { tinyPdf } from './mail';
+import { setCompanyLogo } from '../../src/services/company';
 import { currentWorkspaceId } from '../../src/workspace-context';
 
 /** Seller of the fixture documents: the seed only reloads a database whose final documents are its own. */
@@ -81,8 +85,12 @@ async function seedCompany(): Promise<void> {
     paymentDays: 30,
     paymentMethods: 'Virement bancaire',
     lateInterest: 'Trois fois le taux d’intérêt légal',
+    otherMentions: 'Pas d’escompte pour paiement anticipé. Indemnité forfaitaire pour frais de recouvrement : 40 €.',
+    referenceLabel: 'Bon de commande',
+    quoteValidityDays: 45,
   };
   await prisma.companyProfile.upsert({ where: { workspaceId: currentWorkspaceId() }, create: data, update: data });
+  await setCompanyLogo(await logoFile(DEMO_COMPANY, '#228be6'));
 }
 
 /**
@@ -313,6 +321,8 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
           await fields('QUOTE', clientA, day(-160), {
             title: 'Refonte du site et de l’espace client',
             introduction: 'Suite à notre rendez-vous, voici notre proposition pour la refonte de votre site.',
+            referenceValue: 'BC-2026-0142',
+            conclusion: 'Nous restons à votre disposition pour ajuster cette proposition. Le planning détaillé sera validé ensemble au lancement.',
             billingSchedule: 'Acompte à la commande, solde à la livraison',
             depositType: 'PERCENT',
             depositValue: 30,
@@ -507,12 +517,20 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   // --- Tracking: sending, acceptance, refusal ----------------------------------------------------------
   const sent = async (id: string | undefined, date: string) => {
     if (!id) return;
-    await markSent(id);
+    await markSent(id, {
+      via: faker.helpers.weightedArrayElement([
+        { value: 'MAIL', weight: 6 },
+        { value: 'CHORUS', weight: 1 },
+        { value: 'POST', weight: 1 },
+        { value: 'HAND', weight: 1 },
+        { value: 'OTHER', weight: 1 },
+      ]),
+    });
     await prisma.accountingDocument.update({ where: { id }, data: { sentAt: new Date(`${date}T09:30:00`) } });
   };
   const finals = await prisma.accountingDocument.findMany({ where: { status: 'FINAL' }, select: { id: true, issueDate: true } });
   for (const document of finals) await sent(document.id, document.issueDate.toISOString().slice(0, 10));
-  await acceptQuote(ids.quoteA, day(-152), null);
+  await acceptQuote(ids.quoteA, day(-152), new File([tinyPdf('Devis signe - bon pour accord')], 'Devis signé.pdf', { type: 'application/pdf' }));
   await acceptQuote(ids.quoteB, day(-112), null);
   await setTrackingStatus(ids.refusedC, (await statusOf('QUOTE', 'REFUSED')).id);
 
@@ -632,4 +650,21 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
     const { category: name, method, payee, ...fields } = entry;
     await createEntry({ ...entryBase, ...fields, accountId: bank.id, status: 'FORECAST', categoryId: categoryOf(name, entry.amount), methodId: methodOf(method), counterpartyId: counterpartyOf(payee) });
   }
+
+  // --- Categories of the movements of the invoices and credit notes paid ---------------------------------
+  await prisma.companyProfile.update({
+    where: { workspaceId: currentWorkspaceId() },
+    data: { invoiceCategoryId: categoryOf('Prestations', 1), creditNoteCategoryId: categoryOf('Remboursements clients', -1) },
+  });
+
+  // --- Bank statement imported (its CSV format is remembered by the account): left to sort out ---------------
+  await importStatement({
+    accountId: bank.id,
+    mapping: { separator: ';', encoding: 'windows-1252', skipRows: 4, dateColumn: 0, dateFormat: 'DD/MM/YYYY', labelColumns: [1, 2], amountColumn: null, debitColumn: 3, creditColumn: 4 },
+    rows: [
+      { date: day(-6), label: 'CB AMAZON MKTPLACE', amount: -45.9 },
+      { date: day(-5), label: 'PRLV SEPA FREE MOBILE', amount: -19.99 },
+      { date: day(-3), label: 'VIR SEPA REMBOURSEMENT TROP PERCU', amount: 12.5 },
+    ],
+  });
 }
