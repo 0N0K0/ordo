@@ -1,4 +1,4 @@
-import { Stack, Tabs } from "@mantine/core";
+import { Stack } from "@mantine/core";
 import { FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
@@ -20,6 +20,7 @@ import {
   useWorkspace,
 } from "../api";
 import { SettingsGrid } from "../../../components/settings/SettingsGrid";
+import { PageTabs } from '../../../components/PageTabs';
 import { PageTitle } from "../../../components/PageTitle";
 
 /**
@@ -74,31 +75,31 @@ export function SettingsPage() {
   return (
     <Stack gap="lg">
       <PageTitle>Paramètres</PageTitle>
-      <Tabs
+      <PageTabs
         value={tab}
         onChange={(value) =>
           setParams(value && value !== "projects" ? { tab: value } : {})
         }
         keepMounted={false}
       >
-        <Tabs.List mb="lg">
-          <Tabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>
+        <PageTabs.List>
+          <PageTabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>
             Projets
-          </Tabs.Tab>
-          <Tabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
             {perso ? "Foyer et contributeurs" : "Équipe et contributeurs"}
-          </Tabs.Tab>
-          <Tabs.Tab value="tasks" leftSection={<ListChecksIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="tasks" leftSection={<ListChecksIcon aria-hidden />}>
             Tâches
-          </Tabs.Tab>
-          <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
             GitHub
-          </Tabs.Tab>
-          <Tabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
             Espaces
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="projects">
+          </PageTabs.Tab>
+        </PageTabs.List>
+        <PageTabs.Panel value="projects">
           <SettingsGrid>
             <LabelManager
               title="Statuts de projet"
@@ -124,11 +125,11 @@ export function SettingsPage() {
               remove={deleteCategory}
             />
           </SettingsGrid>
-        </Tabs.Panel>
-        <Tabs.Panel value="tasks">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="tasks">
           <TaskSettings />
-        </Tabs.Panel>
-        <Tabs.Panel value="contributors">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="contributors">
           <SettingsGrid>
             <TeamMembers />
             <TeamRelations />
@@ -137,14 +138,14 @@ export function SettingsPage() {
               usage={assigneeUsage}
             />
           </SettingsGrid>
-        </Tabs.Panel>
-        <Tabs.Panel value="github">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="github">
           <GithubSettings />
-        </Tabs.Panel>
-        <Tabs.Panel value="workspaces">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="workspaces">
           <WorkspacesManager />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
     </Stack>
   );
 }

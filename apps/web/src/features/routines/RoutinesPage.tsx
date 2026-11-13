@@ -1,4 +1,4 @@
-import { Button, Group, Paper, Skeleton, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, type RoutineViewConfig } from '@ordo/shared';
 import { useMemo, useState } from 'react';
@@ -7,6 +7,7 @@ import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
 import { newConditionFor } from '../tasks/views/filter-meta';
 import { ROUTINE_COLUMNS } from './routine-columns';
 import { useSearchParams } from 'react-router';
+import { PageTabs } from '../../components/PageTabs';
 import { PageTitle } from '../../components/PageTitle';
 import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -164,7 +165,7 @@ export function RoutinesPage() {
     <Stack gap="lg">
       <PageTitle>Routines</PageTitle>
       <RoutineSettings />
-      <Tabs
+      <PageTabs
         value={tab}
         onChange={(value) =>
           setParams(
@@ -180,18 +181,18 @@ export function RoutinesPage() {
         }
         keepMounted={false}
       >
-        <Tabs.List mb="md">
-          <Tabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
+        <PageTabs.List>
+          <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Routines
-          </Tabs.Tab>
-          <Tabs.Tab value="history" leftSection={<ClockCounterClockwiseIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="history" leftSection={<ClockCounterClockwiseIcon aria-hidden />}>
             Historique
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="routines">
+          </PageTabs.Tab>
+        </PageTabs.List>
+        <PageTabs.Panel value="routines">
           <RoutinesPanel />
-        </Tabs.Panel>
-        <Tabs.Panel value="history">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="history">
           <RoutineHistory
             routineId={params.get('routine')}
             onRoutine={(id) =>
@@ -206,8 +207,8 @@ export function RoutinesPage() {
               )
             }
           />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
     </Stack>
   );
 }

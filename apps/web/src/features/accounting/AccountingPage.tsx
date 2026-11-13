@@ -37,6 +37,7 @@ import { DocumentsZipForm } from './DocumentsZipForm';
 import { CompanySettings } from './CompanySettings';
 import { openRecurringForm } from './recurring-form';
 import { DocumentStatusSettings } from './DocumentStatusSettings';
+import { PageTabs } from '../../components/PageTabs';
 import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
@@ -254,50 +255,48 @@ export function AccountingPage() {
           </Menu.Dropdown>
         </Menu>
       </Group>
-      <Tabs value={tab} onChange={(value) => setParam('tab', value && value !== 'QUOTE' ? value : null)} keepMounted={false}>
-        <Group justify="space-between" align="flex-end" mb="md" wrap="nowrap" gap="md">
-          <Tabs.List style={{ flex: 1 }}>
-            {TABS.map((item) => (
-              <Tabs.Tab key={item.value} value={item.value}>
-                {item.label}
-              </Tabs.Tab>
-            ))}
-            <Tabs.Tab
-              value="toSend"
-              leftSection={<PaperPlaneTiltIcon aria-hidden />}
-              rightSection={
-                toSendCount ? (
-                  <Badge size="xs" circle color="blue">
-                    {toSendCount}
-                  </Badge>
-                ) : undefined
-              }
-            >
-              À envoyer
-            </Tabs.Tab>
-            <Tabs.Tab
-              value="overdue"
-              leftSection={<BellRingingIcon aria-hidden />}
-              rightSection={
-                overdue.data?.length ? (
-                  <Badge size="xs" circle color="red">
-                    {overdue.data.length}
-                  </Badge>
-                ) : undefined
-              }
-            >
-              À relancer
-            </Tabs.Tab>
-            <Tabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
-              Récurrentes
-            </Tabs.Tab>
-            <Tabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
-              Catalogue
-            </Tabs.Tab>
-          </Tabs.List>
-        </Group>
+      <PageTabs value={tab} onChange={(value) => setParam('tab', value && value !== 'QUOTE' ? value : null)} keepMounted={false}>
+        <PageTabs.List>
+          {TABS.map((item) => (
+            <PageTabs.Tab key={item.value} value={item.value}>
+              {item.label}
+            </PageTabs.Tab>
+          ))}
+          <PageTabs.Tab
+            value="toSend"
+            leftSection={<PaperPlaneTiltIcon aria-hidden />}
+            rightSection={
+              toSendCount ? (
+                <Badge size="xs" circle color="blue">
+                  {toSendCount}
+                </Badge>
+              ) : undefined
+            }
+          >
+            À envoyer
+          </PageTabs.Tab>
+          <PageTabs.Tab
+            value="overdue"
+            leftSection={<BellRingingIcon aria-hidden />}
+            rightSection={
+              overdue.data?.length ? (
+                <Badge size="xs" circle color="red">
+                  {overdue.data.length}
+                </Badge>
+              ) : undefined
+            }
+          >
+            À relancer
+          </PageTabs.Tab>
+          <PageTabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
+            Récurrentes
+          </PageTabs.Tab>
+          <PageTabs.Tab value="catalog" leftSection={<PackageIcon aria-hidden />}>
+            Catalogue
+          </PageTabs.Tab>
+        </PageTabs.List>
         {TABS.map((item) => (
-          <Tabs.Panel key={item.value} value={item.value}>
+          <PageTabs.Panel key={item.value} value={item.value}>
             {isPending || imported.isPending ? (
               <Skeleton height={200} />
             ) : (
@@ -307,21 +306,21 @@ export function AccountingPage() {
                 empty={`${EMPTY_DOCUMENTS[item.value].replace(/\.$/, '')} en ${year}.`}
               />
             )}
-          </Tabs.Panel>
+          </PageTabs.Panel>
         ))}
-        <Tabs.Panel value="toSend">
+        <PageTabs.Panel value="toSend">
           {isPending || imported.isPending ? <Skeleton height={200} /> : <DocumentsTable documents={toSend} imported={importedToSend} showType empty="Aucun document à envoyer ni à déposer." />}
-        </Tabs.Panel>
-        <Tabs.Panel value="overdue">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="overdue">
           <OverdueInvoicesPanel />
-        </Tabs.Panel>
-        <Tabs.Panel value="recurring">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="recurring">
           <RecurringList />
-        </Tabs.Panel>
-        <Tabs.Panel value="catalog">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="catalog">
           <CatalogPanel />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
       {/* In the settings sidebar: the download of a period as a ZIP, the tracking statuses of the documents and the company. */}
       <PageSettings title="Paramètres de la facturation">
         <Tabs value={settingsTab} onChange={(value) => value && setSettingsTab(value as SettingsTab)}>
