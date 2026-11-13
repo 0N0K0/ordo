@@ -36,7 +36,12 @@ import {
   TrashIcon,
   TreeViewIcon,
 } from '@phosphor-icons/react';
-import { useEffect, useRef, useState, type ComponentProps, type ReactElement } from 'react';
+import type { ColumnLayout, TableSort } from '@ordo/shared';
+import { useEffect, useRef, useState, type ComponentProps, type ReactElement, type ReactNode } from 'react';
+import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { shownColumns, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import tableClasses from '../../components/data-table/DataTable.module.css';
 import { Link } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -73,7 +78,39 @@ import {
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
-const COLUMNS = 11;
+/** Width of the cells around the columns: handle and selection before, actions after. */
+const LEAD_WIDTH = 64;
+const ACTIONS_WIDTH = 48;
+
+/** Columns of the routine table (ids: the sort keys of the views, when sortable). */
+const ROUTINE_COLUMNS: DataColumn<Routine>[] = [
+  { id: 'title', label: 'Routine', size: 320, locked: true, sortValue: () => null },
+  { id: 'currentDate', label: 'Échéance', size: 200, sortValue: () => null },
+  { id: 'firstDate', label: 'Première échéance', size: 150, sortValue: () => null },
+  { id: 'nextDate', label: 'Échéance suivante', size: 150, hiddenByDefault: true, sortValue: () => null },
+  { id: 'repetition', label: 'Répétition', size: 200, hiddenByDefault: true, sortValue: () => null },
+  { id: 'estimate', label: 'Temps estimé', size: 110, sortValue: () => null },
+  { id: 'time', label: 'Horaires', size: 150 },
+  { id: 'trackedTime', label: 'Chrono', size: 120, sortValue: () => null },
+  { id: 'lastDoneAt', label: 'Faite pour la dernière fois', size: 170, hiddenByDefault: true, sortValue: () => null },
+  { id: 'assignees', label: 'Assignés', size: 160, sortValue: () => null },
+  { id: 'categories', label: 'Catégories', size: 180, sortValue: () => null },
+  { id: 'requires', label: 'Dépend de', size: 180 },
+  { id: 'project', label: 'Projet', size: 180, sortValue: () => null },
+];
+
+/** Bulk-editable columns and their cell selection column. */
+const CELL_COLUMNS: Record<string, RoutineColumn> = {
+  currentDate: 'repetition',
+  estimate: 'estimate',
+  time: 'time',
+  assignees: 'assignees',
+  categories: 'categories',
+  requires: 'requires',
+  project: 'project',
+};
+
+const lastDoneFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -225,6 +262,8 @@ function ChronoCell({ routine, running }: { routine: Routine; running: TimeEntry
 }
 
 interface GroupRowProps {
+  /** Cells it spans. */
+  span: number;
   /** A routine dropped on it moves into it (category groups). */
   receives: boolean;
   row: Extract<RoutineRow, { kind: 'group' }>;
@@ -240,12 +279,12 @@ interface GroupRowProps {
  * @param {GroupRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function GroupRow({ receives, row, today, collapsed, over, onToggle }: GroupRowProps) {
+function GroupRow({ span, receives, row, today, collapsed, over, onToggle }: GroupRowProps) {
   const { setNodeRef } = useDroppable({ id: `group:${row.id ?? NO_CATEGORY}`, data: { kind: 'group', categoryId: row.id } satisfies DropData, disabled: !receives });
   const left = row.routines.filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today))).length;
   return (
     <Table.Tr ref={setNodeRef} className={classes.groupRow} data-depth={row.depth} data-over={over || undefined}>
-      <Table.Td colSpan={COLUMNS} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
+      <Table.Td colSpan={span} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
         <UnstyledButton onClick={onToggle} aria-expanded={!collapsed}>
           <Group gap="xs" wrap="nowrap">
             {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
@@ -275,6 +314,8 @@ interface RoutineRowProps {
   drop: RoutinePlace | null;
   /** It can be moved by drag and drop (manual order). */
   movable: boolean;
+  /** Columns shown. */
+  shown: ShownColumn<Routine>[];
   onToggle: () => void;
   categories: RoutineCategory[];
   /** Checked in the row selection (bulk actions). */
@@ -290,7 +331,7 @@ interface RoutineRowProps {
  * @param {RoutineRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, movable, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
+function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, movable, shown, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
   const postpone = usePostponeRoutine();
   const { routine, depth, children } = row;
   const { setArchived, remove } = useRoutineMutations();
@@ -309,6 +350,57 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
   const done = isDone(routine);
   const waiting = waitingFor(routine, byId);
   const readOnly = routine.archived;
+  const cells: Record<string, ReactNode> = {
+    title: (
+      <Group gap={4} wrap="nowrap">
+        {children > 0 ? (
+          <ActionIcon variant="subtle" color="gray" size="xs" aria-label={collapsed ? `Déplier ${routine.title}` : `Plier ${routine.title}`} aria-expanded={!collapsed} onClick={onToggle}>
+            {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
+          </ActionIcon>
+        ) : (
+          depth > 0 && <span style={{ width: 'var(--ai-size-xs, 18px)', flexShrink: 0 }} />
+        )}
+        <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? dayText(routine.currentDate) : undefined} disabled={readOnly} />
+        <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+          <TitleCell routine={routine} readOnly={readOnly} />
+          <RepetitionText routine={routine} />
+        </Stack>
+        {waiting.length > 0 && !done && (
+          <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
+            <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
+          </Tooltip>
+        )}
+      </Group>
+    ),
+    currentDate: (
+      <RepetitionCell routine={routine} readOnly={readOnly}>
+        <StateCell routine={routine} today={today} />
+      </RepetitionCell>
+    ),
+    firstDate: routine.firstDate ? (
+      <Text size="sm" className={classes.nowrap}>
+        {dayText(String(routine.firstDate))}
+      </Text>
+    ) : null,
+    nextDate: routine.nextDate ? (
+      <Text size="sm" className={classes.nowrap}>
+        {dayText(String(routine.nextDate))}
+      </Text>
+    ) : null,
+    lastDoneAt: routine.lastDoneAt ? (
+      <Text size="sm" className={classes.nowrap}>
+        {lastDoneFormat.format(new Date(String(routine.lastDoneAt)))}
+      </Text>
+    ) : null,
+    repetition: <RepetitionText routine={routine} />,
+    estimate: <EstimateCell routine={routine} readOnly={readOnly} />,
+    time: <TimeWindowCell routine={routine} readOnly={readOnly} />,
+    trackedTime: <ChronoCell routine={routine} running={running} />,
+    assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
+    categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
+    requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
+    project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
+  };
 
   return (
     <Table.Tr
@@ -334,53 +426,19 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           <Checkbox size="xs" className={classes.select} aria-label={`Sélectionner ${routine.title}`} checked={selected} onChange={(event) => onSelect(event.currentTarget.checked)} />
         </Group>
       </Table.Td>
-      <Table.Td miw={240} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
-        <Group gap={4} wrap="nowrap">
-          {children > 0 ? (
-            <ActionIcon variant="subtle" color="gray" size="xs" aria-label={collapsed ? `Déplier ${routine.title}` : `Plier ${routine.title}`} aria-expanded={!collapsed} onClick={onToggle}>
-              {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-            </ActionIcon>
-          ) : (
-            depth > 0 && <span style={{ width: 'var(--ai-size-xs, 18px)', flexShrink: 0 }} />
-          )}
-          <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? dayText(routine.currentDate) : undefined} disabled={readOnly} />
-          <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-            <TitleCell routine={routine} readOnly={readOnly} />
-            <RepetitionText routine={routine} />
-          </Stack>
-          {waiting.length > 0 && !done && (
-            <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
-              <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
-            </Tooltip>
-          )}
-        </Group>
-      </Table.Td>
-      <Table.Td {...cell('repetition')}>
-        <RepetitionCell routine={routine} readOnly={readOnly}>
-          <StateCell routine={routine} today={today} />
-        </RepetitionCell>
-      </Table.Td>
-      <Table.Td w={96} {...cell('estimate')}>
-        <EstimateCell routine={routine} readOnly={readOnly} />
-      </Table.Td>
-      <Table.Td w={150} {...cell('time')}>
-        <TimeWindowCell routine={routine} readOnly={readOnly} />
-      </Table.Td>
-      <Table.Td>
-        <ChronoCell routine={routine} running={running} />
-      </Table.Td>
-      <Table.Td miw={140} {...cell('assignees')}>
-        <AssigneesCell routine={routine} readOnly={readOnly} context={context} />
-      </Table.Td>
-      <Table.Td miw={160} {...cell('categories')}>
-        <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />
-      </Table.Td>
-      <Table.Td miw={160} {...cell('requires')}>
-        <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />
-      </Table.Td>
-      <Table.Td miw={140} {...cell('project')}>
-        <ProjectCell routine={routine} readOnly={readOnly} context={context} />
-      </Table.Td>
+      {shown.map((column, index) => {
+        const props = column.id in CELL_COLUMNS ? cell(CELL_COLUMNS[column.id]) : {};
+        return (
+          <Table.Td
+            key={column.id}
+            {...props}
+            className={tableClasses.cell}
+            style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` } : undefined}
+          >
+            {cells[column.id]}
+          </Table.Td>
+        );
+      })}
       <Table.Td w={1}>
         <Menu position="bottom-end" shadow="md" withinPortal>
           <Menu.Target>
@@ -455,7 +513,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
  *   category and the project of the routines added).
  * @returns {JSX.Element} Row.
  */
-function AddRoutineRow({ categoryId, projectId, depth, groupName }: { categoryId: string | null; projectId: string | null; depth: number; groupName: string }) {
+function AddRoutineRow({ span, categoryId, projectId, depth, groupName }: { span: number; categoryId: string | null; projectId: string | null; depth: number; groupName: string }) {
   const { create } = useRoutineMutations();
   const [title, setTitle] = useState('');
 
@@ -489,7 +547,7 @@ function AddRoutineRow({ categoryId, projectId, depth, groupName }: { categoryId
   return (
     <Table.Tr className={addClasses.addRow}>
       <Table.Td />
-      <Table.Td colSpan={COLUMNS - 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
+      <Table.Td colSpan={span - 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${Math.max(0, depth - 1)} * var(--mantine-spacing-lg))` }}>
         <TextInput
           variant="unstyled"
           size="xs"
@@ -529,6 +587,12 @@ interface RoutineTableProps {
   groupDrop: boolean;
   /** Routines can be added in the groups (category groups, or none). */
   addable: boolean;
+  /** Columns (order, hidden ones, widths) and their change. */
+  columns: ColumnLayout;
+  onColumnsChange: (layout: ColumnLayout) => void;
+  /** Sorts of the view and their change (a click on a header). */
+  sorting: readonly TableSort[];
+  onSortingChange: (sorting: TableSort[]) => void;
   /** Project of the routines added (on a project page). Optional. */
   projectId?: string | null;
 }
@@ -539,7 +603,25 @@ interface RoutineTableProps {
  * @param {RoutineTableProps} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function RoutineTable({ routines, layout, categories, context, keep, grouping, reorderable, groupDrop, addable, projectId = null }: RoutineTableProps) {
+export function RoutineTable({
+  routines,
+  layout,
+  categories,
+  context,
+  keep,
+  grouping,
+  reorderable,
+  groupDrop,
+  addable,
+  projectId = null,
+  columns,
+  onColumnsChange,
+  sorting,
+  onSortingChange,
+}: RoutineTableProps) {
+  const shownCols = shownColumns(ROUTINE_COLUMNS, columns);
+  const span = shownCols.length + 2;
+  const tableRef = useRef<HTMLTableElement>(null);
   const { patch, move } = useRoutineMutations();
   const { data: running } = useRunningTimer();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -725,6 +807,7 @@ export function RoutineTable({ routines, layout, categories, context, keep, grou
         out.push(
           <GroupRow
             key={`group:${key}`}
+            span={span}
             receives={groupDrop}
             row={row}
             today={today}
@@ -746,6 +829,7 @@ export function RoutineTable({ routines, layout, categories, context, keep, grou
             collapsed={collapsed.has(row.key)}
             drop={dropOn(row)}
             movable={reorderable}
+            shown={shownCols}
             onToggle={() => toggle(row.key)}
             categories={categories}
             selected={selected.has(row.routine.id)}
@@ -762,9 +846,9 @@ export function RoutineTable({ routines, layout, categories, context, keep, grou
         .reverse()
         .find((item): item is Extract<RoutineRow, { kind: 'group' }> => item.kind === 'group');
       if (!group || collapsed.has(group.id ?? NO_CATEGORY)) return;
-      out.push(<AddRoutineRow key={`add:${group.id ?? NO_CATEGORY}`} categoryId={group.id} projectId={projectId} depth={group.depth + 1} groupName={group.name} />);
+      out.push(<AddRoutineRow key={`add:${group.id ?? NO_CATEGORY}`} span={span} categoryId={group.id} projectId={projectId} depth={group.depth + 1} groupName={group.name} />);
     });
-    if (addable && !rows.some((row) => row.kind === 'group')) out.push(<AddRoutineRow key="add" categoryId={null} projectId={projectId} depth={0} groupName="les routines" />);
+    if (addable && !rows.some((row) => row.kind === 'group')) out.push(<AddRoutineRow key="add" span={span} categoryId={null} projectId={projectId} depth={0} groupName="les routines" />);
     return out;
   };
 
@@ -783,10 +867,24 @@ export function RoutineTable({ routines, layout, categories, context, keep, grou
       }}
     >
       <div className={classes.scroller}>
-        <Table className={classes.table} data-selecting={selectedRoutines.length > 0 || undefined} verticalSpacing={4} miw={1500} aria-label="Routines">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th px={4}>
+        <Table
+          ref={tableRef}
+          className={`${classes.table} ${tableClasses.table}`}
+          style={{ width: tableWidth(shownCols, LEAD_WIDTH + ACTIONS_WIDTH), minWidth: '100%' }}
+          data-selecting={selectedRoutines.length > 0 || undefined}
+          verticalSpacing={4}
+          aria-label="Routines"
+        >
+          <DataTableHeader
+            columns={ROUTINE_COLUMNS}
+            shown={shownCols}
+            layout={columns}
+            onLayoutChange={onColumnsChange}
+            sorting={sorting}
+            onSortingChange={onSortingChange}
+            tableRef={tableRef}
+            leading={
+              <Table.Th px={4} w={LEAD_WIDTH}>
                 <Group gap={2} wrap="nowrap">
                   <span style={{ width: 'var(--ai-size-sm, 22px)', flexShrink: 0 }} />
                   <Checkbox
@@ -799,18 +897,13 @@ export function RoutineTable({ routines, layout, categories, context, keep, grou
                   />
                 </Group>
               </Table.Th>
-              <Table.Th>Routine</Table.Th>
-              <Table.Th>Prochaine échéance</Table.Th>
-              <Table.Th>Temps estimé</Table.Th>
-              <Table.Th>Horaires</Table.Th>
-              <Table.Th>Chrono</Table.Th>
-              <Table.Th>Assignés</Table.Th>
-              <Table.Th>Catégories</Table.Th>
-              <Table.Th>Dépend de</Table.Th>
-              <Table.Th>Projet</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
+            }
+            trailing={
+              <Table.Th w={ACTIONS_WIDTH}>
+                <ColumnsMenu columns={ROUTINE_COLUMNS} layout={columns} onLayoutChange={onColumnsChange} />
+              </Table.Th>
+            }
+          />
           <RoutineCellSelectionContext.Provider value={effectiveCellSelection}>
             <Table.Tbody>{body()}</Table.Tbody>
           </RoutineCellSelectionContext.Provider>

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { columnLayoutSchema } from './table-layout';
 import { RECURRENCE_FREQUENCIES } from './recurrence';
 import { filterConditionSchemaFor, filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf } from './task-filters';
 
@@ -22,6 +23,7 @@ export const ROUTINE_FILTER_FIELDS = {
   repetition: 'category',
   estimate: 'number',
   currentDate: 'date',
+  firstDate: 'date',
   nextDate: 'date',
   startDate: 'date',
   lastDoneAt: 'date',
@@ -45,7 +47,21 @@ export const routineFilterSchema = filterGroupSchemaFor(routineFilterConditionSc
 );
 
 /** Sort keys of the routines. */
-export const ROUTINE_SORT_KEYS = ['title', 'state', 'currentDate', 'nextDate', 'startDate', 'lastDoneAt', 'repetition', 'estimate', 'trackedTime', 'project', 'categories', 'assignees'] as const;
+export const ROUTINE_SORT_KEYS = [
+  'title',
+  'state',
+  'currentDate',
+  'firstDate',
+  'nextDate',
+  'startDate',
+  'lastDoneAt',
+  'repetition',
+  'estimate',
+  'trackedTime',
+  'project',
+  'categories',
+  'assignees',
+] as const;
 export type RoutineSortKey = (typeof ROUTINE_SORT_KEYS)[number];
 
 /** Fields the routines can be grouped by. */
@@ -68,6 +84,8 @@ export const routineViewConfigSchema = z.object({
   groupBy: z.enum(ROUTINE_GROUP_BY).nullable().catch('category').default('category'),
   /** Sub-routines as a flat list instead of under their parent. */
   flat: z.boolean().default(false),
+  /** Columns of the table: order, hidden ones, widths. */
+  ...columnLayoutSchema.shape,
 });
 export type RoutineViewConfig = z.infer<typeof routineViewConfigSchema>;
 

@@ -1,8 +1,10 @@
-import { ActionIcon, Badge, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Switch, Table, Text, Textarea, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Switch, Text, Textarea, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
@@ -10,6 +12,14 @@ import { useCompanyProfile } from './api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from './catalog-api';
 
 let modalCount = 0;
+
+/** Columns of the catalog. */
+const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
+  { id: 'title', label: 'Article', size: 320, locked: true, sortValue: (item) => item.title },
+  { id: 'unit', label: 'Unité', size: 120, sortValue: (item) => UNIT_LABELS[item.unit].label },
+  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice },
+  { id: 'vat', label: 'TVA', size: 90, numeric: true, sortValue: (item) => (item.kind === 'DISBURSEMENT' ? null : item.vatRate) },
+];
 
 /**
  * Catalogue item form: kind, title, description, unit, price, VAT.
@@ -164,64 +174,58 @@ export function CatalogPanel() {
         </Button>
       </Group>
       <Paper withBorder radius="md">
-        <Table verticalSpacing="xs">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Article</Table.Th>
-              <Table.Th>Unité</Table.Th>
-              <Table.Th ta="right">Prix HT</Table.Th>
-              <Table.Th ta="right">TVA</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {shown.map((item) => (
-              <Table.Tr key={item.id} opacity={item.archived ? 0.6 : 1}>
-                <Table.Td>
-                  <Group gap={6}>
-                    <Text size="sm" fw={600}>
-                      {item.title}
-                    </Text>
-                    {item.kind === 'DISBURSEMENT' && (
-                      <Badge size="xs" variant="light" color="grape">
-                        Débours
-                      </Badge>
-                    )}
-                    {item.archived && (
-                      <Badge size="xs" variant="light" color="gray">
-                        Archivé
-                      </Badge>
-                    )}
-                  </Group>
-                  {item.description && (
-                    <Text size="xs" c="dimmed" lineClamp={1}>
-                      {item.description}
-                    </Text>
+        <DataTable
+          tableKey="catalog"
+          verticalSpacing="xs"
+          columns={CATALOG_COLUMNS}
+          rows={shown}
+          getKey={(item) => item.id}
+          actionsWidth={80}
+          rowProps={(item) => ({ opacity: item.archived ? 0.6 : 1 })}
+          cells={(item) => ({
+            title: (
+              <>
+                <Group gap={6}>
+                  <Text size="sm" fw={600}>
+                    {item.title}
+                  </Text>
+                  {item.kind === 'DISBURSEMENT' && (
+                    <Badge size="xs" variant="light" color="grape">
+                      Débours
+                    </Badge>
                   )}
-                </Table.Td>
-                <Table.Td>{UNIT_LABELS[item.unit].label}</Table.Td>
-                <Table.Td ta="right" ff="monospace">
-                  {formatMoney(Math.round(item.unitPrice * 100))}
-                </Table.Td>
-                <Table.Td ta="right">{item.kind === 'DISBURSEMENT' ? '—' : `${item.vatRate.toLocaleString('fr-FR')} %`}</Table.Td>
-                <Table.Td>
-                  <Group gap={2} justify="flex-end" wrap="nowrap">
-                    <Tooltip label="Modifier">
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.title}`} onClick={() => openForm(item)}>
-                        <PencilSimpleIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Supprimer">
-                      <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${item.title}`} onClick={() => confirmDelete(item)}>
-                        <TrashIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+                  {item.archived && (
+                    <Badge size="xs" variant="light" color="gray">
+                      Archivé
+                    </Badge>
+                  )}
+                </Group>
+                {item.description && (
+                  <Text size="xs" c="dimmed" lineClamp={1}>
+                    {item.description}
+                  </Text>
+                )}
+              </>
+            ),
+            unit: UNIT_LABELS[item.unit].label,
+            price: formatMoney(Math.round(item.unitPrice * 100)),
+            vat: item.kind === 'DISBURSEMENT' ? '—' : `${item.vatRate.toLocaleString('fr-FR')} %`,
+          })}
+          actions={(item) => (
+            <Group gap={2} justify="flex-end" wrap="nowrap">
+              <Tooltip label="Modifier">
+                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.title}`} onClick={() => openForm(item)}>
+                  <PencilSimpleIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Supprimer">
+                <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${item.title}`} onClick={() => confirmDelete(item)}>
+                  <TrashIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          )}
+        />
       </Paper>
     </Stack>
   );

@@ -124,6 +124,13 @@ builder.prismaObject('Routine', {
       select: TIMING,
       resolve: (routine) => asDate(routines.occurrencesOf(routine).current),
     }),
+    firstDate: t.field({
+      type: 'Date',
+      nullable: true,
+      description: 'First occurrence of the routine (from its start).',
+      select: TIMING,
+      resolve: (routine) => asDate(routines.firstOccurrence(routine)),
+    }),
     nextDate: t.field({
       type: 'Date',
       nullable: true,

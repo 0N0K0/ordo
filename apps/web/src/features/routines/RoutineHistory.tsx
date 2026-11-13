@@ -13,8 +13,8 @@ import { useAgendaLayerOptions } from './use-agenda-layers';
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
- * What a day held: each time of the day planned for the routines (done or not), then the ticks of times not planned
- * that day; by time of the day, then by title.
+ * What a day held: each time of the day planned for the routines that day (done or not, with its tick); nothing
+ * else (not a late occurrence of another day); by time of the day, then by title.
  * @param {RoutineOccurrence[]} occurrences Occurrences of the day.
  * @param {RoutineCheck[]} checks Ticks of the day.
  * @param {Map<string, Routine>} byId Routines by id.
@@ -36,12 +36,6 @@ function historyItems(occurrences: RoutineOccurrence[], checks: RoutineCheck[], 
       check: tickOf.get(`${occurrence.routineId}/${slot.index}`),
     })),
   );
-  const planned = new Set(items.map((item) => item.key));
-  for (const check of checks) {
-    const key = `${check.routineId}/${check.slot}`;
-    if (!planned.has(key))
-      items.push({ key, routineId: check.routineId, date: check.date, slot: check.slot, fromTime: check.fromTime, dueTime: check.dueTime, planned: false, optional: false, movedFrom: null, check });
-  }
   const timeOf = (item: HistoryItem) => item.fromTime ?? item.dueTime ?? '99:99';
   return items.sort((a, b) => timeOf(a).localeCompare(timeOf(b)) || (byId.get(a.routineId)?.title ?? '').localeCompare(byId.get(b.routineId)?.title ?? '', 'fr'));
 }
@@ -71,7 +65,6 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
     byId,
   );
   const doneCount = items.filter((item) => item.check).length;
-  const planned = items.filter((item) => item.planned);
   const label = day === today ? 'aujourd’hui' : `le ${dayFormat.format(new Date(`${day}T00:00:00Z`))}`;
 
   return (
@@ -143,7 +136,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
               ? routineId
                 ? `Rien de prévu pour « ${byId.get(routineId)?.title ?? 'cette routine'} » ${label}.`
                 : `Aucune routine prévue ${label}.`
-              : `${doneCount} faite${doneCount > 1 ? 's' : ''} sur ${planned.length} prévue${planned.length > 1 ? 's' : ''}${items.length > planned.length ? `, ${items.length - planned.length} faite${items.length - planned.length > 1 ? 's' : ''} sans être prévue${items.length - planned.length > 1 ? 's' : ''}` : ''}. Cliquez sur une routine pour la cocher (à l’heure prévue par défaut) ou la décocher.`}
+              : `${doneCount} faite${doneCount > 1 ? 's' : ''} sur ${items.length} prévue${items.length > 1 ? 's' : ''}. Cliquez sur une routine pour la cocher (à l’heure prévue par défaut) ou la décocher.`}
           </Text>
           <Paper withBorder radius="md" p="xs">
             <RoutineDayAgenda day={day} today={today} items={items} byId={byId} layers={layers} />

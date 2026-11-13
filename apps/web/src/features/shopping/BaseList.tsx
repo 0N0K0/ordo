@@ -117,6 +117,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         </Paper>
       ) : (
         <ShoppingTable
+          tableKey="shopping-base-list"
           items={shown}
           grouping={grouping}
           showEmpty={showEmpty}
