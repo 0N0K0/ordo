@@ -38,6 +38,7 @@ import {
   PERIOD_LABELS,
 } from './filter-meta';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
+import { treeSelectProps } from '../../../components/tree-select/tree-select';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -55,9 +56,7 @@ function referenceOptions(field: TaskFilterField, context: TaskContext): { value
   const labels = (items: { id: string; name: string }[]) => items.map((item) => ({ value: item.id, label: item.name }));
   switch (field) {
     case 'project':
-      return context.projects
-        .map((project) => ({ value: project.id, label: context.projectLabel(project.id) }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+      return context.projectOptions(context.projects);
     case 'status':
       return labels(context.statuses);
     case 'priority':
@@ -241,7 +240,11 @@ function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEd
           size="xs"
           aria-label="Valeurs"
           placeholder="Choisir…"
-          data={referenceOptions(condition.field, context)}
+          {...(condition.field === 'project'
+            ? treeSelectProps(context.projectOptions(context.projects))
+            : condition.field === 'parent'
+              ? treeSelectProps(context.taskOptions(context.tasks))
+              : { data: referenceOptions(condition.field, context) })}
           value={Array.isArray(condition.value) ? condition.value : []}
           onChange={set}
           searchable

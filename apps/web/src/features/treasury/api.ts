@@ -204,6 +204,7 @@ const SettingsDocument = graphql(`
       color
       direction
       parentId
+      position
       entryCount
     }
     treasuryPaymentMethods {
@@ -278,6 +279,11 @@ const CreateCategory = graphql(`
 const UpdateCategory = graphql(`
   mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {
     updateTreasuryCategory(id: $id, input: $input)
+  }
+`);
+const MoveCategory = graphql(`
+  mutation MoveTreasuryCategory($id: ID!, $parentId: ID, $index: Int) {
+    moveTreasuryCategory(id: $id, parentId: $parentId, index: $index)
   }
 `);
 const DeleteCategory = graphql(`
@@ -489,6 +495,7 @@ export function useTreasuryMutations() {
     deleteEntry: useTreasuryMutation(async (id: string) => (await execute(DeleteEntry, { id })).deleteTreasuryEntry),
     createCategory: useTreasuryMutation(async (input: TreasuryCategoryInput) => (await execute(CreateCategory, { input })).createTreasuryCategory),
     updateCategory: useTreasuryMutation(async (variables: { id: string; input: TreasuryCategoryInput }) => (await execute(UpdateCategory, variables)).updateTreasuryCategory),
+    moveCategory: useTreasuryMutation(async (variables: { id: string; parentId: string | null; index: number }) => (await execute(MoveCategory, variables)).moveTreasuryCategory),
     deleteCategory: useTreasuryMutation(async (id: string) => (await execute(DeleteCategory, { id })).deleteTreasuryCategory),
     createMethod: useTreasuryMutation(async (input: TreasuryPaymentMethodInput) => (await execute(CreateMethod, { input })).createTreasuryPaymentMethod),
     updateMethod: useTreasuryMutation(async (variables: { id: string; input: TreasuryPaymentMethodInput }) => (await execute(UpdateMethod, variables)).updateTreasuryPaymentMethod),

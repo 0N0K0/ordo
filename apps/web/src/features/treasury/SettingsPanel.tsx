@@ -4,7 +4,6 @@ import {
   Button,
   Checkbox,
   ColorInput,
-  ColorSwatch,
   Group,
   Modal,
   Paper,
@@ -27,11 +26,13 @@ import { useState, type ReactNode } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
-import { categoryOptions, categoryTree } from './categories';
+import { CategoryTree } from '../../components/category-tree/CategoryTree';
+import { categoryOptions } from './categories';
 import { confirmDeletion } from './confirm-deletion';
 import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useColorSwatches } from '../workspace/use-color-swatches';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OUT: 'Sorties' };
 
@@ -183,7 +184,7 @@ export function CategoryForm({ category, direction = 'OUT', parentId = null, cat
           clearable
           searchable
           placeholder="Aucune (catégorie principale)"
-          data={categoryOptions(categories, form.values.direction, category?.id)}
+          {...treeSelectProps(categoryOptions(categories, form.values.direction, category?.id))}
           {...form.getInputProps('parentId')}
         />
         <FormActions loading={createCategory.isPending || updateCategory.isPending} onCancel={() => onDone()} />
@@ -314,7 +315,7 @@ type Dialog =
   | null;
 
 /**
- * Categories of one direction, as a tree: add a sub-category, edit, delete.
+ * Categories of one direction, as a tree: add a sub-category, edit, delete, fold, reorder by drag and drop.
  * @param {object} props Component props.
  * @param {TreasuryDirection} props.direction Direction.
  * @param {TreasuryCategory[]} props.categories All categories.
@@ -322,8 +323,8 @@ type Dialog =
  * @returns {JSX.Element} List.
  */
 function CategoryList({ direction, categories, open }: { direction: TreasuryDirection; categories: TreasuryCategory[]; open: (dialog: Dialog) => void }) {
-  const { deleteCategory } = useTreasuryMutations();
-  const tree = categoryTree(categories, direction);
+  const { deleteCategory, moveCategory } = useTreasuryMutations();
+  const kept = categories.filter((category) => category.direction === direction);
   return (
     <Paper withBorder radius="md" p="md">
       <Group justify="space-between" mb="xs">
@@ -334,50 +335,39 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
           Catégorie
         </Button>
       </Group>
-      {tree.length === 0 ? (
+      {kept.length === 0 ? (
         <Empty icon={<TagIcon aria-hidden />}>Aucune catégorie de {DIRECTION_LABELS[direction].toLowerCase()}.</Empty>
       ) : (
-        <Table verticalSpacing={4}>
-          <Table.Tbody>
-            {tree.map(({ category, depth, path }) => (
-              <Table.Tr key={category.id}>
-                <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
-                  <Group gap="xs" wrap="nowrap">
-                    {category.color && <ColorSwatch color={category.color} size={12} />}
-                    <Text size="sm" fw={depth === 0 ? 600 : undefined}>
-                      {category.name}
-                    </Text>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs" c="dimmed">
-                    {category.entryCount ? entries(category.entryCount) : ''}
-                  </Text>
-                </Table.Td>
-                <Table.Td w={1}>
-                  <Group gap={2} wrap="nowrap" justify="flex-end">
-                    <Tooltip label="Ajouter une sous-catégorie">
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter une sous-catégorie à ${path}`} onClick={() => open({ kind: 'category', direction, parentId: category.id })}>
-                        <PlusIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <RowActions
-                      label={path}
-                      onEdit={() => open({ kind: 'category', category })}
-                      onDelete={() =>
-                        confirmDeletion(
-                          'Supprimer la catégorie',
-                          `« ${path} » sera supprimée définitivement.${category.entryCount ? ` Ses ${entries(category.entryCount)} n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau.`,
-                          () => deleteCategory.mutate(category.id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) }),
-                        )
-                      }
-                    />
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+        <CategoryTree
+          categories={kept}
+          storageKey={`treasury-categories-${direction}`}
+          renderMeta={({ category }) => (
+            <Text size="xs" c="dimmed">
+              {category.entryCount ? entries(category.entryCount) : ''}
+            </Text>
+          )}
+          renderActions={({ category, path }) => (
+            <>
+              <Tooltip label="Ajouter une sous-catégorie">
+                <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter une sous-catégorie à ${path}`} onClick={() => open({ kind: 'category', direction, parentId: category.id })}>
+                  <PlusIcon aria-hidden />
+                </ActionIcon>
+              </Tooltip>
+              <RowActions
+                label={path}
+                onEdit={() => open({ kind: 'category', category })}
+                onDelete={() =>
+                  confirmDeletion(
+                    'Supprimer la catégorie',
+                    `« ${path} » sera supprimée définitivement.${category.entryCount ? ` Ses ${entries(category.entryCount)} n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau.`,
+                    () => deleteCategory.mutate(category.id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) }),
+                  )
+                }
+              />
+            </>
+          )}
+          onMove={(id, parentId, index) => moveCategory.mutate({ id, parentId, index }, { onError: (error) => notifyError(error.message) })}
+        />
       )}
     </Paper>
   );
@@ -415,7 +405,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
           placeholder="Aucune (hors budget)"
           clearable
           searchable
-          data={categoryOptions(categories, 'IN')}
+          {...treeSelectProps(categoryOptions(categories, 'IN'))}
           value={current.invoiceCategoryId}
           onChange={(value) => save({ invoiceCategoryId: value })}
         />
@@ -424,7 +414,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
           placeholder="Aucune (hors budget)"
           clearable
           searchable
-          data={categoryOptions(categories, 'OUT')}
+          {...treeSelectProps(categoryOptions(categories, 'OUT'))}
           value={current.creditNoteCategoryId}
           onChange={(value) => save({ creditNoteCategoryId: value })}
         />

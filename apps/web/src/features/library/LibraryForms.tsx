@@ -3,7 +3,7 @@ import { UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess } from '../../lib/notify';
 import { useLibraryMutations, type DocumentFolder, type LibraryDocument } from './api';
-import { folderPaths } from './folders';
+import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 
 const ROOT = '__root__';
 
@@ -22,15 +22,12 @@ interface FolderSelectProps {
  * @returns {JSX.Element} Select.
  */
 export function FolderSelect({ folders, value, onChange, excluded, label = 'Dossier' }: FolderSelectProps) {
-  const paths = folderPaths(folders);
-  const data = [
-    { value: ROOT, label: 'Documents (racine)' },
-    ...folders
-      .filter((folder) => !excluded?.has(folder.id))
-      .map((folder) => ({ value: folder.id, label: paths.get(folder.id)! }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'fr')),
-  ];
-  return <Select label={label} searchable allowDeselect={false} data={data} value={value ?? ROOT} onChange={(next) => onChange(!next || next === ROOT ? null : next)} />;
+  const options = treeOptions(
+    [{ id: ROOT, parentId: null, label: 'Documents (racine)' }, ...folders.map((folder) => ({ id: folder.id, parentId: folder.parentId ?? ROOT, label: folder.name }))],
+    undefined,
+    excluded,
+  );
+  return <Select label={label} searchable allowDeselect={false} {...treeSelectProps(options)} value={value ?? ROOT} onChange={(next) => onChange(!next || next === ROOT ? null : next)} />;
 }
 
 /**

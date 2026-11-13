@@ -184,6 +184,7 @@ builder.prismaObject('TreasuryCategory', {
     color: t.exposeString('color', { nullable: true }),
     direction: t.field({ type: DirectionEnum, resolve: (category) => category.direction }),
     parentId: t.exposeID('parentId', { nullable: true }),
+    position: t.exposeInt('position', { description: 'Manual order among its siblings.' }),
     entryCount: t.relationCount('entries'),
   }),
 });
@@ -837,7 +838,7 @@ builder.queryFields((t) => ({
   }),
   treasuryCategories: t.prismaField({
     type: ['TreasuryCategory'],
-    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { position: 'asc' }, { name: 'asc' }] }),
   }),
   treasuryPaymentMethods: t.prismaField({
     type: ['TreasuryPaymentMethod'],
@@ -1110,6 +1111,14 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
     resolve: async (_root, { id, input }) => {
       await settings.updateCategory(id, input as never);
+      return true;
+    },
+  }),
+  moveTreasuryCategory: t.boolean({
+    description: 'Moves a category under another one of the same direction (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
+    args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
+    resolve: async (_root, { id, parentId, index }) => {
+      await settings.moveCategory(id, parentId ?? null, index);
       return true;
     },
   }),

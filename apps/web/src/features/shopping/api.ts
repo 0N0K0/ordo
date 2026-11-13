@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ShoppingCategoryInput, ShoppingItemInput, ShoppingProductInput, ShoppingStoreInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
 import type { ShoppingDataQuery, ShoppingListsQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -22,6 +23,7 @@ const ShoppingDataDocument = graphql(`
       name
       color
       parentId
+      position
       baseListIds
     }
     shoppingStorages {
@@ -120,8 +122,8 @@ const DeleteCategory = graphql(`
   }
 `);
 const MoveCategory = graphql(`
-  mutation MoveShoppingCategory($id: ID!, $parentId: ID) {
-    moveShoppingCategory(id: $id, parentId: $parentId)
+  mutation MoveShoppingCategory($id: ID!, $parentId: ID, $index: Int) {
+    moveShoppingCategory(id: $id, parentId: $parentId, index: $index)
   }
 `);
 const CreateStorage = graphql(`
@@ -376,12 +378,9 @@ export function useShoppingMutations() {
     updateCategory: useShoppingMutation(async (variables: { id: string; input: ShoppingCategoryInput }) => (await execute(UpdateCategory, variables)).updateShoppingCategory),
     deleteCategory: useShoppingMutation(async (id: string) => (await execute(DeleteCategory, { id })).deleteShoppingCategory),
     moveCategory: useOptimisticMutation(
-      async (variables: { id: string; parentId: string | null }) => (await execute(MoveCategory, variables)).moveShoppingCategory,
-      (client, { id, parentId }) =>
-        client.setQueryData<ShoppingDataQuery>(
-          [...shoppingKey, 'data'],
-          (data) => data && { ...data, shoppingCategories: data.shoppingCategories.map((category) => (category.id === id ? { ...category, parentId } : category)) },
-        ),
+      async (variables: { id: string; parentId: string | null; index: number }) => (await execute(MoveCategory, variables)).moveShoppingCategory,
+      (client, { id, parentId, index }) =>
+        client.setQueryData<ShoppingDataQuery>([...shoppingKey, 'data'], (data) => data && { ...data, shoppingCategories: moveInTree(data.shoppingCategories, id, parentId, index) }),
     ),
     createStorage: useShoppingMutation(async (input: ShoppingStoreInput) => (await execute(CreateStorage, { input })).createShoppingStorage),
     updateStorage: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateStorage, variables)).updateShoppingStorage),

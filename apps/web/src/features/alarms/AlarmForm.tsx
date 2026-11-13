@@ -208,6 +208,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
             }}
           />
           <TaskSelect
+            context={context}
             labelOf={(task) => context.taskLabel(task, form.values.projectId)}
             label="Tâche"
             placeholder={form.values.projectId ? 'Aucune' : 'Choisissez d’abord un projet'}

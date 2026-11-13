@@ -431,9 +431,10 @@ builder.mutationFields((t) => ({
     },
   }),
   moveCalendarCategory: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: async (_root, { id, index }) => {
-      await categories.moveCalendarCategory(id, index);
+    description: 'Moves a category at an index among its siblings; with parentId, under another category first (null: top level).',
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }), parentId: t.arg.id() },
+    resolve: async (_root, { id, index, parentId }) => {
+      await categories.moveCalendarCategory(id, index, parentId === undefined ? undefined : (parentId ?? null));
       return true;
     },
   }),

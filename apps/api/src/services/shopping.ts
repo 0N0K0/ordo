@@ -15,7 +15,7 @@ import {
 import { prisma } from '../db';
 import { Prisma, type ShoppingBaseList, type ShoppingCategory, type ShoppingItem, type ShoppingList, type ShoppingProduct, type ShoppingStorage, type ShoppingStore } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
-import { moveInOrder } from './ordering';
+import { moveInOrder, saveSiblingOrder } from './ordering';
 import { isMember } from './treasury-team';
 
 const decimal = (value: number | null) => (value === null ? null : new Prisma.Decimal(value));
@@ -137,7 +137,7 @@ async function parseCategory(input: ShoppingCategoryInput, id?: string) {
  */
 export async function createCategory(input: ShoppingCategoryInput): Promise<ShoppingCategory> {
   const { baseListIds, ...data } = await parseCategory(input);
-  return prisma.shoppingCategory.create({ data: { ...data, baseLists: { connect: baseListIds.map((baseListId) => ({ id: baseListId })) } } });
+  return prisma.shoppingCategory.create({ data: { ...data, position: await nextCategoryPosition(data.parentId), baseLists: { connect: baseListIds.map((baseListId) => ({ id: baseListId })) } } });
 }
 
 /**
@@ -147,21 +147,46 @@ export async function createCategory(input: ShoppingCategoryInput): Promise<Shop
  * @returns {Promise<ShoppingCategory>} Category.
  */
 export async function updateCategory(id: string, input: ShoppingCategoryInput): Promise<ShoppingCategory> {
-  if (!(await prisma.shoppingCategory.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Catégorie');
+  const previous = await prisma.shoppingCategory.findUnique({ where: { id }, select: { parentId: true } });
+  if (!previous) throw notFound('Catégorie');
   const { baseListIds, ...data } = await parseCategory(input, id);
-  return prisma.shoppingCategory.update({ where: { id }, data: { ...data, baseLists: { set: baseListIds.map((baseListId) => ({ id: baseListId })) } } });
+  // Under another parent, it goes last.
+  const moved = (data.parentId ?? null) !== previous.parentId;
+  return prisma.shoppingCategory.update({
+    where: { id },
+    data: { ...data, ...(moved && { position: await nextCategoryPosition(data.parentId) }), baseLists: { set: baseListIds.map((baseListId) => ({ id: baseListId })) } },
+  });
 }
 
 /**
  * Moves a category under another one (or to the top level), keeping its name, color and base lists.
  * @param {string} id Category id.
  * @param {string | null} parentId New parent, null for the top level.
- * @returns {Promise<ShoppingCategory>} Category.
+ * @param {number | null} [index] Index among its new siblings; last when omitted. Optional.
+ * @returns {Promise<void>}
  */
-export async function moveCategory(id: string, parentId: string | null): Promise<ShoppingCategory> {
+export async function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
   const category = await prisma.shoppingCategory.findUnique({ where: { id }, include: { baseLists: { select: { id: true } } } });
   if (!category) throw notFound('Catégorie');
-  return updateCategory(id, { name: category.name, color: category.color, parentId, baseListIds: category.baseLists.map((baseList) => baseList.id) });
+  if (parentId !== category.parentId) await updateCategory(id, { name: category.name, color: category.color, parentId, baseListIds: category.baseLists.map((baseList) => baseList.id) });
+  if (index === null || index === undefined) return;
+  const siblings = await prisma.shoppingCategory.findMany({ where: { parentId }, orderBy: [{ position: 'asc' }, { name: 'asc' }], select: { id: true } });
+  await saveSiblingOrder(
+    siblings.map((sibling) => sibling.id),
+    id,
+    index,
+    (siblingId, position) => prisma.shoppingCategory.update({ where: { id: siblingId }, data: { position } }),
+  );
+}
+
+/**
+ * Next position among the sub-categories of a parent.
+ * @param {string | null | undefined} parentId Parent, null for the top level.
+ * @returns {Promise<number>} Position.
+ */
+async function nextCategoryPosition(parentId: string | null | undefined): Promise<number> {
+  const { _max } = await prisma.shoppingCategory.aggregate({ where: { parentId: parentId ?? null }, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
 }
 
 /**

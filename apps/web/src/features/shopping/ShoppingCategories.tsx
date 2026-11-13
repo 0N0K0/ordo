@@ -7,6 +7,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useShoppingData, useShoppingMutations, type ShoppingCategory } from './api';
 import { shoppingCategoryOptions, shoppingCategoryTree } from './shopping-format';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 interface CategoryFormProps {
   categories: ShoppingCategory[];
@@ -59,7 +60,7 @@ function CategoryForm({ categories, category, parentId = null, onDone }: Categor
           placeholder="Aucune (catégorie principale)"
           clearable
           searchable
-          data={shoppingCategoryOptions(categories, category?.id)}
+          {...treeSelectProps(shoppingCategoryOptions(categories, category?.id))}
           {...form.getInputProps('parentId')}
         />
         <BatchMultiSelect
@@ -109,7 +110,7 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
           </Badge>
         ))
       }
-      onMove={(id, parentId) => moveCategory.mutate({ id, parentId }, { onError: (error) => notifyError(error.message) })}
+      onMove={(id, parentId, index) => moveCategory.mutate({ id, parentId, index }, { onError: (error) => notifyError(error.message) })}
       onDelete={(id) => deleteCategory.mutate(id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) })}
     />
   );

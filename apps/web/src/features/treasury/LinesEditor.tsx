@@ -6,6 +6,7 @@ import type { TreasurySettings } from './api';
 import { categoryOptions } from './categories';
 import { LineAttachments } from './LineAttachments';
 import { attachmentCount, newLine, type LineValues } from './lines';
+import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -23,7 +24,7 @@ interface LinesEditorProps {
   onCreateRelation: (index: number) => void;
   /** Entry edited, null for a new one. */
   entryId: string | null;
-  projects: { value: string; label: string }[];
+  projects: TreeOption[];
   /** Supporting documents, grouped by place. */
   documentGroups: { group: string; items: { value: string; label: string }[] }[];
 }
@@ -179,7 +180,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                         placeholder="Sans catégorie"
                         clearable
                         searchable
-                        data={categoryOptions(categories, relative * sign >= 0 ? 'IN' : 'OUT')}
+                        {...treeSelectProps(categoryOptions(categories, relative * sign >= 0 ? 'IN' : 'OUT'))}
                         value={line.categoryId}
                         onChange={(id) => change(index, { categoryId: id })}
                         error={error('categoryId')}

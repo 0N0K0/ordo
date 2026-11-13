@@ -33,6 +33,7 @@ import {
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
+import { saveSiblingOrder } from './ordering';
 import type { Routine, RoutineCategory, WorkSchedule } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { storedRecurrence } from './calendar-events';
@@ -200,7 +201,8 @@ async function parseCategory(input: RoutineCategoryInput, id?: string) {
  * @returns {Promise<RoutineCategory>} Category.
  */
 export async function createCategory(input: RoutineCategoryInput): Promise<RoutineCategory> {
-  return prisma.routineCategory.create({ data: await parseCategory(input) });
+  const data = await parseCategory(input);
+  return prisma.routineCategory.create({ data: { ...data, position: await nextCategoryPosition(data.parentId) } });
 }
 
 /**
@@ -212,19 +214,43 @@ export async function createCategory(input: RoutineCategoryInput): Promise<Routi
 export async function updateCategory(id: string, input: RoutineCategoryInput): Promise<RoutineCategory> {
   const category = await prisma.routineCategory.findUnique({ where: { id } });
   if (!category) throw notFound('Catégorie');
-  return prisma.routineCategory.update({ where: { id }, data: await parseCategory(input, id) });
+  const previous = await prisma.routineCategory.findUnique({ where: { id }, select: { parentId: true } });
+  if (!previous) throw notFound('Catégorie');
+  const data = await parseCategory(input, id);
+  // Under another parent, it goes last.
+  const moved = (data.parentId ?? null) !== previous.parentId;
+  return prisma.routineCategory.update({ where: { id }, data: { ...data, ...(moved && { position: await nextCategoryPosition(data.parentId) }) } });
 }
 
 /**
  * Moves a category under another one, or to the top level.
  * @param {string} id Category id.
  * @param {string | null} parentId New parent.
- * @returns {Promise<RoutineCategory>} Category.
+ * @param {number | null} [index] Index among its new siblings; last when omitted. Optional.
+ * @returns {Promise<void>}
  */
-export async function moveCategory(id: string, parentId: string | null): Promise<RoutineCategory> {
+export async function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
   const category = await prisma.routineCategory.findUnique({ where: { id } });
   if (!category) throw notFound('Catégorie');
-  return updateCategory(id, { name: category.name, color: category.color, parentId });
+  if (parentId !== category.parentId) await updateCategory(id, { name: category.name, color: category.color, parentId });
+  if (index === null || index === undefined) return;
+  const siblings = await prisma.routineCategory.findMany({ where: { parentId }, orderBy: [{ position: 'asc' }, { name: 'asc' }], select: { id: true } });
+  await saveSiblingOrder(
+    siblings.map((sibling) => sibling.id),
+    id,
+    index,
+    (siblingId, position) => prisma.routineCategory.update({ where: { id: siblingId }, data: { position } }),
+  );
+}
+
+/**
+ * Next position among the sub-categories of a parent.
+ * @param {string | null | undefined} parentId Parent, null for the top level.
+ * @returns {Promise<number>} Position.
+ */
+async function nextCategoryPosition(parentId: string | null | undefined): Promise<number> {
+  const { _max } = await prisma.routineCategory.aggregate({ where: { parentId: parentId ?? null }, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
 }
 
 /**

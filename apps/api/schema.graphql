@@ -1591,7 +1591,11 @@ type Mutation {
   """
   materializeTaskOccurrences(from: Date!, to: Date!): Int!
   moveCalendar(id: ID!, index: Int!): Boolean!
-  moveCalendarCategory(id: ID!, index: Int!): Boolean!
+
+  """
+  Moves a category at an index among its siblings; with parentId, under another category first (null: top level).
+  """
+  moveCalendarCategory(id: ID!, index: Int!, parentId: ID): Boolean!
   moveClient(id: ID!, index: Int!): Boolean!
   moveDashboard(id: ID!, index: Int!): Boolean!
   moveDashboardChart(id: ID!, index: Int!): Boolean!
@@ -1628,9 +1632,9 @@ type Mutation {
   moveRoutine(categoryIds: [ID!], id: ID!, place: RoutinePlace!, targetId: ID!): Boolean!
 
   """
-  Moves a category under another one (parentId), or to the top level (parentId null).
+  Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
   """
-  moveRoutineCategory(id: ID!, parentId: ID): Boolean!
+  moveRoutineCategory(id: ID!, index: Int, parentId: ID): Boolean!
 
   """
   Moves an occurrence to another day (postponed or brought forward); back to its own day, the exception is removed.
@@ -1639,9 +1643,9 @@ type Mutation {
   moveShoppingBaseList(id: ID!, index: Int!): Boolean!
 
   """
-  Moves a category under another one (parentId), or to the top level (parentId null).
+  Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
   """
-  moveShoppingCategory(id: ID!, parentId: ID): Boolean!
+  moveShoppingCategory(id: ID!, index: Int, parentId: ID): Boolean!
   moveShoppingStorage(id: ID!, index: Int!): Boolean!
   moveShoppingStore(id: ID!, index: Int!): Boolean!
 
@@ -1654,6 +1658,11 @@ type Mutation {
   moveTaskTag(id: ID!, index: Int!): Boolean!
   moveTaskType(id: ID!, index: Int!): Boolean!
   moveTaskView(id: ID!, index: Int!): Boolean!
+
+  """
+  Moves a category under another one of the same direction (parentId), or to the top level (parentId null), at an index among its siblings (last without).
+  """
+  moveTreasuryCategory(id: ID!, index: Int, parentId: ID): Boolean!
   moveWorkspace(id: ID!, index: Int!): Boolean!
 
   """Changes some fields of a routine (inline edits)."""
@@ -2514,6 +2523,9 @@ type RoutineCategory {
   id: ID!
   name: String!
   parentId: ID
+
+  """Manual order among its siblings."""
+  position: Int!
 }
 
 input RoutineCategoryInput {
@@ -2738,6 +2750,9 @@ type ShoppingCategory {
   id: ID!
   name: String!
   parentId: ID
+
+  """Manual order among its siblings."""
+  position: Int!
 }
 
 input ShoppingCategoryInput {
@@ -3324,6 +3339,9 @@ type TreasuryCategory {
   id: ID!
   name: String!
   parentId: ID
+
+  """Manual order among its siblings."""
+  position: Int!
 }
 
 input TreasuryCategoryInput {

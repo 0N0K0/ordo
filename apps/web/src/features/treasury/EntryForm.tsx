@@ -18,6 +18,7 @@ import { ContextForm, RelationForm } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { projectOptions } from '../workspace/tree';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -331,7 +332,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                 clearable
                 searchable
                 placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
-                data={categoryOptions(categories, values.direction)}
+                {...treeSelectProps(categoryOptions(categories, values.direction))}
                 {...form.getInputProps('categoryId')}
               />
             </WithCreate>
@@ -364,7 +365,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             error={form.errors.clientId ?? form.errors.counterpartyId}
           />
         </WithCreate>
-        {!split && <Select label="Projet" clearable searchable data={projectChoices} {...form.getInputProps('projectId')} />}
+        {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
         <Textarea label="Note" autosize minRows={1} {...form.getInputProps('note')} />
         <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
 

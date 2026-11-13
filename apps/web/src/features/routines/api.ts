@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { Recurrence, RoutineCategoryInput, RoutineInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
 import type { CalendarEventScope, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
@@ -17,6 +18,7 @@ const RoutinesDataDocument = graphql(`
       name
       color
       parentId
+      position
     }
     routines {
       id
@@ -76,8 +78,8 @@ const UpdateCategoryDocument = graphql(`
 `);
 
 const MoveCategoryDocument = graphql(`
-  mutation MoveRoutineCategory($id: ID!, $parentId: ID) {
-    moveRoutineCategory(id: $id, parentId: $parentId)
+  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {
+    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)
   }
 `);
 
@@ -437,8 +439,8 @@ export function useRoutineMutations() {
     createCategory: useRoutineMutation(async (input: RoutineCategoryInput) => (await execute(CreateCategoryDocument, { input })).createRoutineCategory),
     updateCategory: useRoutineMutation(async (variables: { id: string; input: RoutineCategoryInput }) => (await execute(UpdateCategoryDocument, variables)).updateRoutineCategory),
     moveCategory: useRoutineMutation(
-      async (variables: { id: string; parentId: string | null }) => (await execute(MoveCategoryDocument, variables)).moveRoutineCategory,
-      (data, { id, parentId }) => ({ ...data, routineCategories: data.routineCategories.map((category) => (category.id === id ? { ...category, parentId } : category)) }),
+      async (variables: { id: string; parentId: string | null; index: number }) => (await execute(MoveCategoryDocument, variables)).moveRoutineCategory,
+      (data, { id, parentId, index }) => ({ ...data, routineCategories: moveInTree(data.routineCategories, id, parentId, index) }),
     ),
     deleteCategory: useRoutineMutation(async (id: string) => (await execute(DeleteCategoryDocument, { id })).deleteRoutineCategory),
     create: useRoutineMutation(async (input: RoutineInput) => (await execute(CreateRoutineDocument, { input })).createRoutine),

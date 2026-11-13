@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../components/markdown/MarkdownEditor';
 import type { ReferenceTargets, ReferenceTask } from '../../components/markdown/remark-references';
 import { useWorkspace, type Project } from '../workspace/api';
-import { projectPath } from '../workspace/tree';
+import { treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
+import { projectNodes, projectOptions, projectPath } from '../workspace/tree';
 import { useMe } from '../auth/api';
 import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
 import { useTasksData, type Contributor, type Milestone, type Sprint, type Task, type TaskLabel, type TaskStatus } from './api';
@@ -42,6 +43,10 @@ export interface TaskContext {
   projectById: Map<string, Project>;
   /** "Client › Parent › Projet". */
   projectLabel: (projectId: string) => string;
+  /** Options of a select of projects, in tree order under their client. */
+  projectOptions: (projects: Project[]) => TreeOption[];
+  /** Options of a select of tasks ("#12 Titre"), in tree order under their parent task, project and client. */
+  taskOptions: (tasks: Task[]) => TreeOption[];
   /** Root project of a project: links stay inside the same tree. */
   rootOf: (projectId: string) => string;
   /** Sub-tasks of a task, in manual order. */
@@ -156,6 +161,14 @@ export function useTaskContext() {
       contributorById: new Map(data.contributors.map((contributor) => [contributor.id, contributor])),
       projectById,
       projectLabel: placeOf,
+      projectOptions: (offered: Project[]) => projectOptions(workspace, offered),
+      taskOptions: (offered: Task[]) => {
+        const ids = new Set(offered.map((task) => task.id));
+        const taskNodes = [...new Map([...tasks, ...offered].map((task) => [task.id, task])).values()]
+          .sort((a, b) => a.position - b.position)
+          .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId, label: `#${task.number} ${task.title}` }));
+        return treeOptions([...projectNodes(workspace), ...taskNodes], (id) => ids.has(id));
+      },
       rootOf,
       childrenOf: (taskId) => children.get(taskId) ?? [],
       // The open / closed state says whether a task is done, whatever its status.

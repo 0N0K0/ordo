@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useDashboardMutations, useDashboards, type DashboardChart } from './api';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 const GENERAL = 'general';
 
@@ -28,6 +29,10 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
   const [dashboardId, setDashboardId] = useState<string | null>(null);
   const { transferChart } = useDashboardMutations();
   const chosen = choices.find((dashboard) => dashboard.id === dashboardId)?.id ?? choices[0]?.id ?? null;
+  const destinationProps = treeSelectProps([
+    { value: GENERAL, label: 'Tableau de bord général (tous les projets)', depth: 0, parent: null },
+    ...context.projectOptions(context.projects.filter((project) => !project.archived)),
+  ]);
 
   return (
     <Stack gap="md">
@@ -35,10 +40,7 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
         label="Destination"
         searchable
         allowDeselect={false}
-        data={[
-          { value: GENERAL, label: 'Tableau de bord général (tous les projets)' },
-          ...context.projects.filter((project) => !project.archived).map((project) => ({ value: project.id, label: context.projectLabel(project.id) })),
-        ]}
+        {...destinationProps}
         value={destination}
         onChange={(value) => {
           if (!value) return;
