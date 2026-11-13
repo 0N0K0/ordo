@@ -27,7 +27,7 @@ export function ColumnDefaults() {
         <Text size="xs" c="dimmed">
           Colonnes affichées et leur ordre (glissez-déposez) quand une vue de tâches est créée. Les vues existantes gardent les leurs.
         </Text>
-        {columns && <ColumnsPanel columnOrder={columns.columnOrder} hiddenColumns={columns.hiddenColumns} onChange={(next) => save.mutate(next, { onError })} />}
+        {columns && <ColumnsPanel columnOrder={columns.columnOrder} hiddenColumns={columns.hiddenColumns} onChange={(next) => save.mutate(next, { onError })} withHint={false} />}
       </Stack>
     </Paper>
   );

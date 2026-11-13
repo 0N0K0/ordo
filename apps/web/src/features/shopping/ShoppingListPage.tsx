@@ -1,4 +1,4 @@
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Menu, Paper, SegmentedControl, Skeleton, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Menu, Paper, Skeleton, Stack, Switch, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney } from '@ordo/shared';
 import {
@@ -17,6 +17,10 @@ import {
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { RowActions } from '../../components/data-table/RowActions';
+import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
+import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { TaskRef } from '../tasks/task-ui';
@@ -29,6 +33,8 @@ import { confirmDestructive, openModal } from './list-modals';
 import { ProductPicker } from './ProductPicker';
 import { blankInput, listClosed, listTasks, money, type ShoppingGrouping } from './shopping-format';
 import { ShoppingSettings } from './ShoppingSettings';
+import { GroupingControl } from './GroupingControl';
+import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
 import { StoreMode } from './StoreMode';
 
@@ -50,6 +56,7 @@ export function ShoppingListPage() {
   const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
   const [storeMode, setStoreMode] = useState(false);
   const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
+  const table = useTableLayout('shopping-list');
   const list = lists?.find((item) => item.id === id);
 
   if (isPending) {
@@ -126,18 +133,19 @@ export function ShoppingListPage() {
         </Stack>
       </Group>
 
-      <Group gap="sm" wrap="wrap">
-        <SegmentedControl
-          size="xs"
-          value={grouping}
-          onChange={(value) => setGrouping(value as ShoppingGrouping)}
-          data={[
-            { value: 'category', label: 'Par catégorie' },
-            { value: 'store', label: 'Par magasin' },
-          ]}
-          aria-label="Regrouper"
-        />
-        <Checkbox size="xs" label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
+      <TableToolbar
+        options={
+          <TableOptions
+            display={
+              <>
+                <GroupingControl value={grouping} onChange={setGrouping} />
+                <Switch label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
+              </>
+            }
+            columns={<DataColumnsPanel columns={itemColumns(grouping)} layout={table.layout} onLayoutChange={table.setLayout} />}
+          />
+        }
+      >
         <Group gap="sm" ml="auto" wrap="wrap">
           {!closed && (
             <Menu position="bottom-end" shadow="md" withinPortal>
@@ -174,7 +182,7 @@ export function ShoppingListPage() {
             }
           />
         </Group>
-      </Group>
+      </TableToolbar>
 
       {list.items.length === 0 ? (
         <Paper withBorder radius="md" p="xl">
@@ -189,7 +197,7 @@ export function ShoppingListPage() {
         </Paper>
       ) : (
         <ShoppingTable
-          tableKey="shopping-list"
+          table={table}
           items={[...list.items].sort((a, b) => a.position - b.position)}
           grouping={grouping}
           label={`Éléments de ${list.name}`}
@@ -222,64 +230,38 @@ export function ShoppingListPage() {
           }
           summary={(items) => `${items.filter((item) => item.purchasedAt).length} / ${items.length}`}
           actions={(item) => (
-            <>
-              {!item.productId && baseLists.length > 0 && (
-                <Menu position="bottom-end" shadow="md" withinPortal>
-                  <Menu.Target>
-                    <Tooltip label="Ajouter à une liste type">
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter ${item.name} à une liste type`}>
-                        <ListPlusIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Label>Ajouter à la liste type</Menu.Label>
-                    {baseLists.map((baseList) => (
-                      <Menu.Item
-                        key={baseList.id}
-                        onClick={() => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, { onSuccess: () => notifySuccess(`Ajouté à « ${baseList.name} ».`), onError })}
-                      >
-                        {baseList.name}
-                      </Menu.Item>
-                    ))}
-                  </Menu.Dropdown>
-                </Menu>
-              )}
-              {item.perishable && (
-                <Tooltip label="Ajouter une autre date (le même produit, acheté avec une autre date de péremption)">
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Ajouter ${item.name} avec une autre date`}
-                    disabled={closed}
-                    onClick={() => mutations.duplicateItem.mutate({ id: item.id }, { onSuccess: () => notifySuccess('Ligne ajoutée : indiquez sa date.'), onError })}
-                  >
-                    <CalendarPlusIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-              <Tooltip label="Modifier (catégorie, note…)">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.name}`} disabled={closed} onClick={() => openShoppingForm({ kind: 'item', listId: list.id, item })}>
-                  <PencilSimpleIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Retirer de la liste">
-                <ActionIcon
-                  variant="subtle"
-                  color="red"
-                  aria-label={`Retirer ${item.name}`}
-                  disabled={closed}
-                  onClick={() => {
+            <RowActions
+              name={item.name}
+              primary={!closed && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }) }}
+              items={[
+                ...(!item.productId
+                  ? baseLists.map((baseList) => ({
+                      label: `Ajouter à « ${baseList.name} »`,
+                      icon: <ListPlusIcon aria-hidden />,
+                      onClick: () => mutations.saveToBase.mutate({ id: item.id, baseListId: baseList.id }, { onSuccess: () => notifySuccess(`Ajouté à « ${baseList.name} ».`), onError }),
+                    }))
+                  : []),
+                item.perishable && {
+                  label: 'Ajouter avec une autre date',
+                  icon: <CalendarPlusIcon aria-hidden />,
+                  hint: 'Le même produit, acheté avec une autre date de péremption',
+                  disabled: closed,
+                  onClick: () => mutations.duplicateItem.mutate({ id: item.id }, { onSuccess: () => notifySuccess('Ligne ajoutée : indiquez sa date.'), onError }),
+                },
+                {
+                  label: 'Retirer de la liste',
+                  icon: <TrashIcon aria-hidden />,
+                  danger: true,
+                  disabled: closed,
+                  onClick: () => {
                     const remove = () => mutations.deleteItem.mutate({ id: item.id }, { onError });
                     // An item of this list only is lost with it; a product of a base list can be added back.
                     if (item.productId) remove();
                     else confirmDestructive('Retirer l’élément', `« ${item.name} » n’est dans aucune liste type : il sera supprimé définitivement. Cette action est irréversible.`, remove);
-                  }}
-                >
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </>
+                  },
+                },
+              ]}
+            />
           )}
         />
       )}

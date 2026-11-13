@@ -1,14 +1,20 @@
-import { ActionIcon, Anchor, Button, Checkbox, Group, Paper, SegmentedControl, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { Anchor, Button, Checkbox, Paper, Skeleton, Stack, Switch, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
-import { BasketIcon, ListPlusIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { RowActions } from '../../components/data-table/RowActions';
+import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
+import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
 import { blankInput, categoriesForBaseList, money, type ShoppingGrouping } from './shopping-format';
+import { GroupingControl } from './GroupingControl';
+import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -54,6 +60,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const [search, setSearch] = useState('');
+  const table = useTableLayout('shopping-base-list');
   const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
   const missing = products.filter((product) => product.missing);
   const needle = search.trim().toLocaleLowerCase('fr');
@@ -62,36 +69,28 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
 
   return (
     <Stack gap="md">
-      <Group gap="sm" wrap="wrap">
-        <SegmentedControl
-          size="xs"
-          value={grouping}
-          onChange={(value) => setGrouping(value as ShoppingGrouping)}
-          data={[
-            { value: 'category', label: 'Par catégorie' },
-            { value: 'store', label: 'Par magasin' },
-          ]}
-          aria-label="Regrouper"
-        />
-        <TextInput
-          size="xs"
-          placeholder="Rechercher"
-          leftSection={<MagnifyingGlassIcon aria-hidden />}
-          value={search}
-          onChange={(event) => setSearch(event.currentTarget.value)}
-          aria-label="Rechercher un produit"
-        />
-        <Checkbox size="xs" label="Manquants seulement" checked={onlyMissing} onChange={(event) => setOnlyMissing(event.currentTarget.checked)} />
-        <Checkbox size="xs" label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
-        <Group gap="sm" ml="auto">
-          <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
-            Ajouter un produit
-          </Button>
-          <Button leftSection={<ListPlusIcon aria-hidden />} disabled={missing.length === 0} onClick={() => openNewList({ baseListIds: [baseList.id] })}>
-            Générer une liste ({missing.length})
-          </Button>
-        </Group>
-      </Group>
+      <TableToolbar
+        search={{ value: search, onChange: setSearch, placeholder: 'Rechercher un produit' }}
+        options={
+          <TableOptions
+            display={
+              <>
+                <GroupingControl value={grouping} onChange={setGrouping} />
+                <Switch label="Manquants seulement" checked={onlyMissing} onChange={(event) => setOnlyMissing(event.currentTarget.checked)} />
+                <Switch label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
+              </>
+            }
+            columns={<DataColumnsPanel columns={itemColumns(grouping, 'Dernier achat')} layout={table.layout} onLayoutChange={table.setLayout} />}
+          />
+        }
+      >
+        <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
+          Ajouter un produit
+        </Button>
+        <Button leftSection={<ListPlusIcon aria-hidden />} disabled={missing.length === 0} onClick={() => openNewList({ baseListIds: [baseList.id] })}>
+          Générer une liste ({missing.length})
+        </Button>
+      </TableToolbar>
 
       {isPending ? (
         <Stack gap="xs" aria-label="Chargement">
@@ -117,7 +116,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         </Paper>
       ) : (
         <ShoppingTable
-          tableKey="shopping-base-list"
+          table={table}
           items={shown}
           grouping={grouping}
           showEmpty={showEmpty}
@@ -150,23 +149,18 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
               ),
           }}
           actions={(product) => (
-            <>
-              <Tooltip label="Modifier (catégorie, liste type, note…)">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${product.name}`} onClick={() => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product })}>
-                  <PencilSimpleIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Retirer">
-                <ActionIcon
-                  variant="subtle"
-                  color="red"
-                  aria-label={`Retirer ${product.name}`}
-                  onClick={() => confirmDelete(product, () => mutations.deleteProduct.mutate({ id: product.id }, { onSuccess: () => notifySuccess('Produit retiré.'), onError }))}
-                >
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </>
+            <RowActions
+              name={product.name}
+              primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product }) }}
+              items={[
+                {
+                  label: 'Retirer',
+                  icon: <TrashIcon aria-hidden />,
+                  danger: true,
+                  onClick: () => confirmDelete(product, () => mutations.deleteProduct.mutate({ id: product.id }, { onSuccess: () => notifySuccess('Produit retiré.'), onError })),
+                },
+              ]}
+            />
           )}
         />
       )}

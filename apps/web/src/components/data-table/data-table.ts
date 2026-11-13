@@ -79,12 +79,24 @@ export function shownColumns<R>(columns: readonly DataColumn<R>[], layout: Colum
  * @returns {ColumnLayout} Layout.
  */
 export function withVisibility<R>(columns: readonly DataColumn<R>[], layout: ColumnLayout, id: string, visible: boolean): ColumnLayout {
-  const order = columnOrder(columns, layout);
+  // The order is saved whole: the columns hidden by default, not shown yet, are saved as hidden.
+  const hidden = hiddenIds(columns, layout);
   return {
     ...layout,
-    columnOrder: order,
-    hiddenColumns: visible ? layout.hiddenColumns.filter((item) => item !== id) : [...new Set([...layout.hiddenColumns, id])],
+    columnOrder: columnOrder(columns, layout),
+    hiddenColumns: visible ? hidden.filter((item) => item !== id) : [...new Set([...hidden, id])],
   };
+}
+
+/**
+ * Layout with the columns in a new order (the columns hidden by default, not shown yet, stay hidden).
+ * @param {readonly DataColumn<R>[]} columns Columns.
+ * @param {ColumnLayout} layout Layout.
+ * @param {string[]} order Every column id, in its new order.
+ * @returns {ColumnLayout} Layout.
+ */
+export function withOrder<R>(columns: readonly DataColumn<R>[], layout: ColumnLayout, order: string[]): ColumnLayout {
+  return { ...layout, columnOrder: order, hiddenColumns: hiddenIds(columns, layout) };
 }
 
 /**

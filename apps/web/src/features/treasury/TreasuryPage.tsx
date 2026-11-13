@@ -26,6 +26,7 @@ import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSim
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
@@ -303,10 +304,10 @@ export function TreasuryPage() {
                 ? 'Dupliquer la prévision'
                 : 'Dupliquer le mouvement'
               : dialog?.kind === 'entry' && dialog.entry
-              ? 'Modifier le mouvement'
-              : dialog?.kind === 'entry' && dialog.status === 'FORECAST'
-                ? 'Nouvelle prévision'
-                : 'Nouveau mouvement'
+                ? 'Modifier le mouvement'
+                : dialog?.kind === 'entry' && dialog.status === 'FORECAST'
+                  ? 'Nouvelle prévision'
+                  : 'Nouveau mouvement'
       }
     >
       {dialog?.kind === 'account' && <AccountForm account={dialog.account} onDone={close} />}
@@ -362,7 +363,11 @@ export function TreasuryPage() {
         <Figure label="Solde aujourd’hui" value={projection?.balance ?? 0} hint={`${accounts.filter((account) => !account.archived).length} compte(s)`} />
         <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
         <Figure label="En retard" value={late.reduce((sum, item) => sum + item.amount, 0)} hint={`${late.length} échéance(s) dépassée(s)`} color={late.length ? 'red' : undefined} />
-        <Figure label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? printedDate(end.date) : '—'}`} value={end?.balance ?? 0} hint={lowest ? `Point bas ${money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined} />
+        <Figure
+          label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? printedDate(end.date) : '—'}`}
+          value={end?.balance ?? 0}
+          hint={lowest ? `Point bas ${money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined}
+        />
       </SimpleGrid>
 
       <Paper withBorder radius="md" p="md">
@@ -476,140 +481,102 @@ export function TreasuryPage() {
               Rien d’attendu d’ici le {printedDate(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.
             </Text>
           ) : (
-            <Paper withBorder radius="md">
-              <DataTable
-                tableKey="treasury-forecast"
-                verticalSpacing="xs"
-                highlightOnHover
-                columns={FORECAST_COLUMNS}
-                rows={items.map((item, index) => ({ item, index }))}
-                getKey={({ item, index }) => `${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`}
-                actionsWidth={130}
-                cells={({ item }) => {
-                  const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
-                  const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
-                  return {
-                    date: (
-                      <>
-                          <Text size="sm">{printedDate(item.date)}</Text>
-                          {item.overdue && (
-                            <Badge size="xs" color="red" variant="light">
-                              Prévu le {printedDate(item.dueDate)}
-                            </Badge>
-                          )}
-</>
-                    ),
-                    label: (
-                      <>
-                          {item.documentId ? (
-                            <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
-                              {item.label}
-                            </Anchor>
-                          ) : (
-                            <Group gap={4} wrap="nowrap">
-                              <Text size="sm">{item.label}</Text>
-                              <EntryUrl url={entry?.url} label={item.label} />
-                            </Group>
-                          )}
-                          {entry?.recurrence != null && (
-                            <Text size="xs" c="dimmed">
-                              {(() => {
-                                const rule = recurrenceSchema.safeParse(entry.recurrence);
-                                return rule.success ? describeRecurrence(rule.data, String(entry.date)) : '';
-                              })()}
-                            </Text>
-                          )}
-</>
-                    ),
-                    payer: <Text size="sm">{item.payerName ?? ''}</Text>,
-                    origin: (
-                      <>
-                          <Badge size="sm" variant="light" color={kind.color}>
-                            {kind.label}
-                          </Badge>
-</>
-                    ),
-                    amount: (
-                      <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
-                                                  {item.amount > 0 ? '+' : ''}
-                          {money(item.amount)}
-                      </Text>
-                    ),
-                  };
-                }}
-                actions={({ item }) => {
-                  const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
-                  return (
+            <DataTable
+              framed
+              tableKey="treasury-forecast"
+              verticalSpacing="xs"
+              highlightOnHover
+              columns={FORECAST_COLUMNS}
+              rows={items.map((item, index) => ({ item, index }))}
+              getKey={({ item, index }) => `${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`}
+              cells={({ item }) => {
+                const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
+                const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
+                return {
+                  date: (
                     <>
-                          {item.kind === 'ACTUAL' && entry && (
-                            // Actual entry dated after today.
-                            <Group gap={2} justify="flex-end" wrap="nowrap">
-                              <Tooltip label="Modifier le mouvement">
-                                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.label}`} onClick={() => setDialog({ kind: 'entry', entry })}>
-                                  <PencilSimpleIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Dupliquer le mouvement">
-                                <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${item.label}`} onClick={() => setDialog({ kind: 'entry', entry, copy: true })}>
-                                  <CopyIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Supprimer le mouvement">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  aria-label={`Supprimer ${item.label}`}
-                                  onClick={() =>
-                                    confirmDeletion(
-                                      'Supprimer le mouvement',
-                                      entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
-                                      () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
-                                    )
-                                  }
-                                >
-                                  <TrashIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          )}
-                          {item.kind === 'FORECAST' && entry && (
-                            <Group gap={2} justify="flex-end" wrap="nowrap">
-                              <Tooltip label="Réaliser">
-                                <ActionIcon variant="subtle" color="green" aria-label={`Réaliser ${item.label}`} onClick={() => setDialog({ kind: 'realize', item })}>
-                                  <CheckIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Modifier la prévision">
-                                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.label}`} onClick={() => setDialog({ kind: 'entry', entry })}>
-                                  <PencilSimpleIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Dupliquer la prévision">
-                                <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${item.label}`} onClick={() => setDialog({ kind: 'entry', entry, copy: true })}>
-                                  <CopyIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Supprimer la prévision">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  aria-label={`Supprimer ${item.label}`}
-                                  onClick={() =>
-                                    confirmDeletion('Supprimer la prévision', `« ${item.label} » et toutes ses répétitions seront supprimées.`, () =>
-                                      deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
-                                    )
-                                  }
-                                >
-                                  <TrashIcon aria-hidden />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          )}
-</>
-                  );
-                }}
-              />
-            </Paper>
+                      <Text size="sm">{printedDate(item.date)}</Text>
+                      {item.overdue && (
+                        <Badge size="xs" color="red" variant="light">
+                          Prévu le {printedDate(item.dueDate)}
+                        </Badge>
+                      )}
+                    </>
+                  ),
+                  label: (
+                    <>
+                      {item.documentId ? (
+                        <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
+                          {item.label}
+                        </Anchor>
+                      ) : (
+                        <Group gap={4} wrap="nowrap">
+                          <Text size="sm">{item.label}</Text>
+                          <EntryUrl url={entry?.url} label={item.label} />
+                        </Group>
+                      )}
+                      {entry?.recurrence != null && (
+                        <Text size="xs" c="dimmed">
+                          {(() => {
+                            const rule = recurrenceSchema.safeParse(entry.recurrence);
+                            return rule.success ? describeRecurrence(rule.data, String(entry.date)) : '';
+                          })()}
+                        </Text>
+                      )}
+                    </>
+                  ),
+                  payer: <Text size="sm">{item.payerName ?? ''}</Text>,
+                  origin: (
+                    <>
+                      <Badge size="sm" variant="light" color={kind.color}>
+                        {kind.label}
+                      </Badge>
+                    </>
+                  ),
+                  amount: (
+                    <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
+                      {item.amount > 0 ? '+' : ''}
+                      {money(item.amount)}
+                    </Text>
+                  ),
+                };
+              }}
+              actions={({ item }) => {
+                const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
+                if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
+                // An actual entry is one dated after today; a forecast is realized.
+                const forecast = item.kind === 'FORECAST';
+                return (
+                  <RowActions
+                    name={item.label}
+                    primary={
+                      forecast
+                        ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => setDialog({ kind: 'realize', item }) }
+                        : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) }
+                    }
+                    items={[
+                      forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) },
+                      { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry, copy: true }) },
+                      {
+                        label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
+                        icon: <TrashIcon aria-hidden />,
+                        danger: true,
+                        onClick: () =>
+                          forecast
+                            ? confirmDeletion('Supprimer la prévision', `« ${item.label} » et toutes ses répétitions seront supprimées.`, () =>
+                                deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
+                              )
+                            : confirmDeletion(
+                                'Supprimer le mouvement',
+                                entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
+                                () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
+                              ),
+                      },
+                    ]}
+                  />
+                );
+              }}
+            />
           )}
         </Tabs.Panel>
 
@@ -626,78 +593,66 @@ export function TreasuryPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="accounts" pt="md">
-          <Stack gap="sm">
-            <Group justify="flex-end">
+          <DataTable
+            framed
+            tableKey="treasury-accounts"
+            tools={
               <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
                 Compte
               </Button>
-            </Group>
-            <Paper withBorder radius="md">
-              <DataTable
-                tableKey="treasury-accounts"
-                verticalSpacing="xs"
-                columns={ACCOUNT_COLUMNS}
-                rows={accounts}
-                getKey={(account) => account.id}
-                actionsWidth={80}
-                rowProps={(account) => ({ opacity: account.archived ? 0.6 : 1 })}
-                cells={(account) => ({
-                  name: (
-                    <>
-                        <Group gap="xs">
-                          <Text size="sm" fw={600}>
-                            {account.name}
-                          </Text>
-                          {account.archived && (
-                            <Badge size="xs" color="gray">
-                              Archivé
-                            </Badge>
-                          )}
-                        </Group>
-</>
-                  ),
-                  opening: (
-                    <>
-                        {money(account.openingBalance)} au {printedDate(String(account.openingDate))}
-</>
-                  ),
-                  balance: (
-                    <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
-                                              {money(account.balance)}
+            }
+            verticalSpacing="xs"
+            columns={ACCOUNT_COLUMNS}
+            rows={accounts}
+            getKey={(account) => account.id}
+            rowProps={(account) => ({ opacity: account.archived ? 0.6 : 1 })}
+            cells={(account) => ({
+              name: (
+                <>
+                  <Group gap="xs">
+                    <Text size="sm" fw={600}>
+                      {account.name}
                     </Text>
-                  ),
-                })}
-                actions={(account) => (
-                  <>
-                        <Group gap={2} justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Modifier">
-                            <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${account.name}`} onClick={() => setDialog({ kind: 'account', account })}>
-                              <PencilSimpleIcon aria-hidden />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label={account.entryCount ? 'A des mouvements : archivez-le' : 'Supprimer'}>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={`Supprimer ${account.name}`}
-                              disabled={account.entryCount > 0}
-                              onClick={() =>
-                                confirmDeletion('Supprimer le compte', `« ${account.name} » sera supprimé définitivement.`, () =>
-                                  deleteAccount.mutate(account.id, { onSuccess: () => notifySuccess('Compte supprimé.'), onError }),
-                                )
-                              }
-                            >
-                              <TrashIcon aria-hidden />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-</>
-                )}
+                    {account.archived && (
+                      <Badge size="xs" color="gray">
+                        Archivé
+                      </Badge>
+                    )}
+                  </Group>
+                </>
+              ),
+              opening: (
+                <>
+                  {money(account.openingBalance)} au {printedDate(String(account.openingDate))}
+                </>
+              ),
+              balance: (
+                <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
+                  {money(account.balance)}
+                </Text>
+              ),
+            })}
+            actions={(account) => (
+              <RowActions
+                name={account.name}
+                primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'account', account }) }}
+                items={[
+                  {
+                    label: 'Supprimer',
+                    icon: <TrashIcon aria-hidden />,
+                    danger: true,
+                    disabled: account.entryCount > 0,
+                    hint: account.entryCount ? 'A des mouvements : archivez-le' : undefined,
+                    onClick: () =>
+                      confirmDeletion('Supprimer le compte', `« ${account.name} » sera supprimé définitivement.`, () =>
+                        deleteAccount.mutate(account.id, { onSuccess: () => notifySuccess('Compte supprimé.'), onError }),
+                      ),
+                  },
+                ]}
               />
-            </Paper>
-          </Stack>
+            )}
+          />
         </Tabs.Panel>
-
       </Tabs>
       {/* Categories, payment methods, counterparties: in the settings sidebar. */}
       <PageSettings title="Paramètres de la trésorerie">
