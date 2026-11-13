@@ -648,12 +648,13 @@ model TaskComment {
 enum ViewKind {
   TASKS
   ROUTINES
+  SHOPPING_LISTS
 }
 
 model TaskView {
   id          String    @id @default(cuid())
   name        String
-  /// Tasks or routines (each kind with its own configuration and tabs).
+  /// Tasks, routines or shopping lists (each kind with its own configuration and tabs).
   kind        ViewKind  @default(TASKS)
   config      Json
   /// Project whose task tab shows the view; null for the home page.

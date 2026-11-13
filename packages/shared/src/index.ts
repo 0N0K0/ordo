@@ -16,3 +16,4 @@ export * from './geo';
 export * from './shopping';
 export * from './routines';
 export * from './routine-views';
+export * from './shopping-list-views';

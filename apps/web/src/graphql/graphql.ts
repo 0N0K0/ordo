@@ -967,6 +967,7 @@ export type TreasuryStatementRowInput = {
 /** What a saved view lists. */
 export type ViewKind =
   | 'ROUTINES'
+  | 'SHOPPING_LISTS'
   | 'TASKS';
 
 export type WorkScheduleInput = {
