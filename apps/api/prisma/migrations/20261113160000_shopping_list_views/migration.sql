@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ViewKind" ADD VALUE 'SHOPPING_LISTS';

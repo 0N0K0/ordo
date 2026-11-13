@@ -309,7 +309,7 @@ export function ProjectPage() {
           <RoutinesPanel key={project.id} projectId={project.archived ? undefined : project.id} projectIds={tree} />
         </Tabs.Panel>
         <Tabs.Panel value="shopping">
-          <ListsPanel key={project.id} projectIds={tree} />
+          <ListsPanel key={project.id} projectId={project.id} projectIds={tree} />
         </Tabs.Panel>
         <Tabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />

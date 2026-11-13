@@ -3691,6 +3691,7 @@ type User {
 """What a saved view lists."""
 enum ViewKind {
   ROUTINES
+  SHOPPING_LISTS
   TASKS
 }
 

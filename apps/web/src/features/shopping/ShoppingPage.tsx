@@ -1,12 +1,16 @@
-import { ActionIcon, Anchor, Badge, Button, Group, Paper, SegmentedControl, Skeleton, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { BasketIcon, DotsThreeVerticalIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
-import { useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
+import { localToday } from '../../lib/dates';
+import { SavedViewToolbar } from '../tasks/views/SavedViewToolbar';
+import { ViewTabs } from '../tasks/views/ViewTabs';
+import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
+import { keptByListView, listRows, SHOPPING_LIST_GROUP_BY_LABELS, SHOPPING_LIST_SORT_LABELS, shoppingListFilterFields, sortLists, useShoppingListView } from './shopping-list-view';
 import { BaseLists } from './BaseLists';
 import { ShoppingSettings } from './ShoppingSettings';
 import { shoppingTotal } from './export';
@@ -19,42 +23,65 @@ import classes from './Shopping.module.css';
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 /**
- * Shopping lists, open or archived (by hand, or along with their tasks), latest first: the tasks of an open one chosen
- * in place, the actions of each one in its menu (as on its page). On a project page, only the lists of its tasks.
- * @param {{ projectIds?: ReadonlySet<string> }} props Component props.
+ * Shopping lists through saved views, as the tasks and the routines: tabs of views, each with its search, filters,
+ * sorts and groups (« En cours » and « Archivées » made at first); the tasks of an open list chosen in place, the
+ * actions of each one in its menu (as on its page). On a project page, only the lists of its tasks, with the views
+ * of the project.
+ * @param {{ projectId?: string, projectIds?: ReadonlySet<string> }} props Component props.
+ * @param {string} [props.projectId] Project of the page (its views). Optional.
  * @param {ReadonlySet<string>} [props.projectIds] Projects (a project and its sub-projects) whose lists are shown. Optional.
  * @returns {JSX.Element} Lists.
  */
-export function ListsPanel({ projectIds }: { projectIds?: ReadonlySet<string> }) {
+export function ListsPanel({ projectId, projectIds }: { projectId?: string; projectIds?: ReadonlySet<string> }) {
   const { data: lists, isPending } = useShoppingLists();
+  const { data: shopping } = useShoppingData();
   const { context } = useTaskContext();
   const { updateList } = useShoppingMutations();
   const [grouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
-  const [state, setState] = useState<'open' | 'closed'>('open');
+  const view = useShoppingListView(projectId ?? null);
+  const { config } = view;
+  const today = localToday();
+  const env = { today, context, categories: shopping?.shoppingCategories ?? [], stores: shopping?.shoppingStores ?? [] };
   const closedOf = (list: ShoppingList) => listClosed(list, context);
   const scoped = projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? []);
-  const shown = scoped.filter((list) => closedOf(list) === (state === 'closed'));
+  const shown = config
+    ? sortLists(
+        scoped.filter((list) => keptByListView(config, list, env)),
+        config.sorting,
+        env,
+      )
+    : [];
+  const rows = listRows(shown, config?.groupBy ?? null, env);
 
   return (
     <Stack gap="md">
-      <Group gap="sm">
-        <SegmentedControl
-          size="xs"
-          value={state}
-          onChange={(value) => setState(value as 'open' | 'closed')}
-          data={[
-            { value: 'open', label: 'En cours' },
-            { value: 'closed', label: 'Archivées' },
-          ]}
-          aria-label="Listes affichées"
-        />
+      <Group justify="space-between" gap="sm" wrap="nowrap" align="flex-end">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <ViewTabs state={view} />
+        </div>
         {!projectIds && (
-          <Button ml="auto" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
+          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
             Nouvelle liste
           </Button>
         )}
       </Group>
-      {isPending || (projectIds && !context) ? (
+      {config && (
+        <SavedViewToolbar
+          config={config}
+          change={view.change}
+          fields={shoppingListFilterFields(env)}
+          searchLabel="Rechercher (liste, produit)"
+          sortKeys={SHOPPING_LIST_SORT_KEYS}
+          sortLabels={SHOPPING_LIST_SORT_LABELS}
+          manualText="Sans tri : les listes les plus récentes d’abord."
+          groupBy={SHOPPING_LIST_GROUP_BY}
+          groupLabels={SHOPPING_LIST_GROUP_BY_LABELS}
+          dirty={view.dirty}
+          onSave={view.save}
+          onRevert={view.revert}
+        />
+      )}
+      {isPending || !config || (projectIds && !context) ? (
         <Stack gap="xs" aria-label="Chargement">
           {[0, 1, 2].map((index) => (
             <Skeleton key={index} height={48} />
@@ -67,11 +94,7 @@ export function ListsPanel({ projectIds }: { projectIds?: ReadonlySet<string> })
               <ListChecksIcon aria-hidden />
             </ThemeIcon>
             <Text size="sm" c="dimmed">
-              {state === 'open'
-                ? projectIds
-                  ? 'Aucune liste en cours : une liste rattachée à une tâche du projet s’affiche ici.'
-                  : 'Aucune liste en cours.'
-                : 'Aucune liste archivée : une liste l’est à la main, ou quand ses tâches sont toutes fermées.'}
+              {scoped.length === 0 ? (projectIds ? 'Aucune liste : une liste rattachée à une tâche du projet s’affiche ici.' : 'Aucune liste pour le moment.') : 'Aucune liste dans cette vue.'}
             </Text>
           </Stack>
         </Paper>
@@ -90,12 +113,28 @@ export function ListsPanel({ projectIds }: { projectIds?: ReadonlySet<string> })
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {shown.map((list) => {
+                {rows.map((row) => {
+                  if (row.kind === 'group')
+                    return (
+                      <Table.Tr key={`group:${row.key}`} className={classes.groupRow}>
+                        <Table.Td colSpan={6} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
+                          <Group gap="xs" wrap="nowrap">
+                            <Text size="sm" fw={row.depth === 0 ? 700 : 600}>
+                              {row.name}
+                            </Text>
+                            <Badge size="sm" variant="light" color="gray">
+                              {row.count}
+                            </Badge>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  const { list } = row;
                   const bought = list.items.filter((item) => item.purchasedAt).length;
                   const total = shoppingTotal(list.items);
                   return (
-                    <Table.Tr key={list.id}>
-                      <Table.Td>
+                    <Table.Tr key={row.key}>
+                      <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
                         <Group gap="xs" wrap="nowrap">
                           <Anchor component={Link} to={`/shopping/${list.id}`} size="sm">
                             {list.name}
