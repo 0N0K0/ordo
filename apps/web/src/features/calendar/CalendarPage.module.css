@@ -100,6 +100,18 @@
     border-style: dotted !important;
   }
 
+  /* Routines: outlined as the tasks, in dashes. */
+  .routine {
+    /* Bordures */
+    border-left-style: dashed !important;
+  }
+
+  /* Occurrence of a routine moved from another day (an exception): in italics. */
+  .moved {
+    /* Typographie */
+    font-style: italic;
+  }
+
   .closed {
     /* Effets */
     opacity: 0.55;
@@ -208,4 +220,10 @@
     /* Arrière-Plan */
     background-image: repeating-linear-gradient(135deg, var(--mantine-color-default-hover) 0 6px, transparent 6px 12px) !important;
   }
+}
+
+/* Slot of a schedule being changed: an event of its own, moved or stretched. */
+.editSlot {
+  border-style: dashed;
+  cursor: grab;
 }

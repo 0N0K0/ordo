@@ -6,14 +6,15 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Checkbox, Group, Modal, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay } from '@ordo/shared';
-import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
+import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay, shiftTime, type ScheduleSlotTime } from '@ordo/shared';
+import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { localToday } from '../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from './task-calendar';
 import { notifyError, notifySuccess } from '../../lib/notify';
+import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
 import { useUpdateTask } from '../tasks/api';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useTaskLink } from '../tasks/use-task-link';
@@ -37,6 +38,7 @@ import {
   type EventOccurrence,
 } from './api';
 import { askScope } from './ask-scope';
+import { useCalendarEdits, type RoutineOccurrenceRef } from './calendar-edits';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from './calendar-pdf';
 import { localParts, occurrenceInput } from './event-input';
@@ -61,6 +63,8 @@ const VIEWS: { value: View; label: string }[] = [
 
 interface Filters {
   tasks: boolean;
+  /** Occurrences of the routines (shown by default). */
+  routines?: boolean;
   /** Planned working hours, in the background. */
   workHours?: boolean;
   /** Tracked times (timers). */
@@ -163,6 +167,14 @@ export function CalendarPage() {
   const now = useNow(showTimers && timerRunning);
   const minute = Math.floor(now / 60_000);
   const { openForm: openTimeEntry } = useTimeEntryDialogs(context);
+  // Routines: at their times of the day, or in the all-day row with the tasks.
+  const showRoutines = filters.routines !== false;
+  const { data: routinesData } = useRoutinesData();
+  const routineOccurrences = useRoutineOccurrences(range, showRoutines);
+  // Slots of the schedules and routines changed in the calendar (an exception, the following ones, or all).
+  const edits = useCalendarEdits();
+  // Slots of the schedules of the workspace shown as events, to move, stretch, change or delete.
+  const [editingSlots, setEditingSlots] = useState(false);
   // A date to show (link to a postponed event…).
   const [params, setParams] = useSearchParams();
   const requestedDate = params.get('date');
@@ -310,7 +322,7 @@ export function CalendarPage() {
     // whole day for an all-day slot) or the whole day in the background, or a thin line on the left of their hours;
     // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
     // other workspaces subscribed to are hatched.
-    if (range && schedules && filters.workHours !== false) {
+    if (range && schedules && (filters.workHours !== false || editingSlots)) {
       const typeOf = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
       const own = schedules.map((schedule) => {
         const type = schedule.typeId ? typeOf.get(schedule.typeId) : undefined;
@@ -336,6 +348,27 @@ export function CalendarPage() {
       // schedule with a line that day takes the next lane.
       const lanes = new Map<string, number>();
       for (const { rule, color, name, foreign, display } of [...own, ...subscribed]) {
+        if (!foreign && editingSlots) {
+          // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
+          for (const slot of plannedSlots([rule], range.from, range.to)) {
+            const time: ScheduleSlotTime = { date: slot.date, start: slot.start, end: slot.end, allDay: slot.allDay };
+            result.push({
+              id: `edit-slot:${rule.id}:${slot.date}:${slot.start}:${slot.end}`,
+              title: name,
+              allDay: slot.allDay,
+              start: slot.allDay ? slot.date : `${slot.date}T${slot.start}:00`,
+              end: slot.allDay ? addDays(slot.date, 1) : `${slot.date}T${slot.end}:00`,
+              backgroundColor: color ?? 'var(--mantine-color-green-light)',
+              borderColor: color ?? 'var(--mantine-color-green-6)',
+              textColor: 'var(--mantine-color-text)',
+              classNames: [classes.editSlot],
+              durationEditable: !slot.allDay,
+              extendedProps: { kind: 'editSlot', schedule: rule, name, slot: time },
+            });
+          }
+          continue;
+        }
+        if (filters.workHours === false) continue;
         const hatched = foreign ? [classes.subscribedSlot] : [];
         const background = {
           display: 'background',
@@ -462,8 +495,52 @@ export function CalendarPage() {
         }
       }
     }
+    if (showRoutines) {
+      const routineById = new Map((routinesData?.routines ?? []).map((routine) => [routine.id, routine]));
+      const routineCategory = new Map((routinesData?.routineCategories ?? []).map((category) => [category.id, category]));
+      for (const occurrence of routineOccurrences.data ?? []) {
+        const routine = routineById.get(occurrence.routineId);
+        if (!routine || routine.archived) continue;
+        const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
+        const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
+        const minutes = routine.estimate ?? 30;
+        const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false }];
+        for (const slot of slots) {
+          // Between its two times, else up to its latest time or from its start time for the time to spend on it.
+          // Within its day (shifted across midnight: from its start of day, or up to its end).
+          const before = slot.dueTime ? shiftTime(slot.dueTime, -minutes) : null;
+          const after = slot.fromTime ? shiftTime(slot.fromTime, minutes) : null;
+          const start = slot.fromTime ?? (before && slot.dueTime && before < slot.dueTime ? before : '00:00');
+          const end = slot.dueTime ?? (after && slot.fromTime && after > slot.fromTime ? after : '23:59');
+          const timed = (slot.fromTime !== null || slot.dueTime !== null) && start < end;
+          result.push({
+            id: `routine:${routine.id}:${occurrence.date}:${slot.index}`,
+            title: `${routine.title}${slot.optional ? ' (facultatif)' : ''}`,
+            allDay: !timed,
+            start: timed ? `${occurrence.date}T${start}:00` : occurrence.date,
+            end: timed ? `${occurrence.date}T${end}:00` : addDays(occurrence.date, 1),
+            backgroundColor: 'transparent',
+            borderColor: color,
+            textColor: 'var(--mantine-color-text)',
+            classNames: [classes.task, classes.routine, ...(slot.done ? [classes.closed] : []), ...(occurrence.movedFrom ? [classes.moved] : [])],
+            // Dragged to another day or hour, or stretched (between two times): asks which occurrences change.
+            startEditable: !occurrence.slots.some((item) => item.done),
+            durationEditable: !occurrence.slots.some((item) => item.done) && slot.fromTime !== null && slot.dueTime !== null,
+            extendedProps: {
+              kind: 'routine',
+              occurrence: { routine, date: occurrence.date, slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime } } satisfies RoutineOccurrenceRef,
+              movedFrom: occurrence.movedFrom ? String(occurrence.movedFrom) : null,
+            },
+          });
+        }
+      }
+    }
     return result;
   }, [
+    editingSlots,
+    showRoutines,
+    routinesData,
+    routineOccurrences.data,
     context,
     events.data,
     subscribedEvents.data,
@@ -496,6 +573,45 @@ export function CalendarPage() {
     // FullCalendar ends are exclusive; all-day dates here are inclusive.
     const endDate = event.end ?? new Date(event.start.getTime() + (allDay ? 86_400_000 : 3_600_000));
     const endParts = allDay ? { date: addDays(dayOf(endDate), -1), time: '' } : localParts(endDate);
+
+    if (event.extendedProps.kind === 'editSlot') {
+      const slot: ScheduleSlotTime = event.extendedProps.slot;
+      // Up to midnight: the end of its day.
+      const end = endParts.date === addDays(startParts.date, 1) && endParts.time === '00:00' ? '23:59' : endParts.time;
+      if (!allDay && endParts.date !== startParts.date && end !== '23:59') {
+        revert();
+        notifyError('Une plage s’arrête le jour où elle commence.');
+        return;
+      }
+      const change: ScheduleSlotTime = allDay ? { date: startParts.date, start: '00:00', end: '24:00', allDay: true } : { date: startParts.date, start: startParts.time, end, allDay: false };
+      void edits.changeSlot(event.extendedProps.schedule, slot, change, revert);
+      return;
+    }
+
+    if (event.extendedProps.kind === 'routine') {
+      const occurrence: RoutineOccurrenceRef = event.extendedProps.occurrence;
+      const { fromTime, dueTime } = occurrence.slot;
+      let times: { fromTime: string | null; dueTime: string | null };
+      if (allDay) times = { fromTime: null, dueTime: null };
+      else if (info.oldEvent.allDay) times = { fromTime: startParts.time, dueTime: endParts.date === startParts.date ? endParts.time : null };
+      else if ('endDelta' in info && !('delta' in info)) times = { fromTime, dueTime: endParts.date === startParts.date ? endParts.time : null };
+      else {
+        // Its times move by as much as the event within the day.
+        const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+        const shift = minutes(startParts.time) - minutes(localParts(info.oldEvent.start ?? event.start).time);
+        const moved = (time: string | null) => (time === null ? null : minutes(time) + shift);
+        const [from, due] = [moved(fromTime), moved(dueTime)];
+        if ((from !== null && (from < 0 || from >= 1440)) || (due !== null && (due < 0 || due >= 1440))) {
+          revert();
+          notifyError('Une routine reste dans sa journée.');
+          return;
+        }
+        times = { fromTime: from === null ? null : shiftTime('00:00', from), dueTime: due === null ? null : shiftTime('00:00', due) };
+      }
+      if (startParts.date === occurrence.date && times.fromTime === fromTime && times.dueTime === dueTime) return;
+      void edits.changeRoutine(occurrence, startParts.date, times, revert);
+      return;
+    }
 
     if (event.extendedProps.kind === 'task') {
       const task = event.extendedProps.task;
@@ -616,6 +732,16 @@ export function CalendarPage() {
           <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             {perso ? 'Plages' : 'Plages de travail'}
           </Button>
+          <Tooltip label={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}>
+            <Button
+              variant={editingSlots ? 'filled' : 'default'}
+              aria-pressed={editingSlots}
+              leftSection={editingSlots ? <CheckIcon aria-hidden /> : <PencilSimpleIcon aria-hidden />}
+              onClick={() => setEditingSlots(!editingSlots)}
+            >
+              {editingSlots ? 'Terminer' : 'Modifier les plages'}
+            </Button>
+          </Tooltip>
           <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
             Nouvel évènement
           </Button>
@@ -677,6 +803,16 @@ export function CalendarPage() {
                       setFilters({
                         ...filters,
                         tasks: event.currentTarget.checked,
+                      })
+                    }
+                  />
+                  <Switch
+                    label="Routines"
+                    checked={showRoutines}
+                    onChange={(event) =>
+                      setFilters({
+                        ...filters,
+                        routines: event.currentTarget.checked,
                       })
                     }
                   />
@@ -815,7 +951,9 @@ export function CalendarPage() {
             info.jsEvent.preventDefault();
             // A bar of planned slots opens nothing.
             if (info.event.extendedProps.kind === 'slot') return;
-            if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
+            if (info.event.extendedProps.kind === 'editSlot') edits.openSlot(info.event.extendedProps.schedule, info.event.extendedProps.name, info.event.extendedProps.slot);
+            else if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
+            else if (info.event.extendedProps.kind === 'routine') edits.openRoutine(info.event.extendedProps.occurrence, info.event.extendedProps.movedFrom);
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else if (info.event.extendedProps.kind === 'subscribed')
               setOpenedSubscribed({

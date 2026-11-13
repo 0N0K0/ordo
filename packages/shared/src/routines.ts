@@ -37,6 +37,8 @@ export type RoutineSlot = z.infer<typeof routineSlotSchema>;
 /** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
 export const routineCaseSchema = z
   .object({
+    /** First day its repetition counts from (none: the first date of the routine). */
+    from: z.iso.date({ error: 'Date invalide.' }).nullable().default(null),
     recurrence: recurrenceSchema,
     slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
   })
@@ -253,15 +255,29 @@ export function routineAlertTime(routine: { fromTime: string | null; dueTime: st
 }
 
 /**
- * Case of a routine on a date: the first of its cases whose repetition (from the first date of the routine) includes it.
+ * Case of a routine on a date: the first of its cases whose repetition (from its first day) includes it.
  * @param {readonly RoutineCase[]} cases Cases.
  * @param {string} start First date of the routine.
  * @param {string} date Day.
  * @returns {RoutineCase | null} Case.
  */
 export function routineCaseOn(cases: readonly RoutineCase[], start: string, date: string): RoutineCase | null {
-  if (date < start) return null;
-  return cases.find((item) => occurrenceDates(item.recurrence, start, date, date).length > 0) ?? null;
+  return (
+    cases.find((item) => {
+      const first = caseStart(item, start);
+      return date >= first && occurrenceDates(item.recurrence, first, date, date).length > 0;
+    }) ?? null
+  );
+}
+
+/**
+ * First day the repetition of a case counts from: its own, else the first date of the routine (never before it).
+ * @param {{ from?: string | null }} item Case.
+ * @param {string} start First date of the routine.
+ * @returns {string} YYYY-MM-DD.
+ */
+export function caseStart(item: { from?: string | null }, start: string): string {
+  return item.from && item.from > start ? item.from : start;
 }
 
 /**
@@ -275,9 +291,109 @@ export function casesOccurrences(cases: readonly RoutineCase[], start: string, t
   let current: string | null = null;
   let next: string | null = null;
   for (const item of cases) {
-    const found = routineOccurrences(item.recurrence, start, today);
+    const found = routineOccurrences(item.recurrence, caseStart(item, start), today);
     if (found.current && (!current || found.current > current)) current = found.current;
     if (found.next && (!next || found.next < next)) next = found.next;
   }
   return { current, next };
+}
+
+/** Times of the day of an occurrence changed by an exception (by index; null: those of its rule). */
+export const routineMoveTimesSchema = z
+  .array(z.object({ fromTime: timeOfDay, dueTime: timeOfDay }).nullable())
+  .max(10)
+  .nullable()
+  .default(null);
+export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
+
+/**
+ * Exception to the rule of a routine for one occurrence: moved to another day (postponed or brought forward), its
+ * times of the day changed, or deleted (no new day).
+ */
+export const routineMoveSchema = z
+  .object({ from: z.iso.date({ error: 'Date invalide.' }), to: z.iso.date({ error: 'Date invalide.' }).nullable(), times: routineMoveTimesSchema })
+  .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour.');
+export type RoutineMove = z.infer<typeof routineMoveSchema>;
+
+/**
+ * Whether an exception takes the occurrence away from its day (moved elsewhere or deleted).
+ * @param {RoutineMove} move Exception.
+ * @returns {boolean} Away.
+ */
+export const movesAway = (move: RoutineMove) => move.to !== move.from;
+
+/**
+ * Times of the day of an occurrence, with those its exception changes.
+ * @param {readonly T[]} slots Times of its rule.
+ * @param {RoutineMoveTimes} times Changed times.
+ * @returns {T[]} Times.
+ */
+export function withMovedTimes<T extends { fromTime: string | null; dueTime: string | null }>(slots: readonly T[], times: RoutineMoveTimes): T[] {
+  return slots.map((slot, index) => (times?.[index] ? { ...slot, ...times[index] } : slot));
+}
+
+/** Moves kept on a routine at most. */
+export const MAX_ROUTINE_MOVES = 500;
+
+/** Occurrences scanned at most to skip the moved ones in a row. */
+const MOVED_SCAN = 60;
+
+/**
+ * Current and next occurrences of a routine with its exceptions: a moved occurrence no longer occurs on its day but on
+ * the day it was moved to. When the latest occurrence of the rule is moved away, nothing is due until the day it went
+ * to (the occurrences before it do not come back).
+ * @param {(today: string) => { current: string | null, next: string | null }} compute Occurrences of the rule alone, on a day.
+ * @param {readonly RoutineMove[]} moves Exceptions.
+ * @param {string} today Today.
+ * @returns {{ current: string | null, next: string | null }} Dates.
+ */
+export function movedOccurrences(
+  compute: (today: string) => { current: string | null; next: string | null },
+  moves: readonly RoutineMove[],
+  today: string,
+): { current: string | null; next: string | null } {
+  const base = compute(today);
+  if (!moves.length) return base;
+  const movedAway = new Set(moves.filter(movesAway).map((move) => move.from));
+  const latest = base.current;
+  const kept = latest && !movedAway.has(latest) ? latest : null;
+  let current = kept;
+  for (const move of moves) {
+    if (!move.to || !movesAway(move) || move.to > today) continue;
+    // After the latest occurrence of the rule, or the latest one itself brought forward / postponed to today at most.
+    const counts = latest === null || (kept ? move.to > kept : move.from >= latest);
+    if (counts && (!current || move.to > current)) current = move.to;
+  }
+  let next = base.next;
+  for (let scanned = 0; next && movedAway.has(next) && scanned < MOVED_SCAN; scanned += 1) next = compute(next).next;
+  if (next && movedAway.has(next)) next = null;
+  for (const move of moves) if (move.to && movesAway(move) && move.to > today && (!next || move.to < next)) next = move.to;
+  return { current, next };
+}
+
+/**
+ * Day of the rule an occurrence comes from: the day it was moved from, or itself.
+ * @param {readonly RoutineMove[]} moves Exceptions.
+ * @param {string} date Occurrence.
+ * @returns {string} Day of the rule (its times of the day are those of that day).
+ */
+export function movedFrom(moves: readonly RoutineMove[], date: string): string {
+  return moves.find((move) => move.to === date)?.from ?? date;
+}
+
+/**
+ * Exceptions once an occurrence is moved, deleted (no new day) or its times changed: changing a moved one again changes
+ * its exception (back to its own day with its own times: no exception).
+ * @param {readonly RoutineMove[]} moves Exceptions.
+ * @param {string} date Occurrence (its day now).
+ * @param {string | null} to New day (null: deleted).
+ * @param {RoutineMoveTimes} [times] Changed times. Optional. Default = those already changed.
+ * @returns {RoutineMove[]} Exceptions.
+ */
+export function withMove(moves: readonly RoutineMove[], date: string, to: string | null, times?: RoutineMoveTimes): RoutineMove[] {
+  const from = movedFrom(moves, date);
+  const current = moves.find((move) => move.from === from);
+  const others = moves.filter((move) => move.from !== from);
+  const kept = to === null ? null : times === undefined ? (current?.times ?? null) : times && times.some(Boolean) ? times : null;
+  return from === to && !kept ? others : [...others, { from, to, times: kept }].sort((a, b) => a.from.localeCompare(b.from));
 }

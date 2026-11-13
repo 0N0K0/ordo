@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { Recurrence, RoutineCategoryInput, RoutineInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { RoutineChecksQuery, RoutinesDataQuery } from '../../graphql/graphql';
+import type { CalendarEventScope, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 
 export type RoutineCategory = RoutinesDataQuery['routineCategories'][number];
@@ -33,6 +33,7 @@ const RoutinesDataDocument = graphql(`
       scheduleAnchor
       reminders
       cases
+      moves
       done
       slots {
         index
@@ -140,6 +141,30 @@ const SetRoutineDoneDocument = graphql(`
   }
 `);
 
+const MoveRoutineOccurrenceDocument = graphql(`
+  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {
+    moveRoutineOccurrence(id: $id, date: $date, to: $to)
+  }
+`);
+
+const ChangeRoutineOccurrenceDocument = graphql(`
+  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {
+    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)
+  }
+`);
+
+const DeleteRoutineOccurrenceDocument = graphql(`
+  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
+    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)
+  }
+`);
+
+const RemoveRoutineMoveDocument = graphql(`
+  mutation RemoveRoutineMove($id: ID!, $from: Date!) {
+    removeRoutineMove(id: $id, from: $from)
+  }
+`);
+
 const SetRoutineArchivedDocument = graphql(`
   mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {
     setRoutineArchived(id: $id, archived: $archived)
@@ -183,6 +208,40 @@ const fetchChecks = async (from: string, to: string): Promise<RoutineCheck[]> =>
  */
 export function useRoutineChecks(from: string, to: string) {
   return useQuery({ queryKey: [...routinesKey, 'checks', from, to], queryFn: () => fetchChecks(from, to) });
+}
+
+const RoutineOccurrencesDocument = graphql(`
+  query RoutineOccurrences($from: Date!, $to: Date!) {
+    routineOccurrences(from: $from, to: $to) {
+      routineId
+      date
+      movedFrom
+      slots {
+        index
+        fromTime
+        dueTime
+        optional
+        done
+      }
+    }
+  }
+`);
+
+export type RoutineOccurrence = RoutineOccurrencesQuery['routineOccurrences'][number];
+
+/**
+ * Occurrences of the routines (not archived) in a period, with their times of the day ticked: refreshed with the
+ * routines.
+ * @param {{ from: string, to: string } | null} range Period (both days included), or null: none.
+ * @param {boolean} [enabled] Loaded. Optional. Default = true.
+ * @returns {UseQueryResult<RoutineOccurrence[]>} Query state.
+ */
+export function useRoutineOccurrences(range: { from: string; to: string } | null, enabled = true) {
+  return useQuery({
+    queryKey: [...routinesKey, 'occurrences', range?.from, range?.to],
+    queryFn: async (): Promise<RoutineOccurrence[]> => (await execute(RoutineOccurrencesDocument, { from: range!.from, to: range!.to })).routineOccurrences,
+    enabled: enabled && range !== null,
+  });
 }
 
 /**
@@ -393,6 +452,15 @@ export function useRoutineMutations() {
       async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
     ),
+    moveOccurrence: useRoutineMutation(async (variables: { id: string; date: string; to: string }) => (await execute(MoveRoutineOccurrenceDocument, variables)).moveRoutineOccurrence),
+    changeOccurrence: useRoutineMutation(
+      async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
+        (await execute(ChangeRoutineOccurrenceDocument, variables as never)).changeRoutineOccurrence,
+    ),
+    deleteOccurrence: useRoutineMutation(
+      async (variables: { id: string; date: string; scope: CalendarEventScope }) => (await execute(DeleteRoutineOccurrenceDocument, variables as never)).deleteRoutineOccurrence,
+    ),
+    removeMove: useRoutineMutation(async (variables: { id: string; from: string }) => (await execute(RemoveRoutineMoveDocument, variables)).removeRoutineMove),
     setArchived: useRoutineMutation(
       async (variables: { id: string; archived: boolean }) => (await execute(SetRoutineArchivedDocument, variables)).setRoutineArchived,
       (data, { id, archived }) => patchRoutine(data, id, (routine) => ({ ...routine, archived })),
