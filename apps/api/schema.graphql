@@ -1366,6 +1366,11 @@ type Mutation {
 
   """Closes every other session."""
   changePassword(currentPassword: String!, password: String!): Boolean!
+
+  """
+  Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.
+  """
+  changeRoutineOccurrence(date: Date!, dueTime: String, fromTime: String, id: ID!, scope: CalendarEventScope!, slot: Int!, to: Date!): Boolean!
   changeUsername(currentPassword: String!, username: String!): User!
   cloneTask(id: ID!, includeSubtasks: Boolean!): Task!
 
@@ -1481,6 +1486,11 @@ type Mutation {
   deleteRecurringInvoice(id: ID!): Boolean!
   deleteRoutine(id: ID!): Boolean!
   deleteRoutineCategory(id: ID!): Boolean!
+
+  """
+  Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING); true when the routine was archived (nothing left).
+  """
+  deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): Boolean!
 
   """Deletes a kind of time slots (its schedules stay, without kind)."""
   deleteScheduleType(id: ID!): Boolean!
@@ -1621,6 +1631,11 @@ type Mutation {
   Moves a category under another one (parentId), or to the top level (parentId null).
   """
   moveRoutineCategory(id: ID!, parentId: ID): Boolean!
+
+  """
+  Moves an occurrence to another day (postponed or brought forward); back to its own day, the exception is removed.
+  """
+  moveRoutineOccurrence(date: Date!, id: ID!, to: Date!): Boolean!
   moveShoppingBaseList(id: ID!, index: Int!): Boolean!
 
   """
@@ -1654,6 +1669,9 @@ type Mutation {
   recordDocumentPayment(id: ID!, input: DocumentPaymentInput!): Boolean!
   removeAccountingAttachment(attachmentId: ID!): Boolean!
   removeGithubToken: Boolean!
+
+  """Removes an exception: the occurrence goes back to its own day."""
+  removeRoutineMove(from: Date!, id: ID!): Boolean!
   removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
@@ -2216,6 +2234,11 @@ type Query {
   """
   routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
 
+  """
+  Occurrences of the routines not archived in a period (both days included, 100 days at most), with their times of the day ticked.
+  """
+  routineOccurrences(from: Date!, to: Date!): [RoutineOccurrence!]!
+
   """Every routine, archived ones included, in manual order."""
   routines: [Routine!]!
   runningTimeEntry: TimeEntry
@@ -2408,6 +2431,11 @@ type Routine {
   locationLat: Float
   locationLon: Float
 
+  """
+  Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times }] (YYYY-MM-DD), by day of the rule.
+  """
+  moves: JSON!
+
   """First occurrence after today."""
   nextDate: Date
   parentId: ID
@@ -2545,6 +2573,16 @@ input RoutineInput {
   title: String!
   travelAfter: Int
   travelBefore: Int
+}
+
+"""Occurrence of a routine on a day (for the calendar)."""
+type RoutineOccurrence {
+  date: Date!
+
+  """Day of the rule it was moved from (an exception)."""
+  movedFrom: Date
+  routineId: ID!
+  slots: [RoutineSlot!]!
 }
 
 """Changes of a routine (omitted fields unchanged)."""

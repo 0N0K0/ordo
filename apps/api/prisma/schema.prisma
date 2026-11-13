@@ -2321,6 +2321,8 @@ model Routine {
   /// Cases (days, as the calendar schedules, and times of the day, each ticked apart) instead of the repetition and
   /// the time window; empty: the repetition.
   cases          Json                @default("[]")
+  /// Exceptions: occurrences postponed or brought forward to another day, [{ from, to }] (YYYY-MM-DD).
+  moves          Json                @default("[]")
   /// Calendar schedule ("plage") it follows instead of its own times and repetition: it occurs on the days of the
   /// schedule, before its start (START), during it (WHOLE) or after its end (END).
   scheduleId     String?

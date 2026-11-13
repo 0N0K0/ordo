@@ -3,6 +3,7 @@ import { ActionIcon, Button, Checkbox, Group, NumberInput, Paper, SegmentedContr
 
 import { ROUTINE_ANCHOR_LABELS, ROUTINE_ANCHORS, routineSchedule, type Recurrence, type RoutineAnchor, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BellIcon, CarIcon, ClockIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { DatePickerInput } from '@mantine/dates';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
@@ -103,7 +104,18 @@ function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; 
                 </Tooltip>
               )}
             </Group>
-            <RecurrenceEditor value={item.recurrence} onChange={(rule) => update(index, { recurrence: rule ?? DAILY })} start={start} />
+            <DatePickerInput
+              size="xs"
+              w={220}
+              label="À partir du"
+              placeholder="Début de la routine"
+              valueFormat="D MMMM YYYY"
+              clearable
+              minDate={start}
+              value={item.from}
+              onChange={(date) => update(index, { from: date ? String(date) : null })}
+            />
+            <RecurrenceEditor value={item.recurrence} onChange={(rule) => update(index, { recurrence: rule ?? DAILY })} start={item.from && item.from > start ? item.from : start} />
             <SlotsEditor item={item} index={index} onChange={(changes) => update(index, changes)} />
           </Stack>
         </Paper>

@@ -1,7 +1,9 @@
-import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineState } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineMove, type RoutineState } from '@ordo/shared';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import type { Routine, RoutineCategory } from './api';
+
+const longDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /** Rule of a new routine: every day. */
 export const DAILY: Recurrence = { ...DEFAULT_RECURRENCE, frequency: 'DAILY' };
@@ -199,7 +201,7 @@ export function windowText({ fromTime, dueTime }: { fromTime: string | null; due
  * @returns {RoutineCase} Case.
  */
 export function newRoutineCase(fromTime: string | null, dueTime: string | null): RoutineCase {
-  return { recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
+  return { from: null, recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
 }
 
 /**
@@ -210,5 +212,31 @@ export function newRoutineCase(fromTime: string | null, dueTime: string | null):
  */
 export function describeRoutineCase(item: RoutineCase, start: string): string {
   const times = item.slots.map((slot) => `${windowText(slot) || 'dans la journée'}${slot.optional ? ' (facultatif)' : ''}`).join(', ');
-  return `${describeRecurrence(item.recurrence, start)} · ${times}`;
+  return `${describeRecurrence(item.recurrence, item.from && item.from > start ? item.from : start)} · ${times}${item.from && item.from > start ? ` · dès le ${longDate.format(new Date(`${item.from}T00:00:00Z`))}` : ''}`;
 }
+
+/**
+ * Exceptions of a routine: occurrences moved to another day.
+ * @param {Routine} routine Routine.
+ * @returns {RoutineMove[]} Moves, by day of the rule.
+ */
+export const movesOf = (routine: Routine): RoutineMove[] => (routine.moves as RoutineMove[] | null) ?? [];
+
+/**
+ * Occurrence a move applies to: the current one while nothing of it is ticked, else the next one.
+ * @param {Routine} routine Routine.
+ * @returns {string | null} Day of the occurrence, null without any.
+ */
+export function movableOccurrence(routine: Routine): string | null {
+  if (routine.currentDate && !routine.slots.some((slot) => slot.done)) return routine.currentDate;
+  return routine.nextDate;
+}
+
+/**
+ * Exception that brought an occurrence to its day from another one, if any.
+ * @param {Routine} routine Routine.
+ * @param {string | null} date Occurrence.
+ * @returns {RoutineMove | undefined} Move.
+ */
+export const moveTo = (routine: Routine, date: string | null): (RoutineMove & { to: string }) | undefined =>
+  date ? (movesOf(routine).find((move) => move.to === date && move.from !== date) as (RoutineMove & { to: string }) | undefined) : undefined;

@@ -19,7 +19,9 @@ import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Stack, Ta
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
+  ArrowBendUpRightIcon,
   ArrowCounterClockwiseIcon,
+  CalendarDotsIcon,
   CaretDownIcon,
   CaretRightIcon,
   ClockCounterClockwiseIcon,
@@ -50,7 +52,9 @@ import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineCol
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { RoutineDoneToggles } from './DoneToggle';
 import { openRoutineForm } from './open-routine-form';
-import { DAILY, isDone, NO_CATEGORY, routineRows, scheduleOf, stateOf, visibleRoutineRows, waitingFor, windowOf, windowText, type RoutineRow } from './routine-format';
+import { openRoutineMove } from './open-routine-move';
+import { usePostponeRoutine } from './use-routine-move';
+import { DAILY, isDone, movableOccurrence, moveTo, NO_CATEGORY, routineRows, scheduleOf, stateOf, visibleRoutineRows, waitingFor, windowOf, windowText, type RoutineRow } from './routine-format';
 import classes from './Routines.module.css';
 
 /** Columns of the table. */
@@ -137,9 +141,13 @@ function DueBadge({ routine }: { routine: Routine }) {
 function StateCell({ routine, today }: { routine: Routine; today: string }) {
   const state = stateOf(routine, today);
   const next = routine.nextDate ? `Prochaine fois : ${dayText(routine.nextDate)}` : 'Plus d’occurrence à venir';
+  // The occurrence shown comes from another day (an exception).
+  const moved = moveTo(routine, state === 'upcoming' ? routine.nextDate : routine.currentDate);
+  const label = moved ? `${next} · ${moved.to > moved.from ? 'reportée' : 'avancée'} (prévue le ${dayText(moved.from)})` : next;
   return (
-    <Tooltip label={next}>
-      <span>
+    <Tooltip label={label}>
+      <span className={classes.nowrap}>
+        {moved && <ArrowBendUpRightIcon aria-label={moved.to > moved.from ? 'Reportée' : 'Avancée'} style={{ verticalAlign: 'middle', marginRight: 4 }} />}
         {state === 'done' && (
           <Badge variant="light" color="green" tt="none">
             Fait
@@ -264,6 +272,7 @@ interface RoutineRowProps {
  * @returns {JSX.Element} Row.
  */
 function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
+  const postpone = usePostponeRoutine();
   const { routine, depth, children } = row;
   const { setArchived, remove } = useRoutineMutations();
   const {
@@ -369,6 +378,18 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
                 <Menu.Item leftSection={<TreeViewIcon aria-hidden />} onClick={() => openRoutineForm({ parent: routine })}>
                   Ajouter une sous-routine
                 </Menu.Item>
+                {movableOccurrence(routine) && (
+                  <>
+                    <Menu.Divider />
+                    <Menu.Item leftSection={<ArrowBendUpRightIcon aria-hidden />} onClick={() => postpone(routine)}>
+                      Reporter au lendemain
+                    </Menu.Item>
+                    <Menu.Item leftSection={<CalendarDotsIcon aria-hidden />} onClick={() => openRoutineMove(routine)}>
+                      Reporter ou avancer…
+                    </Menu.Item>
+                    <Menu.Divider />
+                  </>
+                )}
               </>
             )}
             <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => openRoutineForm({ routine, copy: true })}>

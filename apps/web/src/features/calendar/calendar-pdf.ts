@@ -3,7 +3,7 @@ import { addDays } from '@ordo/shared';
 import { exportFileName, saveFile } from '../dashboards/chart-image';
 import { localParts } from './event-input';
 
-type PdfKind = 'event' | 'task' | 'time' | 'pause' | 'work';
+type PdfKind = 'event' | 'task' | 'routine' | 'time' | 'pause' | 'work';
 
 /** Item of the calendar as the PDF draws it. */
 interface PdfItem {
@@ -61,7 +61,7 @@ export function pdfItems(items: readonly EventInput[], closedClass: string): Pdf
     // The bar of a day of planned slots (week, day): its hours are exported in the background already.
     // Bars of planned slots and travel times stay out of the report.
     if (item.extendedProps?.kind === 'slot' || item.extendedProps?.kind === 'travel') return [];
-    const kind: PdfKind = item.display === 'background' ? 'work' : ((item.extendedProps?.kind as PdfKind | undefined) ?? 'event');
+    const kind: PdfKind = item.display === 'background' || item.extendedProps?.kind === 'editSlot' ? 'work' : ((item.extendedProps?.kind as PdfKind | undefined) ?? 'event');
     const classes = Array.isArray(item.classNames) ? item.classNames : [];
     const color = kind === 'work' ? '#2f9e44' : kind === 'pause' ? '#fd7e14' : kind === 'event' ? hexColor(item.backgroundColor, '#228be6') : hexColor(item.borderColor, '#868e96');
     if (item.allDay) {
