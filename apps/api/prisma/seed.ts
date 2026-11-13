@@ -202,6 +202,9 @@ if (archivedProject) {
   }
   await prisma.project.updateMany({ where: { id: { in: subtree } }, data: { archivedAt: now, archivedByCascade: true } });
 }
+// The projects in memory follow the archiving (done in the database): the active ones are taken from them.
+const archivedIds = new Set((await prisma.project.findMany({ where: { archivedAt: { not: null } }, select: { id: true } })).map(({ id }) => id));
+for (const project of projects) if (archivedIds.has(project.id)) project.archivedAt = now;
 
 // --- Icons: logos of some clients and projects, avatars of some contributors -------------------------------
 for (const [index, client] of clients.slice(0, 3).entries()) {
