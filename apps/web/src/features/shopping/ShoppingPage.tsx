@@ -1,9 +1,10 @@
-import { Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
 import { SHOPPING_LIST_FILTER_FIELDS, SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS, type ShoppingListFilterField, type ShoppingListGroupBy } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { PageTabs } from '../../components/PageTabs';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -261,7 +262,7 @@ export function ShoppingPage() {
     <Stack gap="lg">
       <PageTitle>Courses</PageTitle>
       <ShoppingSettings />
-      <Tabs
+      <PageTabs
         value={tab}
         onChange={(value) =>
           setParams(
@@ -276,21 +277,21 @@ export function ShoppingPage() {
         }
         keepMounted={false}
       >
-        <Tabs.List mb="md">
-          <Tabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>
+        <PageTabs.List>
+          <PageTabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>
             Listes types
-          </Tabs.Tab>
-          <Tabs.Tab value="lists" leftSection={<ListChecksIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="lists" leftSection={<ListChecksIcon aria-hidden />}>
             Listes
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="base">
+          </PageTabs.Tab>
+        </PageTabs.List>
+        <PageTabs.Panel value="base">
           <BaseLists />
-        </Tabs.Panel>
-        <Tabs.Panel value="lists">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="lists">
           <ListsPanel />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
     </Stack>
   );
 }

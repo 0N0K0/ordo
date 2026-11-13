@@ -13,7 +13,6 @@ import {
   SimpleGrid,
   Skeleton,
   Stack,
-  Tabs,
   Text,
   TextInput,
   ThemeIcon,
@@ -51,6 +50,7 @@ import { EntryForm } from './EntryForm';
 import { SettingsPanel } from './SettingsPanel';
 import { BudgetsPanel } from './BudgetsPanel';
 import { LoansPanel } from './LoansPanel';
+import { PageTabs } from '../../components/PageTabs';
 import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
@@ -452,7 +452,7 @@ export function TreasuryPage() {
         )}
       </Paper>
 
-      <Tabs
+      <PageTabs
         value={tab}
         onChange={(value) =>
           // The settings sidebar stays as it is.
@@ -467,15 +467,15 @@ export function TreasuryPage() {
         }
         keepMounted={false}
       >
-        <Tabs.List>
-          <Tabs.Tab value="forecast">Prévisionnel</Tabs.Tab>
-          <Tabs.Tab value="entries">Mouvements</Tabs.Tab>
-          <Tabs.Tab value="budgets">Budgets</Tabs.Tab>
-          <Tabs.Tab value="loans">Prêts</Tabs.Tab>
-          <Tabs.Tab value="accounts">Comptes</Tabs.Tab>
-        </Tabs.List>
+        <PageTabs.List>
+          <PageTabs.Tab value="forecast">Prévisionnel</PageTabs.Tab>
+          <PageTabs.Tab value="entries">Mouvements</PageTabs.Tab>
+          <PageTabs.Tab value="budgets">Budgets</PageTabs.Tab>
+          <PageTabs.Tab value="loans">Prêts</PageTabs.Tab>
+          <PageTabs.Tab value="accounts">Comptes</PageTabs.Tab>
+        </PageTabs.List>
 
-        <Tabs.Panel value="forecast" pt="md">
+        <PageTabs.Panel value="forecast">
           {items.length === 0 ? (
             <Text size="sm" c="dimmed">
               Rien d’attendu d’ici le {printedDate(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.
@@ -578,21 +578,21 @@ export function TreasuryPage() {
               }}
             />
           )}
-        </Tabs.Panel>
+        </PageTabs.Panel>
 
-        <Tabs.Panel value="entries" pt="md">
+        <PageTabs.Panel value="entries">
           <EntriesPanel accounts={accounts} onEdit={(entry) => setDialog({ kind: 'entry', entry })} onDuplicate={(entry) => setDialog({ kind: 'entry', entry, copy: true })} />
-        </Tabs.Panel>
+        </PageTabs.Panel>
 
-        <Tabs.Panel value="budgets" pt="md">
+        <PageTabs.Panel value="budgets">
           <BudgetsPanel />
-        </Tabs.Panel>
+        </PageTabs.Panel>
 
-        <Tabs.Panel value="loans" pt="md">
+        <PageTabs.Panel value="loans">
           <LoansPanel />
-        </Tabs.Panel>
+        </PageTabs.Panel>
 
-        <Tabs.Panel value="accounts" pt="md">
+        <PageTabs.Panel value="accounts">
           <DataTable
             framed
             tableKey="treasury-accounts"
@@ -652,8 +652,8 @@ export function TreasuryPage() {
               />
             )}
           />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
       {/* Categories, payment methods, counterparties: in the settings sidebar. */}
       <PageSettings title="Paramètres de la trésorerie">
         <SettingsPanel />

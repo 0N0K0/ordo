@@ -10,7 +10,8 @@
     max-width: 100%;
   }
 
-  .mantine-Tabs-list[data-orientation='horizontal'] {
+  /* The tabs of a page (PageTabs) have their own look. */
+  .mantine-Tabs-list[data-orientation='horizontal']:not([data-page-tabs] .mantine-Tabs-list) {
     /* Agencement */
     flex-wrap: nowrap;
 
