@@ -13,7 +13,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions, DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence } from './api';
 import { useTimeMutations } from '../time/api';
 import { EventLocation } from '../geo/EventLocation';
@@ -545,9 +545,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         <Group justify="space-between" gap="sm">
           {occurrence ? (
             <Group gap={4}>
-              <Button variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
+              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
                 Supprimer
-              </Button>
+              </DestructiveButton>
               {onDuplicate && (
                 <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
                   <Button

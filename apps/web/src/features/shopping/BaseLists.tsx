@@ -1,16 +1,15 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
 import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from './api';
 import { BaseList } from './BaseList';
 
@@ -152,36 +151,29 @@ export function BaseLists() {
    * @returns {void}
    */
   const confirmDelete = (baseList: ShoppingBaseList) => {
-    const modalId = `delete-shopping-base-list-${baseList.id}`;
     const count = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).length;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer la liste type',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             « {baseList.name} » sera supprimée définitivement{count ? `, avec ses ${count} produit(s) et leur historique d’achat` : ''}. Les listes déjà faites gardent leurs éléments. Cette action est
             irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              mutations.deleteBaseList.mutate(
-                { id: baseList.id },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Liste type supprimée.');
-                    select(null);
-                  },
-                  onError: (error) => notifyError(error.message),
-                },
-              );
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        mutations.deleteBaseList.mutate(
+          { id: baseList.id },
+          {
+            onSuccess: () => {
+              notifySuccess('Liste type supprimée.');
+              select(null);
+            },
+            onError: (error) => notifyError(error.message),
+          },
+        );
+      },
     });
   };
 

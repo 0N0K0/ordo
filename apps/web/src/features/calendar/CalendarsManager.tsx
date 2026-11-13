@@ -1,11 +1,10 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Skeleton, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
 import { ArrowDownIcon, ArrowUpIcon, CalendarBlankIcon, DownloadSimpleIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { WorkspaceKindIcon } from '../workspaces/WorkspaceKindIcon';
 import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars, type Calendar, type SubscribableCalendar } from './api';
@@ -91,26 +90,19 @@ function OwnCalendars() {
    * @returns {void}
    */
   const confirmDelete = (calendar: Calendar) => {
-    const modalId = `delete-calendar-${calendar.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le calendrier',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             Le calendrier « {calendar.name} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans lien. Les autres
             espaces abonnés ne le verront plus. Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(calendar.id, { onSuccess: () => notifySuccess('Calendrier supprimé.'), onError });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(calendar.id, { onSuccess: () => notifySuccess('Calendrier supprimé.'), onError });
+      },
     });
   };
 

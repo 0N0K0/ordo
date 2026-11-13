@@ -1,9 +1,8 @@
+import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Avatar, Badge, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
-import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from './use-contributor-form';
 import { useTreasurySettings } from '../../treasury/api';
@@ -51,23 +50,15 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
    */
   const confirmDelete = (contributor: Contributor) => {
     const used = usage.get(contributor.id) ?? 0;
-    const modalId = `delete-contributor-${contributor.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le contributeur',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: 'Supprimer le contributeur', risks: (
+<>
+<Text size="sm">
             {contributor.name} sera supprimé définitivement
             {used > 0 ? ` et retiré des ${used} tâche${used > 1 ? 's' : ''} qui lui sont assignées` : ''}. Ses mentions
             @{contributor.handle} resteront dans le texte, sans lien. Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(
+</>
+), onConfirm: () => { remove.mutate(
                 { id: contributor.id },
                 {
                   onSuccess: () => {
@@ -77,12 +68,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                   },
                   onError: (error) => notifyError(error.message),
                 },
-              );
-            }}
-          />
-        </Stack>
-      ),
-    });
+              ); } });
   };
 
   return (

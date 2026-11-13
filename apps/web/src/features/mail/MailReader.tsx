@@ -1,5 +1,6 @@
+import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Alert, Badge, Button, Group, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import {
   ArrowBendDoubleUpLeftIcon,
   ArrowBendUpLeftIcon,
@@ -16,7 +17,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useWorkspace } from '../workspace/api';
 import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from './api';
 import { MailOrganizeActions } from './MailOrganizeActions';
@@ -85,30 +85,13 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmUnlink = (copyId: string) => {
-    const modalId = `unlink-mail-${copyId}`;
-    modals.open({
-      modalId,
-      title: 'Détacher le mail du projet',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              unlink.mutate(copyId, {
+    confirmDestructive({ title: 'Détacher le mail du projet', risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.', confirmLabel: 'Détacher', onConfirm: () => { unlink.mutate(copyId, {
                 onSuccess: () => {
                   notifySuccess('Mail détaché du projet.');
                   onDeleted();
                 },
                 onError: (failure) => notifyError(failure.message),
-              });
-            }}
-          />
-        </Stack>
-      ),
-    });
+              }); } });
   };
 
   if (isPending) return <Skeleton height={300} />;
@@ -125,22 +108,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmDelete = () => {
-    const modalId = `delete-mail-${uid}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le mail',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
-            Le mail sera placé dans la corbeille de la boîte (supprimé définitivement s’il y est déjà). Ses copies rattachées à des projets
-            sont conservées.
-          </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(
+    confirmDestructive({ title: 'Supprimer le mail', risks: 'Le mail sera placé dans la corbeille de la boîte (supprimé définitivement s’il y est déjà). Ses copies rattachées à des projets sont conservées.', onConfirm: () => { remove.mutate(
                 { accountId, folder, uids: [uid] },
                 {
                   onSuccess: () => {
@@ -149,12 +117,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                   },
                   onError: (failure) => notifyError(failure.message),
                 },
-              );
-            }}
-          />
-        </Stack>
-      ),
-    });
+              ); } });
   };
 
   const files = mail.attachments.filter((file) => !file.inline);
@@ -198,19 +161,11 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
    * @returns {void}
    */
   const confirmDeleteDraft = () => {
-    const modalId = `delete-draft-${uid}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le brouillon',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              deleteDraft.mutate(
+    confirmDestructive({ title: 'Supprimer le brouillon', risks: (
+<>
+<Text size="sm">Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte. Cette action est irréversible.</Text>
+</>
+), onConfirm: () => { deleteDraft.mutate(
                 { accountId, folder, uid },
                 {
                   onSuccess: () => {
@@ -219,12 +174,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
                   },
                   onError: (failure) => notifyError(failure.message),
                 },
-              );
-            }}
-          />
-        </Stack>
-      ),
-    });
+              ); } });
   };
   const base = `/api/mail/${accountId}/attachment?folder=${encodeURIComponent(folder)}&uid=${uid}`;
 
@@ -304,9 +254,9 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
           <Button size="xs" leftSection={<PencilSimpleLineIcon aria-hidden />} loading={resuming} onClick={() => void resume()}>
             Reprendre le brouillon
           </Button>
-          <Button size="xs" variant="light" color="red" leftSection={<TrashIcon aria-hidden />} onClick={confirmDeleteDraft}>
+          <DestructiveButton size="xs" leftSection={<TrashIcon aria-hidden />} onClick={confirmDeleteDraft}>
             Supprimer le brouillon
-          </Button>
+          </DestructiveButton>
         </Group>
       ) : (
         <Group gap="xs">
@@ -336,9 +286,9 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
           </Button>
           {projectId ? (
             copy && (
-              <Button size="xs" variant="default" color="red" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
+              <DestructiveButton size="xs" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
                 Détacher du projet
-              </Button>
+              </DestructiveButton>
             )
           ) : (
             <LinkToProject accountId={accountId} folder={folder} uid={uid} linkedProjectIds={mail.linkedProjectIds} />

@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import {
   ActionIcon,
@@ -28,7 +29,6 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
 import { CategoryTree } from '../../components/category-tree/CategoryTree';
 import { categoryOptions } from './categories';
-import { confirmDeletion } from './confirm-deletion';
 import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useColorSwatches } from '../workspace/use-color-swatches';
@@ -357,11 +357,7 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
                 label={path}
                 onEdit={() => open({ kind: 'category', category })}
                 onDelete={() =>
-                  confirmDeletion(
-                    'Supprimer la catégorie',
-                    `« ${path} » sera supprimée définitivement.${category.entryCount ? ` Ses ${entries(category.entryCount)} n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau.`,
-                    () => deleteCategory.mutate(category.id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) }),
-                  )
+                  confirmDestructive({ title: 'Supprimer la catégorie', risks: `« ${path} » sera supprimée définitivement.${category.entryCount ? ` Ses ${entries(category.entryCount)} n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau.`, onConfirm: () => deleteCategory.mutate(category.id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) }) })
                 }
               />
             </>
@@ -491,11 +487,7 @@ export function SettingsPanel() {
                         label={method.name}
                         onEdit={() => setDialog({ kind: 'method', method })}
                         onDelete={() =>
-                          confirmDeletion(
-                            'Supprimer le moyen de paiement',
-                            `« ${method.name} » sera supprimé définitivement.${method.entryCount ? ` Ses ${entries(method.entryCount)} n’auront plus de moyen de paiement.` : ''}`,
-                            () => deleteMethod.mutate(method.id, { onSuccess: () => notifySuccess('Moyen de paiement supprimé.'), onError }),
-                          )
+                          confirmDestructive({ title: 'Supprimer le moyen de paiement', risks: `« ${method.name} » sera supprimé définitivement.${method.entryCount ? ` Ses ${entries(method.entryCount)} n’auront plus de moyen de paiement.` : ''}`, onConfirm: () => deleteMethod.mutate(method.id, { onSuccess: () => notifySuccess('Moyen de paiement supprimé.'), onError }) })
                         }
                       />
                     </Table.Td>
@@ -550,11 +542,7 @@ export function SettingsPanel() {
                         label={counterparty.name}
                         onEdit={() => setDialog({ kind: 'counterparty', counterparty })}
                         onDelete={() =>
-                          confirmDeletion(
-                            'Supprimer le tiers',
-                            `« ${counterparty.name} » sera supprimé définitivement.${counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}`,
-                            () => deleteCounterparty.mutate(counterparty.id, { onSuccess: () => notifySuccess('Tiers supprimé.'), onError }),
-                          )
+                          confirmDestructive({ title: 'Supprimer le tiers', risks: `« ${counterparty.name} » sera supprimé définitivement.${counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}`, onConfirm: () => deleteCounterparty.mutate(counterparty.id, { onSuccess: () => notifySuccess('Tiers supprimé.'), onError }) })
                         }
                       />
                     </Table.Td>

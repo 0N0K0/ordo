@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -10,7 +11,6 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from './api';
-import { confirmDeletion } from './confirm-deletion';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
@@ -273,11 +273,11 @@ function Contexts() {
                         variant="subtle"
                         color="red"
                         onClick={() =>
-                          confirmDeletion(
-                            'Supprimer le contexte',
-                            `« ${item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « ${EVERYDAY_CONTEXT} ».`,
-                            () => deleteContext.mutate(item.id, { onSuccess: () => notifySuccess('Contexte supprimé.'), onError }),
-                          )
+                          confirmDestructive({
+                            title: 'Supprimer le contexte',
+                            risks: `« ${item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « ${EVERYDAY_CONTEXT} ».`,
+                            onConfirm: () => deleteContext.mutate(item.id, { onSuccess: () => notifySuccess('Contexte supprimé.'), onError }),
+                          })
                         }
                       >
                         Supprimer
@@ -343,11 +343,11 @@ function Contexts() {
                           variant="subtle"
                           color="red"
                           onClick={() =>
-                            confirmDeletion(
-                              'Supprimer la période',
-                              `La période « ${item?.name ?? ''} » du ${formatDay(period.startDate)} au ${formatDay(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
-                              () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
-                            )
+                            confirmDestructive({
+                              title: 'Supprimer la période',
+                              risks: `La période « ${item?.name ?? ''} » du ${formatDay(period.startDate)} au ${formatDay(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
+                              onConfirm: () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
+                            })
                           }
                         >
                           Supprimer
@@ -520,11 +520,11 @@ export function TeamRelations() {
                       variant="subtle"
                       color="red"
                       onClick={() =>
-                        confirmDeletion(
-                          'Supprimer la relation',
-                          `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
-                          () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: (error) => notifyError(error.message) }),
-                        )
+                        confirmDestructive({
+                          title: 'Supprimer la relation',
+                          risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
+                          onConfirm: () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: (error) => notifyError(error.message) }),
+                        })
                       }
                     >
                       Supprimer

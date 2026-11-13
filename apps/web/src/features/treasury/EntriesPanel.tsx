@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Badge, Button, Group, Paper, Skeleton, Stack, Switch, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts, type TableFilterGroup } from '@ordo/shared';
@@ -30,7 +31,6 @@ import tableClasses from '../../components/data-table/DataTable.module.css';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryEntries, useTreasuryMutations, useTreasurySettings, type TreasuryAccount, type TreasuryEntry } from './api';
 import { categoryOptions, categoryPaths } from './categories';
-import { confirmDeletion } from './confirm-deletion';
 import { EntryUrl } from './EntryUrl';
 import { StatementForm } from './StatementForm';
 import { StatementImport } from './StatementImport';
@@ -470,17 +470,17 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                   icon: <TrashIcon aria-hidden />,
                                   danger: true,
                                   onClick: () =>
-                                    confirmDeletion(
-                                      'Supprimer le mouvement',
-                                      [
+                                    confirmDestructive({
+                                      title: 'Supprimer le mouvement',
+                                      risks: [
                                         `« ${entry.label} » sera supprimé définitivement.`,
                                         entry.allocations.length ? 'Les documents qu’il règle redeviendront dus.' : '',
                                         entry.linkedEntries.length ? 'Ses liens avec d’autres mouvements seront retirés.' : '',
                                       ]
                                         .filter(Boolean)
                                         .join(' '),
-                                      () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError: (error) => notifyError(error.message) }),
-                                    ),
+                                      onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError: (error) => notifyError(error.message) }),
+                                    }),
                                 },
                               ]}
                             />

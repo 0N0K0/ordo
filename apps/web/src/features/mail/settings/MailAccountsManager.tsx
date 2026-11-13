@@ -1,8 +1,8 @@
+import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../../lib/notify';
-import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
@@ -34,30 +34,17 @@ export function MailAccountsManager() {
    * @returns {void}
    */
   const confirmDelete = (account: MailAccount) => {
-    const modalId = `delete-mail-account-${account.id}`;
-    modals.open({
-      modalId,
-      title: 'Retirer la boîte mail',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: 'Retirer la boîte mail', risks: (
+<>
+<Text size="sm">
             {account.email} ne sera plus lue ni utilisée par Ordo, et ses réglages (mots de passe, signature) seront supprimés.
             Les mails restent sur le serveur, et ceux rattachés à des projets restent dans Ordo. Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(account.id, {
+</>
+), confirmLabel: 'Retirer', onConfirm: () => { remove.mutate(account.id, {
                 onSuccess: () => notifySuccess('Boîte mail retirée.'),
                 onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
-      ),
-    });
+              }); } });
   };
 
   return (

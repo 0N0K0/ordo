@@ -1,12 +1,11 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Button, ColorInput, Group, Paper, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { CategoryTree } from '../../components/category-tree/CategoryTree';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useCalendarCategories, useCalendarCategoryMutations, type CalendarCategory } from './api';
 import { categoryOptions, categorySubtree } from './category-tree';
@@ -109,30 +108,17 @@ export function CalendarCategoriesManager() {
    */
   const confirmDelete = (category: CalendarCategory) => {
     const subCount = categorySubtree(categories ?? [], category.id).size - 1;
-    const modalId = `delete-calendar-category-${category.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer la catégorie',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: 'Supprimer la catégorie', risks: (
+<>
+<Text size="sm">
             La catégorie « {category.name} »{subCount > 0 ? ` et ses ${subCount} sous-catégorie${subCount > 1 ? 's' : ''}` : ''} seront
             supprimées définitivement et retirées des évènements (qui sont conservés). Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(category.id, {
+</>
+), onConfirm: () => { remove.mutate(category.id, {
                 onSuccess: () => notifySuccess('Catégorie supprimée.'),
                 onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
-      ),
-    });
+              }); } });
   };
 
   return (

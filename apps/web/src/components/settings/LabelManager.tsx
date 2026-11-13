@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../dialogs/confirm-destructive';
 import {
   ActionIcon,
   Button,
@@ -11,7 +12,6 @@ import {
   Title,
   Tooltip,
 } from "@mantine/core";
-import { modals } from "@mantine/modals";
 import {
   labelFormSchema,
   labelNameSchema,
@@ -26,7 +26,6 @@ import {
 } from "@phosphor-icons/react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { DestructiveActions } from "../../features/workspace/DeleteDialogs";
 import { useColorSwatches } from "../../features/workspace/use-color-swatches";
 import { showFormError, useAppForm } from "../../lib/form";
 import { notifyError, notifySuccess } from "../../lib/notify";
@@ -232,36 +231,23 @@ export function LabelManager({
    */
   const confirmDelete = (label: Label) => {
     const used = usage.get(label.id) ?? 0;
-    const modalId = `delete-label-${label.id}`;
-    modals.open({
-      modalId,
-      title: `Supprimer ${noun}`,
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: `Supprimer ${noun}`, risks: (
+<>
+<Text size="sm">
             « {label.name} » sera supprimé définitivement
             {used > 0
               ? ` et retiré des ${used} ${used > 1 ? usageNoun : usageNoun.replace(/s$/, "")} qui l’utilisent`
               : ""}
             . Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(
+</>
+), onConfirm: () => { remove.mutate(
                 { id: label.id },
                 {
                   onSuccess: () => notifySuccess(`« ${label.name} » supprimé.`),
                   onError: (error) => notifyError(error.message),
                 },
-              );
-            }}
-          />
-        </Stack>
-      ),
-    });
+              ); } });
   };
 
   return (

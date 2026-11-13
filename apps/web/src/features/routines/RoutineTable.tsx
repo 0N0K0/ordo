@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import {
   closestCenter,
   DndContext,
@@ -50,7 +51,6 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
-import { confirmDestructive } from '../shopping/list-modals';
 import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
 import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
@@ -448,11 +448,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
               icon: <TrashIcon aria-hidden />,
               danger: true,
               onClick: () =>
-                confirmDestructive(
-                  'Supprimer la routine',
-                  `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`,
-                  () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }),
-                ),
+                confirmDestructive({ title: 'Supprimer la routine', risks: `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`, onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }) }),
             },
           ]}
         />

@@ -1,3 +1,4 @@
+import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import {
   ActionIcon,
   Button,
@@ -422,9 +423,9 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
             </Button>
           )}
           {onRemove && (
-            <Button size="compact-sm" variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={onRemove}>
+            <DestructiveButton size="compact-sm" leftSection={<TrashIcon aria-hidden />} onClick={onRemove}>
               Retirer le groupe
-            </Button>
+            </DestructiveButton>
           )}
         </Group>
       </Stack>

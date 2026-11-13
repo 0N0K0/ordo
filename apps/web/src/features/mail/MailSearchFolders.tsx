@@ -1,11 +1,10 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Alert, Badge, Box, Checkbox, Group, Menu, NavLink, Pagination, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import type { MailSearchCriteria } from '@ordo/shared';
 import { CheckCircleIcon, DotsThreeIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from './api';
 import { correspondent, listDate } from './mail-format';
 import { groupMails } from './mail-groups';
@@ -28,29 +27,22 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
    * @returns {void}
    */
   const askDelete = (search: MailSearch) => {
-    const modalId = `delete-mail-search-${search.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le dossier de recherche',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">Le dossier de recherche « {search.name} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(search.id, {
-                onSuccess: () => {
-                  notifySuccess('Dossier de recherche supprimé.');
-                  if (selectedId === search.id) onSelect(null);
-                },
-                onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(search.id, {
+          onSuccess: () => {
+            notifySuccess('Dossier de recherche supprimé.');
+            if (selectedId === search.id) onSelect(null);
+          },
+          onError: (error) => notifyError(error.message),
+        });
+      },
     });
   };
 

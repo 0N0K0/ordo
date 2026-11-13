@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from './entry-values';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, NumberInput, Paper, Popover, SegmentedControl, SimpleGrid, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
@@ -28,7 +29,6 @@ import {
   type TreasuryEntry,
 } from './api';
 import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type ChartScale } from './chart-period';
-import { confirmDeletion } from './confirm-deletion';
 import { EntriesPanel } from './EntriesPanel';
 import { EntryUrl } from './EntryUrl';
 import { EntryForm } from './EntryForm';
@@ -625,14 +625,16 @@ export function TreasuryPage() {
                       danger: true,
                       onClick: () =>
                         forecast
-                          ? confirmDeletion('Supprimer la prévision', `« ${item.label} » et toutes ses répétitions seront supprimées.`, () =>
-                              deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
-                            )
-                          : confirmDeletion(
-                              'Supprimer le mouvement',
-                              entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
-                              () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
-                            ),
+                          ? confirmDestructive({
+                              title: 'Supprimer la prévision',
+                              risks: `« ${item.label} » et toutes ses répétitions seront supprimées.`,
+                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
+                            })
+                          : confirmDestructive({
+                              title: 'Supprimer le mouvement',
+                              risks: entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
+                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
+                            }),
                     },
                   ]}
                 />
@@ -710,9 +712,11 @@ export function TreasuryPage() {
                     disabled: account.entryCount > 0,
                     hint: account.entryCount ? 'A des mouvements : archivez-le' : undefined,
                     onClick: () =>
-                      confirmDeletion('Supprimer le compte', `« ${account.name} » sera supprimé définitivement.`, () =>
-                        deleteAccount.mutate(account.id, { onSuccess: () => notifySuccess('Compte supprimé.'), onError }),
-                      ),
+                      confirmDestructive({
+                        title: 'Supprimer le compte',
+                        risks: `« ${account.name} » sera supprimé définitivement.`,
+                        onConfirm: () => deleteAccount.mutate(account.id, { onSuccess: () => notifySuccess('Compte supprimé.'), onError }),
+                      }),
                   },
                 ]}
               />

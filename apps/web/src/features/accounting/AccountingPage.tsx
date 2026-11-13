@@ -1,6 +1,6 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Badge, Button, Group, Menu, Paper, Skeleton, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
 import {
   ArrowsClockwiseIcon,
@@ -25,7 +25,6 @@ import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { CatalogPanel } from './CatalogPanel';
 import { OverdueInvoicesPanel } from './OverdueInvoicesPanel';
 import { useOverdueInvoices } from './tracking-api';
@@ -135,23 +134,16 @@ function RecurringList() {
    * @returns {void}
    */
   const confirmDelete = (item: RecurringInvoice) => {
-    const modalId = `delete-recurring-${item.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer la facture récurrente',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: (error) => notifyError(error.message) });
+      },
     });
   };
 

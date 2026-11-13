@@ -1,11 +1,10 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Button, Group, Menu, Paper, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { DotsThreeIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { notifyError } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useTaskCommentMutations, useTaskComments, type Task, type TaskComment } from './api';
 import type { TaskContext } from './use-task-context';
 
@@ -63,24 +62,7 @@ function Comment({ comment, context, projectId }: CommentProps) {
    * @returns {void}
    */
   const confirmDelete = () => {
-    const modalId = `delete-comment-${comment.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le commentaire',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">Le commentaire sera supprimé définitivement. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate({ id: comment.id }, { onError: (e) => notifyError(e.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+    confirmDestructive({ title: 'Supprimer le commentaire', risks: 'Le commentaire sera supprimé définitivement. Cette action est irréversible.', onConfirm: () => { remove.mutate({ id: comment.id }, { onError: (e) => notifyError(e.message) }); } });
   };
 
   return (

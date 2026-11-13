@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { Badge, Button, Group, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
@@ -14,7 +15,6 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from './api';
 import { categoryOptions, categoryPaths } from './categories';
-import { confirmDeletion } from './confirm-deletion';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 const REPEATS = [
@@ -681,11 +681,11 @@ export function BudgetsPanel() {
                     icon: <TrashIcon aria-hidden />,
                     danger: true,
                     onClick: () =>
-                      confirmDeletion(
-                        'Supprimer le budget',
-                        `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                        () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
-                      ),
+                      confirmDestructive({
+                        title: 'Supprimer le budget',
+                        risks: `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                        onConfirm: () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
+                      }),
                   },
                 ]}
               />

@@ -1,10 +1,9 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { Stack, Text } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { Text } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useTimeMutations, type TimeEntry } from './api';
 import { TimeEntryForm } from './TimeEntryForm';
 
@@ -48,26 +47,19 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
    * @returns {void}
    */
   const confirmDelete = (entry: TimeEntry) => {
-    const modalId = `delete-time-${entry.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le temps',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">Ce temps ({formatDuration(entrySeconds(entry))}) sera supprimé définitivement et retiré du temps passé de ses tâches. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(entry.id, {
-                onSuccess: () => notifySuccess('Temps supprimé.'),
-                onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(entry.id, {
+          onSuccess: () => notifySuccess('Temps supprimé.'),
+          onError: (error) => notifyError(error.message),
+        });
+      },
     });
   };
 

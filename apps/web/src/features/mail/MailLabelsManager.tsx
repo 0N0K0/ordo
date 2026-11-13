@@ -2,7 +2,7 @@ import { ActionIcon, Button, ColorInput, Group, Stack, Text, TextInput, Tooltip 
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useMailLabelMutations, useMailLabels, type MailLabel } from './api';
 
 const SWATCHES = ['#fa5252', '#fd7e14', '#fab005', '#40c057', '#15aabf', '#228be6', '#7950f2', '#e64980', '#868e96'];

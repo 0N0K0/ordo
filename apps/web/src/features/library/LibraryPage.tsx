@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
 import {
   ActionIcon,
@@ -15,7 +16,6 @@ import {
   Text,
   ThemeIcon,
 } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,
@@ -35,10 +35,9 @@ import {
   TrashIcon,
   UploadSimpleIcon,
 } from '@phosphor-icons/react';
-import { useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useLibrary, useLibraryMutations, useLibraryOptimism, zipUrl, type DocumentFolder, type LibraryDocument } from './api';
 import { folderPaths, folderSubtree } from './folders';
 import { DocumentForm, FolderNameForm, LinkForm, MoveForm } from './LibraryForms';
@@ -62,7 +61,6 @@ import { PageTitle } from '../../components/PageTitle';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-let modalCount = 0;
 
 /**
  * Size in Ko or Mo.
@@ -93,41 +91,6 @@ function DocumentIcon({ document }: { document: LibraryDocument }) {
       {icon}
     </ThemeIcon>
   );
-}
-
-/**
- * Opens a dialog (confirmations: the forms open in the side panel).
- * @param {string} title Title.
- * @param {(close: () => void) => ReactNode} content Content, given the close callback.
- * @param {string} [size] Size. Optional.
- * @returns {void}
- */
-function openDialog(title: string, content: (close: () => void) => ReactNode, size?: string): void {
-  const modalId = `library-${++modalCount}`;
-  modals.open({ modalId, title, size, children: content(() => modals.close(modalId)) });
-}
-
-/**
- * Asks for confirmation before a deletion.
- * @param {string} title Title.
- * @param {string} message What is deleted.
- * @param {() => void} onConfirm Deletion.
- * @returns {void}
- */
-function confirmDeletion(title: string, message: string, onConfirm: () => void): void {
-  openDialog(title, (close) => (
-    <Stack gap="md">
-      <Text size="sm">{message}</Text>
-      <DestructiveActions
-        loading={false}
-        onCancel={close}
-        onConfirm={() => {
-          close();
-          onConfirm();
-        }}
-      />
-    </Stack>
-  ));
 }
 
 /**
@@ -391,10 +354,10 @@ export function LibraryPage() {
               icon: <TrashIcon aria-hidden />,
               danger: true,
               onClick: () =>
-                confirmDeletion(
-                  'Supprimer le dossier',
-                  `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${inside} document${inside > 1 ? 's' : ''}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
-                  () =>
+                confirmDestructive({
+                  title: 'Supprimer le dossier',
+                  risks: `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${inside} document${inside > 1 ? 's' : ''}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
+                  onConfirm: () =>
                     mutations.deleteFolder.mutate(folder.id, {
                       onSuccess: () => {
                         if (current && tree.has(current)) select(folder.parentId ?? null);
@@ -402,7 +365,7 @@ export function LibraryPage() {
                       },
                       onError: (deleteError) => notifyError(deleteError.message),
                     }),
-                ),
+                }),
             },
           ]}
         />
@@ -439,9 +402,8 @@ export function LibraryPage() {
           icon: <TrashIcon aria-hidden />,
           danger: true,
           onClick: () =>
-            confirmDeletion('Supprimer le document', `« ${document.title} » sera supprimé définitivement${document.kind === 'FILE' ? ' avec son fichier' : ''}. Cette action est irréversible.`, () =>
-              mutations.remove.mutate([document.id], { onSuccess: () => notifySuccess('Document supprimé.'), onError: (deleteError) => notifyError(deleteError.message) }),
-            ),
+            confirmDestructive({ title: 'Supprimer le document', risks: `« ${document.title} » sera supprimé définitivement${document.kind === 'FILE' ? ' avec son fichier' : ''}. Cette action est irréversible.`, onConfirm: () =>
+              mutations.remove.mutate([document.id], { onSuccess: () => notifySuccess('Document supprimé.'), onError: (deleteError) => notifyError(deleteError.message) }) }),
         },
       ]}
     />
@@ -642,7 +604,7 @@ export function LibraryPage() {
                         color="red"
                         leftSection={<TrashIcon aria-hidden />}
                         onClick={() =>
-                          confirmDeletion('Supprimer les documents', `${chosen.length} document${chosen.length > 1 ? 's seront supprimés' : ' sera supprimé'} définitivement avec leurs fichiers. Cette action est irréversible.`, () =>
+                          confirmDestructive({ title: 'Supprimer les documents', risks: `${chosen.length} document${chosen.length > 1 ? 's seront supprimés' : ' sera supprimé'} définitivement avec leurs fichiers. Cette action est irréversible.`, onConfirm: () =>
                             mutations.remove.mutate(
                               chosen.map((document) => document.id),
                               {
@@ -652,8 +614,7 @@ export function LibraryPage() {
                                 },
                                 onError: (deleteError) => notifyError(deleteError.message),
                               },
-                            ),
-                          )
+                            ) })
                         }
                       >
                         Supprimer

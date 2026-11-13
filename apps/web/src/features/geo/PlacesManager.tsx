@@ -3,7 +3,7 @@ import type { GeoPoint } from '@ordo/shared';
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
 import { PlaceMap } from './PlaceMap';

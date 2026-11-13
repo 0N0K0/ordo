@@ -1,7 +1,7 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Badge, Box, Button, Group, Menu, NavLink, Skeleton, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { modals } from '@mantine/modals';
 import {
   ArchiveIcon,
   ArrowsOutCardinalIcon,
@@ -20,7 +20,6 @@ import {
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from './api';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
@@ -253,32 +252,25 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {void}
    */
   const askDelete = (folder: { path: string; name: string }) => {
-    const modalId = `mail-folder-${++modalCount}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le dossier',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(
-                { accountId: account.id, path: folder.path },
-                {
-                  onSuccess: () => {
-                    notifySuccess('Dossier supprimé.');
-                    if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
-                  },
-                  onError: (failure) => notifyError(failure.message),
-                },
-              );
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(
+          { accountId: account.id, path: folder.path },
+          {
+            onSuccess: () => {
+              notifySuccess('Dossier supprimé.');
+              if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
+            },
+            onError: (failure) => notifyError(failure.message),
+          },
+        );
+      },
     });
   };
 

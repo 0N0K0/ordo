@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Button, Group, Skeleton, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { formatMoney, shoppingListNameSchema } from '@ordo/shared';
@@ -13,7 +14,6 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useTreasuryEntrySearch } from '../treasury/api';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from './api';
 import { downloadShoppingPdf, shoppingText } from './export';
-import { confirmDestructive } from './list-modals';
 import { openFormPanel } from '../../components/panels/panels';
 import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
@@ -215,10 +215,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       icon: <TrashIcon aria-hidden />,
       danger: true,
       onClick: () =>
-        confirmDestructive(
-          'Supprimer la liste',
-          `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
-          () =>
+        confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
             mutations.deleteList.mutate(
               { id: list.id },
               {
@@ -228,8 +225,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
                 },
                 onError,
               },
-            ),
-        ),
+            ) }),
     },
   ];
 }

@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Menu, Paper, Skeleton, Stack, Switch, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney } from '@ordo/shared';
@@ -28,7 +29,6 @@ import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingL
 import { shoppingTotal } from './export';
 import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
-import { confirmDestructive } from './list-modals';
 import { openFormPanel } from '../../components/panels/panels';
 import { ProductPicker } from './ProductPicker';
 import { blankInput, listClosed, listTasks, money, usePeople, type ShoppingGrouping } from './shopping-format';
@@ -276,7 +276,13 @@ export function ShoppingListPage() {
                     const remove = () => mutations.deleteItem.mutate({ id: item.id }, { onError });
                     // An item of this list only is lost with it; a product of a base list can be added back.
                     if (item.productId) remove();
-                    else confirmDestructive('Retirer l’élément', `« ${item.name} » n’est dans aucune liste type : il sera supprimé définitivement. Cette action est irréversible.`, remove);
+                    else
+                      confirmDestructive({
+                        title: 'Retirer l’élément',
+                        risks: `« ${item.name} » n’est dans aucune liste type : il sera supprimé définitivement. Cette action est irréversible.`,
+                        confirmLabel: 'Retirer',
+                        onConfirm: remove,
+                      });
                   },
                 },
               ]}

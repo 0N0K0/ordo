@@ -15,7 +15,7 @@ import {
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
-import { DestructiveActions } from '../../workspace/DeleteDialogs';
+import { DestructiveActions, DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task, type TaskLabel } from '../api';
 import { ProjectSelect } from '../task-ui';
 import type { TaskContext } from '../use-task-context';
@@ -430,9 +430,9 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
         >
           {allArchived ? 'Désarchiver' : 'Archiver'}
         </Button>
-        <Button size="xs" variant="default" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => openDialog('Supprimer les tâches', BulkDeleteDialog)}>
+        <DestructiveButton size="xs" leftSection={<TrashIcon aria-hidden />} onClick={() => openDialog('Supprimer les tâches', BulkDeleteDialog)}>
           Supprimer
-        </Button>
+        </DestructiveButton>
         <CloseButton aria-label="Désélectionner" onClick={onClear} />
       </Group>
     </Paper>

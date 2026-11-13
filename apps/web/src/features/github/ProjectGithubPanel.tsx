@@ -1,11 +1,11 @@
+import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Skeleton, Stack, Switch, Table, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from './api';
 
 const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
@@ -356,27 +356,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmUnlink = () => {
-    const modalId = 'github-unlink';
-    modals.open({
-      modalId,
-      title: 'Délier le tableau GitHub',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
-            La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les
-            dupliquerait.
-          </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: (error) => notifyError(error.message) }); } });
   };
 
   if (!link) {
@@ -467,9 +447,9 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               <Button variant="default" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
                 Réglages
               </Button>
-              <Button variant="subtle" color="red" leftSection={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
+              <DestructiveButton leftSection={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
                 Délier
-              </Button>
+              </DestructiveButton>
             </Group>
           </Group>
           {link.lastSyncError && (

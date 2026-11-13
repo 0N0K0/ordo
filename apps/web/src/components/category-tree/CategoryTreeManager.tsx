@@ -1,9 +1,8 @@
+import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../panels/panels';
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { DestructiveActions } from '../../features/workspace/DeleteDialogs';
 import { CategoryTree } from './CategoryTree';
 import type { TreeCategory } from './category-tree';
 
@@ -71,13 +70,11 @@ export function CategoryTreeManager<C extends TreeCategory>({
    * @returns {void}
    */
   const confirmDelete = (category: C, path: string) => {
-    const modalId = `delete-category-${category.id}`;
     const used = usage.get(category.id) ?? 0;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer la catégorie',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             {deleteMessage?.(category, path) ?? (
               <>
@@ -86,16 +83,11 @@ export function CategoryTreeManager<C extends TreeCategory>({
               </>
             )}
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              onDelete(category.id);
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        onDelete(category.id);
+      },
     });
   };
 

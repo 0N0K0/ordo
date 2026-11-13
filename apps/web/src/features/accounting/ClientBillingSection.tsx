@@ -1,43 +1,13 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
 import { ActionIcon, Anchor, Badge, Button, Group, Paper, SimpleGrid, Skeleton, Stack, Text, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../../components/address/countries';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from './api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
 
-let modalCount = 0;
-
-/**
- * Asks for confirmation before a deletion.
- * @param {string} title Title.
- * @param {string} message Explanation.
- * @param {() => void} onConfirm Deletion.
- * @returns {void}
- */
-function confirmDelete(title: string, message: string, onConfirm: () => void): void {
-  const modalId = `client-billing-delete-${++modalCount}`;
-  modals.open({
-    modalId,
-    title,
-    children: (
-      <Stack gap="md">
-        <Text size="sm">{message}</Text>
-        <DestructiveActions
-          loading={false}
-          onCancel={() => modals.close(modalId)}
-          onConfirm={() => {
-            modals.close(modalId);
-            onConfirm();
-          }}
-        />
-      </Stack>
-    ),
-  });
-}
 
 /**
  * Address, email and phones, as text lines.
@@ -108,9 +78,8 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
             color="red"
             aria-label={`Supprimer ${name}`}
             onClick={() =>
-              confirmDelete('Supprimer le contact', `${name} sera supprimé définitivement. Cette action est irréversible.`, () =>
-                deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: (error) => notifyError(error.message) }),
-              )
+              confirmDestructive({ title: 'Supprimer le contact', risks: `${name} sera supprimé définitivement. Cette action est irréversible.`, onConfirm: () =>
+                deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: (error) => notifyError(error.message) }) })
             }
           >
             <TrashIcon aria-hidden />
@@ -154,11 +123,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
                 color="red"
                 aria-label={`Supprimer ${service.name}`}
                 onClick={() =>
-                  confirmDelete(
-                    'Supprimer le service',
-                    `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`,
-                    () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: (error) => notifyError(error.message) }),
-                  )
+                  confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`, onConfirm: () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: (error) => notifyError(error.message) }) })
                 }
               >
                 <TrashIcon aria-hidden />

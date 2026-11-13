@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import {
   ActionIcon,
@@ -51,7 +52,6 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailComposer } from '../mail/use-mail-composer';
 import { timeQueryKey } from '../time/api';
 import { useWorkspace } from '../workspace/api';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useCompanyProfile } from './api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from './document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, type AccountingDocument } from './documents-api';
@@ -228,30 +228,13 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const confirmDelete = () => {
-    const modalId = `delete-document-${document.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le brouillon',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              mutations.remove.mutate(document.id, {
+    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.', onConfirm: () => { mutations.remove.mutate(document.id, {
                 onSuccess: () => {
                   notifySuccess('Brouillon supprimé.');
                   void navigate('/accounting');
                 },
                 onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
-      ),
-    });
+              }); } });
   };
 
   /**

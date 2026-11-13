@@ -1,13 +1,12 @@
+import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../../components/panels/panels';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Button, Group, Indicator, Menu, Stack, Tabs, Text, TextInput, type TabsTabProps } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { DestructiveActions } from '../../workspace/DeleteDialogs';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 
 interface NameFormProps {
@@ -147,23 +146,16 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
    * @returns {void}
    */
   const confirmDelete = (view: SavedView<C>) => {
-    const modalId = `delete-view-${view.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer la vue',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">La vue « {view.name} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              state.remove(view);
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        state.remove(view);
+      },
     });
   };
 

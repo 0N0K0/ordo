@@ -1,8 +1,7 @@
-import { ActionIcon, ColorSwatch, Group, Menu, Stack, Text, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { ActionIcon, ColorSwatch, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrashIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useMailActions, useMailFolders, useMailLabels } from './api';
 import type { MailGroup } from './mail-groups';
 
@@ -170,32 +169,25 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
    * @returns {void}
    */
   const confirmDelete = () => {
-    const modalId = 'delete-selected-mails';
     const targets = groups.map((group) => ({ ...group, uids: [...group.uids] }));
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer les mails',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             {count} mail{count > 1 ? 's seront placés' : ' sera placé'} dans la corbeille de leur boîte (supprimé{count > 1 ? 's' : ''} définitivement s’ils y sont déjà). Leurs copies rattachées à des
             projets sont conservées.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              void Promise.all(targets.map((group) => remove.mutateAsync(group)))
-                .then(() => {
-                  notifySuccess(count > 1 ? 'Mails supprimés.' : 'Mail supprimé.');
-                  onGone();
-                })
-                .catch(onError);
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        void Promise.all(targets.map((group) => remove.mutateAsync(group)))
+          .then(() => {
+            notifySuccess(count > 1 ? 'Mails supprimés.' : 'Mail supprimé.');
+            onGone();
+          })
+          .catch(onError);
+      },
     });
   };
 

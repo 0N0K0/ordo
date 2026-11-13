@@ -1,6 +1,6 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { Badge, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Text, Textarea, TextInput, ThemeIcon } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
@@ -10,7 +10,6 @@ import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useCompanyProfile } from './api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from './catalog-api';
 
@@ -202,23 +201,16 @@ export function CatalogPanel() {
    * @returns {void}
    */
   const confirmDelete = (item: CatalogItem) => {
-    const modalId = `delete-catalog-${item.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer l’article',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">« {item.title} » sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), onError: (error) => notifyError(error.message) });
+      },
     });
   };
 

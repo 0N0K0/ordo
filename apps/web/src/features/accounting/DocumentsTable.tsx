@@ -1,5 +1,5 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Badge, Group, Paper, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { formatMoney, type TableFilterGroup } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -10,7 +10,6 @@ import { RowActions } from '../../components/data-table/RowActions';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
@@ -233,26 +232,19 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
    * @returns {void}
    */
   const confirmDelete = (document: ImportedDocument) => {
-    const modalId = `delete-imported-${document.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le document importé',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">Le document importé {document.number} et son fichier seront supprimés définitivement d’Ordo. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(document.id, {
-                onSuccess: () => notifySuccess('Document importé supprimé.'),
-                onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(document.id, {
+          onSuccess: () => notifySuccess('Document importé supprimé.'),
+          onError: (error) => notifyError(error.message),
+        });
+      },
     });
   };
 

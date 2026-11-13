@@ -1,7 +1,7 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { modals } from '@mantine/modals';
 import { addDays, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
 import { DotsThreeIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -9,7 +9,6 @@ import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useSprintMutations, type Sprint } from './api';
 import { useTaskContext, type TaskContext } from './use-task-context';
 
@@ -128,28 +127,15 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (sprint: Sprint, count: number) => {
-    const modalId = `delete-sprint-${sprint.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le sprint',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: 'Supprimer le sprint', risks: (
+<>
+<Text size="sm">
             Le sprint « {sprint.name} » sera supprimé définitivement
             {count > 0 ? ` et retiré des ${count} tâche${count > 1 ? 's' : ''} qui y sont planifiées` : ''}. Les tâches ne sont pas supprimées.
             Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate({ id: sprint.id }, { onSuccess: () => notifySuccess('Sprint supprimé.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+</>
+), onConfirm: () => { remove.mutate({ id: sprint.id }, { onSuccess: () => notifySuccess('Sprint supprimé.'), onError: (error) => notifyError(error.message) }); } });
   };
 
   return (

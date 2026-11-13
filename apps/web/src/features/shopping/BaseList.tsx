@@ -1,13 +1,12 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Anchor, Button, Checkbox, Group, Paper, Skeleton, Stack, Switch, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { modals } from '@mantine/modals';
 import { BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localDay } from '../../lib/dates';
 import { RowActions } from '../../components/data-table/RowActions';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
@@ -32,23 +31,17 @@ const BASE_LIST_VIEWS: FirstTableView[] = [
  * @returns {void}
  */
 function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
-  const modalId = `delete-shopping-product-${product.id}`;
-  modals.open({
-    modalId,
+  confirmDestructive({
     title: 'Retirer le produit',
-    children: (
-      <Stack gap="md">
+    risks: (
+      <>
         <Text size="sm">« {product.name} » sera retiré de la liste type, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</Text>
-        <DestructiveActions
-          loading={false}
-          onCancel={() => modals.close(modalId)}
-          onConfirm={() => {
-            modals.close(modalId);
-            onConfirm();
-          }}
-        />
-      </Stack>
+      </>
     ),
+    confirmLabel: 'Retirer',
+    onConfirm: () => {
+      onConfirm();
+    },
   });
 }
 

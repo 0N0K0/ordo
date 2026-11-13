@@ -1,10 +1,9 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from './documents-api';
 import { FileLink } from '../files/FileLink';
 
@@ -90,27 +89,14 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (resource: ProjectResource) => {
-    const modalId = `delete-resource-${resource.id}`;
-    modals.open({
-      modalId,
-      title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien', risks: (
+<>
+<Text size="sm">
             {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`} Cette action est
             irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+</>
+), onConfirm: () => { remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: (error) => notifyError(error.message) }); } });
   };
 
   return (

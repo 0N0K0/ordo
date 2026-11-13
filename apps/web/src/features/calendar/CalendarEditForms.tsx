@@ -1,3 +1,4 @@
+import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import type { ScheduleSlotTime } from '@ordo/shared';
@@ -57,9 +58,7 @@ export function SlotEditForm({
           </Group>
         )}
         <Group justify="space-between" gap="sm">
-          <Button variant="subtle" color="red" onClick={onDelete}>
-            Supprimer…
-          </Button>
+          <DestructiveButton onClick={onDelete}>Supprimer…</DestructiveButton>
           <Group gap="sm">
             <Button variant="default" onClick={onClose}>
               Annuler
@@ -120,9 +119,7 @@ export function RoutineOccurrenceForm({
         </Group>
         <Group justify="space-between" gap="sm">
           <Group gap="xs">
-            <Button variant="subtle" color="red" onClick={onDelete}>
-              Supprimer…
-            </Button>
+            <DestructiveButton onClick={onDelete}>Supprimer…</DestructiveButton>
             <Button
               variant="subtle"
               onClick={() => {

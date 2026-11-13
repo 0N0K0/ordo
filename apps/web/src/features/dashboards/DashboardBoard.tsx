@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
@@ -33,7 +34,6 @@ import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from './api';
 import { ChartEditor } from './ChartEditor';
 import { chartPng, chartSizeFor, downloadChartsPdf, exportFileName, saveFile, type ExportScheme } from './chart-image';
@@ -191,26 +191,19 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
    * @returns {void}
    */
   const confirmDelete = () => {
-    const modalId = `delete-chart-${chart.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le diagramme',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">Le diagramme « {chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              removeChart.mutate(chart.id, {
-                onSuccess: () => notifySuccess('Diagramme supprimé.'),
-                onError: (deleteError) => notifyError(deleteError.message),
-              });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        removeChart.mutate(chart.id, {
+          onSuccess: () => notifySuccess('Diagramme supprimé.'),
+          onError: (deleteError) => notifyError(deleteError.message),
+        });
+      },
     });
   };
 
@@ -494,29 +487,22 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
    * @returns {void}
    */
   const confirmDelete = (dashboard: Dashboard) => {
-    const modalId = `delete-dashboard-${dashboard.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le tableau de bord',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             « {dashboard.name} » et ses {dashboard.charts.length} diagramme
             {dashboard.charts.length > 1 ? 's' : ''} seront supprimés définitivement. Les données affichées ne sont pas modifiées.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              mutations.remove.mutate(dashboard.id, {
-                onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
-                onError: (deleteError) => notifyError(deleteError.message),
-              });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        mutations.remove.mutate(dashboard.id, {
+          onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
+          onError: (deleteError) => notifyError(deleteError.message),
+        });
+      },
     });
   };
 
