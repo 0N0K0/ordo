@@ -57,6 +57,7 @@ const RoutinesDataDocument = graphql(`
       assigneeIds
       requiredIds
       currentDate
+      firstDate
       nextDate
       doneDates
       lastDoneAt

@@ -41,6 +41,7 @@ export const ROUTINE_FIELD_LABELS: Record<RoutineFilterField, string> = {
   repetition: 'Répétition',
   estimate: 'Temps estimé (min)',
   currentDate: 'Échéance en cours',
+  firstDate: 'Première échéance',
   nextDate: 'Prochaine échéance',
   startDate: 'Première fois',
   lastDoneAt: 'Faite pour la dernière fois',
@@ -54,7 +55,7 @@ export const ROUTINE_FIELD_LABELS: Record<RoutineFilterField, string> = {
 export const ROUTINE_FIELD_GROUPS: { group: string; fields: RoutineFilterField[] }[] = [
   { group: 'Texte', fields: ['title', 'description', 'location'] },
   { group: 'Organisation', fields: ['categories', 'project', 'assignees', 'parent', 'requires', 'repetition', 'estimate'] },
-  { group: 'Dates', fields: ['currentDate', 'nextDate', 'startDate', 'lastDoneAt'] },
+  { group: 'Dates', fields: ['currentDate', 'firstDate', 'nextDate', 'startDate', 'lastDoneAt'] },
   { group: 'État', fields: ['state', 'done', 'waiting', 'hasSubRoutines', 'optionalTimes', 'archived'] },
 ];
 
@@ -72,6 +73,7 @@ export const ROUTINE_SORT_LABELS: Record<RoutineSortKey, string> = {
   title: 'Titre',
   state: 'État',
   currentDate: 'Échéance en cours',
+  firstDate: 'Première échéance',
   nextDate: 'Prochaine échéance',
   startDate: 'Première fois',
   lastDoneAt: 'Faite pour la dernière fois',
@@ -179,6 +181,8 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
       return routine.estimate ?? null;
     case 'currentDate':
       return routine.currentDate ? String(routine.currentDate) : null;
+    case 'firstDate':
+      return routine.firstDate ? String(routine.firstDate) : null;
     case 'nextDate':
       return routine.nextDate ? String(routine.nextDate) : null;
     case 'startDate':
@@ -322,6 +326,8 @@ export function sortRoutines(routines: Routine[], sorting: RoutineViewConfig['so
         return ROUTINE_STATES.indexOf(stateOf(routine, env.today));
       case 'currentDate':
         return routine.currentDate ? String(routine.currentDate) : null;
+      case 'firstDate':
+        return routine.firstDate ? String(routine.firstDate) : null;
       case 'nextDate':
         return routine.nextDate ? String(routine.nextDate) : null;
       case 'startDate':

@@ -2435,6 +2435,9 @@ type Routine {
   """Minutes."""
   estimate: Int
 
+  """First occurrence of the routine (from its start)."""
+  firstDate: Date
+
   """Time to do it from (HH:MM), its own (see windowFrom)."""
   fromTime: String
   id: ID!

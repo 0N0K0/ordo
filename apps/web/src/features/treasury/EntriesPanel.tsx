@@ -15,8 +15,13 @@ import {
   ReceiptIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
+import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import tableClasses from '../../components/data-table/DataTable.module.css';
+import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryEntries, useTreasuryMutations, useTreasurySettings, type TreasuryAccount, type TreasuryEntry } from './api';
@@ -70,6 +75,27 @@ interface EntriesPanelProps {
   onDuplicate: (entry: TreasuryEntry) => void;
 }
 
+/** Width of the actions column. */
+const ACTIONS_WIDTH = 120;
+
+/**
+ * Columns of the entries.
+ * @param {Map<string, string>} paths Full names of the categories.
+ * @returns {DataColumn<TreasuryEntry>[]} Columns.
+ */
+function entryColumns(paths: Map<string, string>): DataColumn<TreasuryEntry>[] {
+  return [
+    { id: 'date', label: 'Exécution', size: 120, sortValue: (entry) => String(entry.date) },
+    { id: 'label', label: 'Libellé', size: 300, locked: true, sortValue: (entry) => entry.label },
+    { id: 'payer', label: 'Émetteur / destinataire', size: 200, sortValue: (entry) => entry.payerName ?? null },
+    { id: 'account', label: 'Compte', size: 150, sortValue: (entry) => entry.accountName },
+    { id: 'category', label: 'Catégorie', size: 180, hiddenByDefault: true, sortValue: (entry) => (entry.categoryId ? (paths.get(entry.categoryId) ?? null) : null) },
+    { id: 'method', label: 'Moyen de paiement', size: 150, hiddenByDefault: true, sortValue: (entry) => entry.methodName ?? null },
+    { id: 'documents', label: 'Documents, pièces et liens', size: 280 },
+    { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (entry) => entry.amount },
+  ];
+}
+
 /**
  * Actual movements of a month or a calendar year (by month), of all accounts or one: execution and value
  * dates, payer or payee, category, method, documents settled and linked entries; money in and out of the
@@ -91,7 +117,20 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   const { data: settings } = useTreasurySettings();
   const { deleteEntry } = useTreasuryMutations();
   const paths = useMemo(() => categoryPaths(settings?.treasuryCategories ?? []), [settings]);
-  const actual = (entries ?? []).filter((entry) => entry.status === 'ACTUAL');
+  const { layout, setLayout, sorting, setSorting } = useTableLayout('treasury-entries');
+  const tableRef = useRef<HTMLTableElement>(null);
+  const columns = useMemo(() => entryColumns(paths), [paths]);
+  const shown = shownColumns(columns, layout);
+  const loaded = (entries ?? []).filter((entry) => entry.status === 'ACTUAL');
+  // Sorted within each month (the months stay latest first).
+  const months = [...new Set(loaded.map((entry) => String(entry.date).slice(0, 7)))];
+  const actual = months.flatMap((key) =>
+    sortRows(
+      loaded.filter((entry) => String(entry.date).slice(0, 7) === key),
+      sorting,
+      columns,
+    ),
+  );
   const totals = periodTotals(actual);
   // Split entries whose lines are shown.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -184,18 +223,21 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         </Paper>
       ) : (
         <Paper withBorder radius="md" style={{ overflowX: 'auto' }}>
-          <Table verticalSpacing="xs" highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Exécution</Table.Th>
-                <Table.Th>Libellé</Table.Th>
-                <Table.Th>Émetteur / destinataire</Table.Th>
-                <Table.Th>Compte</Table.Th>
-                <Table.Th>Documents, pièces et liens</Table.Th>
-                <Table.Th ta="right">Montant</Table.Th>
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
+          <Table ref={tableRef} verticalSpacing="xs" highlightOnHover className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
+            <DataTableHeader
+              columns={columns}
+              shown={shown}
+              layout={layout}
+              onLayoutChange={setLayout}
+              sorting={sorting}
+              onSortingChange={setSorting}
+              tableRef={tableRef}
+              trailing={
+                <Table.Th w={ACTIONS_WIDTH}>
+                  <ColumnsMenu columns={columns} layout={layout} onLayoutChange={setLayout} />
+                </Table.Th>
+              }
+            />
             <Table.Tbody>
               {actual.map((entry, index) => {
                 const date = String(entry.date);
@@ -207,7 +249,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                   <Fragment key={entry.id}>
                     {monthTotals && (
                       <Table.Tr bg="var(--mantine-color-default-hover)">
-                        <Table.Td colSpan={5}>
+                        <Table.Td colSpan={Math.max(1, shown.length - 1)}>
                           <Text size="sm" fw={600} tt="capitalize">
                             {monthFormat.format(new Date(`${date.slice(0, 7)}-01T00:00:00Z`))}
                           </Text>
@@ -220,103 +262,115 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                       </Table.Tr>
                     )}
                     <Table.Tr>
-                      <Table.Td style={{ whiteSpace: 'nowrap' }}>
-                        <Text size="sm">{printedDate(date)}</Text>
-                        {entry.valueDate && String(entry.valueDate) !== date && (
-                          <Text size="xs" c="dimmed">
-                            Valeur {printedDate(String(entry.valueDate))}
-                          </Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap={4} wrap="nowrap" align="flex-start">
-                          {entry.lines.length > 0 && (
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              size="sm"
-                              aria-label={expanded.has(entry.id) ? `Réduire la répartition de ${entry.label}` : `Développer la répartition de ${entry.label}`}
-                              aria-expanded={expanded.has(entry.id)}
-                              onClick={() => toggle(entry.id)}
-                            >
-                              {expanded.has(entry.id) ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
-                            </ActionIcon>
-                          )}
-                          <div>
-                            <Group gap={4} wrap="nowrap">
-                              <Text size="sm">{entry.label}</Text>
-                              <EntryUrl url={entry.url} label={entry.label} />
-                            </Group>
-                            <Text size="xs" c="dimmed">
-                              {[
-                                entry.categoryId ? paths.get(entry.categoryId) : null,
-                                entry.methodName,
-                                entry.lines.length ? `réparti en ${entry.lines.length} ligne${entry.lines.length > 1 ? 's' : ''}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </Text>
-                          </div>
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{entry.payerName ?? ''}</Text>
-                      </Table.Td>
-                      <Table.Td>{entry.accountName}</Table.Td>
-                      <Table.Td>
-                        <Group gap={4}>
-                          {entry.allocations.map((allocation) =>
-                            allocation.documentId ? (
-                              <Badge
-                                key={allocation.id}
-                                size="sm"
-                                variant="light"
-                                leftSection={<ReceiptIcon aria-hidden />}
-                                component={Link}
-                                to={`/accounting/${allocation.documentId}`}
-                                style={{ cursor: 'pointer' }}
-                              >
-                                {allocation.documentLabel} · {money(allocation.amount)}
-                              </Badge>
-                            ) : (
-                              <Badge key={allocation.id} size="sm" variant="light" color="cyan" leftSection={<ReceiptIcon aria-hidden />}>
-                                {allocation.documentLabel} · {money(allocation.amount)}
-                              </Badge>
-                            ),
-                          )}
-                          {entry.documents.map((document) => (
-                            <Tooltip key={`${document.source}-${document.id}`} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
-                              <Badge
-                                size="sm"
-                                variant="light"
-                                color="gray"
-                                leftSection={<PaperclipIcon aria-hidden />}
-                                component="a"
-                                href={document.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                // A file of the app (PDF, image) opens in its viewer.
-                                onClick={(event: React.MouseEvent) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
-                                style={{ cursor: 'pointer' }}
-                                tt="none"
-                              >
-                                {document.title.length > 24 ? `${document.title.slice(0, 23)}…` : document.title}
-                              </Badge>
-                            </Tooltip>
-                          ))}
-                          {entry.linkedEntries.map((linked) => (
-                            <Tooltip key={linked.id} label={`${printedDate(String(linked.date))} · ${linked.label}`}>
-                              <Badge size="sm" variant="outline" color={linked.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
-                                {linked.label.length > 24 ? `${linked.label.slice(0, 23)}…` : linked.label} · {money(linked.amount)}
-                              </Badge>
-                            </Tooltip>
-                          ))}
-                        </Group>
-                      </Table.Td>
-                      <Table.Td ta="right" ff="monospace" c={entry.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-                        {entry.amount > 0 ? '+' : ''}
-                        {money(entry.amount)}
-                      </Table.Td>
+                      {shown.map((column) => (
+                        <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined}>
+                          {
+                            {
+                              date: (
+                                <>
+                                  <Text size="sm">{printedDate(date)}</Text>
+                                  {entry.valueDate && String(entry.valueDate) !== date && (
+                                    <Text size="xs" c="dimmed">
+                                      Valeur {printedDate(String(entry.valueDate))}
+                                    </Text>
+                                  )}
+                                </>
+                              ),
+                              label: (
+                                <Group gap={4} wrap="nowrap" align="flex-start">
+                                  {entry.lines.length > 0 && (
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="gray"
+                                      size="sm"
+                                      aria-label={expanded.has(entry.id) ? `Réduire la répartition de ${entry.label}` : `Développer la répartition de ${entry.label}`}
+                                      aria-expanded={expanded.has(entry.id)}
+                                      onClick={() => toggle(entry.id)}
+                                    >
+                                      {expanded.has(entry.id) ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+                                    </ActionIcon>
+                                  )}
+                                  <div>
+                                    <Group gap={4} wrap="nowrap">
+                                      <Text size="sm">{entry.label}</Text>
+                                      <EntryUrl url={entry.url} label={entry.label} />
+                                    </Group>
+                                    <Text size="xs" c="dimmed">
+                                      {[
+                                        entry.categoryId ? paths.get(entry.categoryId) : null,
+                                        entry.methodName,
+                                        entry.lines.length ? `réparti en ${entry.lines.length} ligne${entry.lines.length > 1 ? 's' : ''}` : null,
+                                      ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                    </Text>
+                                  </div>
+                                </Group>
+                              ),
+                              payer: <Text size="sm">{entry.payerName ?? ''}</Text>,
+                              account: entry.accountName,
+                              category: entry.categoryId ? paths.get(entry.categoryId) : null,
+                              method: entry.methodName,
+                              documents: (
+                                <Group gap={4}>
+                                  {entry.allocations.map((allocation) =>
+                                    allocation.documentId ? (
+                                      <Badge
+                                        key={allocation.id}
+                                        size="sm"
+                                        variant="light"
+                                        leftSection={<ReceiptIcon aria-hidden />}
+                                        component={Link}
+                                        to={`/accounting/${allocation.documentId}`}
+                                        style={{ cursor: 'pointer' }}
+                                      >
+                                        {allocation.documentLabel} · {money(allocation.amount)}
+                                      </Badge>
+                                    ) : (
+                                      <Badge key={allocation.id} size="sm" variant="light" color="cyan" leftSection={<ReceiptIcon aria-hidden />}>
+                                        {allocation.documentLabel} · {money(allocation.amount)}
+                                      </Badge>
+                                    ),
+                                  )}
+                                  {entry.documents.map((document) => (
+                                    <Tooltip key={`${document.source}-${document.id}`} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
+                                      <Badge
+                                        size="sm"
+                                        variant="light"
+                                        color="gray"
+                                        leftSection={<PaperclipIcon aria-hidden />}
+                                        component="a"
+                                        href={document.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        // A file of the app (PDF, image) opens in its viewer.
+                                        onClick={(event: React.MouseEvent) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
+                                        style={{ cursor: 'pointer' }}
+                                        tt="none"
+                                      >
+                                        {document.title.length > 24 ? `${document.title.slice(0, 23)}…` : document.title}
+                                      </Badge>
+                                    </Tooltip>
+                                  ))}
+                                  {entry.linkedEntries.map((linked) => (
+                                    <Tooltip key={linked.id} label={`${printedDate(String(linked.date))} · ${linked.label}`}>
+                                      <Badge size="sm" variant="outline" color={linked.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
+                                        {linked.label.length > 24 ? `${linked.label.slice(0, 23)}…` : linked.label} · {money(linked.amount)}
+                                      </Badge>
+                                    </Tooltip>
+                                  ))}
+                                </Group>
+                              ),
+                              amount: (
+                                <Text span size="sm" ff="monospace" c={entry.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
+                                  {entry.amount > 0 ? '+' : ''}
+                                  {money(entry.amount)}
+                                </Text>
+                              ),
+                            }[column.id]
+                          }
+                        </Table.Td>
+                      ))}
                       <Table.Td>
                         <Group gap={2} justify="flex-end" wrap="nowrap">
                           <Tooltip label="Modifier">
@@ -354,7 +408,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                         </Group>
                       </Table.Td>
                     </Table.Tr>
-                    {expanded.has(entry.id) && <SplitRows entry={entry} paths={paths} nameOf={nameOf} />}
+                    {expanded.has(entry.id) && <SplitRows entry={entry} paths={paths} nameOf={nameOf} shown={shown} />}
                   </Fragment>
                 );
               })}
@@ -375,10 +429,10 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
 /**
  * Lines of a split entry under it (and what they leave), muted: for whom, category, context, loan, own day,
  * project, documents and links.
- * @param {{ entry: TreasuryEntry, paths: Map<string, string>, nameOf: Map<string, string> }} props Entry, category paths, names of members ("m:"), relations ("r:") and contexts ("c:").
+ * @param {{ entry: TreasuryEntry, paths: Map<string, string>, nameOf: Map<string, string>, shown: ShownColumn<TreasuryEntry>[] }} props Entry, category paths, names of members ("m:"), relations ("r:") and contexts ("c:"), columns shown.
  * @returns {JSX.Element} Rows.
  */
-function SplitRows({ entry, paths, nameOf }: { entry: TreasuryEntry; paths: Map<string, string>; nameOf: Map<string, string> }) {
+function SplitRows({ entry, paths, nameOf, shown }: { entry: TreasuryEntry; paths: Map<string, string>; nameOf: Map<string, string>; shown: ShownColumn<TreasuryEntry>[] }) {
   const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
   const rows = [
     ...entry.lines.map((line, index) => ({
@@ -402,33 +456,38 @@ function SplitRows({ entry, paths, nameOf }: { entry: TreasuryEntry; paths: Map<
     <>
       {rows.map((row) => (
         <Table.Tr key={row.key} bg="var(--mantine-color-default-hover)">
-          <Table.Td />
-          <Table.Td colSpan={3} pl="xl">
-            <Group gap={6} wrap="nowrap">
-              <Text size="xs">↳ {row.label}</Text>
-              {row.loan && (
-                <Badge size="xs" variant="light" color="grape" leftSection={<HandCoinsIcon aria-hidden />}>
-                  Prêt
-                </Badge>
-              )}
-            </Group>
-            {row.details && (
-              <Text size="xs" c="dimmed">
-                {row.details}
-              </Text>
-            )}
-          </Table.Td>
-          <Table.Td>
-            {row.attachments > 0 && (
-              <Badge size="xs" variant="light" color="gray" leftSection={<PaperclipIcon aria-hidden />}>
-                {row.attachments}
-              </Badge>
-            )}
-          </Table.Td>
-          <Table.Td ta="right" ff="monospace" fz="xs" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-            {row.amount > 0 ? '+' : ''}
-            {money(row.amount)}
-          </Table.Td>
+          {shown.map((column) => (
+            <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined} pl={column.id === 'label' ? 'xl' : undefined}>
+              {column.id === 'label' ? (
+                <>
+                  <Group gap={6} wrap="nowrap">
+                    <Text size="xs">↳ {row.label}</Text>
+                    {row.loan && (
+                      <Badge size="xs" variant="light" color="grape" leftSection={<HandCoinsIcon aria-hidden />}>
+                        Prêt
+                      </Badge>
+                    )}
+                  </Group>
+                  {row.details && (
+                    <Text size="xs" c="dimmed">
+                      {row.details}
+                    </Text>
+                  )}
+                </>
+              ) : column.id === 'documents' ? (
+                row.attachments > 0 && (
+                  <Badge size="xs" variant="light" color="gray" leftSection={<PaperclipIcon aria-hidden />}>
+                    {row.attachments}
+                  </Badge>
+                )
+              ) : column.id === 'amount' ? (
+                <Text span ff="monospace" fz="xs" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
+                  {row.amount > 0 ? '+' : ''}
+                  {money(row.amount)}
+                </Text>
+              ) : null}
+            </Table.Td>
+          ))}
           <Table.Td />
         </Table.Tr>
       ))}

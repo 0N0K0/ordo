@@ -13,7 +13,6 @@ import {
   SimpleGrid,
   Skeleton,
   Stack,
-  Table,
   Tabs,
   Text,
   TextInput,
@@ -26,6 +25,8 @@ import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@
 import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -78,6 +79,22 @@ const KIND_LABELS: Record<string, { label: string; color: string }> = {
   IMPORTED: { label: 'Importé', color: 'cyan' },
   RECURRING_INVOICE: { label: 'Récurrente', color: 'teal' },
 };
+
+/** Columns of the forecast. */
+const FORECAST_COLUMNS: DataColumn<{ item: ProjectionItem; index: number }>[] = [
+  { id: 'date', label: 'Date', size: 130, sortValue: ({ item }) => item.date },
+  { id: 'label', label: 'Libellé', size: 320, locked: true, sortValue: ({ item }) => item.label },
+  { id: 'payer', label: 'Émetteur / destinataire', size: 200, sortValue: ({ item }) => item.payerName ?? null },
+  { id: 'origin', label: 'Origine', size: 130, sortValue: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label },
+  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: ({ item }) => item.amount },
+];
+
+/** Columns of the accounts. */
+const ACCOUNT_COLUMNS: DataColumn<TreasuryAccount>[] = [
+  { id: 'name', label: 'Compte', size: 260, locked: true, sortValue: (account) => account.name },
+  { id: 'opening', label: 'Ouverture', size: 240, sortValue: (account) => String(account.openingDate) },
+  { id: 'balance', label: 'Solde aujourd’hui', size: 160, numeric: true, sortValue: (account) => account.balance },
+];
 
 /**
  * Account: name, opening balance and date, archived.
@@ -460,32 +477,30 @@ export function TreasuryPage() {
             </Text>
           ) : (
             <Paper withBorder radius="md">
-              <Table verticalSpacing="xs" highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Date</Table.Th>
-                    <Table.Th>Libellé</Table.Th>
-                    <Table.Th>Émetteur / destinataire</Table.Th>
-                    <Table.Th>Origine</Table.Th>
-                    <Table.Th ta="right">Montant</Table.Th>
-                    <Table.Th />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {items.map((item, index) => {
-                    const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
-                    const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
-                    return (
-                      <Table.Tr key={`${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`}>
-                        <Table.Td>
+              <DataTable
+                tableKey="treasury-forecast"
+                verticalSpacing="xs"
+                highlightOnHover
+                columns={FORECAST_COLUMNS}
+                rows={items.map((item, index) => ({ item, index }))}
+                getKey={({ item, index }) => `${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`}
+                actionsWidth={130}
+                cells={({ item }) => {
+                  const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
+                  const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
+                  return {
+                    date: (
+                      <>
                           <Text size="sm">{printedDate(item.date)}</Text>
                           {item.overdue && (
                             <Badge size="xs" color="red" variant="light">
                               Prévu le {printedDate(item.dueDate)}
                             </Badge>
                           )}
-                        </Table.Td>
-                        <Table.Td>
+</>
+                    ),
+                    label: (
+                      <>
                           {item.documentId ? (
                             <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
                               {item.label}
@@ -504,20 +519,28 @@ export function TreasuryPage() {
                               })()}
                             </Text>
                           )}
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{item.payerName ?? ''}</Text>
-                        </Table.Td>
-                        <Table.Td>
+</>
+                    ),
+                    payer: <Text size="sm">{item.payerName ?? ''}</Text>,
+                    origin: (
+                      <>
                           <Badge size="sm" variant="light" color={kind.color}>
                             {kind.label}
                           </Badge>
-                        </Table.Td>
-                        <Table.Td ta="right" ff="monospace" c={item.amount < 0 ? 'red' : 'green'}>
-                          {item.amount > 0 ? '+' : ''}
+</>
+                    ),
+                    amount: (
+                      <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
+                                                  {item.amount > 0 ? '+' : ''}
                           {money(item.amount)}
-                        </Table.Td>
-                        <Table.Td>
+                      </Text>
+                    ),
+                  };
+                }}
+                actions={({ item }) => {
+                  const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
+                  return (
+                    <>
                           {item.kind === 'ACTUAL' && entry && (
                             // Actual entry dated after today.
                             <Group gap={2} justify="flex-end" wrap="nowrap">
@@ -582,12 +605,10 @@ export function TreasuryPage() {
                               </Tooltip>
                             </Group>
                           )}
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })}
-                </Table.Tbody>
-              </Table>
+</>
+                  );
+                }}
+              />
             </Paper>
           )}
         </Tabs.Panel>
@@ -612,19 +633,17 @@ export function TreasuryPage() {
               </Button>
             </Group>
             <Paper withBorder radius="md">
-              <Table verticalSpacing="xs">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Compte</Table.Th>
-                    <Table.Th>Ouverture</Table.Th>
-                    <Table.Th ta="right">Solde aujourd’hui</Table.Th>
-                    <Table.Th />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {accounts.map((account) => (
-                    <Table.Tr key={account.id} opacity={account.archived ? 0.6 : 1}>
-                      <Table.Td>
+              <DataTable
+                tableKey="treasury-accounts"
+                verticalSpacing="xs"
+                columns={ACCOUNT_COLUMNS}
+                rows={accounts}
+                getKey={(account) => account.id}
+                actionsWidth={80}
+                rowProps={(account) => ({ opacity: account.archived ? 0.6 : 1 })}
+                cells={(account) => ({
+                  name: (
+                    <>
                         <Group gap="xs">
                           <Text size="sm" fw={600}>
                             {account.name}
@@ -635,14 +654,21 @@ export function TreasuryPage() {
                             </Badge>
                           )}
                         </Group>
-                      </Table.Td>
-                      <Table.Td>
+</>
+                  ),
+                  opening: (
+                    <>
                         {money(account.openingBalance)} au {printedDate(String(account.openingDate))}
-                      </Table.Td>
-                      <Table.Td ta="right" ff="monospace" fw={600} c={account.balance < 0 ? 'red' : undefined}>
-                        {money(account.balance)}
-                      </Table.Td>
-                      <Table.Td>
+</>
+                  ),
+                  balance: (
+                    <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
+                                              {money(account.balance)}
+                    </Text>
+                  ),
+                })}
+                actions={(account) => (
+                  <>
                         <Group gap={2} justify="flex-end" wrap="nowrap">
                           <Tooltip label="Modifier">
                             <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${account.name}`} onClick={() => setDialog({ kind: 'account', account })}>
@@ -665,11 +691,9 @@ export function TreasuryPage() {
                             </ActionIcon>
                           </Tooltip>
                         </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
+</>
+                )}
+              />
             </Paper>
           </Stack>
         </Tabs.Panel>

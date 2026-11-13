@@ -148,6 +148,22 @@ export function occurrencesBetween(routine: RoutineTiming, from: string, to: str
 }
 
 /**
+ * First occurrence of a routine (looked for over ten years from its start; moves included).
+ * @param {RoutineTiming} routine Routine with its schedule.
+ * @returns {string | null} Day, null without any.
+ */
+export function firstOccurrence(routine: RoutineTiming): string | null {
+  let from = formatDay(routine.startDate);
+  for (let year = 0; year < 10; year += 1) {
+    const to = addDays(from, 365);
+    const [first] = occurrencesBetween(routine, from, to);
+    if (first) return first;
+    from = addDays(to, 1);
+  }
+  return null;
+}
+
+/**
  * Times of the day of a routine on a day of its rule: those of its case that day, else the window of its calendar
  * schedule, else its own window (one time).
  * @param {RoutineTiming} routine Routine with its schedule.

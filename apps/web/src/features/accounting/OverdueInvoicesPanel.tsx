@@ -1,9 +1,11 @@
-import { Alert, Anchor, Badge, Button, Checkbox, Group, Paper, Select, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Checkbox, Group, Paper, Select, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { daysBetween, formatMoney, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
 import { CheckCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
 import { localDay, localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailAccounts } from '../mail/api';
@@ -28,6 +30,15 @@ function daysSinceReminder(invoice: OverdueInvoice, today: string): number | nul
   const day = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
   return daysBetween(day, today);
 }
+
+/** Columns of the overdue invoices. */
+const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
+  { id: 'invoice', label: 'Facture', size: 220, locked: true, sortValue: (invoice) => invoice.number ?? null },
+  { id: 'sent', label: 'Envoi', size: 230, sortValue: (invoice) => invoice.sentAt ?? null },
+  { id: 'balance', label: 'Reste dû', size: 130, numeric: true, sortValue: (invoice) => invoice.balance ?? 0 },
+  { id: 'reminder', label: 'Dernière relance', size: 200, sortValue: (invoice) => invoice.lastReminderAt ?? null },
+  { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null },
+];
 
 /**
  * Invoices to remind (sent at least 15 days ago, still due): when and how they were sent, what is still due, reminders already made and to whom the reminder goes; the
@@ -165,10 +176,17 @@ export function OverdueInvoicesPanel() {
         </Group>
       </Group>
       <Paper withBorder radius="md">
-        <Table verticalSpacing="xs" highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th w={40}>
+        <DataTable
+          tableKey="overdue-invoices"
+          verticalSpacing="xs"
+          highlightOnHover
+          columns={OVERDUE_COLUMNS}
+          rows={invoices}
+          getKey={(invoice) => invoice.id}
+          actionsWidth={48}
+          leading={{
+            width: 44,
+            header: (
                 <Checkbox
                   aria-label="Tout sélectionner"
                   checked={remindable.length > 0 && chosen.length === remindable.length}
@@ -176,31 +194,24 @@ export function OverdueInvoicesPanel() {
                   disabled={remindable.length === 0}
                   onChange={() => setSelected(chosen.length === remindable.length ? new Set() : new Set(remindable.map((invoice) => invoice.id)))}
                 />
-              </Table.Th>
-              <Table.Th>Facture</Table.Th>
-              <Table.Th>Envoi</Table.Th>
-              <Table.Th ta="right">Reste dû</Table.Th>
-              <Table.Th>Dernière relance</Table.Th>
-              <Table.Th>Destinataire</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {invoices.map((invoice) => {
-              // Reminders count from the sending.
-              const sentDay = invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null;
-              const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
-              const since = daysSinceReminder(invoice, today);
-              return (
-                <Table.Tr key={invoice.id}>
-                  <Table.Td>
+            ),
+            cell: (invoice) => (
                     <Checkbox
                       aria-label={`Relancer ${invoice.number}`}
                       checked={selected.has(invoice.id) && Boolean(invoice.billingEmail)}
                       disabled={!invoice.billingEmail}
                       onChange={() => toggle(invoice.id)}
                     />
-                  </Table.Td>
-                  <Table.Td>
+            ),
+          }}
+          cells={(invoice) => {
+              // Reminders count from the sending.
+              const sentDay = invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null;
+              const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
+              const since = daysSinceReminder(invoice, today);
+            return {
+              invoice: (
+<>
                     <Anchor component={Link} to={`/accounting/${invoice.id}`} size="sm" fw={600}>
                       {invoice.type === 'DEPOSIT_INVOICE' ? `${DOCUMENT_TYPE_LABELS.DEPOSIT_INVOICE} ` : ''}
                       {invoice.number}
@@ -208,8 +219,10 @@ export function OverdueInvoicesPanel() {
                     <Text size="xs" c="dimmed">
                       {invoice.clientName}
                     </Text>
-                  </Table.Td>
-                  <Table.Td>
+</>
+),
+              sent: (
+<>
                     <Text size="sm">
                       {sentDay ? dayFormat.format(new Date(`${sentDay}T00:00:00Z`)) : '—'}
                       {invoice.sentVia && (
@@ -227,11 +240,15 @@ export function OverdueInvoicesPanel() {
                         Échéance {dayFormat.format(new Date(`${invoice.dueDate}T00:00:00Z`))}
                       </Text>
                     )}
-                  </Table.Td>
-                  <Table.Td ta="right" ff="monospace">
+</>
+),
+              balance: (
+<>
                     {formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency)}
-                  </Table.Td>
-                  <Table.Td>
+</>
+),
+              reminder: (
+<>
                     {invoice.lastReminderAt ? (
                       <>
                         <Text size="sm">{instantFormat.format(new Date(invoice.lastReminderAt))}</Text>
@@ -244,8 +261,10 @@ export function OverdueInvoicesPanel() {
                         Jamais
                       </Text>
                     )}
-                  </Table.Td>
-                  <Table.Td>
+</>
+),
+              email: (
+<>
                     {invoice.billingEmail ? (
                       <Text size="sm" truncate maw={220}>
                         {invoice.billingEmail}
@@ -255,12 +274,11 @@ export function OverdueInvoicesPanel() {
                         Aucune adresse
                       </Text>
                     )}
-                  </Table.Td>
-                </Table.Tr>
-              );
-            })}
-          </Table.Tbody>
-        </Table>
+</>
+),
+            };
+          }}
+        />
       </Paper>
       <Text size="xs" c="dimmed">
         Une relance par mail et par facture, avec le PDF, la signature de la boîte d’envoi et le reste dû. Pour personnaliser le texte, relancez depuis la facture (« Relancer par mail »).

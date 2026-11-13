@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { columnLayoutSchema } from './table-layout';
 import { filterConditionSchemaFor, filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf } from './task-filters';
 
 /** States of a shopping list: in progress, or archived (by hand, or along with its tasks). */
@@ -56,6 +57,8 @@ export const shoppingListViewConfigSchema = z.object({
     .default([]),
   /** Groups of the table, null for none. */
   groupBy: z.enum(SHOPPING_LIST_GROUP_BY).nullable().catch(null).default(null),
+  /** Columns of the table: order, hidden ones, widths. */
+  ...columnLayoutSchema.shape,
 });
 export type ShoppingListViewConfig = z.infer<typeof shoppingListViewConfigSchema>;
 

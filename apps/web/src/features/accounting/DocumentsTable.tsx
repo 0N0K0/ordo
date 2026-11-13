@@ -2,7 +2,13 @@ import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip
 import { modals } from '@mantine/modals';
 import { formatMoney } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
+import { useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import tableClasses from '../../components/data-table/DataTable.module.css';
+import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
@@ -33,6 +39,21 @@ interface DocumentsTableProps {
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
+/** Width of the actions column. */
+const ACTIONS_WIDTH = 150;
+
+/** Columns of the documents (type and client only where they vary). */
+const DOCUMENT_COLUMNS: DataColumn<Row>[] = [
+  { id: 'number', label: 'Numéro', size: 150, locked: true, sortValue: (row) => row.document.number ?? null },
+  { id: 'type', label: 'Type', size: 130, sortValue: (row) => DOCUMENT_TYPE_LABELS[row.document.type] },
+  { id: 'date', label: 'Date', size: 120, sortValue: (row) => row.document.issueDate },
+  { id: 'client', label: 'Client', size: 180, sortValue: (row) => row.document.clientName ?? null },
+  { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.title ?? null },
+  { id: 'tracking', label: 'Suivi', size: 200 },
+  { id: 'net', label: 'Total HT', size: 120, numeric: true, sortValue: (row) => row.document.totalNet },
+  { id: 'gross', label: 'Total', size: 140, numeric: true, sortValue: (row) => row.document.totalGross },
+];
+
 /**
  * Table of accounting documents, Ordo's and imported ones together, latest first: an Ordo document opens on
  * click; an imported one shows its file, and can be edited or deleted.
@@ -42,8 +63,16 @@ type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'impo
 export function DocumentsTable({ documents, imported = [], showType, showClient = true, empty }: DocumentsTableProps) {
   const navigate = useNavigate();
   const { remove } = useImportedDocumentMutations();
-  const rows: Row[] = [...documents.map((document) => ({ kind: 'ordo' as const, document })), ...imported.map((document) => ({ kind: 'imported' as const, document }))].sort((a, b) =>
-    b.document.issueDate.localeCompare(a.document.issueDate),
+  const { layout, setLayout, sorting, setSorting } = useTableLayout('accounting-documents');
+  const tableRef = useRef<HTMLTableElement>(null);
+  const columns = DOCUMENT_COLUMNS.filter((column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient));
+  const shown = shownColumns(columns, layout);
+  const rows = sortRows(
+    [...documents.map((document) => ({ kind: 'ordo' as const, document })), ...imported.map((document) => ({ kind: 'imported' as const, document }))].sort((a, b) =>
+      b.document.issueDate.localeCompare(a.document.issueDate),
+    ) as Row[],
+    sorting,
+    columns,
   );
 
   if (rows.length === 0) {
@@ -92,45 +121,47 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
 
   return (
     <Paper withBorder radius="md">
-      <Table highlightOnHover verticalSpacing="xs">
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Numéro</Table.Th>
-            {showType && <Table.Th>Type</Table.Th>}
-            <Table.Th>Date</Table.Th>
-            {showClient && <Table.Th>Client</Table.Th>}
-            <Table.Th>Objet</Table.Th>
-            <Table.Th>Suivi</Table.Th>
-            <Table.Th ta="right">Total HT</Table.Th>
-            <Table.Th ta="right">Total</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((row) =>
-            row.kind === 'ordo' ? (
-              <OrdoRow
-                key={row.document.id}
-                document={row.document}
-                showType={showType}
-                showClient={showClient}
-                onOpen={() => void navigate(`/accounting/${row.document.id}`)}
-                onDuplicated={(id) => void navigate(`/accounting/${id}`)}
-              />
-            ) : (
-              <ImportedRow key={row.document.id} document={row.document} showType={showType} showClient={showClient} onDelete={() => confirmDelete(row.document)} />
-            ),
-          )}
-        </Table.Tbody>
-      </Table>
+      <div style={{ overflowX: 'auto' }}>
+        <Table ref={tableRef} highlightOnHover verticalSpacing="xs" className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
+          <DataTableHeader
+            columns={columns}
+            shown={shown}
+            layout={layout}
+            onLayoutChange={setLayout}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            tableRef={tableRef}
+            trailing={
+              <Table.Th w={ACTIONS_WIDTH}>
+                <ColumnsMenu columns={columns} layout={layout} onLayoutChange={setLayout} />
+              </Table.Th>
+            }
+          />
+          <Table.Tbody>
+            {rows.map((row) =>
+              row.kind === 'ordo' ? (
+                <OrdoRow
+                  key={row.document.id}
+                  document={row.document}
+                  shown={shown}
+                  onOpen={() => void navigate(`/accounting/${row.document.id}`)}
+                  onDuplicated={(id) => void navigate(`/accounting/${id}`)}
+                />
+              ) : (
+                <ImportedRow key={row.document.id} shown={shown} document={row.document} onDelete={() => confirmDelete(row.document)} />
+              ),
+            )}
+          </Table.Tbody>
+        </Table>
+      </div>
     </Paper>
   );
 }
 
 interface OrdoRowProps {
+  /** Columns shown. */
+  shown: ShownColumn<Row>[];
   document: AccountingDocumentSummary;
-  showType?: boolean;
-  showClient: boolean;
   onOpen: () => void;
   /** The draft copy made: opened. */
   onDuplicated: (id: string) => void;
@@ -142,60 +173,67 @@ interface OrdoRowProps {
  * @param {OrdoRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function OrdoRow({ document, showType, showClient, onOpen, onDuplicated }: OrdoRowProps) {
+function OrdoRow({ shown, document, onOpen, onDuplicated }: OrdoRowProps) {
   const { duplicate } = useDocumentMutations();
-  return (
-    <Table.Tr style={{ cursor: 'pointer' }} onClick={onOpen}>
-      <Table.Td>
-        <UnstyledButton onClick={onOpen} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
-          <Group gap={6} wrap="nowrap">
-            {document.number ? (
-              <Text size="sm" ff="monospace" fw={600}>
-                {document.number}
-              </Text>
-            ) : (
-              <Badge size="sm" variant="light" color="gray">
-                Brouillon
-              </Badge>
-            )}
-            {document.recurringId && <ArrowsClockwiseIcon aria-label="Issue d’une facture récurrente" />}
-          </Group>
-        </UnstyledButton>
-      </Table.Td>
-      {showType && <Table.Td>{DOCUMENT_TYPE_LABELS[document.type]}</Table.Td>}
-      <Table.Td>{dateFormat.format(new Date(`${document.issueDate}T00:00:00Z`))}</Table.Td>
-      {showClient && <Table.Td>{document.clientName}</Table.Td>}
-      <Table.Td>
-        <Stack gap={0}>
-          <Text size="sm" truncate maw={320}>
-            {document.title ?? '—'}
+  const cells: Record<string, ReactNode> = {
+    number: (
+      <UnstyledButton onClick={onOpen} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
+        <Group gap={6} wrap="nowrap">
+          {document.number ? (
+            <Text size="sm" ff="monospace" fw={600}>
+              {document.number}
+            </Text>
+          ) : (
+            <Badge size="sm" variant="light" color="gray">
+              Brouillon
+            </Badge>
+          )}
+          {document.recurringId && <ArrowsClockwiseIcon aria-label="Issue d’une facture récurrente" />}
+        </Group>
+      </UnstyledButton>
+    ),
+    type: DOCUMENT_TYPE_LABELS[document.type],
+    date: dateFormat.format(new Date(`${document.issueDate}T00:00:00Z`)),
+    client: document.clientName,
+    title: (
+      <Stack gap={0}>
+        <Text size="sm" truncate>
+          {document.title ?? '—'}
+        </Text>
+        {document.type === 'QUOTE' && document.invoicedNet != null && document.totalNet > 0 && (
+          <Text size="xs" c="dimmed">
+            Facturé à {Math.round((document.invoicedNet / document.totalNet) * 100)} %
           </Text>
-          {document.type === 'QUOTE' && document.invoicedNet != null && document.totalNet > 0 && (
-            <Text size="xs" c="dimmed">
-              Facturé à {Math.round((document.invoicedNet / document.totalNet) * 100)} %
-            </Text>
-          )}
-          {document.sourceNumber && (
-            <Text size="xs" c="dimmed">
-              Depuis {document.sourceNumber}
-            </Text>
-          )}
-        </Stack>
-      </Table.Td>
-      <Table.Td>
-        <TrackingBadge document={document} editable />
-      </Table.Td>
-      <Table.Td ta="right" ff="monospace">
-        {formatMoney(Math.round(document.totalNet * 100), document.currency)}
-      </Table.Td>
-      <Table.Td ta="right" ff="monospace" fw={600}>
-        {formatMoney(Math.round(document.totalGross * 100), document.currency)}
+        )}
+        {document.sourceNumber && (
+          <Text size="xs" c="dimmed">
+            Depuis {document.sourceNumber}
+          </Text>
+        )}
+      </Stack>
+    ),
+    tracking: <TrackingBadge document={document} editable />,
+    net: formatMoney(Math.round(document.totalNet * 100), document.currency),
+    gross: (
+      <>
+        <Text span size="sm" ff="monospace" fw={600}>
+          {formatMoney(Math.round(document.totalGross * 100), document.currency)}
+        </Text>
         {document.balance != null && document.balance > 0 && document.balance < document.totalGross && (
           <Text size="xs" c="dimmed" fw={400}>
             {document.type === 'CREDIT_NOTE' ? 'À rembourser' : 'Reste'} {formatMoney(Math.round(document.balance * 100), document.currency)}
           </Text>
         )}
-      </Table.Td>
+      </>
+    ),
+  };
+  return (
+    <Table.Tr style={{ cursor: 'pointer' }} onClick={onOpen}>
+      {shown.map((column) => (
+        <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined} ff={column.numeric ? 'monospace' : undefined}>
+          {cells[column.id]}
+        </Table.Td>
+      ))}
       <Table.Td>
         <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
           {/* An invoice still due takes a payment, a credit note still to refund a refund. */}
@@ -248,9 +286,9 @@ function OrdoRow({ document, showType, showClient, onOpen, onDuplicated }: OrdoR
 }
 
 interface ImportedRowProps {
+  /** Columns shown. */
+  shown: ShownColumn<Row>[];
   document: ImportedDocument;
-  showType?: boolean;
-  showClient: boolean;
   onDelete: () => void;
 }
 
@@ -260,69 +298,70 @@ interface ImportedRowProps {
  * @param {ImportedRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ImportedRow({ document, showType, showClient, onDelete }: ImportedRowProps) {
+function ImportedRow({ shown, document, onDelete }: ImportedRowProps) {
   const { setStatus, markSent } = useImportedDocumentMutations();
   const navigate = useNavigate();
   const open = () => navigate(`/accounting/imported/${document.id}`);
+  const cells: Record<string, ReactNode> = {
+    number: (
+      <Group gap={6} wrap="nowrap">
+        <UnstyledButton onClick={open} aria-label={`Ouvrir ${document.number}`}>
+          <Text size="sm" ff="monospace" fw={600}>
+            {document.number}
+          </Text>
+        </UnstyledButton>
+        <Badge size="xs" variant="light" color="cyan">
+          Importé
+        </Badge>
+      </Group>
+    ),
+    type: DOCUMENT_TYPE_LABELS[document.type],
+    date: dateFormat.format(new Date(`${document.issueDate}T00:00:00Z`)),
+    client: document.clientName,
+    title: (
+      <Text size="sm" truncate>
+        {document.title ?? '—'}
+      </Text>
+    ),
+    tracking: (
+      <Group gap={4} wrap="nowrap">
+        <StatusMenu
+          type={document.type}
+          current={document.trackingStatus}
+          pending={setStatus.isPending}
+          onSelect={(status) =>
+            // A "sent" status asks when and how it was sent.
+            status.category === 'SENT'
+              ? openSentDialog({
+                  title: `Envoi de ${document.number}`,
+                  sentAt: document.sentAt,
+                  sentVia: document.sentVia,
+                  onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
+                })
+              : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+          }
+        />
+        {document.type !== 'QUOTE' && (
+          <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
+            {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglée'}
+          </Badge>
+        )}
+      </Group>
+    ),
+    net: formatMoney(Math.round(document.totalNet * 100), document.currency),
+    gross: (
+      <Text span size="sm" ff="monospace" fw={600}>
+        {formatMoney(Math.round(document.totalGross * 100), document.currency)}
+      </Text>
+    ),
+  };
   return (
     <Table.Tr style={{ cursor: 'pointer' }} onClick={open}>
-      <Table.Td>
-        <Group gap={6} wrap="nowrap">
-          <UnstyledButton onClick={open} aria-label={`Ouvrir ${document.number}`}>
-            <Text size="sm" ff="monospace" fw={600}>
-              {document.number}
-            </Text>
-          </UnstyledButton>
-          <Badge size="xs" variant="light" color="cyan">
-            Importé
-          </Badge>
-        </Group>
-      </Table.Td>
-      {showType && <Table.Td>{DOCUMENT_TYPE_LABELS[document.type]}</Table.Td>}
-      <Table.Td>{dateFormat.format(new Date(`${document.issueDate}T00:00:00Z`))}</Table.Td>
-      {showClient && <Table.Td>{document.clientName}</Table.Td>}
-      <Table.Td>
-        <Text size="sm" truncate maw={320}>
-          {document.title ?? '—'}
-        </Text>
-      </Table.Td>
-      <Table.Td>
-        <Group gap={4} wrap="nowrap">
-          <StatusMenu
-            type={document.type}
-            current={document.trackingStatus}
-            pending={setStatus.isPending}
-            onSelect={(status) =>
-              // A "sent" status asks when and how it was sent.
-              status.category === 'SENT'
-                ? openSentDialog({
-                    title: `Envoi de ${document.number}`,
-                    sentAt: document.sentAt,
-                    sentVia: document.sentVia,
-                    onSubmit: ({ date, via }) =>
-                      markSent.mutateAsync({
-                        id: document.id,
-                        date,
-                        via,
-                        statusId: status.id,
-                      }),
-                  })
-                : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
-            }
-          />
-          {document.type !== 'QUOTE' && (
-            <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
-              {document.balance ? `Reste ${formatMoney(Math.round(document.balance * 100), document.currency)}` : 'Réglée'}
-            </Badge>
-          )}
-        </Group>
-      </Table.Td>
-      <Table.Td ta="right" ff="monospace">
-        {formatMoney(Math.round(document.totalNet * 100), document.currency)}
-      </Table.Td>
-      <Table.Td ta="right" ff="monospace" fw={600}>
-        {formatMoney(Math.round(document.totalGross * 100), document.currency)}
-      </Table.Td>
+      {shown.map((column) => (
+        <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined} ff={column.numeric ? 'monospace' : undefined}>
+          {cells[column.id]}
+        </Table.Td>
+      ))}
       <Table.Td>
         {/* Actions of the row, apart from opening it. */}
         <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>

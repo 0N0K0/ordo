@@ -16,12 +16,17 @@ import {
 import { ActionIcon, ColorSwatch, Group, Paper, Table, Text, Tooltip } from '@mantine/core';
 import type { ShoppingItemInput } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
 import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
 import { inputOf, NO_GROUP, shoppingRows, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
+import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import tableClasses from '../../components/data-table/DataTable.module.css';
+import { useTableLayout } from '../../components/data-table/use-table-layout';
 
 /** What a row is dropped on: a heading or a row of a category (or store), null for the one without. */
 interface DropData {
@@ -37,6 +42,31 @@ const collision: CollisionDetection = (args) => {
   const under = pointerWithin(args);
   return under.length ? under : closestCenter(args);
 };
+
+/** Width of the actions column. */
+const ACTIONS_WIDTH = 96;
+
+/**
+ * Columns of a table of products or items: the place shown is the one it is not grouped by (both can be shown).
+ * @param {ShoppingGrouping} grouping Groups of the table.
+ * @param {string} [extra] Title of the extra column, if any. Optional.
+ * @returns {DataColumn<T>[]} Columns.
+ */
+function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping, extra?: string): DataColumn<T>[] {
+  return [
+    { id: 'name', label: 'Produit', size: 260, locked: true, sortValue: (item) => item.name },
+    { id: 'category', label: 'Catégorie', size: 150, hiddenByDefault: grouping === 'category' },
+    { id: 'store', label: 'Magasin', size: 150, hiddenByDefault: grouping === 'store' },
+    { id: 'quantity', label: 'Quantité', size: 88, numeric: true, sortValue: (item) => item.quantity ?? null },
+    { id: 'unit', label: 'Unité', size: 100, sortValue: (item) => item.unit ?? null },
+    { id: 'unitPrice', label: 'Prix unitaire', size: 110, numeric: true, sortValue: (item) => item.unitPrice ?? null },
+    { id: 'conservation', label: 'Conservation', size: 150, sortValue: (item) => (item.perishable ? 1 : 0) },
+    { id: 'expiresAt', label: 'Péremption', size: 120, sortValue: (item) => item.expiresAt ?? null },
+    { id: 'people', label: 'Pour', size: 170 },
+    { id: 'url', label: 'Lien', size: 150, sortValue: (item) => item.url ?? null },
+    ...(extra ? [{ id: 'extra', label: extra, size: 120 }] : []),
+  ];
+}
 
 export interface ShoppingTableProps<T extends ShoppingFields> {
   /** Products or items, in their order. */
@@ -66,10 +96,14 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   add?: ShoppingAdd;
   /** Also the categories (or stores) without rows. Optional. */
   showEmpty?: boolean;
+  /** Name of the table, remembering its columns and sorts in this browser. */
+  tableKey: string;
 }
 
-interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty'> {
+interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty' | 'tableKey'> {
   row: Extract<ShoppingRow<T>, { kind: 'item' }>;
+  /** Columns shown. */
+  shown: ShownColumn<T>[];
   over: boolean;
   /** By store: the column shows the category (the store is the group). */
   grouping: ShoppingGrouping;
@@ -82,7 +116,7 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
  * @param {ItemRowProps<T>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ItemRow<T extends ShoppingFields>({ row, over, grouping, categories, readOnly = false, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
+function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
   const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: `row:${item.id}`, data: { groupId } satisfies DropData, disabled: readOnly });
@@ -94,6 +128,40 @@ function ItemRow<T extends ShoppingFields>({ row, over, grouping, categories, re
    */
   const save = (patch: Partial<ShoppingItemInput>) => onSave(item, { ...inputOf(item), ...patch });
   const name = item.name;
+  const cells: Record<string, ReactNode> = {
+    name: (
+      <>
+        <Group gap={4} wrap="nowrap">
+          <TextCell field="name" value={name} label={`Nom de ${name}`} readOnly={readOnly} onSave={(value) => value && save({ name: value })} />
+          {badge?.(item)}
+        </Group>
+        {item.note && (
+          <Text size="xs" c="dimmed" lineClamp={1} px={4} title={item.note}>
+            {item.note}
+          </Text>
+        )}
+      </>
+    ),
+    category: <CategoryCell value={item.categoryId ?? null} categories={categories} label={`Catégorie de ${name}`} readOnly={readOnly} onSave={(categoryId) => save({ categoryId })} />,
+    store: <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save({ storeId })} />,
+    quantity: <NumberCell kind="quantity" value={item.quantity ?? null} label={`Quantité de ${name}`} readOnly={readOnly} onSave={(quantity) => save({ quantity })} />,
+    unit: <UnitCell value={item.unit ?? null} label={`Unité de ${name}`} readOnly={readOnly} onSave={(unit) => save({ unit })} />,
+    unitPrice: <NumberCell kind="price" value={item.unitPrice ?? null} label={`Prix unitaire estimé de ${name}`} readOnly={readOnly} onSave={(unitPrice) => save({ unitPrice })} />,
+    conservation: (
+      <ConservationCell
+        perishable={item.perishable}
+        storageId={item.storageId ?? null}
+        storages={data?.shoppingStorages ?? []}
+        label={`Conservation de ${name}`}
+        readOnly={readOnly}
+        onSave={(conservation) => save({ ...conservation, expiresAt: conservation.perishable ? (item.expiresAt ?? null) : null })}
+      />
+    ),
+    expiresAt: <ExpiryCell value={item.expiresAt ?? null} disabled={!item.perishable} label={`Date de péremption de ${name}`} readOnly={readOnly} onSave={(expiresAt) => save({ expiresAt })} />,
+    people: <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Pour qui est ${name}`} readOnly={readOnly} onSave={(people) => save(people)} />,
+    url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save({ url })} />,
+    extra: extra?.render(item),
+  };
 
   return (
     <Table.Tr
@@ -116,53 +184,11 @@ function ItemRow<T extends ShoppingFields>({ row, over, grouping, categories, re
       <Table.Td w={36} px={4}>
         {check(item)}
       </Table.Td>
-      <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth - 1} * var(--mantine-spacing-lg))` }}>
-        <Group gap={4} wrap="nowrap">
-          <TextCell field="name" value={name} label={`Nom de ${name}`} readOnly={readOnly} onSave={(value) => value && save({ name: value })} />
-          {badge?.(item)}
-        </Group>
-        {item.note && (
-          <Text size="xs" c="dimmed" lineClamp={1} px={4} title={item.note}>
-            {item.note}
-          </Text>
-        )}
-      </Table.Td>
-      <Table.Td>
-        {grouping === 'store' ? (
-          <CategoryCell value={item.categoryId ?? null} categories={categories} label={`Catégorie de ${name}`} readOnly={readOnly} onSave={(categoryId) => save({ categoryId })} />
-        ) : (
-          <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save({ storeId })} />
-        )}
-      </Table.Td>
-      <Table.Td>
-        <NumberCell kind="quantity" value={item.quantity ?? null} label={`Quantité de ${name}`} readOnly={readOnly} onSave={(quantity) => save({ quantity })} />
-      </Table.Td>
-      <Table.Td>
-        <UnitCell value={item.unit ?? null} label={`Unité de ${name}`} readOnly={readOnly} onSave={(unit) => save({ unit })} />
-      </Table.Td>
-      <Table.Td>
-        <NumberCell kind="price" value={item.unitPrice ?? null} label={`Prix unitaire estimé de ${name}`} readOnly={readOnly} onSave={(unitPrice) => save({ unitPrice })} />
-      </Table.Td>
-      <Table.Td>
-        <ConservationCell
-          perishable={item.perishable}
-          storageId={item.storageId ?? null}
-          storages={data?.shoppingStorages ?? []}
-          label={`Conservation de ${name}`}
-          readOnly={readOnly}
-          onSave={(conservation) => save({ ...conservation, expiresAt: conservation.perishable ? (item.expiresAt ?? null) : null })}
-        />
-      </Table.Td>
-      <Table.Td>
-        <ExpiryCell value={item.expiresAt ?? null} disabled={!item.perishable} label={`Date de péremption de ${name}`} readOnly={readOnly} onSave={(expiresAt) => save({ expiresAt })} />
-      </Table.Td>
-      <Table.Td>
-        <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Pour qui est ${name}`} readOnly={readOnly} onSave={(people) => save(people)} />
-      </Table.Td>
-      <Table.Td>
-        <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save({ url })} />
-      </Table.Td>
-      {extra && <Table.Td>{extra.render(item)}</Table.Td>}
+      {shown.map((column, index) => (
+        <Table.Td key={column.id} className={tableClasses.cell} style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth - 1} * var(--mantine-spacing-lg))` } : undefined}>
+          {cells[column.id]}
+        </Table.Td>
+      ))}
       <Table.Td w={1}>
         <Group gap={2} wrap="nowrap" justify="flex-end">
           {actions(item)}
@@ -217,7 +243,11 @@ function GroupRow<T>({ row, columns, over, collapsed, onToggle, summary }: Group
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, ...rowProps }: ShoppingTableProps<T>) {
+export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, tableKey, ...rowProps }: ShoppingTableProps<T>) {
+  const { layout, setLayout, sorting, setSorting } = useTableLayout(tableKey);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const allColumns = itemColumns<T>(grouping, rowProps.extra?.title);
+  const shown = shownColumns(allColumns, layout);
   const { data } = useShoppingData();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [active, setActive] = useState<T | null>(null);
@@ -225,8 +255,9 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   const [overGroup, setOverGroup] = useState<string | null | undefined>(undefined);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const labels = { categories: categories ?? data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
-  const rows = visibleRows(shoppingRows(items, grouping, labels, showEmpty || active !== null), collapsed);
-  const columns = 12 + (rowProps.extra ? 1 : 0);
+  // Sorted within their groups (the groups keep their tree).
+  const rows = visibleRows(shoppingRows(sortRows(items, sorting, allColumns), grouping, labels, showEmpty || active !== null), collapsed);
+  const columns = shown.length + 3;
   const field = grouping === 'category' ? 'categoryId' : 'storeId';
 
   /**
@@ -287,7 +318,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
             summary={summary}
           />,
         );
-      } else out.push(<ItemRow key={row.item.id} row={row} over={active !== null && overGroup === row.groupId} grouping={grouping} categories={labels.categories} {...rowProps} />);
+      } else out.push(<ItemRow key={row.item.id} row={row} shown={shown} over={active !== null && overGroup === row.groupId} grouping={grouping} categories={labels.categories} {...rowProps} />);
     }
     close();
     if (add && active === null && !rows.some((row) => row.kind === 'group' && row.id === null)) out.push(addRow(null, 1, grouping === 'category' ? 'Sans catégorie' : 'Sans magasin'));
@@ -336,28 +367,28 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
     >
       <Paper withBorder radius="md" className={classes.group}>
         <div className={classes.scroller}>
-          <Table verticalSpacing={2} miw={1300} aria-label={label} className={classes.table}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={32} px={4} />
-                <Table.Th w={36} px={4} />
-                <Table.Th miw={200}>Produit</Table.Th>
-                <Table.Th w={150}>{grouping === 'store' ? 'Catégorie' : 'Magasin'}</Table.Th>
-                <Table.Th w={88} ta="right">
-                  Quantité
+          <Table ref={tableRef} verticalSpacing={2} aria-label={label} className={`${classes.table} ${tableClasses.table}`} style={{ width: tableWidth(shown, 68 + ACTIONS_WIDTH), minWidth: '100%' }}>
+            <DataTableHeader
+              columns={allColumns}
+              shown={shown}
+              layout={layout}
+              onLayoutChange={setLayout}
+              sorting={sorting}
+              onSortingChange={setSorting}
+              tableRef={tableRef}
+              leadingCount={2}
+              leading={
+                <>
+                  <Table.Th w={32} px={4} />
+                  <Table.Th w={36} px={4} />
+                </>
+              }
+              trailing={
+                <Table.Th w={ACTIONS_WIDTH}>
+                  <ColumnsMenu columns={allColumns} layout={layout} onLayoutChange={setLayout} />
                 </Table.Th>
-                <Table.Th w={100}>Unité</Table.Th>
-                <Table.Th w={104} ta="right">
-                  Prix unitaire
-                </Table.Th>
-                <Table.Th w={150}>Conservation</Table.Th>
-                <Table.Th w={120}>Péremption</Table.Th>
-                <Table.Th w={170}>Pour</Table.Th>
-                <Table.Th w={150}>Lien</Table.Th>
-                {rowProps.extra && <Table.Th w={120}>{rowProps.extra.title}</Table.Th>}
-                <Table.Th />
-              </Table.Tr>
-            </Table.Thead>
+              }
+            />
             <Table.Tbody>{body()}</Table.Tbody>
           </Table>
         </div>

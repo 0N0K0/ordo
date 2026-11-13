@@ -2,7 +2,9 @@ import { ActionIcon, Badge, Button, Group, Modal, NumberInput, Paper, Progress, 
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -291,9 +293,15 @@ export function BudgetsPanel() {
     return { text: money(value), color: key === 'forecast' ? 'dimmed' : undefined };
   };
   const money = (amount: number) => formatMoney(Math.round(amount * 100));
-  const keyCells = (row: { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null }) => (
-    <>
-      <Table.Td>
+  type KeyRow = { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null };
+  /**
+   * Cells of the key of a budget (or of a report row): for whom, context, category.
+   * @param {KeyRow} row Budget or row.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const keyContent = (row: KeyRow): Record<string, ReactNode> => ({
+    who: (
+      <>
         {row.relationId ? (
           <Group gap={6} wrap="nowrap">
             {relationName.get(row.relationId) ?? ''}
@@ -306,9 +314,11 @@ export function BudgetsPanel() {
         ) : (
           `${me?.name ?? 'Moi'} (moi)`
         )}
-      </Table.Td>
-      <Table.Td>{row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT}</Table.Td>
-      <Table.Td>
+      </>
+    ),
+    context: row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT,
+    category: (
+      <>
         {row.categoryId ? (
           // The direction of a budget is that of its category.
           <Group gap={6} wrap="nowrap">
@@ -318,9 +328,18 @@ export function BudgetsPanel() {
         ) : (
           <Text c="dimmed">Sans catégorie</Text>
         )}
-      </Table.Td>
-    </>
-  );
+      </>
+    ),
+  });
+  /**
+   * Columns of the key of a budget, sorted by their names.
+   * @returns {DataColumn<R>[]} Columns.
+   */
+  const keyColumns = <R extends KeyRow>(): DataColumn<R>[] => [
+    { id: 'who', label: 'Pour', size: 180, sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : '') },
+    { id: 'context', label: 'Contexte', size: 160, sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : '') },
+    { id: 'category', label: 'Catégorie', size: 220, locked: true, sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null) },
+  ];
 
   return (
     <Stack gap="md">
@@ -345,56 +364,59 @@ export function BudgetsPanel() {
             </Text>
           </Group>
         ) : (
-          <Table.ScrollContainer minWidth={820}>
-            <Table verticalSpacing={6}>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Pour</Table.Th>
-                  <Table.Th>Contexte</Table.Th>
-                  <Table.Th>Catégorie</Table.Th>
-                  <Table.Th ta="right">Budget</Table.Th>
-                  <Table.Th ta="right">Réel</Table.Th>
-                  <Table.Th ta="right">Prévu</Table.Th>
-                  <Table.Th ta="right">Reste</Table.Th>
-                  <Table.Th w={140} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {budgeted.map((row) => {
-                  const actual = used(row, 'actual');
-                  const forecast = used(row, 'forecast');
-                  const left = row.budget - actual - forecast;
-                  const ratio = row.budget ? ((actual + forecast) / row.budget) * 100 : 0;
-                  const actualRatio = row.budget ? (actual / row.budget) * 100 : 0;
-                  // Money in beyond its budget is good news; money out beyond it is not.
-                  const income = row.categoryId !== null && directionOf.get(row.categoryId) === 'IN';
-                  const over = left < 0;
-                  const barColor = income ? (ratio >= 100 ? 'green' : 'blue') : ratio > 100 ? 'red' : ratio > 80 ? 'orange' : 'blue';
-                  return (
-                    <Table.Tr key={`${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}>
-                      {keyCells(row)}
-                      <Table.Td ta="right">{money(row.budget)}</Table.Td>
-                      <Table.Td ta="right">{money(actual)}</Table.Td>
-                      <Table.Td ta="right" c="dimmed">
-                        {forecast ? money(forecast) : '—'}
-                      </Table.Td>
-                      <Table.Td ta="right" c={over ? (income ? 'green' : 'red') : undefined} fw={over ? 600 : undefined}>
-                        {/* Income beyond its budget: what came in on top. */}
-                        {over && income ? `+${money(-left)}` : money(left)}
-                      </Table.Td>
-                      <Table.Td>
-                        <Tooltip label={`${Math.round(ratio)} % (réel ${Math.round(actualRatio)} %)${over ? (income ? ' · au-delà du budget' : ' · budget dépassé') : ''}`}>
-                          <Progress.Root size="md" aria-label={`${income ? 'Reçu' : 'Utilisé'} à ${Math.round(ratio)} %`}>
-                            <Progress.Section value={Math.min(100, actualRatio)} color={barColor} />
-                            <Progress.Section value={Math.max(0, Math.min(100, ratio) - Math.min(100, actualRatio))} color={`${barColor}.3`} />
-                          </Progress.Root>
-                        </Tooltip>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-              {/* Totals per direction, and the balance of money in minus money out. */}
+          <DataTable
+            tableKey="treasury-budget-report"
+            verticalSpacing={6}
+            columns={[
+              ...keyColumns<BudgetReportRow>(),
+              { id: 'budget', label: 'Budget', size: 120, numeric: true, sortValue: (row) => row.budget },
+              { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => used(row, 'actual') },
+              { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => used(row, 'forecast') },
+              { id: 'left', label: 'Reste', size: 120, numeric: true, sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast') },
+              { id: 'progress', label: 'Avancement', size: 160 },
+            ]}
+            rows={budgeted}
+            getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
+            actionsWidth={48}
+            cells={(row) => {
+              const actual = used(row, 'actual');
+              const forecast = used(row, 'forecast');
+              const left = row.budget - actual - forecast;
+              const ratio = row.budget ? ((actual + forecast) / row.budget) * 100 : 0;
+              const actualRatio = row.budget ? (actual / row.budget) * 100 : 0;
+              // Money in beyond its budget is good news; money out beyond it is not.
+              const income = row.categoryId !== null && directionOf.get(row.categoryId) === 'IN';
+              const over = left < 0;
+              const barColor = income ? (ratio >= 100 ? 'green' : 'blue') : ratio > 100 ? 'red' : ratio > 80 ? 'orange' : 'blue';
+              return {
+                ...keyContent(row),
+                budget: money(row.budget),
+                actual: money(actual),
+                forecast: (
+                  <Text span inherit c="dimmed">
+                    {forecast ? money(forecast) : '—'}
+                  </Text>
+                ),
+                left: (
+                  <Text span inherit c={over ? (income ? 'green' : 'red') : undefined} fw={over ? 600 : undefined}>
+                    {/* Income beyond its budget: what came in on top. */}
+                    {over && income ? `+${money(-left)}` : money(left)}
+                  </Text>
+                ),
+                progress: (
+                  <>
+                    <Tooltip label={`${Math.round(ratio)} % (réel ${Math.round(actualRatio)} %)${over ? (income ? ' · au-delà du budget' : ' · budget dépassé') : ''}`}>
+                      <Progress.Root size="md" aria-label={`${income ? 'Reçu' : 'Utilisé'} à ${Math.round(ratio)} %`}>
+                        <Progress.Section value={Math.min(100, actualRatio)} color={barColor} />
+                        <Progress.Section value={Math.max(0, Math.min(100, ratio) - Math.min(100, actualRatio))} color={`${barColor}.3`} />
+                      </Progress.Root>
+                    </Tooltip>
+                  </>
+                ),
+              };
+            }}
+            footer={(shown) => (
+              // Totals per direction, and the balance of money in minus money out.
               <Table.Tfoot>
                 {totals.map((total) => (
                   <Table.Tr
@@ -403,12 +425,12 @@ export function BudgetsPanel() {
                     bg={total.kind === 'BALANCE' ? 'var(--mantine-primary-color-light)' : 'var(--mantine-color-gray-light)'}
                     style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
                   >
-                    <Table.Th colSpan={3}>{total.label}</Table.Th>
-                    {(['budget', 'actual', 'forecast', 'left'] as const).map((key) => {
-                      const cell = totalCell(total, key);
+                    {shown.map((column, index) => {
+                      const key = (['budget', 'actual', 'forecast', 'left'] as const).find((item) => item === column.id);
+                      const cell = key ? totalCell(total, key) : null;
                       return (
-                        <Table.Th key={key} ta="right" c={cell.color} style={{ whiteSpace: 'nowrap' }}>
-                          {cell.text}
+                        <Table.Th key={column.id} ta={key ? 'right' : undefined} c={cell?.color} style={{ whiteSpace: 'nowrap' }}>
+                          {cell ? cell.text : index === 0 ? total.label : null}
                         </Table.Th>
                       );
                     })}
@@ -416,8 +438,8 @@ export function BudgetsPanel() {
                   </Table.Tr>
                 ))}
               </Table.Tfoot>
-            </Table>
-          </Table.ScrollContainer>
+            )}
+          />
         )}
       </Paper>
 
@@ -432,56 +454,53 @@ export function BudgetsPanel() {
           <Text size="xs" c="dimmed" mb="xs">
             Mouvements sans budget pour leur membre, contexte et catégorie ce mois-ci.
           </Text>
-          <Table.ScrollContainer minWidth={720}>
-            <Table verticalSpacing={6}>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Pour</Table.Th>
-                  <Table.Th>Contexte</Table.Th>
-                  <Table.Th>Catégorie</Table.Th>
-                  <Table.Th ta="right">Réel</Table.Th>
-                  <Table.Th ta="right">Prévu</Table.Th>
-                  <Table.Th w={1} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {outside.map((row) => (
-                  <Table.Tr key={`${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}>
-                    {keyCells(row)}
-                    <Table.Td ta="right">{money(row.actual)}</Table.Td>
-                    <Table.Td ta="right" c="dimmed">
-                      {row.forecast ? money(row.forecast) : '—'}
-                    </Table.Td>
-                    <Table.Td>
-                      {row.categoryId && (
-                        <Tooltip label="Créer le budget">
-                          <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="Créer le budget"
-                            onClick={() =>
-                              setDialog({
-                                defaults: {
-                                  month,
-                                  memberId: row.memberId === me?.id ? null : (row.memberId ?? null),
-                                  relationId: row.relationId ?? null,
-                                  contextId: row.contextId ?? null,
-                                  categoryId: row.categoryId ?? '',
-                                  amount: Math.abs(row.actual + row.forecast),
-                                },
-                              })
-                            }
-                          >
-                            <PlusIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+          <DataTable
+            tableKey="treasury-budget-outside"
+            verticalSpacing={6}
+            columns={[
+              ...keyColumns<BudgetReportRow>(),
+              { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => row.actual },
+              { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast },
+            ]}
+            rows={outside}
+            getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
+            cells={(row) => ({
+              ...keyContent(row),
+              actual: money(row.actual),
+              forecast: (
+                <Text span inherit c="dimmed">
+                  {row.forecast ? money(row.forecast) : '—'}
+                </Text>
+              ),
+            })}
+            actions={(row) => (
+              <>
+                {row.categoryId && (
+                  <Tooltip label="Créer le budget">
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      aria-label="Créer le budget"
+                      onClick={() =>
+                        setDialog({
+                          defaults: {
+                            month,
+                            memberId: row.memberId === me?.id ? null : (row.memberId ?? null),
+                            relationId: row.relationId ?? null,
+                            contextId: row.contextId ?? null,
+                            categoryId: row.categoryId ?? '',
+                            amount: Math.abs(row.actual + row.forecast),
+                          },
+                        })
+                      }
+                    >
+                      <PlusIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+              </>
+            )}
+          />
         </Paper>
       )}
 
@@ -494,93 +513,93 @@ export function BudgetsPanel() {
             Aucun budget.
           </Text>
         ) : (
-          <Table.ScrollContainer minWidth={820}>
-            <Table verticalSpacing={4}>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Période</Table.Th>
-                  <Table.Th>Pour</Table.Th>
-                  <Table.Th>Contexte</Table.Th>
-                  <Table.Th>Catégorie</Table.Th>
-                  <Table.Th ta="right">Montant</Table.Th>
-                  <Table.Th w={1} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {(data?.treasuryBudgets ?? []).map((budget) => (
-                  <Table.Tr key={budget.id}>
-                    <Table.Td>
-                      <Text size="sm">
-                        {budget.repeatEvery ? `Dès ${monthLabel(budget.month)}` : monthLabel(budget.month)}
-                        {budget.repeatUntil ? ` jusqu’à ${monthLabel(budget.repeatUntil)}` : ''}
-                      </Text>
-                      {budget.repeatEvery && (
-                        <Badge size="xs" variant="light">
-                          {REPEATS.find((item) => item.value === String(budget.repeatEvery))?.label ?? `Tous les ${budget.repeatEvery} mois`}
-                        </Badge>
-                      )}
-                    </Table.Td>
-                    {keyCells(budget)}
-                    {/* Money out budgeted below zero, money in above. */}
-                    <Table.Td ta="right" c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'} style={{ whiteSpace: 'nowrap' }}>
-                      {directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}
-                      {money(budget.amount)}
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={2} wrap="nowrap">
-                        <Tooltip label="Modifier (et ses répétitions)">
-                          <ActionIcon variant="subtle" color="gray" aria-label="Modifier le budget" onClick={() => setDialog({ budget })}>
-                            <PencilSimpleIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Dupliquer">
-                          <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label="Dupliquer le budget"
-                            onClick={() =>
-                              // A new budget with its values, to change (month, category…) before it is saved.
-                              setDialog({
-                                copy: true,
-                                defaults: {
-                                  month: budget.month,
-                                  memberId: budget.memberId ?? null,
-                                  relationId: budget.relationId ?? null,
-                                  contextId: budget.contextId ?? null,
-                                  categoryId: budget.categoryId,
-                                  amount: budget.amount,
-                                  repeatEvery: budget.repeatEvery ?? null,
-                                  repeatUntil: budget.repeatUntil ?? null,
-                                },
-                              })
-                            }
-                          >
-                            <CopyIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Supprimer">
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            aria-label="Supprimer le budget"
-                            onClick={() =>
-                              confirmDeletion(
-                                'Supprimer le budget',
-                                `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                                () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
-                              )
-                            }
-                          >
-                            <TrashIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+          <DataTable
+            tableKey="treasury-budgets"
+            verticalSpacing={4}
+            columns={[
+              { id: 'period', label: 'Période', size: 220, sortValue: (budget: TreasuryBudget) => budget.month },
+              ...keyColumns<TreasuryBudget>(),
+              { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount) },
+            ]}
+            rows={data?.treasuryBudgets ?? []}
+            getKey={(budget) => budget.id}
+            actionsWidth={120}
+            cells={(budget) => ({
+              period: (
+                <>
+                  <Text size="sm">
+                    {budget.repeatEvery ? `Dès ${monthLabel(budget.month)}` : monthLabel(budget.month)}
+                    {budget.repeatUntil ? ` jusqu’à ${monthLabel(budget.repeatUntil)}` : ''}
+                  </Text>
+                  {budget.repeatEvery && (
+                    <Badge size="xs" variant="light">
+                      {REPEATS.find((item) => item.value === String(budget.repeatEvery))?.label ?? `Tous les ${budget.repeatEvery} mois`}
+                    </Badge>
+                  )}
+                </>
+              ),
+              ...keyContent(budget),
+              // Money out budgeted below zero, money in above.
+              amount: (
+                <Text span inherit c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'} style={{ whiteSpace: 'nowrap' }}>
+                  {directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}
+                  {money(budget.amount)}
+                </Text>
+              ),
+            })}
+            actions={(budget) => (
+              <>
+                <Group gap={2} wrap="nowrap">
+                  <Tooltip label="Modifier (et ses répétitions)">
+                    <ActionIcon variant="subtle" color="gray" aria-label="Modifier le budget" onClick={() => setDialog({ budget })}>
+                      <PencilSimpleIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Dupliquer">
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      aria-label="Dupliquer le budget"
+                      onClick={() =>
+                        // A new budget with its values, to change (month, category…) before it is saved.
+                        setDialog({
+                          copy: true,
+                          defaults: {
+                            month: budget.month,
+                            memberId: budget.memberId ?? null,
+                            relationId: budget.relationId ?? null,
+                            contextId: budget.contextId ?? null,
+                            categoryId: budget.categoryId,
+                            amount: budget.amount,
+                            repeatEvery: budget.repeatEvery ?? null,
+                            repeatUntil: budget.repeatUntil ?? null,
+                          },
+                        })
+                      }
+                    >
+                      <CopyIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Supprimer">
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      aria-label="Supprimer le budget"
+                      onClick={() =>
+                        confirmDeletion(
+                          'Supprimer le budget',
+                          `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                          () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
+                        )
+                      }
+                    >
+                      <TrashIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </>
+            )}
+          />
         )}
       </Paper>
 
