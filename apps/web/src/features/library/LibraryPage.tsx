@@ -5,25 +5,20 @@ import {
   Breadcrumbs,
   Button,
   Checkbox,
-  CloseButton,
   Grid,
   Group,
-  Menu,
   Paper,
   Skeleton,
   Stack,
   Table,
   Text,
-  TextInput,
   ThemeIcon,
-  Tooltip,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,
   CaretRightIcon,
-  DotsThreeIcon,
   DownloadSimpleIcon,
   EyeIcon,
   FileIcon,
@@ -51,7 +46,9 @@ import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { dndId, libraryCollision } from './library-dnd';
 import { DroppableFolderLink, SortableRow } from './LibraryDnd';
-import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
+import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
 import { shownColumns, sortRows, tableWidth, type DataColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
@@ -326,59 +323,49 @@ export function LibraryPage() {
     const tree = folderSubtree(folders, folder.id);
     const inside = documents.filter((document) => document.folderId && tree.has(document.folderId)).length;
     return (
-      <Menu position="bottom-end" shadow="md" withinPortal>
-        <Menu.Target>
-          <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur le dossier ${folder.name}`} onClick={(event) => event.stopPropagation()}>
-            <DotsThreeIcon weight="bold" aria-hidden />
-          </ActionIcon>
-        </Menu.Target>
-        <Menu.Dropdown onClick={(event) => event.stopPropagation()}>
-          <Menu.Item
-            leftSection={<PencilSimpleIcon aria-hidden />}
-            onClick={() =>
-              openModal('Renommer le dossier', (close) => (
-                <FolderNameForm initial={folder.name} submitLabel="Renommer" onDone={close} onSubmit={(name) => mutations.renameFolder.mutateAsync({ id: folder.id, name })} />
-              ))
-            }
-          >
-            Renommer
-          </Menu.Item>
-          <Menu.Item
-            leftSection={<FolderSimpleIcon aria-hidden />}
-            onClick={() =>
-              openModal('Déplacer le dossier', (close) => (
-                <MoveForm folders={folders} excluded={tree} initial={folder.parentId ?? null} onDone={close} onSubmit={(parentId) => mutations.moveFolder.mutateAsync({ id: folder.id, parentId })} />
-              ))
-            }
-          >
-            Déplacer
-          </Menu.Item>
-          <Menu.Item leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ folderId: folder.id })} disabled={inside === 0}>
-            Télécharger (.zip)
-          </Menu.Item>
-          <Menu.Divider />
-          <Menu.Item
-            color="red"
-            leftSection={<TrashIcon aria-hidden />}
-            onClick={() =>
-              confirmDeletion(
-                'Supprimer le dossier',
-                `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${inside} document${inside > 1 ? 's' : ''}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
-                () =>
-                  mutations.deleteFolder.mutate(folder.id, {
-                    onSuccess: () => {
-                      if (current && tree.has(current)) select(folder.parentId ?? null);
-                      notifySuccess('Dossier supprimé.');
-                    },
-                    onError: (deleteError) => notifyError(deleteError.message),
-                  }),
-              )
-            }
-          >
-            Supprimer
-          </Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
+      // Not opening the folder: the menu is rendered in a portal, its clicks still reach the row.
+      <div onClick={(event) => event.stopPropagation()}>
+        <RowActions
+          name={`le dossier ${folder.name}`}
+          items={[
+            {
+              label: 'Renommer',
+              icon: <PencilSimpleIcon aria-hidden />,
+              onClick: () =>
+                openModal('Renommer le dossier', (close) => (
+                  <FolderNameForm initial={folder.name} submitLabel="Renommer" onDone={close} onSubmit={(name) => mutations.renameFolder.mutateAsync({ id: folder.id, name })} />
+                )),
+            },
+            {
+              label: 'Déplacer',
+              icon: <FolderSimpleIcon aria-hidden />,
+              onClick: () =>
+                openModal('Déplacer le dossier', (close) => (
+                  <MoveForm folders={folders} excluded={tree} initial={folder.parentId ?? null} onDone={close} onSubmit={(parentId) => mutations.moveFolder.mutateAsync({ id: folder.id, parentId })} />
+                )),
+            },
+            { label: 'Télécharger (.zip)', icon: <FileZipIcon aria-hidden />, href: zipUrl({ folderId: folder.id }), download: true, disabled: inside === 0 },
+            {
+              label: 'Supprimer',
+              icon: <TrashIcon aria-hidden />,
+              danger: true,
+              onClick: () =>
+                confirmDeletion(
+                  'Supprimer le dossier',
+                  `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${inside} document${inside > 1 ? 's' : ''}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
+                  () =>
+                    mutations.deleteFolder.mutate(folder.id, {
+                      onSuccess: () => {
+                        if (current && tree.has(current)) select(folder.parentId ?? null);
+                        notifySuccess('Dossier supprimé.');
+                      },
+                      onError: (deleteError) => notifyError(deleteError.message),
+                    }),
+                ),
+            },
+          ]}
+        />
+      </div>
     );
   };
 
@@ -388,60 +375,35 @@ export function LibraryPage() {
    * @returns {JSX.Element} Actions.
    */
   const documentActions = (document: LibraryDocument) => (
-    <Group gap={2} wrap="nowrap" justify="flex-end">
-      {document.kind === 'FILE' ? (
-        <Tooltip label="Télécharger">
-          <ActionIcon variant="subtle" color="gray" component="a" href={`${document.url}?download=1`} aria-label={`Télécharger ${document.title}`}>
-            <DownloadSimpleIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      ) : (
-        <Tooltip label="Ouvrir le lien">
-          <ActionIcon variant="subtle" color="gray" component="a" href={document.url} target="_blank" rel="noopener" aria-label={`Ouvrir ${document.title}`}>
-            <ArrowSquareOutIcon aria-hidden />
-          </ActionIcon>
-        </Tooltip>
-      )}
-      <Menu position="bottom-end" shadow="md" withinPortal>
-        <Menu.Target>
-          <ActionIcon variant="subtle" color="gray" aria-label={`Actions sur ${document.title}`}>
-            <DotsThreeIcon weight="bold" aria-hidden />
-          </ActionIcon>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {document.kind === 'FILE' && (document.mimeType === 'application/pdf' || IMAGE_TYPES.includes(document.mimeType ?? '')) && (
-            <Menu.Item leftSection={<EyeIcon aria-hidden />} onClick={() => openDocument(document)}>
-              Aperçu
-            </Menu.Item>
-          )}
-          <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openModal('Modifier le document', (close) => <DocumentForm document={document} onDone={close} />)}>
-            Modifier
-          </Menu.Item>
-          <Menu.Item
-            leftSection={<FolderSimpleIcon aria-hidden />}
-            onClick={() =>
-              openModal('Déplacer le document', (close) => (
-                <MoveForm folders={folders} initial={document.folderId ?? null} onDone={close} onSubmit={(folderId) => mutations.move.mutateAsync({ ids: [document.id], folderId })} />
-              ))
-            }
-          >
-            Déplacer
-          </Menu.Item>
-          <Menu.Divider />
-          <Menu.Item
-            color="red"
-            leftSection={<TrashIcon aria-hidden />}
-            onClick={() =>
-              confirmDeletion('Supprimer le document', `« ${document.title} » sera supprimé définitivement${document.kind === 'FILE' ? ' avec son fichier' : ''}. Cette action est irréversible.`, () =>
-                mutations.remove.mutate([document.id], { onSuccess: () => notifySuccess('Document supprimé.'), onError: (deleteError) => notifyError(deleteError.message) }),
-              )
-            }
-          >
-            Supprimer
-          </Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
-    </Group>
+    <RowActions
+      name={document.title}
+      primary={
+        document.kind === 'FILE'
+          ? { label: 'Télécharger', icon: <DownloadSimpleIcon aria-hidden />, href: `${document.url}?download=1`, download: true }
+          : { label: 'Ouvrir le lien', icon: <ArrowSquareOutIcon aria-hidden />, href: document.url }
+      }
+      items={[
+        document.kind === 'FILE' && (document.mimeType === 'application/pdf' || IMAGE_TYPES.includes(document.mimeType ?? '')) && { label: 'Aperçu', icon: <EyeIcon aria-hidden />, onClick: () => openDocument(document) },
+        { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openModal('Modifier le document', (close) => <DocumentForm document={document} onDone={close} />) },
+        {
+          label: 'Déplacer',
+          icon: <FolderSimpleIcon aria-hidden />,
+          onClick: () =>
+            openModal('Déplacer le document', (close) => (
+              <MoveForm folders={folders} initial={document.folderId ?? null} onDone={close} onSubmit={(folderId) => mutations.move.mutateAsync({ ids: [document.id], folderId })} />
+            )),
+        },
+        {
+          label: 'Supprimer',
+          icon: <TrashIcon aria-hidden />,
+          danger: true,
+          onClick: () =>
+            confirmDeletion('Supprimer le document', `« ${document.title} » sera supprimé définitivement${document.kind === 'FILE' ? ' avec son fichier' : ''}. Cette action est irréversible.`, () =>
+              mutations.remove.mutate([document.id], { onSuccess: () => notifySuccess('Document supprimé.'), onError: (deleteError) => notifyError(deleteError.message) }),
+            ),
+        },
+      ]}
+    />
   );
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
@@ -595,22 +557,15 @@ export function LibraryPage() {
                     </Anchor>
                   ))}
                 </Breadcrumbs>
-                <Group gap="xs">
-                  <TextInput
-                    size="xs"
-                    w={240}
-                    placeholder="Rechercher dans tous les documents"
-                    aria-label="Rechercher un document"
-                    leftSection={<MagnifyingGlassIcon aria-hidden />}
-                    rightSection={search ? <CloseButton size="sm" aria-label="Effacer" onClick={() => setSearch('')} /> : null}
-                    value={search}
-                    onChange={(event) => setSearch(event.currentTarget.value)}
-                  />
-                  <Button size="xs" variant="default" leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ folderId: current })} disabled={documents.length === 0}>
-                    {current ? 'Dossier en .zip' : 'Tout en .zip'}
-                  </Button>
-                </Group>
               </Group>
+              <TableToolbar
+                search={{ value: search, onChange: setSearch, placeholder: 'Rechercher dans tous les documents' }}
+                options={<TableOptions columns={<DataColumnsPanel columns={LIBRARY_COLUMNS} layout={layout} onLayoutChange={setLayout} />} />}
+              >
+                <Button variant="default" leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ folderId: current })} disabled={documents.length === 0}>
+                  {current ? 'Dossier en .zip' : 'Tout en .zip'}
+                </Button>
+              </TableToolbar>
 
               {chosen.length > 0 && (
                 <Paper withBorder radius="md" px="sm" py={6} bg="var(--mantine-color-default-hover)">
@@ -690,7 +645,7 @@ export function LibraryPage() {
                     </Text>
                   </Stack>
                 ) : (
-                  <Table ref={tableRef} verticalSpacing="xs" highlightOnHover className={tableClasses.table} style={{ width: tableWidth(shownCols, 72 + 90), minWidth: '100%' }}>
+                  <Table ref={tableRef} verticalSpacing="xs" highlightOnHover className={tableClasses.table} style={{ width: tableWidth(shownCols, 72 + ROW_ACTIONS_WIDTH), minWidth: '100%' }}>
                     <DataTableHeader
                       columns={LIBRARY_COLUMNS}
                       shown={shownCols}
@@ -714,13 +669,7 @@ export function LibraryPage() {
                           </Table.Th>
                         </>
                       }
-                      trailing={
-                        <Table.Th w={90}>
-                          <Group justify="flex-end">
-                            <ColumnsMenu columns={LIBRARY_COLUMNS} layout={layout} onLayoutChange={setLayout} />
-                          </Group>
-                        </Table.Th>
-                      }
+                      trailing={<Table.Th w={ROW_ACTIONS_WIDTH} />}
                     />
                     <Table.Tbody>
                       <SortableContext items={subfolders.map((folder) => `folder:${folder.id}`)} strategy={verticalListSortingStrategy}>
@@ -749,7 +698,7 @@ export function LibraryPage() {
                               </Table.Td>
                             ))}
                             <Table.Td>
-                              <Group justify="flex-end">{folderMenu(folder)}</Group>
+                              {folderMenu(folder)}
                             </Table.Td>
                           </SortableRow>
                         );

@@ -1,6 +1,11 @@
 import { Button, Group, Paper, Skeleton, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
 import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
-import { useMemo } from 'react';
+import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, type RoutineViewConfig } from '@ordo/shared';
+import { useMemo, useState } from 'react';
+import type { ColumnMenuExtras } from '../../components/data-table/ColumnHeaderMenu';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { newConditionFor } from '../tasks/views/filter-meta';
+import { ROUTINE_COLUMNS } from './routine-columns';
 import { useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { localToday } from '../../lib/dates';
@@ -13,6 +18,31 @@ import { ViewTabs } from '../tasks/views/ViewTabs';
 import { RoutineHistory } from './RoutineHistory';
 import { RoutineSettings } from './RoutineSettings';
 import { RoutineTable } from './RoutineTable';
+
+/** Groups offered from the menu of a column. */
+const COLUMN_GROUP_BY: Partial<Record<string, RoutineGroupBy>> = { categories: 'category', project: 'project', assignees: 'assignees', repetition: 'repetition' };
+
+/**
+ * Filter and group actions of a routine column, in its menu (as on the tasks).
+ * @param {string} id Column.
+ * @param {RoutineViewConfig} config View.
+ * @param {(change: (config: RoutineViewConfig) => RoutineViewConfig) => void} change View updater.
+ * @param {() => void} openFilter Opens the filters.
+ * @returns {ColumnMenuExtras} Actions.
+ */
+function routineColumnExtras(id: string, config: RoutineViewConfig, change: (change: (config: RoutineViewConfig) => RoutineViewConfig) => void, openFilter: () => void): ColumnMenuExtras {
+  const field = id in ROUTINE_FILTER_FIELDS ? (id as RoutineFilterField) : null;
+  const groupBy = COLUMN_GROUP_BY[id];
+  return {
+    onFilter: field
+      ? () => {
+          change((current) => ({ ...current, filter: { ...current.filter, children: [...current.filter.children, newConditionFor(ROUTINE_FILTER_FIELDS, field)] } }));
+          openFilter();
+        }
+      : undefined,
+    group: groupBy ? { active: config.groupBy === groupBy, onToggle: () => change((current) => ({ ...current, groupBy: current.groupBy === groupBy ? null : groupBy })) } : undefined,
+  };
+}
 
 /**
  * Routines through saved views, as the tasks: tabs of views, each with its search, filters, sorts and groups (by
@@ -29,6 +59,8 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const { context } = useTaskContext();
   const state = useRoutineView(projectId ?? null);
   const { config } = state;
+  const [filterOpened, setFilterOpened] = useState(false);
+  const columnLayout = config ? { columnOrder: config.columnOrder, hiddenColumns: config.hiddenColumns, columnSizing: config.columnSizing } : null;
   const today = localToday();
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
@@ -59,7 +91,19 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           Nouvelle routine
         </Button>
       </Group>
-      {config && env && <RoutineViewToolbar config={config} change={state.change} fields={routineFilterFields(env)} dirty={state.dirty} onSave={state.save} onRevert={state.revert} />}
+      {config && env && columnLayout && (
+        <RoutineViewToolbar
+          config={config}
+          change={state.change}
+          fields={routineFilterFields(env)}
+          dirty={state.dirty}
+          onSave={state.save}
+          onRevert={state.revert}
+          filterOpened={filterOpened}
+          onFilterOpenedChange={setFilterOpened}
+          columns={<DataColumnsPanel columns={ROUTINE_COLUMNS} layout={columnLayout} onLayoutChange={(next) => state.change((current) => ({ ...current, ...next }))} />}
+        />
+      )}
       {isLoading || !context || !config || !env ? (
         <Stack gap="xs" aria-label="Chargement">
           {[0, 1, 2, 3].map((index) => (
@@ -95,10 +139,11 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             groupDrop={groupBy === 'category'}
             addable={groupBy === 'category' || groupBy === null}
             projectId={projectId ?? null}
-            columns={{ columnOrder: config.columnOrder, hiddenColumns: config.hiddenColumns, columnSizing: config.columnSizing }}
+            columns={columnLayout!}
             onColumnsChange={(next) => state.change((current) => ({ ...current, ...next }))}
             sorting={config.sorting}
             onSortingChange={(sorting) => state.change((current) => ({ ...current, sorting: sorting as typeof current.sorting }))}
+            columnExtras={(id) => routineColumnExtras(id, config, state.change, () => setFilterOpened(true))}
           />
         </Stack>
       )}

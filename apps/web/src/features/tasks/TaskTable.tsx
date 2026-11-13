@@ -21,7 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Anchor, Box, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
 import { formatDuration, TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
-import { AlarmIcon, ArrowsClockwiseIcon, CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon, GithubLogoIcon } from '@phosphor-icons/react';
+import { AlarmIcon, ArrowsClockwiseIcon, CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon, GithubLogoIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useTaskAlarmCounts } from '../alarms/api';
 import {
   columnOrderingFeature,
@@ -53,6 +53,8 @@ import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { CellSelectionContext, type CellSelection } from './views/cell-edit';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './views/columns-meta';
 import { HeaderMenu } from './views/HeaderMenu';
+import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
+import { useTaskActions } from './use-task-actions';
 import {
   AssigneesCell,
   BlockedByCell,
@@ -85,6 +87,8 @@ const features = tableFeatures({
 const column = createColumnHelper<typeof features, DisplayRow>();
 
 const SELECT_COLUMN = 'select';
+/** Column of the actions of a row, at the end. */
+const ACTIONS_COLUMN = 'actions';
 const COLUMN_PREFIX = 'col:';
 /** Horizontal offset of one sub-task level, in px (matches the title indentation). */
 const INDENT = 20;
@@ -281,6 +285,8 @@ export function TaskTable({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [drag, setDrag] = useState<{ activeId: string; overId: string | null; offsetX: number } | null>(null);
   const alarmCounts = useTaskAlarmCounts();
+  const taskActions = useTaskActions(context);
+  const taskLink = useTaskLink();
 
   const columns = useMemo(() => {
     const cells: Record<TaskColumn, (task: Task) => ReactNode> = {
@@ -403,6 +409,7 @@ export function TaskTable({
         },
         cell: () => null,
       }),
+      column.display({ id: ACTIONS_COLUMN, size: ROW_ACTIONS_WIDTH, enableResizing: false, enableHiding: false, enableSorting: false, header: () => null, cell: () => null }),
       // An accessor makes the column sortable; values are not read (rows are sorted when built).
       ...TASK_COLUMNS.map((id) =>
         column.accessor(() => 0, {
@@ -431,7 +438,7 @@ export function TaskTable({
     () => Object.fromEntries(config.hiddenColumns.map((id) => [id, false])),
     [config.hiddenColumns],
   );
-  const columnOrder = useMemo(() => [SELECT_COLUMN, ...order], [order]);
+  const columnOrder = useMemo(() => [SELECT_COLUMN, ...order, ACTIONS_COLUMN], [order]);
 
   const table = useTable({
     features,
@@ -684,6 +691,7 @@ export function TaskTable({
                 </Table.Td>
               );
             }
+            if (id === ACTIONS_COLUMN) return <Table.Td key={cell.id} />;
             return (
               <Table.Td
                 key={cell.id}
@@ -729,6 +737,18 @@ export function TaskTable({
                       onChange={row.getToggleSelectedHandler()}
                     />
                   </Group>
+                </Table.Td>
+              );
+            }
+            if (id === ACTIONS_COLUMN) {
+              const task = original.task;
+              return (
+                <Table.Td key={cell.id} onClick={(event) => event.stopPropagation()}>
+                  <RowActions
+                    name={`la tâche #${task.number}`}
+                    primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(task.id) }}
+                    items={[{ label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: task.projectId ?? undefined, parentId: task.id }) }, 'divider', ...taskActions.menu(task)]}
+                  />
                 </Table.Td>
               );
             }
@@ -834,7 +854,7 @@ export function TaskTable({
                   <Table.Tr>
                     {headerGroup.headers.map((header) => {
                       const id = header.column.id;
-                      if (id === SELECT_COLUMN) {
+                      if (id === SELECT_COLUMN || id === ACTIONS_COLUMN) {
                         return (
                           <Table.Th key={header.id} style={{ width: header.column.getSize() }} className={classes.header}>
                             <table.FlexRender header={header} />

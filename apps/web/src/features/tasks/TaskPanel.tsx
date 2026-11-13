@@ -9,7 +9,6 @@ import {
   Drawer,
   Grid,
   Group,
-  Menu,
   NumberInput,
   Progress,
   Select,
@@ -25,14 +24,11 @@ import { taskTitleSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
-  ArrowsLeftRightIcon,
   CheckCircleIcon,
-  CopyIcon,
   DotsThreeIcon,
   GithubLogoIcon,
   PencilSimpleIcon,
   PlusIcon,
-  TrashIcon,
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -50,6 +46,7 @@ import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks, subtreeIds } from './task-links';
 import { AssigneesSelect, LabelSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from './use-task-actions';
+import { ActionsMenu } from '../../components/data-table/RowActions';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -225,31 +222,15 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <Button variant="default" size="xs" onClick={() => setTitleDraft(task.title)}>
                 Modifier
               </Button>
-              <Menu position="bottom-end" withinPortal shadow="md">
-                <Menu.Target>
-                  <ActionIcon variant="default" size="input-xs" aria-label="Actions sur la tâche">
+              <ActionsMenu
+                name="la tâche"
+                items={actions.menu(task)}
+                target={
+                  <ActionIcon variant="default" size="input-xs" aria-label="Actions de la tâche">
                     <DotsThreeIcon weight="bold" aria-hidden />
                   </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => actions.clone(task)}>
-                    Cloner
-                  </Menu.Item>
-                  <Menu.Item leftSection={<ArrowsLeftRightIcon aria-hidden />} onClick={() => actions.transfer(task)}>
-                    Transférer
-                  </Menu.Item>
-                  <Menu.Item
-                    leftSection={task.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-                    onClick={() => actions.archive(task, !task.archived)}
-                  >
-                    {task.archived ? 'Désarchiver' : 'Archiver'}
-                  </Menu.Item>
-                  <Menu.Divider />
-                  <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={() => actions.remove(task)}>
-                    Supprimer
-                  </Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
+                }
+              />
             </Group>
           </Group>
         ) : (

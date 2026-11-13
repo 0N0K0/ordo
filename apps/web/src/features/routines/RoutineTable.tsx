@@ -15,7 +15,7 @@ import {
   type DragMoveEvent,
   type DragOverEvent,
 } from '@dnd-kit/core';
-import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Menu, Paper, Stack, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Badge, Checkbox, ColorSwatch, Group, Paper, Stack, Table, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
@@ -27,7 +27,6 @@ import {
   ClockCounterClockwiseIcon,
   CopyIcon,
   DotsSixVerticalIcon,
-  DotsThreeVerticalIcon,
   HourglassMediumIcon,
   PencilSimpleIcon,
   PlayIcon,
@@ -38,11 +37,12 @@ import {
 } from '@phosphor-icons/react';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { useEffect, useRef, useState, type ComponentProps, type ReactElement, type ReactNode } from 'react';
-import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
-import { shownColumns, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import type { ColumnMenuExtras } from '../../components/data-table/ColumnHeaderMenu';
+import { shownColumns, tableWidth, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import { ROUTINE_COLUMNS } from './routine-columns';
+import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
 import tableClasses from '../../components/data-table/DataTable.module.css';
-import { Link } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import addClasses from '../tasks/views/table-extras.module.css';
@@ -77,27 +77,10 @@ import {
 } from './routine-format';
 import classes from './Routines.module.css';
 
-/** Columns of the table. */
 /** Width of the cells around the columns: handle and selection before, actions after. */
 const LEAD_WIDTH = 64;
-const ACTIONS_WIDTH = 48;
+const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
-/** Columns of the routine table (ids: the sort keys of the views, when sortable). */
-const ROUTINE_COLUMNS: DataColumn<Routine>[] = [
-  { id: 'title', label: 'Routine', size: 320, locked: true, sortValue: () => null },
-  { id: 'currentDate', label: 'Échéance', size: 200, sortValue: () => null },
-  { id: 'firstDate', label: 'Première échéance', size: 150, sortValue: () => null },
-  { id: 'nextDate', label: 'Échéance suivante', size: 150, hiddenByDefault: true, sortValue: () => null },
-  { id: 'repetition', label: 'Répétition', size: 200, hiddenByDefault: true, sortValue: () => null },
-  { id: 'estimate', label: 'Temps estimé', size: 110, sortValue: () => null },
-  { id: 'time', label: 'Horaires', size: 150 },
-  { id: 'trackedTime', label: 'Chrono', size: 120, sortValue: () => null },
-  { id: 'lastDoneAt', label: 'Faite pour la dernière fois', size: 170, hiddenByDefault: true, sortValue: () => null },
-  { id: 'assignees', label: 'Assignés', size: 160, sortValue: () => null },
-  { id: 'categories', label: 'Catégories', size: 180, sortValue: () => null },
-  { id: 'requires', label: 'Dépend de', size: 180 },
-  { id: 'project', label: 'Projet', size: 180, sortValue: () => null },
-];
 
 /** Bulk-editable columns and their cell selection column. */
 const CELL_COLUMNS: Record<string, RoutineColumn> = {
@@ -439,69 +422,40 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
           </Table.Td>
         );
       })}
-      <Table.Td w={1}>
-        <Menu position="bottom-end" shadow="md" withinPortal>
-          <Menu.Target>
-            <ActionIcon variant="subtle" color="gray" aria-label={`Actions de ${routine.title}`}>
-              <DotsThreeVerticalIcon weight="bold" aria-hidden />
-            </ActionIcon>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {!readOnly && (
-              <>
-                <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openRoutineForm({ routine })}>
-                  Modifier
-                </Menu.Item>
-                <Menu.Item leftSection={<TreeViewIcon aria-hidden />} onClick={() => openRoutineForm({ parent: routine })}>
-                  Ajouter une sous-routine
-                </Menu.Item>
-                {movableOccurrence(routine) && (
-                  <>
-                    <Menu.Divider />
-                    <Menu.Item leftSection={<ArrowBendUpRightIcon aria-hidden />} onClick={() => postpone(routine)}>
-                      Reporter au lendemain
-                    </Menu.Item>
-                    <Menu.Item leftSection={<CalendarDotsIcon aria-hidden />} onClick={() => openRoutineMove(routine)}>
-                      Reporter ou avancer…
-                    </Menu.Item>
-                    <Menu.Divider />
-                  </>
-                )}
-              </>
-            )}
-            <Menu.Item leftSection={<CopyIcon aria-hidden />} onClick={() => openRoutineForm({ routine, copy: true })}>
-              Dupliquer
-            </Menu.Item>
-            <Menu.Item leftSection={<ClockCounterClockwiseIcon aria-hidden />} component={Link} to={`/routines?tab=history&routine=${routine.id}`}>
-              Historique
-            </Menu.Item>
-            <Menu.Item
-              leftSection={readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-              onClick={() =>
+      <Table.Td>
+        <RowActions
+          name={routine.title}
+          primary={!readOnly && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRoutineForm({ routine }) }}
+          items={[
+            !readOnly && { label: 'Ajouter une sous-routine', icon: <TreeViewIcon aria-hidden />, onClick: () => openRoutineForm({ parent: routine }) },
+            !readOnly && movableOccurrence(routine) && 'divider',
+            !readOnly && movableOccurrence(routine) && { label: 'Reporter au lendemain', icon: <ArrowBendUpRightIcon aria-hidden />, onClick: () => postpone(routine) },
+            !readOnly && movableOccurrence(routine) && { label: 'Reporter ou avancer…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
+            'divider',
+            { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openRoutineForm({ routine, copy: true }) },
+            { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: `/routines?tab=history&routine=${routine.id}` },
+            {
+              label: readOnly ? 'Restaurer' : 'Archiver',
+              icon: readOnly ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+              onClick: () =>
                 setArchived.mutate(
                   { id: routine.id, archived: !routine.archived },
                   { onSuccess: () => notifySuccess(routine.archived ? 'Routine restaurée.' : 'Routine archivée.'), onError: (error) => notifyError(error.message) },
-                )
-              }
-            >
-              {readOnly ? 'Restaurer' : 'Archiver'}
-            </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item
-              color="red"
-              leftSection={<TrashIcon aria-hidden />}
-              onClick={() =>
+                ),
+            },
+            {
+              label: 'Supprimer',
+              icon: <TrashIcon aria-hidden />,
+              danger: true,
+              onClick: () =>
                 confirmDestructive(
                   'Supprimer la routine',
                   `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`,
                   () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }),
-                )
-              }
-            >
-              Supprimer
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
+                ),
+            },
+          ]}
+        />
       </Table.Td>
     </Table.Tr>
   );
@@ -593,6 +547,8 @@ interface RoutineTableProps {
   /** Sorts of the view and their change (a click on a header). */
   sorting: readonly TableSort[];
   onSortingChange: (sorting: TableSort[]) => void;
+  /** Filter and group actions of a column, in its menu. Optional. */
+  columnExtras?: (id: string) => ColumnMenuExtras | undefined;
   /** Project of the routines added (on a project page). Optional. */
   projectId?: string | null;
 }
@@ -616,6 +572,7 @@ export function RoutineTable({
   projectId = null,
   columns,
   onColumnsChange,
+  columnExtras,
   sorting,
   onSortingChange,
 }: RoutineTableProps) {
@@ -898,11 +855,8 @@ export function RoutineTable({
                 </Group>
               </Table.Th>
             }
-            trailing={
-              <Table.Th w={ACTIONS_WIDTH}>
-                <ColumnsMenu columns={ROUTINE_COLUMNS} layout={columns} onLayoutChange={onColumnsChange} />
-              </Table.Th>
-            }
+            trailing={<Table.Th w={ACTIONS_WIDTH} />}
+            columnExtras={columnExtras}
           />
           <RoutineCellSelectionContext.Provider value={effectiveCellSelection}>
             <Table.Tbody>{body()}</Table.Tbody>

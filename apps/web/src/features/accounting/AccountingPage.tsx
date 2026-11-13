@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Group, Menu, Paper, Select, Skeleton, Stack, Tabs, Text, Title, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, Menu, Paper, Select, Skeleton, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
@@ -9,6 +9,7 @@ import {
   CalendarBlankIcon,
   CaretDownIcon,
   FileArrowUpIcon,
+  FileTextIcon,
   FileZipIcon,
   PackageIcon,
   PaperPlaneTiltIcon,
@@ -17,8 +18,9 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -105,65 +107,56 @@ function RecurringList() {
   };
 
   return (
-    <Paper withBorder radius="md">
-      <DataTable
-        tableKey="recurring-invoices"
-        verticalSpacing="xs"
-        columns={RECURRING_COLUMNS}
-        rows={recurring}
-        getKey={(item) => item.id}
-        actionsWidth={170}
-        cells={(item) => {
-          const rule = recurrenceSchema.safeParse(item.recurrence);
-          return {
-            name: (
-              <>
-                <Group gap={6}>
-                  <Text size="sm" fw={600}>
-                    {item.name}
-                  </Text>
-                  {!item.active && (
-                    <Badge size="xs" color="gray" variant="light">
-                      En pause
-                    </Badge>
-                  )}
-                  {item.autoFinalize && (
-                    <Badge size="xs" color="green" variant="light">
-                      Validée automatiquement
-                    </Badge>
-                  )}
-                </Group>
-                <Text size="xs" c="dimmed">
-                  {item.issuedCount} facture{item.issuedCount > 1 ? 's' : ''} émise{item.issuedCount > 1 ? 's' : ''}
+    <DataTable
+      framed
+      tableKey="recurring-invoices"
+      verticalSpacing="xs"
+      columns={RECURRING_COLUMNS}
+      rows={recurring}
+      getKey={(item) => item.id}
+      cells={(item) => {
+        const rule = recurrenceSchema.safeParse(item.recurrence);
+        return {
+          name: (
+            <>
+              <Group gap={6}>
+                <Text size="sm" fw={600}>
+                  {item.name}
                 </Text>
-              </>
-            ),
-            client: item.template.clientName,
-            repetition: <Text size="sm">{rule.success ? describeRecurrence(rule.data, String(item.startDate)) : '—'}</Text>,
-            next: item.nextDate ? dateFormat.format(new Date(`${item.nextDate}T00:00:00Z`)) : 'Terminée',
-            issued: item.issuedCount,
-            amount: formatMoney(Math.round(item.template.totalGross * 100), item.template.currency),
-          };
-        }}
-        actions={(item) => (
-          <Group gap={2} justify="flex-end" wrap="nowrap">
-            <Button size="compact-xs" variant="subtle" component={Link} to={`/accounting/${item.templateId}`}>
-              Modèle
-            </Button>
-            <Tooltip label="Planification">
-              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.name}`} onClick={() => openRecurringForm({ recurring: item })}>
-                <PencilSimpleIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label="Supprimer">
-              <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${item.name}`} onClick={() => confirmDelete(item)}>
-                <TrashIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-        )}
-      />
-    </Paper>
+                {!item.active && (
+                  <Badge size="xs" color="gray" variant="light">
+                    En pause
+                  </Badge>
+                )}
+                {item.autoFinalize && (
+                  <Badge size="xs" color="green" variant="light">
+                    Validée automatiquement
+                  </Badge>
+                )}
+              </Group>
+              <Text size="xs" c="dimmed">
+                {item.issuedCount} facture{item.issuedCount > 1 ? 's' : ''} émise{item.issuedCount > 1 ? 's' : ''}
+              </Text>
+            </>
+          ),
+          client: item.template.clientName,
+          repetition: <Text size="sm">{rule.success ? describeRecurrence(rule.data, String(item.startDate)) : '—'}</Text>,
+          next: item.nextDate ? dateFormat.format(new Date(`${item.nextDate}T00:00:00Z`)) : 'Terminée',
+          issued: item.issuedCount,
+          amount: formatMoney(Math.round(item.template.totalGross * 100), item.template.currency),
+        };
+      }}
+      actions={(item) => (
+        <RowActions
+          name={item.name}
+          primary={{ label: 'Modifier la planification', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRecurringForm({ recurring: item }) }}
+          items={[
+            { label: 'Ouvrir le modèle', icon: <FileTextIcon aria-hidden />, to: `/accounting/${item.templateId}` },
+            { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) },
+          ]}
+        />
+      )}
+    />
   );
 }
 

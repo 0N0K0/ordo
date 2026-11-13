@@ -1,12 +1,12 @@
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Group, Menu, Table } from '@mantine/core';
+import { Group, Table } from '@mantine/core';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
-import { ArrowLeftIcon, ArrowLineLeftIcon, ArrowLineRightIcon, ArrowRightIcon, DotsThreeIcon, EyeSlashIcon, SortAscendingIcon, SortDescendingIcon, XIcon } from '@phosphor-icons/react';
 import { useRef, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { contentWidth } from '../../features/tasks/column-fit';
-import { clampWidth, columnOrder, toggleSort, withVisibility, type DataColumn, type ShownColumn } from './data-table';
+import { ColumnHeaderMenu, type ColumnMenuExtras, type ColumnMove } from './ColumnHeaderMenu';
+import { clampWidth, columnOrder, toggleSort, withOrder, withVisibility, type DataColumn, type ShownColumn } from './data-table';
 import classes from './DataTable.module.css';
 
 interface HeaderCellProps<R> {
@@ -20,9 +20,11 @@ interface HeaderCellProps<R> {
   onSort: (multi: boolean) => void;
   onSortBy: (desc: boolean | null) => void;
   onHide: () => void;
-  onMove: (where: 'start' | 'left' | 'right' | 'end') => void;
+  onMove: (where: ColumnMove) => void;
   onResize: (width: number) => void;
   onFit: () => void;
+  /** Filter and group actions of the column. Optional. */
+  extras?: ColumnMenuExtras;
 }
 
 /**
@@ -31,7 +33,7 @@ interface HeaderCellProps<R> {
  * @param {HeaderCellProps<R>} props Component props.
  * @returns {JSX.Element} Header cell.
  */
-function HeaderCell<R>({ column, index, sort, sortCount, sortIndex, shown, onSort, onSortBy, onHide, onMove, onResize, onFit }: HeaderCellProps<R>) {
+function HeaderCell<R>({ column, index, sort, sortCount, sortIndex, shown, onSort, onSortBy, onHide, onMove, onResize, onFit, extras }: HeaderCellProps<R>) {
   const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: column.id });
   const start = useRef<{ x: number; width: number } | null>(null);
   const sortable = Boolean(column.sortValue);
@@ -74,56 +76,16 @@ function HeaderCell<R>({ column, index, sort, sortCount, sortIndex, shown, onSor
           <span className={classes.label}>{column.label}</span>
         )}
         <span className={classes.headerMenu}>
-          <Menu position="bottom-start" withinPortal shadow="md" width={240}>
-            <Menu.Target>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="xs"
-                aria-label={`Options de la colonne ${column.label}`}
-                onClick={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-              >
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              {sortable && (
-                <>
-                  <Menu.Item leftSection={<SortAscendingIcon aria-hidden />} onClick={() => onSortBy(false)}>
-                    Trier par ordre croissant
-                  </Menu.Item>
-                  <Menu.Item leftSection={<SortDescendingIcon aria-hidden />} onClick={() => onSortBy(true)}>
-                    Trier par ordre décroissant
-                  </Menu.Item>
-                  {sort && (
-                    <Menu.Item leftSection={<XIcon aria-hidden />} onClick={() => onSortBy(null)}>
-                      Retirer ce tri
-                    </Menu.Item>
-                  )}
-                </>
-              )}
-              {!column.locked && (
-                <Menu.Item leftSection={<EyeSlashIcon aria-hidden />} onClick={onHide}>
-                  Masquer la colonne
-                </Menu.Item>
-              )}
-              <Menu.Divider />
-              <Menu.Label>Déplacer</Menu.Label>
-              <Menu.Item leftSection={<ArrowLineLeftIcon aria-hidden />} disabled={index <= 0} onClick={() => onMove('start')}>
-                Au début
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowLeftIcon aria-hidden />} disabled={index <= 0} onClick={() => onMove('left')}>
-                À gauche
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowRightIcon aria-hidden />} disabled={index === shown.length - 1} onClick={() => onMove('right')}>
-                À droite
-              </Menu.Item>
-              <Menu.Item leftSection={<ArrowLineRightIcon aria-hidden />} disabled={index === shown.length - 1} onClick={() => onMove('end')}>
-                À la fin
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+          <ColumnHeaderMenu
+            label={column.label}
+            sort={sortable ? (sort ?? null) : undefined}
+            onSortBy={onSortBy}
+            {...extras}
+            onHide={column.locked ? undefined : onHide}
+            index={index}
+            count={shown.length}
+            onMove={onMove}
+          />
         </span>
       </Group>
       <div
@@ -156,6 +118,8 @@ interface DataTableHeaderProps<R> {
   leadingCount?: number;
   /** Header cells after the columns (actions…). Optional. */
   trailing?: ReactNode;
+  /** Filter and group actions of a column, in its menu. Optional. */
+  columnExtras?: (id: string) => ColumnMenuExtras | undefined;
 }
 
 /**
@@ -165,7 +129,7 @@ interface DataTableHeaderProps<R> {
  * @param {DataTableHeaderProps<R>} props Component props.
  * @returns {JSX.Element} Header.
  */
-export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sorting, onSortingChange, tableRef, leading, leadingCount, trailing }: DataTableHeaderProps<R>) {
+export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sorting, onSortingChange, tableRef, leading, leadingCount, trailing, columnExtras }: DataTableHeaderProps<R>) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const order = columnOrder(columns, layout);
   // Width each column was fitted to: a second double click, the column unchanged, gives back its default width.
@@ -179,16 +143,16 @@ export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sor
    */
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    onLayoutChange({ ...layout, columnOrder: arrayMove(order, order.indexOf(String(active.id)), order.indexOf(String(over.id))) });
+    onLayoutChange(withOrder(columns, layout, arrayMove(order, order.indexOf(String(active.id)), order.indexOf(String(over.id)))));
   };
 
   /**
    * Moves a column to the start, the end, or by one shown column.
    * @param {string} id Column.
-   * @param {'start' | 'left' | 'right' | 'end'} where Where.
+   * @param {ColumnMove} where Where.
    * @returns {void}
    */
-  const move = (id: string, where: 'start' | 'left' | 'right' | 'end') => {
+  const move = (id: string, where: ColumnMove) => {
     const others = order.filter((item) => item !== id);
     const index = shown.findIndex((column) => column.id === id);
     let at: number;
@@ -198,7 +162,7 @@ export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sor
       const neighbour = shown[where === 'left' ? index - 1 : index + 1].id;
       at = others.indexOf(neighbour) + (where === 'right' ? 1 : 0);
     }
-    onLayoutChange({ ...layout, columnOrder: [...others.slice(0, at), id, ...others.slice(at)] });
+    onLayoutChange(withOrder(columns, layout, [...others.slice(0, at), id, ...others.slice(at)]));
   };
 
   /**
@@ -243,6 +207,7 @@ export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sor
                   onMove={(where) => move(column.id, where)}
                   onResize={(width) => onLayoutChange({ ...layout, columnSizing: { ...layout.columnSizing, [column.id]: width } })}
                   onFit={() => fit(column, index)}
+                  extras={columnExtras?.(column.id)}
                 />
               );
             })}

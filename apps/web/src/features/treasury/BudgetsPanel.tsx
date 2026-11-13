@@ -1,9 +1,10 @@
-import { ActionIcon, Badge, Button, Group, Modal, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, Modal, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -377,7 +378,6 @@ export function BudgetsPanel() {
             ]}
             rows={budgeted}
             getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
-            actionsWidth={48}
             cells={(row) => {
               const actual = used(row, 'actual');
               const forecast = used(row, 'forecast');
@@ -474,31 +474,27 @@ export function BudgetsPanel() {
               ),
             })}
             actions={(row) => (
-              <>
-                {row.categoryId && (
-                  <Tooltip label="Créer le budget">
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      aria-label="Créer le budget"
-                      onClick={() =>
-                        setDialog({
-                          defaults: {
-                            month,
-                            memberId: row.memberId === me?.id ? null : (row.memberId ?? null),
-                            relationId: row.relationId ?? null,
-                            contextId: row.contextId ?? null,
-                            categoryId: row.categoryId ?? '',
-                            amount: Math.abs(row.actual + row.forecast),
-                          },
-                        })
-                      }
-                    >
-                      <PlusIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                )}
-              </>
+              <RowActions
+                name="ces mouvements"
+                primary={
+                  row.categoryId && {
+                    label: 'Créer le budget',
+                    icon: <PlusIcon aria-hidden />,
+                    onClick: () =>
+                      setDialog({
+                        defaults: {
+                          month,
+                          memberId: row.memberId === me?.id ? null : (row.memberId ?? null),
+                          relationId: row.relationId ?? null,
+                          contextId: row.contextId ?? null,
+                          categoryId: row.categoryId ?? '',
+                          amount: Math.abs(row.actual + row.forecast),
+                        },
+                      }),
+                  }
+                }
+                items={[]}
+              />
             )}
           />
         </Paper>
@@ -523,7 +519,6 @@ export function BudgetsPanel() {
             ]}
             rows={data?.treasuryBudgets ?? []}
             getKey={(budget) => budget.id}
-            actionsWidth={120}
             cells={(budget) => ({
               period: (
                 <>
@@ -548,56 +543,42 @@ export function BudgetsPanel() {
               ),
             })}
             actions={(budget) => (
-              <>
-                <Group gap={2} wrap="nowrap">
-                  <Tooltip label="Modifier (et ses répétitions)">
-                    <ActionIcon variant="subtle" color="gray" aria-label="Modifier le budget" onClick={() => setDialog({ budget })}>
-                      <PencilSimpleIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Dupliquer">
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      aria-label="Dupliquer le budget"
-                      onClick={() =>
-                        // A new budget with its values, to change (month, category…) before it is saved.
-                        setDialog({
-                          copy: true,
-                          defaults: {
-                            month: budget.month,
-                            memberId: budget.memberId ?? null,
-                            relationId: budget.relationId ?? null,
-                            contextId: budget.contextId ?? null,
-                            categoryId: budget.categoryId,
-                            amount: budget.amount,
-                            repeatEvery: budget.repeatEvery ?? null,
-                            repeatUntil: budget.repeatUntil ?? null,
-                          },
-                        })
-                      }
-                    >
-                      <CopyIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Supprimer">
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      aria-label="Supprimer le budget"
-                      onClick={() =>
-                        confirmDeletion(
-                          'Supprimer le budget',
-                          `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                          () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
-                        )
-                      }
-                    >
-                      <TrashIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
-              </>
+              <RowActions
+                name="le budget"
+                primary={{ label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ budget }) }}
+                items={[
+                  {
+                    label: 'Dupliquer',
+                    icon: <CopyIcon aria-hidden />,
+                    onClick: () =>
+                      // A new budget with its values, to change (month, category…) before it is saved.
+                      setDialog({
+                        copy: true,
+                        defaults: {
+                          month: budget.month,
+                          memberId: budget.memberId ?? null,
+                          relationId: budget.relationId ?? null,
+                          contextId: budget.contextId ?? null,
+                          categoryId: budget.categoryId,
+                          amount: budget.amount,
+                          repeatEvery: budget.repeatEvery ?? null,
+                          repeatUntil: budget.repeatUntil ?? null,
+                        },
+                      }),
+                  },
+                  {
+                    label: 'Supprimer',
+                    icon: <TrashIcon aria-hidden />,
+                    danger: true,
+                    onClick: () =>
+                      confirmDeletion(
+                        'Supprimer le budget',
+                        `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                        () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
+                      ),
+                  },
+                ]}
+              />
             )}
           />
         )}
