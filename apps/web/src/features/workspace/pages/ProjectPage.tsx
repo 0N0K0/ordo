@@ -279,7 +279,7 @@ export function ProjectPage() {
                   <Title order={2} size="h4">
                     Sous-projets
                   </Title>
-                  <ProjectList projects={subProjects} rootParentId={project.id} statuses={data.projectStatuses} />
+                  <ProjectList projects={subProjects} allProjects={data.projects} rootParentId={project.id} clientId={project.clientId ?? null} statuses={data.projectStatuses} />
                 </Stack>
               )}
 

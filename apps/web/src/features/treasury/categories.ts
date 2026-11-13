@@ -13,7 +13,7 @@ export interface PlacedCategory {
 }
 
 /**
- * Categories of a direction in tree order (each category followed by its sub-categories, by name).
+ * Categories of a direction in tree order (each category followed by its sub-categories, in their manual order then by name).
  * @param {TreasuryCategory[]} categories All categories.
  * @param {TreasuryDirection} [direction] Direction kept; both when omitted. Optional.
  * @returns {PlacedCategory[]} Placed categories.
@@ -36,7 +36,7 @@ export function categoryTree(categories: readonly TreasuryCategory[], direction?
    * @returns {void}
    */
   const visit = (parent: string | null, depth: number, prefix: string) => {
-    for (const category of [...(children.get(parent) ?? [])].sort((a, b) => collator.compare(a.name, b.name))) {
+    for (const category of [...(children.get(parent) ?? [])].sort((a, b) => a.position - b.position || collator.compare(a.name, b.name))) {
       const path = prefix ? `${prefix} › ${category.name}` : category.name;
       placed.push({ category, depth, path });
       visit(category.id, depth + 1, path);

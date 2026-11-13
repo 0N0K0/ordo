@@ -109,7 +109,7 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
           </Badge>
         ))
       }
-      onMove={(id, parentId) => moveCategory.mutate({ id, parentId }, { onError: (error) => notifyError(error.message) })}
+      onMove={(id, parentId, index) => moveCategory.mutate({ id, parentId, index }, { onError: (error) => notifyError(error.message) })}
       onDelete={(id) => deleteCategory.mutate(id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) })}
     />
   );

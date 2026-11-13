@@ -1960,6 +1960,8 @@ model TreasuryCategory {
   parentId           String?
   parent             TreasuryCategory?   @relation("TreasuryCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children           TreasuryCategory[]  @relation("TreasuryCategoryTree")
+  /// Manual order among siblings.
+  position           Int                 @default(0)
   createdAt          DateTime            @default(now())
   entries            TreasuryEntry[]
   lines              TreasuryEntryLine[]
@@ -2107,6 +2109,8 @@ model ShoppingCategory {
   parentId    String?
   parent      ShoppingCategory?  @relation("ShoppingCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children    ShoppingCategory[] @relation("ShoppingCategoryTree")
+  /// Manual order among siblings.
+  position    Int                @default(0)
   /// Base lists it is offered in (none: all; a sub-category without any takes those of its parent).
   baseLists   ShoppingBaseList[] @relation("ShoppingCategoryBaseLists")
   createdAt   DateTime           @default(now())
@@ -2286,6 +2290,8 @@ model RoutineCategory {
   parentId    String?
   parent      RoutineCategory?  @relation("RoutineCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children    RoutineCategory[] @relation("RoutineCategoryTree")
+  /// Manual order among siblings.
+  position    Int               @default(0)
   createdAt   DateTime          @default(now())
   routines    Routine[]         @relation("RoutineCategories")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).

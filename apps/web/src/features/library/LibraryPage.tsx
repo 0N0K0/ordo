@@ -21,6 +21,7 @@ import {
 import { modals } from '@mantine/modals';
 import {
   ArrowSquareOutIcon,
+  CaretDownIcon,
   CaretRightIcon,
   DotsThreeIcon,
   DownloadSimpleIcon,
@@ -142,15 +143,17 @@ interface FolderTreeProps {
   current: string | null;
   open: Set<string>;
   onSelect: (folderId: string) => void;
+  /** Folds or unfolds a folder of the tree. */
+  onToggle: (folderId: string, opened: boolean) => void;
   counts: Map<string | null, number>;
 }
 
 /**
- * Folders of a level of the tree, with their sub-folders when they are on the way to the current one.
+ * Folders of a level of the tree, with their sub-folders when unfolded (by default, those on the way to the current one).
  * @param {FolderTreeProps} props Component props.
  * @returns {JSX.Element[]} Links.
  */
-function FolderTree({ folders, parentId, current, open, onSelect, counts }: FolderTreeProps) {
+function FolderTree({ folders, parentId, current, open, onSelect, onToggle, counts }: FolderTreeProps) {
   return (
     <>
       {/* In the order of the library (chosen by drag and drop). */}
@@ -158,12 +161,43 @@ function FolderTree({ folders, parentId, current, open, onSelect, counts }: Fold
         .filter((folder) => folder.parentId === parentId)
         .map((folder) => {
           const children = folders.some((item) => item.parentId === folder.id);
+          const opened = open.has(folder.id);
           return (
             <DroppableFolderLink
               key={folder.id}
               folderId={folder.id}
               label={folder.name}
-              leftSection={<FolderIcon aria-hidden weight={folder.id === current ? 'fill' : 'regular'} />}
+              leftSection={
+                <Group gap={2} wrap="nowrap">
+                  {children ? (
+                    <ActionIcon
+                      component="span"
+                      role="button"
+                      tabIndex={0}
+                      variant="subtle"
+                      color="gray"
+                      size="xs"
+                      aria-label={`${opened ? 'Replier' : 'Déplier'} ${folder.name}`}
+                      aria-expanded={opened}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggle(folder.id, !opened);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onToggle(folder.id, !opened);
+                      }}
+                    >
+                      {opened ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
+                    </ActionIcon>
+                  ) : (
+                    <Box w={18} />
+                  )}
+                  <FolderIcon aria-hidden weight={folder.id === current ? 'fill' : 'regular'} />
+                </Group>
+              }
               rightSection={
                 <Text size="xs" c="dimmed">
                   {counts.get(folder.id) || ''}
@@ -171,11 +205,11 @@ function FolderTree({ folders, parentId, current, open, onSelect, counts }: Fold
               }
               active={folder.id === current}
               onClick={() => onSelect(folder.id)}
-              {...(children && { opened: open.has(folder.id), childrenOffset: 16 })}
+              {...(children && { opened, childrenOffset: 16 })}
               // The count is not a chevron: it does not turn when the folder opens.
               disableRightSectionRotation
             >
-              {children ? <FolderTree folders={folders} parentId={folder.id} current={current} open={open} onSelect={onSelect} counts={counts} /> : undefined}
+              {children ? <FolderTree folders={folders} parentId={folder.id} current={current} open={open} onSelect={onSelect} onToggle={onToggle} counts={counts} /> : undefined}
             </DroppableFolderLink>
           );
         })}
@@ -197,6 +231,8 @@ export function LibraryPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
+  /** Folders folded or unfolded by hand in the tree. */
+  const [folded, setFolded] = useState<ReadonlyMap<string, boolean>>(new Map());
   const folders = data?.documentFolders ?? [];
   const documents = data?.libraryDocuments ?? [];
   const current = folders.some((folder) => folder.id === params.get('folder')) ? params.get('folder') : null;
@@ -213,9 +249,21 @@ export function LibraryPage() {
     setParams(folderId ? { folder: folderId } : {}, { replace: true });
   };
 
-  // Folders on the way to the current one are open in the tree.
+  // Folders on the way to the current one are open in the tree, unless folded by hand; others open by hand.
   const open = new Set<string>();
   for (let folder = folders.find((item) => item.id === current); folder; folder = folders.find((item) => item.id === folder!.parentId)) open.add(folder.id);
+  for (const [folderId, opened] of folded) {
+    if (opened) open.add(folderId);
+    else open.delete(folderId);
+  }
+
+  /**
+   * Folds or unfolds a folder of the tree.
+   * @param {string} folderId Folder.
+   * @param {boolean} opened Unfolded.
+   * @returns {void}
+   */
+  const toggleFolder = (folderId: string, opened: boolean) => setFolded((previous) => new Map(previous).set(folderId, opened));
   const counts = new Map<string | null, number>();
   for (const document of documents) counts.set(document.folderId ?? null, (counts.get(document.folderId ?? null) ?? 0) + 1);
 
@@ -511,7 +559,7 @@ export function LibraryPage() {
                 onClick={() => select(null)}
               />
               <Box pl="sm">
-                <FolderTree folders={folders} parentId={null} current={current} open={open} onSelect={select} counts={counts} />
+                <FolderTree folders={folders} parentId={null} current={current} open={open} onSelect={select} onToggle={toggleFolder} counts={counts} />
               </Box>
             </Paper>
           </Grid.Col>

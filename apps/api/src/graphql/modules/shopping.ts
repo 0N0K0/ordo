@@ -11,6 +11,7 @@ builder.prismaObject('ShoppingCategory', {
     name: t.exposeString('name'),
     color: t.exposeString('color', { nullable: true }),
     parentId: t.exposeID('parentId', { nullable: true }),
+    position: t.exposeInt('position', { description: 'Manual order among its siblings.' }),
     baseListIds: t.idList({
       description: 'Base lists it is offered in (none: all; a sub-category without any takes those of its parent).',
       select: { baseLists: { select: { id: true } } },
@@ -188,7 +189,7 @@ builder.queryFields((t) => ({
   shoppingCategories: t.prismaField({
     type: ['ShoppingCategory'],
     description: 'Categories of the shopping products (a tree).',
-    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
   }),
   shoppingStores: t.prismaField({
     type: ['ShoppingStore'],
@@ -234,10 +235,10 @@ builder.mutationFields((t) => ({
     },
   }),
   moveShoppingCategory: t.boolean({
-    description: 'Moves a category under another one (parentId), or to the top level (parentId null).',
-    args: { id: t.arg.id({ required: true }), parentId: t.arg.id() },
-    resolve: async (_root, { id, parentId }) => {
-      await shopping.moveCategory(String(id), parentId ? String(parentId) : null);
+    description: 'Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
+    args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
+    resolve: async (_root, { id, parentId, index }) => {
+      await shopping.moveCategory(String(id), parentId ? String(parentId) : null, index);
       return true;
     },
   }),

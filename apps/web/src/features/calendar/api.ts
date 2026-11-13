@@ -324,8 +324,8 @@ const DeleteCalendarCategoryDocument = graphql(`
 `);
 
 const MoveCalendarCategoryDocument = graphql(`
-  mutation MoveCalendarCategory($id: ID!, $index: Int!) {
-    moveCalendarCategory(id: $id, index: $index)
+  mutation MoveCalendarCategory($id: ID!, $index: Int!, $parentId: ID) {
+    moveCalendarCategory(id: $id, index: $index, parentId: $parentId)
   }
 `);
 
@@ -477,7 +477,7 @@ export function useCalendarCategoryMutations() {
       async (variables: { id: string; input: Input }) => (await execute(UpdateCalendarCategoryDocument, variables)).updateCalendarCategory,
     ),
     remove: useCalendarMutation(async (id: string) => (await execute(DeleteCalendarCategoryDocument, { id })).deleteCalendarCategory),
-    move: useCalendarMutation(async (variables: { id: string; index: number }) => (await execute(MoveCalendarCategoryDocument, variables)).moveCalendarCategory),
+    move: useCalendarMutation(async (variables: { id: string; index: number; parentId: string | null }) => (await execute(MoveCalendarCategoryDocument, variables)).moveCalendarCategory),
   };
 }
 
