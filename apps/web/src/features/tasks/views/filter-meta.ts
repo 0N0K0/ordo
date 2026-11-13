@@ -4,8 +4,9 @@ import {
   TASK_FILTER_FIELDS,
   VALUELESS_OPERATORS,
   type FilterCondition,
+  type FilterConditionOf,
   type FilterFieldKind,
-  type FilterGroup,
+  type FilterGroupOf,
   type FilterOperator,
   type TaskFilterField,
 } from '@ordo/shared';
@@ -108,16 +109,26 @@ export const PERIOD_LABELS: Record<string, string> = {
 };
 
 /**
- * Operators of a field.
+ * Operators of a field, from the kinds of the fields filtered.
+ * @param {Record<F, FilterFieldKind>} kinds Kind of each field.
+ * @param {F} field Field.
+ * @returns {readonly FilterOperator[]} Operators.
+ */
+export function operatorsFor<F extends string>(kinds: Record<F, FilterFieldKind>, field: F): readonly FilterOperator[] {
+  return FILTER_OPERATORS[kinds[field]];
+}
+
+/**
+ * Operators of a task field.
  * @param {TaskFilterField} field Field.
  * @returns {readonly FilterOperator[]} Operators.
  */
 export function operatorsOf(field: TaskFilterField): readonly FilterOperator[] {
-  return FILTER_OPERATORS[TASK_FILTER_FIELDS[field]];
+  return operatorsFor(TASK_FILTER_FIELDS, field);
 }
 
 /**
- * Short random id for a filter node.
+ * Random id for a new filter node.
  * @returns {string} Id.
  */
 export function nodeId(): string {
@@ -125,14 +136,14 @@ export function nodeId(): string {
 }
 
 /**
- * Default value for an operator (none for valueless operators).
- * @param {TaskFilterField} field Field.
+ * Starting value of a condition for a kind of field and an operator.
+ * @param {FilterFieldKind} kind Kind of the field.
  * @param {FilterOperator} operator Operator.
  * @returns {FilterCondition['value']} Value.
  */
-export function defaultValue(field: TaskFilterField, operator: FilterOperator): FilterCondition['value'] {
+export function defaultValueFor(kind: FilterFieldKind, operator: FilterOperator): FilterCondition['value'] {
   if (VALUELESS_OPERATORS.includes(operator)) return null;
-  switch (TASK_FILTER_FIELDS[field]) {
+  switch (kind) {
     case 'text':
       return '';
     case 'number':
@@ -145,17 +156,37 @@ export function defaultValue(field: TaskFilterField, operator: FilterOperator): 
 }
 
 /**
+ * Starting value of a task condition for a field and an operator.
+ * @param {TaskFilterField} field Field.
+ * @param {FilterOperator} operator Operator.
+ * @returns {FilterCondition['value']} Value.
+ */
+export function defaultValue(field: TaskFilterField, operator: FilterOperator): FilterCondition['value'] {
+  return defaultValueFor(TASK_FILTER_FIELDS[field], operator);
+}
+
+/**
  * New condition on a field, with its first operator.
+ * @param {Record<F, FilterFieldKind>} kinds Kind of each field.
+ * @param {F} field Field.
+ * @returns {FilterConditionOf<F>} Condition.
+ */
+export function newConditionFor<F extends string>(kinds: Record<F, FilterFieldKind>, field: F): FilterConditionOf<F> {
+  const operator = operatorsFor(kinds, field)[0];
+  return { type: 'condition', id: nodeId(), field, operator, value: defaultValueFor(kinds[field], operator) };
+}
+
+/**
+ * New task condition on a field, with its first operator.
  * @param {TaskFilterField} [field='title'] Field. Optional. Default = 'title'.
  * @returns {FilterCondition} Condition.
  */
 export function newCondition(field: TaskFilterField = 'title'): FilterCondition {
-  const operator = operatorsOf(field)[0];
-  return { type: 'condition', id: nodeId(), field, operator, value: defaultValue(field, operator) };
+  return newConditionFor(TASK_FILTER_FIELDS, field);
 }
 
 /**
- * Whether a condition is complete (it can be sent to the API).
+ * Whether a task condition is complete (valid), so it applies.
  * @param {FilterCondition} condition Condition.
  * @returns {boolean} True when valid.
  */
@@ -164,26 +195,30 @@ export function isComplete(condition: FilterCondition): boolean {
 }
 
 /**
- * Removes incomplete conditions (and the groups left empty), so the API only receives a valid tree.
- * @param {FilterGroup} group Group.
- * @returns {FilterGroup} Pruned copy.
+ * Filter without its incomplete conditions nor its empty groups.
+ * @param {FilterGroupOf<F>} group Group.
+ * @param {(condition: FilterConditionOf<F>) => boolean} [complete] Whether a condition is complete. Optional. Default = a task one.
+ * @returns {FilterGroupOf<F>} Pruned copy.
  */
-export function pruneFilter(group: FilterGroup): FilterGroup {
+export function pruneFilter<F extends string = TaskFilterField>(
+  group: FilterGroupOf<F>,
+  complete: (condition: FilterConditionOf<F>) => boolean = isComplete as unknown as (condition: FilterConditionOf<F>) => boolean,
+): FilterGroupOf<F> {
   return {
     ...group,
-    children: group.children.flatMap((child): FilterGroup['children'] => {
-      if (child.type === 'condition') return isComplete(child) ? [child] : [];
-      const pruned = pruneFilter(child);
+    children: group.children.flatMap((child): FilterGroupOf<F>['children'] => {
+      if (child.type === 'condition') return complete(child) ? [child] : [];
+      const pruned = pruneFilter(child, complete);
       return pruned.children.length > 0 ? [pruned] : [];
     }),
   };
 }
 
 /**
- * Number of conditions in a tree.
- * @param {FilterGroup} group Group.
+ * Number of conditions of a filter, nested ones included.
+ * @param {FilterGroupOf<F>} group Group.
  * @returns {number} Count.
  */
-export function countConditions(group: FilterGroup): number {
+export function countConditions<F extends string>(group: FilterGroupOf<F>): number {
   return group.children.reduce((sum, child) => sum + (child.type === 'condition' ? 1 : countConditions(child)), 0);
 }

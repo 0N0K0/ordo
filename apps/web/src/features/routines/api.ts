@@ -138,8 +138,8 @@ const BulkDeleteRoutinesDocument = graphql(`
 `);
 
 const SetRoutineDoneDocument = graphql(`
-  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int) {
-    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot)
+  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {
+    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)
   }
 `);
 
@@ -451,7 +451,7 @@ export function useRoutineMutations() {
     ),
     move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
     setDone: useRoutineMutation(
-      async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
+      async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null; doneAt?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),
     ),
     moveOccurrence: useRoutineMutation(async (variables: { id: string; date: string; to: string }) => (await execute(MoveRoutineOccurrenceDocument, variables)).moveRoutineOccurrence),

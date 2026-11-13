@@ -1811,6 +1811,9 @@ type Mutation {
   setRoutineDone(
     date: Date
     done: Boolean!
+
+    """When it was done (ticked after the fact); now by default."""
+    doneAt: DateTime
     id: ID!
 
     """Time of the day (index); 0 by default."""
@@ -2311,9 +2314,9 @@ type Query {
   taskTypes: [TaskType!]!
 
   """
-  Views of a project's task tab, or of the home page when projectId is omitted.
+  Views of the tasks (or routines, by kind) of a project's tab, or of their page when projectId is omitted.
   """
-  taskViews(projectId: ID): [TaskView!]!
+  taskViews(kind: ViewKind, projectId: ID): [TaskView!]!
 
   """Every task, archived ones included, in manual order."""
   tasks: [Task!]!
@@ -3118,16 +3121,21 @@ input TaskUpdateInput {
   typeId: ID
 }
 
+"""Saved view of the tasks or of the routines."""
 type TaskView {
   config: JSON!
   id: ID!
   isDefault: Boolean!
+  kind: ViewKind!
   name: String!
   position: Int!
 }
 
 input TaskViewInput {
   config: JSON!
+
+  """Tasks (default) or routines."""
+  kind: ViewKind
   name: String!
 
   """Project of the view; omitted or null for the home page."""
@@ -3678,6 +3686,12 @@ type User {
   id: ID!
   pendingEmail: String
   username: String!
+}
+
+"""What a saved view lists."""
+enum ViewKind {
+  ROUTINES
+  TASKS
 }
 
 """

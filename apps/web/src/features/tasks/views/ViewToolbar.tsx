@@ -22,7 +22,6 @@ import {
   TASK_SORT_KEYS,
   type EventPeriod,
   type TaskGroupBy,
-  type TaskSortKey,
   type TaskViewConfig,
 } from '@ordo/shared';
 import {
@@ -61,24 +60,31 @@ const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
   'past:30': '30 derniers jours',
 };
 
-interface SortPanelProps {
-  sorting: TaskViewConfig['sorting'];
-  onChange: (sorting: TaskViewConfig['sorting']) => void;
+interface SortPanelProps<K extends string> {
+  sorting: { id: K; desc: boolean }[];
+  onChange: (sorting: { id: K; desc: boolean }[]) => void;
+  /** Sort keys offered. */
+  keys: readonly K[];
+  labels: Record<K, string>;
+  /** What the manual order allows. */
+  manualText: string;
+  /** Tip under the sorts. Optional. */
+  hint?: string;
 }
 
 /**
  * Sort levels: column, direction, priority order. Empty means manual order.
- * @param {SortPanelProps} props Component props.
+ * @param {SortPanelProps<K>} props Component props.
  * @returns {JSX.Element} Panel.
  */
-function SortPanel({ sorting, onChange }: SortPanelProps) {
+export function SortPanel<K extends string>({ sorting, onChange, keys, labels, manualText, hint }: SortPanelProps<K>) {
   const used = new Set(sorting.map((sort) => sort.id));
-  const available = TASK_SORT_KEYS.filter((key) => !used.has(key));
+  const available = keys.filter((key) => !used.has(key));
   return (
     <Stack gap="xs" w={380}>
       {sorting.length === 0 ? (
         <Text size="sm" c="dimmed">
-          Ordre manuel : les tâches peuvent être réordonnées par glisser-déposer.
+          {manualText}
         </Text>
       ) : (
         sorting.map((sort, index) => (
@@ -90,10 +96,10 @@ function SortPanel({ sorting, onChange }: SortPanelProps) {
               comboboxProps={{ withinPortal: false }}
               size="xs"
               aria-label="Colonne"
-              data={[sort.id, ...available].map((key) => ({ value: key, label: SORT_LABELS[key] }))}
+              data={[sort.id, ...available].map((key) => ({ value: key, label: labels[key] }))}
               value={sort.id}
               allowDeselect={false}
-              onChange={(id) => id && onChange(sorting.map((item, i) => (i === index ? { ...item, id: id as TaskSortKey } : item)))}
+              onChange={(id) => id && onChange(sorting.map((item, i) => (i === index ? { ...item, id: id as K } : item)))}
               style={{ flex: 1 }}
             />
             <SegmentedControl
@@ -154,9 +160,11 @@ function SortPanel({ sorting, onChange }: SortPanelProps) {
           </Button>
         )}
       </Group>
-      <Text size="xs" c="dimmed">
-        Astuce : cliquez sur un en-tête de colonne pour trier, Maj + clic pour ajouter un niveau.
-      </Text>
+      {hint && (
+        <Text size="xs" c="dimmed">
+          {hint}
+        </Text>
+      )}
     </Stack>
   );
 }
@@ -376,7 +384,14 @@ export function ViewToolbar({ config, change, context, filterOpened, onFilterOpe
           </Button>
         </Popover.Target>
         <Popover.Dropdown>
-          <SortPanel sorting={config.sorting} onChange={(sorting) => change((current) => ({ ...current, sorting }))} />
+          <SortPanel
+            sorting={config.sorting}
+            onChange={(sorting) => change((current) => ({ ...current, sorting }))}
+            keys={TASK_SORT_KEYS}
+            labels={SORT_LABELS}
+            manualText="Ordre manuel : les tâches peuvent être réordonnées par glisser-déposer."
+            hint="Astuce : cliquez sur un en-tête de colonne pour trier, Maj + clic pour ajouter un niveau."
+          />
         </Popover.Dropdown>
       </Popover>
 

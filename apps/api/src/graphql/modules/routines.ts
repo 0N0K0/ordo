@@ -516,8 +516,10 @@ builder.mutationFields((t) => ({
   setRoutineDone: t.field({
     type: 'Date',
     description: 'Ticks or unticks an occurrence (by default the current one); returns its date.',
-    args: { id: t.arg.id({ required: true }), done: t.arg.boolean({ required: true }), date: t.arg({ type: 'Date' }), slot: t.arg.int({ description: 'Time of the day (index); 0 by default.' }) },
-    resolve: async (_root, { id, done, date, slot }) => parseDay(await routines.setRoutineDone(String(id), done, date ?? null, slot ?? null)),
+    args: { id: t.arg.id({ required: true }), done: t.arg.boolean({ required: true }), date: t.arg({ type: 'Date' }), slot: t.arg.int({ description: 'Time of the day (index); 0 by default.' }),
+      doneAt: t.arg({ type: 'DateTime', description: 'When it was done (ticked after the fact); now by default.' }),
+    },
+    resolve: async (_root, { id, done, date, slot, doneAt }) => parseDay(await routines.setRoutineDone(String(id), done, date ?? null, slot ?? null, doneAt ?? null)),
   }),
   setRoutineArchived: t.boolean({
     args: { id: t.arg.id({ required: true }), archived: t.arg.boolean({ required: true }) },

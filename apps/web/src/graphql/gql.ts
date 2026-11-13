@@ -232,7 +232,7 @@ type Documents = {
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
-    "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot)\n  }\n": typeof types.SetRoutineDoneDocument,
+    "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": typeof types.SetRoutineDoneDocument,
     "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to)\n  }\n": typeof types.MoveRoutineOccurrenceDocument,
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
@@ -322,7 +322,7 @@ type Documents = {
     "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.TaskColumnDefaultsDocument,
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": typeof types.SetTasksClosedDocument,
-    "\n  query TaskViews($projectId: ID) {\n    taskViews(projectId: $projectId) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
+    "\n  query TaskViews($projectId: ID, $kind: ViewKind) {\n    taskViews(projectId: $projectId, kind: $kind) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": typeof types.MatchingTaskIdsDocument,
     "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTaskViewDocument,
     "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTaskViewDocument,
@@ -644,7 +644,7 @@ const documents: Documents = {
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": types.BulkDeleteRoutinesDocument,
-    "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot)\n  }\n": types.SetRoutineDoneDocument,
+    "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": types.SetRoutineDoneDocument,
     "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to)\n  }\n": types.MoveRoutineOccurrenceDocument,
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": types.DeleteRoutineOccurrenceDocument,
@@ -734,7 +734,7 @@ const documents: Documents = {
     "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.TaskColumnDefaultsDocument,
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": types.SetTasksClosedDocument,
-    "\n  query TaskViews($projectId: ID) {\n    taskViews(projectId: $projectId) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
+    "\n  query TaskViews($projectId: ID, $kind: ViewKind) {\n    taskViews(projectId: $projectId, kind: $kind) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": types.MatchingTaskIdsDocument,
     "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": types.CreateTaskViewDocument,
     "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTaskViewDocument,
@@ -1710,7 +1710,7 @@ export function graphql(source: "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot)\n  }\n"): typeof import('./graphql').SetRoutineDoneDocument;
+export function graphql(source: "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n"): typeof import('./graphql').SetRoutineDoneDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2070,7 +2070,7 @@ export function graphql(source: "\n  mutation SetTasksClosed($ids: [ID!]!, $clos
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TaskViews($projectId: ID) {\n    taskViews(projectId: $projectId) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n"): typeof import('./graphql').TaskViewsDocument;
+export function graphql(source: "\n  query TaskViews($projectId: ID, $kind: ViewKind) {\n    taskViews(projectId: $projectId, kind: $kind) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n"): typeof import('./graphql').TaskViewsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

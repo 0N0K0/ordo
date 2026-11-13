@@ -136,84 +136,113 @@ export function filterPeriod(token: string, today: string): [string, string] {
   return [isoDay(Date.UTC(year, month, 1)), isoDay(Date.UTC(year, month + 1, 1))];
 }
 
-export const filterConditionSchema = z
-  .object({
-    type: z.literal('condition'),
-    /** Stable id, for the filter builder UI. */
-    id: z.string().min(1).max(64),
-    field: z.enum(Object.keys(TASK_FILTER_FIELDS) as [TaskFilterField, ...TaskFilterField[]]),
-    operator: z.string(),
-    /** string (text, day, period), number, or list of ids / categories, depending on the operator. */
-    value: z.union([z.string(), z.number(), z.array(z.string()), z.null()]).optional(),
-  })
-  .superRefine((condition, ctx) => {
-    const kind = TASK_FILTER_FIELDS[condition.field];
-    const operators = FILTER_OPERATORS[kind] as readonly string[];
-    if (!operators.includes(condition.operator)) {
-      ctx.addIssue({ code: 'custom', path: ['operator'], message: 'Opérateur invalide pour ce champ.' });
-      return;
-    }
-    const operator = condition.operator as FilterOperator;
-    if (VALUELESS_OPERATORS.includes(operator)) return;
+/** Condition of a filter on some fields (tasks, routines…). */
+export interface FilterConditionOf<F extends string> {
+  type: 'condition';
+  /** Stable id, for the filter builder UI. */
+  id: string;
+  field: F;
+  operator: string;
+  /** string (text, day, period), number, or list of ids / categories, depending on the operator. */
+  value?: string | number | string[] | null;
+}
 
-    const { value } = condition;
-    const issue = (message: string) => ctx.addIssue({ code: 'custom', path: ['value'], message });
-    switch (kind) {
-      case 'text':
-        if (typeof value !== 'string') issue('Texte attendu.');
-        break;
-      case 'number':
-        if (typeof value !== 'number' || !Number.isFinite(value)) issue('Nombre attendu.');
-        break;
-      case 'date': {
-        const schema = operator === 'within' ? filterPeriodSchema : filterDaySchema;
-        if (!schema.safeParse(value).success) issue(operator === 'within' ? 'Période invalide.' : 'Date invalide.');
-        break;
-      }
-      case 'reference':
-      case 'multiReference':
-      case 'sprint':
-        if (!Array.isArray(value) || value.length === 0) issue('Choisissez au moins une valeur.');
-        break;
-      case 'category':
-        if (
-          !Array.isArray(value) ||
-          value.length === 0 ||
-          !value.every((item) => (TASK_STATUS_CATEGORIES as readonly string[]).includes(item))
-        ) {
-          issue('Choisissez au moins une catégorie.');
-        }
-        break;
-    }
-  });
-export type FilterCondition = z.infer<typeof filterConditionSchema>;
-
-export interface FilterGroup {
+/** Group of conditions of a filter on some fields. */
+export interface FilterGroupOf<F extends string> {
   type: 'group';
   id: string;
   /** How the children combine: all of them (and) or at least one (or). */
   combinator: 'and' | 'or';
-  children: (FilterGroup | FilterCondition)[];
+  children: (FilterGroupOf<F> | FilterConditionOf<F>)[];
 }
+
+/**
+ * Schema of a filter condition on some fields: its operator fits the kind of its field, and so does its value.
+ * @param {Record<F, FilterFieldKind>} fields Fields and their kind.
+ * @param {Partial<Record<F, readonly string[]>>} choices Values allowed for the fields of kind `category`.
+ * @returns {z.ZodType<FilterConditionOf<F>>} Schema.
+ */
+export function filterConditionSchemaFor<F extends string>(fields: Record<F, FilterFieldKind>, choices: Partial<Record<F, readonly string[]>>): z.ZodType<FilterConditionOf<F>> {
+  return z
+    .object({
+      type: z.literal('condition'),
+      id: z.string().min(1).max(64),
+      field: z.enum(Object.keys(fields) as [F, ...F[]]),
+      operator: z.string(),
+      value: z.union([z.string(), z.number(), z.array(z.string()), z.null()]).optional(),
+    })
+    .superRefine((condition, ctx) => {
+      const field = condition.field as F;
+      const kind = fields[field];
+      const operators = FILTER_OPERATORS[kind] as readonly string[];
+      if (!operators.includes(condition.operator)) {
+        ctx.addIssue({ code: 'custom', path: ['operator'], message: 'Opérateur invalide pour ce champ.' });
+        return;
+      }
+      const operator = condition.operator as FilterOperator;
+      if (VALUELESS_OPERATORS.includes(operator)) return;
+
+      const { value } = condition;
+      const issue = (message: string) => ctx.addIssue({ code: 'custom', path: ['value'], message });
+      switch (kind) {
+        case 'text':
+          if (typeof value !== 'string') issue('Texte attendu.');
+          break;
+        case 'number':
+          if (typeof value !== 'number' || !Number.isFinite(value)) issue('Nombre attendu.');
+          break;
+        case 'date': {
+          const schema = operator === 'within' ? filterPeriodSchema : filterDaySchema;
+          if (!schema.safeParse(value).success) issue(operator === 'within' ? 'Période invalide.' : 'Date invalide.');
+          break;
+        }
+        case 'reference':
+        case 'multiReference':
+        case 'sprint':
+          if (!Array.isArray(value) || value.length === 0) issue('Choisissez au moins une valeur.');
+          break;
+        case 'category': {
+          const allowed = choices[field] ?? [];
+          if (!Array.isArray(value) || value.length === 0 || !value.every((item) => allowed.includes(item))) issue('Choisissez au moins une catégorie.');
+          break;
+        }
+      }
+    }) as unknown as z.ZodType<FilterConditionOf<F>>;
+}
+
+/**
+ * Schema of a filter tree (groups of conditions) on some fields.
+ * @param {z.ZodType<FilterConditionOf<F>>} condition Schema of a condition.
+ * @returns {z.ZodType<FilterGroupOf<F>>} Schema.
+ */
+export function filterGroupSchemaFor<F extends string>(condition: z.ZodType<FilterConditionOf<F>>): z.ZodType<FilterGroupOf<F>> {
+  const group: z.ZodType<FilterGroupOf<F>> = z.lazy(() =>
+    z.object({
+      type: z.literal('group'),
+      id: z.string().min(1).max(64),
+      combinator: z.enum(['and', 'or']),
+      children: z.array(z.union([group, condition])).max(50),
+    }),
+  );
+  return group;
+}
+
+export const filterConditionSchema = filterConditionSchemaFor(TASK_FILTER_FIELDS, { statusCategory: TASK_STATUS_CATEGORIES });
+export type FilterCondition = FilterConditionOf<TaskFilterField>;
+
+export type FilterGroup = FilterGroupOf<TaskFilterField>;
 
 /** Maximum nesting of filter groups. */
 export const MAX_FILTER_DEPTH = 5;
 
-export const filterGroupSchema: z.ZodType<FilterGroup> = z.lazy(() =>
-  z.object({
-    type: z.literal('group'),
-    id: z.string().min(1).max(64),
-    combinator: z.enum(['and', 'or']),
-    children: z.array(z.union([filterGroupSchema, filterConditionSchema])).max(50),
-  }),
-);
+export const filterGroupSchema: z.ZodType<FilterGroup> = filterGroupSchemaFor(filterConditionSchema);
 
 /**
  * Nesting depth of a filter tree (1 for a group of conditions).
  * @param {FilterGroup} group Root group.
  * @returns {number} Depth.
  */
-export function filterDepth(group: FilterGroup): number {
+export function filterDepth<F extends string>(group: FilterGroupOf<F>): number {
   return 1 + Math.max(0, ...group.children.map((child) => (child.type === 'group' ? filterDepth(child) : 0)));
 }
 

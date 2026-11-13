@@ -773,6 +773,8 @@ export type TaskUpdateInput = {
 
 export type TaskViewInput = {
   config: unknown;
+  /** Tasks (default) or routines. */
+  kind?: ViewKind | null | undefined;
   name: string;
   /** Project of the view; omitted or null for the home page. */
   projectId?: string | number | null | undefined;
@@ -961,6 +963,11 @@ export type TreasuryStatementRowInput = {
   /** Occurrence of a repeated forecast it realizes. */
   occurrence?: string | null | undefined;
 };
+
+/** What a saved view lists. */
+export type ViewKind =
+  | 'ROUTINES'
+  | 'TASKS';
 
 export type WorkScheduleInput = {
   /** Cases (shared schedule case shape). */
@@ -2583,6 +2590,7 @@ export type SetRoutineDoneMutationVariables = Exact<{
   done: boolean;
   date?: string | null | undefined;
   slot?: number | null | undefined;
+  doneAt?: string | null | undefined;
 }>;
 
 
@@ -3239,6 +3247,7 @@ export type SetTasksClosedMutation = { setTasksClosed: boolean };
 
 export type TaskViewsQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
+  kind?: ViewKind | null | undefined;
 }>;
 
 
@@ -6732,8 +6741,8 @@ export const BulkDeleteRoutinesDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<BulkDeleteRoutinesMutation, BulkDeleteRoutinesMutationVariables>;
 export const SetRoutineDoneDocument = new TypedDocumentString(`
-    mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int) {
-  setRoutineDone(id: $id, done: $done, date: $date, slot: $slot)
+    mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {
+  setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)
 }
     `) as unknown as TypedDocumentString<SetRoutineDoneMutation, SetRoutineDoneMutationVariables>;
 export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
@@ -7501,8 +7510,8 @@ export const SetTasksClosedDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<SetTasksClosedMutation, SetTasksClosedMutationVariables>;
 export const TaskViewsDocument = new TypedDocumentString(`
-    query TaskViews($projectId: ID) {
-  taskViews(projectId: $projectId) {
+    query TaskViews($projectId: ID, $kind: ViewKind) {
+  taskViews(projectId: $projectId, kind: $kind) {
     id
     name
     config

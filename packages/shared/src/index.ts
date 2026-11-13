@@ -15,3 +15,4 @@ export * from './work-schedules';
 export * from './geo';
 export * from './shopping';
 export * from './routines';
+export * from './routine-views';

@@ -1,45 +1,24 @@
-import { Button, Group, Paper, SegmentedControl, Skeleton, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { Button, Group, Paper, Skeleton, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
 import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
-import { stateOf } from './routine-format';
+import { keptByView, routineFilterFields, routineGrouping, sortRoutines, useRoutineView } from './routine-view';
+import { RoutineViewToolbar } from './RoutineViewToolbar';
+import { ViewTabs } from '../tasks/views/ViewTabs';
 import { RoutineHistory } from './RoutineHistory';
 import { RoutineSettings } from './RoutineSettings';
 import { RoutineTable } from './RoutineTable';
 
-type RoutineFilter = 'todo' | 'all' | 'archived';
-
-const FILTER_KEY = 'ordo.routines.filter';
-
 /**
- * Filter remembered between visits.
- * @returns {RoutineFilter} Filter.
- */
-function storedFilter(): RoutineFilter {
-  try {
-    const value = localStorage.getItem(FILTER_KEY);
-    return value === 'all' || value === 'archived' ? value : 'todo';
-  } catch {
-    return 'todo';
-  }
-}
-
-/** Empty state of each filter. */
-const EMPTY: Record<RoutineFilter, string> = {
-  todo: 'Rien à faire pour le moment : toutes les routines du jour sont cochées.',
-  all: 'Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…',
-  archived: 'Aucune routine archivée.',
-};
-
-/**
- * Routines shown with a filter: what is left to do today (and late), every routine, or the archived ones, in a table
- * by category (sub-routines under their parent). On a project page, only the routines of the project (and of its
- * sub-projects), those added there going to the project.
+ * Routines through saved views, as the tasks: tabs of views, each with its search, filters, sorts and groups (by
+ * category by default, sub-routines under their parent); « À faire », « Toutes » and « Archivées » are made at first.
+ * On a project page, only the routines of the project (and of its sub-projects), with the views of the project, those
+ * added there going to the project.
  * @param {{ projectId?: string, projectIds?: ReadonlySet<string> }} props Component props.
  * @param {string} [props.projectId] Project of the page, given to the routines added. Optional.
  * @param {ReadonlySet<string>} [props.projectIds] Projects whose routines are shown (the project and its sub-projects). Optional.
@@ -48,73 +27,75 @@ const EMPTY: Record<RoutineFilter, string> = {
 export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; projectIds?: ReadonlySet<string> }) {
   const { data, isLoading } = useRoutinesData();
   const { context } = useTaskContext();
-  const [filter, setFilter] = useState<RoutineFilter>(storedFilter);
+  const state = useRoutineView(projectId ?? null);
+  const { config } = state;
   const today = localToday();
-  const routines = data?.routines ?? [];
+  const routines = useMemo(() => data?.routines ?? [], [data]);
+  const categories = useMemo(() => data?.routineCategories ?? [], [data]);
+  const env = useMemo(() => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context } : null), [today, routines, categories, context]);
 
   /**
-   * Whether a routine is shown with the filter.
+   * Whether a routine is shown: of the project (on a project page) and kept by the view.
    * @param {Routine} routine Routine.
    * @returns {boolean} Shown.
    */
   const keep = (routine: Routine) => {
     if (projectIds && !(routine.projectId && projectIds.has(routine.projectId))) return false;
-    if (filter === 'archived') return routine.archived;
-    if (routine.archived) return false;
-    return filter === 'all' || ['due', 'late'].includes(stateOf(routine, today));
+    return Boolean(config && env && keptByView(config, routine, env));
   };
   const count = routines.filter(keep).length;
-  const empty = projectIds && filter === 'all' ? 'Aucune routine dans ce projet : une routine y est rattachée par son champ « Projet ».' : EMPTY[filter];
+  const ordered = config && env ? sortRoutines(routines, config.sorting, env) : routines;
+  // Flat: each routine a row of its own.
+  const layout = config?.flat ? ordered.map((routine) => ({ ...routine, parentId: null })) : ordered;
+  const groupBy = config?.groupBy ?? null;
 
   return (
-    <Stack gap="lg">
-      <Group justify="space-between" gap="sm">
-        <SegmentedControl
-          value={filter}
-          onChange={(value) => {
-            setFilter(value as RoutineFilter);
-            try {
-              localStorage.setItem(FILTER_KEY, value);
-            } catch {
-              // Not remembered.
-            }
-          }}
-          data={[
-            { value: 'todo', label: 'À faire' },
-            { value: 'all', label: 'Toutes' },
-            { value: 'archived', label: 'Archivées' },
-          ]}
-          aria-label="Routines affichées"
-        />
+    <Stack gap="md">
+      <Group justify="space-between" gap="sm" wrap="nowrap" align="flex-end">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <ViewTabs state={state} />
+        </div>
         <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
           Nouvelle routine
         </Button>
       </Group>
-      {isLoading || !context ? (
+      {config && env && <RoutineViewToolbar config={config} change={state.change} fields={routineFilterFields(env)} dirty={state.dirty} onSave={state.save} onRevert={state.revert} />}
+      {isLoading || !context || !config || !env ? (
         <Stack gap="xs" aria-label="Chargement">
           {[0, 1, 2, 3].map((index) => (
             <Skeleton key={index} height={36} />
           ))}
         </Stack>
-      ) : count === 0 && (filter !== 'all' || projectIds) ? (
+      ) : count === 0 && routines.length > 0 ? (
         <Paper withBorder radius="md" p="xl">
           <Stack align="center" gap="sm">
             <ThemeIcon variant="light" size="xl" radius="xl">
               <ArrowsClockwiseIcon aria-hidden />
             </ThemeIcon>
             <Text size="sm" c="dimmed" ta="center">
-              {empty}
+              {projectIds ? 'Aucune routine de ce projet dans cette vue : une routine y est rattachée par son champ « Projet ».' : 'Aucune routine dans cette vue.'}
             </Text>
           </Stack>
         </Paper>
       ) : (
         <Stack gap="xs">
-          {count === 0 && (
+          {routines.length === 0 && (
             <Text size="sm" c="dimmed">
-              {EMPTY.all}
+              Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…
             </Text>
           )}
-          <RoutineTable routines={routines} categories={data?.routineCategories ?? []} context={context} keep={keep} addable={filter === 'all'} projectId={projectId ?? null} />
+          <RoutineTable
+            routines={routines}
+            layout={layout}
+            categories={categories}
+            context={context}
+            keep={keep}
+            grouping={routineGrouping(groupBy, env)}
+            reorderable={config.sorting.length === 0 && !config.flat}
+            groupDrop={groupBy === 'category'}
+            addable={groupBy === 'category' || groupBy === null}
+            projectId={projectId ?? null}
+          />
         </Stack>
       )}
     </Stack>
