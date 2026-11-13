@@ -20,13 +20,19 @@ import {
   localDate,
   TIME_ZONE,
 } from './fixtures/factories';
-import { addDays, DEFAULT_RECURRENCE, type Recurrence } from '@ordo/shared';
+import { addDays, DEFAULT_RECURRENCE, emptyFilter, type Recurrence } from '@ordo/shared';
+import { createView } from '../src/services/task-views';
+import { saveScheduleType } from '../src/services/work-schedules';
 import { DEMO_COMPANY, seedAccounting } from './fixtures/accounting';
 import { seedSprintsAndDashboards } from './fixtures/dashboards';
+import { seedLibrary } from './fixtures/library';
 import { seedMailbox } from './fixtures/mail';
+import { seedRoutines } from './fixtures/routines';
+import { seedShopping } from './fixtures/shopping';
+import { seedTeam } from './fixtures/team';
 
 // Fake data for development: purges the business data (clients, projects, tasks, labels, contributors, tracked
-// time, calendar, sprints, dashboards, accounting, treasury), keeps the user account, the mail accounts and the alarms, then fills the
+// time, calendar, sprints, dashboards, accounting, treasury, library, places, shopping, routines), keeps the user account, the mail accounts and the alarms, then fills the
 // database, with a demo mailbox on GreenMail (recreated on each run). `npm run db:seed -- --force` skips the confirmation.
 
 if (process.env.NODE_ENV === 'production') {
@@ -56,7 +62,7 @@ const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
     message:
-      `Dans l’espace « ${workspace.name} », les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, sprints, tableaux de bord, documents comptables, catalogue et trésorerie vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail, les alarmes et les autres espaces sont conservés). Continuer ?`,
+      `Dans l’espace « ${workspace.name} », les clients, projets, tâches, libellés, contributeurs, temps, évènements d’agenda, sprints, tableaux de bord, documents comptables, catalogue, trésorerie, bibliothèque, lieux, courses et routines vont être supprimés, et le profil de société remplacé par une société de démonstration ; la boîte mail de démo est recréée (le compte, les autres boîtes mail, les alarmes et les autres espaces sont conservés). Continuer ?`,
     default: false,
   });
   if (!ok) process.exit(0);
@@ -80,6 +86,16 @@ await prisma.treasuryEntry.deleteMany();
 await prisma.accountingDocument.updateMany({ data: { sourceId: null } });
 await prisma.accountingDocument.deleteMany();
 for (const model of [
+  prisma.routine,
+  prisma.routineCategory,
+  prisma.shoppingList,
+  prisma.shoppingBaseList,
+  prisma.shoppingCategory,
+  prisma.shoppingStore,
+  prisma.shoppingStorage,
+  prisma.place,
+  prisma.libraryDocument,
+  prisma.documentFolder,
   prisma.importedDocument,
   prisma.documentSequence,
   prisma.catalogItem,
@@ -610,7 +626,7 @@ await prisma.calendarEvent.create({
 // with its own hours.
 const range = (start: string, end: string) => ({ start, end });
 const weekly = (weekdays: number[], ranges: { start: string; end: string }[], every = 1) => ({ pattern: 'WEEKLY', weekdays, every, from: null, allDay: false, ranges });
-await prisma.workSchedule.create({
+const workWeek = await prisma.workSchedule.create({
   data: {
     name: 'Semaine type',
     startDate: new Date(`${addDays(monday, -56)}T00:00:00.000Z`),
@@ -631,11 +647,60 @@ await prisma.workSchedule.create({
   },
 });
 
+// On-call duty: a kind of its own (color, display), every fourth Saturday.
+const onCall = await saveScheduleType(null, { name: 'Astreinte', color: '#fd7e14', dayDisplay: 'SLOT_BORDER', dayBar: true, monthDisplay: 'BORDER' });
+await prisma.workSchedule.create({
+  data: {
+    name: 'Astreintes',
+    typeId: onCall.id,
+    startDate: new Date(`${addDays(monday, 5)}T00:00:00.000Z`),
+    cases: [weekly([6], [range('10:00', '18:00')], 4)],
+    exceptions: [],
+  },
+});
+
+// --- Task views (home page and a project) ------------------------------------------------------------------
+const condition = (id: string, field: string, operator: string, value: string | string[] | null = null) => ({ type: 'condition', id, field, operator, value });
+const filter = (...children: ReturnType<typeof condition>[]) => ({ ...emptyFilter(), children });
+await createView({ name: 'Toutes les tâches', config: {} });
+if (meId) await createView({ name: 'Mes tâches', config: { filter: filter(condition('mine', 'assignees', 'anyOf', [meId]), condition('open', 'closed', 'isFalse')), sorting: [{ id: 'deadline', desc: false }] } });
+await createView({ name: 'En retard', config: { filter: filter(condition('late', 'overdue', 'isTrue')), groupBy: 'project', hiddenColumns: ['tags', 'effort', 'trackedTime'] } });
+await createView({ name: 'Par priorité', config: { filter: filter(condition('open', 'closed', 'isFalse')), groupBy: 'priority', flat: true, events: { show: true, period: 'next:30' } } });
+if (activeRoots[0]) {
+  await createView({ name: 'Tableau', projectId: activeRoots[0].id, config: { groupBy: 'status' } });
+  await createView({ name: 'Sprint en cours', projectId: activeRoots[0].id, config: { filter: filter(condition('sprint', 'sprint', 'current')), groupBy: 'assignees' } });
+}
+
 // --- Accounting -------------------------------------------------------------------------------------------
 await seedAccounting({ clients, projects, today });
 
 // --- Sprints and dashboards (after the accounting: finance charts filter its accounts and statuses) ------------
 await seedSprintsAndDashboards({ projects, today });
+
+// --- History of the statuses: created to do (a few weeks ago), started, then closed --------------------------
+// The tasks were all created by the seed, closed ones included: their creation goes back before they started and
+// closed (the trigger only watches the status and the closing), and their history is rebuilt.
+const allTasks = await prisma.task.findMany({ select: { id: true, statusId: true, closedAt: true, startDate: true, status: { select: { category: true } } } });
+const hour = 3_600_000;
+const history: { taskId: string; statusId: string | null; closed: boolean; at: Date }[] = [];
+for (const task of allTasks) {
+  const category = task.status?.category ?? 'TODO';
+  const end = task.closedAt ?? now;
+  const createdAt = new Date(Math.min(end.getTime() - faker.number.int({ min: 1, max: 30 }) * 24 * hour, task.startDate?.getTime() ?? Infinity));
+  await prisma.task.update({ where: { id: task.id }, data: { createdAt } });
+  const started = new Date((createdAt.getTime() + end.getTime()) / 2);
+  history.push({ taskId: task.id, statusId: category === 'TODO' ? task.statusId : statuses[0].id, closed: false, at: createdAt });
+  if (category !== 'TODO' && category !== 'CANCELLED') history.push({ taskId: task.id, statusId: statuses[1].id, closed: false, at: started });
+  if (category !== 'TODO' && task.statusId !== statuses[1].id) history.push({ taskId: task.id, statusId: task.statusId, closed: Boolean(task.closedAt), at: new Date(Math.max(end.getTime(), started.getTime() + hour)) });
+}
+await prisma.taskStatusChange.deleteMany();
+await prisma.taskStatusChange.createMany({ data: history });
+
+// --- Team of the treasury, library, shopping, places and routines ------------------------------------------
+const team = await seedTeam({ contributors, today, monday });
+await seedLibrary({ projects });
+await seedShopping({ team, today });
+await seedRoutines({ projects, contributors, meId, scheduleId: workWeek.id });
 
 // --- Mailbox ----------------------------------------------------------------------------------------------
 await seedMailbox({ projects, today });
@@ -652,6 +717,7 @@ const counts = {
   'catégories d’agenda': await prisma.calendarCategory.count(),
   'évènements': await prisma.calendarEvent.count(),
   'plages de travail': await prisma.workSchedule.count(),
+  'vues de tâches': await prisma.taskView.count(),
   'documents comptables': await prisma.accountingDocument.count({ where: { status: { not: 'TEMPLATE' } } }),
   'documents importés': await prisma.importedDocument.count(),
   'articles du catalogue': await prisma.catalogItem.count(),
@@ -659,6 +725,14 @@ const counts = {
   'mails liés aux projets': await prisma.mailMessage.count(),
   sprints: await prisma.sprint.count(),
   'diagrammes': await prisma.dashboardChart.count(),
+  'budgets': await prisma.treasuryBudget.count(),
+  'documents de la bibliothèque': await prisma.libraryDocument.count(),
+  'documents de projets': await prisma.projectResource.count(),
+  lieux: await prisma.place.count(),
+  'produits de courses': await prisma.shoppingProduct.count(),
+  'listes de courses': await prisma.shoppingList.count(),
+  routines: await prisma.routine.count(),
+  'routines cochées': await prisma.routineCheck.count(),
 };
 console.log('Fixtures chargées :', counts);
 await prisma.$disconnect();
