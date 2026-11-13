@@ -12,7 +12,7 @@ import { useEventForm } from '../../calendar/use-event-form';
 import classes from '../TaskTable.module.css';
 import type { TaskContext } from '../use-task-context';
 import { EVENT_STATES, eventState } from './event-format';
-import cellClasses from './inline-cells.module.css';
+import cellClasses from '../../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from './StackedMultiCell';
 
 /**

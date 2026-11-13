@@ -22,7 +22,7 @@ import { LabelBadge } from '../task-ui';
 import type { TaskContext } from '../use-task-context';
 import { useTaskLink } from '../use-task-link';
 import { useCellEdit } from './cell-edit';
-import classes from './inline-cells.module.css';
+import classes from '../../../components/data-table/EditableCells.module.css';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 import { StackedMultiCell } from './StackedMultiCell';
 

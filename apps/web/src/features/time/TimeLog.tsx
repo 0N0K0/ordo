@@ -4,12 +4,15 @@ import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icon
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableSelect, EditableText } from '../../components/data-table/EditableCells';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { notifyError } from '../../lib/notify';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { RowActions } from '../../components/data-table/RowActions';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { TaskRef } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
-import type { TimeEntry } from './api';
+import { useTimeMutations, type TimeEntry, type TimeEntryValues } from './api';
 import classes from './TimeLog.module.css';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -152,6 +155,23 @@ interface TimeLogProps {
  * @returns {JSX.Element} Table.
  */
 export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete, actions }: TimeLogProps) {
+  const { update } = useTimeMutations();
+
+  /**
+   * Whether a time is changed in its cells: finished (the running timer is changed from the timer), and not on a final
+   * invoice (it is part of it).
+   * @param {TimeEntry} entry Time.
+   * @returns {boolean} Editable.
+   */
+  const editable = (entry: TimeEntry) => Boolean(entry.endedAt) && !entry.documentNumber;
+
+  /**
+   * Saves fields of a time changed in their cells.
+   * @param {TimeEntry} entry Time.
+   * @param {Partial<TimeEntryValues>} change Change.
+   * @returns {void}
+   */
+  const saveEntry = (entry: TimeEntry, change: Partial<TimeEntryValues>) => update.mutate({ id: entry.id, input: change }, { onError: (error) => notifyError(error.message) });
   const view = useDataView({ tableKey: 'time-log', projectId, columns: timeColumns(context), rows: entries ?? [], title: 'Temps passé', first: TIME_VIEWS });
   const total = finishedSeconds(view.rows);
   const unbilled = finishedSeconds(view.rows.filter((entry) => !entry.documentId));
@@ -207,7 +227,16 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           ),
           project: (
             <>
-              {entry.projectId && entry.projectId !== projectId ? context?.projectById.get(entry.projectId)?.title : null}
+              {context && editable(entry) && !entry.routineTitle ? (
+                <EditableSelect
+                  value={entry.projectId ?? null}
+                  label="Projet de ce temps"
+                  {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === entry.projectId)))}
+                  onSave={(next) => next && saveEntry(entry, { projectId: next })}
+                />
+              ) : entry.projectId && entry.projectId !== projectId ? (
+                context?.projectById.get(entry.projectId)?.title
+              ) : null}
               {entry.routineTitle && (
                 <Text size="xs" c="dimmed">
                   Routine : {entry.routineTitle}
@@ -228,7 +257,9 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
               )}
             </Group>
           ),
-          description: (
+          description: editable(entry) ? (
+            <EditableText value={entry.description ?? null} label="Description de ce temps" nullable onSave={(description) => saveEntry(entry, { description })} />
+          ) : (
             <span className={classes.description}>
               {entry.description || (
                 <Text span size="sm" c="dimmed" fs="italic">

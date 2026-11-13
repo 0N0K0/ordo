@@ -1,7 +1,7 @@
-import { Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { SHOPPING_LIST_FILTER_FIELDS, SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS, type ShoppingListFilterField, type ShoppingListGroupBy } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
-import { BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
@@ -9,6 +9,7 @@ import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { EditableText } from '../../components/data-table/EditableCells';
 import { ExportButtons } from '../../components/data-table/DataViewBar';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { newConditionFor } from '../tasks/views/filter-meta';
@@ -211,9 +212,18 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   const cells: Record<string, ReactNode> = {
                     name: (
                       <Group gap="xs" wrap="nowrap">
-                        <Anchor component={Link} to={`/shopping/${list.id}`} size="sm" truncate>
-                          {list.name}
-                        </Anchor>
+                        <EditableText
+                          value={list.name}
+                          label={`Nom de la liste ${list.name}`}
+                          strong
+                          readOnly={closedOf(list)}
+                          onSave={(name) => name && updateList.mutate({ id: list.id, name, taskIds: list.taskIds }, { onError: (error) => notifyError(error.message) })}
+                        />
+                        <Tooltip label="Ouvrir la liste">
+                          <ActionIcon component={Link} to={`/shopping/${list.id}`} variant="subtle" color="gray" size="sm" aria-label={`Ouvrir la liste ${list.name}`}>
+                            <ArrowSquareInIcon aria-hidden />
+                          </ActionIcon>
+                        </Tooltip>
                         {list.entryId && (
                           <Badge size="xs" variant="light" tt="none">
                             Payée

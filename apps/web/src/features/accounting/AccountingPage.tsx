@@ -17,6 +17,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableSelect, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -28,7 +29,7 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { CatalogPanel } from './CatalogPanel';
 import { OverdueInvoicesPanel } from './OverdueInvoicesPanel';
 import { useOverdueInvoices } from './tracking-api';
-import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice } from './documents-api';
+import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice, type RecurringSettings } from './documents-api';
 import { openImportForm } from './imported-form';
 import { DocumentsTable } from './DocumentsTable';
 import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from './labels';
@@ -112,7 +113,19 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
  */
 function RecurringList() {
   const { data: recurring, isPending } = useRecurringInvoices();
-  const { remove } = useRecurringMutations();
+  const { remove, update } = useRecurringMutations();
+
+  /**
+   * Saves fields of a recurring invoice changed in their cells.
+   * @param {RecurringInvoice} item Recurring invoice.
+   * @param {Partial<RecurringSettings>} change Change.
+   * @returns {void}
+   */
+  const saveRecurring = (item: RecurringInvoice, change: Partial<RecurringSettings>) =>
+    update.mutate(
+      { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: String(item.startDate).slice(0, 10), autoFinalize: item.autoFinalize, active: item.active, ...change } },
+      { onError: (error) => notifyError(error.message) },
+    );
   const view = useDataView({ tableKey: 'recurring-invoices', columns: RECURRING_COLUMNS, rows: recurring ?? [], title: 'Factures récurrentes' });
   if (isPending) return <Skeleton height={120} />;
 
@@ -157,10 +170,8 @@ function RecurringList() {
         return {
           name: (
             <>
-              <Group gap={6}>
-                <Text size="sm" fw={600}>
-                  {item.name}
-                </Text>
+              <Group gap={6} wrap="nowrap">
+                <EditableText value={item.name} label={`Nom de ${item.name}`} strong onSave={(name) => name && saveRecurring(item, { name })} />
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
                     En pause
@@ -180,6 +191,17 @@ function RecurringList() {
           client: item.template.clientName,
           repetition: <Text size="sm">{repetitionText(item) || '—'}</Text>,
           next: item.nextDate ? dateFormat.format(new Date(`${item.nextDate}T00:00:00Z`)) : 'Terminée',
+          state: (
+            <EditableSelect
+              value={item.active ? 'active' : 'paused'}
+              label={`État de ${item.name}`}
+              data={[
+                { value: 'active', label: 'Active' },
+                { value: 'paused', label: 'En pause' },
+              ]}
+              onSave={(state) => state && saveRecurring(item, { active: state === 'active' })}
+            />
+          ),
           issued: item.issuedCount,
           amount: formatMoney(Math.round(item.template.totalGross * 100), item.template.currency),
         };

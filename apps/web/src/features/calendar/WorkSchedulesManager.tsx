@@ -1,8 +1,18 @@
 import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Select, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_SCHEDULE_KIND_NAME, periodRhythm, readScheduleCases, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
+import {
+  DEFAULT_SCHEDULE_KIND_NAME,
+  periodRhythm,
+  readScheduleCases,
+  readScheduleExceptions,
+  workScheduleSchema,
+  type ScheduleCase,
+  type ScheduleException,
+  type WorkScheduleInput,
+} from '@ordo/shared';
 import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableDate, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -254,7 +264,31 @@ export function WorkSchedulesManager() {
   const { data: schedules } = useWorkSchedules();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
-  const { remove } = useWorkScheduleMutations();
+  const { remove, update } = useWorkScheduleMutations();
+
+  /**
+   * Saves fields of a schedule changed in their cells (its hours and exceptions kept).
+   * @param {WorkSchedule} schedule Schedule.
+   * @param {Partial<WorkScheduleInput>} change Change.
+   * @returns {void}
+   */
+  const saveSchedule = (schedule: WorkSchedule, change: Partial<WorkScheduleInput>) => {
+    const input = {
+      name: schedule.name,
+      startDate: String(schedule.startDate).slice(0, 10),
+      endDate: schedule.endDate ? String(schedule.endDate).slice(0, 10) : null,
+      cases: readScheduleCases(schedule.cases),
+      exceptions: readScheduleExceptions(schedule.exceptions),
+      typeId: schedule.typeId ?? null,
+      ...change,
+    };
+    const result = workScheduleSchema.safeParse(input);
+    if (!result.success) {
+      notifyError(`${result.error.issues[0]?.message ?? 'Valeur invalide.'} Rien n’a été modifié.`);
+      return;
+    }
+    update.mutate({ id: schedule.id, input }, { onError: (error) => notifyError(error.message) });
+  };
   const { perso } = useActiveWorkspace();
   const [editing, setEditing] = useState<WorkSchedule | 'new' | { copyOf: WorkSchedule } | null>(null);
   const [deleting, setDeleting] = useState<WorkSchedule | null>(null);
@@ -388,32 +422,25 @@ export function WorkSchedulesManager() {
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
             return {
-              name: (
-                <>
-                  <Text size="sm" fw={600}>
-                    {schedule.name}
-                  </Text>
-                </>
-              ),
+              name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && saveSchedule(schedule, { name })} />,
               type: (
-                <>
-                  <Group gap={6} wrap="nowrap">
-                    <ColorSwatch size={10} color={color} />
-                    <Text size="sm">{kindName(schedule)}</Text>
-                  </Group>
-                </>
+                <EditableSelect
+                  value={schedule.typeId ?? NO_KIND}
+                  label={`Type de ${schedule.name}`}
+                  leftSection={<ColorSwatch size={10} color={color} />}
+                  data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((item) => ({ value: item.id, label: item.name }))]}
+                  onSave={(typeId) => typeId && saveSchedule(schedule, { typeId: typeId === NO_KIND ? null : typeId })}
+                />
               ),
-              start: (
-                <>
-                  <Text size="sm">{printedDate(String(schedule.startDate))}</Text>
-                </>
-              ),
+              start: <EditableDate value={String(schedule.startDate).slice(0, 10)} label={`Début de ${schedule.name}`} onSave={(startDate) => startDate && saveSchedule(schedule, { startDate })} />,
               end: (
-                <>
-                  <Text size="sm" c={schedule.endDate ? undefined : 'dimmed'}>
-                    {schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'}
-                  </Text>
-                </>
+                <EditableDate
+                  value={schedule.endDate ? String(schedule.endDate).slice(0, 10) : null}
+                  label={`Fin de ${schedule.name}`}
+                  nullable
+                  minDate={String(schedule.startDate).slice(0, 10)}
+                  onSave={(endDate) => saveSchedule(schedule, { endDate })}
+                />
               ),
               hours: (
                 <>

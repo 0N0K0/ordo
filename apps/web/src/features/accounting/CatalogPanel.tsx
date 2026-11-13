@@ -4,6 +4,7 @@ import { modals } from '@mantine/modals';
 import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -158,7 +159,31 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
  */
 export function CatalogPanel() {
   const { data: items, isPending } = useCatalogItems();
-  const { remove } = useCatalogMutations();
+  const { remove, update } = useCatalogMutations();
+
+  /**
+   * Saves a field of an item changed in its cell.
+   * @param {CatalogItem} item Item.
+   * @param {Partial<CatalogItemInput>} change Change.
+   * @returns {void}
+   */
+  const saveItem = (item: CatalogItem, change: Partial<CatalogItemInput>) =>
+    update.mutate(
+      {
+        id: item.id,
+        input: {
+          kind: item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM',
+          title: item.title,
+          description: item.description ?? null,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          vatRate: item.vatRate,
+          archived: item.archived,
+          ...change,
+        },
+      },
+      { onError: (error) => notifyError(error.message) },
+    );
   const view = useDataView({ tableKey: 'catalog', columns: CATALOG_COLUMNS, rows: items ?? [], title: 'Catalogue', first: CATALOG_VIEWS });
 
   /**
@@ -232,18 +257,11 @@ export function CatalogPanel() {
       cells={(item) => ({
         title: (
           <>
-            <Group gap={6}>
-              <Text size="sm" fw={600}>
-                {item.title}
-              </Text>
+            <Group gap={6} wrap="nowrap">
+              <EditableText value={item.title} label={`Libellé de ${item.title}`} strong onSave={(title) => title && saveItem(item, { title })} />
               {item.kind === 'DISBURSEMENT' && (
-                <Badge size="xs" variant="light" color="grape">
+                <Badge size="xs" variant="light" color="grape" style={{ flex: 'none' }}>
                   Débours
-                </Badge>
-              )}
-              {item.archived && (
-                <Badge size="xs" variant="light" color="gray">
-                  Archivé
                 </Badge>
               )}
             </Group>
@@ -254,9 +272,46 @@ export function CatalogPanel() {
             )}
           </>
         ),
-        unit: UNIT_LABELS[item.unit].label,
-        price: formatMoney(Math.round(item.unitPrice * 100)),
-        vat: item.kind === 'DISBURSEMENT' ? '—' : `${item.vatRate.toLocaleString('fr-FR')} %`,
+        kind: (
+          <EditableSelect
+            value={item.kind}
+            label={`Nature de ${item.title}`}
+            data={[
+              { value: 'ITEM', label: 'Prestation' },
+              { value: 'DISBURSEMENT', label: 'Débours' },
+            ]}
+            onSave={(kind) => kind && saveItem(item, { kind: kind as CatalogItemInput['kind'] })}
+          />
+        ),
+        unit: (
+          <EditableSelect
+            value={item.unit}
+            label={`Unité de ${item.title}`}
+            data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))}
+            onSave={(unit) => unit && saveItem(item, { unit: unit as CatalogItemInput['unit'] })}
+          />
+        ),
+        price: (
+          <EditableNumber
+            value={item.unitPrice}
+            label={`Prix HT de ${item.title}`}
+            suffix="€"
+            signed={item.kind === 'DISBURSEMENT'}
+            onSave={(unitPrice) => unitPrice !== null && saveItem(item, { unitPrice })}
+          />
+        ),
+        vat:
+          item.kind === 'DISBURSEMENT' ? (
+            '—'
+          ) : (
+            <EditableSelect
+              value={String(item.vatRate)}
+              label={`TVA de ${item.title}`}
+              data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${rate.toLocaleString('fr-FR')} %` }))}
+              onSave={(rate) => rate && saveItem(item, { vatRate: Number(rate) })}
+            />
+          ),
+        archived: <EditableCheck value={item.archived} label={`${item.title} archivé`} onSave={(archived) => saveItem(item, { archived })} />,
       })}
       actions={(item) => (
         <RowActions

@@ -5,7 +5,7 @@ import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError } from '../../lib/notify';
-import classes from '../tasks/views/inline-cells.module.css';
+import classes from '../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import type { ShoppingCategory, ShoppingStorage, ShoppingStore } from './api';
 import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, UNITS, usePeople } from './shopping-format';

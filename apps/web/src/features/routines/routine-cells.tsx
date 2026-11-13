@@ -11,7 +11,7 @@ import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { notifyError } from '../../lib/notify';
 import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
-import classes from '../tasks/views/inline-cells.module.css';
+import classes from '../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';

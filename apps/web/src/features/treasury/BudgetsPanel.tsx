@@ -5,6 +5,7 @@ import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/share
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableNumber, EditableSelect } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -219,7 +220,32 @@ export function BudgetsPanel() {
   const [month, setMonth] = useState(() => localToday().slice(0, 7));
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
-  const { remove } = useTreasuryBudgetMutations();
+  const { remove, save } = useTreasuryBudgetMutations();
+
+  /**
+   * Saves fields of a budget changed in their cells (its repetitions follow, as from its form).
+   * @param {TreasuryBudget} budget Budget.
+   * @param {{ categoryId?: string, amount?: number }} change Change.
+   * @returns {void}
+   */
+  const saveBudget = (budget: TreasuryBudget, change: { categoryId?: string; amount?: number }) =>
+    save.mutate(
+      {
+        id: budget.id,
+        input: {
+          month: budget.month,
+          memberId: budget.memberId ?? null,
+          relationId: budget.relationId ?? null,
+          contextId: budget.contextId ?? null,
+          categoryId: budget.categoryId,
+          amount: budget.amount,
+          repeatEvery: budget.repeatEvery ?? null,
+          repeatUntil: budget.repeatUntil ?? null,
+          ...change,
+        },
+      },
+      { onError: (error) => notifyError(error.message) },
+    );
   const [dialog, setDialog] = useState<Dialog>(null);
   const categories = settings?.treasuryCategories ?? [];
   const paths = categoryPaths(categories);
@@ -605,11 +631,24 @@ export function BudgetsPanel() {
                 </>
               ),
               ...keyContent(budget),
-              // Money out budgeted below zero, money in above.
+              category: (
+                <EditableSelect
+                  value={budget.categoryId}
+                  label="Catégorie du budget"
+                  {...treeSelectProps([...categoryOptions(categories, 'OUT'), ...categoryOptions(categories, 'IN')])}
+                  onSave={(categoryId) => categoryId && saveBudget(budget, { categoryId })}
+                />
+              ),
+              // Money out budgeted below zero, money in above: the amount is typed positive.
               amount: (
-                <Text span inherit c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'} style={{ whiteSpace: 'nowrap' }}>
-                  {directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}
-                  {money(budget.amount)}
+                <Text span inherit c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'}>
+                  <EditableNumber
+                    value={budget.amount}
+                    label="Montant du budget"
+                    suffix="€"
+                    validate={(amount) => (amount > 0 ? null : 'Montant positif attendu.')}
+                    onSave={(amount) => amount !== null && saveBudget(budget, { amount })}
+                  />
                 </Text>
               ),
             })}

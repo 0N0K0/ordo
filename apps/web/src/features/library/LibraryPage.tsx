@@ -48,6 +48,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { dndId, libraryCollision } from './library-dnd';
 import { DroppableFolderLink, SortableRow } from './LibraryDnd';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
+import { EditableText } from '../../components/data-table/EditableCells';
 import { GroupHeaderRow } from '../../components/data-table/GroupHeaderRow';
 import { groupRows } from '../../components/data-table/table-engine';
 import { useDataView } from '../../components/data-table/use-data-view';
@@ -268,6 +269,18 @@ const FOLDER_SORT: DataColumn<DocumentFolder>[] = [{ id: 'name', label: 'Nom', s
 export function LibraryPage() {
   const { data, isPending, error } = useLibrary();
   const mutations = useLibraryMutations();
+
+  /**
+   * Saves fields of a document changed in their cells (its file or link kept).
+   * @param {LibraryDocument} document Document.
+   * @param {{ title?: string, note?: string | null }} change Change.
+   * @returns {void}
+   */
+  const saveDocument = (document: LibraryDocument, change: { title?: string; note?: string | null }) =>
+    mutations.update.mutate(
+      { id: document.id, title: document.title, url: document.kind === 'LINK' ? document.url : null, note: document.note ?? null, file: null, ...change },
+      { onError: (error) => notifyError(error.message) },
+    );
   const [params, setParams] = useSearchParams();
   const tableRef = useRef<HTMLTableElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -783,14 +796,12 @@ export function LibraryPage() {
                               {
                                 {
                                   folder: document.folderId ? paths.get(document.folderId) : 'Documents',
-                                  note: document.note,
+                                  note: <EditableText value={document.note ?? null} label={`Note de ${document.title}`} nullable onSave={(note) => saveDocument(document, { note })} />,
                                   name: (
                             <Group gap="sm" wrap="nowrap">
                               <DocumentIcon document={document} />
                               <Stack gap={0} style={{ minWidth: 0 }}>
-                                <Anchor component="button" size="sm" fw={500} ta="left" onClick={() => openDocument(document)} c="inherit">
-                                  {document.title}
-                                </Anchor>
+                                <EditableText value={document.title} label={`Titre de ${document.title}`} strong onSave={(title) => title && saveDocument(document, { title })} />
                                 <Text size="xs" c="dimmed" truncate>
                                   {[
                                     query && document.folderId ? paths.get(document.folderId) : query ? 'Documents' : null,

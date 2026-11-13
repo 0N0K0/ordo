@@ -18,6 +18,9 @@ import {
 import { Fragment, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
+import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { useEntryCellSave } from './entry-values';
 import { GroupHeaderRow, NoMatch } from '../../components/data-table/GroupHeaderRow';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
@@ -26,7 +29,7 @@ import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryEntries, useTreasuryMutations, useTreasurySettings, type TreasuryAccount, type TreasuryEntry } from './api';
-import { categoryPaths } from './categories';
+import { categoryOptions, categoryPaths } from './categories';
 import { confirmDeletion } from './confirm-deletion';
 import { EntryUrl } from './EntryUrl';
 import { StatementForm } from './StatementForm';
@@ -187,6 +190,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   const { data: entries, isPending } = useTreasuryEntries({ from: '1900-01-01', to: '2999-12-31', accountId: null });
   const { data: settings } = useTreasurySettings();
   const { deleteEntry } = useTreasuryMutations();
+  const saveEntry = useEntryCellSave();
   const paths = useMemo(() => categoryPaths(settings?.treasuryCategories ?? []), [settings]);
   const tableRef = useRef<HTMLTableElement>(null);
   const columns = useMemo(() => entryColumns(paths, accounts), [paths, accounts]);
@@ -316,7 +320,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                 {
                                   date: (
                                     <>
-                                      <Text size="sm">{printedDate(date)}</Text>
+                                      <EditableDate value={date.slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && saveEntry(entry, { date: next })} />
                                       {entry.valueDate && String(entry.valueDate) !== date && (
                                         <Text size="xs" c="dimmed">
                                           Valeur {printedDate(String(entry.valueDate))}
@@ -340,7 +344,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                       )}
                                       <div>
                                         <Group gap={4} wrap="nowrap">
-                                          <Text size="sm">{entry.label}</Text>
+                                          <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && saveEntry(entry, { label })} />
                                           <EntryUrl url={entry.url} label={entry.label} />
                                         </Group>
                                         <Text size="xs" c="dimmed">
@@ -356,9 +360,39 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                     </Group>
                                   ),
                                   payer: <Text size="sm">{entry.payerName ?? ''}</Text>,
-                                  account: entry.accountName,
-                                  category: entry.categoryId ? paths.get(entry.categoryId) : null,
-                                  method: entry.methodName,
+                                  account: (
+                                    <EditableSelect
+                                      value={entry.accountId}
+                                      label={`Compte de ${entry.label}`}
+                                      data={accounts.filter((account) => !account.archived || account.id === entry.accountId).map((account) => ({ value: account.id, label: account.name }))}
+                                      onSave={(accountId) => accountId && saveEntry(entry, { accountId })}
+                                    />
+                                  ),
+                                  category:
+                                    entry.lines.length > 0 ? (
+                                      <Text size="xs" c="dimmed">
+                                        Sur les lignes
+                                      </Text>
+                                    ) : (
+                                      <EditableSelect
+                                        value={entry.categoryId ?? null}
+                                        label={`Catégorie de ${entry.label}`}
+                                        nullable
+                                        {...treeSelectProps(categoryOptions(settings?.treasuryCategories ?? [], entry.amount < 0 ? 'OUT' : 'IN'))}
+                                        onSave={(categoryId) => saveEntry(entry, { categoryId })}
+                                      />
+                                    ),
+                                  method: (
+                                    <EditableSelect
+                                      value={entry.methodId ?? null}
+                                      label={`Moyen de paiement de ${entry.label}`}
+                                      nullable
+                                      data={(settings?.treasuryPaymentMethods ?? [])
+                                        .filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId)
+                                        .map((method) => ({ value: method.id, label: method.name }))}
+                                      onSave={(methodId) => saveEntry(entry, { methodId })}
+                                    />
+                                  ),
                                   documents: (
                                     <Group gap={4}>
                                       {entry.allocations.map((allocation) =>
@@ -410,9 +444,15 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                     </Group>
                                   ),
                                   amount: (
-                                    <Text span size="sm" ff="monospace" c={entry.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-                                      {entry.amount > 0 ? '+' : ''}
-                                      {money(entry.amount)}
+                                    <Text span inherit c={entry.amount < 0 ? 'red' : 'green'}>
+                                      <EditableNumber
+                                        value={entry.amount}
+                                        label={`Montant de ${entry.label}`}
+                                        suffix="€"
+                                        signed
+                                        validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
+                                        onSave={(amount) => amount !== null && saveEntry(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
+                                      />
                                     </Text>
                                   ),
                                 }[column.id]

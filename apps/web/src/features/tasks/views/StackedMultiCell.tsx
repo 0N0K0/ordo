@@ -1,6 +1,6 @@
 import { Anchor, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import classes from './inline-cells.module.css';
+import classes from '../../../components/data-table/EditableCells.module.css';
 
 /** Values listed in a cell before « X de plus ». */
 const SHOWN_VALUES = 3;

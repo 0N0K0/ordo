@@ -1,3 +1,4 @@
+import { useEntryCellSave } from './entry-values';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, NumberInput, Paper, Popover, SegmentedControl, SimpleGrid, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
@@ -7,6 +8,7 @@ import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSim
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableCheck, EditableDate, EditableNumber, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -97,11 +99,19 @@ const FORECAST_COLUMNS: DataColumn<ForecastRow>[] = [
 const ACCOUNT_COLUMNS: DataColumn<TreasuryAccount>[] = [
   { id: 'name', label: 'Compte', size: 260, locked: true, sortValue: (account) => account.name, text: (account) => account.name },
   {
-    id: 'opening',
-    label: 'Ouverture',
-    size: 240,
+    id: 'openingBalance',
+    label: 'Solde d’ouverture',
+    size: 150,
+    numeric: true,
+    sortValue: (account) => account.openingBalance,
+    text: (account) => money(account.openingBalance),
+  },
+  {
+    id: 'openingDate',
+    label: 'Ouvert le',
+    size: 140,
     sortValue: (account) => String(account.openingDate),
-    text: (account) => `${money(account.openingBalance)} au ${printedDate(String(account.openingDate))}`,
+    text: (account) => printedDate(String(account.openingDate)),
     filter: { kind: 'date', value: (account) => String(account.openingDate).slice(0, 10) },
   },
   { id: 'balance', label: 'Solde aujourd’hui', size: 160, numeric: true, sortValue: (account) => account.balance, text: (account) => money(account.balance) },
@@ -283,7 +293,20 @@ export function TreasuryPage() {
   const { data: accounts, isPending: accountsPending } = useTreasuryAccounts();
   const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
-  const { deleteEntry, deleteAccount } = useTreasuryMutations();
+  const { deleteEntry, deleteAccount, updateAccount } = useTreasuryMutations();
+  const saveEntry = useEntryCellSave();
+
+  /**
+   * Saves a field of an account changed in its cell.
+   * @param {TreasuryAccount} account Account.
+   * @param {Partial<AccountValues>} change Change.
+   * @returns {void}
+   */
+  const saveAccount = (account: TreasuryAccount, change: Partial<AccountValues>) =>
+    updateAccount.mutate(
+      { id: account.id, input: { name: account.name, openingBalance: account.openingBalance, openingDate: String(account.openingDate).slice(0, 10), archived: account.archived, ...change } },
+      { onError: (error) => notifyError(error.message) },
+    );
   const forecastView = useDataView({ tableKey: 'treasury-forecast', columns: FORECAST_COLUMNS, rows: (projection?.items ?? []).map((item, index) => ({ item, index })), title: 'Prévisionnel' });
   const accountsView = useDataView({ tableKey: 'treasury-accounts', columns: ACCOUNT_COLUMNS, rows: accounts ?? [], title: 'Comptes' });
   const close = () => setDialog(null);
@@ -516,7 +539,12 @@ export function TreasuryPage() {
               return {
                 date: (
                   <>
-                    <Text size="sm">{printedDate(item.date)}</Text>
+                    {/* A repeating forecast moves by its rule (its form), each other entry by its cell. */}
+                    {entry && entry.recurrence == null ? (
+                      <EditableDate value={item.date} label={`Date de ${item.label}`} onSave={(date) => date && saveEntry(entry, { date })} />
+                    ) : (
+                      <Text size="sm">{printedDate(item.date)}</Text>
+                    )}
                     {item.overdue && (
                       <Badge size="xs" color="red" variant="light">
                         Prévu le {printedDate(item.dueDate)}
@@ -532,7 +560,7 @@ export function TreasuryPage() {
                       </Anchor>
                     ) : (
                       <Group gap={4} wrap="nowrap">
-                        <Text size="sm">{item.label}</Text>
+                        {entry ? <EditableText value={entry.label} label={`Libellé de ${item.label}`} onSave={(label) => label && saveEntry(entry, { label })} /> : <Text size="sm">{item.label}</Text>}
                         <EntryUrl url={entry?.url} label={item.label} />
                       </Group>
                     )}
@@ -556,8 +584,21 @@ export function TreasuryPage() {
                 ),
                 amount: (
                   <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
-                    {item.amount > 0 ? '+' : ''}
-                    {money(item.amount)}
+                    {entry ? (
+                      <EditableNumber
+                        value={entry.amount}
+                        label={`Montant de ${item.label}`}
+                        suffix="€"
+                        signed
+                        validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
+                        onSave={(amount) => amount !== null && saveEntry(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
+                      />
+                    ) : (
+                      <>
+                        {item.amount > 0 ? '+' : ''}
+                        {money(item.amount)}
+                      </>
+                    )}
                   </Text>
                 ),
               };
@@ -629,29 +670,33 @@ export function TreasuryPage() {
             rowProps={(account) => ({ opacity: account.archived ? 0.6 : 1 })}
             cells={(account) => ({
               name: (
-                <>
-                  <Group gap="xs">
-                    <Text size="sm" fw={600}>
-                      {account.name}
-                    </Text>
-                    {account.archived && (
-                      <Badge size="xs" color="gray">
-                        Archivé
-                      </Badge>
-                    )}
-                  </Group>
-                </>
+                <Group gap="xs" wrap="nowrap">
+                  <EditableText value={account.name} label={`Nom du compte ${account.name}`} strong onSave={(name) => name && saveAccount(account, { name })} />
+                  {account.archived && (
+                    <Badge size="xs" color="gray" style={{ flex: 'none' }}>
+                      Archivé
+                    </Badge>
+                  )}
+                </Group>
               ),
-              opening: (
-                <>
-                  {money(account.openingBalance)} au {printedDate(String(account.openingDate))}
-                </>
+              openingBalance: (
+                <EditableNumber
+                  value={account.openingBalance}
+                  label={`Solde d’ouverture de ${account.name}`}
+                  suffix="€"
+                  signed
+                  onSave={(openingBalance) => openingBalance !== null && saveAccount(account, { openingBalance })}
+                />
+              ),
+              openingDate: (
+                <EditableDate value={String(account.openingDate).slice(0, 10)} label={`Ouverture de ${account.name}`} onSave={(openingDate) => openingDate && saveAccount(account, { openingDate })} />
               ),
               balance: (
                 <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
                   {money(account.balance)}
                 </Text>
               ),
+              archived: <EditableCheck value={account.archived} label={`${account.name} archivé`} onSave={(archived) => saveAccount(account, { archived })} />,
             })}
             actions={(account) => (
               <RowActions
