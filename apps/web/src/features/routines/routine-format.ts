@@ -1,6 +1,7 @@
 import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineMove, type RoutineState } from '@ordo/shared';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { categoryTree } from '../../components/category-tree/category-tree';
+import { treeOptions } from '../../components/tree-select/tree-select';
 import type { Routine, RoutineCategory } from './api';
 
 const longDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -49,11 +50,34 @@ export function waitingFor(routine: Routine, byId: Map<string, Routine>): Routin
   });
 }
 
-/** Row of the routine table: a category heading, or a routine under it (sub-routines under their parent). */
+/** Groups of the routine table: their headings as a tree, and the groups of each routine. */
+export interface RoutineGrouping {
+  /** Headings, siblings in their order (a parent before its children or not: placed as their tree). */
+  groups: { id: string; name: string; color: string | null; parentId: string | null }[];
+  /** Groups of a (top) routine; none: in the last group, without one. */
+  of: (routine: Routine) => string[];
+  /** Heading of the routines without group ("Sans catégorie"). */
+  noneName: string;
+}
+
+/**
+ * Grouping of the routines by category, the categories as their tree.
+ * @param {RoutineCategory[]} categories Categories.
+ * @returns {RoutineGrouping} Grouping.
+ */
+export function categoryGrouping(categories: RoutineCategory[]): RoutineGrouping {
+  return {
+    groups: categoryTree(categories).map(({ category, color }) => ({ id: category.id, name: category.name, color, parentId: category.parentId ?? null })),
+    of: (routine) => routine.categoryIds,
+    noneName: 'Sans catégorie',
+  };
+}
+
+/** Row of the routine table: a group heading, or a routine under it (sub-routines under their parent). */
 export type RoutineRow =
   | {
       kind: 'group';
-      /** Category id, null for the routines without one. */
+      /** Group id (a category…), null for the routines without one. */
       id: string | null;
       name: string;
       color: string | null;
@@ -78,15 +102,16 @@ export type RoutineRow =
     };
 
 /**
- * Rows of the table: the categories as their tree, each followed by its routines (a routine of several categories
- * shows in each of them); a sub-routine follows its parent (whatever its own categories), indented. Categories without routine are left out. The routines kept by `keep` stay
- * with their parents (shown for their place).
+ * Rows of the table: the groups (categories…) as their tree, each followed by its routines (a routine of several
+ * groups shows in each of them); a sub-routine follows its parent (whatever its own groups), indented; without
+ * grouping, the routines alone. Groups without routine are left out. The routines kept by `keep` stay with their
+ * parents (shown for their place).
  * @param {Routine[]} routines Routines, in their order.
- * @param {RoutineCategory[]} categories Categories.
+ * @param {RoutineGrouping | null} grouping Groups, null for none.
  * @param {(routine: Routine) => boolean} keep Routines shown.
  * @returns {RoutineRow[]} Rows.
  */
-export function routineRows(routines: Routine[], categories: RoutineCategory[], keep: (routine: Routine) => boolean): RoutineRow[] {
+export function routineRows(routines: Routine[], grouping: RoutineGrouping | null, keep: (routine: Routine) => boolean): RoutineRow[] {
   const ids = new Set(routines.map((routine) => routine.id));
   const children = new Map<string | null, Routine[]>();
   for (const routine of routines) {
@@ -109,8 +134,9 @@ export function routineRows(routines: Routine[], categories: RoutineCategory[], 
     return value;
   };
   const tops = (children.get(null) ?? []).filter(isShown);
-  const known = new Set(categories.map((category) => category.id));
-  const groupsOf = (routine: Routine) => routine.categoryIds.filter((id) => known.has(id));
+  const groups = grouping?.groups ?? [];
+  const known = new Set(groups.map((group) => group.id));
+  const groupsOf = (routine: Routine) => (grouping ? grouping.of(routine).filter((id) => known.has(id)) : []);
 
   /**
    * Rows of a routine and of its sub-routines.
@@ -133,26 +159,25 @@ export function routineRows(routines: Routine[], categories: RoutineCategory[], 
    */
   const flatten = (routine: Routine): Routine[] => [routine, ...(children.get(routine.id) ?? []).filter(isShown).flatMap(flatten)];
 
-  const placed = categoryTree(categories);
+  const placed = treeOptions(groups.map((group) => ({ id: group.id, parentId: group.parentId, label: group.name, color: group.color })));
   const parentsOf = new Map<string, string[]>();
-  for (const item of placed)
-    parentsOf.set(item.category.id, item.category.parentId && known.has(item.category.parentId) ? [...(parentsOf.get(item.category.parentId) ?? []), item.category.parentId] : []);
+  for (const item of placed) parentsOf.set(item.value, item.parent ? [...(parentsOf.get(item.parent) ?? []), item.parent] : []);
   const rows: RoutineRow[] = [];
   for (const item of placed) {
-    const subtree = new Set([item.category.id, ...placed.filter((other) => parentsOf.get(other.category.id)?.includes(item.category.id)).map((other) => other.category.id)]);
+    const subtree = new Set([item.value, ...placed.filter((other) => parentsOf.get(other.value)?.includes(item.value)).map((other) => other.value)]);
     const inside = tops.filter((routine) => groupsOf(routine).some((id) => subtree.has(id)));
     if (inside.length === 0) continue;
-    const parents = parentsOf.get(item.category.id) ?? [];
-    rows.push({ kind: 'group', id: item.category.id, name: item.category.name, color: item.color, depth: item.depth, parents, routines: [...new Set(inside.flatMap(flatten))] });
-    for (const routine of tops.filter((top) => groupsOf(top).includes(item.category.id))) {
-      rows.push(...branch(routine, item.depth + 1, item.category.id, [...parents, item.category.id], item.category.id));
+    const parents = parentsOf.get(item.value) ?? [];
+    rows.push({ kind: 'group', id: item.value, name: item.label, color: item.color ?? null, depth: item.depth, parents, routines: [...new Set(inside.flatMap(flatten))] });
+    for (const routine of tops.filter((top) => groupsOf(top).includes(item.value))) {
+      rows.push(...branch(routine, item.depth + 1, item.value, [...parents, item.value], item.value));
     }
   }
   const loose = tops.filter((routine) => groupsOf(routine).length === 0);
   if (loose.length) {
     // Without any category heading above, the routines without category need none either.
     const grouped = rows.length > 0;
-    if (grouped) rows.push({ kind: 'group', id: null, name: 'Sans catégorie', color: null, depth: 0, parents: [], routines: loose.flatMap(flatten) });
+    if (grouped) rows.push({ kind: 'group', id: null, name: grouping?.noneName ?? '', color: null, depth: 0, parents: [], routines: loose.flatMap(flatten) });
     for (const routine of loose) rows.push(...branch(routine, grouped ? 1 : 0, null, grouped ? [NO_CATEGORY] : [], NO_CATEGORY));
   }
   return rows;

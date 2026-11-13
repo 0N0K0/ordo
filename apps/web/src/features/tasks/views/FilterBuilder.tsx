@@ -18,25 +18,18 @@ import {
   TASK_FILTER_FIELDS,
   TASK_STATUS_CATEGORIES,
   VALUELESS_OPERATORS,
-  type FilterCondition,
+  type FilterConditionOf,
+  type FilterFieldKind,
   type FilterGroup,
+  type FilterGroupOf,
   type FilterOperator,
   type TaskFilterField,
 } from '@ordo/shared';
+import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import type { TaskContext } from '../use-task-context';
 import classes from './FilterBuilder.module.css';
-import {
-  defaultValue,
-  FIELD_GROUPS,
-  FIELD_LABELS,
-  isComplete,
-  newCondition,
-  nodeId,
-  OPERATOR_LABELS,
-  operatorsOf,
-  PERIOD_LABELS,
-} from './filter-meta';
+import { defaultValueFor, FIELD_GROUPS, FIELD_LABELS, isComplete, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree-select/tree-select';
 
@@ -189,10 +182,29 @@ function PeriodValue({ value, onChange }: DayValueProps) {
   );
 }
 
-interface ConditionEditorProps {
-  condition: FilterCondition;
-  context: TaskContext;
-  onChange: (condition: FilterCondition) => void;
+/** Fields a filter builder offers, and how to edit their values. */
+export interface FilterFields<F extends string> {
+  /** Kind of each field. */
+  kinds: Record<F, FilterFieldKind>;
+  labels: Record<F, string>;
+  /** Fields of the field select, by group. */
+  groups: { group: string; fields: F[] }[];
+  /** Field of a new condition. */
+  first: F;
+  /** Select props of the values of a field of kind reference, multiReference, sprint or category. */
+  options: (field: F) => Pick<ComponentProps<typeof BatchMultiSelect>, 'data' | 'renderOption' | 'filter'>;
+  /** Whether a condition is complete (valid), so it applies. */
+  isComplete: (condition: FilterConditionOf<F>) => boolean;
+  /** Label of an operator of a field, instead of the one of its kind. Optional. */
+  operatorLabel?: (field: F, operator: FilterOperator) => string | undefined;
+  /** What an empty filter shows. */
+  emptyText: string;
+}
+
+interface ConditionEditorProps<F extends string> {
+  condition: FilterConditionOf<F>;
+  fields: FilterFields<F>;
+  onChange: (condition: FilterConditionOf<F>) => void;
   onRemove: () => void;
 }
 
@@ -201,11 +213,11 @@ interface ConditionEditorProps {
  * @param {ConditionEditorProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEditorProps) {
-  const kind = TASK_FILTER_FIELDS[condition.field];
+function ConditionEditor<F extends string>({ condition, fields, onChange, onRemove }: ConditionEditorProps<F>) {
+  const kind = fields.kinds[condition.field];
   const operator = condition.operator as FilterOperator;
   const needsValue = !VALUELESS_OPERATORS.includes(operator);
-  const set = (value: FilterCondition['value']) => onChange({ ...condition, value });
+  const set = (value: FilterConditionOf<F>['value']) => onChange({ ...condition, value });
 
   let editor = null;
   if (needsValue) {
@@ -240,11 +252,7 @@ function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEd
           size="xs"
           aria-label="Valeurs"
           placeholder="Choisir…"
-          {...(condition.field === 'project'
-            ? treeSelectProps(context.projectOptions(context.projects))
-            : condition.field === 'parent'
-              ? treeSelectProps(context.taskOptions(context.tasks))
-              : { data: referenceOptions(condition.field, context) })}
+          {...fields.options(condition.field)}
           value={Array.isArray(condition.value) ? condition.value : []}
           onChange={set}
           searchable
@@ -258,26 +266,26 @@ function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEd
   }
 
   return (
-    <Group gap="xs" wrap="wrap" className={classes.condition} data-incomplete={!isComplete(condition) || undefined}>
+    <Group gap="xs" wrap="wrap" className={classes.condition} data-incomplete={!fields.isComplete(condition) || undefined}>
       <Select
         comboboxProps={INLINE}
         size="xs"
         aria-label="Champ"
-        data={FIELD_GROUPS.map(({ group, fields }) => ({
+        data={fields.groups.map(({ group, fields: items }) => ({
           group,
-          items: fields.map((field) => ({ value: field, label: FIELD_LABELS[field] })),
+          items: items.map((field) => ({ value: field, label: fields.labels[field] })),
         }))}
         value={condition.field}
         allowDeselect={false}
         searchable
-        onChange={(field) => field && onChange({ ...newCondition(field as TaskFilterField), id: condition.id })}
+        onChange={(field) => field && onChange({ ...newConditionFor(fields.kinds, field as F), id: condition.id })}
         w={170}
       />
       <Select
         comboboxProps={INLINE}
         size="xs"
         aria-label="Opérateur"
-        data={operatorsOf(condition.field).map((item) => ({ value: item, label: OPERATOR_LABELS[kind][item] ?? item }))}
+        data={operatorsFor(fields.kinds, condition.field).map((item) => ({ value: item, label: fields.operatorLabel?.(condition.field, item) ?? OPERATOR_LABELS[kind][item] ?? item }))}
         value={operator}
         allowDeselect={false}
         onChange={(next) => {
@@ -291,7 +299,7 @@ function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEd
           onChange({
             ...condition,
             operator: nextOperator,
-            value: keep ? condition.value : defaultValue(condition.field, nextOperator),
+            value: keep ? condition.value : defaultValueFor(kind, nextOperator),
           });
         }}
         w={190}
@@ -306,11 +314,11 @@ function ConditionEditor({ condition, context, onChange, onRemove }: ConditionEd
   );
 }
 
-interface GroupEditorProps {
-  group: FilterGroup;
+interface GroupEditorProps<F extends string> {
+  group: FilterGroupOf<F>;
   depth: number;
-  context: TaskContext;
-  onChange: (group: FilterGroup) => void;
+  fields: FilterFields<F>;
+  onChange: (group: FilterGroupOf<F>) => void;
   onRemove?: () => void;
 }
 
@@ -319,14 +327,14 @@ interface GroupEditorProps {
  * @param {GroupEditorProps} props Component props.
  * @returns {JSX.Element} Group.
  */
-function GroupEditor({ group, depth, context, onChange, onRemove }: GroupEditorProps) {
+function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemove }: GroupEditorProps<F>) {
   /**
    * Replaces a child.
    * @param {number} index Child index.
    * @param {FilterGroup['children'][number] | null} child New child, or null to remove it.
    * @returns {void}
    */
-  const setChild = (index: number, child: FilterGroup['children'][number] | null) =>
+  const setChild = (index: number, child: FilterGroupOf<F>['children'][number] | null) =>
     onChange({
       ...group,
       children: child === null ? group.children.filter((_, i) => i !== index) : group.children.map((c, i) => (i === index ? child : c)),
@@ -358,7 +366,7 @@ function GroupEditor({ group, depth, context, onChange, onRemove }: GroupEditorP
         )}
         {group.children.length === 0 && (
           <Text size="sm" c="dimmed">
-            {depth === 1 ? 'Aucun filtre : toutes les tâches sont affichées.' : 'Groupe vide.'}
+            {depth === 1 ? fields.emptyText : 'Groupe vide.'}
           </Text>
         )}
         {group.children.map((child, index) => (
@@ -371,7 +379,7 @@ function GroupEditor({ group, depth, context, onChange, onRemove }: GroupEditorP
             {child.type === 'condition' ? (
               <ConditionEditor
                 condition={child}
-                context={context}
+                fields={fields}
                 onChange={(next) => setChild(index, next)}
                 onRemove={() => setChild(index, null)}
               />
@@ -379,7 +387,7 @@ function GroupEditor({ group, depth, context, onChange, onRemove }: GroupEditorP
               <GroupEditor
                 group={child}
                 depth={depth + 1}
-                context={context}
+                fields={fields}
                 onChange={(next) => setChild(index, next)}
                 onRemove={() => setChild(index, null)}
               />
@@ -391,7 +399,7 @@ function GroupEditor({ group, depth, context, onChange, onRemove }: GroupEditorP
             size="compact-sm"
             variant="subtle"
             leftSection={<PlusIcon aria-hidden />}
-            onClick={() => onChange({ ...group, children: [...group.children, newCondition()] })}
+            onClick={() => onChange({ ...group, children: [...group.children, newConditionFor(fields.kinds, fields.first)] })}
           >
             Condition
           </Button>
@@ -405,7 +413,7 @@ function GroupEditor({ group, depth, context, onChange, onRemove }: GroupEditorP
                   ...group,
                   children: [
                     ...group.children,
-                    { type: 'group', id: nodeId(), combinator: group.combinator === 'and' ? 'or' : 'and', children: [newCondition()] },
+                    { type: 'group', id: nodeId(), combinator: group.combinator === 'and' ? 'or' : 'and', children: [newConditionFor(fields.kinds, fields.first)] },
                   ],
                 })
               }
@@ -424,6 +432,39 @@ function GroupEditor({ group, depth, context, onChange, onRemove }: GroupEditorP
   );
 }
 
+/**
+ * Fields of the task filters, their values from the task context.
+ * @param {TaskContext} context Task context.
+ * @returns {FilterFields<TaskFilterField>} Fields.
+ */
+function taskFilterFields(context: TaskContext): FilterFields<TaskFilterField> {
+  return {
+    kinds: TASK_FILTER_FIELDS,
+    labels: FIELD_LABELS,
+    groups: FIELD_GROUPS,
+    first: 'title',
+    options: (field) =>
+      field === 'project' ? treeSelectProps(context.projectOptions(context.projects)) : field === 'parent' ? treeSelectProps(context.taskOptions(context.tasks)) : { data: referenceOptions(field, context) },
+    isComplete,
+    emptyText: 'Aucun filtre : toutes les tâches sont affichées.',
+  };
+}
+
+interface FieldsFilterBuilderProps<F extends string> {
+  filter: FilterGroupOf<F>;
+  fields: FilterFields<F>;
+  onChange: (filter: FilterGroupOf<F>) => void;
+}
+
+/**
+ * Editor of a filter tree on some fields (tasks, routines…): conditions and nested groups combined with ET / OU.
+ * @param {FieldsFilterBuilderProps<F>} props Component props.
+ * @returns {JSX.Element} Builder.
+ */
+export function FieldsFilterBuilder<F extends string>({ filter, fields, onChange }: FieldsFilterBuilderProps<F>) {
+  return <GroupEditor group={filter} depth={1} fields={fields} onChange={onChange} />;
+}
+
 interface FilterBuilderProps {
   filter: FilterGroup;
   context: TaskContext;
@@ -431,11 +472,10 @@ interface FilterBuilderProps {
 }
 
 /**
- * Advanced filter editor: nested ET / OU groups of conditions. Incomplete conditions are highlighted
- * and ignored until they are filled.
+ * Editor of a task filter tree.
  * @param {FilterBuilderProps} props Component props.
- * @returns {JSX.Element} Editor.
+ * @returns {JSX.Element} Builder.
  */
 export function FilterBuilder({ filter, context, onChange }: FilterBuilderProps) {
-  return <GroupEditor group={filter} depth={1} context={context} onChange={onChange} />;
+  return <FieldsFilterBuilder filter={filter} fields={taskFilterFields(context)} onChange={onChange} />;
 }
