@@ -1,8 +1,9 @@
 import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, SegmentedControl, Select, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_SCHEDULE_KIND_NAME, periodRhythm, readScheduleCases, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
-import { CopyIcon, ClockIcon, FunnelSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { CopyIcon, ClockIcon, FunnelSimpleIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
@@ -342,39 +343,33 @@ export function WorkSchedulesManager() {
           </Stack>
         </Paper>
       ) : (
-        <>
-          <Group gap="xs" align="flex-end">
-            <TextInput
-              size="xs"
-              style={{ flex: 1, minWidth: 160 }}
-              aria-label="Rechercher une plage"
-              placeholder="Rechercher (nom, type, exception)…"
-              leftSection={<MagnifyingGlassIcon aria-hidden />}
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
-            />
-            <BatchMultiSelect
-              size="xs"
-              w={220}
-              aria-label="Types"
-              placeholder={kinds.length ? undefined : 'Tous les types'}
-              clearable
-              data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name }))]}
-              value={kinds}
-              onChange={setKinds}
-            />
-            <SegmentedControl
-              size="xs"
-              aria-label="État"
-              data={[{ value: 'ALL', label: 'Toutes' }, ...(['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] }))]}
-              value={state}
-              onChange={(value) => setState(value as ScheduleState | 'ALL')}
-            />
-          </Group>
-          <Text size="xs" c="dimmed">
-            {filtered ? `${rows.length} plage${rows.length > 1 ? 's' : ''} sur ${schedules.length}` : `${schedules.length} plage${schedules.length > 1 ? 's' : ''}`}
-          </Text>
-          {rows.length === 0 ? (
+        <DataTable
+          tableKey="work-schedules"
+          framed
+          search={{ value: search, onChange: setSearch, placeholder: 'Rechercher (nom, type, exception)…' }}
+          tools={
+            <>
+              <BatchMultiSelect
+                w={220}
+                aria-label="Types"
+                placeholder={kinds.length ? undefined : 'Tous les types'}
+                clearable
+                data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name }))]}
+                value={kinds}
+                onChange={setKinds}
+              />
+              <SegmentedControl
+                aria-label="État"
+                data={[{ value: 'ALL', label: 'Toutes' }, ...(['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] }))]}
+                value={state}
+                onChange={(value) => setState(value as ScheduleState | 'ALL')}
+              />
+              <Text size="xs" c="dimmed">
+                {filtered ? `${rows.length} plage${rows.length > 1 ? 's' : ''} sur ${schedules.length}` : `${schedules.length} plage${schedules.length > 1 ? 's' : ''}`}
+              </Text>
+            </>
+          }
+          empty={
             <Paper withBorder radius="md" p="xl">
               <Stack align="center" gap="sm">
                 <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
@@ -396,106 +391,90 @@ export function WorkSchedulesManager() {
                 </Button>
               </Stack>
             </Paper>
-          ) : (
-            <DataTable
-              tableKey="work-schedules"
-              highlightOnHover
-              verticalSpacing="xs"
-              columns={columns}
-              rows={rows}
-              getKey={({ schedule }) => schedule.id}
-              actionsWidth={120}
-              initialSorting={[{ id: 'start', desc: true }]}
-              cells={({ schedule, state: rowState, exceptions }) => {
-                const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
-                const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
-                return {
-                  name: (
-                    <>
-                      <Text size="sm" fw={600}>
-                        {schedule.name}
-                      </Text>
-                    </>
-                  ),
-                  type: (
-                    <>
-                      <Group gap={6} wrap="nowrap">
-                        <ColorSwatch size={10} color={color} />
-                        <Text size="sm">{kindName(schedule)}</Text>
-                      </Group>
-                    </>
-                  ),
-                  start: (
-                    <>
-                      <Text size="sm">{printedDate(String(schedule.startDate))}</Text>
-                    </>
-                  ),
-                  end: (
-                    <>
-                      <Text size="sm" c={schedule.endDate ? undefined : 'dimmed'}>
-                        {schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'}
-                      </Text>
-                    </>
-                  ),
-                  hours: (
-                    <>
-                      <Stack gap={0}>
-                        {readScheduleCases(schedule.cases).map((item, index) => (
-                          <Text key={index} size="xs">
-                            {describeCase(item)}
-                          </Text>
-                        ))}
-                        {exceptions.length > 0 && (
-                          <Tooltip
-                            multiline
-                            w={360}
-                            label={exceptions.map((exception, index) => (
-                              <Text key={index} size="xs">
-                                {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
-                              </Text>
-                            ))}
-                          >
-                            <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
-                              {exceptions.length} exception{exceptions.length > 1 ? 's' : ''}
-                            </Text>
-                          </Tooltip>
-                        )}
-                      </Stack>
-                    </>
-                  ),
-                  state: (
-                    <>
-                      <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
-                        {STATE_LABELS[rowState]}
-                      </Badge>
-                    </>
-                  ),
-                };
-              }}
-              actions={({ schedule }) => (
+          }
+          highlightOnHover
+          verticalSpacing="xs"
+          columns={columns}
+          rows={rows}
+          getKey={({ schedule }) => schedule.id}
+          initialSorting={[{ id: 'start', desc: true }]}
+          cells={({ schedule, state: rowState, exceptions }) => {
+            const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
+            const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
+            return {
+              name: (
                 <>
-                  <Group gap={2} wrap="nowrap" justify="flex-end">
-                    <Tooltip label="Modifier">
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${schedule.name}`} onClick={() => setEditing(schedule)}>
-                        <PencilSimpleIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Dupliquer (sans dates ni exceptions)">
-                      <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${schedule.name}`} onClick={() => setEditing({ copyOf: schedule })}>
-                        <CopyIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Supprimer">
-                      <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${schedule.name}`} onClick={() => setDeleting(schedule)}>
-                        <TrashIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
+                  <Text size="sm" fw={600}>
+                    {schedule.name}
+                  </Text>
+                </>
+              ),
+              type: (
+                <>
+                  <Group gap={6} wrap="nowrap">
+                    <ColorSwatch size={10} color={color} />
+                    <Text size="sm">{kindName(schedule)}</Text>
                   </Group>
                 </>
-              )}
+              ),
+              start: (
+                <>
+                  <Text size="sm">{printedDate(String(schedule.startDate))}</Text>
+                </>
+              ),
+              end: (
+                <>
+                  <Text size="sm" c={schedule.endDate ? undefined : 'dimmed'}>
+                    {schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'}
+                  </Text>
+                </>
+              ),
+              hours: (
+                <>
+                  <Stack gap={0}>
+                    {readScheduleCases(schedule.cases).map((item, index) => (
+                      <Text key={index} size="xs">
+                        {describeCase(item)}
+                      </Text>
+                    ))}
+                    {exceptions.length > 0 && (
+                      <Tooltip
+                        multiline
+                        w={360}
+                        label={exceptions.map((exception, index) => (
+                          <Text key={index} size="xs">
+                            {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
+                          </Text>
+                        ))}
+                      >
+                        <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
+                          {exceptions.length} exception{exceptions.length > 1 ? 's' : ''}
+                        </Text>
+                      </Tooltip>
+                    )}
+                  </Stack>
+                </>
+              ),
+              state: (
+                <>
+                  <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
+                    {STATE_LABELS[rowState]}
+                  </Badge>
+                </>
+              ),
+            };
+          }}
+          actions={({ schedule }) => (
+            <RowActions
+              name={schedule.name}
+              primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setEditing(schedule) }}
+              items={[
+                { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => setEditing({ copyOf: schedule }) },
+                { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => setDeleting(schedule) },
+              ]}
             />
           )}
-        </>
+        />
       )}
     </Stack>
   );

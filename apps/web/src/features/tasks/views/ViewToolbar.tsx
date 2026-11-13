@@ -1,51 +1,14 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  CloseButton,
-  Indicator,
-  Collapse,
-  Divider,
-  Group,
-  Popover,
-  SegmentedControl,
-  Select,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-} from '@mantine/core';
-import {
-  EVENT_PERIODS,
-  TASK_GROUP_BY,
-  TASK_SORT_KEYS,
-  type EventPeriod,
-  type TaskGroupBy,
-  type TaskViewConfig,
-} from '@ordo/shared';
-import {
-  ArrowCounterClockwiseIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  CaretDownIcon,
-  ColumnsIcon,
-  FileCsvIcon,
-  FilePdfIcon,
-  FloppyDiskIcon,
-  FunnelIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  SlidersHorizontalIcon,
-  SortAscendingIcon,
-  TrashIcon,
-} from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ActionIcon, Button, Group, SegmentedControl, Select, Stack, Switch, Text } from '@mantine/core';
+import { defaultTaskViewConfig, EVENT_PERIODS, TASK_GROUP_BY, TASK_SORT_KEYS, type EventPeriod, type TaskGroupBy, type TaskViewConfig } from '@ordo/shared';
+import { ArrowDownIcon, ArrowUpIcon, FileCsvIcon, FilePdfIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { TableOptions, TableToolbar, ToolbarFilter, ToolbarSort } from '../../../components/data-table/TableToolbar';
+import { useTaskColumnDefaults } from '../api';
 import type { TaskContext } from '../use-task-context';
+import { ColumnsPanel } from './ColumnsPanel';
 import { GROUP_BY_LABELS, SORT_LABELS } from './columns-meta';
 import { FilterBuilder } from './FilterBuilder';
 import { countConditions } from './filter-meta';
-import { ColumnsPanel } from './ColumnsPanel';
 
 type Change = (change: (config: TaskViewConfig) => TaskViewConfig) => void;
 
@@ -112,46 +75,20 @@ export function SortPanel<K extends string>({ sorting, onChange, keys, labels, m
               ]}
               aria-label="Sens"
             />
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              aria-label="Monter"
-              disabled={index === 0}
-              onClick={() => onChange(arrayMove(sorting, index, index - 1))}
-            >
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Monter" disabled={index === 0} onClick={() => onChange(arrayMove(sorting, index, index - 1))}>
               <ArrowUpIcon aria-hidden />
             </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              aria-label="Descendre"
-              disabled={index === sorting.length - 1}
-              onClick={() => onChange(arrayMove(sorting, index, index + 1))}
-            >
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Descendre" disabled={index === sorting.length - 1} onClick={() => onChange(arrayMove(sorting, index, index + 1))}>
               <ArrowDownIcon aria-hidden />
             </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              aria-label="Retirer ce tri"
-              onClick={() => onChange(sorting.filter((_, i) => i !== index))}
-            >
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Retirer ce tri" onClick={() => onChange(sorting.filter((_, i) => i !== index))}>
               <TrashIcon aria-hidden />
             </ActionIcon>
           </Group>
         ))
       )}
       <Group justify="space-between">
-        <Button
-          size="compact-sm"
-          variant="subtle"
-          leftSection={<PlusIcon aria-hidden />}
-          disabled={available.length === 0}
-          onClick={() => onChange([...sorting, { id: available[0], desc: false }])}
-        >
+        <Button size="compact-sm" variant="subtle" leftSection={<PlusIcon aria-hidden />} disabled={available.length === 0} onClick={() => onChange([...sorting, { id: available[0], desc: false }])}>
           Ajouter un tri
         </Button>
         {sorting.length > 0 && (
@@ -167,18 +104,6 @@ export function SortPanel<K extends string>({ sorting, onChange, keys, labels, m
       )}
     </Stack>
   );
-}
-
-/**
- * Column visibility and order of a view.
- * @param {object} props Component props.
- * @param {TaskViewConfig} props.config View configuration.
- * @param {Change} props.change Configuration updater.
- * @returns {JSX.Element} Panel.
- */
-function ViewColumnsPanel({ config, change }: { config: TaskViewConfig; change: Change }) {
-  // The options panel scrolls as a whole: no scroll of its own.
-  return <ColumnsPanel columnOrder={config.columnOrder} hiddenColumns={config.hiddenColumns} onChange={(columns) => change((current) => ({ ...current, ...columns }))} />;
 }
 
 interface ViewToolbarProps {
@@ -203,36 +128,15 @@ interface ViewToolbarProps {
 }
 
 /**
- * Options of a view, in one panel: its unsaved changes to save or revert (at the top), display (grouping, sub-tasks
- * flat, archived tasks, events and their period), columns (folded: the list is long) and exports.
- * @param {Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>} props Component props.
- * @returns {JSX.Element} Panel.
+ * Display options of a task view: grouping, sub-tasks flat, archived tasks, events and their period.
+ * @param {Pick<ViewToolbarProps, 'config' | 'change' | 'eventPeriodLocked' | 'eventPeriodLabel'>} props Component props.
+ * @returns {JSX.Element} Options.
  */
-function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport, dirty, onSave, onRevert }: Omit<ViewToolbarProps, 'context' | 'filterOpened' | 'onFilterOpenedChange'>) {
-  const [columnsOpened, setColumnsOpened] = useState(false);
+function DisplayOptions({ config, change, eventPeriodLocked, eventPeriodLabel }: Pick<ViewToolbarProps, 'config' | 'change' | 'eventPeriodLocked' | 'eventPeriodLabel'>) {
   // The lists open in the panel: rendered in a portal, a click in them would close it.
   const inPanel = { withinPortal: false } as const;
   return (
-    <Stack gap="sm">
-      {dirty && (
-        <>
-          <Text size="sm" c="orange">
-            Modifications non enregistrées
-          </Text>
-          <Group gap="xs" grow>
-            <Button variant="default" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
-              Annuler
-            </Button>
-            <Button leftSection={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
-              Enregistrer
-            </Button>
-          </Group>
-          <Divider />
-        </>
-      )}
-      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-        Affichage
-      </Text>
+    <>
       <Select
         label="Grouper par"
         placeholder="Aucun groupe"
@@ -281,145 +185,79 @@ function ViewOptions({ config, change, eventPeriodLocked, eventPeriodLabel, onEx
           comboboxProps={inPanel}
         />
       )}
-
-      <Divider />
-      <Button
-        variant="subtle"
-        color="gray"
-        justify="space-between"
-        leftSection={<ColumnsIcon aria-hidden />}
-        rightSection={<CaretDownIcon aria-hidden style={{ transform: columnsOpened ? 'rotate(180deg)' : undefined }} />}
-        onClick={() => setColumnsOpened((opened) => !opened)}
-        aria-expanded={columnsOpened}
-        fullWidth
-      >
-        Colonnes
-      </Button>
-      <Collapse expanded={columnsOpened}>
-        <ViewColumnsPanel config={config} change={change} />
-      </Collapse>
-
-      <Divider />
-      <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-        Exporter
-      </Text>
-      <Group gap="xs" grow>
-        <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} onClick={() => onExport('csv')} loading={exporting} disabled={!canExport}>
-          CSV
-        </Button>
-        <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => onExport('pdf')} loading={exporting} disabled={!canExport}>
-          PDF
-        </Button>
-      </Group>
-    </Stack>
+    </>
   );
 }
 
 /**
- * Toolbar of the current view: the search on all the width left, filters, sorting, and one « Options » menu (a dot
- * on it while the view has unsaved changes) with those changes to save or revert, the display (grouping, sub-tasks
- * flat, archived tasks, events and their period), the columns and the exports.
+ * Toolbar of the current view (the one of every table): the search on all the width left, filters, sorting, and the
+ * « Options » menu (a dot on it while the view has unsaved changes) with those changes to save or revert, the display
+ * (grouping, sub-tasks flat, archived tasks, events and their period), the columns and the exports.
  * @param {ViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function ViewToolbar({ config, change, context, filterOpened, onFilterOpenedChange, eventPeriodLocked, eventPeriodLabel, onExport, exporting, canExport, dirty, onSave, onRevert }: ViewToolbarProps) {
-  const filterCount = countConditions(config.filter);
+export function ViewToolbar({
+  config,
+  change,
+  context,
+  filterOpened,
+  onFilterOpenedChange,
+  eventPeriodLocked,
+  eventPeriodLabel,
+  onExport,
+  exporting,
+  canExport,
+  dirty,
+  onSave,
+  onRevert,
+}: ViewToolbarProps) {
+  const { data: columnDefaults } = useTaskColumnDefaults();
   return (
-    <Group gap="sm" wrap="wrap">
-      <TextInput
-        placeholder="Rechercher (#12, titre, description)"
-        aria-label="Rechercher une tâche"
-        leftSection={<MagnifyingGlassIcon aria-hidden />}
-        rightSection={
-          config.search ? (
-            <CloseButton size="sm" aria-label="Effacer" onClick={() => change((current) => ({ ...current, search: '' }))} />
-          ) : null
-        }
-        value={config.search}
-        onChange={(event) => {
-          const search = event.currentTarget.value;
-          change((current) => ({ ...current, search }));
-        }}
-        // Every width left by the buttons, but never under a minimum: without room, the buttons go to the next line.
-        style={{ flex: '1 1 14rem', minWidth: 'min(100%, 14rem)' }}
-      />
-
-      <Popover
-        opened={filterOpened}
-        onChange={onFilterOpenedChange}
-        position="bottom-start"
-        shadow="md"
-        withinPortal
-        trapFocus={false}
-        closeOnClickOutside
-      >
-        <Popover.Target>
-          <Button
-            onClick={() => onFilterOpenedChange(!filterOpened)}
-            variant={filterCount ? 'light' : 'default'}
-            leftSection={<FunnelIcon aria-hidden />}
-            rightSection={filterCount ? <Badge size="xs" circle>{filterCount}</Badge> : undefined}
-          >
-            Filtrer
-          </Button>
-        </Popover.Target>
-        <Popover.Dropdown maw="min(56rem, calc(100vw - 2rem))">
-          {/* No scroll container: it would clip the dropdowns rendered inside the popover. */}
-          <FilterBuilder
-            filter={config.filter}
-            context={context}
-            onChange={(filter) => change((current) => ({ ...current, filter }))}
-          />
-        </Popover.Dropdown>
-      </Popover>
-
-      <Popover position="bottom-start" shadow="md" withinPortal>
-        <Popover.Target>
-          <Button
-            variant={config.sorting.length ? 'light' : 'default'}
-            leftSection={<SortAscendingIcon aria-hidden />}
-            rightSection={config.sorting.length ? <Badge size="xs" circle>{config.sorting.length}</Badge> : undefined}
-          >
-            Trier
-          </Button>
-        </Popover.Target>
-        <Popover.Dropdown>
-          <SortPanel
-            sorting={config.sorting}
-            onChange={(sorting) => change((current) => ({ ...current, sorting }))}
-            keys={TASK_SORT_KEYS}
-            labels={SORT_LABELS}
-            manualText="Ordre manuel : les tâches peuvent être réordonnées par glisser-déposer."
-            hint="Astuce : cliquez sur un en-tête de colonne pour trier, Maj + clic pour ajouter un niveau."
-          />
-        </Popover.Dropdown>
-      </Popover>
-
-      {/* A dot while the view has unsaved changes. */}
-      <Indicator disabled={!dirty} size={8} offset={4} position="top-end" color="orange">
-        {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
-        <Popover position="bottom-end" shadow="md" withinPortal width={340} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
-          <Popover.Target>
-            <Button variant="default" leftSection={<SlidersHorizontalIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
-              Options
-            </Button>
-          </Popover.Target>
-          <Popover.Dropdown style={{ overflowY: 'auto' }}>
-            <ViewOptions
-              dirty={dirty}
-              onSave={onSave}
-              onRevert={onRevert}
-              config={config}
-              change={change}
-              eventPeriodLocked={eventPeriodLocked}
-              eventPeriodLabel={eventPeriodLabel}
-              onExport={onExport}
-              exporting={exporting}
-              canExport={canExport}
+    <TableToolbar
+      search={{ value: config.search, onChange: (search) => change((current) => ({ ...current, search })), placeholder: 'Rechercher (#12, titre, description)' }}
+      options={
+        <TableOptions
+          dirty={dirty}
+          onSave={onSave}
+          onRevert={onRevert}
+          display={<DisplayOptions config={config} change={change} eventPeriodLocked={eventPeriodLocked} eventPeriodLabel={eventPeriodLabel} />}
+          columns={
+            <ColumnsPanel
+              columnOrder={config.columnOrder}
+              hiddenColumns={config.hiddenColumns}
+              onChange={(columns) => change((current) => ({ ...current, ...columns }))}
+              onReset={() => {
+                const defaults = defaultTaskViewConfig(columnDefaults ?? undefined);
+                change((current) => ({ ...current, columnOrder: defaults.columnOrder, hiddenColumns: defaults.hiddenColumns, columnSizing: {} }));
+              }}
             />
-          </Popover.Dropdown>
-        </Popover>
-      </Indicator>
-    </Group>
+          }
+          exports={
+            <Group gap="xs" grow>
+              <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} onClick={() => onExport('csv')} loading={exporting} disabled={!canExport}>
+                CSV
+              </Button>
+              <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => onExport('pdf')} loading={exporting} disabled={!canExport}>
+                PDF
+              </Button>
+            </Group>
+          }
+        />
+      }
+    >
+      <ToolbarFilter count={countConditions(config.filter)} opened={filterOpened} onOpenedChange={onFilterOpenedChange}>
+        <FilterBuilder filter={config.filter} context={context} onChange={(filter) => change((current) => ({ ...current, filter }))} />
+      </ToolbarFilter>
+      <ToolbarSort count={config.sorting.length}>
+        <SortPanel
+          sorting={config.sorting}
+          onChange={(sorting) => change((current) => ({ ...current, sorting }))}
+          keys={TASK_SORT_KEYS}
+          labels={SORT_LABELS}
+          manualText="Ordre manuel : les tâches peuvent être réordonnées par glisser-déposer."
+          hint="Astuce : cliquez sur un en-tête de colonne pour trier, Maj + clic pour ajouter un niveau."
+        />
+      </ToolbarSort>
+    </TableToolbar>
   );
 }

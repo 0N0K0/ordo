@@ -1,4 +1,6 @@
 import { modals } from '@mantine/modals';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
+import type { RowMenuEntry } from '../../components/data-table/RowActions';
 import { notifyError, notifyWithUndo } from '../../lib/notify';
 import { useSetTaskArchived, type Task } from './api';
 import { TaskCreateForm } from './TaskCreateForm';
@@ -48,8 +50,48 @@ export function useTaskActions(context: TaskContext | null) {
     );
   };
 
+  /**
+   * Opens the clone dialog.
+   * @param {Task} task Task.
+   * @returns {void}
+   */
+  const clone = (task: Task) => context && openModal('Cloner la tâche', (close) => <CloneTaskDialog task={task} context={context} onDone={close} />);
+
+  /**
+   * Opens the transfer dialog.
+   * @param {Task} task Task.
+   * @returns {void}
+   */
+  const transfer = (task: Task) => context && openModal('Transférer la tâche', (close) => <TransferTaskDialog task={task} context={context} onDone={close} />);
+
+  /**
+   * Asks for confirmation, then deletes.
+   * @param {Task} task Task.
+   * @returns {void}
+   */
+  const remove = (task: Task) => context && openModal('Supprimer la tâche', (close) => <DeleteTaskDialog task={task} context={context} onDone={close} />);
+
   return {
     archive,
+    clone,
+    transfer,
+    remove,
+
+    /**
+     * Actions of a task in its menu (the menu of every row: table, detail panel): clone, transfer, archive, delete.
+     * @param {Task} task Task.
+     * @returns {RowMenuEntry[]} Actions.
+     */
+    menu: (task: Task): RowMenuEntry[] => [
+      { label: 'Cloner', icon: <CopyIcon aria-hidden />, onClick: () => clone(task) },
+      { label: 'Transférer', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => transfer(task) },
+      {
+        label: task.archived ? 'Désarchiver' : 'Archiver',
+        icon: task.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+        onClick: () => archive(task, !task.archived),
+      },
+      { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => remove(task) },
+    ],
 
     /**
      * Opens the new task form.
@@ -64,31 +106,5 @@ export function useTaskActions(context: TaskContext | null) {
         'xl',
       );
     },
-
-    /**
-     * Asks for confirmation, then deletes.
-     * @param {Task} task Task.
-     * @returns {void}
-     */
-    remove: (task: Task) =>
-      context &&
-      openModal('Supprimer la tâche', (close) => <DeleteTaskDialog task={task} context={context} onDone={close} />),
-
-    /**
-     * Opens the transfer dialog.
-     * @param {Task} task Task.
-     * @returns {void}
-     */
-    transfer: (task: Task) =>
-      context &&
-      openModal('Transférer la tâche', (close) => <TransferTaskDialog task={task} context={context} onDone={close} />),
-
-    /**
-     * Opens the clone dialog.
-     * @param {Task} task Task.
-     * @returns {void}
-     */
-    clone: (task: Task) =>
-      context && openModal('Cloner la tâche', (close) => <CloneTaskDialog task={task} context={context} onDone={close} />),
   };
 }

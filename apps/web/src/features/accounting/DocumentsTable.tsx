@@ -1,10 +1,12 @@
-import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core';
+import { Badge, Group, Paper, Stack, Table, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { formatMoney } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import { useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
+import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
 import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
@@ -16,7 +18,7 @@ import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocu
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { openDepositForm } from './new-document';
-import { handleFileClick } from '../files/open-file';
+import { openFile } from '../files/open-file';
 import { downloadUrl } from '../files/viewable';
 import { pdfUrl } from './document-pdf';
 import { openPaymentDialog } from './payment-dialog';
@@ -40,7 +42,7 @@ interface DocumentsTableProps {
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
 /** Width of the actions column. */
-const ACTIONS_WIDTH = 150;
+const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
 /** Columns of the documents (type and client only where they vary). */
 const DOCUMENT_COLUMNS: DataColumn<Row>[] = [
@@ -75,21 +77,6 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
     columns,
   );
 
-  if (rows.length === 0) {
-    return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <ReceiptIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed">
-            {empty}
-          </Text>
-        </Stack>
-      </Paper>
-    );
-  }
-
   /**
    * Asks for confirmation before deleting an imported document.
    * @param {ImportedDocument} document Document.
@@ -118,44 +105,67 @@ export function DocumentsTable({ documents, imported = [], showType, showClient 
       ),
     });
   };
-
   return (
-    <Paper withBorder radius="md">
-      <div style={{ overflowX: 'auto' }}>
-        <Table ref={tableRef} highlightOnHover verticalSpacing="xs" className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
-          <DataTableHeader
-            columns={columns}
-            shown={shown}
-            layout={layout}
-            onLayoutChange={setLayout}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            tableRef={tableRef}
-            trailing={
-              <Table.Th w={ACTIONS_WIDTH}>
-                <ColumnsMenu columns={columns} layout={layout} onLayoutChange={setLayout} />
-              </Table.Th>
-            }
-          />
-          <Table.Tbody>
-            {rows.map((row) =>
-              row.kind === 'ordo' ? (
-                <OrdoRow
-                  key={row.document.id}
-                  document={row.document}
-                  shown={shown}
-                  onOpen={() => void navigate(`/accounting/${row.document.id}`)}
-                  onDuplicated={(id) => void navigate(`/accounting/${id}`)}
-                />
-              ) : (
-                <ImportedRow key={row.document.id} shown={shown} document={row.document} onDelete={() => confirmDelete(row.document)} />
-              ),
-            )}
-          </Table.Tbody>
-        </Table>
-      </div>
-    </Paper>
+    <Stack gap="sm">
+      <TableToolbar options={<TableOptions columns={<DataColumnsPanel columns={columns} layout={layout} onLayoutChange={setLayout} />} />} />
+      {content()}
+    </Stack>
   );
+
+  /**
+   * Content under the toolbar: empty, or the documents.
+   * @returns {ReactNode} Content.
+   */
+  function content(): ReactNode {
+    if (rows.length === 0) {
+      return (
+        <Paper withBorder radius="md" p="xl">
+          <Stack align="center" gap="sm">
+            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
+              <ReceiptIcon aria-hidden />
+            </ThemeIcon>
+            <Text size="sm" c="dimmed">
+              {empty}
+            </Text>
+          </Stack>
+        </Paper>
+      );
+    }
+
+    return (
+      <Paper withBorder radius="md">
+        <div style={{ overflowX: 'auto' }}>
+          <Table ref={tableRef} highlightOnHover verticalSpacing="xs" className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
+            <DataTableHeader
+              columns={columns}
+              shown={shown}
+              layout={layout}
+              onLayoutChange={setLayout}
+              sorting={sorting}
+              onSortingChange={setSorting}
+              tableRef={tableRef}
+              trailing={<Table.Th w={ACTIONS_WIDTH} />}
+            />
+            <Table.Tbody>
+              {rows.map((row) =>
+                row.kind === 'ordo' ? (
+                  <OrdoRow
+                    key={row.document.id}
+                    document={row.document}
+                    shown={shown}
+                    onOpen={() => void navigate(`/accounting/${row.document.id}`)}
+                    onDuplicated={(id) => void navigate(`/accounting/${id}`)}
+                  />
+                ) : (
+                  <ImportedRow key={row.document.id} shown={shown} document={row.document} onDelete={() => confirmDelete(row.document)} />
+                ),
+              )}
+            </Table.Tbody>
+          </Table>
+        </div>
+      </Paper>
+    );
+  }
 }
 
 interface OrdoRowProps {
@@ -235,51 +245,42 @@ function OrdoRow({ shown, document, onOpen, onDuplicated }: OrdoRowProps) {
         </Table.Td>
       ))}
       <Table.Td>
-        <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
-          {/* An invoice still due takes a payment, a credit note still to refund a refund. */}
-          {document.status === 'FINAL' && document.type !== 'QUOTE' && (document.balance ?? 0) > 0 && (
-            <Tooltip label={document.type === 'CREDIT_NOTE' ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label={`${document.type === 'CREDIT_NOTE' ? 'Remboursement' : 'Paiement'} de ${document.number}`}
-                onClick={() => openPaymentDialog(document)}
-              >
-                <CoinsIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          <Tooltip label="Dupliquer en brouillon">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              aria-label={`Dupliquer ${document.number ?? 'le brouillon'}`}
-              loading={duplicate.isPending && duplicate.variables?.id === document.id}
-              onClick={() =>
-                duplicate.mutate(
-                  { id: document.id, issueDate: localToday() },
-                  {
-                    onSuccess: (id) => {
-                      notifySuccess('Document dupliqué en brouillon.');
-                      onDuplicated(id);
-                    },
-                    onError: (error) => notifyError(error.message),
-                  },
-                )
+        {/* Not opening the row: the menu is rendered in a portal, its clicks still reach the row. */}
+        <div onClick={(event) => event.stopPropagation()}>
+          <RowActions
+            name={document.number ?? 'le brouillon'}
+            // An invoice still due takes a payment, a credit note still to refund a refund.
+            primary={
+              document.status === 'FINAL' &&
+              document.type !== 'QUOTE' &&
+              (document.balance ?? 0) > 0 && {
+                label: document.type === 'CREDIT_NOTE' ? 'Enregistrer un remboursement' : 'Enregistrer un paiement',
+                icon: <CoinsIcon aria-hidden />,
+                onClick: () => openPaymentDialog(document),
               }
-            >
-              <CopyIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-          {/* A final document downloads its PDF; drafts have none yet. */}
-          {document.status === 'FINAL' && (
-            <Tooltip label="Télécharger le PDF">
-              <ActionIcon component="a" href={pdfUrl(document.id, true)} download variant="subtle" color="gray" aria-label={`Télécharger ${document.number}`}>
-                <DownloadSimpleIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
-        </Group>
+            }
+            items={[
+              {
+                label: 'Dupliquer en brouillon',
+                icon: <CopyIcon aria-hidden />,
+                disabled: duplicate.isPending,
+                onClick: () =>
+                  duplicate.mutate(
+                    { id: document.id, issueDate: localToday() },
+                    {
+                      onSuccess: (id) => {
+                        notifySuccess('Document dupliqué en brouillon.');
+                        onDuplicated(id);
+                      },
+                      onError: (error) => notifyError(error.message),
+                    },
+                  ),
+              },
+              // A final document downloads its PDF; drafts have none yet.
+              document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
+            ]}
+          />
+        </div>
       </Table.Td>
     </Table.Tr>
   );
@@ -363,62 +364,31 @@ function ImportedRow({ shown, document, onDelete }: ImportedRowProps) {
         </Table.Td>
       ))}
       <Table.Td>
-        {/* Actions of the row, apart from opening it. */}
-        <Group gap={2} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
-          {document.fileUrl && (
-            <Tooltip label={document.fileName ?? 'Document'}>
-              <ActionIcon
-                component="a"
-                href={document.fileUrl}
-                target="_blank"
-                rel="noopener"
-                variant="subtle"
-                color="gray"
-                aria-label={`Ouvrir ${document.fileName ?? 'le document'}`}
-                onClick={(event: React.MouseEvent) => {
-                  event.stopPropagation();
-                  handleFileClick(event, {
-                    url: document.fileUrl!,
-                    name: document.fileName ?? document.number,
-                    mimeType: document.fileMimeType,
-                  });
-                }}
-              >
-                <FilePdfIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          {document.fileUrl && (
-            <Tooltip label="Télécharger le fichier">
-              <ActionIcon component="a" href={downloadUrl(document.fileUrl)} variant="subtle" color="gray" aria-label={`Télécharger ${document.fileName ?? document.number}`}>
-                <DownloadSimpleIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          {document.type === 'QUOTE' && (
-            <Tooltip label={document.clientId ? 'Facture d’acompte' : 'Rattachez le devis à un client pour facturer un acompte'}>
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                aria-label={`Facture d’acompte sur ${document.number}`}
-                disabled={!document.clientId}
-                onClick={() => openDepositForm({ importedQuoteId: document.id })}
-              >
-                <HandCoinsIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          <Tooltip label="Modifier">
-            <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${document.number}`} onClick={() => openImportForm(document)}>
-              <PencilSimpleIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Supprimer">
-            <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${document.number}`} onClick={onDelete}>
-              <TrashIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
+        {/* Actions of the row, apart from opening it (the menu is rendered in a portal, its clicks still reach the row). */}
+        <div onClick={(event) => event.stopPropagation()}>
+          <RowActions
+            name={document.number}
+            primary={
+              document.fileUrl && {
+                label: 'Voir le fichier',
+                icon: <FilePdfIcon aria-hidden />,
+                onClick: () => openFile({ url: document.fileUrl!, name: document.fileName ?? document.number, mimeType: document.fileMimeType }),
+              }
+            }
+            items={[
+              document.fileUrl && { label: 'Télécharger le fichier', icon: <DownloadSimpleIcon aria-hidden />, href: downloadUrl(document.fileUrl), download: true },
+              document.type === 'QUOTE' && {
+                label: 'Facture d’acompte',
+                icon: <HandCoinsIcon aria-hidden />,
+                disabled: !document.clientId,
+                hint: document.clientId ? undefined : 'Rattachez le devis à un client pour facturer un acompte',
+                onClick: () => openDepositForm({ importedQuoteId: document.id }),
+              },
+              { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openImportForm(document) },
+              { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: onDelete },
+            ]}
+          />
+        </div>
       </Table.Td>
     </Table.Tr>
   );

@@ -1,10 +1,11 @@
 import { Alert, Anchor, Badge, Button, Checkbox, Group, Paper, Select, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { daysBetween, formatMoney, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
-import { CheckCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localDay, localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -152,134 +153,126 @@ export function OverdueInvoicesPanel() {
           pour envoyer les relances.
         </Alert>
       )}
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Text size="sm">
-          {invoices.length} facture{invoices.length > 1 ? 's' : ''} en retard, <b>{formatMoney(total)}</b> à encaisser.
-        </Text>
-        <Group gap="sm" align="flex-end" wrap="wrap">
-          <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
-            Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
-          </Button>
-          {accounts && accounts.length > 1 && (
-            <Select
-              aria-label="Boîte d’envoi"
-              w={240}
-              allowDeselect={false}
-              data={accounts.map((item) => ({ value: item.id, label: item.email }))}
-              value={account}
-              onChange={setAccountId}
+      <DataTable
+        framed
+        tableKey="overdue-invoices"
+        tools={
+          <>
+            <Text size="sm">
+              {invoices.length} facture{invoices.length > 1 ? 's' : ''} en retard, <b>{formatMoney(total)}</b> à encaisser.
+            </Text>
+            <Group gap="sm" ml="auto" wrap="wrap">
+              <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
+                Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
+              </Button>
+              {accounts && accounts.length > 1 && (
+                <Select aria-label="Boîte d’envoi" w={240} allowDeselect={false} data={accounts.map((item) => ({ value: item.id, label: item.email }))} value={account} onChange={setAccountId} />
+              )}
+              <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
+                Relancer{chosen.length ? ` (${chosen.length})` : ''}
+              </Button>
+            </Group>
+          </>
+        }
+        verticalSpacing="xs"
+        highlightOnHover
+        columns={OVERDUE_COLUMNS}
+        rows={invoices}
+        getKey={(invoice) => invoice.id}
+        actions={(invoice) => (
+          <RowActions name={invoice.number ?? 'la facture'} primary={{ label: 'Ouvrir la facture', icon: <FileTextIcon aria-hidden />, to: `/accounting/${invoice.id}` }} items={[]} />
+        )}
+        leading={{
+          width: 44,
+          header: (
+            <Checkbox
+              aria-label="Tout sélectionner"
+              checked={remindable.length > 0 && chosen.length === remindable.length}
+              indeterminate={chosen.length > 0 && chosen.length < remindable.length}
+              disabled={remindable.length === 0}
+              onChange={() => setSelected(chosen.length === remindable.length ? new Set() : new Set(remindable.map((invoice) => invoice.id)))}
             />
-          )}
-          <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
-            Relancer{chosen.length ? ` (${chosen.length})` : ''}
-          </Button>
-        </Group>
-      </Group>
-      <Paper withBorder radius="md">
-        <DataTable
-          tableKey="overdue-invoices"
-          verticalSpacing="xs"
-          highlightOnHover
-          columns={OVERDUE_COLUMNS}
-          rows={invoices}
-          getKey={(invoice) => invoice.id}
-          actionsWidth={48}
-          leading={{
-            width: 44,
-            header: (
-                <Checkbox
-                  aria-label="Tout sélectionner"
-                  checked={remindable.length > 0 && chosen.length === remindable.length}
-                  indeterminate={chosen.length > 0 && chosen.length < remindable.length}
-                  disabled={remindable.length === 0}
-                  onChange={() => setSelected(chosen.length === remindable.length ? new Set() : new Set(remindable.map((invoice) => invoice.id)))}
-                />
+          ),
+          cell: (invoice) => (
+            <Checkbox
+              aria-label={`Relancer ${invoice.number}`}
+              checked={selected.has(invoice.id) && Boolean(invoice.billingEmail)}
+              disabled={!invoice.billingEmail}
+              onChange={() => toggle(invoice.id)}
+            />
+          ),
+        }}
+        cells={(invoice) => {
+          // Reminders count from the sending.
+          const sentDay = invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null;
+          const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
+          const since = daysSinceReminder(invoice, today);
+          return {
+            invoice: (
+              <>
+                <Anchor component={Link} to={`/accounting/${invoice.id}`} size="sm" fw={600}>
+                  {invoice.type === 'DEPOSIT_INVOICE' ? `${DOCUMENT_TYPE_LABELS.DEPOSIT_INVOICE} ` : ''}
+                  {invoice.number}
+                </Anchor>
+                <Text size="xs" c="dimmed">
+                  {invoice.clientName}
+                </Text>
+              </>
             ),
-            cell: (invoice) => (
-                    <Checkbox
-                      aria-label={`Relancer ${invoice.number}`}
-                      checked={selected.has(invoice.id) && Boolean(invoice.billingEmail)}
-                      disabled={!invoice.billingEmail}
-                      onChange={() => toggle(invoice.id)}
-                    />
+            sent: (
+              <>
+                <Text size="sm">
+                  {sentDay ? dayFormat.format(new Date(`${sentDay}T00:00:00Z`)) : '—'}
+                  {invoice.sentVia && (
+                    <Text span size="xs" c="dimmed">
+                      {' '}
+                      · {SENDING_CHANNEL_LABELS[invoice.sentVia as SendingChannel] ?? invoice.sentVia}
+                    </Text>
+                  )}
+                </Text>
+                <Badge size="xs" variant="light" color={sentSince > 45 ? 'red' : 'orange'}>
+                  Envoyée il y a {sentSince} jour{sentSince > 1 ? 's' : ''}
+                </Badge>
+                {invoice.dueDate && (
+                  <Text size="xs" c="dimmed">
+                    Échéance {dayFormat.format(new Date(`${invoice.dueDate}T00:00:00Z`))}
+                  </Text>
+                )}
+              </>
             ),
-          }}
-          cells={(invoice) => {
-              // Reminders count from the sending.
-              const sentDay = invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null;
-              const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
-              const since = daysSinceReminder(invoice, today);
-            return {
-              invoice: (
-<>
-                    <Anchor component={Link} to={`/accounting/${invoice.id}`} size="sm" fw={600}>
-                      {invoice.type === 'DEPOSIT_INVOICE' ? `${DOCUMENT_TYPE_LABELS.DEPOSIT_INVOICE} ` : ''}
-                      {invoice.number}
-                    </Anchor>
+            balance: <>{formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency)}</>,
+            reminder: (
+              <>
+                {invoice.lastReminderAt ? (
+                  <>
+                    <Text size="sm">{instantFormat.format(new Date(invoice.lastReminderAt))}</Text>
                     <Text size="xs" c="dimmed">
-                      {invoice.clientName}
+                      {since === 0 ? 'aujourd’hui' : `il y a ${since} jour${since && since > 1 ? 's' : ''}`} · {invoice.reminderCount} relance{invoice.reminderCount > 1 ? 's' : ''}
                     </Text>
-</>
-),
-              sent: (
-<>
-                    <Text size="sm">
-                      {sentDay ? dayFormat.format(new Date(`${sentDay}T00:00:00Z`)) : '—'}
-                      {invoice.sentVia && (
-                        <Text span size="xs" c="dimmed">
-                          {' '}
-                          · {SENDING_CHANNEL_LABELS[invoice.sentVia as SendingChannel] ?? invoice.sentVia}
-                        </Text>
-                      )}
-                    </Text>
-                    <Badge size="xs" variant="light" color={sentSince > 45 ? 'red' : 'orange'}>
-                      Envoyée il y a {sentSince} jour{sentSince > 1 ? 's' : ''}
-                    </Badge>
-                    {invoice.dueDate && (
-                      <Text size="xs" c="dimmed">
-                        Échéance {dayFormat.format(new Date(`${invoice.dueDate}T00:00:00Z`))}
-                      </Text>
-                    )}
-</>
-),
-              balance: (
-<>
-                    {formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency)}
-</>
-),
-              reminder: (
-<>
-                    {invoice.lastReminderAt ? (
-                      <>
-                        <Text size="sm">{instantFormat.format(new Date(invoice.lastReminderAt))}</Text>
-                        <Text size="xs" c="dimmed">
-                          {since === 0 ? 'aujourd’hui' : `il y a ${since} jour${since && since > 1 ? 's' : ''}`} · {invoice.reminderCount} relance{invoice.reminderCount > 1 ? 's' : ''}
-                        </Text>
-                      </>
-                    ) : (
-                      <Text size="sm" c="dimmed">
-                        Jamais
-                      </Text>
-                    )}
-</>
-),
-              email: (
-<>
-                    {invoice.billingEmail ? (
-                      <Text size="sm" truncate maw={220}>
-                        {invoice.billingEmail}
-                      </Text>
-                    ) : (
-                      <Text size="sm" c="red">
-                        Aucune adresse
-                      </Text>
-                    )}
-</>
-),
-            };
-          }}
-        />
-      </Paper>
+                  </>
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    Jamais
+                  </Text>
+                )}
+              </>
+            ),
+            email: (
+              <>
+                {invoice.billingEmail ? (
+                  <Text size="sm" truncate maw={220}>
+                    {invoice.billingEmail}
+                  </Text>
+                ) : (
+                  <Text size="sm" c="red">
+                    Aucune adresse
+                  </Text>
+                )}
+              </>
+            ),
+          };
+        }}
+      />
       <Text size="xs" c="dimmed">
         Une relance par mail et par facture, avec le PDF, la signature de la boîte d’envoi et le reste dû. Pour personnaliser le texte, relancez depuis la facture (« Relancer par mail »).
       </Text>

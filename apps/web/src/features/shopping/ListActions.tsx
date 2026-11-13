@@ -1,4 +1,4 @@
-import { Button, Group, Menu, Skeleton, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { Button, Group, Skeleton, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { formatMoney, shoppingListNameSchema } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
@@ -6,6 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { ActionsMenu, type RowMenuEntry } from '../../components/data-table/RowActions';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -134,23 +135,15 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
   );
 }
 
-interface ListActionsMenuProps {
-  list: ShoppingList;
-  /** Grouping of the exports (as the list is shown). */
-  grouping: ShoppingGrouping;
-  /** Button opening the menu. */
-  target: ReactNode;
-  /** After the list is deleted (leaves its page). Optional. */
-  onDeleted?: () => void;
-}
-
 /**
  * Actions of a shopping list, from its page or from the table of the lists: rename and change its task, attach to or
  * detach from a treasury entry, duplicate, copy as text, export as PDF, archive or reopen, delete.
- * @param {ListActionsMenuProps} props Component props.
- * @returns {JSX.Element} Menu.
+ * @param {ShoppingList} list List.
+ * @param {ShoppingGrouping} grouping Grouping of the exports (as the list is shown).
+ * @param {() => void} [onDeleted] After the list is deleted (leaves its page). Optional.
+ * @returns {RowMenuEntry[]} Actions.
  */
-export function ListActionsMenu({ list, grouping, target, onDeleted }: ListActionsMenuProps) {
+function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDeleted?: () => void): RowMenuEntry[] {
   const navigate = useNavigate();
   const { data } = useShoppingData();
   const { context } = useTaskContext();
@@ -171,99 +164,90 @@ export function ListActionsMenu({ list, grouping, target, onDeleted }: ListActio
       { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] },
     );
 
-  return (
-    <Menu position="bottom-end" shadow="md" withinPortal>
-      <Menu.Target>{target}</Menu.Target>
-      <Menu.Dropdown>
-        <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openModal('Modifier la liste', (close) => <ListForm list={list} onDone={close} />)}>
-          Renommer, changer de tâche
-        </Menu.Item>
-        {list.entryId ? (
-          <Menu.Item
-            leftSection={<BankIcon aria-hidden />}
-            onClick={() => mutations.attachEntry.mutate({ id: list.id, entryId: null }, { onSuccess: () => notifySuccess('Liste détachée du mouvement (sa répartition reste).'), onError })}
-          >
-            Détacher du mouvement
-          </Menu.Item>
-        ) : (
-          <Menu.Item leftSection={<BankIcon aria-hidden />} onClick={() => openModal('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />)}>
-            Rattacher à un mouvement
-          </Menu.Item>
-        )}
-        <Menu.Item
-          leftSection={<CopyIcon aria-hidden />}
-          onClick={() =>
-            mutations.duplicateList.mutate(
+  return [
+    { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openModal('Modifier la liste', (close) => <ListForm list={list} onDone={close} />) },
+    list.entryId
+      ? {
+          label: 'Détacher du mouvement',
+          icon: <BankIcon aria-hidden />,
+          onClick: () => mutations.attachEntry.mutate({ id: list.id, entryId: null }, { onSuccess: () => notifySuccess('Liste détachée du mouvement (sa répartition reste).'), onError }),
+        }
+      : { label: 'Rattacher à un mouvement', icon: <BankIcon aria-hidden />, onClick: () => openModal('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />) },
+    {
+      label: 'Dupliquer',
+      icon: <CopyIcon aria-hidden />,
+      onClick: () =>
+        mutations.duplicateList.mutate(
+          { id: list.id },
+          {
+            onSuccess: (copyId) => {
+              notifySuccess('Liste dupliquée.');
+              navigate(`/shopping/${copyId}`);
+            },
+            onError,
+          },
+        ),
+    },
+    'divider',
+    {
+      label: 'Copier en texte',
+      icon: <TextAlignLeftIcon aria-hidden />,
+      onClick: () =>
+        void navigator.clipboard.writeText(shoppingText(list, rows(), people)).then(
+          () => notifySuccess('Liste copiée : collez-la dans un message.'),
+          () => notifyError('La liste n’a pas pu être copiée.'),
+        ),
+    },
+    { label: 'Exporter en PDF', icon: <FilePdfIcon aria-hidden />, onClick: () => void downloadShoppingPdf(list, rows(), people).catch(onError) },
+    'divider',
+    closed
+      ? {
+          label: 'Rouvrir',
+          icon: <ArrowCounterClockwiseIcon aria-hidden />,
+          disabled: byTasks,
+          hint: byTasks ? 'Les tâches de la liste sont fermées : rouvrez-en une pour rouvrir la liste.' : undefined,
+          onClick: () => mutations.setClosed.mutate({ id: list.id, closed: false }, { onSuccess: () => notifySuccess('Liste rouverte.'), onError }),
+        }
+      : { label: 'Archiver', icon: <ArchiveIcon aria-hidden />, onClick: () => mutations.setClosed.mutate({ id: list.id, closed: true }, { onSuccess: () => notifySuccess('Liste archivée.'), onError }) },
+    {
+      label: 'Supprimer',
+      icon: <TrashIcon aria-hidden />,
+      danger: true,
+      onClick: () =>
+        confirmDestructive(
+          'Supprimer la liste',
+          `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
+          () =>
+            mutations.deleteList.mutate(
               { id: list.id },
               {
-                onSuccess: (copyId) => {
-                  notifySuccess('Liste dupliquée.');
-                  navigate(`/shopping/${copyId}`);
+                onSuccess: () => {
+                  notifySuccess('Liste supprimée.');
+                  onDeleted?.();
                 },
                 onError,
               },
-            )
-          }
-        >
-          Dupliquer
-        </Menu.Item>
-        <Menu.Divider />
-        <Menu.Item
-          leftSection={<TextAlignLeftIcon aria-hidden />}
-          onClick={() =>
-            void navigator.clipboard.writeText(shoppingText(list, rows(), people)).then(
-              () => notifySuccess('Liste copiée : collez-la dans un message.'),
-              () => notifyError('La liste n’a pas pu être copiée.'),
-            )
-          }
-        >
-          Copier en texte
-        </Menu.Item>
-        <Menu.Item leftSection={<FilePdfIcon aria-hidden />} onClick={() => void downloadShoppingPdf(list, rows(), people).catch(onError)}>
-          Exporter en PDF
-        </Menu.Item>
-        <Menu.Divider />
-        {closed ? (
-          <Menu.Item
-            leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
-            disabled={byTasks}
-            title={byTasks ? 'Les tâches de la liste sont fermées : rouvrez-en une pour rouvrir la liste.' : undefined}
-            onClick={() => mutations.setClosed.mutate({ id: list.id, closed: false }, { onSuccess: () => notifySuccess('Liste rouverte.'), onError })}
-          >
-            Rouvrir
-          </Menu.Item>
-        ) : (
-          <Menu.Item
-            leftSection={<ArchiveIcon aria-hidden />}
-            onClick={() => mutations.setClosed.mutate({ id: list.id, closed: true }, { onSuccess: () => notifySuccess('Liste archivée.'), onError })}
-          >
-            Archiver
-          </Menu.Item>
-        )}
-        <Menu.Item
-          color="red"
-          leftSection={<TrashIcon aria-hidden />}
-          onClick={() =>
-            confirmDestructive(
-              'Supprimer la liste',
-              `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
-              () =>
-                mutations.deleteList.mutate(
-                  { id: list.id },
-                  {
-                    onSuccess: () => {
-                      notifySuccess('Liste supprimée.');
-                      onDeleted?.();
-                    },
-                    onError,
-                  },
-                ),
-            )
-          }
-        >
-          Supprimer
-        </Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
-  );
+            ),
+        ),
+    },
+  ];
+}
+
+interface ListActionsMenuProps {
+  list: ShoppingList;
+  /** Grouping of the exports (as the list is shown). */
+  grouping: ShoppingGrouping;
+  /** Button opening the menu. Optional. Default = a « ⋯ » icon. */
+  target?: ReactNode;
+  /** After the list is deleted (leaves its page). Optional. */
+  onDeleted?: () => void;
+}
+
+/**
+ * Menu of the actions of a shopping list (the menu of every row).
+ * @param {ListActionsMenuProps} props Component props.
+ * @returns {JSX.Element | null} Menu.
+ */
+export function ListActionsMenu({ list, grouping, target, onDeleted }: ListActionsMenuProps) {
+  return <ActionsMenu name={`la liste ${list.name}`} items={useListActions(list, grouping, onDeleted)} target={target} />;
 }

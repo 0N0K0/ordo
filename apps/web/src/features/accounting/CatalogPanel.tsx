@@ -1,9 +1,27 @@
-import { ActionIcon, Badge, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Switch, Text, Textarea, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Group,
+  NumberInput,
+  Paper,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon,
+} from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -130,9 +148,7 @@ export function CatalogPanel() {
       title: 'Supprimer l’article',
       children: (
         <Stack gap="md">
-          <Text size="sm">
-            « {item.title} » sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le.
-          </Text>
+          <Text size="sm">« {item.title} » sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le.</Text>
           <DestructiveActions
             loading={false}
             onCancel={() => modals.close(modalId)}
@@ -166,67 +182,56 @@ export function CatalogPanel() {
   }
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between">
-        <Switch label="Afficher les articles archivés" checked={showArchived} onChange={(event) => setShowArchived(event.currentTarget.checked)} />
+    <DataTable
+      framed
+      tableKey="catalog"
+      tools={
         <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
           Ajouter un article
         </Button>
-      </Group>
-      <Paper withBorder radius="md">
-        <DataTable
-          tableKey="catalog"
-          verticalSpacing="xs"
-          columns={CATALOG_COLUMNS}
-          rows={shown}
-          getKey={(item) => item.id}
-          actionsWidth={80}
-          rowProps={(item) => ({ opacity: item.archived ? 0.6 : 1 })}
-          cells={(item) => ({
-            title: (
-              <>
-                <Group gap={6}>
-                  <Text size="sm" fw={600}>
-                    {item.title}
-                  </Text>
-                  {item.kind === 'DISBURSEMENT' && (
-                    <Badge size="xs" variant="light" color="grape">
-                      Débours
-                    </Badge>
-                  )}
-                  {item.archived && (
-                    <Badge size="xs" variant="light" color="gray">
-                      Archivé
-                    </Badge>
-                  )}
-                </Group>
-                {item.description && (
-                  <Text size="xs" c="dimmed" lineClamp={1}>
-                    {item.description}
-                  </Text>
-                )}
-              </>
-            ),
-            unit: UNIT_LABELS[item.unit].label,
-            price: formatMoney(Math.round(item.unitPrice * 100)),
-            vat: item.kind === 'DISBURSEMENT' ? '—' : `${item.vatRate.toLocaleString('fr-FR')} %`,
-          })}
-          actions={(item) => (
-            <Group gap={2} justify="flex-end" wrap="nowrap">
-              <Tooltip label="Modifier">
-                <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${item.title}`} onClick={() => openForm(item)}>
-                  <PencilSimpleIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Supprimer">
-                <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${item.title}`} onClick={() => confirmDelete(item)}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+      }
+      displayOptions={<Switch label="Articles archivés" checked={showArchived} onChange={(event) => setShowArchived(event.currentTarget.checked)} />}
+      verticalSpacing="xs"
+      columns={CATALOG_COLUMNS}
+      rows={shown}
+      getKey={(item) => item.id}
+      rowProps={(item) => ({ opacity: item.archived ? 0.6 : 1 })}
+      cells={(item) => ({
+        title: (
+          <>
+            <Group gap={6}>
+              <Text size="sm" fw={600}>
+                {item.title}
+              </Text>
+              {item.kind === 'DISBURSEMENT' && (
+                <Badge size="xs" variant="light" color="grape">
+                  Débours
+                </Badge>
+              )}
+              {item.archived && (
+                <Badge size="xs" variant="light" color="gray">
+                  Archivé
+                </Badge>
+              )}
             </Group>
-          )}
+            {item.description && (
+              <Text size="xs" c="dimmed" lineClamp={1}>
+                {item.description}
+              </Text>
+            )}
+          </>
+        ),
+        unit: UNIT_LABELS[item.unit].label,
+        price: formatMoney(Math.round(item.unitPrice * 100)),
+        vat: item.kind === 'DISBURSEMENT' ? '—' : `${item.vatRate.toLocaleString('fr-FR')} %`,
+      })}
+      actions={(item) => (
+        <RowActions
+          name={item.title}
+          primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(item) }}
+          items={[{ label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(item) }]}
         />
-      </Paper>
-    </Stack>
+      )}
+    />
   );
 }

@@ -1,9 +1,11 @@
-import { ActionIcon, Badge, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { Badge, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
+import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
 import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
@@ -28,7 +30,7 @@ function dayKey(iso: string): string {
 }
 
 /** Width of the actions column. */
-const ACTIONS_WIDTH = 120;
+const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
 /**
  * Columns of the tracked times.
@@ -129,27 +131,14 @@ function EntryRow({ entry, shown, context, projectId, onEdit, onDuplicate, onDel
       <Table.Td>
         {/* The running timer is edited from the timer; time on a final invoice is part of it (copied still). */}
         {!running && (
-          <Group gap={2} wrap="nowrap" justify="flex-end">
-            {!entry.documentNumber && (
-              <Tooltip label="Modifier">
-                <ActionIcon variant="subtle" color="gray" aria-label="Modifier ce temps" onClick={onEdit}>
-                  <PencilSimpleIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            )}
-            <Tooltip label="Dupliquer">
-              <ActionIcon variant="subtle" color="gray" aria-label="Dupliquer ce temps" onClick={onDuplicate}>
-                <CopyIcon aria-hidden />
-              </ActionIcon>
-            </Tooltip>
-            {!entry.documentNumber && (
-              <Tooltip label="Supprimer">
-                <ActionIcon variant="subtle" color="red" aria-label="Supprimer ce temps" onClick={onDelete}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            )}
-          </Group>
+          <RowActions
+            name="ce temps"
+            primary={!entry.documentNumber && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit }}
+            items={[
+              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: onDuplicate },
+              !entry.documentNumber && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: onDelete },
+            ]}
+          />
         )}
       </Table.Td>
     </Table.Tr>
@@ -164,101 +153,113 @@ interface TimeLogProps {
   onEdit: (entry: TimeEntry) => void;
   onDuplicate: (entry: TimeEntry) => void;
   onDelete: (entry: TimeEntry) => void;
+  /** Tools of the toolbar, before its options (period, project…). Optional. */
+  tools?: ReactNode;
 }
 
 /**
- * Tracked times in a table, by day (latest first), each day headed by its total.
+ * Tracked times in a table, by day (latest first), each day headed by its total; its toolbar above (the tools of the
+ * page, then the options with the columns).
  * @param {TimeLogProps} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete }: TimeLogProps) {
+export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete, tools }: TimeLogProps) {
   // Scrolling inside the height left by the page: the header stays on top, the total at the bottom.
   const [fillRef, fillHeight] = useFillHeight();
   const { layout, setLayout, sorting, setSorting } = useTableLayout('time-log');
   const tableRef = useRef<HTMLTableElement>(null);
   const columns = timeColumns(context);
   const shown = shownColumns(columns, layout);
-  if (!entries || !context) {
-    return (
-      <Stack gap="xs" aria-label="Chargement">
-        {[0, 1, 2].map((index) => (
-          <Skeleton key={index} height={48} />
-        ))}
-      </Stack>
-    );
-  }
-  const days = new Map<string, TimeEntry[]>();
-  // By day (latest first), sorted within each day.
-  for (const entry of entries) days.set(dayKey(entry.startedAt), []);
-  for (const entry of sortRows(entries, sorting, columns)) days.set(dayKey(entry.startedAt), [...(days.get(dayKey(entry.startedAt)) ?? []), entry]);
-  if (days.size === 0) {
-    return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <ClockIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed">
-            {emptyMessage}
-          </Text>
+  return (
+    <Stack gap="sm">
+      <TableToolbar options={<TableOptions columns={<DataColumnsPanel columns={columns} layout={layout} onLayoutChange={setLayout} />} />}>{tools}</TableToolbar>
+      {content()}
+    </Stack>
+  );
+
+  /**
+   * Content under the toolbar: loading, empty, or the times by day.
+   * @returns {ReactNode} Content.
+   */
+  function content(): ReactNode {
+    if (!entries || !context) {
+      return (
+        <Stack gap="xs" aria-label="Chargement">
+          {[0, 1, 2].map((index) => (
+            <Skeleton key={index} height={48} />
+          ))}
         </Stack>
+      );
+    }
+    const days = new Map<string, TimeEntry[]>();
+    // By day (latest first), sorted within each day.
+    for (const entry of entries) days.set(dayKey(entry.startedAt), []);
+    for (const entry of sortRows(entries, sorting, columns)) days.set(dayKey(entry.startedAt), [...(days.get(dayKey(entry.startedAt)) ?? []), entry]);
+    if (days.size === 0) {
+      return (
+        <Paper withBorder radius="md" p="xl">
+          <Stack align="center" gap="sm">
+            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
+              <ClockIcon aria-hidden />
+            </ThemeIcon>
+            <Text size="sm" c="dimmed">
+              {emptyMessage}
+            </Text>
+          </Stack>
+        </Paper>
+      );
+    }
+    return (
+      <Paper withBorder radius="md">
+        <div ref={fillRef} className={classes.scroller} style={{ maxHeight: fillHeight }}>
+          <Table ref={tableRef} verticalSpacing="xs" highlightOnHover stickyHeader className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
+            <DataTableHeader
+              columns={columns}
+              shown={shown}
+              layout={layout}
+              onLayoutChange={setLayout}
+              sorting={sorting}
+              onSortingChange={setSorting}
+              tableRef={tableRef}
+              trailing={<Table.Th w={ACTIONS_WIDTH} />}
+            />
+            {[...days.entries()].map(([day, dayEntries]) => (
+              <Table.Tbody key={day}>
+                {/* The day and its total, heading its times. */}
+                <Table.Tr className={classes.dayRow}>
+                  <Table.Th colSpan={shown.length + 1} scope="rowgroup">
+                    {dayFormat.format(new Date(`${day}T12:00:00`)).replace(/^./, (letter) => letter.toUpperCase())}&nbsp;:{' '}
+                    {formatDuration(dayEntries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
+                  </Table.Th>
+                </Table.Tr>
+                {dayEntries.map((entry) => (
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    shown={shown}
+                    context={context}
+                    projectId={projectId}
+                    onEdit={() => onEdit(entry)}
+                    onDuplicate={() => onDuplicate(entry)}
+                    onDelete={() => onDelete(entry)}
+                  />
+                ))}
+              </Table.Tbody>
+            ))}
+            {/* Total of the times shown (finished ones: a running timer counts once stopped). */}
+            <Table.Tfoot className={classes.total}>
+              <Table.Tr>
+                <Table.Th colSpan={shown.length} scope="row">
+                  Total
+                </Table.Th>
+                <Table.Th ff="monospace" ta="right" className={classes.nowrap}>
+                  {formatDuration(entries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
+                </Table.Th>
+              </Table.Tr>
+            </Table.Tfoot>
+          </Table>
+        </div>
       </Paper>
     );
   }
-  return (
-    <Paper withBorder radius="md">
-      <div ref={fillRef} className={classes.scroller} style={{ maxHeight: fillHeight }}>
-        <Table ref={tableRef} verticalSpacing="xs" highlightOnHover stickyHeader className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
-          <DataTableHeader
-            columns={columns}
-            shown={shown}
-            layout={layout}
-            onLayoutChange={setLayout}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            tableRef={tableRef}
-            trailing={
-              <Table.Th w={ACTIONS_WIDTH}>
-                <ColumnsMenu columns={columns} layout={layout} onLayoutChange={setLayout} />
-              </Table.Th>
-            }
-          />
-          {[...days.entries()].map(([day, dayEntries]) => (
-            <Table.Tbody key={day}>
-              {/* The day and its total, heading its times. */}
-              <Table.Tr className={classes.dayRow}>
-                <Table.Th colSpan={shown.length + 1} scope="rowgroup">
-                  {dayFormat.format(new Date(`${day}T12:00:00`)).replace(/^./, (letter) => letter.toUpperCase())}&nbsp;:{' '}
-                  {formatDuration(dayEntries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
-                </Table.Th>
-              </Table.Tr>
-              {dayEntries.map((entry) => (
-                <EntryRow
-                  key={entry.id}
-                  entry={entry}
-                  shown={shown}
-                  context={context}
-                  projectId={projectId}
-                  onEdit={() => onEdit(entry)}
-                  onDuplicate={() => onDuplicate(entry)}
-                  onDelete={() => onDelete(entry)}
-                />
-              ))}
-            </Table.Tbody>
-          ))}
-          {/* Total of the times shown (finished ones: a running timer counts once stopped). */}
-          <Table.Tfoot className={classes.total}>
-            <Table.Tr>
-              <Table.Th colSpan={shown.length} scope="row">
-                Total
-              </Table.Th>
-              <Table.Th ff="monospace" ta="right" className={classes.nowrap}>
-                {formatDuration(entries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
-              </Table.Th>
-            </Table.Tr>
-          </Table.Tfoot>
-        </Table>
-      </div>
-    </Paper>
-  );
 }

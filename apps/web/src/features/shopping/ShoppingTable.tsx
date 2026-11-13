@@ -22,11 +22,12 @@ import { useShoppingData, type ShoppingCategory } from './api';
 import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
 import { inputOf, NO_GROUP, shoppingRows, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
-import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
-import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
+import { itemColumns } from './shopping-columns';
+import { shownColumns, sortRows, tableWidth, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
-import { useTableLayout } from '../../components/data-table/use-table-layout';
+import type { TableLayoutState } from '../../components/data-table/use-table-layout';
 
 /** What a row is dropped on: a heading or a row of a category (or store), null for the one without. */
 interface DropData {
@@ -44,29 +45,8 @@ const collision: CollisionDetection = (args) => {
 };
 
 /** Width of the actions column. */
-const ACTIONS_WIDTH = 96;
+const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
-/**
- * Columns of a table of products or items: the place shown is the one it is not grouped by (both can be shown).
- * @param {ShoppingGrouping} grouping Groups of the table.
- * @param {string} [extra] Title of the extra column, if any. Optional.
- * @returns {DataColumn<T>[]} Columns.
- */
-function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping, extra?: string): DataColumn<T>[] {
-  return [
-    { id: 'name', label: 'Produit', size: 260, locked: true, sortValue: (item) => item.name },
-    { id: 'category', label: 'Catégorie', size: 150, hiddenByDefault: grouping === 'category' },
-    { id: 'store', label: 'Magasin', size: 150, hiddenByDefault: grouping === 'store' },
-    { id: 'quantity', label: 'Quantité', size: 88, numeric: true, sortValue: (item) => item.quantity ?? null },
-    { id: 'unit', label: 'Unité', size: 100, sortValue: (item) => item.unit ?? null },
-    { id: 'unitPrice', label: 'Prix unitaire', size: 110, numeric: true, sortValue: (item) => item.unitPrice ?? null },
-    { id: 'conservation', label: 'Conservation', size: 150, sortValue: (item) => (item.perishable ? 1 : 0) },
-    { id: 'expiresAt', label: 'Péremption', size: 120, sortValue: (item) => item.expiresAt ?? null },
-    { id: 'people', label: 'Pour', size: 170 },
-    { id: 'url', label: 'Lien', size: 150, sortValue: (item) => item.url ?? null },
-    ...(extra ? [{ id: 'extra', label: extra, size: 120 }] : []),
-  ];
-}
 
 export interface ShoppingTableProps<T extends ShoppingFields> {
   /** Products or items, in their order. */
@@ -96,11 +76,11 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   add?: ShoppingAdd;
   /** Also the categories (or stores) without rows. Optional. */
   showEmpty?: boolean;
-  /** Name of the table, remembering its columns and sorts in this browser. */
-  tableKey: string;
+  /** Columns and sorts of the table (remembered in this browser), chosen from the options of its toolbar. */
+  table: TableLayoutState;
 }
 
-interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty' | 'tableKey'> {
+interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty' | 'table'> {
   row: Extract<ShoppingRow<T>, { kind: 'item' }>;
   /** Columns shown. */
   shown: ShownColumn<T>[];
@@ -243,8 +223,8 @@ function GroupRow<T>({ row, columns, over, collapsed, onToggle, summary }: Group
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, tableKey, ...rowProps }: ShoppingTableProps<T>) {
-  const { layout, setLayout, sorting, setSorting } = useTableLayout(tableKey);
+export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, table, ...rowProps }: ShoppingTableProps<T>) {
+  const { layout, setLayout, sorting, setSorting } = table;
   const tableRef = useRef<HTMLTableElement>(null);
   const allColumns = itemColumns<T>(grouping, rowProps.extra?.title);
   const shown = shownColumns(allColumns, layout);
@@ -383,11 +363,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
                   <Table.Th w={36} px={4} />
                 </>
               }
-              trailing={
-                <Table.Th w={ACTIONS_WIDTH}>
-                  <ColumnsMenu columns={allColumns} layout={layout} onLayoutChange={setLayout} />
-                </Table.Th>
-              }
+              trailing={<Table.Th w={ACTIONS_WIDTH} />}
             />
             <Table.Tbody>{body()}</Table.Tbody>
           </Table>

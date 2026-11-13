@@ -1,7 +1,7 @@
-import { Badge, Button, CloseButton, Divider, Group, Indicator, Popover, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Select } from '@mantine/core';
 import type { FilterGroupOf } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CaretDownIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { TableOptions, TableToolbar, ToolbarFilter, ToolbarSort } from '../../../components/data-table/TableToolbar';
 import { FieldsFilterBuilder, type FilterFields } from './FilterBuilder';
 import { countConditions } from './filter-meta';
 import { SortPanel } from './ViewToolbar';
@@ -28,14 +28,19 @@ interface SavedViewToolbarProps<F extends string, K extends string, G extends st
   groupLabels: Record<G, string>;
   /** More options, under the groups. Optional. */
   options?: ReactNode;
+  /** Columns panel of the table. Optional. */
+  columns?: ReactNode;
+  /** Filter popover state, when also opened from the column menus. Optional. */
+  filterOpened?: boolean;
+  onFilterOpenedChange?: (opened: boolean) => void;
   dirty: boolean;
   onSave: () => void;
   onRevert: () => void;
 }
 
 /**
- * Tools of a saved view (routines, shopping lists…), as those of the task views: quick search, filters (conditions and
- * groups), multi-sort, and the options (groups, more options, saving the changes).
+ * Tools of a saved view (routines, shopping lists…), the toolbar of every table as on the tasks: quick search, filters
+ * (conditions and groups), multi-sort, and the options (saving the changes, groups, more options, columns).
  * @param {SavedViewToolbarProps<F, K, G, C>} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
@@ -50,106 +55,27 @@ export function SavedViewToolbar<F extends string, K extends string, G extends s
   groupBy,
   groupLabels,
   options,
+  columns,
+  filterOpened,
+  onFilterOpenedChange,
   dirty,
   onSave,
   onRevert,
 }: SavedViewToolbarProps<F, K, G, C>) {
-  const [filterOpened, setFilterOpened] = useState(false);
-  const filterCount = countConditions(config.filter);
   // The lists open in the panel: rendered in a portal, a click in them would close it.
   const inPanel = { withinPortal: false } as const;
   return (
-    <Group gap="sm" wrap="wrap">
-      <TextInput
-        placeholder={searchLabel}
-        aria-label={searchLabel}
-        leftSection={<MagnifyingGlassIcon aria-hidden />}
-        rightSection={config.search ? <CloseButton size="sm" aria-label="Effacer" onClick={() => change((current) => ({ ...current, search: '' }))} /> : null}
-        value={config.search}
-        onChange={(event) => {
-          const search = event.currentTarget.value;
-          change((current) => ({ ...current, search }));
-        }}
-        style={{ flex: '1 1 14rem', minWidth: 'min(100%, 14rem)' }}
-      />
-
-      <Popover opened={filterOpened} onChange={setFilterOpened} position="bottom-start" shadow="md" withinPortal trapFocus={false} closeOnClickOutside>
-        <Popover.Target>
-          <Button
-            onClick={() => setFilterOpened(!filterOpened)}
-            variant={filterCount ? 'light' : 'default'}
-            leftSection={<FunnelIcon aria-hidden />}
-            rightSection={
-              filterCount ? (
-                <Badge size="xs" circle>
-                  {filterCount}
-                </Badge>
-              ) : undefined
-            }
-          >
-            Filtrer
-          </Button>
-        </Popover.Target>
-        <Popover.Dropdown maw="min(56rem, calc(100vw - 2rem))">
-          <FieldsFilterBuilder filter={config.filter} fields={fields} onChange={(filter) => change((current) => ({ ...current, filter }))} />
-        </Popover.Dropdown>
-      </Popover>
-
-      <Popover position="bottom-start" shadow="md" withinPortal>
-        <Popover.Target>
-          <Button
-            variant={config.sorting.length ? 'light' : 'default'}
-            leftSection={<SortAscendingIcon aria-hidden />}
-            rightSection={
-              config.sorting.length ? (
-                <Badge size="xs" circle>
-                  {config.sorting.length}
-                </Badge>
-              ) : undefined
-            }
-          >
-            Trier
-          </Button>
-        </Popover.Target>
-        <Popover.Dropdown>
-          <SortPanel sorting={config.sorting} onChange={(sorting) => change((current) => ({ ...current, sorting }))} keys={sortKeys} labels={sortLabels} manualText={manualText} />
-        </Popover.Dropdown>
-      </Popover>
-
-      {/* A dot while the view has unsaved changes. */}
-      <Indicator disabled={!dirty} size={8} offset={4} position="top-end" color="orange">
-        <Popover position="bottom-end" shadow="md" withinPortal width={320} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
-          <Popover.Target>
-            <Button
-              variant="default"
-              leftSection={<SlidersHorizontalIcon aria-hidden />}
-              rightSection={<CaretDownIcon aria-hidden />}
-              aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}
-            >
-              Options
-            </Button>
-          </Popover.Target>
-          <Popover.Dropdown style={{ overflowY: 'auto' }}>
-            <Stack gap="sm">
-              {dirty && (
-                <>
-                  <Text size="sm" c="orange">
-                    Modifications non enregistrées
-                  </Text>
-                  <Group gap="xs" grow>
-                    <Button variant="default" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
-                      Annuler
-                    </Button>
-                    <Button leftSection={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
-                      Enregistrer
-                    </Button>
-                  </Group>
-                  <Divider />
-                </>
-              )}
-              <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                Affichage
-              </Text>
+    <TableToolbar
+      search={{ value: config.search, onChange: (search) => change((current) => ({ ...current, search })), placeholder: searchLabel }}
+      options={
+        <TableOptions
+          dirty={dirty}
+          onSave={onSave}
+          onRevert={onRevert}
+          width={320}
+          columns={columns}
+          display={
+            <>
               <Select
                 label="Grouper par"
                 placeholder="Aucun groupe"
@@ -160,10 +86,17 @@ export function SavedViewToolbar<F extends string, K extends string, G extends s
                 comboboxProps={inPanel}
               />
               {options}
-            </Stack>
-          </Popover.Dropdown>
-        </Popover>
-      </Indicator>
-    </Group>
+            </>
+          }
+        />
+      }
+    >
+      <ToolbarFilter count={countConditions(config.filter)} opened={filterOpened} onOpenedChange={onFilterOpenedChange}>
+        <FieldsFilterBuilder filter={config.filter} fields={fields} onChange={(filter) => change((current) => ({ ...current, filter }))} />
+      </ToolbarFilter>
+      <ToolbarSort count={config.sorting.length}>
+        <SortPanel sorting={config.sorting} onChange={(sorting) => change((current) => ({ ...current, sorting }))} keys={sortKeys} labels={sortLabels} manualText={manualText} />
+      </ToolbarSort>
+    </TableToolbar>
   );
 }

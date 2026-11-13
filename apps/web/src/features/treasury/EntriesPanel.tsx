@@ -1,4 +1,4 @@
-import { ActionIcon, Badge, Button, Group, Modal, Paper, SegmentedControl, Select, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Modal, Paper, SegmentedControl, Select, Skeleton, Stack, Switch, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { MonthPickerInput, YearPickerInput } from '@mantine/dates';
 import { addDays, EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts } from '@ordo/shared';
 import {
@@ -17,7 +17,9 @@ import {
 } from '@phosphor-icons/react';
 import { Fragment, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
+import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
 import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
@@ -76,7 +78,7 @@ interface EntriesPanelProps {
 }
 
 /** Width of the actions column. */
-const ACTIONS_WIDTH = 120;
+const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
 /**
  * Columns of the entries.
@@ -155,7 +157,23 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
 
   return (
     <Stack gap="sm">
-      <Group gap="sm">
+      <TableToolbar
+        options={
+          <TableOptions
+            display={
+              split.length > 0 && (
+                <Switch label="Répartitions développées" checked={allExpanded} onChange={(event) => setExpanded(event.currentTarget.checked ? new Set(split.map((entry) => entry.id)) : new Set())} />
+              )
+            }
+            columns={<DataColumnsPanel columns={columns} layout={layout} onLayoutChange={setLayout} />}
+            exports={
+              <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => setExporting(true)}>
+                PDF
+              </Button>
+            }
+          />
+        }
+      >
         <SegmentedControl
           aria-label="Période"
           data={[
@@ -179,22 +197,9 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
           onChange={setAccountId}
           w={220}
         />
-        <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => setExporting(true)}>
-          Exporter en PDF
-        </Button>
         <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} onClick={() => setImporting(true)} disabled={!accounts.some((account) => !account.archived)}>
           Importer un relevé
         </Button>
-        {split.length > 0 && (
-          <Button
-            variant="subtle"
-            color="gray"
-            leftSection={allExpanded ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
-            onClick={() => setExpanded(allExpanded ? new Set() : new Set(split.map((entry) => entry.id)))}
-          >
-            {allExpanded ? 'Réduire les répartitions' : 'Développer les répartitions'}
-          </Button>
-        )}
         {actual.length > 0 && (
           <Stack gap={0} ml="auto" align="flex-end">
             <Text size="sm" c="dimmed">
@@ -207,7 +212,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             )}
           </Stack>
         )}
-      </Group>
+      </TableToolbar>
       {isPending ? (
         <Skeleton height={240} />
       ) : actual.length === 0 ? (
@@ -232,11 +237,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
               sorting={sorting}
               onSortingChange={setSorting}
               tableRef={tableRef}
-              trailing={
-                <Table.Th w={ACTIONS_WIDTH}>
-                  <ColumnsMenu columns={columns} layout={layout} onLayoutChange={setLayout} />
-                </Table.Th>
-              }
+              trailing={<Table.Th w={ACTIONS_WIDTH} />}
             />
             <Table.Tbody>
               {actual.map((entry, index) => {
@@ -372,23 +373,16 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                         </Table.Td>
                       ))}
                       <Table.Td>
-                        <Group gap={2} justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Modifier">
-                            <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${entry.label}`} onClick={() => onEdit(entry)}>
-                              <PencilSimpleIcon aria-hidden />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Dupliquer">
-                            <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${entry.label}`} onClick={() => onDuplicate(entry)}>
-                              <CopyIcon aria-hidden />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Supprimer">
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={`Supprimer ${entry.label}`}
-                              onClick={() =>
+                        <RowActions
+                          name={entry.label}
+                          primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
+                          items={[
+                            { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
+                            {
+                              label: 'Supprimer',
+                              icon: <TrashIcon aria-hidden />,
+                              danger: true,
+                              onClick: () =>
                                 confirmDeletion(
                                   'Supprimer le mouvement',
                                   [
@@ -399,13 +393,10 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                     .filter(Boolean)
                                     .join(' '),
                                   () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError: (error) => notifyError(error.message) }),
-                                )
-                              }
-                            >
-                              <TrashIcon aria-hidden />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
+                                ),
+                            },
+                          ]}
+                        />
                       </Table.Td>
                     </Table.Tr>
                     {expanded.has(entry.id) && <SplitRows entry={entry} paths={paths} nameOf={nameOf} shown={shown} />}

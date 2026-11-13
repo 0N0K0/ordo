@@ -130,31 +130,6 @@ export function TimePage() {
           </Tooltip>
         </Group>
       </Group>
-      <Group gap="sm" align="flex-end">
-        <SegmentedControl aria-label="Période" data={PERIODS} value={period} onChange={(value) => setParamsTo({ period: value === 'week' ? null : value, from: null, to: null })} />
-        {period === 'range' && (
-          <DatePickerInput
-            type="range"
-            aria-label="Dates"
-            valueFormat="DD/MM/YYYY"
-            value={[start, end]}
-            onChange={([from, to]) => from && to && setParamsTo({ from, to })}
-            allowSingleDateInRange
-            w={240}
-          />
-        )}
-        {context && (
-          <ProjectSelect
-            context={context}
-            aria-label="Projet"
-            placeholder="Tous les projets"
-            clearable
-            value={projectId}
-            onChange={(value) => setParam('project', value)}
-            w={{ base: '100%', sm: 360 }}
-          />
-        )}
-      </Group>
       <TimeLog
         entries={shown}
         context={context}
@@ -163,6 +138,33 @@ export function TimePage() {
         onEdit={openForm}
         onDuplicate={duplicate}
         onDelete={confirmDelete}
+        tools={
+          <>
+            <SegmentedControl aria-label="Période" data={PERIODS} value={period} onChange={(value) => setParamsTo({ period: value === 'week' ? null : value, from: null, to: null })} />
+            {period === 'range' && (
+              <DatePickerInput
+                type="range"
+                aria-label="Dates"
+                valueFormat="DD/MM/YYYY"
+                value={[start, end]}
+                onChange={([from, to]) => from && to && setParamsTo({ from, to })}
+                allowSingleDateInRange
+                w={240}
+              />
+            )}
+            {context && (
+              <ProjectSelect
+                context={context}
+                aria-label="Projet"
+                placeholder="Tous les projets"
+                clearable
+                value={projectId}
+                onChange={(value) => setParam('project', value)}
+                w={{ base: '100%', sm: 360 }}
+              />
+            )}
+          </>
+        }
       />
     </Stack>
   );

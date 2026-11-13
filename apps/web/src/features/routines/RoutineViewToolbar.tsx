@@ -1,4 +1,5 @@
 import { Switch, Text } from '@mantine/core';
+import type { ReactNode } from 'react';
 import { ROUTINE_GROUP_BY, ROUTINE_SORT_KEYS, type RoutineFilterField, type RoutineViewConfig } from '@ordo/shared';
 import type { FilterFields } from '../tasks/views/FilterBuilder';
 import { SavedViewToolbar } from '../tasks/views/SavedViewToolbar';
@@ -11,15 +12,20 @@ interface RoutineViewToolbarProps {
   dirty: boolean;
   onSave: () => void;
   onRevert: () => void;
+  /** Columns panel of the table. */
+  columns: ReactNode;
+  /** Filter popover state (also opened from the column menus). */
+  filterOpened: boolean;
+  onFilterOpenedChange: (opened: boolean) => void;
 }
 
 /**
  * Tools of a routine view, as those of the task views: quick search, filters, multi-sort, and the options (groups,
- * flat sub-routines, archived routines, saving the changes).
+ * flat sub-routines, archived routines, columns, saving the changes).
  * @param {RoutineViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function RoutineViewToolbar({ config, change, fields, dirty, onSave, onRevert }: RoutineViewToolbarProps) {
+export function RoutineViewToolbar({ config, change, fields, dirty, onSave, onRevert, columns, filterOpened, onFilterOpenedChange }: RoutineViewToolbarProps) {
   return (
     <SavedViewToolbar
       config={config}
@@ -34,6 +40,9 @@ export function RoutineViewToolbar({ config, change, fields, dirty, onSave, onRe
       dirty={dirty}
       onSave={onSave}
       onRevert={onRevert}
+      columns={columns}
+      filterOpened={filterOpened}
+      onFilterOpenedChange={onFilterOpenedChange}
       options={
         <>
           <Switch

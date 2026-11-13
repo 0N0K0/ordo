@@ -1,13 +1,15 @@
-import { ActionIcon, Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
-import { SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS } from '@ordo/shared';
+import { Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { SHOPPING_LIST_FILTER_FIELDS, SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS, type ShoppingListFilterField, type ShoppingListGroupBy } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
-import { BasketIcon, DotsThreeVerticalIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
-import { useRef, type ReactNode } from 'react';
+import { BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
-import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
+import { newConditionFor } from '../tasks/views/filter-meta';
 import { shownColumns, tableWidth, type DataColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
@@ -28,7 +30,10 @@ import classes from './Shopping.module.css';
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 /** Width of the actions column. */
-const ACTIONS_WIDTH = 48;
+const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
+
+/** Groups offered from the menu of a column. */
+const COLUMN_GROUP_BY: Partial<Record<string, ShoppingListGroupBy>> = { project: 'project', createdAt: 'month' };
 
 /** Columns of the table of the lists (sorted through the sorts of the view: same ids). */
 const LIST_COLUMNS: DataColumn<ShoppingList>[] = [
@@ -75,6 +80,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   const tableRef = useRef<HTMLTableElement>(null);
   const layout = { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
   const shownList = shownColumns(LIST_COLUMNS, layout);
+  const [filterOpened, setFilterOpened] = useState(false);
 
   return (
     <Stack gap="md">
@@ -102,6 +108,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           dirty={view.dirty}
           onSave={view.save}
           onRevert={view.revert}
+          filterOpened={filterOpened}
+          onFilterOpenedChange={setFilterOpened}
+          columns={<DataColumnsPanel columns={LIST_COLUMNS} layout={layout} onLayoutChange={(next) => view.change((current) => ({ ...current, ...next }))} />}
         />
       )}
       {isPending || !config || (projectIds && !context) ? (
@@ -133,11 +142,22 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                 sorting={config.sorting}
                 onSortingChange={(sorting) => view.change((current) => ({ ...current, sorting: sorting as typeof current.sorting }))}
                 tableRef={tableRef}
-                trailing={
-                  <Table.Th w={ACTIONS_WIDTH}>
-                    <ColumnsMenu columns={LIST_COLUMNS} layout={layout} onLayoutChange={(next) => view.change((current) => ({ ...current, ...next }))} />
-                  </Table.Th>
-                }
+                trailing={<Table.Th w={ACTIONS_WIDTH} />}
+                columnExtras={(id) => {
+                  const field = id in SHOPPING_LIST_FILTER_FIELDS ? (id as ShoppingListFilterField) : null;
+                  const groupBy = COLUMN_GROUP_BY[id];
+                  return {
+                    onFilter: field
+                      ? () => {
+                          view.change((current) => ({ ...current, filter: { ...current.filter, children: [...current.filter.children, newConditionFor(SHOPPING_LIST_FILTER_FIELDS, field)] } }));
+                          setFilterOpened(true);
+                        }
+                      : undefined,
+                    group: groupBy
+                      ? { active: config.groupBy === groupBy, onToggle: () => view.change((current) => ({ ...current, groupBy: current.groupBy === groupBy ? null : groupBy })) }
+                      : undefined,
+                  };
+                }}
               />
               <Table.Tbody>
                 {rows.map((row) => {
@@ -212,15 +232,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                         </Table.Td>
                       ))}
                       <Table.Td>
-                        <ListActionsMenu
-                          list={list}
-                          grouping={grouping}
-                          target={
-                            <ActionIcon variant="subtle" color="gray" aria-label={`Actions de la liste ${list.name}`}>
-                              <DotsThreeVerticalIcon aria-hidden />
-                            </ActionIcon>
-                          }
-                        />
+                        <Group justify="flex-end">
+                          <ListActionsMenu list={list} grouping={grouping} />
+                        </Group>
                       </Table.Td>
                     </Table.Tr>
                   );
