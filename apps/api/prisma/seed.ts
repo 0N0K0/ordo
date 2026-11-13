@@ -40,14 +40,16 @@ import { seedRoutines } from './fixtures/routines';
 import { seedShopping } from './fixtures/shopping';
 import { seedTeam } from './fixtures/team';
 
-// Fake data for development and staging (never production): fills one professional and one personal workspace
+// Fake data for development and staging (never production; on staging, loaded by scripts/deploy.sh when a merge on
+// main changes them): fills one professional and one personal workspace
 // (the first of each kind, created when missing) after purging them (every business row: clients, projects, tasks,
 // labels, contributors, time, alarms, calendar, schedules, sprints, dashboards, accounting, treasury, library, places,
 // shopping, routines, mail flags and searches). The user account, the "Moi" contributors, the mail accounts and the
 // other workspaces are kept; the demo mailbox on GreenMail is recreated. `npm run db:seed -- --force` skips the
 // confirmation.
 
-if (process.env.NODE_ENV === 'production') {
+// Staging runs with NODE_ENV=production too: only scripts/deploy.sh, on the main branch, lets the fixtures load there.
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_FIXTURES !== 'staging') {
   console.error('Les fixtures ne se chargent pas en production.');
   process.exit(1);
 }

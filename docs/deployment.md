@@ -180,7 +180,7 @@ Sur chaque PR vers `main` ou `prod`, avec Node 24 et un service PostgreSQL 9.6 :
 Sur merge d'une PR dans `main` (staging) ou `prod` (production), ou à la main : Actions → Deploy → **Run workflow** → environnement.
 
 1. Ajoute l'IP du runner au pare-feu SSH o2switch.
-2. En SSH, dans `APP_DIR` : vérifie que le clone est sur la bonne branche, `git pull --ff-only`, puis `scripts/deploy.sh` (`BACKUP=1` en production).
+2. En SSH, dans `APP_DIR` : vérifie que le clone est sur la bonne branche, `git pull --ff-only`, puis `scripts/deploy.sh` (`BACKUP=1` en production ; `FIXTURES=1` pour un merge sur `main` qui modifie `apps/api/prisma/seed.ts` ou `apps/api/prisma/fixtures/`, comparés à ce que le serveur avait avant le pull).
 3. Vérifie que `APP_URL` répond.
 4. Retire l'IP du pare-feu, même en cas d'échec.
 
@@ -188,7 +188,9 @@ Un seul déploiement à la fois par environnement.
 
 ### Script serveur — `scripts/deploy.sh`
 
-Ordre : vérification du lien `.env` → `npm ci` → `prisma generate` → build → sauvegarde (si `BACKUP=1`) → `migrate deploy` → redémarrage. Le build passe avant les migrations : un build cassé ne touche pas la base.
+Ordre : vérification du lien `.env` → `npm ci` → `prisma generate` → build → sauvegarde (si `BACKUP=1`) → `migrate deploy` → redémarrage → fixtures (si `FIXTURES=1`). Le build passe avant les migrations : un build cassé ne touche pas la base.
+
+**Fixtures (staging uniquement).** Avec `FIXTURES=1`, le script recharge les données de démo (`prisma db seed -- --force`) : le premier espace pro et le premier espace perso sont vidés puis remplis. Il refuse si la branche n'est pas `main` ou si `BACKUP=1` (production). Le `.env` de staging ayant `NODE_ENV=production`, le seed n'accepte de tourner que si `ALLOW_FIXTURES=staging`, que seul ce script pose. Sans GreenMail sur le serveur, la boîte mail de démo est sautée (avertissement). Un déploiement manuel (Run workflow) ne charge jamais les fixtures ; pour les recharger à la main : `FIXTURES=1 bash scripts/deploy.sh` sur le serveur de staging.
 
 Déploiement manuel :
 
