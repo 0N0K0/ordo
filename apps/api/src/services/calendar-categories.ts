@@ -2,7 +2,7 @@ import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@or
 import { prisma } from '../db';
 import type { CalendarCategory } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
-import { moveInOrder } from './ordering';
+import { saveSiblingOrder } from './ordering';
 
 /**
  * Loads a category or throws NOT_FOUND.
@@ -83,22 +83,24 @@ export async function deleteCalendarCategory(id: string): Promise<void> {
 }
 
 /**
- * Moves a category among its siblings.
+ * Moves a category among its siblings, under another parent first when one is given.
  * @param {string} id Category id.
- * @param {number} index Target index.
+ * @param {number} index Target index among its (new) siblings.
+ * @param {string | null} [parentId] New parent (null: top level); unchanged when omitted. Optional.
  * @returns {Promise<void>}
  */
-export async function moveCalendarCategory(id: string, index: number): Promise<void> {
-  const category = await findCategory(id);
+export async function moveCalendarCategory(id: string, index: number, parentId?: string | null): Promise<void> {
+  let category = await findCategory(id);
+  if (parentId !== undefined && parentId !== category.parentId) category = await updateCalendarCategory(id, { name: category.name, color: category.color, parentId });
   const siblings = await prisma.calendarCategory.findMany({
     where: { parentId: category.parentId },
     orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     select: { id: true },
   });
-  const order = moveInOrder(
+  await saveSiblingOrder(
     siblings.map((item) => item.id),
     id,
     index,
+    (categoryId, position) => prisma.calendarCategory.update({ where: { id: categoryId }, data: { position } }),
   );
-  await prisma.$transaction(order.map((categoryId, position) => prisma.calendarCategory.update({ where: { id: categoryId }, data: { position } })));
 }

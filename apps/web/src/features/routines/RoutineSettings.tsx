@@ -7,6 +7,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useRoutineMutations, useRoutinesData, type RoutineCategory } from './api';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 interface CategoryFormProps {
   categories: RoutineCategory[];
@@ -51,7 +52,14 @@ function CategoryForm({ categories, category, parentId = null, onDone }: Categor
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
         <ColorInput label="Couleur" format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
-        <Select label="Catégorie parente" placeholder="Aucune (catégorie principale)" clearable searchable data={categoryOptions(categories, category?.id)} {...form.getInputProps('parentId')} />
+        <Select
+          label="Catégorie parente"
+          placeholder="Aucune (catégorie principale)"
+          clearable
+          searchable
+          {...treeSelectProps(categoryOptions(categories, category?.id))}
+          {...form.getInputProps('parentId')}
+        />
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
             Annuler
@@ -84,7 +92,7 @@ export function RoutineSettings() {
           usage={usage}
           usageNoun="routine(s)"
           renderForm={(props) => <CategoryForm categories={categories} {...props} />}
-          onMove={(id, parentId) => moveCategory.mutate({ id, parentId }, { onError: (error) => notifyError(error.message) })}
+          onMove={(id, parentId, index) => moveCategory.mutate({ id, parentId, index }, { onError: (error) => notifyError(error.message) })}
           onDelete={(id) => deleteCategory.mutate(id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) })}
         />
       </Stack>

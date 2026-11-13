@@ -7,6 +7,7 @@ import {
   type TreasuryPaymentMethodInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
+import { saveSiblingOrder } from './ordering';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { getCompanyProfile } from './company';
@@ -42,7 +43,8 @@ async function parseCategory(input: TreasuryCategoryInput, id?: string) {
  * @returns {Promise<TreasuryCategory>} Category.
  */
 export async function createCategory(input: TreasuryCategoryInput): Promise<TreasuryCategory> {
-  return prisma.treasuryCategory.create({ data: await parseCategory(input) });
+  const data = await parseCategory(input);
+  return prisma.treasuryCategory.create({ data: { ...data, position: await nextCategoryPosition(data.parentId) } });
 }
 
 /**
@@ -55,7 +57,9 @@ export async function createCategory(input: TreasuryCategoryInput): Promise<Trea
 export async function updateCategory(id: string, input: TreasuryCategoryInput): Promise<TreasuryCategory> {
   const previous = await prisma.treasuryCategory.findUnique({ where: { id } });
   if (!previous) throw notFound('Catégorie');
-  const data = await parseCategory(input, id);
+  const parsed = await parseCategory(input, id);
+  // Under another parent, it goes last.
+  const data = { ...parsed, ...((parsed.parentId ?? null) !== previous.parentId && { position: await nextCategoryPosition(parsed.parentId) }) };
   if (data.direction === previous.direction) return prisma.treasuryCategory.update({ where: { id }, data });
   // The whole branch changes direction.
   const all = await prisma.treasuryCategory.findMany({ select: { id: true, parentId: true } });
@@ -75,6 +79,37 @@ export async function updateCategory(id: string, input: TreasuryCategoryInput): 
     await tx.treasuryCategory.updateMany({ where: { id: { in: [...branch] } }, data: { direction: data.direction } });
     return tx.treasuryCategory.update({ where: { id }, data });
   });
+}
+
+/**
+ * Moves a category under another one of the same direction (or to the top level), at an index among its new siblings.
+ * @param {string} id Category id.
+ * @param {string | null} parentId New parent.
+ * @param {number | null} [index] Index among the siblings; last when omitted. Optional.
+ * @returns {Promise<void>}
+ */
+export async function moveCategory(id: string, parentId: string | null, index?: number | null): Promise<void> {
+  const category = await prisma.treasuryCategory.findUnique({ where: { id } });
+  if (!category) throw notFound('Catégorie');
+  if (parentId !== category.parentId) await updateCategory(id, { name: category.name, color: category.color, direction: category.direction, parentId });
+  if (index === null || index === undefined) return;
+  const siblings = await prisma.treasuryCategory.findMany({ where: { parentId, direction: category.direction }, orderBy: [{ position: 'asc' }, { name: 'asc' }], select: { id: true } });
+  await saveSiblingOrder(
+    siblings.map((sibling) => sibling.id),
+    id,
+    index,
+    (siblingId, position) => prisma.treasuryCategory.update({ where: { id: siblingId }, data: { position } }),
+  );
+}
+
+/**
+ * Next position among the sub-categories of a parent.
+ * @param {string | null | undefined} parentId Parent, null for the top level.
+ * @returns {Promise<number>} Position.
+ */
+async function nextCategoryPosition(parentId: string | null | undefined): Promise<number> {
+  const { _max } = await prisma.treasuryCategory.aggregate({ where: { parentId: parentId ?? null }, _max: { position: true } });
+  return (_max.position ?? -1) + 1;
 }
 
 /**

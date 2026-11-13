@@ -9,6 +9,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from './api';
 import { categoryOptions, categoryPaths } from './categories';
 import { confirmDeletion } from './confirm-deletion';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 const REPEATS = [
   { value: '', label: 'Ce mois seulement' },
@@ -138,7 +139,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
           label="Catégorie"
           required
           searchable
-          data={categoryOptions(categories, direction)}
+          {...treeSelectProps(categoryOptions(categories, direction))}
           nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
           description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
           {...form.getInputProps('categoryId')}

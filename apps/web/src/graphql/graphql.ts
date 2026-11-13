@@ -1788,6 +1788,7 @@ export type DeleteCalendarCategoryMutation = { deleteCalendarCategory: boolean }
 export type MoveCalendarCategoryMutationVariables = Exact<{
   id: string | number;
   index: number;
+  parentId?: string | number | null | undefined;
 }>;
 
 
@@ -2480,7 +2481,7 @@ export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, scheduleId: string | null, scheduleAnchor: string | null, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, scheduleId: string | null, scheduleAnchor: string | null, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -2500,6 +2501,7 @@ export type UpdateRoutineCategoryMutation = { updateRoutineCategory: boolean };
 export type MoveRoutineCategoryMutationVariables = Exact<{
   id: string | number;
   parentId?: string | number | null | undefined;
+  index?: number | null | undefined;
 }>;
 
 
@@ -2659,7 +2661,7 @@ export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: s
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, baseListIds: Array<string> }>, shoppingStorages: Array<{ id: string, name: string, color: string, position: number }>, shoppingStores: Array<{ id: string, name: string, color: string, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string> }> };
+export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number, baseListIds: Array<string> }>, shoppingStorages: Array<{ id: string, name: string, color: string, position: number }>, shoppingStores: Array<{ id: string, name: string, color: string, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string> }> };
 
 export type ShoppingListsQueryVariables = Exact<{
   taskId?: string | number | null | undefined;
@@ -2693,6 +2695,7 @@ export type DeleteShoppingCategoryMutation = { deleteShoppingCategory: boolean }
 export type MoveShoppingCategoryMutationVariables = Exact<{
   id: string | number;
   parentId?: string | number | null | undefined;
+  index?: number | null | undefined;
 }>;
 
 
@@ -3481,7 +3484,7 @@ export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, s
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, color: string | null, direction: TreasuryDirection, parentId: string | null, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
+export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, color: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
 
 export type TreasuryEntrySearchQueryVariables = Exact<{
   text: string;
@@ -3504,6 +3507,15 @@ export type UpdateTreasuryCategoryMutationVariables = Exact<{
 
 
 export type UpdateTreasuryCategoryMutation = { updateTreasuryCategory: boolean };
+
+export type MoveTreasuryCategoryMutationVariables = Exact<{
+  id: string | number;
+  parentId?: string | number | null | undefined;
+  index?: number | null | undefined;
+}>;
+
+
+export type MoveTreasuryCategoryMutation = { moveTreasuryCategory: boolean };
 
 export type DeleteTreasuryCategoryMutationVariables = Exact<{
   id: string | number;
@@ -5765,8 +5777,8 @@ export const DeleteCalendarCategoryDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteCalendarCategoryMutation, DeleteCalendarCategoryMutationVariables>;
 export const MoveCalendarCategoryDocument = new TypedDocumentString(`
-    mutation MoveCalendarCategory($id: ID!, $index: Int!) {
-  moveCalendarCategory(id: $id, index: $index)
+    mutation MoveCalendarCategory($id: ID!, $index: Int!, $parentId: ID) {
+  moveCalendarCategory(id: $id, index: $index, parentId: $parentId)
 }
     `) as unknown as TypedDocumentString<MoveCalendarCategoryMutation, MoveCalendarCategoryMutationVariables>;
 export const CreateCalendarEventDocument = new TypedDocumentString(`
@@ -6608,6 +6620,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     name
     color
     parentId
+    position
   }
   routines {
     id
@@ -6664,8 +6677,8 @@ export const UpdateRoutineCategoryDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<UpdateRoutineCategoryMutation, UpdateRoutineCategoryMutationVariables>;
 export const MoveRoutineCategoryDocument = new TypedDocumentString(`
-    mutation MoveRoutineCategory($id: ID!, $parentId: ID) {
-  moveRoutineCategory(id: $id, parentId: $parentId)
+    mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {
+  moveRoutineCategory(id: $id, parentId: $parentId, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveRoutineCategoryMutation, MoveRoutineCategoryMutationVariables>;
 export const DeleteRoutineCategoryDocument = new TypedDocumentString(`
@@ -6796,6 +6809,7 @@ export const ShoppingDataDocument = new TypedDocumentString(`
     name
     color
     parentId
+    position
     baseListIds
   }
   shoppingStorages {
@@ -6892,8 +6906,8 @@ export const DeleteShoppingCategoryDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteShoppingCategoryMutation, DeleteShoppingCategoryMutationVariables>;
 export const MoveShoppingCategoryDocument = new TypedDocumentString(`
-    mutation MoveShoppingCategory($id: ID!, $parentId: ID) {
-  moveShoppingCategory(id: $id, parentId: $parentId)
+    mutation MoveShoppingCategory($id: ID!, $parentId: ID, $index: Int) {
+  moveShoppingCategory(id: $id, parentId: $parentId, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveShoppingCategoryMutation, MoveShoppingCategoryMutationVariables>;
 export const CreateShoppingStorageDocument = new TypedDocumentString(`
@@ -7944,6 +7958,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     color
     direction
     parentId
+    position
     entryCount
   }
   treasuryPaymentMethods {
@@ -8018,6 +8033,11 @@ export const UpdateTreasuryCategoryDocument = new TypedDocumentString(`
   updateTreasuryCategory(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<UpdateTreasuryCategoryMutation, UpdateTreasuryCategoryMutationVariables>;
+export const MoveTreasuryCategoryDocument = new TypedDocumentString(`
+    mutation MoveTreasuryCategory($id: ID!, $parentId: ID, $index: Int) {
+  moveTreasuryCategory(id: $id, parentId: $parentId, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveTreasuryCategoryMutation, MoveTreasuryCategoryMutationVariables>;
 export const DeleteTreasuryCategoryDocument = new TypedDocumentString(`
     mutation DeleteTreasuryCategory($id: ID!) {
   deleteTreasuryCategory(id: $id)

@@ -8,7 +8,8 @@ import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { descendantIds, useCreateProject, useUpdateProject, useWorkspace, type Project } from './api';
 import { IconField, type IconValue } from './IconField';
 import { CategoriesInput, StatusInput } from './labels';
-import { projectDepth, projectHeight, projectPath } from './tree';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { projectDepth, projectHeight, projectOptions } from './tree';
 import { useColorSwatches } from './use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
 
@@ -58,20 +59,10 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   // A parent must be active, outside the project's own sub-tree, and leave room for its levels.
   const excluded = project ? descendantIds(projects, project.id).add(project.id) : new Set<string>();
   const height = project ? projectHeight(projects, project.id) : 1;
-  const parentOptions = workspace
-    ? projects
-        .filter(
-          (item) =>
-            !excluded.has(item.id) &&
-            (!item.archived || item.id === project?.parentId) &&
-            projectDepth(projects, item.id) + height <= MAX_PROJECT_DEPTH,
-        )
-        .map((item) => {
-          const path = projectPath(workspace, item);
-          return { value: item.id, label: `${path} › ${item.title}` };
-        })
-        .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
-    : [];
+  const parentOptions = projectOptions(
+    workspace,
+    projects.filter((item) => !excluded.has(item.id) && (!item.archived || item.id === project?.parentId) && projectDepth(projects, item.id) + height <= MAX_PROJECT_DEPTH),
+  );
 
   // Archived clients cannot receive projects, except the one the project already belongs to.
   const clientOptions = (workspace?.clients ?? [])
@@ -116,7 +107,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
           <Select
             label="Projet parent"
             placeholder="Aucun (projet racine)"
-            data={parentOptions}
+            {...treeSelectProps(parentOptions)}
             searchable
             clearable
             {...form.getInputProps('parentId')}

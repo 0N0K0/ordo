@@ -23,6 +23,7 @@ import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from './category-tree';
 import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from './event-input';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -483,7 +484,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           <BatchMultiSelect
             label="Catégories"
             placeholder={values.categoryIds.length ? undefined : 'Aucune'}
-            data={categoryOptions(categories ?? [])}
+            {...treeSelectProps(categoryOptions(categories ?? []))}
             searchable
             clearable
             nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"

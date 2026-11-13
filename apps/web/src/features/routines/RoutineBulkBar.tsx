@@ -1,5 +1,5 @@
 import { TimeField } from '../../components/TimeField';
-import { Avatar, Button, CloseButton, ColorSwatch, Group, Menu, NumberInput, Paper, Popover, Stack, Text } from '@mantine/core';
+import { Avatar, Button, CloseButton, Group, Menu, NumberInput, Paper, Popover, Stack, Text, type ComboboxItem } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { routineSchema, type Recurrence } from '@ordo/shared';
 import {
@@ -18,7 +18,8 @@ import {
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { categoryTree } from '../../components/category-tree/category-tree';
+import { categoryOptions } from '../../components/category-tree/category-tree';
+import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
@@ -91,7 +92,8 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
     name: string;
     icon: ReactNode;
     of: (routine: Routine) => string[];
-    choices: { value: string; label: string }[];
+    /** Options; those of a tree (TreeOption) show indented under their parent. */
+    choices: (ComboboxItem | TreeOption)[];
     renderIcon?: (id: string) => ReactNode;
     changes: (added: string[], removed: string[]) => RoutineBulkChanges;
   }) => {
@@ -100,8 +102,9 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
     const present = [...counts.keys()];
     const data = choices.map((choice) => {
       const count = counts.get(choice.value) ?? 0;
-      return { value: choice.value, label: count > 0 && count < routines.length ? `${choice.label} (${count}/${routines.length})` : choice.label };
+      return { ...choice, label: count > 0 && count < routines.length ? `${choice.label} (${count}/${routines.length})` : choice.label };
     });
+    const tree = data.every((choice) => 'depth' in choice);
     return (
       <BatchMultiSelect
         size="xs"
@@ -109,14 +112,18 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
         aria-label={`${name} des routines sélectionnées`}
         placeholder={present.length ? undefined : name}
         leftSection={icon}
-        data={data}
         value={present}
-        renderOption={({ option }) => (
-          <Group gap="xs" wrap="nowrap">
-            {renderIcon?.(option.value)}
-            {option.label}
-          </Group>
-        )}
+        {...(tree
+          ? treeSelectProps(data as TreeOption[])
+          : {
+              data,
+              renderOption: ({ option }: { option: ComboboxItem }) => (
+                <Group gap="xs" wrap="nowrap">
+                  {renderIcon?.(option.value)}
+                  {option.label}
+                </Group>
+              ),
+            })}
         onChange={(next) => {
           const added = next.filter((id) => !present.includes(id));
           const removed = present.filter((id) => !next.includes(id));
@@ -128,8 +135,6 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
     );
   };
 
-  const placed = categoryTree(categories);
-
   return (
     <Paper shadow="md" withBorder radius="md" className={classes.bulkBar} role="region" aria-label="Actions sur la sélection">
       <Group gap="xs" wrap="wrap">
@@ -140,11 +145,7 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
           name: 'Catégories',
           icon: <TagIcon aria-hidden />,
           of: (routine) => routine.categoryIds,
-          choices: placed.map((item) => ({ value: item.category.id, label: item.path })),
-          renderIcon: (id) => {
-            const color = placed.find((item) => item.category.id === id)?.color;
-            return color ? <ColorSwatch color={color} size={10} /> : null;
-          },
+          choices: categoryOptions(categories),
           changes: (added, removed) => ({ addCategoryIds: added, removeCategoryIds: removed }),
         })}
         {selectionSelect({

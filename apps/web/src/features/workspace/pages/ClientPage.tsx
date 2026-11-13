@@ -101,7 +101,7 @@ export function ClientPage() {
             </Stack>
           </Paper>
         ) : (
-          <ProjectList projects={projects} rootParentId={null} statuses={data.projectStatuses} />
+          <ProjectList projects={projects} allProjects={data.projects} rootParentId={null} clientId={client.id} statuses={data.projectStatuses} />
         )}
       </Stack>
 

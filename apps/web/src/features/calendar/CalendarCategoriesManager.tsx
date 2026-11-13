@@ -1,13 +1,15 @@
-import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, ColorInput, Group, Paper, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@ordo/shared';
-import { ArrowDownIcon, ArrowUpIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
+import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
+import { CategoryTree } from '../../components/category-tree/CategoryTree';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useCalendarCategories, useCalendarCategoryMutations, type CalendarCategory } from './api';
-import { categoryOptions, categorySubtree, flattenCategories } from './category-tree';
+import { categoryOptions, categorySubtree } from './category-tree';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 let modalCount = 0;
 
@@ -58,7 +60,7 @@ function CategoryForm({ categories, category, parentId, onDone }: CategoryFormPr
           placeholder="Aucune (catégorie principale)"
           clearable
           searchable
-          data={categoryOptions(categories, excluded)}
+          {...treeSelectProps(categoryOptions(categories, excluded))}
           {...form.getInputProps('parentId')}
         />
         <Group justify="flex-end" gap="sm">
@@ -82,7 +84,6 @@ function CategoryForm({ categories, category, parentId, onDone }: CategoryFormPr
 export function CalendarCategoriesManager() {
   const { data: categories, isPending } = useCalendarCategories();
   const { remove, move } = useCalendarCategoryMutations();
-  const nodes = flattenCategories(categories ?? []);
 
   /**
    * Opens the category form.
@@ -151,7 +152,7 @@ export function CalendarCategoriesManager() {
         </Group>
         {isPending ? (
           <Skeleton height={48} />
-        ) : nodes.length === 0 ? (
+        ) : !categories?.length ? (
           <Group gap="sm">
             <ThemeIcon variant="light" color="gray" radius="xl">
               <TagIcon aria-hidden />
@@ -161,57 +162,30 @@ export function CalendarCategoriesManager() {
             </Text>
           </Group>
         ) : (
-          <Stack gap={4}>
-            {nodes.map(({ category, depth }) => {
-              const siblings = (categories ?? []).filter((item) => (item.parentId ?? null) === (category.parentId ?? null)).sort((a, b) => a.position - b.position);
-              const index = siblings.findIndex((item) => item.id === category.id);
-              return (
-                <Group key={category.id} gap="sm" wrap="nowrap" style={{ paddingLeft: `calc(${depth} * var(--mantine-spacing-lg))` }}>
-                  <ColorSwatch color={category.color} size={14} />
-                  <Text size="sm" style={{ flex: 1 }} truncate>
-                    {category.name}
-                  </Text>
-                  <Tooltip label="Ajouter une sous-catégorie">
-                    <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter une sous-catégorie à ${category.name}`} onClick={() => openForm({ parentId: category.id })}>
-                      <PlusIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Monter">
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      aria-label={`Monter ${category.name}`}
-                      disabled={index === 0}
-                      onClick={() => move.mutate({ id: category.id, index: index - 1 }, { onError: (error) => notifyError(error.message) })}
-                    >
-                      <ArrowUpIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Descendre">
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      aria-label={`Descendre ${category.name}`}
-                      disabled={index === siblings.length - 1}
-                      onClick={() => move.mutate({ id: category.id, index: index + 1 }, { onError: (error) => notifyError(error.message) })}
-                    >
-                      <ArrowDownIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Modifier">
-                    <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${category.name}`} onClick={() => openForm({ category })}>
-                      <PencilSimpleIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Supprimer">
-                    <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${category.name}`} onClick={() => confirmDelete(category)}>
-                      <TrashIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
-              );
-            })}
-          </Stack>
+          <CategoryTree
+            categories={categories ?? []}
+            storageKey="calendar-categories"
+            renderActions={({ category, path }) => (
+              <>
+                <Tooltip label="Ajouter une sous-catégorie">
+                  <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter une sous-catégorie à ${path}`} onClick={() => openForm({ parentId: category.id })}>
+                    <PlusIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Modifier">
+                  <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${path}`} onClick={() => openForm({ category })}>
+                    <PencilSimpleIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Supprimer">
+                  <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${path}`} onClick={() => confirmDelete(category)}>
+                    <TrashIcon aria-hidden />
+                  </ActionIcon>
+                </Tooltip>
+              </>
+            )}
+            onMove={(id, parentId, index) => move.mutate({ id, parentId, index }, { onError: (error) => notifyError(error.message) })}
+          />
         )}
       </Stack>
     </Paper>

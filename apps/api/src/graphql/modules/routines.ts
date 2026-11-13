@@ -12,6 +12,7 @@ builder.prismaObject('RoutineCategory', {
     name: t.exposeString('name'),
     color: t.exposeString('color', { nullable: true }),
     parentId: t.exposeID('parentId', { nullable: true }),
+    position: t.exposeInt('position', { description: 'Manual order among its siblings.' }),
   }),
 });
 
@@ -321,7 +322,7 @@ builder.prismaObject('RoutineCheck', {
 builder.queryFields((t) => ({
   routineCategories: t.prismaField({
     type: ['RoutineCategory'],
-    resolve: (query) => prisma.routineCategory.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.routineCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
   }),
   routines: t.prismaField({
     type: ['Routine'],
@@ -377,10 +378,10 @@ builder.mutationFields((t) => ({
     },
   }),
   moveRoutineCategory: t.boolean({
-    description: 'Moves a category under another one (parentId), or to the top level (parentId null).',
-    args: { id: t.arg.id({ required: true }), parentId: t.arg.id() },
-    resolve: async (_root, { id, parentId }) => {
-      await routines.moveCategory(String(id), idOrNull(parentId));
+    description: 'Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
+    args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int() },
+    resolve: async (_root, { id, parentId, index }) => {
+      await routines.moveCategory(String(id), idOrNull(parentId), index);
       return true;
     },
   }),

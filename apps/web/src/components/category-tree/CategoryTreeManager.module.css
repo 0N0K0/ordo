@@ -1,17 +1,29 @@
 @layer app {
-  /* Row of the tree: highlighted while a category is dragged over it. */
+  /* Row of the tree: shows where the dragged category would go. */
   .row {
     /* Animation */
-    transition: background-color 150ms ease;
+    transition:
+      background-color 150ms ease,
+      box-shadow 150ms ease;
 
     &:hover {
       /* Arrière-Plan */
       background-color: var(--mantine-color-default-hover);
     }
 
-    &[data-over] {
+    &[data-drop='INSIDE'] {
       /* Arrière-Plan */
       background-color: var(--mantine-primary-color-light);
+    }
+
+    &[data-drop='BEFORE'] {
+      /* Effets */
+      box-shadow: inset 0 2px 0 var(--mantine-primary-color-filled);
+    }
+
+    &[data-drop='AFTER'] {
+      /* Effets */
+      box-shadow: inset 0 -2px 0 var(--mantine-primary-color-filled);
     }
 
     &[data-dragging] {
@@ -20,18 +32,11 @@
     }
   }
 
-  /* Drop zone making a category a top-level one. */
-  .rootZone {
-    /* Bordures */
-    border-style: dashed;
-
-    &[data-over] {
-      /* Arrière-Plan */
-      background-color: var(--mantine-primary-color-light);
-
-      /* Bordures */
-      border-color: var(--mantine-primary-color-filled);
-    }
+  /* Room of the fold button, on rows without sub-categories. */
+  .caretSpace {
+    /* Dimensions */
+    width: var(--ai-size-xs, 18px);
+    flex-shrink: 0;
   }
 
   .handle {

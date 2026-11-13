@@ -2,7 +2,7 @@ import { Button, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextIn
 import { DatePickerInput } from '@mantine/dates';
 import { routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { categoryTree } from '../../components/category-tree/category-tree';
+import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
@@ -11,6 +11,7 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { DAILY, ruleOf } from './routine-format';
 import { RoutineSchedule } from './RoutineSchedule';
+import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
@@ -110,11 +111,19 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
   });
   // Neither the routine nor its sub-routines can be its parent; it cannot depend on itself.
   const excluded = routine && !copy ? subtreeOf(routines, routine.id) : new Set<string>();
+  /**
+   * Options of a select of routines, in tree order under their parent routine (greyed out when not offered).
+   * @param {(item: Routine) => boolean} filter Routines offered (active ones only).
+   * @returns {TreeOption[]} Options.
+   */
   const routineOptions = (filter: (item: Routine) => boolean) =>
-    routines
-      .filter((item) => !item.archived && filter(item))
-      .map((item) => ({ value: item.id, label: item.title }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+    treeOptions(
+      [...routines].sort((a, b) => a.position - b.position).map((item) => ({ id: item.id, parentId: item.parentId, label: item.title })),
+      (id) => {
+        const item = routines.find((candidate) => candidate.id === id);
+        return item !== undefined && !item.archived && filter(item);
+      },
+    );
 
   const handleSubmit = form.onSubmit((values) => {
     const input = { ...values, description: values.description || null };
@@ -140,11 +149,11 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
             placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
             clearable
             searchable
-            data={categoryTree(data?.routineCategories ?? []).map((item) => ({ value: item.category.id, label: item.path }))}
+            {...treeSelectProps(categoryOptions(data?.routineCategories ?? []))}
             nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
             {...form.getInputProps('categoryIds')}
           />
-          <Select label="Routine parente" placeholder="Aucune" clearable searchable data={routineOptions((item) => !excluded.has(item.id))} {...form.getInputProps('parentId')} />
+          <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
           <DatePickerInput label="Première fois" required valueFormat="D MMM YYYY" {...form.getInputProps('startDate')} />
@@ -173,7 +182,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
           label="Dépend de"
           description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
           placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
-          data={routineOptions((item) => copy || item.id !== routine?.id)}
+          {...treeSelectProps(routineOptions((item) => copy || item.id !== routine?.id))}
           searchable
           clearable
           {...form.getInputProps('requiredIds')}

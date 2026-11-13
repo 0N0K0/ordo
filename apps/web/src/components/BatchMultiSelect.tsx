@@ -21,7 +21,7 @@ const valueOf = (option: Option) => (typeof option === 'string' ? option : optio
 
 /**
  * Options with the selected ones first, in their own group, the others after (in their groups, or in one), a line
- * between the groups.
+ * between the groups; the options of a tree (treeSelectProps) stay in tree order.
  * @param {ComboboxData | undefined} data Options.
  * @param {string[]} selected Values selected.
  * @returns {ComboboxData | undefined} Options.
@@ -29,6 +29,8 @@ const valueOf = (option: Option) => (typeof option === 'string' ? option : optio
 function selectedFirst(data: ComboboxData | undefined, selected: string[]): ComboboxData | undefined {
   if (!data || selected.length === 0) return data;
   const list = data as (Option | ComboboxItemGroup<Option>)[];
+  // A tree keeps its order: its options only make sense under their parents.
+  if (list.some((item) => typeof item === 'object' && 'depth' in item)) return data;
   const isGroup = (item: Option | ComboboxItemGroup<Option>): item is ComboboxItemGroup<Option> => typeof item === 'object' && 'group' in item;
   if (list.some(isGroup)) {
     const picked: Option[] = [];

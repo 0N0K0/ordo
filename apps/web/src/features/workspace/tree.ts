@@ -1,3 +1,4 @@
+import { treeOptions, type TreeNode, type TreeOption } from '../../components/tree-select/tree-select';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import type { Client, Project, Workspace } from './api';
 
@@ -146,14 +147,31 @@ export function projectFullPath(workspace: Workspace, project: Project): string 
 }
 
 /**
- * Options of a select of projects, each with its full path, in the order of their paths.
+ * Options of a select of projects, in the order of the tree: under their client (greyed out, not selectable), each
+ * project followed by its sub-projects, indented; parents not offered are greyed out too.
  * @param {Workspace | undefined} workspace Workspace data.
  * @param {Project[]} projects Projects offered.
- * @returns {{ value: string, label: string }[]} Options.
+ * @returns {TreeOption[]} Options.
  */
-export function projectOptions(workspace: Workspace | undefined, projects: Project[]): { value: string; label: string }[] {
-  if (!workspace) return projects.map((project) => ({ value: project.id, label: project.title }));
-  return projects.map((project) => ({ value: project.id, label: projectFullPath(workspace, project) })).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+export function projectOptions(workspace: Workspace | undefined, projects: Project[]): TreeOption[] {
+  const offered = new Set(projects.map((project) => project.id));
+  if (!workspace) return treeOptions(projects.map((project) => ({ id: project.id, parentId: null, label: project.title })));
+  return treeOptions(projectNodes(workspace), (id) => offered.has(id));
+}
+
+/**
+ * Tree of the clients (ids "client:<id>", "client:none" for the projects without client) and of their projects,
+ * siblings in their manual order (archived last).
+ * @param {Workspace} workspace Workspace data.
+ * @returns {TreeNode[]} Nodes.
+ */
+export function projectNodes(workspace: Workspace): TreeNode[] {
+  const byOrder = <T extends { archived: boolean; position: number }>(a: T, b: T) => Number(a.archived) - Number(b.archived) || a.position - b.position;
+  return [
+    ...[...workspace.clients].sort(byOrder).map((client) => ({ id: `client:${client.id}`, parentId: null, label: client.name })),
+    { id: 'client:none', parentId: null, label: 'Sans client' },
+    ...[...workspace.projects].sort(byOrder).map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.title })),
+  ];
 }
 
 /**

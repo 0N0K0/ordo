@@ -6,6 +6,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
 import { categoriesForBaseList, shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 /**
  * Names of the people a product or an item is for, as small badges.
@@ -119,7 +120,9 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             placeholder="Aucune"
             clearable
             searchable
-            data={shoppingCategoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? []))}
+            {...treeSelectProps(
+              shoppingCategoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? [])),
+            )}
             {...form.getInputProps('categoryId')}
           />
           <Select
