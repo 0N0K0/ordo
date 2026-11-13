@@ -1,3 +1,5 @@
+import { treeOptions, type TreeOption } from '../tree-select/tree-select';
+
 /** Category of a tree (shopping, routines…): a name, an optional color and a parent. */
 export interface TreeCategory {
   id: string;
@@ -63,17 +65,18 @@ export function categoryTree<C extends TreeCategory>(categories: readonly C[]): 
 }
 
 /**
- * Select options of the categories, indented as their tree.
+ * Select options of the categories, in tree order, each name indented under its parent (treeSelectProps).
  * @param {readonly TreeCategory[]} categories All categories.
  * @param {string} [exclude] Category left out with its sub-categories (the one edited). Optional.
- * @returns {{ value: string, label: string }[]} Options.
+ * @param {(id: string) => boolean} [offered] Whether a category can be chosen (the others show greyed out above those that can). Optional.
+ * @returns {TreeOption[]} Options.
  */
-export function categoryOptions(categories: readonly TreeCategory[], exclude?: string): { value: string; label: string }[] {
-  const tree = categoryTree(categories);
-  const excluded = exclude ? tree.find((item) => item.category.id === exclude) : undefined;
-  return tree
-    .filter((item) => !excluded || (item.path !== excluded.path && !item.path.startsWith(`${excluded.path} › `)))
-    .map((item) => ({ value: item.category.id, label: `${' '.repeat(item.depth)}${item.category.name}` }));
+export function categoryOptions(categories: readonly TreeCategory[], exclude?: string, offered?: (id: string) => boolean): TreeOption[] {
+  return treeOptions(
+    categoryTree(categories).map(({ category, color }) => ({ id: category.id, parentId: category.parentId ?? null, label: category.name, color })),
+    offered,
+    new Set(exclude ? [exclude] : []),
+  );
 }
 
 /** Where a dragged category is dropped on another one: before it, after it or under it (last). */

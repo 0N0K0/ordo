@@ -29,6 +29,7 @@ import {
 } from './documents-api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { projectOptions } from '../workspace/tree';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 interface FormValues extends Record<string, unknown> {
   type: AccountingDocumentType;
@@ -173,7 +174,7 @@ export function ImportedDocumentForm({
               clearable
               searchable
               placeholder="Aucun"
-              data={projectOptions(workspace, projects)}
+              {...treeSelectProps(projectOptions(workspace, projects))}
               {...form.getInputProps('projectId')}
             />
           ) : (

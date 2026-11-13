@@ -66,6 +66,7 @@ import { openRecurringForm } from './recurring-form';
 import { FileLink } from '../files/FileLink';
 import { FilePreview } from '../files/FilePreview';
 import { projectOptions } from '../workspace/tree';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -514,7 +515,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   searchable
                   readOnly={readOnly}
                   placeholder="Aucun"
-                  data={projectOptions(workspace, projects)}
+                  {...treeSelectProps(projectOptions(workspace, projects))}
                   {...form.getInputProps('projectId')}
                 />
                 <Select

@@ -5,7 +5,7 @@ import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnch
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { categoryTree } from '../../components/category-tree/category-tree';
+import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { notifyError } from '../../lib/notify';
@@ -17,6 +17,7 @@ import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
 import { DAILY, describeRoutineCase, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -285,7 +286,7 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Catégories', routine, count)}
-          data={placed.map((item) => ({ value: item.category.id, label: item.path }))}
+          {...treeSelectProps(categoryOptions(categories))}
           value={routine.categoryIds}
           onChange={(categoryIds) => {
             const { added, removed } = diff(routine.categoryIds, categoryIds);
@@ -408,19 +409,16 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
  */
 export function ProjectCell({ routine, readOnly = false, context }: CellProps & { context: TaskContext }) {
   const { apply, count } = useRoutineCellEdit(routine, 'project');
-  const data = context.projects
-    .filter((project) => !project.archived || project.id === routine.projectId)
-    .map((project) => ({ value: project.id, label: context.projectLabel(project.id) }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  const options = context.projectOptions(context.projects.filter((project) => !project.archived || project.id === routine.projectId));
   return (
     <Select
       {...cellCombobox}
+      {...treeSelectProps(options)}
       aria-label={fieldLabel('Projet', routine, count)}
       readOnly={readOnly}
       placeholder={readOnly ? undefined : '—'}
       clearable={!readOnly}
       searchable
-      data={data}
       nothingFoundMessage="Aucun projet"
       value={routine.projectId}
       onChange={(projectId) => (projectId !== routine.projectId || count > 1) && apply({ projectId }, { projectId })}

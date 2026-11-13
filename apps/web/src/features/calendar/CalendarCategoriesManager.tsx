@@ -9,6 +9,7 @@ import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useCalendarCategories, useCalendarCategoryMutations, type CalendarCategory } from './api';
 import { categoryOptions, categorySubtree } from './category-tree';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 let modalCount = 0;
 
@@ -59,7 +60,7 @@ function CategoryForm({ categories, category, parentId, onDone }: CategoryFormPr
           placeholder="Aucune (catégorie principale)"
           clearable
           searchable
-          data={categoryOptions(categories, excluded)}
+          {...treeSelectProps(categoryOptions(categories, excluded))}
           {...form.getInputProps('parentId')}
         />
         <Group justify="flex-end" gap="sm">

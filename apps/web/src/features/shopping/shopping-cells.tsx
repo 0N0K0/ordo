@@ -9,6 +9,7 @@ import classes from '../tasks/views/inline-cells.module.css';
 import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import type { ShoppingCategory, ShoppingStorage, ShoppingStore } from './api';
 import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, UNITS, usePeople } from './shopping-format';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -393,7 +394,7 @@ export function CategoryCell({ value, categories, label, readOnly = false, onSav
       readOnly={readOnly}
       clearable={!readOnly}
       searchable
-      data={shoppingCategoryOptions(categories)}
+      {...treeSelectProps(shoppingCategoryOptions(categories))}
       leftSection={color ? <ColorSwatch color={color} size={10} /> : undefined}
       nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
       value={value}

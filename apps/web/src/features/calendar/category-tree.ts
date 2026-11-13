@@ -1,3 +1,4 @@
+import { treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
 import type { CalendarCategory } from './api';
 
 export interface CategoryNode {
@@ -47,18 +48,15 @@ export function categorySubtree(categories: CalendarCategory[], id: string): Set
 }
 
 /**
- * Select options of the categories, indented by depth ("Pro › Clients").
+ * Select options of the categories, in tree order, each name indented under its parent (treeSelectProps).
  * @param {CalendarCategory[]} categories Categories.
  * @param {Set<string>} [excluded] Categories left out. Optional.
- * @returns {{ value: string, label: string }[]} Options.
+ * @returns {TreeOption[]} Options.
  */
-export function categoryOptions(categories: CalendarCategory[], excluded: Set<string> = new Set()) {
-  const byId = new Map(categories.map((category) => [category.id, category]));
-  const path = (category: CalendarCategory): string => {
-    const parent = category.parentId ? byId.get(category.parentId) : undefined;
-    return parent ? `${path(parent)} › ${category.name}` : category.name;
-  };
-  return flattenCategories(categories)
-    .filter((node) => !excluded.has(node.category.id))
-    .map((node) => ({ value: node.category.id, label: path(node.category) }));
+export function categoryOptions(categories: CalendarCategory[], excluded: Set<string> = new Set()): TreeOption[] {
+  return treeOptions(
+    flattenCategories(categories).map(({ category }) => ({ id: category.id, parentId: category.parentId ?? null, label: category.name, color: category.color })),
+    undefined,
+    excluded,
+  );
 }

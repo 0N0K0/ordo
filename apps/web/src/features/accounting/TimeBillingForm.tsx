@@ -6,6 +6,7 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useTimeEntries } from '../time/api';
 import { useCatalogItems } from './catalog-api';
 import { timeLines, type BillableTime, type TimeGrouping } from './time-lines';
+import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
 
 const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -23,7 +24,7 @@ interface TimeBillingFormProps {
   /** Project of the invoice, preselected. */
   projectId: string | null;
   /** Projects of the client. */
-  projects: { value: string; label: string }[];
+  projects: TreeOption[];
   /** Time already on the invoice. */
   excludeIds: string[];
   /** Service period of the invoice, preselected. */
@@ -42,7 +43,7 @@ interface TimeBillingFormProps {
  * @returns {JSX.Element} Form.
  */
 export function TimeBillingForm({ projectId: initialProject, projects, excludeIds, start, end, vatApplicable, onAdd, onCancel }: TimeBillingFormProps) {
-  const [projectId, setProjectId] = useState<string | null>(initialProject ?? projects[0]?.value ?? null);
+  const [projectId, setProjectId] = useState<string | null>(initialProject ?? projects.find((option) => !option.disabled)?.value ?? null);
   const [from, setFrom] = useState<string | null>(start);
   const [to, setTo] = useState<string | null>(end);
   const [grouping, setGrouping] = useState<TimeGrouping>('TOTAL');
@@ -76,7 +77,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
   return (
     <Stack gap="sm">
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-        <Select label="Projet" required searchable allowDeselect={false} data={projects} value={projectId} onChange={setProjectId} />
+        <Select label="Projet" required searchable allowDeselect={false} {...treeSelectProps(projects)} value={projectId} onChange={setProjectId} />
         <DatePickerInput label="Du" clearable valueFormat="D MMM YYYY" value={from} onChange={setFrom} />
         <DatePickerInput label="Au" clearable valueFormat="D MMM YYYY" value={to} onChange={setTo} />
       </SimpleGrid>

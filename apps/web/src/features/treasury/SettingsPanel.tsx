@@ -32,6 +32,7 @@ import { confirmDeletion } from './confirm-deletion';
 import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useColorSwatches } from '../workspace/use-color-swatches';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OUT: 'Sorties' };
 
@@ -183,7 +184,7 @@ export function CategoryForm({ category, direction = 'OUT', parentId = null, cat
           clearable
           searchable
           placeholder="Aucune (catégorie principale)"
-          data={categoryOptions(categories, form.values.direction, category?.id)}
+          {...treeSelectProps(categoryOptions(categories, form.values.direction, category?.id))}
           {...form.getInputProps('parentId')}
         />
         <FormActions loading={createCategory.isPending || updateCategory.isPending} onCancel={() => onDone()} />
@@ -404,7 +405,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
           placeholder="Aucune (hors budget)"
           clearable
           searchable
-          data={categoryOptions(categories, 'IN')}
+          {...treeSelectProps(categoryOptions(categories, 'IN'))}
           value={current.invoiceCategoryId}
           onChange={(value) => save({ invoiceCategoryId: value })}
         />
@@ -413,7 +414,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
           placeholder="Aucune (hors budget)"
           clearable
           searchable
-          data={categoryOptions(categories, 'OUT')}
+          {...treeSelectProps(categoryOptions(categories, 'OUT'))}
           value={current.creditNoteCategoryId}
           onChange={(value) => save({ creditNoteCategoryId: value })}
         />

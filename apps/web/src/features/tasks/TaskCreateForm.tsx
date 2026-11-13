@@ -105,6 +105,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             }}
           />
           <TaskSelect
+            context={context}
             labelOf={(task) => context.taskLabel(task, form.values.projectId)}
             tasks={parentCandidates}
             label="Tâche parente"

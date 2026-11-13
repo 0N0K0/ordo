@@ -5,7 +5,8 @@ import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { IconField, type IconValue } from '../../workspace/IconField';
-import { projectPath } from '../../workspace/tree';
+import { treeSelectProps } from '../../../components/tree-select/tree-select';
+import { projectOptions } from '../../workspace/tree';
 import { useContributorMutations, type Contributor } from '../api';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 
@@ -83,10 +84,12 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
             label="Projets"
             description="Le contributeur est aussi rattaché à leurs sous-projets."
             placeholder={projectIds.length ? undefined : 'Aucun'}
-            data={(workspace?.projects ?? [])
-              .filter((project) => !project.archived || projectIds.includes(project.id))
-              .map((project) => ({ value: project.id, label: `${projectPath(workspace!, project)} › ${project.title}` }))
-              .sort((a, b) => a.label.localeCompare(b.label, 'fr'))}
+            {...treeSelectProps(
+              projectOptions(
+                workspace,
+                (workspace?.projects ?? []).filter((project) => !project.archived || projectIds.includes(project.id)),
+              ),
+            )}
             value={projectIds}
             onChange={setProjectIds}
             searchable

@@ -1,3 +1,4 @@
+import { treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
 import type { TreasuryDirection } from '@ordo/shared';
 import type { TreasuryCategory } from './api';
 
@@ -47,18 +48,18 @@ export function categoryTree(categories: readonly TreasuryCategory[], direction?
 }
 
 /**
- * Select options of the categories of a direction, sub-categories indented under their parent.
+ * Select options of the categories of a direction, in tree order, each name indented under its parent (treeSelectProps).
  * @param {TreasuryCategory[]} categories All categories.
  * @param {TreasuryDirection} direction Direction.
  * @param {string} [exclude] Category left out with its sub-categories (a category cannot be its own parent). Optional.
- * @returns {{ value: string, label: string }[]} Options.
+ * @returns {TreeOption[]} Options.
  */
-export function categoryOptions(categories: readonly TreasuryCategory[], direction: TreasuryDirection, exclude?: string): { value: string; label: string }[] {
-  const tree = categoryTree(categories, direction);
-  const excluded = exclude ? tree.find((item) => item.category.id === exclude) : undefined;
-  return tree
-    .filter((item) => !excluded || (item.path !== excluded.path && !item.path.startsWith(`${excluded.path} › `)))
-    .map((item) => ({ value: item.category.id, label: `${' '.repeat(item.depth)}${item.category.name}` }));
+export function categoryOptions(categories: readonly TreasuryCategory[], direction: TreasuryDirection, exclude?: string): TreeOption[] {
+  return treeOptions(
+    categoryTree(categories, direction).map(({ category }) => ({ id: category.id, parentId: category.parentId ?? null, label: category.name, color: category.color })),
+    undefined,
+    new Set(exclude ? [exclude] : []),
+  );
 }
 
 /**

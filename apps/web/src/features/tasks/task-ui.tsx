@@ -17,6 +17,7 @@ import { useTaskLink } from './use-task-link';
 import type { Contributor, Task, TaskLabel } from './api';
 import type { TaskContext } from './use-task-context';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
 
 /**
  * Colored badge of a status, priority or type.
@@ -199,16 +200,13 @@ interface ProjectSelectProps extends Omit<SelectProps, 'data'> {
 }
 
 /**
- * Select of an active project, labelled with its full path.
+ * Select of an active project, in tree order under its client.
  * @param {ProjectSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
 export function ProjectSelect({ context, ...props }: ProjectSelectProps) {
-  const data = context.projects
-    .filter((project) => !project.archived || project.id === props.value)
-    .map((project) => ({ value: project.id, label: context.projectLabel(project.id) }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
-  return <Select data={data} searchable nothingFoundMessage="Aucun projet" {...props} />;
+  const options = context.projectOptions(context.projects.filter((project) => !project.archived || project.id === props.value));
+  return <Select {...treeSelectProps(options)} searchable nothingFoundMessage="Aucun projet" {...props} />;
 }
 
 interface TaskSelectProps extends Omit<SelectProps, 'data'> {
@@ -216,17 +214,20 @@ interface TaskSelectProps extends Omit<SelectProps, 'data'> {
   tasks: Task[];
   /** Label of a task (its number is only unique in its project); "#12 Title" by default. */
   labelOf?: (task: Task) => string;
+  /** Context of the tasks: given, the tasks show in tree order under their parent task, project and client. Optional. */
+  context?: TaskContext;
 }
 
 /**
- * Searchable select of a task, "#12 Title" (or the label given, with the project of the task).
+ * Searchable select of a task, "#12 Title" (or the label given, with the project of the task); with the context, in
+ * tree order under their parent task, project and client.
  * @param {TaskSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function TaskSelect({ tasks, labelOf = (task) => `#${task.number} ${task.title}`, ...props }: TaskSelectProps) {
+export function TaskSelect({ tasks, labelOf = (task) => `#${task.number} ${task.title}`, context, ...props }: TaskSelectProps) {
   return (
     <Select
-      data={tasks.map((task) => ({ value: task.id, label: labelOf(task) }))}
+      {...(context ? treeSelectProps(context.taskOptions(tasks)) : { data: tasks.map((task) => ({ value: task.id, label: labelOf(task) })) })}
       searchable
       clearable
       nothingFoundMessage="Aucune tâche"

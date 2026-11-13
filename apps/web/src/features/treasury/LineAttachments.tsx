@@ -5,13 +5,14 @@ import { useState } from 'react';
 import { useTreasuryEntrySearch } from './api';
 import { describeLink, type LineLink, type LineValues } from './lines';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
 
 interface LineAttachmentsProps {
   line: LineValues;
   onChange: (changes: Partial<LineValues>) => void;
   /** Entry edited (its own lines cannot be linked). */
   entryId: string | null;
-  projects: { value: string; label: string }[];
+  projects: TreeOption[];
   /** Supporting documents, grouped by place; values "lib:<id>" or "res:<id>". */
   documentGroups: { group: string; items: { value: string; label: string }[] }[];
   onClose: () => void;
@@ -79,7 +80,7 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         value={line.date}
         onChange={(date) => onChange({ date: date ? String(date) : null })}
       />
-      <Select label="Projet" clearable searchable data={projects} value={line.projectId} onChange={(projectId) => onChange({ projectId })} />
+      <Select label="Projet" clearable searchable {...treeSelectProps(projects)} value={line.projectId} onChange={(projectId) => onChange({ projectId })} />
       <BatchMultiSelect
         label="Pièces justificatives"
         description="Documents de la bibliothèque ou des projets."

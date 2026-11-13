@@ -104,6 +104,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
       ))}
       {adding ? (
         <TaskSelect
+          context={context}
           labelOf={(candidate) => context.taskLabel(candidate)}
           tasks={candidates.filter((candidate) => !linked.has(candidate.id))}
           size="xs"
@@ -460,6 +461,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               error={task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined}
             />
             <TaskSelect
+              context={context}
               labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
               label="Tâche parente"
               placeholder="Aucune"
