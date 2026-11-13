@@ -149,7 +149,7 @@ for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) {
   });
 }
 
-const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES'] as const, description: 'What a saved view lists.' });
+const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS'] as const, description: 'What a saved view lists.' });
 
 builder.prismaObject('TaskView', {
   description: 'Saved view of the tasks or of the routines.',

@@ -1,4 +1,4 @@
-import { routineViewConfigSchema, taskViewConfigSchema, taskViewNameSchema } from '@ordo/shared';
+import { routineViewConfigSchema, shoppingListViewConfigSchema, taskViewConfigSchema, taskViewNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { Prisma, TaskView, ViewKind } from '../generated/prisma/client';
@@ -18,12 +18,12 @@ async function findView(id: string): Promise<TaskView> {
 
 /**
  * Validates a view configuration (filters, sorting, columns…) of its kind, filling missing settings with defaults.
- * @param {ViewKind} kind Tasks or routines.
+ * @param {ViewKind} kind Tasks, routines or shopping lists.
  * @param {unknown} config Raw configuration.
  * @returns {Prisma.InputJsonObject} Configuration, ready to store.
  */
 function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonObject {
-  const schema = kind === 'ROUTINES' ? routineViewConfigSchema : taskViewConfigSchema;
+  const schema = kind === 'ROUTINES' ? routineViewConfigSchema : kind === 'SHOPPING_LISTS' ? shoppingListViewConfigSchema : taskViewConfigSchema;
   return parseInput(z.object({ config: schema }), { config }).config as unknown as Prisma.InputJsonObject;
 }
 
