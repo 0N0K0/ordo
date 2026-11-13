@@ -7,7 +7,7 @@ import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { DestructiveActions } from '../../workspace/DeleteDialogs';
-import type { TaskView, TaskViewState } from './use-task-view';
+import type { SavedView, SavedViewsState } from './use-saved-views';
 
 interface NameFormProps {
   initial: string;
@@ -122,10 +122,10 @@ function SortableTab(props: TabsTabProps & { value: string }) {
 /**
  * Tabs of the saved views, reordered by drag and drop; the menu of the current one saves or reverts its changes
  * (also at the top of the « Options » menu).
- * @param {{ state: TaskViewState }} props Component props.
+ * @param {{ state: SavedViewsState<C> }} props Component props.
  * @returns {JSX.Element} Tabs.
  */
-export function ViewTabs({ state }: { state: TaskViewState }) {
+export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const { views, current, dirty } = state;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -142,10 +142,10 @@ export function ViewTabs({ state }: { state: TaskViewState }) {
 
   /**
    * Asks for confirmation before deleting a view.
-   * @param {TaskView} view View.
+   * @param {SavedView<C>} view View.
    * @returns {void}
    */
-  const confirmDelete = (view: TaskView) => {
+  const confirmDelete = (view: SavedView<C>) => {
     const modalId = `delete-view-${view.id}`;
     modals.open({
       modalId,

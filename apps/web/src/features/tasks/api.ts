@@ -11,8 +11,11 @@ import type {
   TasksDataQuery,
   TaskStatusCategory,
   TypedDocumentString,
+  ViewKind,
 } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
+
+export type { ViewKind };
 
 export type Task = TaskFieldsFragment;
 export type TaskComment = TaskCommentFieldsFragment;
@@ -751,8 +754,8 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
 }
 
 const TaskViewsDocument = graphql(`
-  query TaskViews($projectId: ID) {
-    taskViews(projectId: $projectId) {
+  query TaskViews($projectId: ID, $kind: ViewKind) {
+    taskViews(projectId: $projectId, kind: $kind) {
       id
       name
       config
@@ -848,14 +851,15 @@ export interface TaskViewRecord {
 export const taskViewsQueryKey = ['taskViews'] as const;
 
 /**
- * Saved task views of a project's task tab (or of the home page), in tab order.
- * @param {string | null} projectId Project, or null for the home page.
+ * Saved views of the tasks (or of the routines) of a project's tab (or of their page), in tab order.
+ * @param {string | null} projectId Project, or null for the page.
+ * @param {ViewKind} [kind] Tasks or routines. Optional. Default = 'TASKS'.
  * @returns {UseQueryResult<TaskViewRecord[]>} Query state.
  */
-export function useTaskViews(projectId: string | null) {
+export function useTaskViews(projectId: string | null, kind: ViewKind = 'TASKS') {
   return useQuery({
-    queryKey: [...taskViewsQueryKey, projectId],
-    queryFn: async () => (await execute(TaskViewsDocument, { projectId })).taskViews as TaskViewRecord[],
+    queryKey: [...taskViewsQueryKey, kind, projectId],
+    queryFn: async () => (await execute(TaskViewsDocument, { projectId, kind })).taskViews as TaskViewRecord[],
   });
 }
 
@@ -934,7 +938,7 @@ export function useTaskViewMutations() {
   const queryClient = useQueryClient();
   return {
     create: useViewMutation(
-      async (input: { name: string; config: unknown; projectId: string | null }) =>
+      async (input: { name: string; config: unknown; projectId: string | null; kind?: ViewKind }) =>
         (await execute(CreateTaskViewDocument, { input })).createTaskView,
     ),
     update: useViewMutation(

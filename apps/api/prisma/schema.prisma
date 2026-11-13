@@ -644,9 +644,17 @@ model TaskComment {
 }
 
 /// Saved task table view: filters, sorting, columns and grouping (JSON validated by @ordo/shared).
+/// What a saved view lists.
+enum ViewKind {
+  TASKS
+  ROUTINES
+}
+
 model TaskView {
   id          String    @id @default(cuid())
   name        String
+  /// Tasks or routines (each kind with its own configuration and tabs).
+  kind        ViewKind  @default(TASKS)
   config      Json
   /// Project whose task tab shows the view; null for the home page.
   projectId   String?

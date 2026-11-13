@@ -571,9 +571,10 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
  * @param {boolean} done Target state.
  * @param {string | null} [date] Occurrence date. Optional. Default = the current occurrence.
  * @param {number | null} [slot] Time of the day (index). Optional. Default = 0.
+ * @param {Date | null} [doneAt] When it was done (ticked after the fact; never in the future). Optional. Default = now.
  * @returns {Promise<string>} Occurrence date.
  */
-export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null): Promise<string> {
+export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
   const routine = await prisma.routine.findUnique({ where: { id }, include: { schedule: true } });
   if (!routine) throw notFound('Routine');
   const occurrence = date ?? occurrencesOf(routine).current;
@@ -581,8 +582,10 @@ export async function setRoutineDone(id: string, done: boolean, date?: string | 
   if (occurrence > routineToday()) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
   const index = slot ?? 0;
   if (index < 0 || index >= Math.max(1, slotsOf(routine, occurrence).length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
+  if (doneAt && doneAt.getTime() > Date.now()) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être faite dans le futur.', { fields: { doneAt: 'Heure à venir.' } });
   const key = { routineId_date_slot: { routineId: id, date: parseDay(occurrence), slot: index } };
-  if (done) await prisma.routineCheck.upsert({ where: key, create: { routineId: id, date: parseDay(occurrence), slot: index }, update: {} });
+  // When it was done: now, unless given (ticked after the fact).
+  if (done) await prisma.routineCheck.upsert({ where: key, create: { routineId: id, date: parseDay(occurrence), slot: index, ...(doneAt && { doneAt }) }, update: doneAt ? { doneAt } : {} });
   else await prisma.routineCheck.deleteMany({ where: { routineId: id, date: parseDay(occurrence), slot: index } });
   return occurrence;
 }

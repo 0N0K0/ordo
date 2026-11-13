@@ -149,9 +149,13 @@ for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) {
   });
 }
 
+const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES'] as const, description: 'What a saved view lists.' });
+
 builder.prismaObject('TaskView', {
+  description: 'Saved view of the tasks or of the routines.',
   fields: (t) => ({
     id: t.exposeID('id'),
+    kind: t.field({ type: ViewKindEnum, resolve: (view) => view.kind }),
     name: t.exposeString('name'),
     config: t.expose('config', { type: 'JSON' }),
     isDefault: t.exposeBoolean('isDefault'),
@@ -351,6 +355,7 @@ const TaskViewInput = builder.inputType('TaskViewInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
     projectId: t.id({ description: 'Project of the view; omitted or null for the home page.' }),
+    kind: t.field({ type: ViewKindEnum, description: 'Tasks (default) or routines.' }),
     config: t.field({ type: 'JSON', required: true }),
   }),
 });
@@ -469,10 +474,10 @@ builder.queryFields((t) => ({
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],
-    description: 'Views of a project\'s task tab, or of the home page when projectId is omitted.',
-    args: { projectId: t.arg.id() },
-    resolve: (query, _root, { projectId }) =>
-      prisma.taskView.findMany({ ...query, where: { projectId: projectId ?? null }, orderBy: [...byManualOrder] }),
+    description: 'Views of the tasks (or routines, by kind) of a project\'s tab, or of their page when projectId is omitted.',
+    args: { projectId: t.arg.id(), kind: t.arg({ type: ViewKindEnum }) },
+    resolve: (query, _root, { projectId, kind }) =>
+      prisma.taskView.findMany({ ...query, where: { projectId: projectId ?? null, kind: kind ?? 'TASKS' }, orderBy: [...byManualOrder] }),
   }),
   sprintTaskStatuses: t.field({
     type: [SprintTaskStatusRef],
@@ -616,7 +621,7 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { input }) =>
       prisma.taskView.findUniqueOrThrow({
         ...query,
-        where: { id: (await taskViews.createView({ name: input.name, config: input.config, projectId: input.projectId })).id },
+        where: { id: (await taskViews.createView({ name: input.name, config: input.config, projectId: input.projectId, kind: input.kind })).id },
       }),
   }),
   updateTaskView: t.prismaField({
