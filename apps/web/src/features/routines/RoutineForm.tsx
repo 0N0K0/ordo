@@ -45,6 +45,8 @@ export interface RoutineFormProps {
   parent?: Routine;
   /** Category of a new routine. */
   categoryId?: string | null;
+  /** Project of a new routine. */
+  projectId?: string | null;
   onDone: () => void;
 }
 
@@ -74,7 +76,7 @@ function subtreeOf(routines: Routine[], id: string): Set<string> {
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function RoutineForm({ routine, copy = false, parent, categoryId = null, onDone }: RoutineFormProps) {
+export function RoutineForm({ routine, copy = false, parent, categoryId = null, projectId = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
   const { create, update } = useRoutineMutations();
@@ -100,7 +102,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       locationLon: routine?.locationLon ?? null,
       travelBefore: routine?.travelBefore ?? 0,
       travelAfter: routine?.travelAfter ?? 0,
-      projectId: routine ? routine.projectId : (parent?.projectId ?? null),
+      projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
       requiredIds: routine?.requiredIds ?? [],
     },

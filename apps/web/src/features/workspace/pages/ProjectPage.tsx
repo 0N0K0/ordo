@@ -1,5 +1,5 @@
 import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
@@ -11,6 +11,8 @@ import { ProjectBillingPanel } from '../../accounting/ProjectBillingPanel';
 import { ProjectResourcesPanel } from '../../accounting/ProjectResourcesPanel';
 import { ProjectMailsPanel } from '../../mail/ProjectMailsPanel';
 import { ProjectTimePanel } from '../../time/ProjectTimePanel';
+import { RoutinesPanel } from '../../routines/RoutinesPage';
+import { ListsPanel } from '../../shopping/ShoppingPage';
 import { TaskBoard } from '../../tasks/TaskBoard';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { descendantIds, useWorkspace, type Project } from '../api';
@@ -153,6 +155,8 @@ export function ProjectPage() {
   }
   const subtree = descendantIds(data.projects, project.id);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
+  // Routines and shopping lists: those of the project and of its sub-projects.
+  const tree = new Set([project.id, ...subtree]);
   const canAddSubProject = !project.archived && canHaveChildren(data.projects, project.id);
 
   return (
@@ -213,6 +217,12 @@ export function ProjectPage() {
           </Tabs.Tab>
           <Tabs.Tab value="tasks" leftSection={<CheckSquareOffsetIcon aria-hidden />}>
             Tâches
+          </Tabs.Tab>
+          <Tabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
+            Routines
+          </Tabs.Tab>
+          <Tabs.Tab value="shopping" leftSection={<BasketIcon aria-hidden />}>
+            Courses
           </Tabs.Tab>
           <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
@@ -294,6 +304,12 @@ export function ProjectPage() {
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />
+        </Tabs.Panel>
+        <Tabs.Panel value="routines">
+          <RoutinesPanel key={project.id} projectId={project.archived ? undefined : project.id} projectIds={tree} />
+        </Tabs.Panel>
+        <Tabs.Panel value="shopping">
+          <ListsPanel key={project.id} projectIds={tree} />
         </Tabs.Panel>
         <Tabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />

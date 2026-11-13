@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { Recurrence, RoutineCategoryInput, RoutineInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { RoutinesDataQuery } from '../../graphql/graphql';
+import type { RoutineChecksQuery, RoutinesDataQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 
 export type RoutineCategory = RoutinesDataQuery['routineCategories'][number];
@@ -151,6 +151,39 @@ const DeleteRoutineDocument = graphql(`
     deleteRoutine(id: $id)
   }
 `);
+
+const RoutineChecksDocument = graphql(`
+  query RoutineChecks($from: Date!, $to: Date!) {
+    routineChecks(from: $from, to: $to) {
+      routineId
+      date
+      slot
+      doneAt
+      fromTime
+      dueTime
+    }
+  }
+`);
+
+export type RoutineCheck = RoutineChecksQuery['routineChecks'][number];
+
+/**
+ * Times of the day ticked in a period.
+ * @param {string} from First day (YYYY-MM-DD).
+ * @param {string} to Last day (YYYY-MM-DD).
+ * @returns {Promise<RoutineCheck[]>} Ticks, latest first.
+ */
+const fetchChecks = async (from: string, to: string): Promise<RoutineCheck[]> => (await execute(RoutineChecksDocument, { from, to })).routineChecks;
+
+/**
+ * Times of the day ticked as done in a period (both days included), latest first: refreshed with the routines.
+ * @param {string} from First day (YYYY-MM-DD).
+ * @param {string} to Last day (YYYY-MM-DD).
+ * @returns {UseQueryResult<RoutineCheck[]>} Query state.
+ */
+export function useRoutineChecks(from: string, to: string) {
+  return useQuery({ queryKey: [...routinesKey, 'checks', from, to], queryFn: () => fetchChecks(from, to) });
+}
 
 /**
  * Routines and their categories. Refreshed when the window gets the focus back (the current occurrences move with the

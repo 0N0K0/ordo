@@ -27,7 +27,7 @@ import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
 import { confirmDestructive, openModal } from './list-modals';
 import { ProductPicker } from './ProductPicker';
-import { blankInput, money, type ShoppingGrouping } from './shopping-format';
+import { blankInput, listClosed, listTasks, money, type ShoppingGrouping } from './shopping-format';
 import { ShoppingSettings } from './ShoppingSettings';
 import { ShoppingTable } from './ShoppingTable';
 import { StoreMode } from './StoreMode';
@@ -77,8 +77,8 @@ export function ShoppingListPage() {
     );
   }
 
-  const task = list.taskId ? context?.taskById.get(list.taskId) : undefined;
-  const closed = list.closed || Boolean(task?.closed);
+  const tasks = listTasks(list, context);
+  const closed = listClosed(list, context);
   const baseLists = data?.shoppingBaseLists ?? [];
   const total = shoppingTotal(list.items);
   const spent = shoppingTotal(list.items.filter((item) => item.purchasedAt));
@@ -107,7 +107,9 @@ export function ShoppingListPage() {
             )}
           </Group>
           <Group gap="md">
-            {task && <TaskRef task={task} blocked={context?.isBlocked(task)} />}
+            {tasks.map((task) => (
+              <TaskRef key={task.id} task={task} blocked={context?.isBlocked(task)} />
+            ))}
             {list.entry && (
               <Group gap={4} wrap="nowrap">
                 <BankIcon aria-hidden size={14} />

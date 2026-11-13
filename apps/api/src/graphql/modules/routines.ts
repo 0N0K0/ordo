@@ -267,6 +267,28 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   requiredIds: input.requiredIds.map(String),
 });
 
+builder.prismaObject('RoutineCheck', {
+  description: 'Time of the day of a routine ticked as done, for an occurrence.',
+  fields: (t) => ({
+    routineId: t.exposeID('routineId'),
+    date: t.expose('date', { type: 'Date', description: 'Day of the occurrence.' }),
+    slot: t.exposeInt('slot', { description: 'Time of the day ticked (its index in the times of that day).' }),
+    doneAt: t.expose('doneAt', { type: 'DateTime', description: 'When it was ticked.' }),
+    fromTime: t.string({
+      nullable: true,
+      description: 'Start of the time of the day ticked (as the routine is now).',
+      select: { routine: { select: TIMING } },
+      resolve: (check) => routines.slotsOf(check.routine, formatDay(check.date))[check.slot]?.fromTime ?? null,
+    }),
+    dueTime: t.string({
+      nullable: true,
+      description: 'End of the time of the day ticked (as the routine is now).',
+      select: { routine: { select: TIMING } },
+      resolve: (check) => routines.slotsOf(check.routine, formatDay(check.date))[check.slot]?.dueTime ?? null,
+    }),
+  }),
+});
+
 builder.queryFields((t) => ({
   routineCategories: t.prismaField({
     type: ['RoutineCategory'],
@@ -276,6 +298,18 @@ builder.queryFields((t) => ({
     type: ['Routine'],
     description: 'Every routine, archived ones included, in manual order.',
     resolve: (query) => prisma.routine.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  routineChecks: t.prismaField({
+    type: ['RoutineCheck'],
+    description: 'Times of the day ticked as done, of the occurrences of a period (both days included), latest first.',
+    args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
+    resolve: (query, _root, { from, to }) =>
+      prisma.routineCheck.findMany({
+        ...query,
+        where: { date: { gte: parseDay(from), lte: parseDay(to) } },
+        orderBy: [{ date: 'desc' }, { doneAt: 'desc' }],
+        take: 2000,
+      }),
   }),
 }));
 
