@@ -24,7 +24,8 @@ export function ProjectBillingPanel({ clientId, projectId, projectIds }: { clien
    * @param {{ clientId?: string | null, projectId?: string | null }} document Document.
    * @returns {boolean} Kept.
    */
-  const kept = (document: { clientId?: string | null; projectId?: string | null }) => !ofProjects || document.clientId === clientId || (document.projectId != null && projectIds!.has(document.projectId));
+  const kept = (document: { clientId?: string | null; projectId?: string | null }) =>
+    !ofProjects || document.clientId === clientId || (document.projectId != null && projectIds!.has(document.projectId));
   return (
     <Stack gap="md">
       <Group justify="space-between">
@@ -58,7 +59,16 @@ export function ProjectBillingPanel({ clientId, projectId, projectIds }: { clien
       {documents.isPending || imported.isPending ? (
         <Skeleton height={120} />
       ) : (
-        <DocumentsTable documents={(documents.data ?? []).filter(kept)} imported={(imported.data ?? []).filter(kept)} showType showClient={!projectId && !clientId} empty="Aucun document comptable." />
+        <DocumentsTable
+          tableKey="project-documents"
+          projectId={projectId ?? null}
+          title="Documents comptables"
+          documents={(documents.data ?? []).filter(kept)}
+          imported={(imported.data ?? []).filter(kept)}
+          showType
+          showClient={!projectId && !clientId}
+          empty="Aucun document comptable."
+        />
       )}
     </Stack>
   );

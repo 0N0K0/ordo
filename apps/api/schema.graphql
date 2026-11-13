@@ -2316,7 +2316,13 @@ type Query {
   """
   Views of the tasks (or routines, by kind) of a project's tab, or of their page when projectId is omitted.
   """
-  taskViews(kind: ViewKind, projectId: ID): [TaskView!]!
+  taskViews(
+    kind: ViewKind
+    projectId: ID
+
+    """Table of the views of kind TABLE."""
+    tableKey: String
+  ): [TaskView!]!
 
   """Every task, archived ones included, in manual order."""
   tasks: [Task!]!
@@ -3132,17 +3138,23 @@ type TaskView {
   kind: ViewKind!
   name: String!
   position: Int!
+
+  """Table of a view of kind TABLE."""
+  tableKey: String
 }
 
 input TaskViewInput {
   config: JSON!
 
-  """Tasks (default) or routines."""
+  """Tasks (default), routines, shopping lists or another table."""
   kind: ViewKind
   name: String!
 
   """Project of the view; omitted or null for the home page."""
   projectId: ID
+
+  """Table of a view of kind TABLE (required for it)."""
+  tableKey: String
 }
 
 input TaskViewUpdateInput {
@@ -3691,10 +3703,11 @@ type User {
   username: String!
 }
 
-"""What a saved view lists."""
+"""What a saved view lists (TABLE: any other table, named by its key)."""
 enum ViewKind {
   ROUTINES
   SHOPPING_LISTS
+  TABLE
   TASKS
 }
 

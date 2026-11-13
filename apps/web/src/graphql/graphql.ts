@@ -773,11 +773,13 @@ export type TaskUpdateInput = {
 
 export type TaskViewInput = {
   config: unknown;
-  /** Tasks (default) or routines. */
+  /** Tasks (default), routines, shopping lists or another table. */
   kind?: ViewKind | null | undefined;
   name: string;
   /** Project of the view; omitted or null for the home page. */
   projectId?: string | number | null | undefined;
+  /** Table of a view of kind TABLE (required for it). */
+  tableKey?: string | null | undefined;
 };
 
 export type TaskViewUpdateInput = {
@@ -964,10 +966,11 @@ export type TreasuryStatementRowInput = {
   occurrence?: string | null | undefined;
 };
 
-/** What a saved view lists. */
+/** What a saved view lists (TABLE: any other table, named by its key). */
 export type ViewKind =
   | 'ROUTINES'
   | 'SHOPPING_LISTS'
+  | 'TABLE'
   | 'TASKS';
 
 export type WorkScheduleInput = {
@@ -3249,6 +3252,7 @@ export type SetTasksClosedMutation = { setTasksClosed: boolean };
 export type TaskViewsQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
   kind?: ViewKind | null | undefined;
+  tableKey?: string | null | undefined;
 }>;
 
 
@@ -7512,8 +7516,8 @@ export const SetTasksClosedDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<SetTasksClosedMutation, SetTasksClosedMutationVariables>;
 export const TaskViewsDocument = new TypedDocumentString(`
-    query TaskViews($projectId: ID, $kind: ViewKind) {
-  taskViews(projectId: $projectId, kind: $kind) {
+    query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
+  taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
     id
     name
     config

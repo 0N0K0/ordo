@@ -1,6 +1,7 @@
 import {
   defaultRoutineViewConfig,
   filterDay,
+  formatDuration,
   filterPeriod,
   firstRoutineViews,
   ME,
@@ -449,5 +450,45 @@ export function routineFilterFields(env: RoutineEnv): FilterFields<RoutineFilter
     isComplete: (condition) => routineFilterConditionSchema.safeParse(condition).success,
     operatorLabel: (field, operator) => OPERATOR_OVERRIDES[field]?.[operator],
     emptyText: 'Aucun filtre : toutes les routines sont affichées.',
+  };
+}
+
+const exportDay = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+const exportInstant = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Texts of the columns of the routine table, for its exports (by column id).
+ * @param {RoutineEnv} env Environment.
+ * @returns {Record<string, (routine: Routine) => string>} Texts.
+ */
+export function routineTexts(env: RoutineEnv): Record<string, (routine: Routine) => string> {
+  const day = (value: unknown) => (value ? exportDay.format(new Date(`${String(value).slice(0, 10)}T00:00:00Z`)) : '');
+  const categoryName = new Map(env.categories.map((category) => [category.id, category.name]));
+  const contributorName = new Map(env.context.contributors.map((contributor) => [contributor.id, contributor.name]));
+  return {
+    title: (routine) => routine.title,
+    currentDate: (routine) => day(routine.currentDate),
+    firstDate: (routine) => day(routine.firstDate),
+    nextDate: (routine) => day(routine.nextDate),
+    repetition: (routine) => REPETITION_LABELS[repetitionOf(routine)],
+    estimate: (routine) => (routine.estimate ? `${routine.estimate} min` : ''),
+    trackedTime: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),
+    lastDoneAt: (routine) => (routine.lastDoneAt ? exportInstant.format(new Date(String(routine.lastDoneAt))) : ''),
+    assignees: (routine) =>
+      routine.assigneeIds
+        .map((id) => contributorName.get(id) ?? '')
+        .filter(Boolean)
+        .join(', '),
+    categories: (routine) =>
+      routine.categoryIds
+        .map((id) => categoryName.get(id) ?? '')
+        .filter(Boolean)
+        .join(', '),
+    requires: (routine) =>
+      routine.requiredIds
+        .map((id) => env.byId.get(id)?.title ?? '')
+        .filter(Boolean)
+        .join(', '),
+    project: (routine) => (routine.projectId ? env.context.projectLabel(routine.projectId) : ''),
   };
 }

@@ -18,3 +18,4 @@ export * from './routines';
 export * from './routine-views';
 export * from './shopping-list-views';
 export * from './table-layout';
+export * from './table-views';

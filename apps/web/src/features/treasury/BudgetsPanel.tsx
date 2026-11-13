@@ -4,6 +4,7 @@ import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/share
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
@@ -240,12 +241,13 @@ export function BudgetsPanel() {
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
   /**
    * Totals of the budgeted rows of a direction: budgets, actual and forecast movements used, what is left.
+   * @param {readonly BudgetReportRow[]} shownRows Rows kept by the view.
    * @param {'IN' | 'OUT'} direction Money in or out.
    * @returns {{ count: number, budget: number, actual: number, forecast: number, left: number }} Totals, in cents.
    */
-  const totalOf = (direction: 'IN' | 'OUT') => {
+  const totalOf = (shownRows: readonly BudgetReportRow[], direction: 'IN' | 'OUT') => {
     const total = { count: 0, budget: 0, actual: 0, forecast: 0, left: 0 };
-    for (const row of budgeted) {
+    for (const row of shownRows) {
       if ((row.categoryId ? directionOf.get(row.categoryId) : 'OUT') !== direction) continue;
       const actual = used(row, 'actual');
       const forecast = used(row, 'forecast');
@@ -257,37 +259,42 @@ export function BudgetsPanel() {
     }
     return total;
   };
-  const outTotal = totalOf('OUT');
-  const inTotal = totalOf('IN');
+  type TotalRow = { label: string; kind: 'OUT' | 'IN' | 'BALANCE'; budget: number; actual: number; forecast: number; left: number };
   /**
    * Total rows: money out and money in like their rows; the balance in money in minus money out, its "left" the gap
    * with the planned balance (above zero: better than planned).
+   * @param {readonly BudgetReportRow[]} shownRows Rows kept by the view.
+   * @returns {TotalRow[]} Totals.
    */
-  const totals: { label: string; kind: 'OUT' | 'IN' | 'BALANCE'; budget: number; actual: number; forecast: number; left: number }[] = [
-    ...(outTotal.count ? [{ label: 'Total sorties', kind: 'OUT' as const, ...outTotal }] : []),
-    ...(inTotal.count ? [{ label: 'Total entrées', kind: 'IN' as const, ...inTotal }] : []),
-    ...(outTotal.count && inTotal.count
-      ? [
-          {
-            label: 'Solde (entrées − sorties)',
-            kind: 'BALANCE' as const,
-            budget: inTotal.budget - outTotal.budget,
-            actual: inTotal.actual - outTotal.actual,
-            forecast: inTotal.forecast - outTotal.forecast,
-            // Money in beyond its budget and money out below its budget both make the balance better.
-            left: outTotal.left - inTotal.left,
-          },
-        ]
-      : []),
-  ];
+  const totalsOf = (shownRows: readonly BudgetReportRow[]): TotalRow[] => {
+    const outTotal = totalOf(shownRows, 'OUT');
+    const inTotal = totalOf(shownRows, 'IN');
+    return [
+      ...(outTotal.count ? [{ label: 'Total sorties', kind: 'OUT' as const, ...outTotal }] : []),
+      ...(inTotal.count ? [{ label: 'Total entrées', kind: 'IN' as const, ...inTotal }] : []),
+      ...(outTotal.count && inTotal.count
+        ? [
+            {
+              label: 'Solde (entrées − sorties)',
+              kind: 'BALANCE' as const,
+              budget: inTotal.budget - outTotal.budget,
+              actual: inTotal.actual - outTotal.actual,
+              forecast: inTotal.forecast - outTotal.forecast,
+              // Money in beyond its budget and money out below its budget both make the balance better.
+              left: outTotal.left - inTotal.left,
+            },
+          ]
+        : []),
+    ];
+  };
   /**
    * A total as printed, with its color: signed for the balance; "left" like the rows (money out over budget in red,
    * money in beyond its budget as a green surplus).
-   * @param {(typeof totals)[number]} total Total row.
+   * @param {TotalRow} total Total row.
    * @param {'budget' | 'actual' | 'forecast' | 'left'} key Column.
    * @returns {{ text: string, color?: string }} Cell.
    */
-  const totalCell = (total: (typeof totals)[number], key: 'budget' | 'actual' | 'forecast' | 'left'): { text: string; color?: string } => {
+  const totalCell = (total: TotalRow, key: 'budget' | 'actual' | 'forecast' | 'left'): { text: string; color?: string } => {
     const value = total[key];
     if (total.kind === 'BALANCE') return { text: `${value > 0 ? '+' : ''}${money(value)}`, color: value < 0 ? 'red' : value > 0 ? 'green' : undefined };
     if (key === 'left' && value < 0) return total.kind === 'IN' ? { text: `+${money(-value)}`, color: 'green' } : { text: money(value), color: 'red' };
@@ -337,10 +344,94 @@ export function BudgetsPanel() {
    * @returns {DataColumn<R>[]} Columns.
    */
   const keyColumns = <R extends KeyRow>(): DataColumn<R>[] => [
-    { id: 'who', label: 'Pour', size: 180, sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : '') },
-    { id: 'context', label: 'Contexte', size: 160, sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : '') },
-    { id: 'category', label: 'Catégorie', size: 220, locked: true, sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null) },
+    {
+      id: 'who',
+      label: 'Pour',
+      size: 180,
+      sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : ''),
+      text: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : `${me?.name ?? 'Moi'} (moi)`),
+      groupable: true,
+    },
+    {
+      id: 'context',
+      label: 'Contexte',
+      size: 160,
+      sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : ''),
+      text: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT),
+      groupable: true,
+    },
+    {
+      id: 'category',
+      label: 'Catégorie',
+      size: 220,
+      locked: true,
+      sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null),
+      text: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : 'Sans catégorie'),
+      groupable: true,
+    },
   ];
+  const reportView = useDataView({
+    tableKey: 'treasury-budget-report',
+    title: `Budgets de ${monthLabel(month)}`,
+    rows: budgeted,
+    columns: [
+      ...keyColumns<BudgetReportRow>(),
+      { id: 'budget', label: 'Budget', size: 120, numeric: true, sortValue: (row) => row.budget, text: (row) => money(row.budget) },
+      { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => used(row, 'actual'), text: (row) => money(used(row, 'actual')) },
+      { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => used(row, 'forecast'), text: (row) => money(used(row, 'forecast')) },
+      {
+        id: 'left',
+        label: 'Reste',
+        size: 120,
+        numeric: true,
+        sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast'),
+        text: (row) => money(row.budget - used(row, 'actual') - used(row, 'forecast')),
+      },
+      {
+        id: 'progress',
+        label: 'Avancement',
+        size: 160,
+        sortValue: (row) => (row.budget ? (used(row, 'actual') + used(row, 'forecast')) / row.budget : 0),
+        text: (row) => `${row.budget ? Math.round(((used(row, 'actual') + used(row, 'forecast')) / row.budget) * 100) : 0} %`,
+        filter: false,
+      },
+    ],
+  });
+  const outsideView = useDataView({
+    tableKey: 'treasury-budget-outside',
+    title: `Hors budget de ${monthLabel(month)}`,
+    rows: outside,
+    columns: [
+      ...keyColumns<BudgetReportRow>(),
+      { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => row.actual, text: (row) => money(row.actual) },
+      { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast, text: (row) => money(row.forecast) },
+    ],
+  });
+  const definedView = useDataView({
+    tableKey: 'treasury-budgets',
+    title: 'Budgets',
+    rows: data?.treasuryBudgets ?? [],
+    columns: [
+      {
+        id: 'period',
+        label: 'Période',
+        size: 220,
+        sortValue: (budget: TreasuryBudget) => budget.month,
+        text: (budget: TreasuryBudget) =>
+          `${budget.repeatEvery ? `Dès ${monthLabel(budget.month)}` : monthLabel(budget.month)}${budget.repeatUntil ? ` jusqu’à ${monthLabel(budget.repeatUntil)}` : ''}`,
+        filter: { kind: 'date', value: (budget: TreasuryBudget) => `${budget.month}-01` },
+      },
+      ...keyColumns<TreasuryBudget>(),
+      {
+        id: 'amount',
+        label: 'Montant',
+        size: 130,
+        numeric: true,
+        sortValue: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount),
+        text: (budget) => `${directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}${money(budget.amount)}`,
+      },
+    ],
+  });
 
   return (
     <Stack gap="md">
@@ -366,17 +457,8 @@ export function BudgetsPanel() {
           </Group>
         ) : (
           <DataTable
-            tableKey="treasury-budget-report"
+            view={reportView}
             verticalSpacing={6}
-            columns={[
-              ...keyColumns<BudgetReportRow>(),
-              { id: 'budget', label: 'Budget', size: 120, numeric: true, sortValue: (row) => row.budget },
-              { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => used(row, 'actual') },
-              { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => used(row, 'forecast') },
-              { id: 'left', label: 'Reste', size: 120, numeric: true, sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast') },
-              { id: 'progress', label: 'Avancement', size: 160 },
-            ]}
-            rows={budgeted}
             getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
             cells={(row) => {
               const actual = used(row, 'actual');
@@ -415,10 +497,10 @@ export function BudgetsPanel() {
                 ),
               };
             }}
-            footer={(shown) => (
+            footer={(shown, shownRows) => (
               // Totals per direction, and the balance of money in minus money out.
               <Table.Tfoot>
-                {totals.map((total) => (
+                {totalsOf(shownRows).map((total) => (
                   <Table.Tr
                     key={total.label}
                     // Totals stand out from the budgets: tinted in gray, the balance in the primary color.
@@ -455,14 +537,8 @@ export function BudgetsPanel() {
             Mouvements sans budget pour leur membre, contexte et catégorie ce mois-ci.
           </Text>
           <DataTable
-            tableKey="treasury-budget-outside"
+            view={outsideView}
             verticalSpacing={6}
-            columns={[
-              ...keyColumns<BudgetReportRow>(),
-              { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => row.actual },
-              { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast },
-            ]}
-            rows={outside}
             getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
             cells={(row) => ({
               ...keyContent(row),
@@ -510,14 +586,8 @@ export function BudgetsPanel() {
           </Text>
         ) : (
           <DataTable
-            tableKey="treasury-budgets"
+            view={definedView}
             verticalSpacing={4}
-            columns={[
-              { id: 'period', label: 'Période', size: 220, sortValue: (budget: TreasuryBudget) => budget.month },
-              ...keyColumns<TreasuryBudget>(),
-              { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount) },
-            ]}
-            rows={data?.treasuryBudgets ?? []}
             getKey={(budget) => budget.id}
             cells={(budget) => ({
               period: (

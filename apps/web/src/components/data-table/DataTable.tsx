@@ -1,13 +1,12 @@
-import { Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
-import type { TableSort } from '@ordo/shared';
-import { useRef, type ReactNode } from 'react';
-import { DataColumnsPanel } from './ColumnsPanel';
-import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from './data-table';
+import { Paper, Skeleton, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
+import { useRef, useState, type ReactNode } from 'react';
+import { tableWidth, type ShownColumn } from './data-table';
 import { DataTableHeader } from './DataTableHeader';
+import { DataViewBar, type DataViewBarProps } from './DataViewBar';
+import { GroupHeaderRow, NoMatch } from './GroupHeaderRow';
 import { ROW_ACTIONS_WIDTH } from './RowActions';
-import { TableOptions, TableToolbar, type ToolbarSearch } from './TableToolbar';
 import classes from './DataTable.module.css';
-import { useTableLayout } from './use-table-layout';
+import type { DataView } from './use-data-view';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
 export interface LeadingCell<R> {
@@ -17,10 +16,8 @@ export interface LeadingCell<R> {
 }
 
 interface DataTableProps<R> extends Omit<TableProps, 'children'> {
-  /** Name of the table, remembering its columns and sorts in this browser. */
-  tableKey: string;
-  columns: readonly DataColumn<R>[];
-  rows: readonly R[];
+  /** Saved views of the table, the current one applied to its rows (useDataView). */
+  view: DataView<R>;
   getKey: (row: R) => string;
   /** Content of the cells of a row, by column id. */
   cells: (row: R) => Record<string, ReactNode>;
@@ -32,56 +29,80 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   leading?: LeadingCell<R>;
   /** Props of a row (click, style…). Optional. */
   rowProps?: (row: R) => TableTrProps;
-  /** Sorts before any choice. Optional. */
-  initialSorting?: TableSort[];
-  /** Rows under the body (totals…), given the columns shown (a cell before them with `leading`, one after). Optional. */
-  footer?: (shown: ShownColumn<R>[]) => ReactNode;
-  /** Quick search of the toolbar. Optional. */
-  search?: ToolbarSearch;
-  /** Tools of the toolbar, before its options (period, filters…). Optional. */
-  tools?: ReactNode;
-  /** Display options and exports of the options menu. Optional. */
-  displayOptions?: ReactNode;
-  exports?: ReactNode;
+  /** Rows under the body (totals…), given the columns shown and the rows kept (a cell before them with `leading`, one after). Optional. */
+  footer?: (shown: ShownColumn<R>[], rows: R[]) => ReactNode;
+  /** What a group heading tells of its rows (a total…), after its count. Optional. */
+  groupSummary?: (rows: R[]) => ReactNode;
+  /** Tabs and toolbar of the views (search, filters, sorts, options), minus the view. Optional. */
+  bar?: Omit<DataViewBarProps<R>, 'view'>;
   /** Table in a bordered paper (under its toolbar). Optional. Default = false. */
   framed?: boolean;
-  /** Shown under the toolbar instead of the table, without rows. Optional. */
+  /** Shown under the toolbar instead of the table when the table has no row at all. Optional. */
   empty?: ReactNode;
 }
 
 /**
- * Data table on the model of the tasks: columns chosen, moved (drag and drop or their menu), resized (double click:
- * fitted to their content) and sorted by a click on their header (Shift + click: one more sort), remembered in this
- * browser; above it, the toolbar of every table (search, tools, « Options » with the columns).
+ * Data table on the model of the tasks: saved views (tabs) with their search, filters, sorts, groups and columns —
+ * chosen, moved (drag and drop or their menu), resized (double click: fitted to their content), sorted by a click on
+ * their header (Shift + click: one more sort) —, exported as CSV or PDF.
  * @param {DataTableProps<R>} props Component props.
  * @returns {JSX.Element} Table.
  */
 export function DataTable<R>({
-  tableKey,
-  columns,
-  rows,
+  view,
   getKey,
   cells,
   actions,
   actionsWidth = ROW_ACTIONS_WIDTH,
   leading,
   rowProps,
-  initialSorting,
   footer,
-  search,
-  tools,
-  displayOptions,
-  exports,
+  groupSummary,
+  bar,
   framed = false,
   empty,
   className,
   style,
   ...tableProps
 }: DataTableProps<R>) {
-  const { layout, setLayout, sorting, setSorting } = useTableLayout(tableKey, initialSorting);
   const tableRef = useRef<HTMLTableElement>(null);
-  const shown = shownColumns(columns, layout);
-  const sorted = sortRows(rows, sorting, columns);
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const { shown } = view;
+  const span = shown.length + 1 + (leading ? 1 : 0);
+
+  /**
+   * Row of the table.
+   * @param {R} row Row.
+   * @returns {JSX.Element} Row.
+   */
+  const renderRow = (row: R) => {
+    const content = cells(row);
+    return (
+      <Table.Tr key={getKey(row)} {...rowProps?.(row)}>
+        {leading && <Table.Td>{leading.cell(row)}</Table.Td>}
+        {shown.map((column) => (
+          <Table.Td key={column.id} className={classes.cell} data-numeric={column.numeric || undefined} ff={column.numeric ? 'monospace' : undefined}>
+            {content[column.id]}
+          </Table.Td>
+        ))}
+        <Table.Td>{actions?.(row)}</Table.Td>
+      </Table.Tr>
+    );
+  };
+
+  /**
+   * Folds or unfolds a group.
+   * @param {string} key Group.
+   * @returns {void}
+   */
+  const toggle = (key: string) =>
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const table = (
     <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
       <Table
@@ -91,50 +112,59 @@ export function DataTable<R>({
         style={{ width: tableWidth(shown, actionsWidth + (leading?.width ?? 0)), minWidth: '100%', ...(typeof style === 'object' ? style : {}) }}
       >
         <DataTableHeader
-          columns={columns}
+          columns={view.columns}
           shown={shown}
-          layout={layout}
-          onLayoutChange={setLayout}
-          sorting={sorting}
-          onSortingChange={setSorting}
+          layout={view.layout}
+          onLayoutChange={view.setLayout}
+          sorting={view.sorting}
+          onSortingChange={view.setSorting}
           tableRef={tableRef}
           leading={leading && <Table.Th w={leading.width}>{leading.header}</Table.Th>}
           trailing={<Table.Th w={actionsWidth} />}
+          columnExtras={view.columnExtras}
         />
         <Table.Tbody>
-          {sorted.map((row) => {
-            const content = cells(row);
-            return (
-              <Table.Tr key={getKey(row)} {...rowProps?.(row)}>
-                {leading && <Table.Td>{leading.cell(row)}</Table.Td>}
-                {shown.map((column) => (
-                  <Table.Td key={column.id} className={classes.cell} data-numeric={column.numeric || undefined} ff={column.numeric ? 'monospace' : undefined}>
-                    {content[column.id]}
-                  </Table.Td>
-                ))}
-                <Table.Td>{actions?.(row)}</Table.Td>
-              </Table.Tr>
-            );
-          })}
+          {view.groupColumn
+            ? view.groups.flatMap((group) => [
+                <GroupHeaderRow
+                  key={`group:${group.key}`}
+                  label={group.label}
+                  count={group.rows.length}
+                  summary={groupSummary?.(group.rows)}
+                  span={span}
+                  collapsed={collapsed.has(group.key)}
+                  onToggle={() => toggle(group.key)}
+                />,
+                ...(collapsed.has(group.key) ? [] : group.rows.map(renderRow)),
+              ])
+            : view.rows.map(renderRow)}
         </Table.Tbody>
-        {footer?.(shown)}
+        {footer?.(shown, view.rows)}
       </Table>
     </div>
   );
+
+  /**
+   * Content under the toolbar: loading, empty, nothing kept, or the table.
+   * @returns {ReactNode} Content.
+   */
+  const content = () => {
+    if (!view.config) return <Skeleton height={160} />;
+    if (empty !== undefined && view.total === 0) return empty;
+    if (view.rows.length === 0) return <NoMatch view={view} />;
+    return framed ? (
+      <Paper withBorder radius="md">
+        {table}
+      </Paper>
+    ) : (
+      table
+    );
+  };
+
   return (
     <Stack gap="sm">
-      <TableToolbar search={search} options={<TableOptions display={displayOptions} exports={exports} columns={<DataColumnsPanel columns={columns} layout={layout} onLayoutChange={setLayout} />} />}>
-        {tools}
-      </TableToolbar>
-      {empty !== undefined && rows.length === 0 ? (
-        empty
-      ) : framed ? (
-        <Paper withBorder radius="md">
-          {table}
-        </Paper>
-      ) : (
-        table
-      )}
+      <DataViewBar view={view} {...bar} />
+      {content()}
     </Stack>
   );
 }

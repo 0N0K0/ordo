@@ -67,10 +67,10 @@ export type RelativeSprintOperator = (typeof RELATIVE_SPRINT_OPERATORS)[number];
 
 /**
  * Relative date tokens: `today`, `today+3`, `today-7` (days from today),
- * or a period for `within`: `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`, `lastMonth`, `nextMonth`,
+ * or a period for `within`: `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisYear`, `lastYear`, `nextYear`,
  * `past:7` / `next:7` (the last / next N days, today included).
  */
-export const DATE_PERIODS = ['thisWeek', 'lastWeek', 'nextWeek', 'thisMonth', 'lastMonth', 'nextMonth'] as const;
+export const DATE_PERIODS = ['thisWeek', 'lastWeek', 'nextWeek', 'thisMonth', 'lastMonth', 'nextMonth', 'thisYear', 'lastYear', 'nextYear'] as const;
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const relativeDay = /^today([+-]\d{1,4})?$/;
@@ -129,6 +129,11 @@ export function filterPeriod(token: string, today: string): [string, string] {
     const monday = day - ((date.getUTCDay() + 6) % 7) * DAY_MS;
     const shift = token === 'lastWeek' ? -7 : token === 'nextWeek' ? 7 : 0;
     return [isoDay(monday + shift * DAY_MS), isoDay(monday + (shift + 7) * DAY_MS)];
+  }
+  if (token.endsWith('Year')) {
+    const shift = token === 'lastYear' ? -1 : token === 'nextYear' ? 1 : 0;
+    const year = date.getUTCFullYear() + shift;
+    return [isoDay(Date.UTC(year, 0, 1)), isoDay(Date.UTC(year + 1, 0, 1))];
   }
   const shift = token === 'lastMonth' ? -1 : token === 'nextMonth' ? 1 : 0;
   const year = date.getUTCFullYear();

@@ -4,6 +4,8 @@ import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, ty
 import { useMemo, useState } from 'react';
 import type { ColumnMenuExtras } from '../../components/data-table/ColumnHeaderMenu';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { shownColumns } from '../../components/data-table/data-table';
+import { ExportButtons } from '../../components/data-table/DataViewBar';
 import { newConditionFor } from '../tasks/views/filter-meta';
 import { ROUTINE_COLUMNS } from './routine-columns';
 import { useSearchParams } from 'react-router';
@@ -13,7 +15,7 @@ import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
-import { keptByView, routineFilterFields, routineGrouping, sortRoutines, useRoutineView } from './routine-view';
+import { keptByView, routineFilterFields, routineGrouping, routineTexts, sortRoutines, useRoutineView } from './routine-view';
 import { RoutineViewToolbar } from './RoutineViewToolbar';
 import { ViewTabs } from '../tasks/views/ViewTabs';
 import { RoutineHistory } from './RoutineHistory';
@@ -103,6 +105,21 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           filterOpened={filterOpened}
           onFilterOpenedChange={setFilterOpened}
           columns={<DataColumnsPanel columns={ROUTINE_COLUMNS} layout={columnLayout} onLayoutChange={(next) => state.change((current) => ({ ...current, ...next }))} />}
+          exports={
+            <ExportButtons
+              disabled={count === 0}
+              table={() => {
+                const texts = routineTexts(env);
+                return {
+                  title: 'Routines',
+                  subtitle: state.current?.name ?? '',
+                  columns: shownColumns(ROUTINE_COLUMNS, columnLayout).map((column) => ({ ...column, text: texts[column.id] })),
+                  groups: [{ key: '', label: '', rows: layout.filter(keep) }],
+                  grouped: false,
+                };
+              }}
+            />
+          }
         />
       )}
       {isLoading || !context || !config || !env ? (

@@ -5,6 +5,7 @@ import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon } from '@phosphor-ico
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localDay, localToday } from '../../lib/dates';
@@ -34,11 +35,40 @@ function daysSinceReminder(invoice: OverdueInvoice, today: string): number | nul
 
 /** Columns of the overdue invoices. */
 const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
-  { id: 'invoice', label: 'Facture', size: 220, locked: true, sortValue: (invoice) => invoice.number ?? null },
-  { id: 'sent', label: 'Envoi', size: 230, sortValue: (invoice) => invoice.sentAt ?? null },
-  { id: 'balance', label: 'Reste dû', size: 130, numeric: true, sortValue: (invoice) => invoice.balance ?? 0 },
-  { id: 'reminder', label: 'Dernière relance', size: 200, sortValue: (invoice) => invoice.lastReminderAt ?? null },
-  { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null },
+  {
+    id: 'invoice',
+    label: 'Facture',
+    size: 220,
+    locked: true,
+    sortValue: (invoice) => invoice.number ?? null,
+    text: (invoice) => `${invoice.type === 'DEPOSIT_INVOICE' ? `${DOCUMENT_TYPE_LABELS.DEPOSIT_INVOICE} ` : ''}${invoice.number ?? ''}`,
+  },
+  { id: 'client', label: 'Client', size: 200, hiddenByDefault: true, sortValue: (invoice) => invoice.clientName ?? null, text: (invoice) => invoice.clientName ?? '', groupable: true },
+  {
+    id: 'sent',
+    label: 'Envoi',
+    size: 230,
+    sortValue: (invoice) => invoice.sentAt ?? null,
+    text: (invoice) => (invoice.sentAt ? dayFormat.format(new Date(`${localDay(new Date(invoice.sentAt))}T00:00:00Z`)) : ''),
+    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null) },
+  },
+  {
+    id: 'balance',
+    label: 'Reste dû',
+    size: 130,
+    numeric: true,
+    sortValue: (invoice) => invoice.balance ?? 0,
+    text: (invoice) => formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency),
+  },
+  {
+    id: 'reminder',
+    label: 'Dernière relance',
+    size: 200,
+    sortValue: (invoice) => invoice.lastReminderAt ?? null,
+    text: (invoice) => (invoice.lastReminderAt ? instantFormat.format(new Date(invoice.lastReminderAt)) : 'Jamais'),
+    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(new Date(invoice.lastReminderAt)) : null) },
+  },
+  { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
 ];
 
 /**
@@ -57,6 +87,7 @@ export function OverdueInvoicesPanel() {
   const remindable = (invoices ?? []).filter((invoice) => invoice.billingEmail);
   const chosen = remindable.filter((invoice) => selected.has(invoice.id));
   const stale = remindable.filter((invoice) => (daysSinceReminder(invoice, today) ?? Infinity) >= REMIND_AFTER_DAYS);
+  const view = useDataView({ tableKey: 'overdue-invoices', columns: OVERDUE_COLUMNS, rows: invoices ?? [], title: 'Factures à relancer' });
 
   /**
    * Adds or removes an invoice from the selection.
@@ -141,7 +172,7 @@ export function OverdueInvoicesPanel() {
     );
   }
 
-  const total = invoices.reduce((sum, invoice) => sum + Math.round((invoice.balance ?? 0) * 100), 0);
+  const total = view.rows.reduce((sum, invoice) => sum + Math.round((invoice.balance ?? 0) * 100), 0);
   return (
     <Stack gap="sm">
       {accounts && accounts.length === 0 && (
@@ -155,29 +186,30 @@ export function OverdueInvoicesPanel() {
       )}
       <DataTable
         framed
-        tableKey="overdue-invoices"
-        tools={
-          <>
-            <Text size="sm">
-              {invoices.length} facture{invoices.length > 1 ? 's' : ''} en retard, <b>{formatMoney(total)}</b> à encaisser.
-            </Text>
-            <Group gap="sm" ml="auto" wrap="wrap">
-              <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
-                Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
-              </Button>
-              {accounts && accounts.length > 1 && (
-                <Select aria-label="Boîte d’envoi" w={240} allowDeselect={false} data={accounts.map((item) => ({ value: item.id, label: item.email }))} value={account} onChange={setAccountId} />
-              )}
-              <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
-                Relancer{chosen.length ? ` (${chosen.length})` : ''}
-              </Button>
-            </Group>
-          </>
-        }
+        view={view}
+        bar={{
+          searchLabel: 'Rechercher une facture',
+          tools: (
+            <>
+              <Text size="sm">
+                {view.rows.length} facture{view.rows.length > 1 ? 's' : ''} en retard, <b>{formatMoney(total)}</b> à encaisser.
+              </Text>
+              <Group gap="sm" ml="auto" wrap="wrap">
+                <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
+                  Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
+                </Button>
+                {accounts && accounts.length > 1 && (
+                  <Select aria-label="Boîte d’envoi" w={240} allowDeselect={false} data={accounts.map((item) => ({ value: item.id, label: item.email }))} value={account} onChange={setAccountId} />
+                )}
+                <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
+                  Relancer{chosen.length ? ` (${chosen.length})` : ''}
+                </Button>
+              </Group>
+            </>
+          ),
+        }}
         verticalSpacing="xs"
         highlightOnHover
-        columns={OVERDUE_COLUMNS}
-        rows={invoices}
         getKey={(invoice) => invoice.id}
         actions={(invoice) => (
           <RowActions name={invoice.number ?? 'la facture'} primary={{ label: 'Ouvrir la facture', icon: <FileTextIcon aria-hidden />, to: `/accounting/${invoice.id}` }} items={[]} />
@@ -208,6 +240,7 @@ export function OverdueInvoicesPanel() {
           const sentSince = sentDay ? daysBetween(sentDay, today) : 0;
           const since = daysSinceReminder(invoice, today);
           return {
+            client: invoice.clientName,
             invoice: (
               <>
                 <Anchor component={Link} to={`/accounting/${invoice.id}`} size="sm" fw={600}>

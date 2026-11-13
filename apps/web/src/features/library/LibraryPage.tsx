@@ -46,13 +46,16 @@ import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { dndId, libraryCollision } from './library-dnd';
 import { DroppableFolderLink, SortableRow } from './LibraryDnd';
-import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { DataViewBar } from '../../components/data-table/DataViewBar';
+import { GroupHeaderRow } from '../../components/data-table/GroupHeaderRow';
+import { groupRows } from '../../components/data-table/table-engine';
+import { useDataView } from '../../components/data-table/use-data-view';
+import { countConditions } from '../tasks/views/filter-meta';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
-import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
-import { shownColumns, sortRows, tableWidth, type DataColumn } from '../../components/data-table/data-table';
+import { sortRows, tableWidth, type DataColumn } from '../../components/data-table/data-table';
+import { localDay } from '../../lib/dates';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
-import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { PageTitle } from '../../components/PageTitle';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
@@ -219,13 +222,37 @@ function FolderTree({ folders, parentId, current, open, onSelect, onToggle, coun
   );
 }
 
-/** Columns of the documents of a folder. */
-const LIBRARY_COLUMNS: DataColumn<LibraryDocument>[] = [
-  { id: 'name', label: 'Nom', size: 380, locked: true, sortValue: (document) => document.title },
-  { id: 'kind', label: 'Type', size: 140, hiddenByDefault: true, sortValue: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')) },
-  { id: 'size', label: 'Taille', size: 140, sortValue: (document) => document.size ?? null },
-  { id: 'updatedAt', label: 'Modifié le', size: 150, sortValue: (document) => document.updatedAt },
-];
+/**
+ * Columns of the documents of a folder.
+ * @param {Map<string, string>} paths Paths of the folders.
+ * @returns {DataColumn<LibraryDocument>[]} Columns.
+ */
+function libraryColumns(paths: Map<string, string>): DataColumn<LibraryDocument>[] {
+  const folderOf = (document: LibraryDocument) => (document.folderId ? (paths.get(document.folderId) ?? '') : 'Documents');
+  return [
+    { id: 'name', label: 'Nom', size: 380, locked: true, sortValue: (document) => document.title, text: (document) => document.title },
+    { id: 'folder', label: 'Dossier', size: 220, hiddenByDefault: true, sortValue: folderOf, text: folderOf, groupable: true },
+    {
+      id: 'kind',
+      label: 'Type',
+      size: 140,
+      hiddenByDefault: true,
+      sortValue: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')),
+      text: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')),
+      groupable: true,
+    },
+    { id: 'size', label: 'Taille', size: 140, numeric: true, sortValue: (document) => document.size ?? null, text: (document) => (document.size ? printedSize(document.size) : 'Lien') },
+    { id: 'note', label: 'Note', size: 220, hiddenByDefault: true, sortValue: (document) => document.note ?? null, text: (document) => document.note ?? '' },
+    {
+      id: 'updatedAt',
+      label: 'Modifié le',
+      size: 150,
+      sortValue: (document) => document.updatedAt,
+      text: (document) => dateFormat.format(new Date(document.updatedAt)),
+      filter: { kind: 'date', value: (document) => localDay(new Date(document.updatedAt)) },
+    },
+  ];
+}
 
 /** Sorts of the folders: by name only (the other columns are documents'). */
 const FOLDER_SORT: DataColumn<DocumentFolder>[] = [{ id: 'name', label: 'Nom', size: 0, sortValue: (folder) => folder.name }];
@@ -241,10 +268,7 @@ export function LibraryPage() {
   const { data, isPending, error } = useLibrary();
   const mutations = useLibraryMutations();
   const [params, setParams] = useSearchParams();
-  const [search, setSearch] = useState('');
-  const { layout, setLayout, sorting, setSorting } = useTableLayout('library');
   const tableRef = useRef<HTMLTableElement>(null);
-  const shownCols = shownColumns(LIBRARY_COLUMNS, layout);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
   /** Folders folded or unfolded by hand in the tree. */
@@ -253,6 +277,9 @@ export function LibraryPage() {
   const documents = data?.libraryDocuments ?? [];
   const current = folders.some((folder) => folder.id === params.get('folder')) ? params.get('folder') : null;
   const paths = folderPaths(folders);
+  const columns = libraryColumns(paths);
+  const view = useDataView({ tableKey: 'library', columns, rows: documents, title: 'Bibliothèque' });
+  const { sorting, shown: shownCols } = view;
 
   /**
    * Opens a folder (null: the root).
@@ -261,7 +288,6 @@ export function LibraryPage() {
    */
   const select = (folderId: string | null) => {
     setSelected(new Set());
-    setSearch('');
     setParams(folderId ? { folder: folderId } : {}, { replace: true });
   };
 
@@ -283,11 +309,12 @@ export function LibraryPage() {
   const counts = new Map<string | null, number>();
   for (const document of documents) counts.set(document.folderId ?? null, (counts.get(document.folderId ?? null) ?? 0) + 1);
 
-  const query = search.trim().toLowerCase();
+  // Searched or filtered: the documents of every folder kept by the view; else those of the open folder.
+  const query = Boolean(view.config && (view.config.search.trim() || countConditions(view.config.filter)));
   const subfolders = query ? [] : folders.filter((folder) => folder.parentId === current);
-  const shown = query
-    ? documents.filter((document) => [document.title, document.fileName, document.note].some((value) => value?.toLowerCase().includes(query)))
-    : documents.filter((document) => (document.folderId ?? null) === current);
+  const shown = query ? view.rows : view.rows.filter((document) => (document.folderId ?? null) === current);
+  const docGroups = view.groupColumn ? groupRows(shown, view.groupColumn, sorting) : [{ key: '', label: '', rows: shown }];
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set());
   const chosen = shown.filter((document) => selected.has(document.id));
 
   /**
@@ -558,14 +585,15 @@ export function LibraryPage() {
                   ))}
                 </Breadcrumbs>
               </Group>
-              <TableToolbar
-                search={{ value: search, onChange: setSearch, placeholder: 'Rechercher dans tous les documents' }}
-                options={<TableOptions columns={<DataColumnsPanel columns={LIBRARY_COLUMNS} layout={layout} onLayoutChange={setLayout} />} />}
-              >
-                <Button variant="default" leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ folderId: current })} disabled={documents.length === 0}>
-                  {current ? 'Dossier en .zip' : 'Tout en .zip'}
-                </Button>
-              </TableToolbar>
+              <DataViewBar
+                view={view}
+                searchLabel="Rechercher dans tous les documents"
+                exports={
+                  <Button variant="default" leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ folderId: current })} disabled={documents.length === 0}>
+                    {current ? 'Fichiers du dossier (.zip)' : 'Tous les fichiers (.zip)'}
+                  </Button>
+                }
+              />
 
               {chosen.length > 0 && (
                 <Paper withBorder radius="md" px="sm" py={6} bg="var(--mantine-color-default-hover)">
@@ -647,13 +675,14 @@ export function LibraryPage() {
                 ) : (
                   <Table ref={tableRef} verticalSpacing="xs" highlightOnHover className={tableClasses.table} style={{ width: tableWidth(shownCols, 72 + ROW_ACTIONS_WIDTH), minWidth: '100%' }}>
                     <DataTableHeader
-                      columns={LIBRARY_COLUMNS}
+                      columns={columns}
                       shown={shownCols}
-                      layout={layout}
-                      onLayoutChange={setLayout}
+                      layout={view.layout}
+                      onLayoutChange={view.setLayout}
                       sorting={sorting}
-                      onSortingChange={setSorting}
+                      onSortingChange={view.setSorting}
                       tableRef={tableRef}
+                      columnExtras={view.columnExtras}
                       leadingCount={2}
                       leading={
                         <>
@@ -705,13 +734,33 @@ export function LibraryPage() {
                       })}
                       </SortableContext>
                       <SortableContext items={shown.map((document) => `doc:${document.id}`)} strategy={verticalListSortingStrategy}>
-                      {sortRows(shown, sorting, LIBRARY_COLUMNS).map((document) => (
-                        // Search results come from several folders: no order to change there.
+                      {docGroups.flatMap((group) => [
+                        ...(view.groupColumn
+                          ? [
+                              <GroupHeaderRow
+                                key={`group:${group.key}`}
+                                label={group.label}
+                                count={group.rows.length}
+                                span={shownCols.length + 3}
+                                collapsed={collapsedGroups.has(group.key)}
+                                onToggle={() =>
+                                  setCollapsedGroups((items) => {
+                                    const next = new Set(items);
+                                    if (next.has(group.key)) next.delete(group.key);
+                                    else next.add(group.key);
+                                    return next;
+                                  })
+                                }
+                              />,
+                            ]
+                          : []),
+                        ...(collapsedGroups.has(group.key) ? [] : group.rows).map((document) => (
+                        // Search results come from several folders, groups mix them: no order to change there.
                         <SortableRow
                           key={document.id}
                           id={`doc:${document.id}`}
                           label={document.title}
-                          disabled={Boolean(query) || sorting.length > 0}
+                          disabled={query || Boolean(view.groupColumn) || sorting.length > 0}
                           bg={selected.has(document.id) ? 'var(--mantine-primary-color-light)' : undefined}
                         >
                           <Table.Td>
@@ -732,6 +781,8 @@ export function LibraryPage() {
                             <Table.Td key={column.id} className={tableClasses.cell}>
                               {
                                 {
+                                  folder: document.folderId ? paths.get(document.folderId) : 'Documents',
+                                  note: document.note,
                                   name: (
                             <Group gap="sm" wrap="nowrap">
                               <DocumentIcon document={document} />
@@ -772,7 +823,8 @@ export function LibraryPage() {
                           ))}
                           <Table.Td>{documentActions(document)}</Table.Td>
                         </SortableRow>
-                      ))}
+                        )),
+                      ])}
                       </SortableContext>
                     </Table.Tbody>
                   </Table>

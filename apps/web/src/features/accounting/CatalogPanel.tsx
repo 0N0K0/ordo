@@ -1,26 +1,9 @@
-import {
-  Badge,
-  Button,
-  Checkbox,
-  Group,
-  NumberInput,
-  Paper,
-  SegmentedControl,
-  Select,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Switch,
-  Text,
-  Textarea,
-  TextInput,
-  ThemeIcon,
-} from '@mantine/core';
+import { Badge, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Text, Textarea, TextInput, ThemeIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -33,10 +16,62 @@ let modalCount = 0;
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
-  { id: 'title', label: 'Article', size: 320, locked: true, sortValue: (item) => item.title },
-  { id: 'unit', label: 'Unité', size: 120, sortValue: (item) => UNIT_LABELS[item.unit].label },
-  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice },
-  { id: 'vat', label: 'TVA', size: 90, numeric: true, sortValue: (item) => (item.kind === 'DISBURSEMENT' ? null : item.vatRate) },
+  { id: 'title', label: 'Article', size: 320, locked: true, sortValue: (item) => item.title, text: (item) => item.title },
+  {
+    id: 'kind',
+    label: 'Nature',
+    size: 120,
+    hiddenByDefault: true,
+    sortValue: (item) => item.kind,
+    text: (item) => (item.kind === 'DISBURSEMENT' ? 'Débours' : 'Prestation'),
+    filter: {
+      kind: 'choice',
+      value: (item) => (item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'),
+      options: [
+        { value: 'ITEM', label: 'Prestation' },
+        { value: 'DISBURSEMENT', label: 'Débours' },
+      ],
+    },
+    groupable: true,
+  },
+  { id: 'unit', label: 'Unité', size: 120, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
+  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => formatMoney(Math.round(item.unitPrice * 100)) },
+  {
+    id: 'vat',
+    label: 'TVA',
+    size: 90,
+    numeric: true,
+    sortValue: (item) => (item.kind === 'DISBURSEMENT' ? null : item.vatRate),
+    text: (item) => (item.kind === 'DISBURSEMENT' ? '' : `${item.vatRate.toLocaleString('fr-FR')} %`),
+    groupable: true,
+  },
+  {
+    id: 'archived',
+    label: 'Archivé',
+    size: 100,
+    hiddenByDefault: true,
+    sortValue: (item) => (item.archived ? 1 : 0),
+    text: (item) => (item.archived ? 'Archivé' : 'Actif'),
+    filter: { kind: 'boolean', value: (item) => item.archived },
+    groupable: true,
+  },
+];
+
+/** Views made the first time the catalogue is shown: the items offered, the archived ones. */
+const CATALOG_VIEWS = [
+  {
+    name: 'Actifs',
+    config: {
+      filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isFalse', value: null }] },
+    },
+  },
+  {
+    name: 'Archivés',
+    config: {
+      filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isTrue', value: null }] },
+    },
+  },
+  { name: 'Tous' },
 ];
 
 /**
@@ -123,8 +158,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
 export function CatalogPanel() {
   const { data: items, isPending } = useCatalogItems();
   const { remove } = useCatalogMutations();
-  const [showArchived, setShowArchived] = useState(false);
-  const shown = (items ?? []).filter((item) => showArchived || !item.archived);
+  const view = useDataView({ tableKey: 'catalog', columns: CATALOG_COLUMNS, rows: items ?? [], title: 'Catalogue', first: CATALOG_VIEWS });
 
   /**
    * Opens the item form.
@@ -163,37 +197,35 @@ export function CatalogPanel() {
   };
 
   if (isPending) return <Skeleton height={160} />;
-  if (!items?.length) {
-    return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <PackageIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center">
-            Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic.
-          </Text>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Ajouter un article
-          </Button>
-        </Stack>
-      </Paper>
-    );
-  }
 
   return (
     <DataTable
       framed
-      tableKey="catalog"
-      tools={
-        <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-          Ajouter un article
-        </Button>
+      view={view}
+      bar={{
+        searchLabel: 'Rechercher un article',
+        actions: (
+          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+            Ajouter un article
+          </Button>
+        ),
+      }}
+      empty={
+        <Paper withBorder radius="md" p="xl">
+          <Stack align="center" gap="sm">
+            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
+              <PackageIcon aria-hidden />
+            </ThemeIcon>
+            <Text size="sm" c="dimmed" ta="center">
+              Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic.
+            </Text>
+            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+              Ajouter un article
+            </Button>
+          </Stack>
+        </Paper>
       }
-      displayOptions={<Switch label="Articles archivés" checked={showArchived} onChange={(event) => setShowArchived(event.currentTarget.checked)} />}
       verticalSpacing="xs"
-      columns={CATALOG_COLUMNS}
-      rows={shown}
       getKey={(item) => item.id}
       rowProps={(item) => ({ opacity: item.archived ? 0.6 : 1 })}
       cells={(item) => ({

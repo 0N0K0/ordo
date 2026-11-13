@@ -17,21 +17,20 @@ import {
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { DataViewBar } from '../../components/data-table/DataViewBar';
+import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
-import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
-import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { TaskRef } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
-import { useShoppingData, useShoppingLists, useShoppingMutations } from './api';
+import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
 import { shoppingTotal } from './export';
 import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
 import { confirmDestructive, openModal } from './list-modals';
 import { ProductPicker } from './ProductPicker';
-import { blankInput, listClosed, listTasks, money, type ShoppingGrouping } from './shopping-format';
+import { blankInput, listClosed, listTasks, money, usePeople, type ShoppingGrouping } from './shopping-format';
 import { ShoppingSettings } from './ShoppingSettings';
 import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
@@ -39,6 +38,14 @@ import { ShoppingTable } from './ShoppingTable';
 import { StoreMode } from './StoreMode';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+
+type ShoppingItem = ShoppingList['items'][number];
+
+/** Views made the first time a list is shown: every item (opened first), what is left to buy. */
+const LIST_VIEWS: FirstTableView[] = [
+  { name: 'Tout' },
+  { name: 'À acheter', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'bought', field: 'bought', operator: 'isFalse', value: null }] } } },
+];
 
 /**
  * Page of a shopping list: its items by category or by store, ticked as bought (their products of the base list
@@ -56,8 +63,20 @@ export function ShoppingListPage() {
   const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
   const [storeMode, setStoreMode] = useState(false);
   const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
-  const table = useTableLayout('shopping-list');
   const list = lists?.find((item) => item.id === id);
+  const people = usePeople();
+  const columns = itemColumns<ShoppingItem>(grouping, { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [], members: people.members, relations: people.relations }, [
+    {
+      id: 'bought',
+      label: 'Acheté',
+      size: 100,
+      hiddenByDefault: true,
+      sortValue: (item) => (item.purchasedAt ? 1 : 0),
+      text: (item) => (item.purchasedAt ? 'Acheté' : ''),
+      filter: { kind: 'boolean', value: (item) => Boolean(item.purchasedAt) },
+    },
+  ]);
+  const view = useDataView({ tableKey: 'shopping-list', columns, rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position), title: list?.name ?? 'Liste de courses', first: LIST_VIEWS });
 
   if (isPending) {
     return (
@@ -133,56 +152,55 @@ export function ShoppingListPage() {
         </Stack>
       </Group>
 
-      <TableToolbar
-        options={
-          <TableOptions
-            display={
-              <>
-                <GroupingControl value={grouping} onChange={setGrouping} />
-                <Switch label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
-              </>
-            }
-            columns={<DataColumnsPanel columns={itemColumns(grouping)} layout={table.layout} onLayoutChange={table.setLayout} />}
-          />
+      <DataViewBar
+        view={view}
+        searchLabel="Rechercher un produit"
+        manualText="Sans tri : l’ordre de la liste, dans ses catégories."
+        displayOptions={
+          <>
+            <GroupingControl value={grouping} onChange={setGrouping} />
+            <Switch label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
+          </>
         }
-      >
-        <Group gap="sm" ml="auto" wrap="wrap">
-          {!closed && (
-            <Menu position="bottom-end" shadow="md" withinPortal>
-              <Menu.Target>
-                <Button variant="default" leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden size={12} />}>
-                  Ajouter un produit
-                </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  leftSection={<ListPlusIcon aria-hidden />}
-                  disabled={baseLists.length === 0}
-                  onClick={() => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg')}
-                >
-                  Depuis les listes types…
-                </Menu.Item>
-                <Menu.Item leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'item', listId: list.id })}>
-                  Hors liste type…
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          )}
-          <Button leftSection={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0} onClick={() => setStoreMode(true)}>
-            Mode magasin
-          </Button>
-          <ListActionsMenu
-            list={list}
-            grouping={grouping}
-            onDeleted={() => navigate('/shopping?tab=lists')}
-            target={
-              <ActionIcon variant="default" size="input-sm" aria-label={`Actions de la liste ${list.name}`}>
-                <DotsThreeVerticalIcon aria-hidden />
-              </ActionIcon>
-            }
-          />
-        </Group>
-      </TableToolbar>
+        actions={
+          <Group gap="sm" ml="auto" wrap="wrap">
+            {!closed && (
+              <Menu position="bottom-end" shadow="md" withinPortal>
+                <Menu.Target>
+                  <Button variant="default" leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden size={12} />}>
+                    Ajouter un produit
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    leftSection={<ListPlusIcon aria-hidden />}
+                    disabled={baseLists.length === 0}
+                    onClick={() => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg')}
+                  >
+                    Depuis les listes types…
+                  </Menu.Item>
+                  <Menu.Item leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'item', listId: list.id })}>
+                    Hors liste type…
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            )}
+            <Button leftSection={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0} onClick={() => setStoreMode(true)}>
+              Mode magasin
+            </Button>
+            <ListActionsMenu
+              list={list}
+              grouping={grouping}
+              onDeleted={() => navigate('/shopping?tab=lists')}
+              target={
+                <ActionIcon variant="default" size="input-sm" aria-label={`Actions de la liste ${list.name}`}>
+                  <DotsThreeVerticalIcon aria-hidden />
+                </ActionIcon>
+              }
+            />
+          </Group>
+        }
+      />
 
       {list.items.length === 0 ? (
         <Paper withBorder radius="md" p="xl">
@@ -197,7 +215,7 @@ export function ShoppingListPage() {
         </Paper>
       ) : (
         <ShoppingTable
-          table={table}
+          view={view}
           items={[...list.items].sort((a, b) => a.position - b.position)}
           grouping={grouping}
           label={`Éléments de ${list.name}`}

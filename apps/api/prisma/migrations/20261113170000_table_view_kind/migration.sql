@@ -1,0 +1,1 @@
+ALTER TYPE "ViewKind" ADD VALUE 'TABLE';

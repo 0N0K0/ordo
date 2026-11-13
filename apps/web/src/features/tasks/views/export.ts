@@ -1,4 +1,5 @@
 import { formatDuration, TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
+import { download, fileName } from '../../../lib/download';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
@@ -172,29 +173,6 @@ export function exportTable({ rows, config, context, title, subtitle }: { rows: 
   walk(rows, 0, '');
   return { title, subtitle, columns, rows: result };
 }
-
-/**
- * Saves a file in the browser.
- * @param {Blob} blob Content.
- * @param {string} filename File name.
- * @returns {void}
- */
-function download(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/**
- * File name of an export (characters forbidden in file names replaced).
- * @param {string} title Title.
- * @param {string} extension Extension.
- * @returns {string} File name.
- */
-const fileName = (title: string, extension: string) => `${title.replace(/[\\/:*?"<>|]/g, '-')}.${extension}`;
 
 /**
  * Downloads a table as CSV, for spreadsheets set in French: semicolons, UTF-8 with BOM, one line per task or

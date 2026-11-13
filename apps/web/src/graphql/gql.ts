@@ -322,7 +322,7 @@ type Documents = {
     "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.TaskColumnDefaultsDocument,
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": typeof types.SetTasksClosedDocument,
-    "\n  query TaskViews($projectId: ID, $kind: ViewKind) {\n    taskViews(projectId: $projectId, kind: $kind) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
+    "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": typeof types.MatchingTaskIdsDocument,
     "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTaskViewDocument,
     "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTaskViewDocument,
@@ -734,7 +734,7 @@ const documents: Documents = {
     "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.TaskColumnDefaultsDocument,
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": types.SetTasksClosedDocument,
-    "\n  query TaskViews($projectId: ID, $kind: ViewKind) {\n    taskViews(projectId: $projectId, kind: $kind) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
+    "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
     "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": types.MatchingTaskIdsDocument,
     "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": types.CreateTaskViewDocument,
     "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTaskViewDocument,
@@ -2070,7 +2070,7 @@ export function graphql(source: "\n  mutation SetTasksClosed($ids: [ID!]!, $clos
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TaskViews($projectId: ID, $kind: ViewKind) {\n    taskViews(projectId: $projectId, kind: $kind) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n"): typeof import('./graphql').TaskViewsDocument;
+export function graphql(source: "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n"): typeof import('./graphql').TaskViewsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

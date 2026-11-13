@@ -9,6 +9,7 @@ import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { ExportButtons } from '../../components/data-table/DataViewBar';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { newConditionFor } from '../tasks/views/filter-meta';
 import { shownColumns, tableWidth, type DataColumn } from '../../components/data-table/data-table';
@@ -112,6 +113,33 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           filterOpened={filterOpened}
           onFilterOpenedChange={setFilterOpened}
           columns={<DataColumnsPanel columns={LIST_COLUMNS} layout={layout} onLayoutChange={(next) => view.change((current) => ({ ...current, ...next }))} />}
+          exports={
+            <ExportButtons
+              disabled={shown.length === 0}
+              table={() => {
+                const texts: Record<string, (list: ShoppingList) => string> = {
+                  name: (list) => list.name,
+                  tasks: (list) =>
+                    listTasks(list, context)
+                      .map((task) => context?.taskLabel(task) ?? `#${task.number} ${task.title}`)
+                      .join(', '),
+                  progress: (list) => `${list.items.filter((item) => item.purchasedAt).length} / ${list.items.length}`,
+                  remaining: (list) => String(list.items.filter((item) => !item.purchasedAt).length),
+                  itemCount: (list) => String(list.items.length),
+                  total: (list) => (shoppingTotal(list.items) > 0 ? money(shoppingTotal(list.items)) : ''),
+                  createdAt: (list) => dayFormat.format(new Date(list.createdAt)),
+                  closedAt: (list) => (list.closedAt ? dayFormat.format(new Date(list.closedAt)) : ''),
+                };
+                return {
+                  title: 'Listes de courses',
+                  subtitle: view.current?.name ?? '',
+                  columns: shownList.map((column) => ({ ...column, text: texts[column.id] })),
+                  groups: [{ key: '', label: '', rows: shown }],
+                  grouped: false,
+                };
+              }}
+            />
+          }
         />
       )}
       {isPending || !config || (projectIds && !context) ? (

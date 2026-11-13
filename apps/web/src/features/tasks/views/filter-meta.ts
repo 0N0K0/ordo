@@ -106,6 +106,9 @@ export const PERIOD_LABELS: Record<string, string> = {
   thisMonth: 'Ce mois-ci',
   lastMonth: 'Le mois dernier',
   nextMonth: 'Le mois prochain',
+  thisYear: 'Cette année',
+  lastYear: 'L’année dernière',
+  nextYear: 'L’année prochaine',
 };
 
 /**

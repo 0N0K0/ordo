@@ -754,8 +754,8 @@ export function useTaskLabelMutations(kind: TaskLabelKind) {
 }
 
 const TaskViewsDocument = graphql(`
-  query TaskViews($projectId: ID, $kind: ViewKind) {
-    taskViews(projectId: $projectId, kind: $kind) {
+  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
+    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
       id
       name
       config
@@ -853,13 +853,14 @@ export const taskViewsQueryKey = ['taskViews'] as const;
 /**
  * Saved views of the tasks (or of the routines) of a project's tab (or of their page), in tab order.
  * @param {string | null} projectId Project, or null for the page.
- * @param {ViewKind} [kind] Tasks or routines. Optional. Default = 'TASKS'.
+ * @param {ViewKind} [kind] Tasks, routines, shopping lists or another table. Optional. Default = 'TASKS'.
+ * @param {string | null} [tableKey] Table of the views of kind TABLE. Optional.
  * @returns {UseQueryResult<TaskViewRecord[]>} Query state.
  */
-export function useTaskViews(projectId: string | null, kind: ViewKind = 'TASKS') {
+export function useTaskViews(projectId: string | null, kind: ViewKind = 'TASKS', tableKey: string | null = null) {
   return useQuery({
-    queryKey: [...taskViewsQueryKey, kind, projectId],
-    queryFn: async () => (await execute(TaskViewsDocument, { projectId, kind })).taskViews as TaskViewRecord[],
+    queryKey: [...taskViewsQueryKey, kind, tableKey, projectId],
+    queryFn: async () => (await execute(TaskViewsDocument, { projectId, kind, tableKey })).taskViews as TaskViewRecord[],
   });
 }
 
@@ -938,7 +939,7 @@ export function useTaskViewMutations() {
   const queryClient = useQueryClient();
   return {
     create: useViewMutation(
-      async (input: { name: string; config: unknown; projectId: string | null; kind?: ViewKind }) =>
+      async (input: { name: string; config: unknown; projectId: string | null; kind?: ViewKind; tableKey?: string | null }) =>
         (await execute(CreateTaskViewDocument, { input })).createTaskView,
     ),
     update: useViewMutation(
