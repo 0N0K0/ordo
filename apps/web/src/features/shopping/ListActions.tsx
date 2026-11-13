@@ -13,7 +13,8 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useTreasuryEntrySearch } from '../treasury/api';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from './api';
 import { downloadShoppingPdf, shoppingText } from './export';
-import { confirmDestructive, openModal } from './list-modals';
+import { confirmDestructive } from './list-modals';
+import { openFormPanel } from '../../components/panels/panels';
 import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
 
@@ -165,14 +166,14 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     );
 
   return [
-    { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openModal('Modifier la liste', (close) => <ListForm list={list} onDone={close} />) },
+    { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier la liste', (close) => <ListForm list={list} onDone={close} />) },
     list.entryId
       ? {
           label: 'Détacher du mouvement',
           icon: <BankIcon aria-hidden />,
           onClick: () => mutations.attachEntry.mutate({ id: list.id, entryId: null }, { onSuccess: () => notifySuccess('Liste détachée du mouvement (sa répartition reste).'), onError }),
         }
-      : { label: 'Rattacher à un mouvement', icon: <BankIcon aria-hidden />, onClick: () => openModal('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />) },
+      : { label: 'Rattacher à un mouvement', icon: <BankIcon aria-hidden />, onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />) },
     {
       label: 'Dupliquer',
       icon: <CopyIcon aria-hidden />,

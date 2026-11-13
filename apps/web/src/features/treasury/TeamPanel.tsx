@@ -1,4 +1,5 @@
-import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Modal, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, TagSimpleIcon, UserMinusIcon } from '@phosphor-icons/react';
@@ -361,14 +362,14 @@ function Contexts() {
         )}
       </Paper>
 
-      <Modal
+      <SidePanel
         opened={dialog !== null}
         onClose={close}
         title={dialog?.kind === 'context' ? (dialog.context ? 'Modifier le contexte' : 'Nouveau contexte') : dialog?.period ? 'Modifier la période' : 'Planifier un contexte'}
       >
         {dialog?.kind === 'context' && <ContextForm context={dialog.context} onDone={close} />}
         {dialog?.kind === 'period' && <PeriodForm period={dialog.period} contexts={contexts} onDone={close} />}
-      </Modal>
+      </SidePanel>
     </>
   );
 }
@@ -535,9 +536,9 @@ export function TeamRelations() {
           </Table.Tbody>
         </Table>
       )}
-      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing?.relation ? 'Modifier la relation' : 'Nouvelle relation'}>
+      <SidePanel opened={editing !== null} onClose={() => setEditing(null)} title={editing?.relation ? 'Modifier la relation' : 'Nouvelle relation'}>
         {editing && <RelationForm relation={editing.relation} onDone={() => setEditing(null)} />}
-      </Modal>
+      </SidePanel>
     </Paper>
   );
 }

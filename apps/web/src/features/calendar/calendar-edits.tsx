@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
 import { useRoutineMutations, type Routine } from '../routines/api';
@@ -127,10 +127,10 @@ export function useCalendarEdits() {
    */
   const openSlot = (schedule: WorkScheduleRule, name: string, slot: ScheduleSlotTime) => {
     const modalId = `slot-edit-${++modalCount}`;
-    // The scope question is a managed modal too: this one closes first.
-    const close = () => modals.close(modalId);
-    modals.open({
-      modalId,
+    // The scope question is a modal: this panel closes first.
+    const close = () => closePanel(modalId);
+    openPanel({
+      panelId: modalId,
       title: `Plage du ${longDay(slot.date)}`,
       children: (
         <SlotEditForm
@@ -158,9 +158,9 @@ export function useCalendarEdits() {
    */
   const openRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
     const modalId = `routine-occurrence-${++modalCount}`;
-    const close = () => modals.close(modalId);
-    modals.open({
-      modalId,
+    const close = () => closePanel(modalId);
+    openPanel({
+      panelId: modalId,
       title: `« ${occurrence.routine.title} » du ${longDay(occurrence.date)}`,
       children: (
         <RoutineOccurrenceForm

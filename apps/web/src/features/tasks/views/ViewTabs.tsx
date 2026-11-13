@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../../components/panels/panels';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -73,7 +74,7 @@ function NameForm({ initial, submitLabel, onSubmit, onCancel }: NameFormProps) {
 let modalCount = 0;
 
 /**
- * Asks for a view name in a modal.
+ * Asks for a view name in the side panel.
  * @param {string} title Modal title.
  * @param {string} initial Initial name.
  * @param {string} submitLabel Submit button label.
@@ -82,9 +83,9 @@ let modalCount = 0;
  */
 function promptName(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
   const modalId = `view-name-${++modalCount}`;
-  const close = () => modals.close(modalId);
-  modals.open({
-    modalId,
+  const close = () => closePanel(modalId);
+  openPanel({
+    panelId: modalId,
     title,
     children: (
       <NameForm

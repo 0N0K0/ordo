@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import {
   ActionIcon,
   Alert,
@@ -319,11 +320,10 @@ function Editor({ document }: { document: AccountingDocument }) {
    */
   const openTimeBilling = () => {
     const modalId = `time-billing-${document.id}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: 'Facturer le temps passé',
-      size: 'xl',
-      children: (
+      size: 'lg', children: (
         <TimeBillingForm
           projectId={values.projectId}
           projects={projectOptions(
@@ -334,9 +334,9 @@ function Editor({ document }: { document: AccountingDocument }) {
           start={values.serviceStart}
           end={values.serviceEnd}
           vatApplicable={values.vatApplicable}
-          onCancel={() => modals.close(modalId)}
+          onCancel={() => closePanel(modalId)}
           onAdd={(lines: AccountingLineInput[], time, period) => {
-            modals.close(modalId);
+            closePanel(modalId);
             setTimeSeconds((current) => new Map([...current, ...time.map((entry) => [entry.id, entry.seconds] as const)]));
             form.setValues({
               lines: [...values.lines, ...lines],

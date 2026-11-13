@@ -1,4 +1,5 @@
-import { ActionIcon, Badge, Button, Group, Modal, Paper, Skeleton, Stack, Switch, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Badge, Button, Group, Paper, Skeleton, Stack, Switch, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts, type TableFilterGroup } from '@ordo/shared';
 import {
   ArrowsLeftRightIcon,
@@ -455,12 +456,12 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
           </Table>
         </Paper>
       )}
-      <Modal opened={importing} onClose={() => setImporting(false)} title="Importer un relevé bancaire" size="xl">
+      <SidePanel opened={importing} onClose={() => setImporting(false)} title="Importer un relevé bancaire" size="lg">
         {importing && <StatementImport accounts={accounts} onDone={() => setImporting(false)} />}
-      </Modal>
-      <Modal opened={exporting} onClose={() => setExporting(false)} title="Exporter le relevé des mouvements">
+      </SidePanel>
+      <SidePanel opened={exporting} onClose={() => setExporting(false)} title="Exporter le relevé des mouvements">
         {exporting && <StatementForm accounts={accounts} accountId={null} onDone={() => setExporting(false)} />}
-      </Modal>
+      </SidePanel>
     </Stack>
   );
 }

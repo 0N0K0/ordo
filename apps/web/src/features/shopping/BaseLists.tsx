@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -130,14 +131,14 @@ export function BaseLists() {
    */
   const openForm = (baseList?: ShoppingBaseList) => {
     const modalId = 'shopping-base-list';
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: baseList ? 'Renommer la liste type' : 'Nouvelle liste type',
       children: (
         <BaseListForm
           baseList={baseList}
           onDone={(id) => {
-            modals.close(modalId);
+            closePanel(modalId);
             if (id) select(id);
           }}
         />

@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { DepositInvoiceForm } from './DepositInvoiceForm';
 import { NEW_DOCUMENT_TITLES } from './labels';
@@ -13,7 +13,7 @@ let modalCount = 0;
  */
 export function openDepositForm(preset: { quoteId?: string; importedQuoteId?: string; clientId?: string | null } = {}): void {
   const modalId = `new-deposit-${++modalCount}`;
-  modals.open({ modalId, title: NEW_DOCUMENT_TITLES.DEPOSIT_INVOICE, children: <DepositInvoiceForm {...preset} onDone={() => modals.close(modalId)} /> });
+  openPanel({ panelId: modalId, title: NEW_DOCUMENT_TITLES.DEPOSIT_INVOICE, children: <DepositInvoiceForm {...preset} onDone={() => closePanel(modalId)} /> });
 }
 
 /**
@@ -28,9 +28,9 @@ export function openNewDocument(type: AccountingDocumentType, preset: { clientId
     return;
   }
   const modalId = `new-document-${++modalCount}`;
-  modals.open({
-    modalId,
+  openPanel({
+    panelId: modalId,
     title: NEW_DOCUMENT_TITLES[type],
-    children: <NewDocumentForm type={type} {...preset} onDone={() => modals.close(modalId)} />,
+    children: <NewDocumentForm type={type} {...preset} onDone={() => closePanel(modalId)} />,
   });
 }

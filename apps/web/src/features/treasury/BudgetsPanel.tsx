@@ -1,4 +1,5 @@
-import { Badge, Button, Group, Modal, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { Badge, Button, Group, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -654,9 +655,9 @@ export function BudgetsPanel() {
         )}
       </Paper>
 
-      <Modal opened={dialog !== null} onClose={close} title={dialog?.budget ? 'Modifier le budget' : dialog?.copy ? 'Dupliquer le budget' : 'Nouveau budget'}>
+      <SidePanel opened={dialog !== null} onClose={close} title={dialog?.budget ? 'Modifier le budget' : dialog?.copy ? 'Dupliquer le budget' : 'Nouveau budget'}>
         {dialog && <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />}
-      </Modal>
+      </SidePanel>
     </Stack>
   );
 }

@@ -12,7 +12,7 @@ let modalCount = 0;
  * @param {string} [size] Size of the modal. Optional.
  * @returns {void}
  */
-export function openModal(title: string, render: (close: () => void) => ReactElement, size?: string): void {
+function openDialog(title: string, render: (close: () => void) => ReactElement, size?: string): void {
   const modalId = `shopping-list-${++modalCount}`;
   modals.open({ modalId, title, size, children: render(() => modals.close(modalId)) });
 }
@@ -25,7 +25,7 @@ export function openModal(title: string, render: (close: () => void) => ReactEle
  * @returns {void}
  */
 export function confirmDestructive(title: string, message: string, onConfirm: () => void): void {
-  openModal(title, (close) => (
+  openDialog(title, (close) => (
     <Stack gap="md">
       <Text size="sm">{message}</Text>
       <DestructiveActions

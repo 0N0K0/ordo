@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import type { EventClickArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -5,7 +6,6 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { TimeInput } from '@mantine/dates';
-import { modals } from '@mantine/modals';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay } from '../../lib/dates';
@@ -277,10 +277,10 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     if (!item) return;
     const routine = byId.get(item.routineId);
     const modalId = `routine-tick-${item.key}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: routine?.title ?? 'Routine supprimée',
-      children: <TickForm item={item} routine={routine} today={today} onDone={() => modals.close(modalId)} />,
+      children: <TickForm item={item} routine={routine} today={today} onDone={() => closePanel(modalId)} />,
     });
   };
 

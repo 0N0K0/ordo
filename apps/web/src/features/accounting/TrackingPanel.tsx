@@ -1,4 +1,5 @@
-import { ActionIcon, Alert, Button, ColorSwatch, FileInput, Group, Modal, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Alert, Button, ColorSwatch, FileInput, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { formatMoney, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
@@ -276,7 +277,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         </Stack>
       )}
 
-      <Modal opened={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'accept' ? 'Acceptation du devis' : dialog === 'reminder' ? 'Noter une relance' : dialog === 'sent' ? 'Envoi' : isCredit ? 'Remboursement' : 'Paiement'}>
+      <SidePanel opened={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'accept' ? 'Acceptation du devis' : dialog === 'reminder' ? 'Noter une relance' : dialog === 'sent' ? 'Envoi' : isCredit ? 'Remboursement' : 'Paiement'}>
         {dialog === 'payment' && <PaymentForm document={document} onDone={() => setDialog(null)} />}
         {dialog === 'accept' && <AcceptForm document={document} onDone={() => setDialog(null)} />}
         {dialog === 'reminder' && <ReminderForm documentId={document.id} onDone={() => setDialog(null)} />}
@@ -291,7 +292,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             }}
           />
         )}
-      </Modal>
+      </SidePanel>
     </Section>
   );
 }

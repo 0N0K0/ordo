@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { Stack, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { entrySeconds, formatDuration } from '@ordo/shared';
@@ -27,11 +28,10 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
   const openForm = (entry?: TimeEntry, { copy = false }: { copy?: boolean } = {}) => {
     if (!context) return;
     const modalId = `time-entry-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: copy ? 'Dupliquer le temps' : entry ? 'Modifier le temps' : 'Ajouter un temps',
-      size: 'lg',
-      children: <TimeEntryForm context={context} entry={entry} copy={copy} defaultProjectId={defaultProjectId} onDone={() => modals.close(modalId)} />,
+      children: <TimeEntryForm context={context} entry={entry} copy={copy} defaultProjectId={defaultProjectId} onDone={() => closePanel(modalId)} />,
     });
   };
 

@@ -1,3 +1,4 @@
+import { SidePanel } from '../../components/panels/SidePanel';
 import { TimeField } from '../../components/TimeField';
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -138,7 +139,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
   const colorOfCalendar = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
-  // Questions are stacked over this form's modal: it must stay mounted to finish the save.
+  // Questions are stacked over this form's panel: it must stay mounted to finish the save.
   const scopeQuestion = useScopeQuestion();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const today = localToday();
@@ -281,7 +282,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           />
         </Stack>
       </Modal>
-      <Modal opened={postponing} onClose={() => setPostponing(false)} title="Reporter l’évènement" centered zIndex={300}>
+      <SidePanel opened={postponing} onClose={() => setPostponing(false)} title="Reporter l’évènement">
         {postponing && occurrence && (
           <PostponeForm
             fields={values}
@@ -303,7 +304,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             }
           />
         )}
-      </Modal>
+      </SidePanel>
       <Stack gap="md">
         {occurrence?.calledOff && (
           <Alert color="gray" icon={<CalendarXIcon aria-hidden />} title="Évènement annulé">

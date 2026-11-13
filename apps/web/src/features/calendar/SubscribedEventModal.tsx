@@ -1,4 +1,5 @@
-import { Anchor, Badge, Button, ColorSwatch, Group, Modal, Stack, Text } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { Anchor, Badge, Button, ColorSwatch, Group, Stack, Text } from '@mantine/core';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { switchWorkspace } from '../workspaces/switch';
 import type { CalendarSubscription, EventOccurrence } from './api';
@@ -46,7 +47,7 @@ export function SubscribedEventModal({ opened, onClose }: SubscribedEventModalPr
   const occurrence = opened?.occurrence;
   const subscription = opened?.subscription;
   return (
-    <Modal opened={opened !== null} onClose={onClose} title={occurrence?.title ?? ''} size="lg">
+    <SidePanel opened={opened !== null} onClose={onClose} title={occurrence?.title ?? ''}>
       {occurrence && subscription && (
         <Stack gap="sm">
           <Group gap="xs">
@@ -85,6 +86,6 @@ export function SubscribedEventModal({ opened, onClose }: SubscribedEventModalPr
           </Group>
         </Stack>
       )}
-    </Modal>
+    </SidePanel>
   );
 }

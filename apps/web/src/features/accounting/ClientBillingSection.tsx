@@ -1,8 +1,8 @@
+import { openFormPanel } from '../../components/panels/panels';
 import { ActionIcon, Anchor, Badge, Button, Group, Paper, SimpleGrid, Skeleton, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
 import { countryName } from '../../components/address/countries';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
@@ -10,17 +10,6 @@ import { useClientBilling, useClientPartyMutations, type ClientBilling, type Cli
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
 
 let modalCount = 0;
-
-/**
- * Opens a modal whose content receives a close callback.
- * @param {string} title Title.
- * @param {(close: () => void) => ReactNode} render Content.
- * @returns {void}
- */
-function openModal(title: string, render: (close: () => void) => ReactNode): void {
-  const modalId = `client-billing-${++modalCount}`;
-  modals.open({ modalId, title, size: 'lg', children: render(() => modals.close(modalId)) });
-}
 
 /**
  * Asks for confirmation before a deletion.
@@ -109,7 +98,7 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
       </Stack>
       <Group gap={2} wrap="nowrap">
         <Tooltip label="Modifier">
-          <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${name}`} onClick={() => openModal('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />)}>
+          <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${name}`} onClick={() => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />)}>
             <PencilSimpleIcon aria-hidden />
           </ActionIcon>
         </Tooltip>
@@ -150,12 +139,12 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
           </Stack>
           <Group gap={2} wrap="nowrap">
             <Tooltip label="Ajouter un contact">
-              <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un contact à ${service.name}`} onClick={() => openModal('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />)}>
+              <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un contact à ${service.name}`} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />)}>
                 <UserPlusIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Modifier">
-              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${service.name}`} onClick={() => openModal('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />)}>
+              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${service.name}`} onClick={() => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />)}>
                 <PencilSimpleIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
@@ -211,13 +200,13 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
           Facturation
         </Title>
         <Group gap="xs">
-          <Button size="xs" variant="light" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openModal('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>
+          <Button size="xs" variant="light" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>
             Coordonnées
           </Button>
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openModal('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>
+          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>
             Service
           </Button>
-          <Button size="xs" variant="light" leftSection={<UserPlusIcon aria-hidden />} onClick={() => openModal('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>
+          <Button size="xs" variant="light" leftSection={<UserPlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>
             Contact
           </Button>
         </Group>

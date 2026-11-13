@@ -1,3 +1,4 @@
+import { openFormPanel } from '../../components/panels/panels';
 import { modals } from '@mantine/modals';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
@@ -33,13 +34,13 @@ export function entityLabel(entity: EntityRef): string {
 let modalCount = 0;
 
 /**
- * Opens a modal whose content receives a close callback.
+ * Opens a dialog (confirmations: the forms open in the side panel) whose content receives a close callback.
  * @param {string} title Modal title.
  * @param {(close: () => void) => JSX.Element} render Modal content.
  * @param {string} [size] Modal size. Optional.
  * @returns {void}
  */
-function openModal(title: string, render: (close: () => void) => React.ReactNode, size?: string): void {
+function openDialog(title: string, render: (close: () => void) => React.ReactNode, size?: string): void {
   const modalId = `workspace-modal-${++modalCount}`;
   const close = () => modals.close(modalId);
   modals.open({ modalId, title, size, children: render(close) });
@@ -138,7 +139,7 @@ export function useEntityActions() {
      * @returns {void}
      */
     openClientForm: (client?: Client) =>
-      openModal(client ? 'Modifier le client' : 'Nouveau client', (close) => (
+      openFormPanel(client ? 'Modifier le client' : 'Nouveau client', (close) => (
         <ClientForm client={client} onDone={close} />
       )),
 
@@ -149,7 +150,7 @@ export function useEntityActions() {
      * @returns {void}
      */
     openProjectForm: (project?: Project, defaults?: { clientId?: string; parentId?: string }) =>
-      openModal(
+      openFormPanel(
         project ? 'Modifier le projet' : defaults?.parentId ? 'Nouveau sous-projet' : 'Nouveau projet',
         (close) => <ProjectForm project={project} defaults={defaults} onDone={close} />,
         'lg',
@@ -164,7 +165,7 @@ export function useEntityActions() {
       if (entity.type === 'client') {
         const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
         const projectCount = workspace?.projects.filter((project) => project.clientId === entity.item.id).length ?? 0;
-        openModal('Supprimer le client', (close) => (
+        openDialog('Supprimer le client', (close) => (
           <DeleteClientDialog
             client={entity.item}
             projectCount={projectCount}
@@ -177,7 +178,7 @@ export function useEntityActions() {
       } else {
         const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
         const subProjectCount = workspace ? descendantIds(workspace.projects, entity.item.id).size : 0;
-        openModal('Supprimer le projet', (close) => (
+        openDialog('Supprimer le projet', (close) => (
           <DeleteProjectDialog
             project={entity.item}
             subProjectCount={subProjectCount}

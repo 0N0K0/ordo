@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Skeleton, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
@@ -77,10 +78,10 @@ function OwnCalendars() {
    */
   const openForm = (calendar?: Calendar) => {
     const modalId = `calendar-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: calendar ? 'Modifier le calendrier' : 'Nouveau calendrier',
-      children: <CalendarForm calendar={calendar} onDone={() => modals.close(modalId)} />,
+      children: <CalendarForm calendar={calendar} onDone={() => closePanel(modalId)} />,
     });
   };
 

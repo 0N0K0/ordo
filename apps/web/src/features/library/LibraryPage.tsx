@@ -1,3 +1,4 @@
+import { openFormPanel } from '../../components/panels/panels';
 import {
   ActionIcon,
   Anchor,
@@ -94,13 +95,13 @@ function DocumentIcon({ document }: { document: LibraryDocument }) {
 }
 
 /**
- * Opens a modal.
+ * Opens a dialog (confirmations: the forms open in the side panel).
  * @param {string} title Title.
  * @param {(close: () => void) => ReactNode} content Content, given the close callback.
  * @param {string} [size] Size. Optional.
  * @returns {void}
  */
-function openModal(title: string, content: (close: () => void) => ReactNode, size?: string): void {
+function openDialog(title: string, content: (close: () => void) => ReactNode, size?: string): void {
   const modalId = `library-${++modalCount}`;
   modals.open({ modalId, title, size, children: content(() => modals.close(modalId)) });
 }
@@ -113,7 +114,7 @@ function openModal(title: string, content: (close: () => void) => ReactNode, siz
  * @returns {void}
  */
 function confirmDeletion(title: string, message: string, onConfirm: () => void): void {
-  openModal(title, (close) => (
+  openDialog(title, (close) => (
     <Stack gap="md">
       <Text size="sm">{message}</Text>
       <DestructiveActions
@@ -359,7 +360,7 @@ export function LibraryPage() {
               label: 'Renommer',
               icon: <PencilSimpleIcon aria-hidden />,
               onClick: () =>
-                openModal('Renommer le dossier', (close) => (
+                openFormPanel('Renommer le dossier', (close) => (
                   <FolderNameForm initial={folder.name} submitLabel="Renommer" onDone={close} onSubmit={(name) => mutations.renameFolder.mutateAsync({ id: folder.id, name })} />
                 )),
             },
@@ -367,7 +368,7 @@ export function LibraryPage() {
               label: 'Déplacer',
               icon: <FolderSimpleIcon aria-hidden />,
               onClick: () =>
-                openModal('Déplacer le dossier', (close) => (
+                openFormPanel('Déplacer le dossier', (close) => (
                   <MoveForm folders={folders} excluded={tree} initial={folder.parentId ?? null} onDone={close} onSubmit={(parentId) => mutations.moveFolder.mutateAsync({ id: folder.id, parentId })} />
                 )),
             },
@@ -411,12 +412,12 @@ export function LibraryPage() {
       }
       items={[
         document.kind === 'FILE' && (document.mimeType === 'application/pdf' || IMAGE_TYPES.includes(document.mimeType ?? '')) && { label: 'Aperçu', icon: <EyeIcon aria-hidden />, onClick: () => openDocument(document) },
-        { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openModal('Modifier le document', (close) => <DocumentForm document={document} onDone={close} />) },
+        { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le document', (close) => <DocumentForm document={document} onDone={close} />) },
         {
           label: 'Déplacer',
           icon: <FolderSimpleIcon aria-hidden />,
           onClick: () =>
-            openModal('Déplacer le document', (close) => (
+            openFormPanel('Déplacer le document', (close) => (
               <MoveForm folders={folders} initial={document.folderId ?? null} onDone={close} onSubmit={(folderId) => mutations.move.mutateAsync({ ids: [document.id], folderId })} />
             )),
         },
@@ -523,14 +524,14 @@ export function LibraryPage() {
               event.currentTarget.value = '';
             }} />
           </Button>
-          <Button variant="light" leftSection={<LinkIcon aria-hidden />} onClick={() => openModal('Ajouter un lien', (close) => <LinkForm folderId={current} onDone={close} />)}>
+          <Button variant="light" leftSection={<LinkIcon aria-hidden />} onClick={() => openFormPanel('Ajouter un lien', (close) => <LinkForm folderId={current} onDone={close} />)}>
             Ajouter un lien
           </Button>
           <Button
             variant="default"
             leftSection={<FolderPlusIcon aria-hidden />}
             onClick={() =>
-              openModal('Nouveau dossier', (close) => (
+              openFormPanel('Nouveau dossier', (close) => (
                 <FolderNameForm
                   initial=""
                   submitLabel="Créer"
@@ -610,7 +611,7 @@ export function LibraryPage() {
                         variant="default"
                         leftSection={<FolderSimpleIcon aria-hidden />}
                         onClick={() =>
-                          openModal('Déplacer les documents', (close) => (
+                          openFormPanel('Déplacer les documents', (close) => (
                             <MoveForm
                               folders={folders}
                               initial={current}

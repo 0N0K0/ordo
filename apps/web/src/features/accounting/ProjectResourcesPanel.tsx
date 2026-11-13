@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
@@ -80,7 +81,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
    */
   const openForm = (resource?: ProjectResource) => {
     const modalId = `project-resource-${++modalCount}`;
-    modals.open({ modalId, title: resource ? 'Modifier' : 'Ajouter un lien', children: <ResourceForm projectId={projectId} resource={resource} onDone={() => modals.close(modalId)} /> });
+    openPanel({ panelId: modalId, title: resource ? 'Modifier' : 'Ajouter un lien', children: <ResourceForm projectId={projectId} resource={resource} onDone={() => closePanel(modalId)} /> });
   };
 
   /**

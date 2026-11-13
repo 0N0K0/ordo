@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../panels/panels';
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
@@ -56,10 +57,10 @@ export function CategoryTreeManager<C extends TreeCategory>({
    */
   const openForm = ({ category, parentId }: { category?: C; parentId?: string | null } = {}) => {
     const modalId = `category-tree-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: category ? 'Modifier la catégorie' : parentId ? 'Nouvelle sous-catégorie' : 'Nouvelle catégorie',
-      children: renderForm({ category, parentId, onDone: () => modals.close(modalId) }),
+      children: renderForm({ category, parentId, onDone: () => closePanel(modalId) }),
     });
   };
 

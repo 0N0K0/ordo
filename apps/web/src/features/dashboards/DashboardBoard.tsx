@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
@@ -155,12 +156,12 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     if (!capture) return;
     if (format === 'png') {
       const modalId = `export-image-${chart.id}`;
-      modals.open({
-        modalId,
+      openPanel({
+        panelId: modalId,
         title: `Exporter « ${chart.title} » en image`,
         children: (
           <ImageExportForm
-            onDone={() => modals.close(modalId)}
+            onDone={() => closePanel(modalId)}
             onExport={(settings) => {
               const frame = { width: settings.width, height: settings.height };
               return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
@@ -299,10 +300,10 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                 leftSection={<ArrowBendUpRightIcon aria-hidden />}
                 onClick={() => {
                   const modalId = `transfer-chart-${chart.id}`;
-                  modals.open({
-                    modalId,
+                  openPanel({
+                    panelId: modalId,
                     title: `Déplacer « ${chart.title} »`,
-                    children: <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={() => modals.close(modalId)} />,
+                    children: <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={() => closePanel(modalId)} />,
                   });
                 }}
               >
@@ -463,8 +464,8 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           },
         );
     };
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: dashboard ? 'Renommer le tableau de bord' : 'Nouveau tableau de bord',
       children: (
         <form
@@ -476,7 +477,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           <Stack gap="md">
             <TextInput label="Nom" required data-autofocus defaultValue={name} placeholder="KPI, Sprint, Mensuel…" onChange={(event) => (name = event.currentTarget.value)} />
             <Group justify="flex-end" gap="sm">
-              <Button variant="default" onClick={() => modals.close(modalId)}>
+              <Button variant="default" onClick={() => closePanel(modalId)}>
                 Annuler
               </Button>
               <Button type="submit">{dashboard ? 'Renommer' : 'Créer'}</Button>
@@ -528,10 +529,10 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
   const openEditor = (chart?: DashboardChart, source: ChartSource = 'tasks') => {
     if (!context || !current) return;
     const modalId = `chart-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: chart ? 'Modifier le diagramme' : 'Nouveau diagramme',
-      size: '90rem',
+      size: 'lg',
       children: (
         <ChartEditor
           dashboardId={current.id}
@@ -551,7 +552,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           }
           scope={scope}
           context={context}
-          onDone={() => modals.close(modalId)}
+          onDone={() => closePanel(modalId)}
         />
       ),
     });

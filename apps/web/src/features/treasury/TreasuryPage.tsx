@@ -1,23 +1,5 @@
-import {
-  ActionIcon,
-  Anchor,
-  Badge,
-  Button,
-  Checkbox,
-  Group,
-  Modal,
-  NumberInput,
-  Paper,
-  Popover,
-  SegmentedControl,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-  TextInput,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, NumberInput, Paper, Popover, SegmentedControl, SimpleGrid, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
@@ -327,11 +309,11 @@ export function TreasuryPage() {
   );
 
   const dialogs = (
-    <Modal
+    <SidePanel
       opened={dialog !== null}
       onClose={close}
       // An entry has a table of lines (its split).
-      size={dialog?.kind === 'entry' ? '72rem' : 'md'}
+      size={dialog?.kind === 'entry' ? 'lg' : 'md'}
       title={
         dialog?.kind === 'account'
           ? dialog.account
@@ -353,7 +335,7 @@ export function TreasuryPage() {
       {dialog?.kind === 'account' && <AccountForm account={dialog.account} onDone={close} />}
       {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} />}
       {dialog?.kind === 'realize' && <RealizeForm item={dialog.item} onDone={close} />}
-    </Modal>
+    </SidePanel>
   );
 
   if (!accounts?.length) {

@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -27,7 +28,7 @@ interface MilestoneFormProps {
 }
 
 /**
- * Milestone creation / edition form, in a modal.
+ * Milestone creation / edition form, in the side panel.
  * @param {MilestoneFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -162,11 +163,10 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
    */
   const openForm = (milestone?: Milestone) => {
     const modalId = `milestone-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: milestone ? 'Modifier le jalon' : 'Nouveau jalon',
-      size: 'lg',
-      children: <MilestoneForm projectId={projectId} milestone={milestone} context={context} onDone={() => modals.close(modalId)} />,
+      children: <MilestoneForm projectId={projectId} milestone={milestone} context={context} onDone={() => closePanel(modalId)} />,
     });
   };
 

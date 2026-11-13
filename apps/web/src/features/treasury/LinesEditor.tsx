@@ -1,4 +1,5 @@
-import { ActionIcon, Button, Group, Indicator, Modal, NumberInput, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Button, Group, Indicator, NumberInput, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, formatMoney, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { PaperclipIcon, PlusIcon, UsersThreeIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -300,7 +301,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
           {errors.lines}
         </Text>
       )}
-      <Modal opened={attaching !== null && lines[attaching] !== undefined} onClose={() => setAttaching(null)} title={`Rattachements de la ligne ${(attaching ?? 0) + 1}`} size="lg">
+      <SidePanel opened={attaching !== null && lines[attaching] !== undefined} onClose={() => setAttaching(null)} title={`Rattachements de la ligne ${(attaching ?? 0) + 1}`}>
         {attaching !== null && lines[attaching] && (
           <LineAttachments
             line={lines[attaching]}
@@ -311,7 +312,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
             onClose={() => setAttaching(null)}
           />
         )}
-      </Modal>
+      </SidePanel>
     </Stack>
   );
 }

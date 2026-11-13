@@ -1,3 +1,4 @@
+import { SidePanel } from '../../components/panels/SidePanel';
 import {
   ActionIcon,
   Badge,
@@ -5,7 +6,6 @@ import {
   Checkbox,
   ColorInput,
   Group,
-  Modal,
   Paper,
   SegmentedControl,
   Select,
@@ -566,7 +566,7 @@ export function SettingsPanel() {
         </Paper>
       </Stack>
 
-      <Modal
+      <SidePanel
         opened={dialog !== null}
         onClose={close}
         title={
@@ -586,7 +586,7 @@ export function SettingsPanel() {
         {dialog?.kind === 'category' && <CategoryForm category={dialog.category} direction={dialog.direction} parentId={dialog.parentId} categories={categories} onDone={close} />}
         {dialog?.kind === 'method' && <MethodForm method={dialog.method} onDone={close} />}
         {dialog?.kind === 'counterparty' && <CounterpartyForm counterparty={dialog.counterparty} onDone={close} />}
-      </Modal>
+      </SidePanel>
     </Stack>
   );
 }

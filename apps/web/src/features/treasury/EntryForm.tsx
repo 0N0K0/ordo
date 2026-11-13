@@ -1,4 +1,5 @@
-import { ActionIcon, Badge, Button, Divider, Group, Modal, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Badge, Button, Divider, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { formatMoney, treasuryEntrySchema, type Recurrence, type TreasuryAllocationInput } from '@ordo/shared';
 import { LinkIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
@@ -588,7 +589,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           </Button>
         </Group>
       </Stack>
-      <Modal
+      <SidePanel
         opened={creating !== null}
         onClose={() => setCreating(null)}
         title={
@@ -654,7 +655,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             />
           )}
         </div>
-      </Modal>
+      </SidePanel>
     </form>
   );
 }

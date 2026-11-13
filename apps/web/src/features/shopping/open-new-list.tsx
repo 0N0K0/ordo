@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { NewListForm } from './NewListForm';
 
 /**
@@ -8,9 +8,9 @@ import { NewListForm } from './NewListForm';
  */
 export function openNewList({ baseListIds = [], taskIds = [] }: { baseListIds?: string[]; taskIds?: string[] } = {}): void {
   const modalId = 'new-shopping-list';
-  modals.open({
-    modalId,
+  openPanel({
+    panelId: modalId,
     title: 'Nouvelle liste',
-    children: <NewListForm baseListIds={baseListIds} taskIds={taskIds} onDone={() => modals.close(modalId)} />,
+    children: <NewListForm baseListIds={baseListIds} taskIds={taskIds} onDone={() => closePanel(modalId)} />,
   });
 }

@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { Badge, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Text, Textarea, TextInput, ThemeIcon } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
@@ -167,7 +168,7 @@ export function CatalogPanel() {
    */
   const openForm = (item?: CatalogItem) => {
     const modalId = `catalog-item-${++modalCount}`;
-    modals.open({ modalId, title: item ? 'Modifier l’article' : 'Nouvel article', size: 'lg', children: <CatalogItemForm item={item} onDone={() => modals.close(modalId)} /> });
+    openPanel({ panelId: modalId, title: item ? 'Modifier l’article' : 'Nouvel article', children: <CatalogItemForm item={item} onDone={() => closePanel(modalId)} /> });
   };
 
   /**

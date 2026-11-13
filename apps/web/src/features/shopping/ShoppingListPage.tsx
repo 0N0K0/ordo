@@ -28,7 +28,8 @@ import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingL
 import { shoppingTotal } from './export';
 import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
-import { confirmDestructive, openModal } from './list-modals';
+import { confirmDestructive } from './list-modals';
+import { openFormPanel } from '../../components/panels/panels';
 import { ProductPicker } from './ProductPicker';
 import { blankInput, listClosed, listTasks, money, usePeople, type ShoppingGrouping } from './shopping-format';
 import { ShoppingSettings } from './ShoppingSettings';
@@ -175,7 +176,7 @@ export function ShoppingListPage() {
                   <Menu.Item
                     leftSection={<ListPlusIcon aria-hidden />}
                     disabled={baseLists.length === 0}
-                    onClick={() => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg')}
+                    onClick={() => openFormPanel('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />)}
                   >
                     Depuis les listes types…
                   </Menu.Item>
@@ -227,7 +228,7 @@ export function ShoppingListPage() {
               : {
                   label: 'Ajouter un élément hors liste type',
                   onCreate: (name, place) => mutations.addItem.mutateAsync({ listId: list.id, input: blankInput(name, place) }),
-                  onPick: baseLists.length ? () => openModal('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />, 'lg') : undefined,
+                  onPick: baseLists.length ? () => openFormPanel('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />) : undefined,
                 }
           }
           onSave={(item, input) => mutations.updateItem.mutate({ id: item.id, input }, { onError })}

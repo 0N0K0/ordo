@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Button, ColorInput, Group, Paper, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@ordo/shared';
@@ -94,10 +95,10 @@ export function CalendarCategoriesManager() {
    */
   const openForm = ({ category, parentId }: { category?: CalendarCategory; parentId?: string | null } = {}) => {
     const modalId = `calendar-category-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: category ? 'Modifier la catégorie' : parentId ? 'Nouvelle sous-catégorie' : 'Nouvelle catégorie',
-      children: <CategoryForm categories={categories ?? []} category={category} parentId={parentId} onDone={() => modals.close(modalId)} />,
+      children: <CategoryForm categories={categories ?? []} category={category} parentId={parentId} onDone={() => closePanel(modalId)} />,
     });
   };
 

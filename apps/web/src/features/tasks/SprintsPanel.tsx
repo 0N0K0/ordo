@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Badge, Button, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { modals } from '@mantine/modals';
@@ -32,7 +33,7 @@ interface SprintFormProps {
 }
 
 /**
- * Sprint creation / edition form, in a modal.
+ * Sprint creation / edition form, in the side panel.
  * @param {SprintFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -113,11 +114,10 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
     const start = last && String(last.endDate) >= today ? addDays(String(last.endDate), 1) : today;
     const defaults = { name: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
     const modalId = `sprint-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: sprint ? 'Modifier le sprint' : 'Nouveau sprint',
-      size: 'lg',
-      children: <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={() => modals.close(modalId)} />,
+      children: <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={() => closePanel(modalId)} />,
     });
   };
 

@@ -1,3 +1,4 @@
+import { SidePanel } from '../../components/panels/SidePanel';
 import {
   ActionIcon,
   Alert,
@@ -6,7 +7,6 @@ import {
   Button,
   CloseButton,
   Divider,
-  Drawer,
   Grid,
   Group,
   NumberInput,
@@ -515,18 +515,7 @@ export function TaskPanel() {
   const task = taskId ? context?.taskById.get(taskId) : undefined;
 
   return (
-    <Drawer
-      opened
-      onClose={link.close}
-      position="right"
-      size="min(72rem, 100%)"
-      title={
-        <Text size="sm" c="dimmed">
-          {task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}
-        </Text>
-      }
-      padding="lg"
-    >
+    <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}>
       {isPending ? (
         <Stack gap="md">
           <Skeleton height={32} width="60%" />
@@ -539,6 +528,6 @@ export function TaskPanel() {
           Cette tâche n’existe pas ou a été supprimée.
         </Alert>
       )}
-    </Drawer>
+    </SidePanel>
   );
 }
