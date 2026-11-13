@@ -2,9 +2,16 @@ import { addDays } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
 import { createCalendarEvent } from '../../src/services/calendar-events';
-import { createEntry } from '../../src/services/treasury';
+import { createEntry as saveEntry } from '../../src/services/treasury';
 import { saveBudget } from '../../src/services/treasury-budgets';
 import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury-team';
+
+/**
+ * Creates a movement; a split one has its categories on its lines only.
+ * @param {Parameters<typeof saveEntry>[0]} input Movement.
+ * @returns {ReturnType<typeof saveEntry>} Movement.
+ */
+const createEntry = (input: Parameters<typeof saveEntry>[0]) => saveEntry(input.lines?.length ? { ...input, categoryId: null } : input);
 
 /** What the team fixtures made, for the shopping ones. */
 export interface SeededTeam {

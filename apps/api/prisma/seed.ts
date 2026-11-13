@@ -735,12 +735,12 @@ await setWorkspaceNotifications(workspace.id, ['MAILS', 'ALARMS']);
 // --- Task views (home page and a project) ------------------------------------------------------------------
 const condition = (id: string, field: string, operator: string, value: string | string[] | null = null) => ({ type: 'condition', id, field, operator, value });
 const filter = (...children: ReturnType<typeof condition>[]) => ({ ...emptyFilter(), children });
-await createView({ name: 'Toutes les tâches', config: {} });
+await createView({ name: 'Toutes les tâches', config: { filter: emptyFilter() } });
 if (meId) await createView({ name: 'Mes tâches', config: { filter: filter(condition('mine', 'assignees', 'anyOf', [meId]), condition('open', 'closed', 'isFalse')), sorting: [{ id: 'deadline', desc: false }] } });
 await createView({ name: 'En retard', config: { filter: filter(condition('late', 'overdue', 'isTrue')), groupBy: 'project', hiddenColumns: ['tags', 'effort', 'trackedTime'] } });
 await createView({ name: 'Par priorité', config: { filter: filter(condition('open', 'closed', 'isFalse')), groupBy: 'priority', flat: true, events: { show: true, period: 'next:30' } } });
 if (activeRoots[0]) {
-  await createView({ name: 'Tableau', projectId: activeRoots[0].id, config: { groupBy: 'status' } });
+  await createView({ name: 'Tableau', projectId: activeRoots[0].id, config: { filter: emptyFilter(), groupBy: 'status' } });
   await createView({ name: 'Sprint en cours', projectId: activeRoots[0].id, config: { filter: filter(condition('sprint', 'sprint', 'current')), groupBy: 'assignees' } });
 }
 

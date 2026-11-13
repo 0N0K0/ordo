@@ -24,7 +24,7 @@ import {
 import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/task-recurrence';
 import { createView } from '../../src/services/task-views';
 import { createTimeEntry } from '../../src/services/time-entries';
-import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury';
+import { createAccount, createEntry as saveEntry, realizeForecast } from '../../src/services/treasury';
 import { saveBudget } from '../../src/services/treasury-budgets';
 import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury-settings';
 import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury-team';
@@ -37,6 +37,13 @@ import { tinyPdf } from './mail';
 import { rebuildStatusHistory } from './history';
 import { purgeWorkspace } from './purge';
 import { tickRoutines } from './routines';
+
+/**
+ * Creates a movement; a split one has its categories on its lines only.
+ * @param {Parameters<typeof saveEntry>[0]} input Movement.
+ * @returns {ReturnType<typeof saveEntry>} Movement.
+ */
+const createEntry = (input: Parameters<typeof saveEntry>[0]) => saveEntry(input.lines?.length ? { ...input, categoryId: null } : input);
 
 /**
  * Rule from the default one.
@@ -178,7 +185,7 @@ export async function seedPersonal({
       name: 'Mes tâches',
       config: { filter: { ...emptyFilter(), children: [{ type: 'condition', id: 'mine', field: 'assignees', operator: 'anyOf', value: [meId] }] }, groupBy: 'project' },
     });
-  await createView({ name: 'Par étiquette', config: { groupBy: 'tags' } });
+  await createView({ name: 'Par étiquette', config: { filter: emptyFilter(), groupBy: 'tags' } });
 
   // --- Places --------------------------------------------------------------------------------------------
   const home = await savePlace(null, { name: 'Maison', address: '8 rue Paul Bert, 69003 Lyon', lat: 45.7578, lon: 4.8511 });
