@@ -2480,7 +2480,7 @@ export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, scheduleId: string | null, scheduleAnchor: string | null, reminders: Array<number>, cases: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, scheduleId: string | null, scheduleAnchor: string | null, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -2586,6 +2586,45 @@ export type SetRoutineDoneMutationVariables = Exact<{
 
 export type SetRoutineDoneMutation = { setRoutineDone: string };
 
+export type MoveRoutineOccurrenceMutationVariables = Exact<{
+  id: string | number;
+  date: string;
+  to: string;
+}>;
+
+
+export type MoveRoutineOccurrenceMutation = { moveRoutineOccurrence: boolean };
+
+export type ChangeRoutineOccurrenceMutationVariables = Exact<{
+  id: string | number;
+  date: string;
+  scope: CalendarEventScope;
+  to: string;
+  slot: number;
+  fromTime?: string | null | undefined;
+  dueTime?: string | null | undefined;
+}>;
+
+
+export type ChangeRoutineOccurrenceMutation = { changeRoutineOccurrence: boolean };
+
+export type DeleteRoutineOccurrenceMutationVariables = Exact<{
+  id: string | number;
+  date: string;
+  scope: CalendarEventScope;
+}>;
+
+
+export type DeleteRoutineOccurrenceMutation = { deleteRoutineOccurrence: boolean };
+
+export type RemoveRoutineMoveMutationVariables = Exact<{
+  id: string | number;
+  from: string;
+}>;
+
+
+export type RemoveRoutineMoveMutation = { removeRoutineMove: boolean };
+
 export type SetRoutineArchivedMutationVariables = Exact<{
   id: string | number;
   archived: boolean;
@@ -2608,6 +2647,14 @@ export type RoutineChecksQueryVariables = Exact<{
 
 
 export type RoutineChecksQuery = { routineChecks: Array<{ routineId: string, date: string, slot: number, doneAt: string, fromTime: string | null, dueTime: string | null }> };
+
+export type RoutineOccurrencesQueryVariables = Exact<{
+  from: string;
+  to: string;
+}>;
+
+
+export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, movedFrom: string | null, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
 
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -6577,6 +6624,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     scheduleAnchor
     reminders
     cases
+    moves
     done
     slots {
       index
@@ -6675,6 +6723,34 @@ export const SetRoutineDoneDocument = new TypedDocumentString(`
   setRoutineDone(id: $id, done: $done, date: $date, slot: $slot)
 }
     `) as unknown as TypedDocumentString<SetRoutineDoneMutation, SetRoutineDoneMutationVariables>;
+export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
+    mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!) {
+  moveRoutineOccurrence(id: $id, date: $date, to: $to)
+}
+    `) as unknown as TypedDocumentString<MoveRoutineOccurrenceMutation, MoveRoutineOccurrenceMutationVariables>;
+export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
+    mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {
+  changeRoutineOccurrence(
+    id: $id
+    date: $date
+    scope: $scope
+    to: $to
+    slot: $slot
+    fromTime: $fromTime
+    dueTime: $dueTime
+  )
+}
+    `) as unknown as TypedDocumentString<ChangeRoutineOccurrenceMutation, ChangeRoutineOccurrenceMutationVariables>;
+export const DeleteRoutineOccurrenceDocument = new TypedDocumentString(`
+    mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
+  deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)
+}
+    `) as unknown as TypedDocumentString<DeleteRoutineOccurrenceMutation, DeleteRoutineOccurrenceMutationVariables>;
+export const RemoveRoutineMoveDocument = new TypedDocumentString(`
+    mutation RemoveRoutineMove($id: ID!, $from: Date!) {
+  removeRoutineMove(id: $id, from: $from)
+}
+    `) as unknown as TypedDocumentString<RemoveRoutineMoveMutation, RemoveRoutineMoveMutationVariables>;
 export const SetRoutineArchivedDocument = new TypedDocumentString(`
     mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {
   setRoutineArchived(id: $id, archived: $archived)
@@ -6697,6 +6773,22 @@ export const RoutineChecksDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<RoutineChecksQuery, RoutineChecksQueryVariables>;
+export const RoutineOccurrencesDocument = new TypedDocumentString(`
+    query RoutineOccurrences($from: Date!, $to: Date!) {
+  routineOccurrences(from: $from, to: $to) {
+    routineId
+    date
+    movedFrom
+    slots {
+      index
+      fromTime
+      dueTime
+      optional
+      done
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<RoutineOccurrencesQuery, RoutineOccurrencesQueryVariables>;
 export const ShoppingDataDocument = new TypedDocumentString(`
     query ShoppingData {
   shoppingCategories {

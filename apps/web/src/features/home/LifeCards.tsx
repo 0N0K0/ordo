@@ -1,9 +1,10 @@
-import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
+import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRoutinesData } from '../routines/api';
 import { RoutineDoneToggles } from '../routines/DoneToggle';
 import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../routines/routine-format';
+import { usePostponeRoutine } from '../routines/use-routine-move';
 import { useShoppingData, useShoppingLists } from '../shopping/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
@@ -19,6 +20,7 @@ const MAX_ROWS = 7;
  */
 export function RoutinesCard({ today }: { today: string }) {
   const { data } = useRoutinesData();
+  const postpone = usePostponeRoutine();
   const routines = data?.routines ?? [];
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const todo = routines
@@ -68,6 +70,11 @@ export function RoutinesCard({ today }: { today: string }) {
                       {routine.estimate} min
                     </Text>
                   )}
+                  <Tooltip label="Reporter au lendemain">
+                    <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Reporter « ${routine.title} » au lendemain`} onClick={() => postpone(routine)}>
+                      <ArrowBendUpRightIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
                 </Group>
               </Group>
             );

@@ -31,6 +31,8 @@ export function newCase(oneDay: boolean): ScheduleCase {
     month: 1,
     allDay: false,
     ranges: [{ start: '09:00', end: '17:00' }],
+    since: null,
+    until: null,
   };
 }
 
@@ -90,7 +92,8 @@ export function describeCase(item: ScheduleCaseInput): string {
       break;
   }
   const hours = item.allDay ? 'toute la journée' : (item.ranges ?? []).map((range) => `${range.start}–${range.end}`).join(', ');
-  return `${days.charAt(0).toUpperCase()}${days.slice(1)} · ${hours}`;
+  const bounds = item.since && item.until ? ` · du ${printedDate(item.since)} au ${printedDate(item.until)}` : item.since ? ` · dès le ${printedDate(item.since)}` : item.until ? ` · jusqu’au ${printedDate(item.until)}` : '';
+  return `${days.charAt(0).toUpperCase()}${days.slice(1)} · ${hours}${bounds}`;
 }
 
 /**

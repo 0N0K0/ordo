@@ -1,7 +1,9 @@
-import { formatDay, parseDay, type RoutineInput } from '@ordo/shared';
+import { daysBetween, formatDay, parseDay, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../db';
+import { clientError } from '../errors';
 import * as routines from '../../services/routines';
 import { builder } from '../builder';
+import { EventScope } from './calendar';
 
 builder.prismaObject('RoutineCategory', {
   description: 'Category of the routines, in a tree.',
@@ -14,7 +16,7 @@ builder.prismaObject('RoutineCategory', {
 });
 
 /** Selection computing the occurrences and times of the day of a routine. */
-const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, fromTime: true, dueTime: true } as const;
+const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, moves: true, fromTime: true, dueTime: true } as const;
 
 /**
  * Calendar date as a Date (the Date scalar), or null.
@@ -129,6 +131,12 @@ builder.prismaObject('Routine', {
       resolve: (routine) => asDate(routines.occurrencesOf(routine).next),
     }),
     cases: t.expose('cases', { type: 'JSON', description: 'Cases (days and times of the day); empty: its repetition.' }),
+    moves: t.field({
+      type: 'JSON',
+      description: 'Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times }] (YYYY-MM-DD), by day of the rule.',
+      select: { moves: true },
+      resolve: (routine) => routines.storedMoves(routine.moves),
+    }),
     slots: t.field({
       type: [RoutineSlotRef],
       description: 'Times of the day of its current occurrence (its next one before it starts), with those ticked.',
@@ -267,6 +275,27 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   requiredIds: input.requiredIds.map(String),
 });
 
+/** Occurrence of a routine on a day, with its times of the day. */
+interface OccurrenceState {
+  routineId: string;
+  date: string;
+  movedFrom: string | null;
+  slots: SlotState[];
+}
+
+const RoutineOccurrenceRef = builder.objectRef<OccurrenceState>('RoutineOccurrence').implement({
+  description: 'Occurrence of a routine on a day (for the calendar).',
+  fields: (t) => ({
+    routineId: t.exposeID('routineId'),
+    date: t.field({ type: 'Date', resolve: (occurrence) => parseDay(occurrence.date) }),
+    movedFrom: t.field({ type: 'Date', nullable: true, description: 'Day of the rule it was moved from (an exception).', resolve: (occurrence) => asDate(occurrence.movedFrom) }),
+    slots: t.field({ type: [RoutineSlotRef], resolve: (occurrence) => occurrence.slots }),
+  }),
+});
+
+/** Days of a period of occurrences, at most. */
+const OCCURRENCE_DAYS = 100;
+
 builder.prismaObject('RoutineCheck', {
   description: 'Time of the day of a routine ticked as done, for an occurrence.',
   fields: (t) => ({
@@ -298,6 +327,28 @@ builder.queryFields((t) => ({
     type: ['Routine'],
     description: 'Every routine, archived ones included, in manual order.',
     resolve: (query) => prisma.routine.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
+  routineOccurrences: t.field({
+    type: [RoutineOccurrenceRef],
+    description: `Occurrences of the routines not archived in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked.`,
+    args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
+    resolve: async (_root, { from, to }) => {
+      if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
+      const list = await prisma.routine.findMany({
+        where: { archivedAt: null },
+        select: { id: true, ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
+      });
+      return list.flatMap((routine) => {
+        const moves = routines.storedMoves(routine.moves);
+        const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
+        return routines.occurrencesBetween(routine, from, to).map((date) => ({
+          routineId: routine.id,
+          date,
+          movedFrom: moves.find((move) => move.to === date && move.from !== date)?.from ?? null,
+          slots: routines.slotsOf(routine, date).map((slot, index) => ({ index, ...slot, done: ticked.has(`${date}/${index}`) })),
+        }));
+      });
+    },
   }),
   routineChecks: t.prismaField({
     type: ['RoutineCheck'],
@@ -420,6 +471,46 @@ builder.mutationFields((t) => ({
   bulkDeleteRoutines: t.int({
     args: { ids: t.arg.idList({ required: true }) },
     resolve: (_root, { ids }) => routines.bulkDeleteRoutines(ids.map(String)),
+  }),
+  moveRoutineOccurrence: t.boolean({
+    description: 'Moves an occurrence to another day (postponed or brought forward); back to its own day, the exception is removed.',
+    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
+    resolve: async (_root, { id, date, to }) => {
+      await routines.moveRoutineOccurrence(String(id), date, to);
+      return true;
+    },
+  }),
+  changeRoutineOccurrence: t.boolean({
+    description: 'Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.',
+    args: {
+      id: t.arg.id({ required: true }),
+      date: t.arg({ type: 'Date', required: true }),
+      scope: t.arg({ type: EventScope, required: true }),
+      to: t.arg({ type: 'Date', required: true }),
+      slot: t.arg.int({ required: true }),
+      fromTime: t.arg.string(),
+      dueTime: t.arg.string(),
+    },
+    resolve: async (_root, { id, date, scope, to, slot, fromTime, dueTime }) => {
+      await routines.changeRoutineOccurrence(String(id), date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null });
+      return true;
+    },
+  }),
+  deleteRoutineOccurrence: t.boolean({
+    description: 'Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING); true when the routine was archived (nothing left).',
+    args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), scope: t.arg({ type: EventScope, required: true }) },
+    resolve: async (_root, { id, date, scope }) => {
+      if (scope === 'ALL') throw clientError('BAD_USER_INPUT', 'Archivez ou supprimez la routine elle-même.');
+      return routines.deleteRoutineOccurrence(String(id), date, scope);
+    },
+  }),
+  removeRoutineMove: t.boolean({
+    description: 'Removes an exception: the occurrence goes back to its own day.',
+    args: { id: t.arg.id({ required: true }), from: t.arg({ type: 'Date', required: true }) },
+    resolve: async (_root, { id, from }) => {
+      await routines.removeRoutineMove(String(id), from);
+      return true;
+    },
   }),
   setRoutineDone: t.field({
     type: 'Date',

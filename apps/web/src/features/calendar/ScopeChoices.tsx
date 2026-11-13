@@ -5,6 +5,12 @@ export interface ScopeQuestion {
   action: 'update' | 'delete' | 'cancel' | 'restore';
   /** Whether the occurrence alone can be changed (not when the repetition changed). */
   allowThis?: boolean;
+  /** Whether it and the following ones can be changed. Optional. Default = true. */
+  allowFollowing?: boolean;
+  /** Whether every occurrence can be changed. Optional. Default = true. */
+  allowAll?: boolean;
+  /** Title instead of the one of a recurring event. Optional. */
+  title?: string;
 }
 
 /**
@@ -12,7 +18,7 @@ export interface ScopeQuestion {
  * @param {ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }} props Question and answer handler.
  * @returns {JSX.Element} Choices.
  */
-export function ScopeChoices({ action, allowThis = true, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
+export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
   const remove = action === 'delete';
   const color = remove ? 'red' : undefined;
   return (
@@ -33,12 +39,16 @@ export function ScopeChoices({ action, allowThis = true, onAnswer }: ScopeQuesti
             Cette occurrence
           </Button>
         )}
-        <Button variant="light" color={color} onClick={() => onAnswer('FOLLOWING')}>
-          Celle-ci et les suivantes
-        </Button>
-        <Button variant="light" color={color} onClick={() => onAnswer('ALL')}>
-          Toutes les occurrences
-        </Button>
+        {allowFollowing && (
+          <Button variant="light" color={color} onClick={() => onAnswer('FOLLOWING')}>
+            Celle-ci et les suivantes
+          </Button>
+        )}
+        {allowAll && (
+          <Button variant="light" color={color} onClick={() => onAnswer('ALL')}>
+            Toutes les occurrences
+          </Button>
+        )}
       </Stack>
       <Group justify="flex-end">
         <Button variant="default" onClick={() => onAnswer(null)}>

@@ -9,7 +9,23 @@ import {
   casesOccurrences,
   scheduleOccurrences,
   scheduleWindow,
+  movedFrom,
+  movedOccurrences,
+  routineMoveSchema,
+  withMove,
+  MAX_ROUTINE_MOVES,
+  occurrenceDates,
+  occurrencesBefore,
+  plannedSlots,
+  addDays,
+  daysBetween,
+  caseStart,
+  routineSlotSchema,
+  withMovedTimes,
+  weekdayOf,
+  type Recurrence,
   type RoutineAnchor,
+  type RoutineMove,
   type RoutineCase,
   type RoutineSlot,
   type RoutineCategoryInput,
@@ -53,7 +69,7 @@ function reaches(parentOf: Map<string, string | null>, start: string, id: string
 }
 
 /** Routine with what its occurrences are computed from. */
-export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'scheduleAnchor' | 'cases' | 'fromTime' | 'dueTime'> & { schedule: WorkSchedule | null };
+export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'scheduleAnchor' | 'cases' | 'moves' | 'fromTime' | 'dueTime'> & { schedule: WorkSchedule | null };
 
 /**
  * Stored cases of a routine (invalid ones left out).
@@ -66,8 +82,18 @@ export function storedCases(value: unknown): RoutineCase[] {
 }
 
 /**
+ * Stored exceptions of a routine (invalid ones left out).
+ * @param {unknown} value Stored JSON.
+ * @returns {RoutineMove[]} Occurrences moved.
+ */
+export function storedMoves(value: unknown): RoutineMove[] {
+  const parsed = z.array(routineMoveSchema).safeParse(value);
+  return parsed.success ? parsed.data : [];
+}
+
+/**
  * Current and next occurrences of a routine today: the days of its cases, else of its calendar schedule, else of its
- * repetition.
+ * repetition; then its exceptions (occurrences moved to another day).
  * @param {RoutineTiming} routine Routine with its schedule.
  * @param {string} [today] Today. Optional. Default = today in Paris.
  * @returns {{ current: string | null, next: string | null }} Dates.
@@ -75,25 +101,78 @@ export function storedCases(value: unknown): RoutineCase[] {
 export function occurrencesOf(routine: RoutineTiming, today = routineToday()): { current: string | null; next: string | null } {
   const start = formatDay(routine.startDate);
   const cases = storedCases(routine.cases);
-  if (cases.length) return casesOccurrences(cases, start, today);
-  if (routine.schedule) return scheduleOccurrences(scheduleRule(routine.schedule), start, today);
   const rule = storedRecurrence(routine.recurrence);
-  return rule ? routineOccurrences(rule, start, today) : { current: null, next: null };
+  const schedule = routine.schedule ? scheduleRule(routine.schedule) : null;
+  /**
+   * Occurrences of the rule alone.
+   * @param {string} day Day.
+   * @returns {{ current: string | null, next: string | null }} Dates.
+   */
+  const compute = (day: string) => {
+    if (cases.length) return casesOccurrences(cases, start, day);
+    if (schedule) return scheduleOccurrences(schedule, start, day);
+    return rule ? routineOccurrences(rule, start, day) : { current: null, next: null };
+  };
+  return movedOccurrences(compute, storedMoves(routine.moves), today);
 }
 
 /**
- * Times of the day of a routine on a date: those of its case that day, else the window of its calendar schedule, else
- * its own window (one time).
+ * Occurrences of a routine in a period (both days included): the days of its cases, else of its calendar schedule,
+ * else of its repetition, without those moved away and with those moved in.
  * @param {RoutineTiming} routine Routine with its schedule.
- * @param {string | null} date Day.
+ * @param {string} from First day.
+ * @param {string} to Last day.
+ * @returns {string[]} Days, in order.
+ */
+export function occurrencesBetween(routine: RoutineTiming, from: string, to: string): string[] {
+  const start = formatDay(routine.startDate);
+  const first = from < start ? start : from;
+  const days = new Set<string>();
+  if (first <= to) {
+    const cases = storedCases(routine.cases);
+    const rule = storedRecurrence(routine.recurrence);
+    if (cases.length) {
+      for (const item of cases) {
+        const own = caseStart(item, start);
+        if (own <= to) for (const day of occurrenceDates(item.recurrence, own, first < own ? own : first, to)) days.add(day);
+      }
+    } else if (routine.schedule) for (const slot of plannedSlots([scheduleRule(routine.schedule)], first, to)) days.add(slot.date);
+    else if (rule) for (const day of occurrenceDates(rule, start, first, to)) days.add(day);
+  }
+  for (const move of storedMoves(routine.moves)) {
+    days.delete(move.from);
+    if (move.to && move.to >= from && move.to <= to) days.add(move.to);
+  }
+  return [...days].sort();
+}
+
+/**
+ * Times of the day of a routine on a day of its rule: those of its case that day, else the window of its calendar
+ * schedule, else its own window (one time).
+ * @param {RoutineTiming} routine Routine with its schedule.
+ * @param {string} date Day of the rule.
  * @returns {RoutineSlot[]} Times (none: not on that day).
  */
-export function slotsOf(routine: RoutineTiming, date: string | null): RoutineSlot[] {
-  if (!date) return [];
+function ruleSlotsOn(routine: RoutineTiming, date: string): RoutineSlot[] {
   const cases = storedCases(routine.cases);
   if (cases.length) return routineCaseOn(cases, formatDay(routine.startDate), date)?.slots ?? [];
   if (routine.schedule && routine.scheduleAnchor) return [{ ...scheduleWindow(scheduleRule(routine.schedule), routine.scheduleAnchor as RoutineAnchor, date), optional: false }];
   return [{ fromTime: routine.fromTime, dueTime: routine.dueTime, optional: false }];
+}
+
+/**
+ * Times of the day of a routine on a date: those of its rule on its own day (a moved occurrence keeps them), with
+ * those its exception changes.
+ * @param {RoutineTiming} routine Routine with its schedule.
+ * @param {string | null} occurrence Day of the occurrence.
+ * @returns {RoutineSlot[]} Times (none: not on that day).
+ */
+export function slotsOf(routine: RoutineTiming, occurrence: string | null): RoutineSlot[] {
+  if (!occurrence) return [];
+  const moves = storedMoves(routine.moves);
+  const date = movedFrom(moves, occurrence);
+  const move = moves.find((item) => item.from === date && item.to === occurrence);
+  return withMovedTimes(ruleSlotsOn(routine, date), move?.times ?? null);
 }
 
 // Categories ------------------------------------------------------------------------------------------------------
@@ -500,4 +579,211 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
     count += 1;
   }
   return count;
+}
+
+/**
+ * Moves an occurrence of a routine to another day (postponed or brought forward): an exception to its rule. Moving it
+ * back to its own day removes the exception. A ticked occurrence is not moved.
+ * @param {string} id Routine id.
+ * @param {string} date Occurrence (its day now).
+ * @param {string} to New day.
+ * @returns {Promise<void>}
+ */
+export async function moveRoutineOccurrence(id: string, date: string, to: string): Promise<void> {
+  const routine = await prisma.routine.findUnique({ where: { id }, select: { startDate: true, moves: true } });
+  if (!routine) throw notFound('Routine');
+  const move = parseInput(routineMoveSchema, { from: date, to });
+  if (move.to && move.to < formatDay(routine.startDate)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+  if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
+    throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
+  }
+  const moves = withMove(storedMoves(routine.moves), move.from, move.to);
+  if (moves.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
+  await prisma.routine.update({ where: { id }, data: { moves } });
+}
+
+/**
+ * Removes an exception of a routine: the occurrence goes back to its own day.
+ * @param {string} id Routine id.
+ * @param {string} from Day of the rule the occurrence was moved from.
+ * @returns {Promise<void>}
+ */
+export async function removeRoutineMove(id: string, from: string): Promise<void> {
+  const routine = await prisma.routine.findUnique({ where: { id }, select: { moves: true } });
+  if (!routine) throw notFound('Routine');
+  await prisma.routine.update({ where: { id }, data: { moves: storedMoves(routine.moves).filter((move) => move.from !== from) } });
+}
+
+/** Which occurrences a change applies to: this one (an exception), it and the following ones, or all. */
+export type RoutineScope = 'THIS' | 'FOLLOWING' | 'ALL';
+
+/**
+ * Rule ending before a date: as many occurrences as before it, or up to the day before.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First day it counts from.
+ * @param {string} date First occurrence left out.
+ * @returns {Recurrence} Rule.
+ */
+const endedBefore = (rule: Recurrence, start: string, date: string): Recurrence =>
+  rule.count !== null ? { ...rule, count: Math.max(1, occurrencesBefore(rule, start, date)) } : { ...rule, until: addDays(date, -1) };
+
+/**
+ * Rule going on from an occurrence moved to another day: weekly on the new weekday instead of the former one, the
+ * occurrences left (when counted), and the dates left out after it.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First day it counts from.
+ * @param {string} date Occurrence.
+ * @param {string} to New day.
+ * @param {boolean} split The rule goes on from the occurrence (the former one ends before it).
+ * @returns {Recurrence} Rule.
+ */
+function shiftedRule(rule: Recurrence, start: string, date: string, to: string, split: boolean): Recurrence {
+  const weekdays =
+    rule.frequency === 'WEEKLY' && rule.weekdays.length && to !== date ? [...new Set(rule.weekdays.map((day) => (day === weekdayOf(date) ? weekdayOf(to) : day)))].sort() : rule.weekdays;
+  const count = split && rule.count !== null ? Math.max(1, rule.count - occurrencesBefore(rule, start, date)) : rule.count;
+  return { ...rule, weekdays, count, exceptions: split ? rule.exceptions.filter((day) => day >= date) : rule.exceptions };
+}
+
+/**
+ * Whether a rule has occurrences before a date.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First day it counts from.
+ * @param {string} date Day.
+ * @returns {boolean} Some before.
+ */
+const hasBefore = (rule: Recurrence, start: string, date: string) => date > start && occurrenceDates(rule, start, start, addDays(date, -1)).length > 0;
+
+/**
+ * Loads a routine with what its occurrences are computed from, and checks an occurrence of it can change: not ticked.
+ * @param {string} id Routine id.
+ * @param {string} date Occurrence (its day now).
+ * @returns {Promise<Routine & { schedule: WorkSchedule | null }>} Routine.
+ */
+async function changeableOccurrence(id: string, date: string) {
+  const routine = await prisma.routine.findUnique({ where: { id }, include: { schedule: true } });
+  if (!routine) throw notFound('Routine');
+  if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
+    throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la changer.');
+  }
+  return routine;
+}
+
+/**
+ * Changes an occurrence of a routine from the calendar: its day and the times of one of its times of the day. For this
+ * occurrence alone (an exception), for it and the following ones (the repetition ends before it, a case follows with
+ * the change), or for all (its repetition and times change; moved by as much as the occurrence). A routine following a
+ * calendar schedule only changes one occurrence at a time (the schedule holds its days and times).
+ * @param {string} id Routine id.
+ * @param {string} date Occurrence (its day now).
+ * @param {RoutineScope} scope Occurrences changed.
+ * @param {string} to New day.
+ * @param {number} slot Time of the day changed (index).
+ * @param {{ fromTime: string | null, dueTime: string | null }} times Its new times.
+ * @returns {Promise<void>}
+ */
+export async function changeRoutineOccurrence(id: string, date: string, scope: RoutineScope, to: string, slot: number, times: { fromTime: string | null; dueTime: string | null }): Promise<void> {
+  const routine = await changeableOccurrence(id, date);
+  const start = formatDay(routine.startDate);
+  const parsedTo = parseInput(z.iso.date({ error: 'Date invalide.' }), to);
+  const window = parseInput(routineSlotSchema, { ...times, optional: false });
+  if (parsedTo < start) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+  const moves = storedMoves(routine.moves);
+  const origin = movedFrom(moves, date);
+  const base = ruleSlotsOn(routine, origin);
+  if (slot < 0 || slot >= Math.max(1, base.length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
+  const cases = storedCases(routine.cases);
+  const rule = storedRecurrence(routine.recurrence);
+
+  if (scope === 'THIS') {
+    const current = moves.find((move) => move.from === origin)?.times ?? null;
+    const slots = base.length ? base : [{ fromTime: null, dueTime: null, optional: false }];
+    const changed = slots.map((item, index) => {
+      const value = index === slot ? { fromTime: window.fromTime, dueTime: window.dueTime } : (current?.[index] ?? null);
+      return value && (value.fromTime !== item.fromTime || value.dueTime !== item.dueTime) ? value : null;
+    });
+    const next = withMove(moves, date, parsedTo, changed);
+    if (next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
+    await prisma.routine.update({ where: { id }, data: { moves: next } });
+    return;
+  }
+  if (!cases.length && routine.scheduleId) {
+    throw clientError('BAD_USER_INPUT', 'Cette routine suit une plage : changez la plage, ou cette occurrence seulement.');
+  }
+  const delta = daysBetween(origin, parsedTo);
+  // The exceptions of the occurrences changed no longer match.
+  const keptMoves = moves.filter((move) => (scope === 'ALL' ? delta === 0 : move.from < origin));
+
+  if (cases.length) {
+    const item = routineCaseOn(cases, start, origin);
+    if (!item) throw clientError('BAD_USER_INPUT', 'Occurrence introuvable.');
+    const index = cases.indexOf(item);
+    const own = caseStart(item, start);
+    const slots = item.slots.map((other, position) => (position === slot ? { ...other, fromTime: window.fromTime, dueTime: window.dueTime } : other));
+    const split = scope === 'FOLLOWING' && hasBefore(item.recurrence, own, origin);
+    let pieces: RoutineCase[];
+    if (split) {
+      pieces = [
+        { ...item, recurrence: endedBefore(item.recurrence, own, origin) },
+        { ...item, from: parsedTo, recurrence: shiftedRule(item.recurrence, own, origin, parsedTo, true), slots },
+      ];
+    } else {
+      // Weekly on listed days: the weekday changes; else its repetition counts from as much later or earlier.
+      const listed = item.recurrence.frequency === 'WEEKLY' && item.recurrence.weekdays.length > 0;
+      const from = delta === 0 || listed ? item.from : addDays(own, delta);
+      if (from && from < start) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
+      pieces = [{ ...item, from, recurrence: shiftedRule(item.recurrence, own, origin, parsedTo, false), slots }];
+    }
+    await patchRoutine(id, { cases: [...cases.slice(0, index), ...pieces, ...cases.slice(index + 1)] });
+  } else {
+    if (!rule) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas de répétition.');
+    if (scope === 'FOLLOWING' && hasBefore(rule, start, origin)) {
+      // Its repetition becomes two cases: the former one up to the occurrence, the new one from it.
+      await patchRoutine(id, {
+        cases: [
+          { from: null, recurrence: endedBefore(rule, start, origin), slots: [{ fromTime: routine.fromTime, dueTime: routine.dueTime, optional: false }] },
+          { from: parsedTo, recurrence: shiftedRule(rule, start, origin, parsedTo, true), slots: [{ fromTime: window.fromTime, dueTime: window.dueTime, optional: false }] },
+        ],
+      });
+    } else {
+      const listed = rule.frequency === 'WEEKLY' && rule.weekdays.length > 0;
+      const startDate = delta === 0 || listed ? start : addDays(start, delta);
+      await patchRoutine(id, { startDate, recurrence: shiftedRule(rule, start, origin, parsedTo, false), fromTime: window.fromTime, dueTime: window.dueTime });
+    }
+  }
+  await prisma.routine.update({ where: { id }, data: { moves: keptMoves } });
+}
+
+/**
+ * Deletes an occurrence of a routine from the calendar: this one alone (an exception), or it and the following ones
+ * (its repetitions end before it; archived when nothing comes before). Ticked occurrences stay in the history.
+ * @param {string} id Routine id.
+ * @param {string} date Occurrence (its day now).
+ * @param {'THIS' | 'FOLLOWING'} scope Occurrences deleted.
+ * @returns {Promise<boolean>} The routine was archived (nothing left).
+ */
+export async function deleteRoutineOccurrence(id: string, date: string, scope: 'THIS' | 'FOLLOWING'): Promise<boolean> {
+  const routine = await changeableOccurrence(id, date);
+  const moves = storedMoves(routine.moves);
+  if (scope === 'THIS') {
+    const next = withMove(moves, date, null);
+    if (next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
+    await prisma.routine.update({ where: { id }, data: { moves: next } });
+    return false;
+  }
+  const start = formatDay(routine.startDate);
+  const origin = movedFrom(moves, date);
+  const cases = storedCases(routine.cases);
+  const rule = storedRecurrence(routine.recurrence);
+  if (!cases.length && routine.scheduleId) throw clientError('BAD_USER_INPUT', 'Cette routine suit une plage : supprimez cette occurrence seulement, ou archivez la routine.');
+  const kept = cases
+    .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))
+    .map((item) => ({ ...item, recurrence: endedBefore(item.recurrence, caseStart(item, start), origin) }));
+  const nothingLeft = cases.length ? !kept.length : !rule || !hasBefore(rule, start, origin);
+  if (nothingLeft) {
+    await prisma.routine.update({ where: { id }, data: { archivedAt: new Date(), moves: moves.filter((move) => move.from < origin) } });
+    return true;
+  }
+  await patchRoutine(id, cases.length ? { cases: kept } : { recurrence: endedBefore(rule!, start, origin) });
+  await prisma.routine.update({ where: { id }, data: { moves: moves.filter((move) => move.from < origin) } });
+  return false;
 }

@@ -20,7 +20,7 @@ export function askScope(question: ScopeQuestion): Promise<CalendarEventScope | 
     let answered = false;
     modals.open({
       modalId,
-      title: scopeTitle(question.action),
+      title: question.title ?? scopeTitle(question.action),
       onClose: () => !answered && resolve(null),
       children: (
         <ScopeChoices
@@ -62,7 +62,7 @@ export function useScopeQuestion() {
         setQuestion(next);
       }),
     dialog: (
-      <Modal opened={question !== null} onClose={() => answer(null)} title={question ? scopeTitle(question.action) : ''} centered zIndex={300}>
+      <Modal opened={question !== null} onClose={() => answer(null)} title={question ? (question.title ?? scopeTitle(question.action)) : ''} centered zIndex={300}>
         {question && <ScopeChoices {...question} onAnswer={answer} />}
       </Modal>
     ),

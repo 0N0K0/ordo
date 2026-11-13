@@ -53,7 +53,7 @@ const SubscribableCalendar = builder.objectRef<calendars.SubscribableCalendar>('
   }),
 });
 
-const EventScope = builder.enumType('CalendarEventScope', {
+export const EventScope = builder.enumType('CalendarEventScope', {
   description: 'Scope of a change to a recurring event.',
   values: EVENT_SCOPES,
 });

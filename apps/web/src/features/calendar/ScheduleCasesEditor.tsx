@@ -204,6 +204,31 @@ function CaseEditor({ item, onChange, onRemove, rhythm, periodStart, index }: Ca
           </Group>
         )}
 
+        <Group gap="xs">
+          <DatePickerInput
+            size="xs"
+            w={170}
+            aria-label={`Premier jour, cas ${index + 1}`}
+            valueFormat="[Du] D MMM YYYY"
+            placeholder="Dès le début"
+            clearable
+            maxDate={item.until ?? undefined}
+            value={item.since}
+            onChange={(date) => onChange({ since: date ? String(date) : null })}
+          />
+          <DatePickerInput
+            size="xs"
+            w={170}
+            aria-label={`Dernier jour, cas ${index + 1}`}
+            valueFormat="[Au] D MMM YYYY"
+            placeholder="Jusqu’à la fin"
+            clearable
+            minDate={item.since ?? undefined}
+            value={item.until}
+            onChange={(date) => onChange({ until: date ? String(date) : null })}
+          />
+        </Group>
+
         <Group gap="xs" align="flex-start">
           <Checkbox
             size="xs"
