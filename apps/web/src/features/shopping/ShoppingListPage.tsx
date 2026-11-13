@@ -189,6 +189,7 @@ export function ShoppingListPage() {
         </Paper>
       ) : (
         <ShoppingTable
+          tableKey="shopping-list"
           items={[...list.items].sort((a, b) => a.position - b.position)}
           grouping={grouping}
           label={`Éléments de ${list.name}`}

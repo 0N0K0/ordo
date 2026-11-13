@@ -95,6 +95,10 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             groupDrop={groupBy === 'category'}
             addable={groupBy === 'category' || groupBy === null}
             projectId={projectId ?? null}
+            columns={{ columnOrder: config.columnOrder, hiddenColumns: config.hiddenColumns, columnSizing: config.columnSizing }}
+            onColumnsChange={(next) => state.change((current) => ({ ...current, ...next }))}
+            sorting={config.sorting}
+            onSortingChange={(sorting) => state.change((current) => ({ ...current, sorting: sorting as typeof current.sorting }))}
           />
         </Stack>
       )}

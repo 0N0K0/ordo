@@ -2,10 +2,15 @@ import { ActionIcon, Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table
 import { SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { BasketIcon, DotsThreeVerticalIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
+import { useRef, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
+import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { shownColumns, tableWidth, type DataColumn } from '../../components/data-table/data-table';
+import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import tableClasses from '../../components/data-table/DataTable.module.css';
 import { localToday } from '../../lib/dates';
 import { SavedViewToolbar } from '../tasks/views/SavedViewToolbar';
 import { ViewTabs } from '../tasks/views/ViewTabs';
@@ -21,6 +26,21 @@ import { listClosed, listsOfProjects, listTasks, money, taskOptions, type Shoppi
 import classes from './Shopping.module.css';
 
 const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+/** Width of the actions column. */
+const ACTIONS_WIDTH = 48;
+
+/** Columns of the table of the lists (sorted through the sorts of the view: same ids). */
+const LIST_COLUMNS: DataColumn<ShoppingList>[] = [
+  { id: 'name', label: 'Liste', size: 260, locked: true, sortValue: () => null },
+  { id: 'tasks', label: 'Tâches', size: 260 },
+  { id: 'progress', label: 'Achats', size: 100, sortValue: () => null },
+  { id: 'remaining', label: 'Restant', size: 90, numeric: true, hiddenByDefault: true, sortValue: () => null },
+  { id: 'itemCount', label: 'Produits', size: 90, numeric: true, hiddenByDefault: true, sortValue: () => null },
+  { id: 'total', label: 'Total estimé', size: 120, numeric: true, sortValue: () => null },
+  { id: 'createdAt', label: 'Créée le', size: 110, sortValue: () => null },
+  { id: 'closedAt', label: 'Archivée le', size: 110, hiddenByDefault: true, sortValue: () => null },
+];
 
 /**
  * Shopping lists through saved views, as the tasks and the routines: tabs of views, each with its search, filters,
@@ -52,6 +72,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       )
     : [];
   const rows = listRows(shown, config?.groupBy ?? null, env);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const layout = { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
+  const shownList = shownColumns(LIST_COLUMNS, layout);
 
   return (
     <Stack gap="md">
@@ -101,23 +124,27 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       ) : (
         <Paper withBorder radius="md" className={classes.group}>
           <div className={classes.scroller}>
-            <Table verticalSpacing="xs" highlightOnHover miw={640}>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Liste</Table.Th>
-                  <Table.Th>Tâches</Table.Th>
-                  <Table.Th>Achats</Table.Th>
-                  <Table.Th ta="right">Total estimé</Table.Th>
-                  <Table.Th>Créée le</Table.Th>
-                  <Table.Th w={1} />
-                </Table.Tr>
-              </Table.Thead>
+            <Table verticalSpacing="xs" highlightOnHover ref={tableRef} className={tableClasses.table} style={{ width: tableWidth(shownList, ACTIONS_WIDTH), minWidth: '100%' }}>
+              <DataTableHeader
+                columns={LIST_COLUMNS}
+                shown={shownList}
+                layout={layout}
+                onLayoutChange={(next) => view.change((current) => ({ ...current, ...next }))}
+                sorting={config.sorting}
+                onSortingChange={(sorting) => view.change((current) => ({ ...current, sorting: sorting as typeof current.sorting }))}
+                tableRef={tableRef}
+                trailing={
+                  <Table.Th w={ACTIONS_WIDTH}>
+                    <ColumnsMenu columns={LIST_COLUMNS} layout={layout} onLayoutChange={(next) => view.change((current) => ({ ...current, ...next }))} />
+                  </Table.Th>
+                }
+              />
               <Table.Tbody>
                 {rows.map((row) => {
                   if (row.kind === 'group')
                     return (
                       <Table.Tr key={`group:${row.key}`} className={classes.groupRow}>
-                        <Table.Td colSpan={6} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
+                        <Table.Td colSpan={shownList.length + 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
                           <Group gap="xs" wrap="nowrap">
                             <Text size="sm" fw={row.depth === 0 ? 700 : 600}>
                               {row.name}
@@ -132,44 +159,58 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   const { list } = row;
                   const bought = list.items.filter((item) => item.purchasedAt).length;
                   const total = shoppingTotal(list.items);
+                  const cells: Record<string, ReactNode> = {
+                    name: (
+                      <Group gap="xs" wrap="nowrap">
+                        <Anchor component={Link} to={`/shopping/${list.id}`} size="sm" truncate>
+                          {list.name}
+                        </Anchor>
+                        {list.entryId && (
+                          <Badge size="xs" variant="light" tt="none">
+                            Payée
+                          </Badge>
+                        )}
+                      </Group>
+                    ),
+                    tasks: (
+                      <TasksCell
+                        label={`Tâches de la liste ${list.name}`}
+                        readOnly={closedOf(list) || !context}
+                        items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `#${task.number} ${task.title}` }))}
+                        options={taskOptions(context, list.taskIds)}
+                        value={list.taskIds}
+                        onSave={(taskIds) =>
+                          updateList.mutate(
+                            { id: list.id, name: list.name, taskIds },
+                            { onSuccess: () => notifySuccess(taskIds.length ? 'Tâches de la liste modifiées.' : 'Liste détachée de ses tâches.'), onError: (error) => notifyError(error.message) },
+                          )
+                        }
+                      />
+                    ),
+                    progress: (
+                      <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
+                        {bought} / {list.items.length}
+                      </Badge>
+                    ),
+                    remaining: list.items.length - bought || '',
+                    itemCount: list.items.length,
+                    total: total > 0 ? money(total) : null,
+                    createdAt: dayFormat.format(new Date(list.createdAt)),
+                    closedAt: list.closedAt ? dayFormat.format(new Date(list.closedAt)) : null,
+                  };
                   return (
                     <Table.Tr key={row.key}>
-                      <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
-                        <Group gap="xs" wrap="nowrap">
-                          <Anchor component={Link} to={`/shopping/${list.id}`} size="sm">
-                            {list.name}
-                          </Anchor>
-                          {list.entryId && (
-                            <Badge size="xs" variant="light" tt="none">
-                              Payée
-                            </Badge>
-                          )}
-                        </Group>
-                      </Table.Td>
-                      <Table.Td miw={200}>
-                        <TasksCell
-                          label={`Tâches de la liste ${list.name}`}
-                          readOnly={closedOf(list) || !context}
-                          items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `#${task.number} ${task.title}` }))}
-                          options={taskOptions(context, list.taskIds)}
-                          value={list.taskIds}
-                          onSave={(taskIds) =>
-                            updateList.mutate(
-                              { id: list.id, name: list.name, taskIds },
-                              { onSuccess: () => notifySuccess(taskIds.length ? 'Tâches de la liste modifiées.' : 'Liste détachée de ses tâches.'), onError: (error) => notifyError(error.message) },
-                            )
-                          }
-                        />
-                      </Table.Td>
-                      <Table.Td className={classes.nowrap}>
-                        <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
-                          {bought} / {list.items.length}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td ta="right" ff="monospace" className={classes.nowrap}>
-                        {total > 0 ? money(total) : null}
-                      </Table.Td>
-                      <Table.Td className={classes.nowrap}>{dayFormat.format(new Date(list.createdAt))}</Table.Td>
+                      {shownList.map((column, index) => (
+                        <Table.Td
+                          key={column.id}
+                          className={tableClasses.cell}
+                          data-numeric={column.numeric || undefined}
+                          ff={column.numeric ? 'monospace' : undefined}
+                          style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` } : undefined}
+                        >
+                          {cells[column.id]}
+                        </Table.Td>
+                      ))}
                       <Table.Td>
                         <ListActionsMenu
                           list={list}

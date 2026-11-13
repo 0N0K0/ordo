@@ -39,7 +39,7 @@ import {
   TrashIcon,
   UploadSimpleIcon,
 } from '@phosphor-icons/react';
-import { useState, type DragEvent, type ReactNode } from 'react';
+import { useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../workspace/DeleteDialogs';
@@ -51,6 +51,11 @@ import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { dndId, libraryCollision } from './library-dnd';
 import { DroppableFolderLink, SortableRow } from './LibraryDnd';
+import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { shownColumns, sortRows, tableWidth, type DataColumn } from '../../components/data-table/data-table';
+import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import tableClasses from '../../components/data-table/DataTable.module.css';
+import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { PageTitle } from '../../components/PageTitle';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
@@ -217,6 +222,17 @@ function FolderTree({ folders, parentId, current, open, onSelect, onToggle, coun
   );
 }
 
+/** Columns of the documents of a folder. */
+const LIBRARY_COLUMNS: DataColumn<LibraryDocument>[] = [
+  { id: 'name', label: 'Nom', size: 380, locked: true, sortValue: (document) => document.title },
+  { id: 'kind', label: 'Type', size: 140, hiddenByDefault: true, sortValue: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')) },
+  { id: 'size', label: 'Taille', size: 140, sortValue: (document) => document.size ?? null },
+  { id: 'updatedAt', label: 'Modifié le', size: 150, sortValue: (document) => document.updatedAt },
+];
+
+/** Sorts of the folders: by name only (the other columns are documents'). */
+const FOLDER_SORT: DataColumn<DocumentFolder>[] = [{ id: 'name', label: 'Nom', size: 0, sortValue: (folder) => folder.name }];
+
 /**
  * Document library: global documents (Kbis, logo, statutes, certificates…), files or links to a cloud, in
  * nested folders; added (several files at once, by drag and drop too), shown, downloaded alone or as a ZIP,
@@ -229,6 +245,9 @@ export function LibraryPage() {
   const mutations = useLibraryMutations();
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
+  const { layout, setLayout, sorting, setSorting } = useTableLayout('library');
+  const tableRef = useRef<HTMLTableElement>(null);
+  const shownCols = shownColumns(LIBRARY_COLUMNS, layout);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
   /** Folders folded or unfolded by hand in the tree. */
@@ -671,11 +690,20 @@ export function LibraryPage() {
                     </Text>
                   </Stack>
                 ) : (
-                  <Table verticalSpacing="xs" highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th w={32} />
-                        <Table.Th w={40}>
+                  <Table ref={tableRef} verticalSpacing="xs" highlightOnHover className={tableClasses.table} style={{ width: tableWidth(shownCols, 72 + 90), minWidth: '100%' }}>
+                    <DataTableHeader
+                      columns={LIBRARY_COLUMNS}
+                      shown={shownCols}
+                      layout={layout}
+                      onLayoutChange={setLayout}
+                      sorting={sorting}
+                      onSortingChange={setSorting}
+                      tableRef={tableRef}
+                      leadingCount={2}
+                      leading={
+                        <>
+                          <Table.Th w={32} />
+                          <Table.Th w={40}>
                           <Checkbox
                             aria-label="Tout sélectionner"
                             checked={shown.length > 0 && chosen.length === shown.length}
@@ -683,22 +711,28 @@ export function LibraryPage() {
                             disabled={shown.length === 0}
                             onChange={() => setSelected(chosen.length === shown.length ? new Set() : new Set(shown.map((document) => document.id)))}
                           />
+                          </Table.Th>
+                        </>
+                      }
+                      trailing={
+                        <Table.Th w={90}>
+                          <Group justify="flex-end">
+                            <ColumnsMenu columns={LIBRARY_COLUMNS} layout={layout} onLayoutChange={setLayout} />
+                          </Group>
                         </Table.Th>
-                        <Table.Th>Nom</Table.Th>
-                        <Table.Th w={140}>Taille</Table.Th>
-                        <Table.Th w={140}>Modifié le</Table.Th>
-                        <Table.Th w={90} />
-                      </Table.Tr>
-                    </Table.Thead>
+                      }
+                    />
                     <Table.Tbody>
                       <SortableContext items={subfolders.map((folder) => `folder:${folder.id}`)} strategy={verticalListSortingStrategy}>
-                      {subfolders.map((folder) => {
+                      {sortRows(subfolders, sorting, FOLDER_SORT).map((folder) => {
                         const inside = folderSubtree(folders, folder.id);
                         const count = documents.filter((document) => document.folderId && inside.has(document.folderId)).length;
                         return (
-                          <SortableRow key={folder.id} id={`folder:${folder.id}`} label={`le dossier ${folder.name}`} onClick={() => select(folder.id)} style={{ cursor: 'pointer' }}>
+                          <SortableRow key={folder.id} id={`folder:${folder.id}`} disabled={sorting.length > 0} label={`le dossier ${folder.name}`} onClick={() => select(folder.id)} style={{ cursor: 'pointer' }}>
                             <Table.Td />
-                            <Table.Td>
+                            {shownCols.map((column) => (
+                              <Table.Td key={column.id} className={tableClasses.cell}>
+                                {column.id === 'name' ? (
                               <Group gap="sm" wrap="nowrap">
                                 <ThemeIcon variant="light" color="yellow" size="md" radius="md">
                                   <FolderIcon weight="fill" aria-hidden />
@@ -707,13 +741,13 @@ export function LibraryPage() {
                                   {folder.name}
                                 </Text>
                               </Group>
-                            </Table.Td>
-                            <Table.Td>
+                                ) : column.id === 'size' ? (
                               <Text size="sm" c="dimmed">
                                 {count} document{count > 1 ? 's' : ''}
                               </Text>
-                            </Table.Td>
-                            <Table.Td />
+                                ) : null}
+                              </Table.Td>
+                            ))}
                             <Table.Td>
                               <Group justify="flex-end">{folderMenu(folder)}</Group>
                             </Table.Td>
@@ -722,13 +756,13 @@ export function LibraryPage() {
                       })}
                       </SortableContext>
                       <SortableContext items={shown.map((document) => `doc:${document.id}`)} strategy={verticalListSortingStrategy}>
-                      {shown.map((document) => (
+                      {sortRows(shown, sorting, LIBRARY_COLUMNS).map((document) => (
                         // Search results come from several folders: no order to change there.
                         <SortableRow
                           key={document.id}
                           id={`doc:${document.id}`}
                           label={document.title}
-                          disabled={Boolean(query)}
+                          disabled={Boolean(query) || sorting.length > 0}
                           bg={selected.has(document.id) ? 'var(--mantine-primary-color-light)' : undefined}
                         >
                           <Table.Td>
@@ -745,7 +779,11 @@ export function LibraryPage() {
                               }
                             />
                           </Table.Td>
-                          <Table.Td>
+                          {shownCols.map((column) => (
+                            <Table.Td key={column.id} className={tableClasses.cell}>
+                              {
+                                {
+                                  name: (
                             <Group gap="sm" wrap="nowrap">
                               <DocumentIcon document={document} />
                               <Stack gap={0} style={{ minWidth: 0 }}>
@@ -763,17 +801,26 @@ export function LibraryPage() {
                                 </Text>
                               </Stack>
                             </Group>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" c="dimmed">
-                              {document.size ? printedSize(document.size) : 'Lien'}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" c="dimmed">
-                              {dateFormat.format(new Date(document.updatedAt))}
-                            </Text>
-                          </Table.Td>
+                                  ),
+                                  size: (
+                                    <Text size="sm" c="dimmed">
+                                      {document.size ? printedSize(document.size) : 'Lien'}
+                                    </Text>
+                                  ),
+                                  kind: (
+                                    <Text size="sm" c="dimmed">
+                                      {document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')}
+                                    </Text>
+                                  ),
+                                  updatedAt: (
+                                    <Text size="sm" c="dimmed">
+                                      {dateFormat.format(new Date(document.updatedAt))}
+                                    </Text>
+                                  ),
+                                }[column.id]
+                              }
+                            </Table.Td>
+                          ))}
                           <Table.Td>{documentActions(document)}</Table.Td>
                         </SortableRow>
                       ))}

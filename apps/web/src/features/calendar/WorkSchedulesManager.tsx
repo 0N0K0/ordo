@@ -1,26 +1,9 @@
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Checkbox,
-  ColorSwatch,
-  Divider,
-  Group,
-  Paper,
-  SegmentedControl,
-  Select,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-  ThemeIcon,
-  Title,
-  Tooltip,
-  UnstyledButton,
-} from '@mantine/core';
+import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, SegmentedControl, Select, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_SCHEDULE_KIND_NAME, periodRhythm, readScheduleCases, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
-import { CaretDownIcon, CopyIcon, CaretUpDownIcon, CaretUpIcon, ClockIcon, FunnelSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { CopyIcon, ClockIcon, FunnelSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { DataTable } from '../../components/data-table/DataTable';
+import type { DataColumn } from '../../components/data-table/data-table';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -245,12 +228,6 @@ const STATE_ORDER: Record<ScheduleState, number> = { CURRENT: 0, UPCOMING: 1, PA
 /** Kind filter value of the schedules without kind. */
 const NO_KIND = 'none';
 
-type SortKey = 'name' | 'type' | 'start' | 'end' | 'state';
-interface Sort {
-  key: SortKey;
-  descending: boolean;
-}
-
 /**
  * State of a schedule on a day: current, upcoming or past.
  * @param {WorkSchedule} schedule Schedule.
@@ -261,35 +238,6 @@ function stateOf(schedule: WorkSchedule, today: string): ScheduleState {
   if (String(schedule.startDate) > today) return 'UPCOMING';
   if (schedule.endDate && String(schedule.endDate) < today) return 'PAST';
   return 'CURRENT';
-}
-
-interface SortHeaderProps {
-  label: string;
-  sortKey: SortKey;
-  sort: Sort;
-  onSort: (sort: Sort) => void;
-}
-
-/**
- * Column header sorting the table: once ascending, again descending.
- * @param {SortHeaderProps} props Component props.
- * @returns {JSX.Element} Header.
- */
-function SortHeader({ label, sortKey, sort, onSort }: SortHeaderProps) {
-  const active = sort.key === sortKey;
-  const Icon = !active ? CaretUpDownIcon : sort.descending ? CaretDownIcon : CaretUpIcon;
-  return (
-    <Table.Th aria-sort={active ? (sort.descending ? 'descending' : 'ascending') : undefined}>
-      <UnstyledButton onClick={() => onSort({ key: sortKey, descending: active && !sort.descending })}>
-        <Group gap={4} wrap="nowrap">
-          <Text size="sm" fw={600}>
-            {label}
-          </Text>
-          <Icon aria-hidden opacity={active ? 1 : 0.4} />
-        </Group>
-      </UnstyledButton>
-    </Table.Th>
-  );
 }
 
 /**
@@ -309,7 +257,6 @@ export function WorkSchedulesManager() {
   const [search, setSearch] = useState('');
   const [kinds, setKinds] = useState<string[]>([]);
   const [state, setState] = useState<ScheduleState | 'ALL'>('ALL');
-  const [sort, setSort] = useState<Sort>({ key: 'start', descending: true });
   const typeById = new Map((types ?? []).map((type) => [type.id, type]));
   const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
   const today = localToday();
@@ -351,6 +298,15 @@ export function WorkSchedulesManager() {
   }
 
   const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
+  type Row = { schedule: WorkSchedule; state: ScheduleState; exceptions: ReturnType<typeof readScheduleExceptions> };
+  const columns: DataColumn<Row>[] = [
+    { id: 'name', label: 'Nom', size: 220, locked: true, sortValue: ({ schedule }) => schedule.name },
+    { id: 'type', label: 'Type', size: 160, sortValue: ({ schedule }) => kindName(schedule) },
+    { id: 'start', label: 'Début', size: 120, sortValue: ({ schedule }) => String(schedule.startDate) },
+    { id: 'end', label: 'Fin', size: 120, sortValue: ({ schedule }) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31') },
+    { id: 'hours', label: 'Horaires', size: 320 },
+    { id: 'state', label: 'État', size: 110, sortValue: ({ state: rowState }) => STATE_ORDER[rowState] },
+  ];
   const needle = search.trim().toLocaleLowerCase('fr');
   const rows = (schedules ?? [])
     .map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }))
@@ -359,22 +315,6 @@ export function WorkSchedulesManager() {
       if (kinds.length && !kinds.includes(schedule.typeId ?? NO_KIND)) return false;
       if (!needle) return true;
       return [schedule.name, kindName(schedule), ...exceptions.map((exception) => exception.label)].some((text) => text.toLocaleLowerCase('fr').includes(needle));
-    })
-    .sort((a, b) => {
-      const end = (schedule: WorkSchedule) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31');
-      const order =
-        sort.key === 'name'
-          ? a.schedule.name.localeCompare(b.schedule.name, 'fr')
-          : sort.key === 'type'
-            ? kindName(a.schedule).localeCompare(kindName(b.schedule), 'fr')
-            : sort.key === 'end'
-              ? end(a.schedule).localeCompare(end(b.schedule))
-              : sort.key === 'state'
-                ? STATE_ORDER[a.state] - STATE_ORDER[b.state]
-                : 0;
-      // Ties (and the start column) by start date.
-      const result = order || String(a.schedule.startDate).localeCompare(String(b.schedule.startDate));
-      return sort.descending ? -result : result;
     });
   const filtered = Boolean(needle) || kinds.length > 0 || state !== 'ALL';
 
@@ -457,98 +397,103 @@ export function WorkSchedulesManager() {
               </Stack>
             </Paper>
           ) : (
-            <Table.ScrollContainer minWidth={640}>
-              <Table highlightOnHover verticalSpacing="xs">
-                <Table.Thead>
-                  <Table.Tr>
-                    <SortHeader label="Nom" sortKey="name" sort={sort} onSort={setSort} />
-                    <SortHeader label="Type" sortKey="type" sort={sort} onSort={setSort} />
-                    <SortHeader label="Début" sortKey="start" sort={sort} onSort={setSort} />
-                    <SortHeader label="Fin" sortKey="end" sort={sort} onSort={setSort} />
-                    <Table.Th>Horaires</Table.Th>
-                    <SortHeader label="État" sortKey="state" sort={sort} onSort={setSort} />
-                    <Table.Th />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {rows.map(({ schedule, state: rowState, exceptions }) => {
-                    const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
-                    const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
-                    return (
-                      <Table.Tr key={schedule.id}>
-                        <Table.Td>
-                          <Text size="sm" fw={600}>
-                            {schedule.name}
+            <DataTable
+              tableKey="work-schedules"
+              highlightOnHover
+              verticalSpacing="xs"
+              columns={columns}
+              rows={rows}
+              getKey={({ schedule }) => schedule.id}
+              actionsWidth={120}
+              initialSorting={[{ id: 'start', desc: true }]}
+              cells={({ schedule, state: rowState, exceptions }) => {
+                const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
+                const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
+                return {
+                  name: (
+                    <>
+                      <Text size="sm" fw={600}>
+                        {schedule.name}
+                      </Text>
+                    </>
+                  ),
+                  type: (
+                    <>
+                      <Group gap={6} wrap="nowrap">
+                        <ColorSwatch size={10} color={color} />
+                        <Text size="sm">{kindName(schedule)}</Text>
+                      </Group>
+                    </>
+                  ),
+                  start: (
+                    <>
+                      <Text size="sm">{printedDate(String(schedule.startDate))}</Text>
+                    </>
+                  ),
+                  end: (
+                    <>
+                      <Text size="sm" c={schedule.endDate ? undefined : 'dimmed'}>
+                        {schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'}
+                      </Text>
+                    </>
+                  ),
+                  hours: (
+                    <>
+                      <Stack gap={0}>
+                        {readScheduleCases(schedule.cases).map((item, index) => (
+                          <Text key={index} size="xs">
+                            {describeCase(item)}
                           </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap={6} wrap="nowrap">
-                            <ColorSwatch size={10} color={color} />
-                            <Text size="sm">{kindName(schedule)}</Text>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{printedDate(String(schedule.startDate))}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" c={schedule.endDate ? undefined : 'dimmed'}>
-                            {schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Stack gap={0}>
-                            {readScheduleCases(schedule.cases).map((item, index) => (
+                        ))}
+                        {exceptions.length > 0 && (
+                          <Tooltip
+                            multiline
+                            w={360}
+                            label={exceptions.map((exception, index) => (
                               <Text key={index} size="xs">
-                                {describeCase(item)}
+                                {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
                               </Text>
                             ))}
-                            {exceptions.length > 0 && (
-                              <Tooltip
-                                multiline
-                                w={360}
-                                label={exceptions.map((exception, index) => (
-                                  <Text key={index} size="xs">
-                                    {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
-                                  </Text>
-                                ))}
-                              >
-                                <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
-                                  {exceptions.length} exception{exceptions.length > 1 ? 's' : ''}
-                                </Text>
-                              </Tooltip>
-                            )}
-                          </Stack>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
-                            {STATE_LABELS[rowState]}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap={2} wrap="nowrap" justify="flex-end">
-                            <Tooltip label="Modifier">
-                              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${schedule.name}`} onClick={() => setEditing(schedule)}>
-                                <PencilSimpleIcon aria-hidden />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Dupliquer (sans dates ni exceptions)">
-                              <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${schedule.name}`} onClick={() => setEditing({ copyOf: schedule })}>
-                                <CopyIcon aria-hidden />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Supprimer">
-                              <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${schedule.name}`} onClick={() => setDeleting(schedule)}>
-                                <TrashIcon aria-hidden />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
+                          >
+                            <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
+                              {exceptions.length} exception{exceptions.length > 1 ? 's' : ''}
+                            </Text>
+                          </Tooltip>
+                        )}
+                      </Stack>
+                    </>
+                  ),
+                  state: (
+                    <>
+                      <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
+                        {STATE_LABELS[rowState]}
+                      </Badge>
+                    </>
+                  ),
+                };
+              }}
+              actions={({ schedule }) => (
+                <>
+                  <Group gap={2} wrap="nowrap" justify="flex-end">
+                    <Tooltip label="Modifier">
+                      <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${schedule.name}`} onClick={() => setEditing(schedule)}>
+                        <PencilSimpleIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Dupliquer (sans dates ni exceptions)">
+                      <ActionIcon variant="subtle" color="gray" aria-label={`Dupliquer ${schedule.name}`} onClick={() => setEditing({ copyOf: schedule })}>
+                        <CopyIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Supprimer">
+                      <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${schedule.name}`} onClick={() => setDeleting(schedule)}>
+                        <TrashIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                </>
+              )}
+            />
           )}
         </>
       )}

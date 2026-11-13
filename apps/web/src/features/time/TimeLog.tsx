@@ -1,7 +1,13 @@
-import { ActionIcon, Badge, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip, VisuallyHidden } from '@mantine/core';
+import { ActionIcon, Badge, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { ColumnsMenu } from '../../components/data-table/ColumnsMenu';
+import { shownColumns, sortRows, tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import tableClasses from '../../components/data-table/DataTable.module.css';
+import { useTableLayout } from '../../components/data-table/use-table-layout';
 import { useFillHeight } from '../tasks/column-fit';
 import { TaskRef } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
@@ -21,8 +27,29 @@ function dayKey(iso: string): string {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 }
 
+/** Width of the actions column. */
+const ACTIONS_WIDTH = 120;
+
+/**
+ * Columns of the tracked times.
+ * @param {TaskContext | null} context Task context (names of the projects, to sort them).
+ * @returns {DataColumn<TimeEntry>[]} Columns.
+ */
+function timeColumns(context: TaskContext | null): DataColumn<TimeEntry>[] {
+  return [
+    { id: 'hours', label: 'Horaires', size: 130, sortValue: (entry) => entry.startedAt },
+    { id: 'duration', label: 'Durée', size: 100, sortValue: (entry) => entrySeconds(entry) },
+    { id: 'project', label: 'Projet', size: 180, sortValue: (entry) => (entry.projectId ? (context?.projectById.get(entry.projectId)?.title ?? null) : null) },
+    { id: 'tasks', label: 'Tâches', size: 220 },
+    { id: 'description', label: 'Description', size: 300, locked: true, sortValue: (entry) => entry.description ?? null },
+    { id: 'invoice', label: 'Facture', size: 150, sortValue: (entry) => entry.documentNumber ?? null },
+  ];
+}
+
 interface EntryRowProps {
   entry: TimeEntry;
+  /** Columns shown. */
+  shown: ShownColumn<TimeEntry>[];
   context: TaskContext;
   /** Project of the list (null: every project): times of other projects show theirs. */
   projectId: string | null;
@@ -36,58 +63,69 @@ interface EntryRowProps {
  * @param {EntryRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function EntryRow({ entry, context, projectId, onEdit, onDuplicate, onDelete }: EntryRowProps) {
+function EntryRow({ entry, shown, context, projectId, onEdit, onDuplicate, onDelete }: EntryRowProps) {
   const running = entry.endedAt === null;
   const tasks = entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined);
-  return (
-    <Table.Tr>
-      <Table.Td className={classes.nowrap}>
+  const cells: Record<string, ReactNode> = {
+    hours: (
+      <span className={classes.nowrap}>
         {timeFormat.format(new Date(entry.startedAt))}
         {entry.endedAt && ` – ${timeFormat.format(new Date(entry.endedAt))}`}
-      </Table.Td>
-      <Table.Td className={classes.nowrap} ff="monospace">
-        {running ? (
-          <Badge size="sm" color="red" variant="light">
-            En cours
-          </Badge>
-        ) : (
-          formatDuration(entrySeconds(entry))
-        )}
-      </Table.Td>
-      <Table.Td>
+      </span>
+    ),
+    duration: running ? (
+      <Badge size="sm" color="red" variant="light">
+        En cours
+      </Badge>
+    ) : (
+      <Text span size="sm" ff="monospace">
+        {formatDuration(entrySeconds(entry))}
+      </Text>
+    ),
+    project: (
+      <>
         {entry.projectId && entry.projectId !== projectId ? context.projectById.get(entry.projectId)?.title : null}
         {entry.routineTitle && (
           <Text size="xs" c="dimmed">
             Routine : {entry.routineTitle}
           </Text>
         )}
-      </Table.Td>
-      <Table.Td>
-        <Group gap={4}>
-          {tasks.map((task) => (
-            <TaskRef key={task.id} task={task} blocked={context.isBlocked(task)} />
-          ))}
-          {tasks.length > 1 && (
-            <Text size="xs" c="dimmed">
-              ({formatDuration(entrySeconds(entry) / tasks.length)} par tâche)
-            </Text>
-          )}
-        </Group>
-      </Table.Td>
-      <Table.Td className={classes.description}>
+      </>
+    ),
+    tasks: (
+      <Group gap={4}>
+        {tasks.map((task) => (
+          <TaskRef key={task.id} task={task} blocked={context.isBlocked(task)} />
+        ))}
+        {tasks.length > 1 && (
+          <Text size="xs" c="dimmed">
+            ({formatDuration(entrySeconds(entry) / tasks.length)} par tâche)
+          </Text>
+        )}
+      </Group>
+    ),
+    description: (
+      <span className={classes.description}>
         {entry.description || (
           <Text span size="sm" c="dimmed" fs="italic">
             Sans description
           </Text>
         )}
-      </Table.Td>
-      <Table.Td>
-        {entry.documentId && (
-          <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
-            {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}
-          </Badge>
-        )}
-      </Table.Td>
+      </span>
+    ),
+    invoice: entry.documentId && (
+      <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
+        {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}
+      </Badge>
+    ),
+  };
+  return (
+    <Table.Tr>
+      {shown.map((column) => (
+        <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined}>
+          {cells[column.id]}
+        </Table.Td>
+      ))}
       <Table.Td>
         {/* The running timer is edited from the timer; time on a final invoice is part of it (copied still). */}
         {!running && (
@@ -136,6 +174,10 @@ interface TimeLogProps {
 export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete }: TimeLogProps) {
   // Scrolling inside the height left by the page: the header stays on top, the total at the bottom.
   const [fillRef, fillHeight] = useFillHeight();
+  const { layout, setLayout, sorting, setSorting } = useTableLayout('time-log');
+  const tableRef = useRef<HTMLTableElement>(null);
+  const columns = timeColumns(context);
+  const shown = shownColumns(columns, layout);
   if (!entries || !context) {
     return (
       <Stack gap="xs" aria-label="Chargement">
@@ -146,7 +188,9 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
     );
   }
   const days = new Map<string, TimeEntry[]>();
-  for (const entry of entries) days.set(dayKey(entry.startedAt), [...(days.get(dayKey(entry.startedAt)) ?? []), entry]);
+  // By day (latest first), sorted within each day.
+  for (const entry of entries) days.set(dayKey(entry.startedAt), []);
+  for (const entry of sortRows(entries, sorting, columns)) days.set(dayKey(entry.startedAt), [...(days.get(dayKey(entry.startedAt)) ?? []), entry]);
   if (days.size === 0) {
     return (
       <Paper withBorder radius="md" p="xl">
@@ -164,38 +208,48 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
   return (
     <Paper withBorder radius="md">
       <div ref={fillRef} className={classes.scroller} style={{ maxHeight: fillHeight }}>
-        <Table verticalSpacing="xs" highlightOnHover stickyHeader miw={900}>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Horaires</Table.Th>
-              <Table.Th>Durée</Table.Th>
-              <Table.Th>Projet</Table.Th>
-              <Table.Th>Tâches</Table.Th>
-              <Table.Th>Description</Table.Th>
-              <Table.Th>Facture</Table.Th>
-              <Table.Th>
-                <VisuallyHidden>Actions</VisuallyHidden>
+        <Table ref={tableRef} verticalSpacing="xs" highlightOnHover stickyHeader className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
+          <DataTableHeader
+            columns={columns}
+            shown={shown}
+            layout={layout}
+            onLayoutChange={setLayout}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            tableRef={tableRef}
+            trailing={
+              <Table.Th w={ACTIONS_WIDTH}>
+                <ColumnsMenu columns={columns} layout={layout} onLayoutChange={setLayout} />
               </Table.Th>
-            </Table.Tr>
-          </Table.Thead>
+            }
+          />
           {[...days.entries()].map(([day, dayEntries]) => (
             <Table.Tbody key={day}>
               {/* The day and its total, heading its times. */}
               <Table.Tr className={classes.dayRow}>
-                <Table.Th colSpan={7} scope="rowgroup">
+                <Table.Th colSpan={shown.length + 1} scope="rowgroup">
                   {dayFormat.format(new Date(`${day}T12:00:00`)).replace(/^./, (letter) => letter.toUpperCase())}&nbsp;:{' '}
                   {formatDuration(dayEntries.filter((entry) => entry.endedAt).reduce((sum, entry) => sum + entrySeconds(entry), 0))}
                 </Table.Th>
               </Table.Tr>
               {dayEntries.map((entry) => (
-                <EntryRow key={entry.id} entry={entry} context={context} projectId={projectId} onEdit={() => onEdit(entry)} onDuplicate={() => onDuplicate(entry)} onDelete={() => onDelete(entry)} />
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  shown={shown}
+                  context={context}
+                  projectId={projectId}
+                  onEdit={() => onEdit(entry)}
+                  onDuplicate={() => onDuplicate(entry)}
+                  onDelete={() => onDelete(entry)}
+                />
               ))}
             </Table.Tbody>
           ))}
           {/* Total of the times shown (finished ones: a running timer counts once stopped). */}
           <Table.Tfoot className={classes.total}>
             <Table.Tr>
-              <Table.Th colSpan={6} scope="row">
+              <Table.Th colSpan={shown.length} scope="row">
                 Total
               </Table.Th>
               <Table.Th ff="monospace" ta="right" className={classes.nowrap}>
