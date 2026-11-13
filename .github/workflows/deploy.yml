@@ -46,7 +46,8 @@ jobs:
       - name: Wait for firewall rule to propagate
         run: sleep 5
 
-      # 2. On the server: pull the branch of the environment, then install, build, (back up,) migrate and restart.
+      # 2. On the server: pull the branch of the environment, then install, build, (back up,) migrate, restart and,
+      #    for a merge on main changing them, reload the fixtures.
       - name: Open SSH and deploy 🚀
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5 (pinned: it receives the SSH key)
         with:
@@ -60,8 +61,14 @@ jobs:
             cd "${{ vars.APP_DIR }}"
             branch="${{ env.TARGET == 'production' && 'prod' || 'main' }}"
             test "$(git branch --show-current)" = "$branch" || { echo "The server checkout is not on $branch." >&2; exit 1; }
+            before="$(git rev-parse HEAD)"
             git pull --ff-only origin "$branch"
-            BACKUP=${{ env.TARGET == 'production' && '1' || '0' }} bash scripts/deploy.sh
+            # Fixtures: only for a pull request merged on main (staging), when it changes them.
+            fixtures=0
+            if [ "${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' }}" = true ] && ! git diff --quiet "$before" HEAD -- apps/api/prisma/seed.ts apps/api/prisma/fixtures; then
+              fixtures=1
+            fi
+            BACKUP=${{ env.TARGET == 'production' && '1' || '0' }} FIXTURES=$fixtures bash scripts/deploy.sh
 
       # 3. The first request starts the app: it must answer.
       - name: Check the site answers

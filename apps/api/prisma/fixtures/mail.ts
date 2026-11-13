@@ -1,12 +1,15 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays } from '@ordo/shared';
+import { addDays, EMPTY_MAIL_SEARCH } from '@ordo/shared';
 import { ImapFlow } from 'imapflow';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { prisma } from '../../src/db';
 import type { Project } from '../../src/generated/prisma/client';
 import { closeImap } from '../../src/services/mail/imap';
 import { copyToProject } from '../../src/services/mail/linked';
+import { createLabel, markMails } from '../../src/services/mail/organize';
 import { fetchParsed } from '../../src/services/mail/reader';
+import { scheduleMail } from '../../src/services/mail/scheduled';
+import { createSearch } from '../../src/services/mail/searches';
 import { encryptSecret } from '../../src/services/mail/secret';
 
 /** Mailbox of the fixtures: IMAP on GreenMail, sending through Mailpit (see docker-compose.yml). */
@@ -44,7 +47,7 @@ interface Mail {
  * @param {string} text Text.
  * @returns {string} PDF source.
  */
-function tinyPdf(text: string): string {
+export function tinyPdf(text: string): string {
   const stream = `BT /F1 14 Tf 72 760 Td (${text}) Tj ET`;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
@@ -324,6 +327,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   // --- Messages, in date order (threads refer to the Message-ID of earlier ones) --------------------
   const ids = new Map<string, string>();
   const linked: { folder: string; uid: number; projectId: string; sent: boolean }[] = [];
+  const inbox = new Map<string, number>();
   const ordered = [...mails].sort((x, y) => `${x.date}${String(x.hour).padStart(2, '0')}`.localeCompare(`${y.date}${String(y.hour).padStart(2, '0')}`));
   for (const mail of ordered) {
     const date = new Date(`${mail.date}T${String(mail.hour).padStart(2, '0')}:${String(faker.number.int({ min: 0, max: 59 })).padStart(2, '0')}:00`);
@@ -344,6 +348,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
       .build();
     const flags = [...(mail.seen || mail.folder !== 'INBOX' ? ['\\Seen'] : []), ...(mail.flagged ? ['\\Flagged'] : []), ...(mail.folder === FOLDERS.drafts ? ['\\Draft'] : [])];
     const appended = await client.append(mail.folder, raw, flags, date);
+    if (mail.folder === 'INBOX' && appended && appended.uid) inbox.set(mail.subject, appended.uid);
     if (mail.projectId && appended && appended.uid) linked.push({ folder: mail.folder, uid: appended.uid, projectId: mail.projectId, sent: mail.folder === FOLDERS.sent });
   }
   await client.logout();
@@ -352,5 +357,38 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   for (const item of linked) {
     await copyToProject(await fetchParsed(account.id, item.folder, item.uid), { projectId: item.projectId, accountId: account.id, sent: item.sent });
   }
+
+  // --- Flags, done mails and search folders (reused when they exist: the kept mail accounts may use them) ------
+  const label = async (name: string, color: string) => (await prisma.mailLabel.findFirst({ where: { name } })) ?? (await createLabel({ name, color }));
+  const urgent = (await label('Urgent', '#fa5252')).id;
+  const billing = (await label('À facturer', '#fab005')).id;
+  await label('Personnel', '#e64980');
+  const mark = async (subjects: string[], change: Parameters<typeof markMails>[3]) => {
+    const uids = subjects.map((subject) => inbox.get(subject)).filter((uid): uid is number => uid !== undefined);
+    if (uids.length) await markMails(account.id, 'INBOX', uids, change);
+  };
+  await mark(['Bug sur le formulaire de contact', 'Accès à l’hébergement'], { labelId: urgent, on: true });
+  await mark(['Règlement de votre facture', 'Question sur votre devis'], { labelId: billing, on: true });
+  await mark(['Votre échéancier de cotisations est disponible', 'Votre facture du mois est disponible', 'Règlement de votre facture'], { done: true });
+  for (const search of [
+    { ...EMPTY_MAIL_SEARCH, name: 'À traiter', state: 'todo' as const },
+    { ...EMPTY_MAIL_SEARCH, name: 'Mails urgents', scope: 'all' as const, labelIds: [urgent] },
+    { ...EMPTY_MAIL_SEARCH, name: 'Avec pièces jointes', scope: 'all' as const, attachments: true },
+  ]) {
+    if (!(await prisma.mailSearch.findFirst({ where: { name: search.name } }))) await createSearch(search);
+  }
+
+  // --- A mail scheduled for tomorrow morning ------------------------------------------------------------
+  const sendAt = new Date(`${day(1)}T08:30:00`);
+  await scheduleMail(
+    {
+      accountId: account.id,
+      to: [people[0].person.address],
+      subject: 'Point de la semaine prochaine',
+      html: `<p>Bonjour ${people[0].firstName},</p><p>Je vous propose un point lundi à 10 h pour faire le tour des retours.</p><p>Bonne journée,</p>`,
+      projectId: people[0].project?.id ?? null,
+    },
+    sendAt,
+  );
   closeImap(account.id);
 }
