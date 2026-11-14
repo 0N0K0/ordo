@@ -27,6 +27,7 @@ import type { TaskContext } from '../tasks/use-task-context';
 import type { Routine, RoutineCategory } from './api';
 import { categoryGrouping, ruleOf, stateOf, waitingFor, type RoutineGrouping } from './routine-format';
 import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -242,7 +243,7 @@ function meets(condition: RoutineFilterCondition, routine: Routine, env: Routine
     case 'date': {
       if (typeof value !== 'string') return false;
       if (operator === 'within') {
-        const [from, to] = filterPeriod(String(wanted), env.today);
+        const [from, to] = filterPeriod(String(wanted), env.today, currentWeek());
         return value >= from && value < to;
       }
       const day = filterDay(String(wanted), env.today);

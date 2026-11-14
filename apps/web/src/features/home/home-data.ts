@@ -7,6 +7,7 @@ import { useNow } from '../time/use-now';
 import { myTasksFilter } from '../tasks/my-tasks';
 import type { TaskContext } from '../tasks/use-task-context';
 import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 /**
  * Days from a day to another (negative when the second is earlier).
@@ -141,7 +142,7 @@ export interface WeekTime {
  * @returns {WeekTime | null} Time, or null while loading.
  */
 export function useWeekTime(today: string): WeekTime | null {
-  const [monday] = filterPeriod('thisWeek', today);
+  const [monday] = filterPeriod('thisWeek', today, currentWeek());
   const entries = useTimeEntriesSince(localMidnight(monday));
   const running = entries.data?.some((entry) => !entry.endedAt && !entry.pausedAt && entry.duration === null) ?? false;
   const now = useNow(running);

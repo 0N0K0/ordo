@@ -1,6 +1,7 @@
 import { filterConditionSchemaFor, filterDay, filterPeriod, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator, type TableSort } from '@ordo/shared';
 import type { FilterFields } from '../../features/tasks/views/FilterBuilder';
 import type { ColumnFilter, DataColumn } from './data-table';
+import { currentWeek } from '../../lib/week';
 
 /** Kind of filter field of each kind of column filter. */
 const FIELD_KINDS: Record<ColumnFilter<unknown>['kind'], FilterFieldKind> = {
@@ -111,7 +112,7 @@ function meets<R>(
       if (typeof value !== 'string') return false;
       const day = value.slice(0, 10);
       if (operator === 'within') {
-        const [from, to] = filterPeriod(String(wanted), today);
+        const [from, to] = filterPeriod(String(wanted), today, currentWeek());
         return day >= from && day < to;
       }
       const target = filterDay(String(wanted), today);

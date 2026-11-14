@@ -418,10 +418,11 @@ type Documents = {
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": typeof types.MoveProjectStatusDocument,
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
-    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n    }\n    currentWorkspaceId\n  }\n": typeof types.WorkspacesDocument,
+    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n      weekStart\n      weekEnd\n    }\n    currentWorkspaceId\n  }\n": typeof types.WorkspacesDocument,
     "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateWorkspaceDocument,
     "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
     "\n  mutation SetWorkspaceNotifications($id: ID!, $sources: [NotificationSource!]!) {\n    setWorkspaceNotifications(id: $id, sources: $sources) {\n      id\n    }\n  }\n": typeof types.SetWorkspaceNotificationsDocument,
+    "\n  mutation SetWorkspaceWeek($id: ID!, $start: Int!, $end: Int!) {\n    setWorkspaceWeek(id: $id, start: $start, end: $end) {\n      id\n    }\n  }\n": typeof types.SetWorkspaceWeekDocument,
     "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": typeof types.MoveWorkspaceDocument,
     "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": typeof types.DeleteWorkspaceDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
@@ -830,10 +831,11 @@ const documents: Documents = {
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": types.MoveProjectStatusDocument,
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
-    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n    }\n    currentWorkspaceId\n  }\n": types.WorkspacesDocument,
+    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n      weekStart\n      weekEnd\n    }\n    currentWorkspaceId\n  }\n": types.WorkspacesDocument,
     "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": types.CreateWorkspaceDocument,
     "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateWorkspaceDocument,
     "\n  mutation SetWorkspaceNotifications($id: ID!, $sources: [NotificationSource!]!) {\n    setWorkspaceNotifications(id: $id, sources: $sources) {\n      id\n    }\n  }\n": types.SetWorkspaceNotificationsDocument,
+    "\n  mutation SetWorkspaceWeek($id: ID!, $start: Int!, $end: Int!) {\n    setWorkspaceWeek(id: $id, start: $start, end: $end) {\n      id\n    }\n  }\n": types.SetWorkspaceWeekDocument,
     "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": types.MoveWorkspaceDocument,
     "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": types.DeleteWorkspaceDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": types.UploadAttachmentDocument,
@@ -2454,7 +2456,7 @@ export function graphql(source: "\n  mutation ElsewhereMarkAlarmFired($id: ID!, 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n    }\n    currentWorkspaceId\n  }\n"): typeof import('./graphql').WorkspacesDocument;
+export function graphql(source: "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n      weekStart\n      weekEnd\n    }\n    currentWorkspaceId\n  }\n"): typeof import('./graphql').WorkspacesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2467,6 +2469,10 @@ export function graphql(source: "\n  mutation UpdateWorkspace($id: ID!, $input: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetWorkspaceNotifications($id: ID!, $sources: [NotificationSource!]!) {\n    setWorkspaceNotifications(id: $id, sources: $sources) {\n      id\n    }\n  }\n"): typeof import('./graphql').SetWorkspaceNotificationsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetWorkspaceWeek($id: ID!, $start: Int!, $end: Int!) {\n    setWorkspaceWeek(id: $id, start: $start, end: $end) {\n      id\n    }\n  }\n"): typeof import('./graphql').SetWorkspaceWeekDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

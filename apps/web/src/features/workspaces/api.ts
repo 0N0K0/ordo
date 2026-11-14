@@ -15,6 +15,8 @@ const WorkspacesQueryDocument = graphql(`
       kind
       position
       notifyElsewhere
+      weekStart
+      weekEnd
     }
     currentWorkspaceId
   }
@@ -39,6 +41,14 @@ const UpdateWorkspaceMutation = graphql(`
 const SetWorkspaceNotificationsMutation = graphql(`
   mutation SetWorkspaceNotifications($id: ID!, $sources: [NotificationSource!]!) {
     setWorkspaceNotifications(id: $id, sources: $sources) {
+      id
+    }
+  }
+`);
+
+const SetWorkspaceWeekMutation = graphql(`
+  mutation SetWorkspaceWeek($id: ID!, $start: Int!, $end: Int!) {
+    setWorkspaceWeek(id: $id, start: $start, end: $end) {
       id
     }
   }
@@ -105,6 +115,11 @@ export function useWorkspaceMutations() {
     setNotifications: useMutation({
       mutationFn: (variables: { id: string; sources: NotificationSource[] }) => execute(SetWorkspaceNotificationsMutation, variables),
       onSuccess,
+    }),
+    // Every « this week » follows: everything is reloaded.
+    setWeek: useMutation({
+      mutationFn: (variables: { id: string; start: number; end: number }) => execute(SetWorkspaceWeekMutation, variables),
+      onSuccess: () => queryClient.invalidateQueries(),
     }),
     move: useMutation({ mutationFn: (variables: { id: string; index: number }) => execute(MoveWorkspaceMutation, variables), onSuccess }),
     remove: useMutation({ mutationFn: (id: string) => execute(DeleteWorkspaceMutation, { id }), onSuccess }),

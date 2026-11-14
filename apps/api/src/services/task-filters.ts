@@ -7,10 +7,12 @@ import {
   type FilterCondition,
   type FilterGroup,
   type TaskStatusCategory,
+  type WeekSpan,
 } from '@ordo/shared';
 import { prisma } from '../db';
 import type { Prisma } from '../generated/prisma/client';
 import { doableTaskIds } from './slot-rules';
+import { currentWeek } from './workspaces';
 
 /** Calendar context of the user: relative dates ("today", "this week") are computed in their day. */
 /** Who runs the query: "@me" in assignee conditions is their contributor profile. */
@@ -23,6 +25,8 @@ export interface FilterClock {
   today: string;
   /** User's offset from UTC in minutes (e.g. 60 for UTC+1). */
   utcOffset: number;
+  /** Week of the workspace (« cette semaine »); none: Monday to Sunday. */
+  week?: WeekSpan;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -54,7 +58,7 @@ function resolveDay(token: string, clock: FilterClock): number {
  * @returns {[number, number]} [start, end) as UTC midnight timestamps.
  */
 function resolvePeriod(token: string, clock: FilterClock): [number, number] {
-  const [start, end] = filterPeriod(token, clock.today);
+  const [start, end] = filterPeriod(token, clock.today, clock.week);
   return [dayValue(start), dayValue(end)];
 }
 
@@ -496,6 +500,8 @@ export async function buildTaskWhere({
   user: FilterUser;
   statusAt?: StatusAt;
 }): Promise<Prisma.TaskWhereInput> {
+  // « Cette semaine »: the weeks of the workspace.
+  clock = clock.week ? clock : { ...clock, week: await currentWeek() };
   const trees = await loadTrees(filter, clock);
   return {
     AND: [

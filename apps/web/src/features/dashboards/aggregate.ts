@@ -1,5 +1,6 @@
-import { addDays, calendarRange, CALENDAR_PERIOD, filterPeriod, isTimeDimension, type CalendarScale, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource } from '@ordo/shared';
+import { addDays, calendarRange, CALENDAR_PERIOD, filterPeriod, isTimeDimension, type CalendarScale, type ChartBucket, type ChartConfig, type ChartDimension, type ChartGroupDimension, type ChartMeasure, type ChartSource, weekStartOf } from '@ordo/shared';
 import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -175,8 +176,8 @@ export function bucketOf(day: string, bucket: ChartBucket): string {
   if (bucket === 'month') return `${day.slice(0, 7)}-01`;
   if (bucket === 'year') return `${day.slice(0, 4)}-01-01`;
   if (bucket === 'quarter') return `${day.slice(0, 4)}-${String(Math.floor((Number(day.slice(5, 7)) - 1) / 3) * 3 + 1).padStart(2, '0')}-01`;
-  const weekday = (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
-  return addDays(day, -weekday);
+  // Weeks from the first day of those of the workspace (7 days each: buckets do not overlap).
+  return weekStartOf(day, currentWeek());
 }
 
 /**
@@ -214,7 +215,7 @@ export function bucketLabel(start: string, bucket: ChartBucket): string {
  * @returns {[string | null, string | null]} Range.
  */
 export function periodRange(period: ChartConfig['period'], today: string): [string | null, string | null] {
-  return calendarRange(period, today) ?? (period === 'all' ? [null, null] : filterPeriod(period, today));
+  return calendarRange(period, today) ?? (period === 'all' ? [null, null] : filterPeriod(period, today, currentWeek()));
 }
 
 const ROLLING_LABELS: Record<string, string> = {

@@ -29,6 +29,7 @@ import { ViewToolbar } from './views/ViewToolbar';
 import { sprintPeriod } from './views/sprint-period';
 import classes from './TaskBoard.module.css';
 import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 /**
  * Short day: "3 nov.".
@@ -151,7 +152,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
     if (!showEvents) return null;
     if (eventRange) return eventRange;
     if (sprintRange) return sprintRange;
-    const [from, end] = filterPeriod(eventPeriod, today);
+    const [from, end] = filterPeriod(eventPeriod, today, currentWeek());
     return { from, to: addDays(end, -1) };
   }, [showEvents, eventRange, sprintRange, eventPeriod, today]);
   const eventsQuery = useCalendarEvents(range);

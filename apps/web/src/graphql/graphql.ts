@@ -3930,7 +3930,7 @@ export type ElsewhereMarkAlarmFiredMutation = { markAlarmFired: boolean };
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkspacesQuery = { currentWorkspaceId: string, workspaces: Array<{ id: string, name: string, kind: WorkspaceKind, position: number, notifyElsewhere: Array<NotificationSource> }> };
+export type WorkspacesQuery = { currentWorkspaceId: string, workspaces: Array<{ id: string, name: string, kind: WorkspaceKind, position: number, notifyElsewhere: Array<NotificationSource>, weekStart: number, weekEnd: number }> };
 
 export type CreateWorkspaceMutationVariables = Exact<{
   input: WorkspaceInput;
@@ -3954,6 +3954,15 @@ export type SetWorkspaceNotificationsMutationVariables = Exact<{
 
 
 export type SetWorkspaceNotificationsMutation = { setWorkspaceNotifications: { id: string } };
+
+export type SetWorkspaceWeekMutationVariables = Exact<{
+  id: string | number;
+  start: number;
+  end: number;
+}>;
+
+
+export type SetWorkspaceWeekMutation = { setWorkspaceWeek: { id: string } };
 
 export type MoveWorkspaceMutationVariables = Exact<{
   id: string | number;
@@ -8622,6 +8631,8 @@ export const WorkspacesDocument = new TypedDocumentString(`
     kind
     position
     notifyElsewhere
+    weekStart
+    weekEnd
   }
   currentWorkspaceId
 }
@@ -8647,6 +8658,13 @@ export const SetWorkspaceNotificationsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SetWorkspaceNotificationsMutation, SetWorkspaceNotificationsMutationVariables>;
+export const SetWorkspaceWeekDocument = new TypedDocumentString(`
+    mutation SetWorkspaceWeek($id: ID!, $start: Int!, $end: Int!) {
+  setWorkspaceWeek(id: $id, start: $start, end: $end) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<SetWorkspaceWeekMutation, SetWorkspaceWeekMutationVariables>;
 export const MoveWorkspaceDocument = new TypedDocumentString(`
     mutation MoveWorkspace($id: ID!, $index: Int!) {
   moveWorkspace(id: $id, index: $index)

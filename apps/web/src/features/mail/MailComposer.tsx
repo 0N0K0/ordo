@@ -1,3 +1,4 @@
+import { WEEKDAY_LABELS } from '@ordo/shared';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Modal, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
@@ -9,6 +10,7 @@ import { useMailActions, useMailAccounts } from './api';
 import { mailHtml, type ComposeOptions, type MailLocation, type SourceFiles } from './compose-options';
 import { MailBody } from './MailBody';
 import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
@@ -24,11 +26,13 @@ function schedulePresets(): { label: string; at: Date }[] {
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, hour, 0, 0, 0);
     return date;
   };
-  const monday = (8 - now.getDay()) % 7 || 7;
+  // First day of the next week of the workspace.
+  const week = currentWeek();
+  const nextStart = (week.start - (((now.getDay() + 6) % 7) + 1) + 7) % 7 || 7;
   return [
     ...(now.getHours() < 13 ? [{ label: 'Cet après-midi', at: at(0, 14) }] : []),
     { label: 'Demain matin', at: at(1, 8) },
-    { label: 'Lundi matin', at: at(monday, 8) },
+    { label: `${fmt.capitalize(WEEKDAY_LABELS[week.start - 1])} matin`, at: at(nextStart, 8) },
   ];
 }
 

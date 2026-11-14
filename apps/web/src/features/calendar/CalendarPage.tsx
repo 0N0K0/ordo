@@ -10,7 +10,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { ActionIcon, Alert, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay, shiftTime, type ScheduleSlotTime } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay, shiftTime, type ScheduleSlotTime, weekLength } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -55,6 +55,7 @@ import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
 import { PageSettings } from '../../layouts/PageSettings';
+import { currentWeek, pickerFirstDay } from '../../lib/week';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -122,6 +123,7 @@ const dayOf = (date: Date) => localParts(date).date;
  */
 export function CalendarPage() {
   const calendarRef = useRef<FullCalendar>(null);
+  const week = currentWeek();
   const { context } = useTaskContext();
   const { data: categories } = useCalendarCategories();
   const { data: calendarsData } = useCalendars();
@@ -887,6 +889,9 @@ export function CalendarPage() {
             timeGrid: {
               dayMaxEventRows: allDayExpanded ? false : ALL_DAY_ROWS,
             },
+            // The weeks of the workspace: from its first day, as many days as they last (8 overlapping ones from a
+            // day to the same day), one week further each time.
+            timeGridWeek: { duration: { days: weekLength(week) }, dateAlignment: 'week', dateIncrement: { weeks: 1 } },
           }}
           allDayContent={() => (
             <Tooltip label={allDayExpanded ? 'Réduire la journée entière' : 'Développer la journée entière'}>
@@ -906,7 +911,7 @@ export function CalendarPage() {
             setAllDayExpanded(true);
             return info.view.type;
           }}
-          firstDay={1}
+          firstDay={pickerFirstDay(week)}
           nowIndicator
           weekNumbers
           editable

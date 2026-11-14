@@ -8,6 +8,7 @@ import { MY_TASKS_PERIODS, myTasksFilter, type MyTasksPeriod } from '../features
 import { TaskBoard } from '../features/tasks/TaskBoard';
 import { TaskSettings } from '../features/tasks/settings/TaskSettings';
 import { PageSettings } from '../layouts/PageSettings';
+import { currentWeek } from '../lib/week';
 
 /**
  * My tasks of today, tomorrow or this week, across every project, with their own saved views.
@@ -21,7 +22,7 @@ export function TasksPage() {
   const today = localToday();
   const eventRange = useMemo(() => {
     if (period === 'week') {
-      const [from, end] = filterPeriod('thisWeek', today);
+      const [from, end] = filterPeriod('thisWeek', today, currentWeek());
       return { from, to: addDays(end, -1) };
     }
     const day = period === 'tomorrow' ? addDays(today, 1) : today;

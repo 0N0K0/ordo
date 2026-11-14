@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_WEEK, weekRange, type WeekSpan } from './weeks';
 
 /** Fixed meaning of a task status. */
 export const TASK_STATUS_CATEGORIES = ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
@@ -114,12 +115,13 @@ export function filterDay(token: string, today: string): string {
 
 /**
  * First day and the day after the last one of a period token (`thisWeek`, `lastMonth`, `past:7`, `next:30`…).
- * Weeks start on Monday.
+ * Weeks are those of the workspace (Monday to Sunday by default).
  * @param {string} token Period token.
  * @param {string} today User's current day (YYYY-MM-DD).
+ * @param {WeekSpan} [week] Week of the workspace. Optional. Default = Monday to Sunday.
  * @returns {[string, string]} [first day, day after the last one], YYYY-MM-DD.
  */
-export function filterPeriod(token: string, today: string): [string, string] {
+export function filterPeriod(token: string, today: string, week: WeekSpan = DEFAULT_WEEK): [string, string] {
   const day = Date.parse(`${today}T00:00:00.000Z`);
   const rolling = /^(past|next):(\d+)$/.exec(token);
   if (rolling) {
@@ -127,11 +129,7 @@ export function filterPeriod(token: string, today: string): [string, string] {
     return rolling[1] === 'past' ? [isoDay(day - (days - 1) * DAY_MS), isoDay(day + DAY_MS)] : [isoDay(day), isoDay(day + days * DAY_MS)];
   }
   const date = new Date(day);
-  if (token.endsWith('Week')) {
-    const monday = day - ((date.getUTCDay() + 6) % 7) * DAY_MS;
-    const shift = token === 'lastWeek' ? -7 : token === 'nextWeek' ? 7 : 0;
-    return [isoDay(monday + shift * DAY_MS), isoDay(monday + (shift + 7) * DAY_MS)];
-  }
+  if (token.endsWith('Week')) return weekRange(today, week, token === 'lastWeek' ? -1 : token === 'nextWeek' ? 1 : 0);
   if (token.endsWith('Year')) {
     const shift = token === 'lastYear' ? -1 : token === 'nextYear' ? 1 : 0;
     const year = date.getUTCFullYear() + shift;

@@ -1,4 +1,5 @@
-import { ActionIcon, Badge, Button, Chip, Group, Paper, SegmentedControl, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Chip, Group, Paper, SegmentedControl, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { readWeek, WEEKDAY_LABELS, weekLength } from '@ordo/shared';
 import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -19,6 +20,8 @@ const SOURCES: { value: NotificationSource; label: string }[] = [
   { value: 'MAILS', label: 'Nouveaux mails' },
 ];
 
+const WEEKDAYS = WEEKDAY_LABELS.map((label, index) => ({ value: String(index + 1), label }));
+
 interface WorkspaceRowProps {
   workspace: Workspace;
   index: number;
@@ -34,7 +37,8 @@ interface WorkspaceRowProps {
  * @returns {JSX.Element} Row.
  */
 function WorkspaceRow({ workspace, index, count, current, fallbackId }: WorkspaceRowProps) {
-  const { update, setNotifications, move, remove } = useWorkspaceMutations();
+  const { update, setNotifications, setWeek, move, remove } = useWorkspaceMutations();
+  const week = readWeek(workspace);
   const [name, setName] = useState(workspace.name);
   const [confirming, setConfirming] = useState(false);
   const onError = (error: Error) => notifyError(error.message);
@@ -142,6 +146,35 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
             </Chip>
           ))}
         </Chip.Group>
+      </Group>
+      <Group gap="xs" pl={28} align="center">
+        <Text size="xs" c="dimmed">
+          Semaine du
+        </Text>
+        <Select
+          size="xs"
+          w={120}
+          aria-label="Premier jour de la semaine"
+          data={WEEKDAYS}
+          value={String(week.start)}
+          allowDeselect={false}
+          onChange={(value) => value && setWeek.mutate({ id: workspace.id, start: Number(value), end: week.end }, { onError })}
+        />
+        <Text size="xs" c="dimmed">
+          au
+        </Text>
+        <Select
+          size="xs"
+          w={120}
+          aria-label="Dernier jour de la semaine"
+          data={WEEKDAYS}
+          value={String(week.end)}
+          allowDeselect={false}
+          onChange={(value) => value && setWeek.mutate({ id: workspace.id, start: week.start, end: Number(value) }, { onError })}
+        />
+        <Text size="xs" c="dimmed">
+          {weekLength(week) === 8 ? '8 jours : les semaines se chevauchent ce jour-là.' : `${weekLength(week)} jours.`} Vue semaine de l’agenda, « cette semaine »…
+        </Text>
       </Group>
     </Stack>
   );

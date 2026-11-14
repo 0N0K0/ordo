@@ -1857,6 +1857,11 @@ type Mutation {
   """
   setWorkspaceNotifications(id: ID!, sources: [NotificationSource!]!): Workspace!
 
+  """
+  Sets the first and last days of the weeks of a workspace (1 = Monday … 7 = Sunday).
+  """
+  setWorkspaceWeek(end: Int!, id: ID!, start: Int!): Workspace!
+
   """Starts a timer; the running one is stopped first."""
   startTimer(input: TimerInput!): TimeEntry!
   stopTimer: TimeEntry
@@ -3789,6 +3794,14 @@ type Workspace {
   """Notifications it still gives while another workspace is open."""
   notifyElsewhere: [NotificationSource!]!
   position: Int!
+
+  """
+  Last day of its weeks, included; the first one: weeks of 8 days, overlapping.
+  """
+  weekEnd: Int!
+
+  """First day of its weeks, 1 (Monday) to 7 (Sunday)."""
+  weekStart: Int!
 }
 
 input WorkspaceInput {
