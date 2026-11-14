@@ -79,7 +79,15 @@ export interface DataViewBarProps<R> {
  * @param {DataViewBarProps<R>} props Component props.
  * @returns {JSX.Element} Bar.
  */
-export function DataViewBar<R>({ view, searchLabel = 'Rechercher', actions, tools, displayOptions, exports, manualText = 'Sans tri : l’ordre par défaut du tableau.' }: DataViewBarProps<R>) {
+export function DataViewBar<R>({
+  view,
+  searchLabel = 'Rechercher',
+  actions,
+  tools,
+  displayOptions,
+  exports,
+  manualText = 'Sans tri : l’ordre choisi à la main (glissez les lignes), sinon celui du tableau.',
+}: DataViewBarProps<R>) {
   const { config, views } = view;
   const sortable = view.columns.filter((column) => column.sortValue);
   const groupable = groupableColumns(view.columns);
@@ -101,23 +109,22 @@ export function DataViewBar<R>({ view, searchLabel = 'Rechercher', actions, tool
               dirty={views.dirty}
               onSave={views.save}
               onRevert={views.revert}
+              footer={{ shown: config.footer !== null, onChange: (shown) => view.change((current) => ({ ...current, footer: shown ? (current.footer ?? {}) : null })) }}
               display={
-                (groupable.length > 0 || displayOptions) && (
-                  <>
-                    {groupable.length > 0 && (
-                      <Select
-                        label="Grouper par"
-                        placeholder="Aucun groupe"
-                        data={groupable.map((column) => ({ value: column.id, label: column.label }))}
-                        value={view.groupColumn?.id ?? null}
-                        onChange={(groupBy) => view.change((current) => ({ ...current, groupBy }))}
-                        clearable
-                        comboboxProps={inPanel}
-                      />
-                    )}
-                    {displayOptions}
-                  </>
-                )
+                <>
+                  {groupable.length > 0 && (
+                    <Select
+                      label="Grouper par"
+                      placeholder="Aucun groupe"
+                      data={groupable.map((column) => ({ value: column.id, label: column.label }))}
+                      value={view.groupColumn?.id ?? null}
+                      onChange={(groupBy) => view.change((current) => ({ ...current, groupBy }))}
+                      clearable
+                      comboboxProps={inPanel}
+                    />
+                  )}
+                  {displayOptions}
+                </>
               }
               columns={<DataColumnsPanel columns={view.columns} layout={view.layout} onLayoutChange={view.setLayout} />}
               exports={

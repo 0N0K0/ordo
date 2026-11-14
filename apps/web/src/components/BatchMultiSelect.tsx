@@ -1,4 +1,6 @@
 import { MultiSelect, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
+import { notifyError } from '../lib/notify';
+import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 import { useRef, useState } from 'react';
 import classes from './BatchMultiSelect.module.css';
 
@@ -54,7 +56,19 @@ function selectedFirst(data: ComboboxData | undefined, selected: string[]): Comb
  * @param {MultiSelectProps} props Props of Mantine's MultiSelect (value and onChange: the committed value).
  * @returns {JSX.Element} Multi-select.
  */
-export function BatchMultiSelect({ value, defaultValue, onChange, onDropdownOpen, onDropdownClose, data, classNames, ...props }: MultiSelectProps) {
+export function BatchMultiSelect({
+  value,
+  defaultValue,
+  onChange,
+  onDropdownOpen,
+  onDropdownClose,
+  data,
+  classNames,
+  onCreate,
+  filter,
+  ...props
+}: MultiSelectProps & { onCreate?: (name: string) => Promise<string | null | undefined> }) {
+  const [search, setSearch] = useState('');
   const [uncontrolled, setUncontrolled] = useState<string[]>(defaultValue ?? []);
   const committed = value ?? uncontrolled;
   const [draft, setDraft] = useState<string[] | null>(null);
@@ -76,7 +90,9 @@ export function BatchMultiSelect({ value, defaultValue, onChange, onDropdownOpen
   return (
     <MultiSelect
       {...props}
-      data={selectedFirst(data, order ?? committed)}
+      data={onCreate ? withCreate(selectedFirst(data, order ?? committed), search) : selectedFirst(data, order ?? committed)}
+      {...(onCreate && { searchable: true, searchValue: search, onSearchChange: setSearch, filter: keepCreate(filter) })}
+      {...(!onCreate && filter && { filter })}
       classNames={{
         ...(typeof classNames === 'object' ? classNames : {}),
         pillsList: [classes.pillsList, typeof classNames === 'object' ? classNames.pillsList : undefined].filter(Boolean).join(' '),
@@ -97,7 +113,24 @@ export function BatchMultiSelect({ value, defaultValue, onChange, onDropdownOpen
         if (next) commit(next);
         onDropdownClose?.();
       }}
-      onChange={(next) => {
+      onChange={(picked) => {
+        // « Créer « … » »: the setting is made, then chosen with the others.
+        let next = picked;
+        if (onCreate && picked.includes(CREATE_VALUE)) {
+          next = picked.filter((item) => item !== CREATE_VALUE);
+          const name = search.trim();
+          setSearch('');
+          onCreate(name)
+            .then((id) => {
+              if (!id) return;
+              const base = draftRef.current ?? committed;
+              if (draftRef.current) {
+                draftRef.current = [...base, id];
+                setDraft(draftRef.current);
+              } else commit([...base, id]);
+            })
+            .catch((error: Error) => notifyError(error.message));
+        }
         if (draftRef.current) {
           draftRef.current = next;
           setDraft(next);

@@ -1,61 +1,22 @@
 import { PageHeader } from '../components/actions/PageHeader';
-import { SegmentedControl, Stack } from '@mantine/core';
-import { addDays, filterPeriod } from '@ordo/shared';
-import { useMemo } from 'react';
-import { useSearchParams } from 'react-router';
-import { localToday } from '../lib/dates';
-import { MY_TASKS_PERIODS, myTasksFilter, type MyTasksPeriod } from '../features/tasks/my-tasks';
+import { Stack } from '@mantine/core';
 import { TaskBoard } from '../features/tasks/TaskBoard';
 import { TaskSettings } from '../features/tasks/settings/TaskSettings';
 import { PageSettings } from '../layouts/PageSettings';
-import { currentWeek } from '../lib/week';
 
 /**
- * My tasks of today, tomorrow or this week, across every project, with their own saved views.
+ * Every task, of every project and of none, with their own saved views (filters, groups, the period of the events…).
  * @returns {JSX.Element} Page.
  */
 export function TasksPage() {
-  const [params, setParams] = useSearchParams();
-  const period = (MY_TASKS_PERIODS.find((item) => item.value === params.get('period'))?.value ?? 'today') as MyTasksPeriod;
-  const baseFilter = useMemo(() => myTasksFilter(period), [period]);
-  // Events of the same days as the tasks.
-  const today = localToday();
-  const eventRange = useMemo(() => {
-    if (period === 'week') {
-      const [from, end] = filterPeriod('thisWeek', today, currentWeek());
-      return { from, to: addDays(end, -1) };
-    }
-    const day = period === 'tomorrow' ? addDays(today, 1) : today;
-    return { from: day, to: day };
-  }, [period, today]);
-
   return (
     <Stack gap="md">
-      <PageHeader title="Mes tâches" />
+      <PageHeader title="Tâches" />
       {/* Statuses, priorities, types, tags and columns of the tasks: in the settings sidebar, as on every page. */}
       <PageSettings title="Paramètres des tâches">
         <TaskSettings />
       </PageSettings>
-      <TaskBoard
-        projectId={null}
-        baseFilter={baseFilter}
-        emptyMessage="Rien de prévu sur cette période."
-        title={`Mes tâches — ${MY_TASKS_PERIODS.find((item) => item.value === period)?.label}`}
-        eventRange={eventRange}
-        header={
-          <SegmentedControl
-            aria-label="Période"
-            data={MY_TASKS_PERIODS}
-            value={period}
-            onChange={(value) => {
-              const next = new URLSearchParams(params);
-              if (value === 'today') next.delete('period');
-              else next.set('period', value);
-              setParams(next, { replace: true });
-            }}
-          />
-        }
-      />
+      <TaskBoard projectId={null} baseFilter={null} emptyMessage="Aucune tâche." title="Tâches" />
     </Stack>
   );
 }

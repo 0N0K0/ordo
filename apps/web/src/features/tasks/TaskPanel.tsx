@@ -423,18 +423,20 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               disabled={transferTask.isPending}
             />
             <LabelSelect
+              kind="status"
               label="Statut"
               labels={context.statuses}
               value={task.statusId}
               onChange={(statusId) => save({ statusId })}
             />
             <LabelSelect
+              kind="priority"
               label="Priorité"
               labels={context.priorities}
               value={task.priorityId}
               onChange={(priorityId) => save({ priorityId })}
             />
-            <LabelSelect label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
+            <LabelSelect kind="type" label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
             <AssigneesSelect
               contributors={context.assignableFor([task.projectId], task.assigneeIds)}
               value={task.assigneeIds}

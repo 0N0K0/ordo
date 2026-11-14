@@ -41,6 +41,7 @@ import { handleFileClick } from '../files/open-file';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
+import { TableFooter } from '../../components/data-table/TableFooter';
 
 /**
  * Printed calendar date.
@@ -495,6 +496,9 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                 ];
               })}
             </Table.Tbody>
+            {view.config?.footer && (
+              <TableFooter shown={view.shown} rows={actual} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={0} after={1} />
+            )}
           </Table>
         </Paper>
       )}

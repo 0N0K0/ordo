@@ -34,6 +34,7 @@ import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGroup
 import classes from './Shopping.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
+import { TableFooter } from '../../components/data-table/TableFooter';
 
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
@@ -277,6 +278,31 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   );
                 })}
               </Table.Tbody>
+              {config?.footer && (
+                <TableFooter
+                  shown={shownList.map((column) => ({
+                    ...column,
+                    // Numbers of the counted columns, a text for the others (counted).
+                    sortValue:
+                      column.id === 'remaining'
+                        ? (list: ShoppingList) => list.items.filter((item) => !item.purchasedAt).length
+                        : column.id === 'itemCount'
+                          ? (list: ShoppingList) => list.items.length
+                          : column.id === 'total'
+                            ? (list: ShoppingList) => shoppingTotal(list.items) || null
+                            : column.id === 'comments'
+                              ? (list: ShoppingList) => listComments.get(list.id) || null
+                              : (list: ShoppingList) => (column.id === 'tasks' ? (list.taskIds.length ? list.taskIds.length : null) : column.id === 'closedAt' ? list.closedAt : list.name),
+                    numeric: ['remaining', 'itemCount', 'total', 'comments'].includes(column.id),
+                    formatTotal: column.id === 'total' ? (amount: number) => fmt.money(amount) : undefined,
+                  }))}
+                  rows={shown}
+                  totals={config.footer}
+                  onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))}
+                  before={0}
+                  after={1}
+                />
+              )}
             </Table>
           </div>
         </Paper>

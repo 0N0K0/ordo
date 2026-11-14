@@ -42,14 +42,39 @@ export function rememberWorkspace(id: string): void {
   pinWorkspace(id);
 }
 
+/** Pages of one item: in another workspace, the page of their list (a project: the home page). */
+const ITEM_PAGES: [RegExp, string][] = [
+  [/^\/projects\/[^/]+/, '/'],
+  [/^\/clients\/[^/]+/, '/'],
+  [/^\/accounting\/(imported\/)?[^/]+/, '/accounting'],
+  [/^\/shopping\/[^/]+/, '/shopping'],
+];
+
+/** Parameters of a page that still mean something in another workspace (others name its items or views). */
+const KEPT_PARAMS = ['tab'];
+
 /**
- * Opens another workspace in this window only: it reloads on its home page, or on a page of that workspace
- * (the pages of a workspace mean nothing in another one). The other windows stay where they are.
+ * The page of this window, as it reads in another workspace: the same page, but the page of a list for the page of
+ * one of its items (home for a project), without what names items or views of this workspace.
+ * @returns {string} Path.
+ */
+export function samePageElsewhere(): string {
+  const { pathname, search } = window.location;
+  const list = ITEM_PAGES.find(([pattern]) => pattern.test(pathname));
+  if (list) return list[1];
+  const params = new URLSearchParams(search);
+  const kept = new URLSearchParams(KEPT_PARAMS.flatMap((key) => (params.has(key) ? [[key, params.get(key)!]] : [])));
+  return `${pathname}${kept.size ? `?${kept}` : ''}`;
+}
+
+/**
+ * Opens another workspace in this window only: it reloads on the same page (the page of a list for one of its items,
+ * home for a project), or on a page given. The other windows stay where they are.
  * @param {string} id Workspace.
- * @param {string} [path] Page opened. Optional. Default = home page.
+ * @param {string} [path] Page opened. Optional. Default = the same page.
  * @returns {void}
  */
-export function switchWorkspace(id: string, path = '/'): void {
+export function switchWorkspace(id: string, path = samePageElsewhere()): void {
   rememberWorkspace(id);
   window.location.assign(path);
 }

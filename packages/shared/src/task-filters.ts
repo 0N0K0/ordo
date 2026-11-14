@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TABLE_AGGREGATES } from './aggregates';
 import { DEFAULT_WEEK, weekRange, type WeekSpan } from './weeks';
 
 /** Fixed meaning of a task status. */
@@ -344,6 +345,8 @@ export const taskViewConfigSchema = z.object({
   events: z
     .object({ show: z.boolean().default(false), period: z.enum(EVENT_PERIODS).catch('next:30').default('next:30') })
     .default({ show: false, period: 'next:30' }),
+  /** Footer of the table: the total shown under each column (count, sum, average, median); null: no footer. */
+  footer: z.record(z.string().max(64), z.enum(TABLE_AGGREGATES)).nullable().catch(null).default(null),
 });
 export type TaskViewConfig = z.infer<typeof taskViewConfigSchema>;
 

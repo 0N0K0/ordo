@@ -221,6 +221,7 @@ export function ViewToolbar({
           onSave={onSave}
           onRevert={onRevert}
           display={<DisplayOptions config={config} change={change} eventPeriodLocked={eventPeriodLocked} eventPeriodLabel={eventPeriodLabel} />}
+          footer={{ shown: config.footer !== null, onChange: (shown) => change((current) => ({ ...current, footer: shown ? (current.footer ?? {}) : null })) }}
           columns={
             <ColumnsPanel
               columnOrder={config.columnOrder}

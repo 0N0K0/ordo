@@ -1,6 +1,6 @@
 @layer app {
   /*
-   * Tabs of the views, then the controls of the page (the period of « Mes tâches ») on their right; without room
+   * Tabs of the views, then the controls of the page (on a page that has some) on their right; without room
    * for both, the controls go above the tabs (the line that wraps comes first).
    */
   .top {
