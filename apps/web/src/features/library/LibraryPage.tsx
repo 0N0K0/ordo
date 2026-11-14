@@ -62,6 +62,7 @@ import tableClasses from '../../components/data-table/DataTable.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
+import { TableFooter } from '../../components/data-table/TableFooter';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
@@ -787,6 +788,9 @@ export function LibraryPage() {
                       ])}
                       </SortableContext>
                     </Table.Tbody>
+                    {view.config?.footer && (
+                      <TableFooter shown={shownCols} rows={shown} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={2} after={1} />
+                    )}
                   </Table>
                 )}
               </Paper>

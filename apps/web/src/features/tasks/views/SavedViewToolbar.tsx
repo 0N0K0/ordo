@@ -1,3 +1,4 @@
+import type { TableAggregate } from '@ordo/shared';
 import { Select } from '@mantine/core';
 import type { FilterGroupOf } from '@ordo/shared';
 import type { ReactNode } from 'react';
@@ -12,6 +13,8 @@ export interface ToolbarConfig<F extends string, K extends string, G extends str
   search: string;
   sorting: { id: K; desc: boolean }[];
   groupBy: G | null;
+  /** Totals under the columns; null: no footer. */
+  footer: Record<string, TableAggregate> | null;
 }
 
 interface SavedViewToolbarProps<F extends string, K extends string, G extends string, C extends ToolbarConfig<F, K, G>> {
@@ -78,6 +81,7 @@ export function SavedViewToolbar<F extends string, K extends string, G extends s
           width={320}
           columns={columns}
           exports={exports}
+          footer={{ shown: config.footer !== null, onChange: (shown) => change((current) => ({ ...current, footer: shown ? (current.footer ?? {}) : null })) }}
           display={
             <>
               <Select

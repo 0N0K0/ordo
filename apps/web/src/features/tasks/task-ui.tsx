@@ -14,10 +14,12 @@ import {
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useTaskLink } from './use-task-link';
-import type { Contributor, Task, TaskLabel } from './api';
+import { useTaskLabelMutations, type Contributor, type Task, type TaskLabel, type TaskLabelKind } from './api';
 import { taskRef, type TaskContext } from './use-task-context';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { CreatableSelect } from '../../components/CreatableSelect';
+import { useDefaultColor } from '../workspace/use-default-color';
 
 /**
  * Colored badge of a status, priority or type.
@@ -96,6 +98,22 @@ function ColorOption({ option }: { option: ComboboxItem }) {
 
 interface LabelSelectProps extends Omit<SelectProps, 'data'> {
   labels: TaskLabel[];
+  /** Kind of label: given, what is typed and is none of them can be created. Optional. */
+  kind?: Exclude<TaskLabelKind, 'tag'>;
+}
+
+/**
+ * Creates a task label named as typed (the default color), resolving its id.
+ * @param {TaskLabelKind} kind Kind of label.
+ * @returns {(name: string) => Promise<string | null>} Creator.
+ */
+function useLabelCreator(kind: TaskLabelKind) {
+  const { create } = useTaskLabelMutations(kind);
+  const color = useDefaultColor();
+  return async (name: string) => {
+    const result = (await create.mutateAsync({ name, color })) as Record<string, { id: string } | undefined>;
+    return Object.values(result)[0]?.id ?? null;
+  };
 }
 
 /**
@@ -103,10 +121,12 @@ interface LabelSelectProps extends Omit<SelectProps, 'data'> {
  * @param {LabelSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function LabelSelect({ labels, value, onChange, ...props }: LabelSelectProps) {
+export function LabelSelect({ labels, value, onChange, kind, ...props }: LabelSelectProps) {
   const current = labels.find((label) => label.id === value);
+  const create = useLabelCreator(kind ?? 'status');
   return (
-    <Select
+    <CreatableSelect
+      onCreate={kind ? create : undefined}
       data={labels.map((label) => ({ value: label.id, label: label.name, color: label.color }))}
       renderOption={({ option }) => <ColorOption option={option} />}
       leftSection={current ? <ColorSwatch color={current.color} size={10} /> : undefined}
@@ -131,8 +151,10 @@ interface TagsSelectProps {
  * @returns {JSX.Element} Select.
  */
 export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
+  const create = useLabelCreator('tag');
   return (
     <BatchMultiSelect
+      onCreate={create}
       label="Étiquettes"
       placeholder={value.length ? undefined : 'Aucune'}
       data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
@@ -146,7 +168,7 @@ export function TagsSelect({ tags, value, onChange }: TagsSelectProps) {
       onChange={onChange}
       searchable
       clearable
-      nothingFoundMessage="Aucune étiquette : créez-en dans Paramètres › Tâches"
+      nothingFoundMessage="Aucune étiquette : tapez son nom pour la créer"
     />
   );
 }

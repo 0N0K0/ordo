@@ -11,6 +11,8 @@ import { AmountInput } from '../../components/AmountInput';
 import { useTaskContext } from '../tasks/use-task-context';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
+import { CreatableSelect } from '../../components/CreatableSelect';
+import { useDefaultColor } from '../workspace/use-default-color';
 
 /**
  * Names of the people a product or an item is for, as small badges.
@@ -60,6 +62,7 @@ export interface ShoppingFormProps {
 export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const { data } = useShoppingData();
   const mutations = useShoppingMutations();
+  const color = useDefaultColor();
   const { context } = useTaskContext();
   const current = target.kind === 'product' ? target.product : target.item;
   // Item of a list of projects: their contributors are the members offered.
@@ -125,21 +128,23 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             />
           )}
           <SimpleGrid cols={{ base: 1, xs: 2 }}>
-            <Select
+            <CreatableSelect
               label="Catégorie"
               placeholder="Aucune"
               clearable
               searchable
+              onCreate={(name) => mutations.createCategory.mutateAsync({ name, color, parentId: null })}
               {...treeSelectProps(
                 shoppingCategoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? [])),
               )}
               {...form.getInputProps('categoryId')}
             />
-            <Select
+            <CreatableSelect
               label="Magasin"
               placeholder="Aucun"
               clearable
               searchable
+              onCreate={(name) => mutations.createStore.mutateAsync({ name, color })}
               data={(data?.shoppingStores ?? []).map((item) => ({ value: item.id, label: item.name }))}
               {...form.getInputProps('storeId')}
             />
@@ -154,10 +159,15 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               {...form.getInputProps('quantity')}
               onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
             />
-            <Select
+            <CreatableSelect
               label="Unité"
-              description="Les unités se règlent dans les paramètres des achats."
+              description="Tapez une unité absente pour l’ajouter aux paramètres des achats."
               placeholder="Aucune"
+              // A unit is kept by its name.
+              onCreate={async (name) => {
+                await mutations.createUnit.mutateAsync({ name, color });
+                return name;
+              }}
               data={unitOptions(data?.shoppingUnits ?? [], current?.unit)}
               searchable
               clearable
@@ -175,10 +185,12 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
           <Checkbox label="Périssable" description="À conserver d’une certaine façon, jusqu’à une date de péremption." {...form.getInputProps('perishable', { type: 'checkbox' })} />
           {values.perishable && (
             <SimpleGrid cols={{ base: 1, xs: 2 }}>
-              <Select
+              <CreatableSelect
                 label="Mode de conservation"
-                placeholder={(data?.shoppingStorages ?? []).length ? 'Aucun' : 'Aucun (ajoutez-en dans les paramètres)'}
+                placeholder="Aucun"
                 clearable
+                searchable
+                onCreate={(name) => mutations.createStorage.mutateAsync({ name, color })}
                 data={(data?.shoppingStorages ?? []).map((storage) => ({ value: storage.id, label: storage.name }))}
                 {...form.getInputProps('storageId')}
               />

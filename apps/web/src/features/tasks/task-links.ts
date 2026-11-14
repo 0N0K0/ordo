@@ -44,7 +44,7 @@ export function subtreeIds(context: TaskContext, taskId: string): Set<string> {
 }
 
 /**
- * Page of a task: the tasks tab of its project with the task open, or « Mes tâches » for a task of no project.
+ * Page of a task: the tasks tab of its project with the task open, or « Tâches » for a task of no project.
  * @param {{ id: string, projectId: string | null }} task Task.
  * @returns {string} Path.
  */

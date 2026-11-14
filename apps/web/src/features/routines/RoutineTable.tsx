@@ -1,3 +1,4 @@
+import type { TableAggregate } from '@ordo/shared';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import {
   closestCenter,
@@ -80,6 +81,7 @@ import classes from './Routines.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
+import { TableFooter } from '../../components/data-table/TableFooter';
 
 /** Width of the cells around the columns: handle and selection before, actions after. */
 const LEAD_WIDTH = 64;
@@ -550,6 +552,8 @@ interface RoutineTableProps {
   addable: boolean;
   /** Columns (order, hidden ones, widths) and their change. */
   columns: ColumnLayout;
+  /** Footer: the totals chosen under the columns, the texts of their cells (counted), how to change them. Optional. */
+  footer?: { totals: Record<string, TableAggregate>; texts: Record<string, (routine: Routine) => string>; onChange: (totals: Record<string, TableAggregate>) => void } | null;
   onColumnsChange: (layout: ColumnLayout) => void;
   /** Sorts of the view and their change (a click on a header). */
   sorting: readonly TableSort[];
@@ -582,6 +586,7 @@ export function RoutineTable({
   columnExtras,
   sorting,
   onSortingChange,
+  footer,
 }: RoutineTableProps) {
   const shownCols = shownColumns(ROUTINE_COLUMNS, columns);
   const span = shownCols.length + 2;
@@ -873,6 +878,30 @@ export function RoutineTable({
           />
           <RoutineCellSelectionContext.Provider value={effectiveCellSelection}>
             <Table.Tbody>{body()}</Table.Tbody>
+            {footer && (
+              <TableFooter
+                shown={shownCols.map((column) => ({
+                  ...column,
+                  // Numbers of the numeric columns, the text of the others (counted).
+                  sortValue:
+                    column.id === 'estimate'
+                      ? (routine: Routine) => routine.estimate ?? null
+                      : column.id === 'trackedTime'
+                        ? (routine: Routine) => routine.trackedSeconds || null
+                        : column.id === 'comments'
+                          ? (routine: Routine) => commentTotal(comments, routine.id, routine.description) || null
+                          : undefined,
+                  text: footer.texts[column.id] ?? (() => ''),
+                  numeric: ['estimate', 'trackedTime', 'comments'].includes(column.id),
+                  formatTotal: column.id === 'trackedTime' ? (seconds: number) => formatDuration(Math.round(seconds)) : column.id === 'estimate' ? (minutes: number) => `${fmt.number(minutes, 0)} min` : undefined,
+                }))}
+                rows={[...new Map(routineRowsShown.map((row) => [row.routine.id, row.routine])).values()]}
+                totals={footer.totals}
+                onChange={footer.onChange}
+                before={1}
+                after={1}
+              />
+            )}
           </RoutineCellSelectionContext.Provider>
         </Table>
       </div>

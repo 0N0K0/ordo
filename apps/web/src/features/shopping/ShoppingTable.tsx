@@ -28,6 +28,7 @@ import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import type { DataView } from '../../components/data-table/use-data-view';
 import { NoMatch } from '../../components/data-table/GroupHeaderRow';
+import { TableFooter } from '../../components/data-table/TableFooter';
 
 /** What a row is dropped on: a heading or a row of a category (or store), null for the one without. */
 interface DropData {
@@ -368,6 +369,9 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
               trailing={<Table.Th w={ACTIONS_WIDTH} />}
             />
             <Table.Tbody>{body()}</Table.Tbody>
+            {view.config?.footer && (
+              <TableFooter shown={shown} rows={view.rows} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={2} after={1} />
+            )}
           </Table>
         </div>
       </Paper>

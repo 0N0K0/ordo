@@ -70,11 +70,13 @@ import {
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
 import { EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell, EventBeneficiariesCell } from './views/event-cells';
 import { AddTaskRow, SummaryRow } from './views/table-extras';
-import type { DisplayRow, TaskRow } from './views/task-rows';
+import { eventSortValue, sortValue, type DisplayRow, type TaskRow } from './views/task-rows';
 import { contentWidth, useFillHeight } from './column-fit';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
+import { TableFooter } from '../../components/data-table/TableFooter';
+import type { ShownColumn } from '../../components/data-table/data-table';
 
 // Stable module-level registry. Sorting is applied when building the rows (so it works with groups
 // and sub-tasks), the table only holds the sorting state and header interactions.
@@ -534,6 +536,23 @@ export function TaskTable({
 
   const visibleRows = table.getRowModel().rows;
   const visibleColumns = table.getVisibleLeafColumns();
+  // Footer: the totals of the task columns (the others, selection and handles, empty).
+  const footerColumns = visibleColumns.map((column): ShownColumn<DisplayRow> => {
+    const id = column.id as TaskColumn;
+    if (!(TASK_COLUMNS as readonly string[]).includes(id)) return { id: column.id, label: '', size: 0, width: 0 };
+    return {
+      id,
+      label: COLUMN_LABELS[id],
+      size: 0,
+      width: 0,
+      numeric: id === 'effort' || id === 'trackedTime' || id === 'comments',
+      formatTotal: id === 'trackedTime' ? (seconds) => formatDuration(Math.round(seconds)) : undefined,
+      sortValue: (row) => {
+        const value = row.kind === 'task' ? sortValue(row.task, id, context) : row.kind === 'event' ? eventSortValue(row.event, id, context) : null;
+        return typeof value === 'number' || typeof value === 'string' ? value : value === true ? 1 : null;
+      },
+    };
+  });
   const taskRows = visibleRows.filter((row) => row.original.kind === 'task');
   const taskRowIds = taskRows.map((row) => row.id);
   const grouped = config.groupBy !== null;
@@ -936,6 +955,16 @@ export function TaskTable({
             </Table.Thead>
             <SortableContext items={dragItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
               <Table.Tbody>{body}</Table.Tbody>
+              {config.footer && (
+                <TableFooter
+                  shown={footerColumns}
+                  rows={visibleRows.map((row) => row.original)}
+                  totals={config.footer}
+                  onChange={(totals) => change((current) => ({ ...current, footer: totals }))}
+                  before={0}
+                  after={0}
+                />
+              )}
             </SortableContext>
             <Table.Tfoot>
               <SummaryRow

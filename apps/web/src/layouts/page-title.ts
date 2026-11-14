@@ -1,7 +1,7 @@
 /** Name of each page of the app, by the first segment of its path (clients and projects show their own). */
 const PAGE_TITLES: Record<string, string> = {
   '': 'Accueil',
-  tasks: 'Mes tâches',
+  tasks: 'Tâches',
   calendar: 'Agenda',
   time: 'Chronos',
   alarms: 'Alarmes',

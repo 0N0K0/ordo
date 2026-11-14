@@ -17,6 +17,7 @@ import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
+import { useDefaultColor } from '../workspace/use-default-color';
 
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
@@ -90,7 +91,8 @@ function subtreeOf(routines: Routine[], id: string): Set<string> {
 export function RoutineForm({ routine, copy = false, parent, categoryId = null, projectId = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
-  const { create, update } = useRoutineMutations();
+  const { create, update, createCategory } = useRoutineMutations();
+  const color = useDefaultColor();
   const routines = data?.routines ?? [];
   const source = routine ?? parent;
   const form = useAppForm<RoutineFormValues>({
@@ -207,12 +209,13 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 />
               )}
               <BatchMultiSelect
+                onCreate={(name) => createCategory.mutateAsync({ name, color, parentId: null })}
                 label="Catégories"
                 placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
                 clearable
                 searchable
                 {...treeSelectProps(categoryOptions(data?.routineCategories ?? []))}
-                nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
+                nothingFoundMessage="Aucune catégorie : tapez son nom pour la créer"
                 {...form.getInputProps('categoryIds')}
               />
               {context && (

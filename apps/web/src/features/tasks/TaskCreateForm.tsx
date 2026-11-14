@@ -154,9 +154,9 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           onSubmitShortcut={() => handleSubmit()}
         />
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-          <LabelSelect labels={context.statuses} label="Statut" {...form.getInputProps('statusId')} />
-          <LabelSelect labels={context.priorities} label="Priorité" {...form.getInputProps('priorityId')} />
-          <LabelSelect labels={context.types} label="Type" {...form.getInputProps('typeId')} />
+          <LabelSelect kind="status" labels={context.statuses} label="Statut" {...form.getInputProps('statusId')} />
+          <LabelSelect kind="priority" labels={context.priorities} label="Priorité" {...form.getInputProps('priorityId')} />
+          <LabelSelect kind="type" labels={context.types} label="Type" {...form.getInputProps('typeId')} />
         </SimpleGrid>
         <AssigneesSelect
           contributors={

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TABLE_AGGREGATES } from './aggregates';
 import { columnLayoutSchema } from './table-layout';
 import { RECURRENCE_FREQUENCIES } from './recurrence';
 import { filterConditionSchemaFor, filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf } from './task-filters';
@@ -88,6 +89,8 @@ export const routineViewConfigSchema = z.object({
   flat: z.boolean().default(false),
   /** Columns of the table: order, hidden ones, widths. */
   ...columnLayoutSchema.shape,
+  /** Footer of the table: the total shown under each column (count, sum, average, median); null: no footer. */
+  footer: z.record(z.string().max(64), z.enum(TABLE_AGGREGATES)).nullable().catch(null).default(null),
 });
 export type RoutineViewConfig = z.infer<typeof routineViewConfigSchema>;
 
