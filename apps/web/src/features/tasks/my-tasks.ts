@@ -3,12 +3,6 @@ import { ME } from '@ordo/shared';
 
 export type MyTasksPeriod = 'today' | 'tomorrow' | 'week';
 
-export const MY_TASKS_PERIODS: { value: MyTasksPeriod; label: string }[] = [
-  { value: 'today', label: 'Aujourd’hui' },
-  { value: 'tomorrow', label: 'Demain' },
-  { value: 'week', label: 'Cette semaine' },
-];
-
 /**
  * Filter condition.
  * @param {FilterCondition['field']} field Field.
