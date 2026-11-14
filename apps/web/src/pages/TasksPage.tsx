@@ -6,6 +6,8 @@ import { useSearchParams } from 'react-router';
 import { localToday } from '../lib/dates';
 import { MY_TASKS_PERIODS, myTasksFilter, type MyTasksPeriod } from '../features/tasks/my-tasks';
 import { TaskBoard } from '../features/tasks/TaskBoard';
+import { TaskSettings } from '../features/tasks/settings/TaskSettings';
+import { PageSettings } from '../layouts/PageSettings';
 
 /**
  * My tasks of today, tomorrow or this week, across every project, with their own saved views.
@@ -29,6 +31,10 @@ export function TasksPage() {
   return (
     <Stack gap="md">
       <PageHeader title="Mes tâches" />
+      {/* Statuses, priorities, types, tags and columns of the tasks: in the settings sidebar, as on every page. */}
+      <PageSettings title="Paramètres des tâches">
+        <TaskSettings />
+      </PageSettings>
       <TaskBoard
         projectId={null}
         baseFilter={baseFilter}

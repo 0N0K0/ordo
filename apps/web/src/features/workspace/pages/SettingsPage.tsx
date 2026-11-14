@@ -1,12 +1,11 @@
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { Stack } from "@mantine/core";
-import { FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
+import { FoldersIcon, GithubLogoIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { GithubSettings } from "../../github/GithubSettings";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
-import { TaskSettings } from "../../tasks/settings/TaskSettings";
 import { TeamMembers, TeamRelations } from "../../treasury/TeamPanel";
 import { useActiveWorkspace } from "../../workspaces/api";
 import { WorkspacesManager } from "../../workspaces/WorkspacesManager";
@@ -24,9 +23,10 @@ import { SettingsGrid } from "../../../components/settings/SettingsGrid";
 import { PageTabs } from '../../../components/PageTabs';
 
 /**
- * Settings, in tabs: projects (statuses, categories), team or household, contributors and relations, tasks (statuses,
- * priorities, types), GitHub and the workspaces (the company: in the settings sidebar of the invoicing). The tab is kept in the URL (?tab=). The settings of
- * the document tracking, the calendar and the mail accounts are in their own views (old links lead there).
+ * Settings of the whole workspace, in tabs: projects (statuses, categories), team or household, contributors and
+ * relations, GitHub and the workspaces. The tab is kept in the URL (?tab=). The settings of the tasks (in every view of
+ * tasks), the document tracking and the company (the invoicing), the calendar and the mail accounts are in the settings
+ * sidebar of their views (old links lead there).
  * @returns {JSX.Element} Page.
  */
 export function SettingsPage() {
@@ -69,6 +69,8 @@ export function SettingsPage() {
     company: perso ? "/" : "/accounting?settings=1&settingsTab=company",
     calendar: "/calendar?settings=1",
     mail: "/mail?settings=1",
+    // In every view of tasks.
+    tasks: "/tasks?settings=1",
   };
   if (moved[asked]) return <Navigate to={moved[asked]} replace />;
 
@@ -88,9 +90,6 @@ export function SettingsPage() {
           </PageTabs.Tab>
           <PageTabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
             {perso ? "Foyer et contributeurs" : "Équipe et contributeurs"}
-          </PageTabs.Tab>
-          <PageTabs.Tab value="tasks" leftSection={<ListChecksIcon aria-hidden />}>
-            Tâches
           </PageTabs.Tab>
           <PageTabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
             GitHub
@@ -125,9 +124,6 @@ export function SettingsPage() {
               remove={deleteCategory}
             />
           </SettingsGrid>
-        </PageTabs.Panel>
-        <PageTabs.Panel value="tasks">
-          <TaskSettings />
         </PageTabs.Panel>
         <PageTabs.Panel value="contributors">
           <SettingsGrid>

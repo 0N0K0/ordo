@@ -1,7 +1,8 @@
+import { TaskSettings } from '../../tasks/settings/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
 import { PageTabs } from '../../../components/PageTabs';
-import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
@@ -57,11 +58,12 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Sections of the settings tab of a project. */
-const SETTINGS_SECTIONS = ['milestones', 'sprints', 'contributors', 'github', 'project'] as const;
+const SETTINGS_SECTIONS = ['taskSettings', 'milestones', 'sprints', 'contributors', 'github', 'project'] as const;
 type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /**
- * Settings of a project, in the settings sidebar, one section at a time (chosen above it): milestones, sprints,
+ * Settings of a project, in the settings sidebar, one section at a time (chosen above it): the task settings of the
+ * workspace, milestones, sprints,
  * contributors, GitHub, and the project itself (title, client, parent, status, dates, color, icon…).
  * @param {{ project: Project, section: SettingsSection, onSection: (section: SettingsSection) => void }} props Project, section shown and its change.
  * @returns {JSX.Element} Settings.
@@ -71,6 +73,9 @@ function ProjectSettings({ project, section, onSection }: { project: Project; se
   return (
     <Tabs variant="pills" value={section} onChange={(value) => value && onSection(value as SettingsSection)} keepMounted={false}>
       <Tabs.List mb="md">
+        <Tabs.Tab value="taskSettings" leftSection={<ListChecksIcon aria-hidden />}>
+          Tâches
+        </Tabs.Tab>
         <Tabs.Tab value="milestones" leftSection={<FlagIcon aria-hidden />}>
           Jalons
         </Tabs.Tab>
@@ -87,6 +92,10 @@ function ProjectSettings({ project, section, onSection }: { project: Project; se
           Projet
         </Tabs.Tab>
       </Tabs.List>
+      {/* The task settings of the workspace, in every view of tasks. */}
+      <Tabs.Panel value="taskSettings" style={{ minWidth: 0 }}>
+        <TaskSettings />
+      </Tabs.Panel>
       <Tabs.Panel value="milestones" style={{ minWidth: 0 }}>
         <MilestonesPanel projectId={projectId} />
       </Tabs.Panel>
@@ -123,7 +132,8 @@ export function ProjectPage() {
   // The dashboards are in the overview.
   const tab = legacy || requested === 'settings' || requested === 'dashboards' || (perso && requested === 'billing') ? 'overview' : requested;
   const sectionParam = legacy ? requested : params.get('section');
-  const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : 'milestones';
+  // From the tasks tab, the settings open on those of the tasks.
+  const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : tab === 'tasks' ? 'taskSettings' : 'milestones';
   // The former settings tab (and its sections): the settings, in the sidebar.
   useEffect(() => {
     if (!legacy && requested !== 'settings') return;
