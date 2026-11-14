@@ -15,6 +15,7 @@ import { EVENT_STATES, eventState } from './event-format';
 import cellClasses from '../../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from './StackedMultiCell';
 import * as fmt from '../../../lib/format';
+import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
 
 /**
  * Title of an event row: calendar icon, title (opens the event; struck through when cancelled or postponed) and
@@ -234,4 +235,15 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
       popoverProps={{ withinPortal: true }}
     />
   );
+}
+
+/**
+ * « Bénéficiaires » cell of an event: whom it is for (contributors and relations), saved on the event (the whole
+ * series for a recurring one).
+ * @param {{ event: EventOccurrence }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function EventBeneficiariesCell({ event }: { event: EventOccurrence }) {
+  const save = useEventSave(event);
+  return <BeneficiariesCell label={`Bénéficiaires de ${event.title}`} value={event} onSave={(beneficiaries) => void save(beneficiaries)} />;
 }

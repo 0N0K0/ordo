@@ -65,6 +65,8 @@ export function ShoppingListPage() {
   const [storeMode, setStoreMode] = useState(false);
   const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const list = lists?.find((item) => item.id === id);
+  // Projects of the list, through its tasks: their contributors are the members offered.
+  const listProjects = list ? [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))] : [];
   const people = usePeople();
   const columns = itemColumns<ShoppingItem>(grouping, { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [], members: people.members, relations: people.relations }, [
     {
@@ -196,6 +198,7 @@ export function ShoppingListPage() {
       ) : (
         <ShoppingTable
           view={view}
+          projectIds={listProjects}
           items={[...list.items].sort((a, b) => a.position - b.position)}
           grouping={grouping}
           label={`Éléments de ${list.name}`}

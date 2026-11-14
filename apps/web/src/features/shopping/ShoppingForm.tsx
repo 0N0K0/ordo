@@ -4,10 +4,11 @@ import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } 
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
-import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
-import { categoriesForBaseList, shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
+import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
+import { categoriesForBaseList, listTasks, shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AmountInput } from '../../components/AmountInput';
+import { useTaskContext } from '../tasks/use-task-context';
 
 /**
  * Names of the people a product or an item is for, as small badges.
@@ -57,8 +58,13 @@ export interface ShoppingFormProps {
 export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const { data } = useShoppingData();
   const mutations = useShoppingMutations();
-  const people = usePeople();
+  const { context } = useTaskContext();
   const current = target.kind === 'product' ? target.product : target.item;
+  // Item of a list of projects: their contributors are the members offered.
+  const { data: lists } = useShoppingLists();
+  const list = target.kind === 'item' ? lists?.find((item) => item.id === target.listId) : undefined;
+  const projectIds = list ? [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))] : [];
+  const people = usePeople(projectIds, current?.memberIds ?? []);
   const form = useAppForm<FormValues>({
     initialValues: {
       name: current?.name ?? '',

@@ -153,7 +153,13 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
           name: 'Assignés',
           icon: <UserPlusIcon aria-hidden />,
           of: (routine) => routine.assigneeIds,
-          choices: context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) })),
+          // Contributors of the projects of the routines (all of them when one has none).
+          choices: context
+            .assignableFor(
+              routines.map((routine) => routine.projectId ?? null),
+              routines.flatMap((routine) => routine.assigneeIds),
+            )
+            .map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) })),
           renderIcon: (id) => {
             const contributor = context.contributorById.get(id);
             return <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />;

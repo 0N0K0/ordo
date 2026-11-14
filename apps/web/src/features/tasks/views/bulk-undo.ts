@@ -41,11 +41,12 @@ export function revertChanges(tasks: Task[], changes: BulkChanges): { ids: strin
 /**
  * Groups task ids by a key.
  * @param {Task[]} tasks Tasks.
- * @param {(task: Task) => string} keyOf Key of a task.
- * @returns {[string, string[]][]} Ids by key.
+ * @template {string | null} K
+ * @param {(task: Task) => K} keyOf Key of a task.
+ * @returns {[K, string[]][]} Ids by key.
  */
-function groupBy(tasks: Task[], keyOf: (task: Task) => string): [string, string[]][] {
-  const groups = new Map<string, string[]>();
+function groupBy<K extends string | null>(tasks: Task[], keyOf: (task: Task) => K): [K, string[]][] {
+  const groups = new Map<K, string[]>();
   for (const task of tasks) groups.set(keyOf(task), [...(groups.get(keyOf(task)) ?? []), task.id]);
   return [...groups.entries()];
 }

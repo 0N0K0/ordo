@@ -246,6 +246,8 @@ interface PeopleCellProps {
   relationIds: string[];
   label: string;
   readOnly?: boolean;
+  /** Projects of the list: its contributors are the members offered. Optional. */
+  projectIds?: string[];
   onSave: (people: { memberIds: string[]; relationIds: string[] }) => void;
 }
 
@@ -254,8 +256,8 @@ interface PeopleCellProps {
  * @param {PeopleCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function PeopleCell({ memberIds, relationIds, label, readOnly = false, onSave }: PeopleCellProps) {
-  const people = usePeople();
+export function PeopleCell({ memberIds, relationIds, label, readOnly = false, projectIds, onSave }: PeopleCellProps) {
+  const people = usePeople(projectIds, memberIds);
   const value = [...memberIds.map((id) => `m:${id}`), ...relationIds.map((id) => `r:${id}`)];
   return (
     <StackedMultiCell

@@ -3,7 +3,7 @@ import { notifyError, notifyWithUndo } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from './api';
 
 /** Columns of the routine table edited together on a cell selection. */
-export type RoutineColumn = 'categories' | 'repetition' | 'time' | 'assignees' | 'estimate' | 'requires' | 'project';
+export type RoutineColumn = 'categories' | 'repetition' | 'time' | 'assignees' | 'beneficiaries' | 'estimate' | 'requires' | 'project';
 
 export const BULK_COLUMNS: readonly RoutineColumn[] = ['categories', 'repetition', 'time', 'assignees', 'estimate', 'requires', 'project'];
 

@@ -176,10 +176,10 @@ builder.prismaObject('TaskComment', {
 builder.prismaObject('Task', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    number: t.exposeInt('number', { description: 'Number within its project (#12); links use the id.' }),
+    number: t.exposeInt('number', { nullable: true, description: 'Number within its project (#12); none without project. Links use the id.' }),
     title: t.exposeString('title'),
     description: t.exposeString('description', { nullable: true }),
-    projectId: t.exposeID('projectId'),
+    projectId: t.exposeID('projectId', { nullable: true, description: 'None: a task of no project.' }),
     statusId: t.exposeID('statusId', { nullable: true }),
     priorityId: t.exposeID('priorityId', { nullable: true }),
     typeId: t.exposeID('typeId', { nullable: true }),
@@ -211,6 +211,16 @@ builder.prismaObject('Task', {
     assigneeIds: t.idList({
       select: { assignees: { select: { id: true } } },
       resolve: (task) => task.assignees.map((assignee) => assignee.id),
+    }),
+    beneficiaryIds: t.idList({
+      description: '« Bénéficiaires »: contributors the task is for.',
+      select: { beneficiaries: { select: { id: true } } },
+      resolve: (task) => task.beneficiaries.map((beneficiary) => beneficiary.id),
+    }),
+    beneficiaryRelationIds: t.idList({
+      description: '« Bénéficiaires »: relations the task is for.',
+      select: { beneficiaryRelations: { select: { id: true } } },
+      resolve: (task) => task.beneficiaryRelations.map((relation) => relation.id),
     }),
     blockingIds: t.idList({
       description: 'Tasks this task blocks.',
@@ -251,12 +261,14 @@ builder.prismaObject('Task', {
 const TaskInput = builder.inputType('TaskInput', {
   fields: (t) => ({
     title: t.string({ required: true }),
-    projectId: t.id({ required: true }),
+    projectId: t.id({ description: 'None: a task of no project (no number, sprint, milestone nor GitHub item).' }),
     description: t.string(),
     statusId: t.id(),
     priorityId: t.id(),
     typeId: t.id(),
     assigneeIds: t.idList(),
+    beneficiaryIds: t.idList(),
+    beneficiaryRelationIds: t.idList(),
     tagIds: t.idList(),
     effort: t.float(),
     startDate: t.field({ type: 'Date' }),
@@ -278,6 +290,8 @@ const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
     priorityId: t.id(),
     typeId: t.id(),
     assigneeIds: t.idList(),
+    beneficiaryIds: t.idList(),
+    beneficiaryRelationIds: t.idList(),
     tagIds: t.idList(),
     effort: t.float(),
     startDate: t.field({ type: 'Date' }),
@@ -551,9 +565,9 @@ builder.mutationFields((t) => ({
   }),
   transferTask: t.field({
     type: TransferResult,
-    description: 'Moves the task and its sub-tasks to another project.',
-    args: { id: t.arg.id({ required: true }), projectId: t.arg.id({ required: true }) },
-    resolve: async (_root, { id, projectId }) => ({ removedLinks: (await tasks.transferTask(id, projectId)).removedLinks }),
+    description: 'Moves the task and its sub-tasks to another project, or out of any (projectId null).',
+    args: { id: t.arg.id({ required: true }), projectId: t.arg.id() },
+    resolve: async (_root, { id, projectId }) => ({ removedLinks: (await tasks.transferTask(id, projectId ?? null)).removedLinks }),
   }),
   cloneTask: t.prismaField({
     type: 'Task',
@@ -599,9 +613,9 @@ builder.mutationFields((t) => ({
   }),
   bulkTransferTasks: t.field({
     type: TransferResult,
-    description: 'Moves the tasks and their sub-tasks to another project.',
-    args: { ids: t.arg.idList({ required: true }), projectId: t.arg.id({ required: true }) },
-    resolve: async (_root, { ids, projectId }) => ({ removedLinks: await tasks.bulkTransferTasks(ids, projectId) }),
+    description: 'Moves the tasks and their sub-tasks to another project, or out of any (projectId null).',
+    args: { ids: t.arg.idList({ required: true }), projectId: t.arg.id() },
+    resolve: async (_root, { ids, projectId }) => ({ removedLinks: await tasks.bulkTransferTasks(ids, projectId ?? null) }),
   }),
   bulkSetTasksArchived: t.boolean({
     args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },

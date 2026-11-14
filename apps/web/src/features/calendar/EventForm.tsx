@@ -27,6 +27,7 @@ import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from './event-inpu
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
+import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -166,6 +167,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         calendarId: null,
         contributorIds: [],
         relationIds: [],
+        beneficiaryIds: [],
+        beneficiaryRelationIds: [],
         categoryIds: [],
         taskIds: [],
         ...defaults,
@@ -463,14 +466,32 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               </Group>
             )}
           />
-          <ProjectSelect context={context} label="Projet" clearable placeholder="Aucun" {...form.getInputProps('projectId')} />
+          <ProjectSelect
+            context={context}
+            label="Projet"
+            clearable
+            placeholder="Aucun"
+            {...form.getInputProps('projectId')}
+            onChange={(projectId) => {
+              form.setFieldValue('projectId', projectId);
+              // Contributors out of the new project are dropped.
+              const allowed = new Set(context.assignableFor([projectId], initial.contributorIds ?? []).map((contributor) => contributor.id));
+              form.setFieldValue('contributorIds', values.contributorIds.filter((id) => allowed.has(id)));
+            }}
+          />
           <BatchMultiSelect
             label="Contributeurs"
+            description={values.projectId ? 'Contributeurs du projet.' : undefined}
             placeholder={values.contributorIds.length ? undefined : 'Aucun'}
-            data={context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
+            data={context.assignableFor([values.projectId ?? null], initial.contributorIds ?? []).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
             searchable
             clearable
             {...form.getInputProps('contributorIds')}
+          />
+          <BeneficiariesSelect
+            description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."
+            value={{ beneficiaryIds: values.beneficiaryIds ?? [], beneficiaryRelationIds: values.beneficiaryRelationIds ?? [] }}
+            onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
           />
           <BatchMultiSelect
             label="Relations"

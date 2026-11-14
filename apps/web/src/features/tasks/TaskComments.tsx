@@ -34,8 +34,8 @@ function fromNow(date: string): string {
 }
 
 interface CommentProps {
-  /** Project of the task: "#12" in the comment is task 12 of it. */
-  projectId: string;
+  /** Project of the task: "#12" in the comment is task 12 of it (none: a task of no project). */
+  projectId: string | null;
   comment: TaskComment;
   context: TaskContext;
 }

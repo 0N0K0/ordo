@@ -1,6 +1,6 @@
 import { categoryOptions, categoryTree, type PlacedCategory } from '../../components/category-tree/category-tree';
 import { useTreasurySettings } from '../treasury/api';
-import type { TaskContext } from '../tasks/use-task-context';
+import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from './api';
 import * as fmt from '../../lib/format';
@@ -226,15 +226,21 @@ export function shoppingRows<T extends { categoryId?: string | null; storeId?: s
 export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<string>) => rows.filter((row) => !row.parents.some((id) => collapsed.has(id)));
 
 /**
- * Members of the team or household and relations, by id, to name the people of a product or an item.
+ * Members of the team or household and relations, by id, to name the people of a product or an item. For an item of a
+ * list of a project, the members offered are the contributors of the project (those chosen stay); relations always.
+ * @param {string[]} [projectIds] Projects of the list (through its tasks); none: every member. Optional.
+ * @param {string[]} [keep] Members already chosen, offered anyway. Optional.
  * @returns {{ members: Map<string, string>, relations: Map<string, string>, options: object[] }} Names and select options.
  */
-export function usePeople() {
+export function usePeople(projectIds: string[] = [], keep: string[] = []) {
   const { data } = useTreasurySettings();
+  const { context } = useTaskContext();
   const members = new Map((data?.treasuryMembers ?? []).map((member) => [member.id, member.isMe ? 'Moi' : member.name]));
   const relations = new Map((data?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
+  // Members are contributors: of a project, its contributors only.
+  const allowed = projectIds.length && context ? new Set(context.assignableFor(projectIds, keep).map((contributor) => contributor.id)) : null;
   const options = [
-    { group: 'Membres', items: [...members].map(([id, name]) => ({ value: `m:${id}`, label: name })) },
+    { group: 'Membres', items: [...members].filter(([id]) => !allowed || allowed.has(id)).map(([id, name]) => ({ value: `m:${id}`, label: name })) },
     { group: 'Relations', items: [...relations].map(([id, name]) => ({ value: `r:${id}`, label: name })) },
   ].filter((group) => group.items.length > 0);
   return { members, relations, options };
@@ -301,5 +307,5 @@ export function listClosed(list: { closed: boolean; closedAt: string | null; tas
  * @returns {T[]} Lists of the projects.
  */
 export function listsOfProjects<T extends { taskIds: string[] }>(lists: T[], context: TaskContext | null, projectIds: ReadonlySet<string>): T[] {
-  return lists.filter((list) => listTasks(list, context).some((task) => projectIds.has(task.projectId)));
+  return lists.filter((list) => listTasks(list, context).some((task) => task.projectId !== null && projectIds.has(task.projectId)));
 }

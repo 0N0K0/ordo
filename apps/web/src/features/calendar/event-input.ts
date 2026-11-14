@@ -44,6 +44,8 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     calendarId: occurrence.calendarId,
     contributorIds: occurrence.contributorIds,
     relationIds: occurrence.relationIds,
+    beneficiaryIds: occurrence.beneficiaryIds,
+    beneficiaryRelationIds: occurrence.beneficiaryRelationIds,
     categoryIds: occurrence.categoryIds,
     taskIds: occurrence.taskIds,
   };

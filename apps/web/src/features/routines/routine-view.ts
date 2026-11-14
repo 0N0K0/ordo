@@ -28,6 +28,7 @@ import type { Routine, RoutineCategory } from './api';
 import { categoryGrouping, ruleOf, stateOf, waitingFor, type RoutineGrouping } from './routine-format';
 import * as fmt from '../../lib/format';
 import { currentWeek } from '../../lib/week';
+import { beneficiaryNames } from '../beneficiaries/use-beneficiaries';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -478,6 +479,7 @@ export function routineTexts(env: RoutineEnv): Record<string, (routine: Routine)
     estimate: (routine) => (routine.estimate ? `${routine.estimate} min` : ''),
     trackedTime: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),
     lastDoneAt: (routine) => (routine.lastDoneAt ? fmt.exportDateTime(new Date(String(routine.lastDoneAt))) : ''),
+    beneficiaries: (routine) => beneficiaryNames(routine, env.context).join(', '),
     assignees: (routine) =>
       routine.assigneeIds
         .map((id) => contributorName.get(id) ?? '')

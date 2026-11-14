@@ -307,6 +307,12 @@ input CalendarCategoryInput {
 input CalendarEventInput {
   allDay: Boolean!
 
+  """Contributors the event is for; none: none."""
+  beneficiaryIds: [ID!]
+
+  """Relations the event is for; none: none."""
+  beneficiaryRelationIds: [ID!]
+
   """Calendar; the first one of the workspace when omitted."""
   calendarId: ID
   categoryIds: [ID!]!
@@ -346,6 +352,12 @@ input CalendarEventInput {
 """One occurrence of an event in a period."""
 type CalendarEventOccurrence {
   allDay: Boolean!
+
+  """« Bénéficiaires »: contributors the event is for."""
+  beneficiaryIds: [ID!]!
+
+  """« Bénéficiaires »: relations the event is for."""
+  beneficiaryRelationIds: [ID!]!
   calendarId: ID!
 
   """Cancelled, kept in the calendar."""
@@ -1354,8 +1366,10 @@ type Mutation {
   bulkSetRoutinesDone(done: Boolean!, ids: [ID!]!): Int!
   bulkSetTasksArchived(archived: Boolean!, ids: [ID!]!): Boolean!
 
-  """Moves the tasks and their sub-tasks to another project."""
-  bulkTransferTasks(ids: [ID!]!, projectId: ID!): TaskTransferResult!
+  """
+  Moves the tasks and their sub-tasks to another project, or out of any (projectId null).
+  """
+  bulkTransferTasks(ids: [ID!]!, projectId: ID): TaskTransferResult!
 
   """
   Applies the same changes to several routines; returns how many changed.
@@ -1885,8 +1899,10 @@ type Mutation {
   """
   transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
 
-  """Moves the task and its sub-tasks to another project."""
-  transferTask(id: ID!, projectId: ID!): TaskTransferResult!
+  """
+  Moves the task and its sub-tasks to another project, or out of any (projectId null).
+  """
+  transferTask(id: ID!, projectId: ID): TaskTransferResult!
   unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
 
@@ -2425,6 +2441,12 @@ type Routine {
   archived: Boolean!
   assigneeIds: [ID!]!
 
+  """« Bénéficiaires »: contributors it is for."""
+  beneficiaryIds: [ID!]!
+
+  """« Bénéficiaires »: relations it is for."""
+  beneficiaryRelationIds: [ID!]!
+
   """Cases (days and times of the day); empty: its repetition."""
   cases: JSON!
 
@@ -2586,6 +2608,12 @@ type RoutineCheck {
 input RoutineInput {
   assigneeIds: [ID!]!
 
+  """Contributors it is for; none: none."""
+  beneficiaryIds: [ID!]
+
+  """Relations it is for; none: none."""
+  beneficiaryRelationIds: [ID!]
+
   """Cases (days and times of the day); empty: the repetition."""
   cases: JSON
   categoryIds: [ID!]!
@@ -2640,6 +2668,8 @@ type RoutineOccurrence {
 """Changes of a routine (omitted fields unchanged)."""
 input RoutinePatch {
   assigneeIds: [ID!]
+  beneficiaryIds: [ID!]
+  beneficiaryRelationIds: [ID!]
   categoryIds: [ID!]
 
   """HH:MM; null: no limit."""
@@ -2974,6 +3004,12 @@ type Task {
   archived: Boolean!
   assigneeIds: [ID!]!
 
+  """« Bénéficiaires »: contributors the task is for."""
+  beneficiaryIds: [ID!]!
+
+  """« Bénéficiaires »: relations the task is for."""
+  beneficiaryRelationIds: [ID!]!
+
   """Tasks blocking this task."""
   blockedByIds: [ID!]!
 
@@ -3002,13 +3038,17 @@ type Task {
   id: ID!
   milestoneId: ID
 
-  """Number within its project (#12); links use the id."""
-  number: Int!
+  """
+  Number within its project (#12); none without project. Links use the id.
+  """
+  number: Int
   occurrenceDate: Date
   parentId: ID
   position: Int!
   priorityId: ID
-  projectId: ID!
+
+  """None: a task of no project."""
+  projectId: ID
 
   """Repetition, on the first task of a recurring series."""
   recurrence: JSON
@@ -3054,6 +3094,8 @@ type TaskComment {
 
 input TaskInput {
   assigneeIds: [ID!]
+  beneficiaryIds: [ID!]
+  beneficiaryRelationIds: [ID!]
   deadline: Date
   description: String
   effort: Float
@@ -3061,7 +3103,11 @@ input TaskInput {
   milestoneId: ID
   parentId: ID
   priorityId: ID
-  projectId: ID!
+
+  """
+  None: a task of no project (no number, sprint, milestone nor GitHub item).
+  """
+  projectId: ID
 
   """
   Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
@@ -3153,6 +3199,8 @@ Omitted fields are left unchanged; null clears a field. Use transferTask to chan
 """
 input TaskUpdateInput {
   assigneeIds: [ID!]
+  beneficiaryIds: [ID!]
+  beneficiaryRelationIds: [ID!]
   deadline: Date
   description: String
   effort: Float

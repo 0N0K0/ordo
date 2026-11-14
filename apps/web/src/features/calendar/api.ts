@@ -40,6 +40,8 @@ graphql(`
     calendarId
     contributorIds
     relationIds
+    beneficiaryIds
+    beneficiaryRelationIds
     categoryIds
     taskIds
     calledOff

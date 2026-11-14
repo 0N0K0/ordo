@@ -32,7 +32,7 @@ export interface TaskContext {
   taskById: Map<string, Task>;
   /**
    * Label of a task: "#12 Titre" in its own project, "Client › Projet #12 Titre" seen from elsewhere (its number is
-   * only unique in its project).
+   * only unique in its project), "Titre" for a task of no project seen among them, "Sans projet › Titre" elsewhere.
    */
   taskLabel: (task: Task, fromProjectId?: string | null) => string;
   statusById: Map<string, TaskStatus>;
@@ -41,25 +41,26 @@ export interface TaskContext {
   tagById: Map<string, TaskLabel>;
   contributorById: Map<string, Contributor>;
   projectById: Map<string, Project>;
-  /** "Client › Parent › Projet". */
-  projectLabel: (projectId: string) => string;
+  /** "Client › Parent › Projet"; "Sans projet" for none. */
+  projectLabel: (projectId: string | null) => string;
   /** Options of a select of projects, in tree order under their client. */
   projectOptions: (projects: Project[]) => TreeOption[];
   /** Options of a select of tasks ("#12 Titre"), in tree order under their parent task, project and client. */
   taskOptions: (tasks: Task[]) => TreeOption[];
-  /** Root project of a project: links stay inside the same tree. */
-  rootOf: (projectId: string) => string;
+  /** Root project of a project: links stay inside the same tree (null: the tasks of no project, a tree of their own). */
+  rootOf: (projectId: string | null) => string | null;
   /** Sub-tasks of a task, in manual order. */
   childrenOf: (taskId: string) => Task[];
-  /** Milestones usable by the tasks of a project: those of its whole project tree. */
-  milestonesFor: (projectId: string) => Milestone[];
-  /** Sprints usable by the tasks of a project: those of its whole project tree. */
-  sprintsFor: (projectId: string) => Sprint[];
+  /** Milestones usable by the tasks of a project: those of its whole project tree (none without project). */
+  milestonesFor: (projectId: string | null) => Milestone[];
+  /** Sprints usable by the tasks of a project: those of its whole project tree (none without project). */
+  sprintsFor: (projectId: string | null) => Sprint[];
   /**
    * Contributors that can be assigned to tasks of these projects: "Moi" and those attached to one of the
-   * projects or to a parent project, plus the `keep` ones (current assignees, attached or not).
+   * projects or to a parent project, plus the `keep` ones (current assignees, attached or not). Without project
+   * (none given, or one of them null): every contributor.
    */
-  assignableFor: (projectIds: string[], keep?: string[]) => Contributor[];
+  assignableFor: (projectIds: (string | null)[], keep?: string[]) => Contributor[];
   /** Display name of a contributor ("Moi" for the logged-in user). */
   contributorName: (contributor: Contributor) => string;
   /** Whether an open task is blocked by at least one open, non-archived task. */
@@ -71,6 +72,25 @@ export interface TaskContext {
   /** References of a text of a project: "#12" is task 12 of it. */
   targetsFor: (projectId: string | null) => ReferenceTargets;
 }
+
+/** Label of the tasks of no project. */
+export const NO_PROJECT_LABEL = 'Sans projet';
+/** Heading of the tasks of no project in a select of tasks. */
+const NO_PROJECT_NODE = 'project:none';
+
+/**
+ * Number of a task followed by a space ("#12 "), empty for a task of no project (it has none).
+ * @param {{ number: number | null }} task Task.
+ * @returns {string} Text.
+ */
+export const taskRef = (task: { number: number | null }) => (task.number === null ? '' : `#${task.number} `);
+
+/**
+ * Name of a task in a message: its number ("#12"), or its title for a task of no project.
+ * @param {{ number: number | null, title: string }} task Task.
+ * @returns {string} Name.
+ */
+export const taskName = (task: { number: number | null; title: string }) => (task.number === null ? `« ${task.title} »` : `#${task.number}`);
 
 /**
  * Task data with the lookups shared by the task screens.
@@ -99,10 +119,11 @@ export function useTaskContext() {
 
     /**
      * Root project of a project.
-     * @param {string} projectId Project id.
-     * @returns {string} Root project id.
+     * @param {string | null} projectId Project id; none: the tasks of no project.
+     * @returns {string | null} Root project id; null without project.
      */
-    const rootOf = (projectId: string) => {
+    const rootOf = (projectId: string | null) => {
+      if (projectId === null) return null;
       let current = projectId;
       for (let parent = projectById.get(current)?.parentId; parent; parent = projectById.get(current)?.parentId) {
         current = parent;
@@ -112,17 +133,19 @@ export function useTaskContext() {
 
     /**
      * Client and project path of a project.
-     * @param {string} projectId Project.
+     * @param {string | null} projectId Project; none: « Sans projet ».
      * @returns {string} "Client › Projet › Sous-projet".
      */
-    const placeOf = (projectId: string) => {
+    const placeOf = (projectId: string | null) => {
+      if (projectId === null) return NO_PROJECT_LABEL;
       const project = projectById.get(projectId);
       return project ? `${projectPath(workspace, project)} › ${project.title}` : 'Projet inconnu';
     };
     // Tasks texts can reference, by id and by "<projectId>:<number>".
     const referenceTasks: ReferenceTask[] = tasks.map((task) => ({ id: task.id, projectId: task.projectId, number: task.number, title: task.title, place: placeOf(task.projectId) }));
     const referenceById = new Map(referenceTasks.map((task) => [task.id, task]));
-    const referenceByNumber = new Map(referenceTasks.map((task) => [`${task.projectId}:${task.number}`, task]));
+    // "#12" only names a task of a project.
+    const referenceByNumber = new Map(referenceTasks.filter((task) => task.number !== null).map((task) => [`${task.projectId}:${task.number}`, task]));
     const contributors = data.contributors.map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl }));
     const handles = new Set(data.contributors.map((contributor) => contributor.handle));
     return {
@@ -139,9 +162,10 @@ export function useTaskContext() {
       sprints: data.sprints,
       sprintById: new Map(data.sprints.map((sprint) => [sprint.id, sprint])),
       meId,
-      milestonesFor: (projectId) => milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)),
-      sprintsFor: (projectId) => data.sprints.filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)),
+      milestonesFor: (projectId) => (projectId ? milestones.filter((milestone) => rootOf(milestone.projectId) === rootOf(projectId)) : []),
+      sprintsFor: (projectId) => (projectId ? data.sprints.filter((sprint) => rootOf(sprint.projectId) === rootOf(projectId)) : []),
       assignableFor: (projectIds, keep = []) => {
+        if (projectIds.length === 0 || projectIds.includes(null)) return data.contributors;
         const scope = new Set<string>();
         for (const projectId of projectIds) {
           for (let current: string | null | undefined = projectId; current; current = projectById.get(current)?.parentId) {
@@ -152,7 +176,7 @@ export function useTaskContext() {
       },
       contributorName: (contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name),
       taskById: new Map(tasks.map((task) => [task.id, task])),
-      taskLabel: (task, fromProjectId = null) => `${task.projectId === fromProjectId ? '' : `${placeOf(task.projectId)} `}#${task.number} ${task.title}`,
+      taskLabel: (task, fromProjectId = null) => `${task.projectId === fromProjectId ? '' : task.projectId ? `${placeOf(task.projectId)} ` : `${NO_PROJECT_LABEL} › `}${taskRef(task)}${task.title}`,
       statusById,
       priorityById: new Map(data.taskPriorities.map((priority) => [priority.id, priority])),
       typeById: new Map(data.taskTypes.map((type) => [type.id, type])),
@@ -166,8 +190,9 @@ export function useTaskContext() {
         const ids = new Set(offered.map((task) => task.id));
         const taskNodes = [...new Map([...tasks, ...offered].map((task) => [task.id, task])).values()]
           .sort((a, b) => a.position - b.position)
-          .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId, label: `#${task.number} ${task.title}` }));
-        return treeOptions([...projectNodes(workspace), ...taskNodes], (id) => ids.has(id));
+          .map((task) => ({ id: task.id, parentId: task.parentId ?? task.projectId ?? NO_PROJECT_NODE, label: `${taskRef(task)}${task.title}` }));
+        const withoutProject = taskNodes.some((node) => node.parentId === NO_PROJECT_NODE) ? [{ id: NO_PROJECT_NODE, parentId: null, label: NO_PROJECT_LABEL }] : [];
+        return treeOptions([...projectNodes(workspace), ...withoutProject, ...taskNodes], (id) => ids.has(id));
       },
       rootOf,
       childrenOf: (taskId) => children.get(taskId) ?? [],

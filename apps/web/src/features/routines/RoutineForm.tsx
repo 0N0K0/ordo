@@ -14,6 +14,7 @@ import { RoutineSchedule } from './RoutineSchedule';
 import { OpensOnInput } from './OpensOnInput';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
+import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
@@ -39,6 +40,8 @@ interface RoutineFormValues extends Record<string, unknown> {
   requiredIds: string[];
   opensOn: string | null;
   slotRule: SlotRule | null;
+  beneficiaryIds: string[];
+  beneficiaryRelationIds: string[];
 }
 
 export interface RoutineFormProps {
@@ -110,6 +113,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
       requiredIds: routine?.requiredIds ?? [],
+      beneficiaryIds: routine?.beneficiaryIds ?? parent?.beneficiaryIds ?? [],
+      beneficiaryRelationIds: routine?.beneficiaryRelationIds ?? parent?.beneficiaryRelationIds ?? [],
       opensOn: routine?.opensOn ?? null,
       slotRule: readSlotRule(routine?.slotRule ?? parent?.slotRule),
     },
@@ -189,12 +194,17 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
         <SlotRuleInput value={form.values.slotRule} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.kinds'] as string | undefined} />
         {context && (
           <AssigneesSelect
-            contributors={context.contributors}
+            // Of a project: its contributors only (the current assignees stay).
+            contributors={context.assignableFor([form.values.projectId], routine?.assigneeIds ?? [])}
             value={form.values.assigneeIds}
             onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
             error={form.errors.assigneeIds as string | undefined}
           />
         )}
+        <BeneficiariesSelect
+          value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
+          onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
+        />
         <BatchMultiSelect
           label="Dépend de"
           description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
@@ -212,6 +222,15 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
             placeholder="Aucun"
             clearable
             {...form.getInputProps('projectId')}
+            onChange={(projectId) => {
+              form.setFieldValue('projectId', projectId);
+              // Assignees out of the new project are dropped.
+              const allowed = new Set(context.assignableFor([projectId], routine?.assigneeIds ?? []).map((contributor) => contributor.id));
+              form.setFieldValue(
+                'assigneeIds',
+                form.values.assigneeIds.filter((id) => allowed.has(id)),
+              );
+            }}
           />
         )}
         <Group justify="flex-end" gap="sm">

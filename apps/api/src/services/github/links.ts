@@ -29,7 +29,7 @@ export async function forgetGithubItems(ids: string[]): Promise<void> {
   void (async () => {
     const token = await githubToken();
     for (const task of tasks) {
-      const link = await linkOfProject(task.projectId);
+      const link = task.projectId ? await linkOfProject(task.projectId) : null;
       if (link) await deleteItem(token, link.githubProjectId, task.githubItemId!);
     }
   })().catch((error: unknown) => console.warn('Items GitHub non retirés.', error));

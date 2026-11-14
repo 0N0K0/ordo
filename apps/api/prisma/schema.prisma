@@ -410,6 +410,10 @@ model Contributor {
   shoppingItems     ShoppingItem[]      @relation("ShoppingItemMembers")
   /// Routines it is assigned to.
   routines          Routine[]           @relation("RoutineAssignees")
+  /// Tasks, routines and events it is a beneficiary of.
+  beneficiaryOfTasks    Task[]          @relation("TaskBeneficiaries")
+  beneficiaryOfRoutines Routine[]       @relation("RoutineBeneficiaries")
+  beneficiaryOfEvents   CalendarEvent[] @relation("EventBeneficiaries")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId       String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace         Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -492,16 +496,18 @@ model TaskTag {
 model Task {
   id                String             @id @default(cuid())
   /// Human-readable number (#12) within its project, given by the database (trigger "task_project_number"): the
-  /// next of the project on creation, and of the target project on a transfer. Links use the id, never the number.
-  number            Int                @default(0)
+  /// next of the project on creation, and of the target project on a transfer; none without project. Links use the
+  /// id, never the number.
+  number            Int?
   title             String
   /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
   /// (on the working hours in a professional workspace).
   slotRule          Json?
   /// Markdown.
   description       String?
-  projectId         String
-  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// None: a task of no project (no number, no sprint, milestone nor GitHub item).
+  projectId         String?
+  project           Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   statusId          String?
   status            TaskStatus?        @relation(fields: [statusId], references: [id], onDelete: SetNull)
   priorityId        String?
@@ -539,6 +545,9 @@ model Task {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   assignees         Contributor[]
+  /// « Bénéficiaires »: whom the task is for (contributors, and relations out of the team or household).
+  beneficiaries        Contributor[]      @relation("TaskBeneficiaries")
+  beneficiaryRelations TreasuryRelation[] @relation("TaskBeneficiaryRelations")
   tags              TaskTag[]          @relation("TaskTags")
   /// Sprints of the project tree the task is planned in (it may run over several).
   sprints           Sprint[]           @relation("TaskSprints")
@@ -1250,6 +1259,9 @@ model CalendarEvent {
   contributors      Contributor[]
   /// Relations without contributor taking part (those with one are among the contributors).
   relations         TreasuryRelation[]
+  /// « Bénéficiaires »: whom the event is for (« l’anniversaire est pour mon fils »), not those taking part.
+  beneficiaries        Contributor[]      @relation("EventBeneficiaries")
+  beneficiaryRelations TreasuryRelation[] @relation("EventBeneficiaryRelations")
   categories        CalendarCategory[]
   exceptions        CalendarEventException[]
   /// Cancelled but kept in the calendar (struck through); can be restored.
@@ -1897,6 +1909,10 @@ model TreasuryRelation {
   budgets          TreasuryBudget[]
   /// Events it takes part in.
   events           CalendarEvent[]
+  /// Tasks, routines and events it is a beneficiary of.
+  beneficiaryOfTasks    Task[]          @relation("TaskBeneficiaryRelations")
+  beneficiaryOfRoutines Routine[]       @relation("RoutineBeneficiaryRelations")
+  beneficiaryOfEvents   CalendarEvent[] @relation("EventBeneficiaryRelations")
   /// Shopping products and items it is for.
   shoppingProducts ShoppingProduct[]   @relation("ShoppingProductRelations")
   shoppingItems    ShoppingItem[]      @relation("ShoppingItemRelations")
@@ -2378,6 +2394,9 @@ model Routine {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   assignees      Contributor[]       @relation("RoutineAssignees")
+  /// « Bénéficiaires »: whom the routine is for (contributors, and relations out of the team or household).
+  beneficiaries        Contributor[]      @relation("RoutineBeneficiaries")
+  beneficiaryRelations TreasuryRelation[] @relation("RoutineBeneficiaryRelations")
   /// Routines to do before this one ("étendre le linge" requires "laver le linge").
   requires       RoutineDependency[] @relation("RoutineDependent")
   /// Routines requiring this one.

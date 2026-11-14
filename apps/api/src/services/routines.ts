@@ -39,6 +39,7 @@ import { Prisma, type Routine, type RoutineCategory, type WorkSchedule } from '.
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { storedRecurrence } from './calendar-events';
 import { scheduleRule } from './work-schedules';
+import { assertProjectContributors } from './contributors';
 
 /**
  * Today in Paris, as a calendar date.
@@ -294,6 +295,8 @@ export async function deleteCategory(id: string): Promise<void> {
 async function parseRoutine(input: RoutineInput, id?: string) {
   const data = parseInput(routineSchema, input);
   data.assigneeIds = [...new Set(data.assigneeIds)];
+  data.beneficiaryIds = [...new Set(data.beneficiaryIds)];
+  data.beneficiaryRelationIds = [...new Set(data.beneficiaryRelationIds)];
   data.categoryIds = [...new Set(data.categoryIds)];
   data.requiredIds = [...new Set(data.requiredIds)];
   if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
@@ -305,6 +308,12 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   else data.scheduleAnchor = null;
   if (data.projectId && !(await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true } }))) throw fieldError('projectId', 'Projet introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.assigneeIds } } })) !== data.assigneeIds.length) throw fieldError('assigneeIds', 'Assigné introuvable.');
+  if ((await prisma.contributor.count({ where: { id: { in: data.beneficiaryIds } } })) !== data.beneficiaryIds.length) throw fieldError('beneficiaryIds', 'Bénéficiaire introuvable.');
+  if ((await prisma.treasuryRelation.count({ where: { id: { in: data.beneficiaryRelationIds } } })) !== data.beneficiaryRelationIds.length)
+    throw fieldError('beneficiaryIds', 'Bénéficiaire introuvable.');
+  // Of a project: its contributors only (those already assigned stay).
+  const assigned = id ? (await prisma.routine.findUnique({ where: { id }, select: { assignees: { select: { id: true } } } }))?.assignees.map((assignee) => assignee.id) : [];
+  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds');
 
   const all = await prisma.routine.findMany({ select: { id: true, parentId: true, requires: { select: { requiredId: true } } } });
   const known = new Set(all.map((routine) => routine.id));
@@ -370,7 +379,14 @@ export async function createRoutine(input: RoutineInput): Promise<Routine> {
   const position = ((await prisma.routine.aggregate({ where: { parentId: data.parentId }, _max: { position: true } }))._max.position ?? -1) + 1;
   return prisma.$transaction(async (tx) => {
     const routine = await tx.routine.create({
-      data: { ...scalars(data), position, assignees: { connect: data.assigneeIds.map((id) => ({ id })) }, categories: { connect: data.categoryIds.map((id) => ({ id })) } },
+      data: {
+        ...scalars(data),
+        position,
+        assignees: { connect: data.assigneeIds.map((id) => ({ id })) },
+        beneficiaries: { connect: data.beneficiaryIds.map((id) => ({ id })) },
+        beneficiaryRelations: { connect: data.beneficiaryRelationIds.map((id) => ({ id })) },
+        categories: { connect: data.categoryIds.map((id) => ({ id })) },
+      },
     });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: routine.id, requiredId })) });
     return routine;
@@ -402,7 +418,13 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });
     return tx.routine.update({
       where: { id },
-      data: { ...scalars(data), assignees: { set: data.assigneeIds.map((assigneeId) => ({ id: assigneeId })) }, categories: { set: data.categoryIds.map((categoryId) => ({ id: categoryId })) } },
+      data: {
+        ...scalars(data),
+        assignees: { set: data.assigneeIds.map((assigneeId) => ({ id: assigneeId })) },
+        beneficiaries: { set: data.beneficiaryIds.map((beneficiaryId) => ({ id: beneficiaryId })) },
+        beneficiaryRelations: { set: data.beneficiaryRelationIds.map((relationId) => ({ id: relationId })) },
+        categories: { set: data.categoryIds.map((categoryId) => ({ id: categoryId })) },
+      },
     });
   });
 }
@@ -415,7 +437,13 @@ export async function updateRoutine(id: string, input: RoutineInput): Promise<Ro
 async function inputOf(id: string): Promise<RoutineInput> {
   const routine = await prisma.routine.findUnique({
     where: { id },
-    include: { assignees: { select: { id: true } }, categories: { select: { id: true } }, requires: { select: { requiredId: true } } },
+    include: {
+      assignees: { select: { id: true } },
+      beneficiaries: { select: { id: true } },
+      beneficiaryRelations: { select: { id: true } },
+      categories: { select: { id: true } },
+      requires: { select: { requiredId: true } },
+    },
   });
   if (!routine) throw notFound('Routine');
   return {
@@ -441,6 +469,8 @@ async function inputOf(id: string): Promise<RoutineInput> {
     travelAfter: routine.travelAfter,
     projectId: routine.projectId,
     assigneeIds: routine.assignees.map((assignee) => assignee.id),
+    beneficiaryIds: routine.beneficiaries.map((beneficiary) => beneficiary.id),
+    beneficiaryRelationIds: routine.beneficiaryRelations.map((relation) => relation.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
   };
 }

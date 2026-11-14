@@ -9,6 +9,7 @@ import { describeAlarm } from './alarm-labels';
 import { useAlarmMutations, type Alarm } from './api';
 import type { AlarmFormOpener } from './use-alarm-form';
 import * as fmt from '../../lib/format';
+import { taskPath } from '../tasks/task-links';
 
 /**
  * Alarm fields to send back unchanged, with some changes.
@@ -86,7 +87,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                   </Text>
                 )}
                 {(task ?? project) && (
-                  <Anchor component={Link} to={task ? `/projects/${task.projectId}?tab=tasks&task=${task.id}` : `/projects/${project!.id}`} size="xs">
+                  <Anchor component={Link} to={task ? taskPath(task) : `/projects/${project!.id}`} size="xs">
                     {task ? context.taskLabel(task) : project!.title}
                   </Anchor>
                 )}

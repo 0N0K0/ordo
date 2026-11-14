@@ -21,10 +21,12 @@ function fieldError(field: string, message: string) {
  * Root project of each project: tasks can only be linked inside the same tree.
  * @returns {Promise<(projectId: string) => string>} Root lookup.
  */
-async function loadRootOf(): Promise<(projectId: string) => string> {
+async function loadRootOf(): Promise<(projectId: string | null) => string | null> {
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
   const parentOf = new Map(projects.map((project) => [project.id, project.parentId]));
+  // The tasks without project make a tree of their own (null).
   return (projectId) => {
+    if (projectId === null) return null;
     let current = projectId;
     for (let parent = parentOf.get(current); parent; parent = parentOf.get(current)) current = parent;
     return current;
@@ -77,17 +79,17 @@ async function assertProject(projectId: string): Promise<void> {
 /**
  * Checks that a task can become the parent of another one (same tree, no cycle).
  * @param {string} parentId Parent candidate.
- * @param {string} projectId Project of the child.
+ * @param {string | null} projectId Project of the child (none: the parent has none either).
  * @param {string | null} childId Child task, or null for a new task.
  * @returns {Promise<void>}
  */
-async function assertParent(parentId: string, projectId: string, childId: string | null): Promise<void> {
+async function assertParent(parentId: string, projectId: string | null, childId: string | null): Promise<void> {
   const parent = await prisma.task.findUnique({ where: { id: parentId }, select: { projectId: true, archivedAt: true } });
   if (!parent) throw fieldError('parentId', 'Tâche parente introuvable.');
   if (parent.archivedAt) throw fieldError('parentId', 'Cette tâche est archivée.');
   const rootOf = await loadRootOf();
   if (rootOf(parent.projectId) !== rootOf(projectId)) {
-    throw fieldError('parentId', 'La tâche parente doit appartenir au même projet ou à l’un de ses sous-projets.');
+    throw fieldError('parentId', projectId ? 'La tâche parente doit appartenir au même projet ou à l’un de ses sous-projets.' : 'La tâche parente doit aussi être sans projet.');
   }
   if (childId && (parentId === childId || (await descendantIds(childId)).includes(parentId))) {
     throw fieldError('parentId', 'Une tâche ne peut pas être placée sous l’une de ses sous-tâches.');
@@ -106,7 +108,7 @@ async function assertSameTree(taskId: string, otherId: string): Promise<void> {
   if (tasks.length !== 2) throw notFound('Tâche');
   const rootOf = await loadRootOf();
   if (rootOf(tasks[0].projectId) !== rootOf(tasks[1].projectId)) {
-    throw clientError('BAD_USER_INPUT', 'Les deux tâches doivent appartenir au même projet ou à ses sous-projets.');
+    throw clientError('BAD_USER_INPUT', 'Les deux tâches doivent appartenir au même projet ou à ses sous-projets (ou être toutes deux sans projet).');
   }
 }
 
@@ -116,7 +118,8 @@ async function assertSameTree(taskId: string, otherId: string): Promise<void> {
  * @param {string} projectId Project of the task.
  * @returns {Promise<void>}
  */
-async function assertMilestone(milestoneId: string, projectId: string): Promise<void> {
+async function assertMilestone(milestoneId: string, projectId: string | null): Promise<void> {
+  if (!projectId) throw fieldError('milestoneId', 'Une tâche sans projet n’a pas de jalon.');
   const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId }, select: { projectId: true } });
   if (!milestone) throw fieldError('milestoneId', 'Jalon introuvable.');
   const rootOf = await loadRootOf();
@@ -131,8 +134,9 @@ async function assertMilestone(milestoneId: string, projectId: string): Promise<
  * @param {string} projectId Project of the task.
  * @returns {Promise<void>}
  */
-async function assertSprints(sprintIds: string[], projectId: string): Promise<void> {
+async function assertSprints(sprintIds: string[], projectId: string | null): Promise<void> {
   if (sprintIds.length === 0) return;
+  if (!projectId) throw fieldError('sprintIds', 'Une tâche sans projet n’est dans aucun sprint.');
   const sprints = await prisma.sprint.findMany({ where: { id: { in: sprintIds } }, select: { projectId: true } });
   if (sprints.length !== new Set(sprintIds).size) throw fieldError('sprintIds', 'Sprint introuvable.');
   const rootOf = await loadRootOf();
@@ -152,7 +156,11 @@ async function assertReferences(refs: {
   typeId?: string | null;
   assigneeIds?: string[] | null;
   tagIds?: string[] | null;
+  beneficiaryIds?: string[] | null;
+  beneficiaryRelationIds?: string[] | null;
 }): Promise<void> {
+  if (refs.beneficiaryIds?.length && (await prisma.contributor.count({ where: { id: { in: refs.beneficiaryIds } } })) !== new Set(refs.beneficiaryIds).size) throw notFound('Bénéficiaire');
+  if (refs.beneficiaryRelationIds?.length && (await prisma.treasuryRelation.count({ where: { id: { in: refs.beneficiaryRelationIds } } })) !== new Set(refs.beneficiaryRelationIds).size) throw notFound('Bénéficiaire');
   if (refs.statusId && !(await prisma.taskStatus.findUnique({ where: { id: refs.statusId } }))) throw notFound('Statut');
   if (refs.priorityId && !(await prisma.taskPriority.findUnique({ where: { id: refs.priorityId } }))) {
     throw notFound('Priorité');
@@ -194,6 +202,9 @@ export interface TaskInput {
   parentId?: string | null;
   milestoneId?: string | null;
   sprintIds?: string[] | null;
+  /** « Bénéficiaires »: contributors and relations the task is for. */
+  beneficiaryIds?: string[] | null;
+  beneficiaryRelationIds?: string[] | null;
   /** Slots the task is done on or out of; null: the default of the workspace. */
   slotRule?: unknown;
 }
@@ -251,23 +262,24 @@ async function nextPosition(): Promise<number> {
 
 /**
  * Creates a task at the end of the list.
- * @param {TaskInput & { title: string, projectId: string }} input Task input.
+ * @param {TaskInput & { title: string }} input Task input (no project: a task of none, without number).
  * @returns {Promise<Task>} Created task.
  */
-export async function createTask(input: TaskInput & { title: string; projectId: string }): Promise<Task> {
+export async function createTask(input: TaskInput & { title: string }): Promise<Task> {
   if (!input.title?.trim()) throw fieldError('title', 'Le titre est requis.');
   const details = parseDetails(input);
-  await assertProject(input.projectId);
+  const projectId = input.projectId ?? null;
+  if (projectId) await assertProject(projectId);
   await assertReferences(input);
-  if (input.parentId) await assertParent(input.parentId, input.projectId, null);
-  if (input.milestoneId) await assertMilestone(input.milestoneId, input.projectId);
-  if (input.sprintIds) await assertSprints(input.sprintIds, input.projectId);
+  if (input.parentId) await assertParent(input.parentId, projectId, null);
+  if (input.milestoneId) await assertMilestone(input.milestoneId, projectId);
+  if (input.sprintIds) await assertSprints(input.sprintIds, projectId);
 
   const task = await prisma.task.create({
     data: {
       ...details,
       title: details.title!,
-      projectId: input.projectId,
+      projectId,
       statusId: input.statusId ?? null,
       priorityId: input.priorityId ?? null,
       typeId: input.typeId ?? null,
@@ -276,10 +288,12 @@ export async function createTask(input: TaskInput & { title: string; projectId: 
       position: await nextPosition(),
       sprints: { connect: (input.sprintIds ?? []).map((id) => ({ id })) },
       assignees: { connect: (input.assigneeIds ?? []).map((id) => ({ id })) },
+      beneficiaries: { connect: [...new Set(input.beneficiaryIds ?? [])].map((id) => ({ id })) },
+      beneficiaryRelations: { connect: [...new Set(input.beneficiaryRelationIds ?? [])].map((id) => ({ id })) },
       tags: { connect: (input.tagIds ?? []).map((id) => ({ id })) },
     },
   });
-  await attachAssignees([{ projectId: input.projectId, contributorIds: input.assigneeIds ?? [] }]);
+  if (projectId) await attachAssignees([{ projectId, contributorIds: input.assigneeIds ?? [] }]);
   return task;
 }
 
@@ -311,13 +325,15 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       milestoneId: input.milestoneId,
       ...(input.sprintIds && { sprints: { set: input.sprintIds.map((sprintId) => ({ id: sprintId })) } }),
       ...(input.assigneeIds && { assignees: { set: input.assigneeIds.map((assigneeId) => ({ id: assigneeId })) } }),
+      ...(input.beneficiaryIds && { beneficiaries: { set: [...new Set(input.beneficiaryIds)].map((beneficiaryId) => ({ id: beneficiaryId })) } }),
+      ...(input.beneficiaryRelationIds && { beneficiaryRelations: { set: [...new Set(input.beneficiaryRelationIds)].map((relationId) => ({ id: relationId })) } }),
       ...(input.tagIds && { tags: { set: input.tagIds.map((tagId) => ({ id: tagId })) } }),
     },
   });
   // Only new assignees: a contributor detached from the project on purpose stays detached.
   if (input.assigneeIds) {
     const added = input.assigneeIds.filter((assigneeId) => !previous.includes(assigneeId));
-    await attachAssignees([{ projectId: task.projectId, contributorIds: added }]);
+    if (task.projectId) await attachAssignees([{ projectId: task.projectId, contributorIds: added }]);
   }
   return updated;
 }
@@ -388,15 +404,16 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
 }
 
 /**
- * Transfers a task and its sub-tasks to another project, where they take the next numbers (given by the database).
- * Links leaving the new project tree are removed.
+ * Transfers a task and its sub-tasks to another project, where they take the next numbers (given by the database), or
+ * out of any project (they lose their numbers, milestones, sprints and GitHub items). Links leaving the new tree are
+ * removed.
  * @param {string} id Task id.
- * @param {string} projectId Target project.
+ * @param {string | null} projectId Target project; null: none.
  * @returns {Promise<{ task: Task, removedLinks: number }>} Moved task and number of removed links.
  */
-export async function transferTask(id: string, projectId: string): Promise<{ task: Task; removedLinks: number }> {
+export async function transferTask(id: string, projectId: string | null): Promise<{ task: Task; removedLinks: number }> {
   const task = await findTask(id);
-  await assertProject(projectId);
+  if (projectId) await assertProject(projectId);
   const moved = [id, ...(await descendantIds(id))];
   const rootOf = await loadRootOf();
   const targetRoot = rootOf(projectId);
@@ -425,6 +442,8 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
     .map((item) => ({ id: item.id, sprints: item.sprints.filter((sprint) => rootOf(sprint.projectId) !== targetRoot).map((sprint) => ({ id: sprint.id })) }))
     .filter((item) => item.sprints.length > 0);
 
+  // Out of any project: their GitHub items go (the link is through the project).
+  if (!projectId) await forgetGithubItems(moved);
   const results = await prisma.$transaction([
     prisma.taskBlock.deleteMany({
       where: {
@@ -443,7 +462,7 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
       },
     }),
     // Sub-tasks of the moved task whose parent is outside the moved set cannot exist: they all move.
-    prisma.task.updateMany({ where: { id: { in: moved } }, data: { projectId } }),
+    prisma.task.updateMany({ where: { id: { in: moved } }, data: projectId ? { projectId } : { projectId: null, githubItemId: null } }),
     prisma.task.update({ where: { id }, data: parentOutside ? { parentId: null } : {} }),
     prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
     ...losingSprints.map((item) => prisma.task.update({ where: { id: item.id }, data: { sprints: { disconnect: item.sprints } } })),
@@ -451,7 +470,7 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
   const removedLinks = results[0].count + results[1].count + (parentOutside ? 1 : 0) + losingMilestone.length + losingSprints.length;
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
-  await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
+  if (projectId) await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
   return { task: results[3], removedLinks };
 }
 
@@ -462,7 +481,7 @@ export async function transferTask(id: string, projectId: string): Promise<{ tas
  * @returns {Promise<Task>} Clone of the task.
  */
 export async function cloneTask(id: string, includeSubtasks: boolean): Promise<Task> {
-  const include = { assignees: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
+  const include = { assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, beneficiaryRelations: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } }, blocking: true, blockedBy: true, relationsA: true, relationsB: true };
   const source = await prisma.task.findUnique({ where: { id }, include });
   if (!source) throw notFound('Tâche');
 
@@ -476,7 +495,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
      * @returns {Promise<Task>} Copy.
      */
     const copy = (
-      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } }; tags: { select: { id: true } }; sprints: { select: { id: true } } } }>,
+      task: Prisma.TaskGetPayload<{ include: { assignees: { select: { id: true } }; beneficiaries: { select: { id: true } }; beneficiaryRelations: { select: { id: true } }; tags: { select: { id: true } }; sprints: { select: { id: true } } } }>,
       parentId: string | null,
     ) =>
       tx.task.create({
@@ -496,6 +515,8 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           sprints: { connect: task.sprints },
           position: position++,
           assignees: { connect: task.assignees },
+          beneficiaries: { connect: task.beneficiaries },
+          beneficiaryRelations: { connect: task.beneficiaryRelations },
           tags: { connect: task.tags },
         },
       });
@@ -522,7 +543,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
         const children = await tx.task.findMany({
           where: { parentId: sourceId },
           orderBy: { position: 'asc' },
-          include: { assignees: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } } },
+          include: { assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, beneficiaryRelations: { select: { id: true } }, tags: { select: { id: true } }, sprints: { select: { id: true } } },
         });
         for (const child of children) {
           const childClone = await copy(child, cloneId);
@@ -795,7 +816,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         )
       : []),
   ]);
-  await attachAssignees(tasks.map((task) => ({ projectId: task.projectId, contributorIds: changes.addAssigneeIds ?? [] })));
+  await attachAssignees(tasks.flatMap((task) => (task.projectId ? [{ projectId: task.projectId, contributorIds: changes.addAssigneeIds ?? [] }] : [])));
 }
 
 /**
@@ -816,12 +837,12 @@ async function topmost(ids: string[]): Promise<string[]> {
 }
 
 /**
- * Transfers several tasks (with their sub-tasks) to another project.
+ * Transfers several tasks (with their sub-tasks) to another project, or out of any.
  * @param {string[]} ids Task ids.
- * @param {string} projectId Target project.
+ * @param {string | null} projectId Target project; null: none.
  * @returns {Promise<number>} Number of links removed because they left the project tree.
  */
-export async function bulkTransferTasks(ids: string[], projectId: string): Promise<number> {
+export async function bulkTransferTasks(ids: string[], projectId: string | null): Promise<number> {
   await assertTasks(ids);
   let removedLinks = 0;
   for (const id of await topmost(ids)) removedLinks += (await transferTask(id, projectId)).removedLinks;

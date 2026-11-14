@@ -244,21 +244,21 @@ function conditionWhere(
 
     case 'number': {
       const key = field as 'number' | 'effort';
-      const nullable = key === 'effort';
       switch (operator) {
         case 'eq':
           return { [key]: number };
         case 'neq':
-          return nullable ? { OR: [{ effort: null }, { NOT: { effort: number } }] } : { NOT: { number } };
+          return { OR: [{ [key]: null }, { NOT: { [key]: number } }] };
         case 'lt':
         case 'lte':
         case 'gt':
         case 'gte':
           return { [key]: { [operator]: number } };
+        // A task of no project has no number.
         case 'isEmpty':
-          return nullable ? { effort: null } : NEVER;
+          return { [key]: null };
         default:
-          return nullable ? { NOT: { effort: null } } : {};
+          return { NOT: { [key]: null } };
       }
     }
 
@@ -296,7 +296,8 @@ function conditionWhere(
         parent: 'parentId',
         milestone: 'milestoneId',
       }[field as 'project' | 'status' | 'priority' | 'type' | 'parent' | 'milestone'] as 'projectId' | 'statusId' | 'priorityId' | 'typeId' | 'parentId' | 'milestoneId';
-      const nullable = key !== 'projectId';
+      // Every reference may be empty (a task of no project too).
+      const nullable = true;
       switch (operator) {
         case 'in':
           return { [key]: { in: ids } };

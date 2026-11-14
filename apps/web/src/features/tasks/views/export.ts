@@ -7,6 +7,7 @@ import { COLUMN_LABELS } from './columns-meta';
 import { EVENT_STATES, eventState, eventWhen } from './event-format';
 import type { DisplayRow } from './task-rows';
 import * as fmt from '../../../lib/format';
+import { beneficiaryNames } from '../../beneficiaries/use-beneficiaries';
 
 export interface ExportRow {
   kind: 'group' | 'task' | 'event';
@@ -58,6 +59,8 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
       return (task.priorityId && context.priorityById.get(task.priorityId)?.name) || '';
     case 'type':
       return (task.typeId && context.typeById.get(task.typeId)?.name) || '';
+    case 'beneficiaries':
+      return beneficiaryNames(task, context).join(', ');
     case 'assignees':
       return task.assigneeIds
         .map((id) => context.contributorById.get(id))
@@ -118,6 +121,8 @@ function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskCont
       return event.location ? `${event.title} (${event.location})` : event.title;
     case 'project':
       return event.projectId ? context.projectLabel(event.projectId) : '';
+    case 'beneficiaries':
+      return beneficiaryNames(event, context).join(', ');
     case 'assignees':
       return event.contributorIds
         .map((id) => context.contributorById.get(id)?.name)

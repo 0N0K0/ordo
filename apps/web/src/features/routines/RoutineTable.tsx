@@ -52,7 +52,7 @@ import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
-import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell } from './routine-cells';
+import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell, RoutineBeneficiariesCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { RoutineDoneToggles } from './DoneToggle';
@@ -381,6 +381,7 @@ function RoutineRowView({ row, routines, byId, context, today, doable, running, 
     time: <TimeWindowCell routine={routine} readOnly={readOnly} />,
     trackedTime: <ChronoCell routine={routine} running={running} />,
     assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
+    beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
     categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
     requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
     project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,

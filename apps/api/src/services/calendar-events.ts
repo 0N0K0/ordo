@@ -18,6 +18,7 @@ import { Prisma, type CalendarEvent, type CalendarEventException } from '../gene
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { runInWorkspace } from '../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
+import { assertProjectContributors } from './contributors';
 
 export interface CalendarLink {
   url: string;
@@ -62,6 +63,9 @@ export interface EventOccurrence {
   contributorIds: string[];
   /** Relations without contributor taking part. */
   relationIds: string[];
+  /** « Bénéficiaires »: whom the event is for (contributors, relations). */
+  beneficiaryIds: string[];
+  beneficiaryRelationIds: string[];
   categoryIds: string[];
   /** Tasks the event is about. */
   taskIds: string[];
@@ -79,6 +83,8 @@ type EventWithRelations = CalendarEvent & {
   exceptions: CalendarEventException[];
   contributors: { id: string }[];
   relations: { id: string }[];
+  beneficiaries: { id: string }[];
+  beneficiaryRelations: { id: string }[];
   categories: { id: string }[];
   tasks: { id: string }[];
   postponedFrom: { title: string } | null;
@@ -90,6 +96,8 @@ const occurrenceInclude = {
   exceptions: true,
   contributors: { select: { id: true } },
   relations: { select: { id: true } },
+  beneficiaries: { select: { id: true } },
+  beneficiaryRelations: { select: { id: true } },
   categories: { select: { id: true } },
   tasks: { select: { id: true } },
   postponedFrom: { select: { title: true } },
@@ -108,11 +116,22 @@ export function storedRecurrence(value: unknown): Recurrence | null {
 }
 
 /**
- * Validates event fields and the project, contributors, relations and categories they point to.
+ * Contributors of an event (they may stay when its project changes).
+ * @param {string} id Event.
+ * @returns {Promise<string[]>} Ids.
+ */
+async function eventContributorIds(id: string): Promise<string[]> {
+  return ((await prisma.calendarEvent.findUnique({ where: { id }, select: { contributors: { select: { id: true } } } }))?.contributors ?? []).map((contributor) => contributor.id);
+}
+
+/**
+ * Validates event fields and the project, contributors (of the project only, those already there stay), relations
+ * and categories they point to.
  * @param {CalendarEventInput} input Event fields.
+ * @param {string[]} [keep] Contributors already on the event. Optional.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
-async function parseEvent(input: CalendarEventInput) {
+async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
   const event = parseInput(calendarEventInputSchema, input);
   if (event.projectId && !(await prisma.project.findUnique({ where: { id: event.projectId }, select: { id: true } }))) {
     throw notFound('Projet');
@@ -120,6 +139,9 @@ async function parseEvent(input: CalendarEventInput) {
   if ((await prisma.contributor.count({ where: { id: { in: event.contributorIds } } })) !== new Set(event.contributorIds).size) {
     throw notFound('Contributeur');
   }
+  await assertProjectContributors(event.projectId ?? null, event.contributorIds, keep, 'contributorIds');
+  if ((await prisma.contributor.count({ where: { id: { in: event.beneficiaryIds } } })) !== new Set(event.beneficiaryIds).size) throw notFound('Bénéficiaire');
+  if ((await prisma.treasuryRelation.count({ where: { id: { in: event.beneficiaryRelationIds } } })) !== new Set(event.beneficiaryRelationIds).size) throw notFound('Bénéficiaire');
   if ((await prisma.treasuryRelation.count({ where: { id: { in: event.relationIds } } })) !== new Set(event.relationIds).size) {
     throw notFound('Relation');
   }
@@ -194,6 +216,8 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
       recurrence: event.recurrence ?? undefined,
       contributors: { connect: event.contributorIds.map((id) => ({ id })) },
       relations: { connect: [...new Set(event.relationIds)].map((id) => ({ id })) },
+      beneficiaries: { connect: [...new Set(event.beneficiaryIds)].map((id) => ({ id })) },
+      beneficiaryRelations: { connect: [...new Set(event.beneficiaryRelationIds)].map((id) => ({ id })) },
       categories: { connect: event.categoryIds.map((id) => ({ id })) },
       tasks: { connect: [...new Set(event.taskIds)].map((id) => ({ id })) },
     },
@@ -246,11 +270,13 @@ export async function updateCalendarEvent(
   occurrenceDate?: string | null,
 ): Promise<CalendarEvent> {
   const event = await findEvent(id);
-  const fields = await parseEvent(input);
+  const fields = await parseEvent(input, await eventContributorIds(id));
   const occurrence = occurrenceOf(event, occurrenceDate);
   const relations = {
     contributors: { set: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
     relations: { set: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
+    beneficiaries: { set: [...new Set(fields.beneficiaryIds)].map((id) => ({ id })) },
+    beneficiaryRelations: { set: [...new Set(fields.beneficiaryRelationIds)].map((id) => ({ id })) },
     categories: { set: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
     tasks: { set: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
   };
@@ -318,6 +344,8 @@ export async function updateCalendarEvent(
         recurrence: rule ?? undefined,
         contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
         relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
+        beneficiaries: { connect: [...new Set(fields.beneficiaryIds)].map((id) => ({ id })) },
+        beneficiaryRelations: { connect: [...new Set(fields.beneficiaryRelationIds)].map((id) => ({ id })) },
         categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
         tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
       },
@@ -394,6 +422,8 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     relationIds: event.relations.map((relation) => relation.id),
+    beneficiaryIds: event.beneficiaries.map((beneficiary) => beneficiary.id),
+    beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
     calledOff: event.calledOff || (change?.calledOff ?? false),
@@ -501,6 +531,8 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     calendarId: event.calendarId,
     contributorIds: event.contributors.map((contributor) => contributor.id),
     relationIds: event.relations.map((relation) => relation.id),
+    beneficiaryIds: event.beneficiaries.map((beneficiary) => beneficiary.id),
+    beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
   };
@@ -584,7 +616,7 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
 export async function postponeCalendarEvent(id: string, occurrenceDate: string | null | undefined, input: CalendarEventInput): Promise<CalendarEvent> {
   const event = await findEvent(id);
   const occurrence = occurrenceOf(event, occurrenceDate);
-  const fields = await parseEvent({ ...input, recurrence: null });
+  const fields = await parseEvent({ ...input, recurrence: null }, await eventContributorIds(id));
   const created = await prisma.calendarEvent.create({
     data: {
       ...eventData(fields),
@@ -593,6 +625,8 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       postponedFromDate: occurrence ? parseDay(occurrence.date) : null,
       contributors: { connect: fields.contributorIds.map((contributorId) => ({ id: contributorId })) },
       relations: { connect: [...new Set(fields.relationIds)].map((relationId) => ({ id: relationId })) },
+      beneficiaries: { connect: [...new Set(fields.beneficiaryIds)].map((id) => ({ id })) },
+      beneficiaryRelations: { connect: [...new Set(fields.beneficiaryRelationIds)].map((id) => ({ id })) },
       categories: { connect: fields.categoryIds.map((categoryId) => ({ id: categoryId })) },
       tasks: { connect: [...new Set(fields.taskIds)].map((taskId) => ({ id: taskId })) },
     },

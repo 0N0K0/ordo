@@ -13,6 +13,7 @@ export const ROUTINE_COLUMNS: DataColumn<Routine>[] = [
   { id: 'trackedTime', label: 'Chrono', size: 120, sortValue: () => null },
   { id: 'lastDoneAt', label: 'Faite pour la dernière fois', size: 170, hiddenByDefault: true, sortValue: () => null },
   { id: 'assignees', label: 'Assignés', size: 160, sortValue: () => null },
+  { id: 'beneficiaries', label: 'Bénéficiaires', size: 160 },
   { id: 'categories', label: 'Catégories', size: 180, sortValue: () => null },
   { id: 'requires', label: 'Dépend de', size: 180 },
   { id: 'project', label: 'Projet', size: 180, sortValue: () => null },

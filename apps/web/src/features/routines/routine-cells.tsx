@@ -18,6 +18,7 @@ import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
 import { DAILY, describeRoutineCase, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { BeneficiariesCell } from '../beneficiaries/BeneficiariesSelect';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -324,7 +325,8 @@ export function AssigneesCell({ routine, readOnly = false, context }: CellProps 
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Assignés', routine, count)}
-          data={context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
+          // Of a routine of a project: its contributors only (its current assignees stay).
+          data={context.assignableFor([routine.projectId ?? null], routine.assigneeIds).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
           renderOption={({ option }) => {
             const contributor = context.contributorById.get(option.value);
             return (
@@ -520,4 +522,14 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
       </Popover.Dropdown>
     </Popover>
   );
+}
+
+/**
+ * « Bénéficiaires » cell of a routine: contributors and relations it is for.
+ * @param {CellProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function RoutineBeneficiariesCell({ routine, readOnly = false }: CellProps) {
+  const { apply, count } = useRoutineCellEdit(routine, 'beneficiaries');
+  return <BeneficiariesCell label={fieldLabel('Bénéficiaires', routine, count)} value={routine} readOnly={readOnly} onSave={(beneficiaries) => apply(beneficiaries)} />;
 }

@@ -9,6 +9,8 @@ import { fetchCalendarEvents, type EventOccurrence } from '../calendar/api';
 import { MailWatcher } from '../mail/MailWatcher';
 import { useWorkspaces, type Workspace } from './api';
 import { switchWorkspace } from './switch';
+import { taskPath } from '../tasks/task-links';
+import { taskRef } from '../tasks/use-task-context';
 
 const ElsewhereAlarmsDocument = graphql(`
   query ElsewhereAlarms {
@@ -91,7 +93,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
      * @returns {RingLink[]} Links.
      */
     const alarmLinks = (alarm: ElsewhereAlarm): RingLink[] => {
-      if (alarm.task) return [link(`#${alarm.task.number} ${alarm.task.title}`, `/projects/${alarm.task.projectId}?tab=tasks&task=${alarm.task.id}`)];
+      if (alarm.task) return [link(`${taskRef(alarm.task)}${alarm.task.title}`, taskPath(alarm.task))];
       if (alarm.project) return [link(alarm.project.title, `/projects/${alarm.project.id}`)];
       return [link(`Ouvrir « ${name} »`, '/')];
     };

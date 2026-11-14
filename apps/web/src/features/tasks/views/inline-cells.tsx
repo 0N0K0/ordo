@@ -19,12 +19,13 @@ import { notifyError } from '../../../lib/notify';
 import { useTaskBlock, type Task, type TaskLabel } from '../api';
 import { linkableTasks } from '../task-links';
 import { LabelBadge } from '../task-ui';
-import type { TaskContext } from '../use-task-context';
+import { taskName, taskRef, type TaskContext } from '../use-task-context';
 import { useTaskLink } from '../use-task-link';
 import { useCellEdit } from './cell-edit';
 import classes from '../../../components/data-table/EditableCells.module.css';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 import { StackedMultiCell } from './StackedMultiCell';
+import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
 
 /**
  * Stops the click from reaching the row.
@@ -55,7 +56,7 @@ const cellCombobox = {
  * @returns {string} Label.
  */
 function fieldLabel(name: string, task: Task, count: number): string {
-  return count > 1 ? `${name} (appliqué aux ${count} cellules sélectionnées)` : `${name} de la tâche #${task.number}`;
+  return count > 1 ? `${name} (appliqué aux ${count} cellules sélectionnées)` : `${name} de la tâche ${taskName(task)}`;
 }
 
 /**
@@ -89,7 +90,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
         size="xs"
         value={draft}
         autoFocus
-        aria-label={`Titre de la tâche #${task.number}`}
+        aria-label={`Titre de la tâche ${taskName(task)}`}
         onClick={stop}
         onFocus={(event) => event.currentTarget.select()}
         onChange={(event) => setDraft(event.currentTarget.value)}
@@ -118,7 +119,7 @@ export function TitleCell({ task, context, prefix }: { task: Task; context: Task
     >
       {prefix}
       <Text component={Link} to={link.to(task.id)} size="sm" c="dimmed" onClick={stop} style={{ flex: 'none' }}>
-        #{task.number}
+        {taskRef(task).trim()}
       </Text>
       <Text
         component={Link}
@@ -370,7 +371,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
   const onError = { onError: (error: Error) => notifyError(error.message) };
-  const label = `Tâches dont dépend la tâche #${task.number}`;
+  const label = `Tâches dont dépend la tâche ${taskName(task)}`;
   return (
     <StackedMultiCell
       label={label}
@@ -380,8 +381,8 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
           ? [
               {
                 id,
-                label: `#${blocker.number} ${blocker.title}`,
-                title: `#${blocker.number} ${blocker.title}${blocker.closed ? ' (fermée)' : ' (ouverte : bloque la tâche)'}`,
+                label: `${taskName(blocker)} ${blocker.title}`,
+                title: `${taskName(blocker)} ${blocker.title}${blocker.closed ? ' (fermée)' : ' (ouverte : bloque la tâche)'}`,
                 icon: blocker.closed ? (
                   <CheckIcon aria-hidden color="var(--mantine-color-green-6)" style={{ flexShrink: 0 }} />
                 ) : (
@@ -396,7 +397,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
           {...cellCombobox}
           classNames={{ ...cellField.classNames, pillsList: classes.pills }}
           aria-label={label}
-          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `#${item.number} ${item.title}` }))}
+          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${taskName(item)} ${item.title}` }))}
           value={task.blockedByIds}
           onChange={(ids) => {
             for (const id of ids.filter((item) => !task.blockedByIds.includes(item))) {
@@ -495,4 +496,14 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       fw={alert ? 600 : undefined}
     />
   );
+}
+
+/**
+ * « Bénéficiaires » cell of a task: contributors and relations it is for.
+ * @param {{ task: Task }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TaskBeneficiariesCell({ task }: { task: Task }) {
+  const { apply, count } = useCellEdit(task, 'beneficiaries');
+  return <BeneficiariesCell label={fieldLabel('Bénéficiaires', task, count)} value={task} onSave={(beneficiaries) => apply(beneficiaries)} />;
 }

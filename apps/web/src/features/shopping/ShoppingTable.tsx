@@ -55,6 +55,8 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   label: string;
   /** Nothing can be changed (an archived list). */
   readOnly?: boolean;
+  /** Projects of the list (through its tasks): the members offered are their contributors. Optional. */
+  projectIds?: string[];
   /** Saves a row changed in place or moved to another category (or store). */
   onSave: (row: T, input: ShoppingItemInput) => void;
   /** Checkbox of a row (missing, or bought). */
@@ -95,7 +97,7 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
  * @param {ItemRowProps<T>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
+function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
   const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: `row:${item.id}`, data: { groupId } satisfies DropData, disabled: readOnly });
@@ -137,7 +139,7 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
       />
     ),
     expiresAt: <ExpiryCell value={item.expiresAt ?? null} disabled={!item.perishable} label={`Date de péremption de ${name}`} readOnly={readOnly} onSave={(expiresAt) => save({ expiresAt })} />,
-    people: <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Pour qui est ${name}`} readOnly={readOnly} onSave={(people) => save(people)} />,
+    people: <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Pour qui est ${name}`} readOnly={readOnly} projectIds={projectIds} onSave={(people) => save(people)} />,
     url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save({ url })} />,
     extra: extra?.render(item),
   };

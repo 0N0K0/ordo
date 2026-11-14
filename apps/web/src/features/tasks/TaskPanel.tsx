@@ -48,10 +48,11 @@ import { linkableTasks, subtreeIds } from './task-links';
 import { AssigneesSelect, LabelSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from './use-task-actions';
 import { ActionsMenu } from '../../components/data-table/RowActions';
-import { useTaskContext, type TaskContext } from './use-task-context';
+import { useTaskContext, type TaskContext, taskName, taskRef } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
+import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 
 /**
  * Property block of the side column.
@@ -98,7 +99,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
       {tasks.map((task) => (
         <Group key={task.id} gap={4} wrap="nowrap" justify="space-between">
           <TaskRef task={task} blocked={context.isBlocked(task)} />
-          <CloseButton size="xs" aria-label={`Retirer #${task.number}`} onClick={() => onRemove(task.id)} />
+          <CloseButton size="xs" aria-label={`Retirer ${taskName(task)}`} onClick={() => onRemove(task.id)} />
         </Group>
       ))}
       {adding ? (
@@ -190,7 +191,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {task.title}{' '}
               <Text span c="dimmed" inherit fw={400}>
-                #{task.number}
+                {taskRef(task).trim()}
               </Text>
               {task.githubLinked && (
                 <Badge
@@ -399,6 +400,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               onChange={(assigneeIds) => save({ assigneeIds })}
             />
             <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
+            <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
             <NumberInput
               key={`effort-${task.effort}`}
               label="Effort"
@@ -520,7 +522,7 @@ export function TaskPanel() {
   const task = taskId ? context?.taskById.get(taskId) : undefined;
 
   return (
-    <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}>
+    <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche ${taskName(task)}` : 'Tâche'}>
       {isPending ? (
         <DetailSkeleton fields={5} />
       ) : task && context ? (
