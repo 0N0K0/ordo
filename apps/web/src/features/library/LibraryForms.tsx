@@ -1,4 +1,4 @@
-import { Button, FileButton, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Button, FileButton, Group, Stack, Text, TextInput } from '@mantine/core';
 import { UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess } from '../../lib/notify';
@@ -6,6 +6,7 @@ import { useLibraryMutations, type DocumentFolder, type LibraryDocument } from '
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
+import { CreatableSelect } from '../../components/CreatableSelect';
 
 const ROOT = '__root__';
 
@@ -24,12 +25,24 @@ interface FolderSelectProps {
  * @returns {JSX.Element} Select.
  */
 export function FolderSelect({ folders, value, onChange, excluded, label = 'Dossier' }: FolderSelectProps) {
+  const { createFolder } = useLibraryMutations();
   const options = treeOptions(
     [{ id: ROOT, parentId: null, label: 'Documents (racine)' }, ...folders.map((folder) => ({ id: folder.id, parentId: folder.parentId ?? ROOT, label: folder.name }))],
     undefined,
     excluded,
   );
-  return <Select label={label} searchable allowDeselect={false} {...treeSelectProps(options)} value={value ?? ROOT} onChange={(next) => onChange(!next || next === ROOT ? null : next)} />;
+  return (
+    <CreatableSelect
+      label={label}
+      searchable
+      allowDeselect={false}
+      // A folder typed is made at the root.
+      onCreate={(name) => createFolder.mutateAsync({ name, parentId: null })}
+      {...treeSelectProps(options)}
+      value={value ?? ROOT}
+      onChange={(next) => onChange(!next || next === ROOT ? null : next)}
+    />
+  );
 }
 
 /**

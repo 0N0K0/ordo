@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TABLE_AGGREGATES } from './aggregates';
 import { columnLayoutSchema, tableSortSchema } from './table-layout';
 import { filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterGroupOf } from './task-filters';
 
@@ -33,6 +34,10 @@ export const tableViewConfigSchema = z.object({
   /** Column the rows are grouped by, null for none. */
   groupBy: z.string().max(64).nullable().catch(null).default(null),
   ...columnLayoutSchema.shape,
+  /** Footer of the table: the total shown under each column (count, sum, average, median); null: no footer. */
+  footer: z.record(z.string().max(64), z.enum(TABLE_AGGREGATES)).nullable().catch(null).default(null),
+  /** Rows in the order chosen by hand (their keys), used without sort; the others after, in their order. */
+  manualOrder: z.array(z.string().max(200)).max(5000).catch([]).default([]),
 });
 export type TableViewConfig = z.infer<typeof tableViewConfigSchema>;
 

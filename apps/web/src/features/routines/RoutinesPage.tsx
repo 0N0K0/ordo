@@ -152,6 +152,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             addable={groupBy === 'category' || groupBy === null}
             projectId={projectId ?? null}
             columns={columnLayout!}
+            footer={config.footer && env ? { totals: config.footer, texts: routineTexts(env), onChange: (totals) => state.change((current) => ({ ...current, footer: totals })) } : null}
             onColumnsChange={(next) => state.change((current) => ({ ...current, ...next }))}
             sorting={config.sorting}
             onSortingChange={(sorting) => state.change((current) => ({ ...current, sorting: sorting as typeof current.sorting }))}

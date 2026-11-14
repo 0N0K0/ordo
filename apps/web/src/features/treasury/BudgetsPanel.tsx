@@ -3,7 +3,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title, Tooltip, NumberInput } from '@mantine/core';
+import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Title, Tooltip, NumberInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -16,7 +16,7 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from './api';
+import { useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget, useTreasuryMutations } from './api';
 import { categoryOptions, categoryPaths } from './categories';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
@@ -24,6 +24,8 @@ import { AmountInput } from '../../components/AmountInput';
 import { Comments } from '../comments/Comments';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
+import { CreatableSelect } from '../../components/CreatableSelect';
+import { useDefaultColor } from '../workspace/use-default-color';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -78,6 +80,8 @@ function DirectionBadge({ direction }: { direction: string | undefined }) {
  * @returns {JSX.Element} Form.
  */
 function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; onDone: () => void }) {
+  const { createCategory } = useTreasuryMutations();
+  const color = useDefaultColor();
   const { data: settings } = useTreasurySettings();
   const { save } = useTreasuryBudgetMutations();
   const members = settings?.treasuryMembers ?? [];
@@ -155,10 +159,11 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
             }}
           />
-          <Select
+          <CreatableSelect
             label="Catégorie"
             required
             searchable
+            onCreate={(name) => createCategory.mutateAsync({ name, color, direction: direction ?? 'OUT', parentId: null })}
             {...treeSelectProps(categoryOptions(categories, direction))}
             nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
             description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
@@ -296,67 +301,6 @@ export function BudgetsPanel() {
    * @returns {number} Amount (positive: used).
    */
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
-  /**
-   * Totals of the budgeted rows of a direction: budgets, actual and forecast movements used, what is left.
-   * @param {readonly BudgetReportRow[]} shownRows Rows kept by the view.
-   * @param {'IN' | 'OUT'} direction Money in or out.
-   * @returns {{ count: number, budget: number, actual: number, forecast: number, left: number }} Totals, in cents.
-   */
-  const totalOf = (shownRows: readonly BudgetReportRow[], direction: 'IN' | 'OUT') => {
-    const total = { count: 0, budget: 0, actual: 0, forecast: 0, left: 0 };
-    for (const row of shownRows) {
-      if ((row.categoryId ? directionOf.get(row.categoryId) : 'OUT') !== direction) continue;
-      const actual = used(row, 'actual');
-      const forecast = used(row, 'forecast');
-      total.count += 1;
-      total.budget += row.budget;
-      total.actual += actual;
-      total.forecast += forecast;
-      total.left += row.budget - actual - forecast;
-    }
-    return total;
-  };
-  type TotalRow = { label: string; kind: 'OUT' | 'IN' | 'BALANCE'; budget: number; actual: number; forecast: number; left: number };
-  /**
-   * Total rows: money out and money in like their rows; the balance in money in minus money out, its "left" the gap
-   * with the planned balance (above zero: better than planned).
-   * @param {readonly BudgetReportRow[]} shownRows Rows kept by the view.
-   * @returns {TotalRow[]} Totals.
-   */
-  const totalsOf = (shownRows: readonly BudgetReportRow[]): TotalRow[] => {
-    const outTotal = totalOf(shownRows, 'OUT');
-    const inTotal = totalOf(shownRows, 'IN');
-    return [
-      ...(outTotal.count ? [{ label: 'Total sorties', kind: 'OUT' as const, ...outTotal }] : []),
-      ...(inTotal.count ? [{ label: 'Total entrées', kind: 'IN' as const, ...inTotal }] : []),
-      ...(outTotal.count && inTotal.count
-        ? [
-            {
-              label: 'Solde (entrées − sorties)',
-              kind: 'BALANCE' as const,
-              budget: inTotal.budget - outTotal.budget,
-              actual: inTotal.actual - outTotal.actual,
-              forecast: inTotal.forecast - outTotal.forecast,
-              // Money in beyond its budget and money out below its budget both make the balance better.
-              left: outTotal.left - inTotal.left,
-            },
-          ]
-        : []),
-    ];
-  };
-  /**
-   * A total as printed, with its color: signed for the balance; "left" like the rows (money out over budget in red,
-   * money in beyond its budget as a green surplus).
-   * @param {TotalRow} total Total row.
-   * @param {'budget' | 'actual' | 'forecast' | 'left'} key Column.
-   * @returns {{ text: string, color?: string }} Cell.
-   */
-  const totalCell = (total: TotalRow, key: 'budget' | 'actual' | 'forecast' | 'left'): { text: string; color?: string } => {
-    const value = total[key];
-    if (total.kind === 'BALANCE') return { text: `${value > 0 ? '+' : ''}${fmt.money(value)}`, color: value < 0 ? 'red' : value > 0 ? 'green' : undefined };
-    if (key === 'left' && value < 0) return total.kind === 'IN' ? { text: `+${fmt.money(-value)}`, color: 'green' } : { text: fmt.money(value), color: 'red' };
-    return { text: fmt.money(value), color: key === 'forecast' ? 'dimmed' : undefined };
-  };
   type KeyRow = { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null };
   /**
    * Cells of the key of a budget (or of a report row): for whom, context, category.
@@ -553,30 +497,6 @@ export function BudgetsPanel() {
                 ),
               };
             }}
-            footer={(shown, shownRows) => (
-              // Totals per direction, and the balance of money in minus money out.
-              <Table.Tfoot>
-                {totalsOf(shownRows).map((total) => (
-                  <Table.Tr
-                    key={total.label}
-                    // Totals stand out from the budgets: tinted in gray, the balance in the primary color.
-                    bg={total.kind === 'BALANCE' ? 'var(--mantine-primary-color-light)' : 'var(--mantine-color-gray-light)'}
-                    style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
-                  >
-                    {shown.map((column, index) => {
-                      const key = (['budget', 'actual', 'forecast', 'left'] as const).find((item) => item === column.id);
-                      const cell = key ? totalCell(total, key) : null;
-                      return (
-                        <Table.Th key={column.id} ta={key ? 'right' : undefined} c={cell?.color} style={{ whiteSpace: 'nowrap' }}>
-                          {cell ? cell.text : index === 0 ? total.label : null}
-                        </Table.Th>
-                      );
-                    })}
-                    <Table.Th />
-                  </Table.Tr>
-                ))}
-              </Table.Tfoot>
-            )}
           />
         )}
       </Paper>

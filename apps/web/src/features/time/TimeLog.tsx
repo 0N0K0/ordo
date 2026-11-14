@@ -1,5 +1,5 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { Badge, Group, Table, Text } from '@mantine/core';
+import { Badge, Group, Text } from '@mantine/core';
 import { entrySeconds, formatDuration, type TableFilterGroup } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -82,6 +82,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>)
       size: 100,
       numeric: true,
       sortValue: (entry) => entrySeconds(entry),
+      formatTotal: (seconds) => formatDuration(Math.round(seconds)),
       text: (entry) => (entry.endedAt ? formatDuration(entrySeconds(entry)) : 'En cours'),
       filter: false,
     },
@@ -287,19 +288,6 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           />
         )
       }
-      footer={(shown, rows) => (
-        // Total of the times shown (finished ones: a running timer counts once stopped).
-        <Table.Tfoot className={classes.total}>
-          <Table.Tr>
-            <Table.Th colSpan={shown.length} scope="row">
-              Total
-            </Table.Th>
-            <Table.Th ff="monospace" ta="right" className={classes.nowrap}>
-              {formatDuration(finishedSeconds(rows))}
-            </Table.Th>
-          </Table.Tr>
-        </Table.Tfoot>
-      )}
     />
   );
 }

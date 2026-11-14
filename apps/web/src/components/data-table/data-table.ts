@@ -32,6 +32,8 @@ export interface DataColumn<R> {
   sortValue?: (row: R) => string | number | null;
   /** Text right-aligned (amounts). Optional. */
   numeric?: boolean;
+  /** Total of the column in the footer, written as its values (an amount, a duration…). Optional. Default = a number. */
+  formatTotal?: (value: number) => string;
   /** Text of the cell: exported, searched, and the name of its group. Optional: without, the column is left out of them. */
   text?: (row: R) => string;
   /** How the column is filtered. Optional. Default = by its text (none without text); false: not filtered. */

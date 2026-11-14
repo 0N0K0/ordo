@@ -14,7 +14,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions, DestructiveButton } from '../../components/dialogs/DestructiveActions';
-import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence } from './api';
+import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, useCalendarCategoryMutations } from './api';
 import { useTimeMutations } from '../time/api';
 import { EventLocation } from '../geo/EventLocation';
 import { TravelCalculator } from '../geo/TravelCalculator';
@@ -30,6 +30,7 @@ import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
 import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
 import { Comments } from '../comments/Comments';
+import { useDefaultColor } from '../workspace/use-default-color';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -113,6 +114,8 @@ interface EventFormProps {
  * @returns {JSX.Element} Form.
  */
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
+  const { create: createCategory } = useCalendarCategoryMutations();
+  const color = useDefaultColor();
   const { create, update, remove, setCalledOff, postpone } = useCalendarEventMutations();
   const [postponing, setPostponing] = useState(false);
   const { start: startTimer } = useTimeMutations();
@@ -523,6 +526,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             {...form.getInputProps('relationIds')}
           />
           <BatchMultiSelect
+            onCreate={async (name) => (await createCategory.mutateAsync({ name, color, parentId: null })).id}
             label="Catégories"
             placeholder={values.categoryIds.length ? undefined : 'Aucune'}
             {...treeSelectProps(categoryOptions(categories ?? []))}

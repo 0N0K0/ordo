@@ -1,4 +1,4 @@
-import { Badge, Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput } from '@mantine/core';
+import { Badge, Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, CaretDownIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 
@@ -143,6 +143,8 @@ interface TableOptionsProps {
   exports?: ReactNode;
   /** Width of the panel. Optional. Default = 340. */
   width?: number;
+  /** Footer of the table (its totals) shown or not. Optional: without, no such switch. */
+  footer?: { shown: boolean; onChange: (shown: boolean) => void };
 }
 
 /**
@@ -151,14 +153,22 @@ interface TableOptionsProps {
  * @param {TableOptionsProps} props Component props.
  * @returns {JSX.Element} Menu.
  */
-export function TableOptions({ dirty = false, onSave, onRevert, display, columns, exports, width = 340 }: TableOptionsProps) {
+export function TableOptions({ dirty = false, onSave, onRevert, display, columns, exports, width = 340, footer }: TableOptionsProps) {
   // Folded only under display options: alone, the columns are what the panel is opened for.
   const [columnsOpened, setColumnsOpened] = useState(!display);
   const sections = [
-    display && (
+    (display || footer) && (
       <Stack key="display" gap="sm">
         <SectionTitle>Affichage</SectionTitle>
         {display}
+        {footer && (
+          <Switch
+            label="Pied de tableau"
+            description="Un total sous chaque colonne : compte, somme, moyenne ou médiane, choisi au pied de la colonne."
+            checked={footer.shown}
+            onChange={(event) => footer.onChange(event.currentTarget.checked)}
+          />
+        )}
       </Stack>
     ),
     columns && (

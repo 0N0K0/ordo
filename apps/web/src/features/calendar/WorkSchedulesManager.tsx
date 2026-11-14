@@ -1,6 +1,6 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import {
   DEFAULT_SCHEDULE_KIND_NAME,
@@ -11,6 +11,7 @@ import {
   type ScheduleCase,
   type ScheduleException,
   type WorkScheduleInput,
+  DEFAULT_SCHEDULE_DISPLAY,
 } from '@ordo/shared';
 import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
@@ -30,6 +31,8 @@ import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
 import { Comments } from '../comments/Comments';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
+import { CreatableSelect } from '../../components/CreatableSelect';
+import { useDefaultColor } from '../workspace/use-default-color';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
@@ -55,7 +58,8 @@ const exceptionPeriod = (exception: ScheduleException) => (exception.from === ex
  * @returns {JSX.Element} Form.
  */
 function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; copyOf?: WorkSchedule; onDone: () => void }) {
-  const { create, update } = useWorkScheduleMutations();
+  const { create, update, saveType } = useWorkScheduleMutations();
+  const color = useDefaultColor();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
@@ -132,10 +136,12 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
           )}
           <Group grow align="flex-start">
             <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-            <Select
+            <CreatableSelect
               label="Type"
               placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
               clearable
+              searchable
+              onCreate={(name) => saveType.mutateAsync({ id: null, input: { name, color, ...DEFAULT_SCHEDULE_DISPLAY } })}
               data={(types ?? []).map((type) => ({ value: type.id, label: type.name }))}
               {...form.getInputProps('typeId')}
             />
