@@ -6,7 +6,7 @@ import { notifyError, notifyWithUndo } from '../../lib/notify';
 import { useSetTaskArchived, type Task } from './api';
 import { TaskCreateForm } from './TaskCreateForm';
 import { CloneTaskDialog, DeleteTaskDialog, TransferTaskDialog } from './TaskDialogs';
-import type { TaskContext } from './use-task-context';
+import { taskName, type TaskContext } from './use-task-context';
 
 let modalCount = 0;
 
@@ -42,7 +42,7 @@ export function useTaskActions(context: TaskContext | null) {
       {
         onSuccess: () => {
           if (!notify) return;
-          const message = `Tâche #${task.number} ${archived ? 'archivée' : 'désarchivée'}.`;
+          const message = `Tâche ${taskName(task)} ${archived ? 'archivée' : 'désarchivée'}.`;
           notifyWithUndo(message, () => archive(task, !archived, false));
         },
         onError: (error) => notifyError(error.message),

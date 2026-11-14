@@ -105,7 +105,7 @@ export interface ShoppingListEnv {
  * @param {TaskContext | null} context Task context.
  * @returns {string[]} Project ids.
  */
-const projectsOf = (list: ShoppingList, context: TaskContext | null) => [...new Set(listTasks(list, context).map((task) => task.projectId))];
+const projectsOf = (list: ShoppingList, context: TaskContext | null) => [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))];
 
 /**
  * Value of a list for a filter field.

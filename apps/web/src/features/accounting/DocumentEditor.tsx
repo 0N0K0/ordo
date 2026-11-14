@@ -69,6 +69,7 @@ import { projectOptions } from '../workspace/tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
+import { Comments } from '../comments/Comments';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -743,6 +744,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 ))}
               </Section>
             )}
+            <Comments target="DOCUMENT" id={document.id} />
           </Stack>
         </Grid.Col>
       </Grid>

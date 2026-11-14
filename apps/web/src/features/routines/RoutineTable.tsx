@@ -52,11 +52,11 @@ import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
-import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell } from './routine-cells';
+import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell, RoutineBeneficiariesCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { RoutineDoneToggles } from './DoneToggle';
-import { useSlotRules } from '../slot-rules/use-slot-rules';
+import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { openRoutineForm } from './open-routine-form';
 import { openRoutineMove } from './open-routine-move';
 import { usePostponeRoutine } from './use-routine-move';
@@ -78,6 +78,8 @@ import {
 } from './routine-format';
 import classes from './Routines.module.css';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentTotal } from '../comments/comment-column';
 
 /** Width of the cells around the columns: handle and selection before, actions after. */
 const LEAD_WIDTH = 64;
@@ -286,6 +288,8 @@ function GroupRow({ span, receives, row, today, doable, collapsed, over, onToggl
 
 interface RoutineRowProps {
   row: Extract<RoutineRow, { kind: 'routine' }>;
+  /** Comments by routine (its description counts as one more). */
+  comments: Map<string, number>;
   routines: Routine[];
   byId: Map<string, Routine>;
   context: TaskContext;
@@ -315,7 +319,7 @@ interface RoutineRowProps {
  * @param {RoutineRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function RoutineRowView({ row, routines, byId, context, today, doable, running, collapsed, drop, movable, shown, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
+function RoutineRowView({ row, comments, routines, byId, context, today, doable, running, collapsed, drop, movable, shown, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
   const postpone = usePostponeRoutine();
   const { routine, depth, children } = row;
   const { setArchived, remove } = useRoutineMutations();
@@ -381,9 +385,15 @@ function RoutineRowView({ row, routines, byId, context, today, doable, running, 
     time: <TimeWindowCell routine={routine} readOnly={readOnly} />,
     trackedTime: <ChronoCell routine={routine} running={running} />,
     assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
+    beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
     categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
     requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
     project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
+    comments: (
+      <Text size="sm" c="dimmed" ta="right">
+        {commentTotal(comments, routine.id, routine.description) || ''}
+      </Text>
+    ),
   };
 
   return (
@@ -585,7 +595,8 @@ export function RoutineTable({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const today = localToday();
   const slotRules = useSlotRules();
-  const doable = (routine: Routine) => slotRules.allowed(routine.slotRule);
+  const doable = (routine: Routine) => slotRules.allowed(routineDoable(routine));
+  const comments = useCommentCounts('ROUTINE', routines.map((routine) => routine.id));
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const rows = routineRows(layout, grouping, keep);
   const shown = visibleRoutineRows(rows, collapsed);
@@ -778,6 +789,7 @@ export function RoutineTable({
           <RoutineRowView
             key={row.key}
             row={row}
+            comments={comments}
             routines={routines}
             byId={byId}
             context={context}

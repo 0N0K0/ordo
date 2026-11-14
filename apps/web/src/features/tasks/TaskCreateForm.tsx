@@ -9,8 +9,9 @@ import { notifySuccess } from '../../lib/notify';
 import { useCreateTask } from './api';
 import { linkableTasks } from './task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskSelect } from './task-ui';
-import type { TaskContext } from './use-task-context';
+import { taskName, type TaskContext } from './use-task-context';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -50,13 +51,16 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       parentId: parent?.id ?? null,
       milestoneId: null,
       sprintIds: [],
+      beneficiaryIds: [],
+      beneficiaryRelationIds: [],
       slotRule: null,
     },
     schema: taskFormSchema,
   });
 
   // The parent must stay in the tree of the chosen project.
-  const parentCandidates = form.values.projectId ? linkableTasks(context, form.values.projectId, null) : [];
+  // Without project: among the tasks of no project.
+  const parentCandidates = linkableTasks(context, form.values.projectId || null, null);
 
   const handleSubmit = form.onSubmit((values) => {
     const parsed = taskFormSchema.parse(values);
@@ -64,7 +68,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       { ...parsed, description: parsed.description || null },
       {
         onSuccess: (task) => {
-          notifySuccess(`Tâche #${task.number} créée.`);
+          notifySuccess(`Tâche ${taskName(task)} créée.`);
           onDone();
           link.open(task.id);
         },
@@ -81,12 +85,14 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <ProjectSelect
             context={context}
             label="Projet"
-            required
+            description="Facultatif : sans projet, la tâche n’a ni numéro, ni jalon, ni sprint."
+            placeholder="Sans projet"
+            clearable
             {...form.getInputProps('projectId')}
             onChange={(projectId) => {
               form.setFieldValue('projectId', projectId ?? '');
               const currentParent = form.values.parentId ? context.taskById.get(form.values.parentId) : undefined;
-              if (currentParent && projectId && context.rootOf(currentParent.projectId) !== context.rootOf(projectId)) {
+              if (currentParent && context.rootOf(currentParent.projectId) !== context.rootOf(projectId)) {
                 form.setFieldValue('parentId', null);
               }
               // The milestone must belong to the tree of the chosen project too.
@@ -108,17 +114,16 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           />
           <TaskSelect
             context={context}
-            labelOf={(task) => context.taskLabel(task, form.values.projectId)}
+            labelOf={(task) => context.taskLabel(task, form.values.projectId || null)}
             tasks={parentCandidates}
             label="Tâche parente"
-            placeholder={form.values.projectId ? 'Aucune' : 'Choisissez d’abord un projet'}
-            disabled={!form.values.projectId}
+            placeholder="Aucune"
             {...form.getInputProps('parentId')}
           />
         </SimpleGrid>
         <Select
           label="Jalon"
-          placeholder={form.values.projectId ? 'Aucun' : 'Choisissez d’abord un projet'}
+          placeholder={form.values.projectId ? 'Aucun' : 'Aucun (tâche sans projet)'}
           disabled={!form.values.projectId}
           data={(form.values.projectId ? context.milestonesFor(form.values.projectId) : []).map((milestone) => ({
             value: milestone.id,
@@ -131,7 +136,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
         />
         <BatchMultiSelect
           label="Sprints"
-          placeholder={!form.values.projectId ? 'Choisissez d’abord un projet' : form.values.sprintIds.length ? undefined : 'Aucun'}
+          placeholder={!form.values.projectId ? 'Aucun (tâche sans projet)' : form.values.sprintIds.length ? undefined : 'Aucun'}
           disabled={!form.values.projectId}
           data={(form.values.projectId ? context.sprintsFor(form.values.projectId) : []).map((sprint) => ({ value: sprint.id, label: sprint.name }))}
           clearable
@@ -162,6 +167,10 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           error={form.errors.assigneeIds as string | undefined}
         />
         <TagsSelect tags={context.tags} value={form.values.tagIds} onChange={(tagIds) => form.setFieldValue('tagIds', tagIds)} />
+        <BeneficiariesSelect
+          value={{ beneficiaryIds: form.values.beneficiaryIds ?? [], beneficiaryRelationIds: form.values.beneficiaryRelationIds ?? [] }}
+          onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
+        />
         <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
           <NumberInput label="Effort" min={0} decimalScale={2} decimalSeparator="," {...form.getInputProps('effort')} />
           <DatePickerInput label="Début" clearable placeholder="—" {...form.getInputProps('startDate')} />
@@ -174,7 +183,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           />
           <DatePickerInput label="Date max" clearable placeholder="—" {...form.getInputProps('deadline')} />
         </SimpleGrid>
-        <SlotRuleInput value={form.values.slotRule ? { mode: form.values.slotRule.mode, kinds: form.values.slotRule.kinds ?? [] } : null} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.kinds'] as string | undefined} />
+        <SlotRuleInput value={form.values.slotRule ? { inside: form.values.slotRule.inside ?? [], outside: form.values.slotRule.outside ?? [] } : null} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.outside'] as string | undefined} />
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
             Annuler

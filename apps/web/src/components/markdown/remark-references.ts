@@ -9,9 +9,10 @@ interface MdNode {
 /** A task that texts can reference. */
 export interface ReferenceTask {
   id: string;
-  projectId: string;
-  /** Number within its project. */
-  number: number;
+  /** None: a task of no project. */
+  projectId: string | null;
+  /** Number within its project; none without project (it is only referenced by its id). */
+  number: number | null;
   title: string;
   /** Client and project path of its project ("Client › Projet › Sous-projet"). */
   place: string;

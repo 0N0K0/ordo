@@ -18,7 +18,7 @@ import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
-import { useSlotRules } from '../slot-rules/use-slot-rules';
+import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { keptByView, routineFilterFields, routineGrouping, routineTexts, sortRoutines, useRoutineView } from './routine-view';
 import { RoutineViewToolbar } from './RoutineViewToolbar';
 import { ViewTabs } from '../tasks/views/ViewTabs';
@@ -73,7 +73,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
   const env = useMemo(
-    () => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context, doable: (routine: Routine) => slotRules.allowed(routine.slotRule) } : null),
+    () => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context, doable: (routine: Routine) => slotRules.allowed(routineDoable(routine)) } : null),
     [today, routines, categories, context, slotRules],
   );
 

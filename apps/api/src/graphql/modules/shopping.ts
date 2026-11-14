@@ -30,6 +30,16 @@ builder.prismaObject('ShoppingStorage', {
   }),
 });
 
+builder.prismaObject('ShoppingUnit', {
+  description: 'Unit of quantity of the products and items (« kg », « boîte »…); they keep it as text.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color', { description: 'Unused.' }),
+    position: t.exposeInt('position'),
+  }),
+});
+
 builder.prismaObject('ShoppingStore', {
   description: 'Store (or supplier) a product is bought at.',
   fields: (t) => ({
@@ -200,6 +210,11 @@ builder.queryFields((t) => ({
     description: 'Base lists ("listes types").',
     resolve: (query) => prisma.shoppingBaseList.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
   }),
+  shoppingUnits: t.prismaField({
+    type: ['ShoppingUnit'],
+    description: 'Units of quantity, in their order.',
+    resolve: (query) => prisma.shoppingUnit.findMany({ ...query, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+  }),
   shoppingStorages: t.prismaField({
     type: ['ShoppingStorage'],
     description: 'Storage modes of the perishable products.',
@@ -273,6 +288,38 @@ builder.mutationFields((t) => ({
       await shopping.moveStore(String(id), index);
       return true;
     },
+  }),
+  createShoppingUnit: t.id({
+    args: { input: t.arg({ type: LabelInput, required: true }) },
+    resolve: async (_root, { input }) => (await shopping.createUnit(input)).id,
+  }),
+  updateShoppingUnit: t.boolean({
+    description: 'Renames a unit; the products and items in it follow.',
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: LabelPatch, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await shopping.updateUnit(String(id), { name: input.name ?? undefined, color: input.color ?? undefined });
+      return true;
+    },
+  }),
+  deleteShoppingUnit: t.boolean({
+    description: 'Deletes a unit; the products and items in it are left without one.',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await shopping.deleteUnit(String(id));
+      return true;
+    },
+  }),
+  moveShoppingUnit: t.boolean({
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, index }) => {
+      await shopping.moveUnit(String(id), index);
+      return true;
+    },
+  }),
+  moveShoppingProducts: t.int({
+    description: 'Moves products to another base list (after its own); returns how many moved.',
+    args: { ids: t.arg.idList({ required: true }), baseListId: t.arg.id({ required: true }) },
+    resolve: (_root, { ids, baseListId }) => shopping.moveProducts(ids.map(String), String(baseListId)),
   }),
   createShoppingStorage: t.id({
     args: { input: t.arg({ type: LabelInput, required: true }) },

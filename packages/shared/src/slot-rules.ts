@@ -2,10 +2,6 @@ import { z } from 'zod';
 import { addDays } from './recurrence';
 import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
 
-/** Where a task or a routine is done: anywhere, on the slots of some kinds, or out of them (whatever the day). */
-export const SLOT_MODES = ['ANY', 'INSIDE', 'OUTSIDE'] as const;
-export type SlotMode = (typeof SLOT_MODES)[number];
-
 /** Kind of the slots without kind of the workspace (its working hours, « Travail »). */
 export const DEFAULT_SLOT_KIND = 'default';
 
@@ -24,22 +20,36 @@ export const ownSlotKind = (typeId: string | null | undefined) => typeId ?? DEFA
  */
 export const foreignSlotKind = (workspaceId: string, typeId: string | null | undefined) => `ws:${workspaceId}:${typeId ?? DEFAULT_SLOT_KIND}`;
 
-/** Slots a task or a routine is done on (INSIDE) or out of (OUTSIDE): their kinds, of this workspace or shown from others. */
-export const slotRuleSchema = z
-  .object({
-    mode: z.enum(SLOT_MODES),
-    kinds: z.array(z.string().min(1).max(120)).max(30).default([]),
-  })
-  .refine((rule) => rule.mode === 'ANY' || rule.kinds.length > 0, { path: ['kinds'], message: 'Choisissez au moins un type de plages.' });
-export type SlotRule = z.infer<typeof slotRuleSchema>;
+const kindsSchema = z.array(z.string().min(1).max(120)).max(30).default([]);
 
 /**
- * Rule stored or received (JSON), validated: null when none or invalid.
+ * Slots a task or a routine is done on and out of (whatever the day), by kind, of this workspace or shown from
+ * others: during one of the `inside` kinds (any moment when none), and out of every `outside` kind. Both empty:
+ * anywhere.
+ */
+export const slotRuleSchema = z
+  .object({ inside: kindsSchema, outside: kindsSchema })
+  .refine((rule) => !rule.inside.some((kind) => rule.outside.includes(kind)), { path: ['outside'], message: 'Un type de plages ne peut pas être à la fois choisi et exclu.' });
+export type SlotRule = z.infer<typeof slotRuleSchema>;
+
+/** Anywhere. */
+export const ANY_SLOT_RULE: SlotRule = { inside: [], outside: [] };
+
+/**
+ * Rule stored or received (JSON), validated: null when none or invalid. The former form ({ mode, kinds }) is read too.
  * @param {unknown} value Rule.
  * @returns {SlotRule | null} Rule.
  */
 export function readSlotRule(value: unknown): SlotRule | null {
   if (value === null || value === undefined) return null;
+  if (typeof value === 'object' && 'mode' in value) {
+    const { mode, kinds } = value as { mode?: unknown; kinds?: unknown };
+    const list = Array.isArray(kinds) ? kinds.filter((kind): kind is string => typeof kind === 'string') : [];
+    if (mode === 'ANY') return ANY_SLOT_RULE;
+    if (mode === 'INSIDE') return { inside: list, outside: [] };
+    if (mode === 'OUTSIDE') return { inside: [], outside: list };
+    return null;
+  }
   const parsed = slotRuleSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
@@ -53,8 +63,15 @@ export function readSlotRule(value: unknown): SlotRule | null {
  */
 export function effectiveSlotRule(rule: SlotRule | null, perso: boolean): SlotRule {
   if (rule) return rule;
-  return perso ? { mode: 'ANY', kinds: [] } : { mode: 'INSIDE', kinds: [DEFAULT_SLOT_KIND] };
+  return perso ? ANY_SLOT_RULE : { inside: [DEFAULT_SLOT_KIND], outside: [] };
 }
+
+/**
+ * Whether a rule constrains nothing (anywhere).
+ * @param {SlotRule} rule Rule.
+ * @returns {boolean} Anywhere.
+ */
+export const isAnySlotRule = (rule: SlotRule) => rule.inside.length === 0 && rule.outside.length === 0;
 
 /** Planned slot with the kind of its schedule. */
 export interface KindedSlot extends PlannedSlot {
@@ -78,7 +95,8 @@ export function kindedSlots(own: readonly WorkScheduleRule[], foreign: readonly 
 }
 
 /**
- * Whether a moment is allowed by a rule: on a slot of its kinds (INSIDE), on none of them (OUTSIDE), any (ANY).
+ * Whether a moment is allowed by a rule: on a slot of one of its `inside` kinds (any moment when none), and on none of
+ * its `outside` kinds.
  * @param {SlotRule} rule Rule.
  * @param {readonly KindedSlot[]} slots Slots of the day (or more).
  * @param {string} date YYYY-MM-DD.
@@ -86,14 +104,14 @@ export function kindedSlots(own: readonly WorkScheduleRule[], foreign: readonly 
  * @returns {boolean} Allowed.
  */
 export function allowedAt(rule: SlotRule, slots: readonly KindedSlot[], date: string, time: string): boolean {
-  if (rule.mode === 'ANY') return true;
-  const on = slots.some((slot) => slot.date === date && rule.kinds.includes(slot.kind) && slot.start <= time && time < slot.end);
-  return rule.mode === 'INSIDE' ? on : !on;
+  if (isAnySlotRule(rule)) return true;
+  const on = (kinds: readonly string[]) => slots.some((slot) => slot.date === date && kinds.includes(slot.kind) && slot.start <= time && time < slot.end);
+  return (rule.inside.length === 0 || on(rule.inside)) && !on(rule.outside);
 }
 
 /**
- * First allowed moment from a moment on, within the slots given: the moment itself, else the start of the next slot of
- * its kinds (INSIDE), or the end of the slots it falls in (OUTSIDE); null when none in the slots given.
+ * First allowed moment from a moment on, within the slots given: the moment itself, else the earliest allowed start of
+ * an `inside` slot or end of an `outside` slot; null when none in the slots given.
  * @param {SlotRule} rule Rule.
  * @param {readonly KindedSlot[]} slots Slots, in order, from the date on.
  * @param {string} date YYYY-MM-DD.
@@ -103,26 +121,22 @@ export function allowedAt(rule: SlotRule, slots: readonly KindedSlot[], date: st
 export function nextAllowed(rule: SlotRule, slots: readonly KindedSlot[], date: string, time: string): { date: string; time: string } | null {
   if (allowedAt(rule, slots, date, time)) return { date, time };
   const later = (slot: KindedSlot, at: string) => slot.date > date || (slot.date === date && at >= time);
-  const candidates =
-    rule.mode === 'INSIDE'
-      ? slots.filter((slot) => rule.kinds.includes(slot.kind) && later(slot, slot.start)).map((slot) => ({ date: slot.date, time: slot.start }))
-      : slots
-          .filter((slot) => rule.kinds.includes(slot.kind) && later(slot, slot.end))
-          .map((slot) => (slot.end >= '24:00' ? { date: addDays(slot.date, 1), time: '00:00' } : { date: slot.date, time: slot.end }));
-  return candidates.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)).find((moment) => allowedAt(rule, slots, moment.date, moment.time)) ?? null;
+  const starts = slots.filter((slot) => rule.inside.includes(slot.kind) && later(slot, slot.start)).map((slot) => ({ date: slot.date, time: slot.start }));
+  const ends = slots
+    .filter((slot) => rule.outside.includes(slot.kind) && later(slot, slot.end))
+    .map((slot) => (slot.end >= '24:00' ? { date: addDays(slot.date, 1), time: '00:00' } : { date: slot.date, time: slot.end }));
+  return [...starts, ...ends].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)).find((moment) => allowedAt(rule, slots, moment.date, moment.time)) ?? null;
 }
 
 /**
  * Rule restricted to the kinds that have schedules: a kind without any constrains nothing (a professional workspace
- * without working hours yet does not block everything). ANY when none is left.
+ * without working hours yet does not block everything).
  * @param {SlotRule} rule Rule.
  * @param {ReadonlySet<string>} known Kinds with at least one schedule.
  * @returns {SlotRule} Rule.
  */
 export function knownSlotRule(rule: SlotRule, known: ReadonlySet<string>): SlotRule {
-  if (rule.mode === 'ANY') return rule;
-  const kinds = rule.kinds.filter((kind) => known.has(kind));
-  return kinds.length ? { mode: rule.mode, kinds } : { mode: 'ANY', kinds: [] };
+  return { inside: rule.inside.filter((kind) => known.has(kind)), outside: rule.outside.filter((kind) => known.has(kind)) };
 }
 
 /**

@@ -46,9 +46,14 @@ export const calendarEventInputSchema = z
     contributorIds: z.array(z.string()).max(200),
     /** Relations without contributor taking part. */
     relationIds: z.array(z.string()).max(200).default([]),
+    /** « Bénéficiaires »: whom the event is for (contributors, relations). */
+    beneficiaryIds: z.array(z.string()).max(200).default([]),
+    beneficiaryRelationIds: z.array(z.string()).max(200).default([]),
     categoryIds: z.array(z.string()).max(50),
     /** Tasks the event is about. */
     taskIds: z.array(z.string()).max(50, '50 tâches maximum.'),
+    /** Routines of a day of the event it is about (that day only, even for a repeated routine). */
+    routineLinks: z.array(z.object({ routineId: z.string(), date: z.iso.date() })).max(200).default([]),
   })
   .superRefine((event, context) => {
     if (!event.allDay) {

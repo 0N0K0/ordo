@@ -1,5 +1,5 @@
 import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { useSlotRules } from '../slot-rules/use-slot-rules';
+import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRoutinesData } from '../routines/api';
@@ -26,7 +26,7 @@ export function RoutinesCard({ today }: { today: string }) {
   const routines = data?.routines ?? [];
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const todo = routines
-    .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today, slotRules.allowed(routine.slotRule))))
+    .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today, slotRules.allowed(routineDoable(routine)))))
     // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
     .sort(
       (a, b) =>

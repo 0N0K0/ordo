@@ -3,7 +3,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title, Tooltip, NumberInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -21,15 +21,23 @@ import { categoryOptions, categoryPaths } from './categories';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
+import { Comments } from '../comments/Comments';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
-const REPEATS = [
-  { value: '', label: 'Ce mois seulement' },
-  { value: '1', label: 'Tous les mois' },
-  { value: '2', label: 'Tous les 2 mois' },
-  { value: '3', label: 'Tous les 3 mois' },
-  { value: '6', label: 'Tous les 6 mois' },
-  { value: '12', label: 'Tous les ans' },
+/** Repetitions of a budget: that month only, every X months, or every year (12 months). */
+const REPEAT_MODES = [
+  { value: 'ONCE', label: 'Ce mois seulement' },
+  { value: 'MONTHS', label: 'Tous les X mois' },
+  { value: 'YEAR', label: 'Tous les ans' },
 ];
+
+/**
+ * Repetition of a budget, told in words.
+ * @param {number | null} every Months between two of its months; none: that month only.
+ * @returns {string} Text.
+ */
+const repeatLabel = (every: number | null) => (!every ? 'Ce mois seulement' : every === 12 ? 'Tous les ans' : every === 1 ? 'Tous les mois' : `Tous les ${every} mois`);
 
 /**
  * Month in words.
@@ -82,7 +90,8 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
       contextId: budget?.contextId ?? null,
       categoryId: budget?.categoryId ?? '',
       amount: budget?.amount ?? 0,
-      repeatEvery: budget?.repeatEvery ?? 1,
+      // A new budget comes back every month; one of a single month stays so.
+      repeatEvery: budget ? budget.repeatEvery : 1,
       repeatUntil: budget?.repeatUntil ?? null,
       ...defaults,
     },
@@ -92,108 +101,138 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   const me = members.find((member) => member.isMe);
   // Money out or in: the direction of the category, unless chosen first (none chosen: money out).
   const [chosenDirection, setDirection] = useState<'OUT' | 'IN' | null>(null);
+  // Kept apart from the months: « every 12 months » chosen as such stays so while edited.
+  const [repeatMode, setRepeatMode] = useState(() => {
+    const every = budget ? budget.repeatEvery : 1;
+    return !every ? 'ONCE' : every === 12 ? 'YEAR' : 'MONTHS';
+  });
   const direction = chosenDirection ?? (categories.find((category) => category.id === values.categoryId)?.direction as 'OUT' | 'IN' | undefined) ?? 'OUT';
 
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((input) =>
-        save.mutate(
-          // "Moi" is no member at all.
-          {
-            id: budget?.id ?? null,
-            input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, relationId: input.relationId ?? null, repeatUntil: input.repeatEvery ? input.repeatUntil : null },
-          },
-          { onSuccess: () => (notifySuccess(budget ? 'Budget modifié.' : 'Budget créé.'), onDone()), onError: (error) => showFormError(form, error) },
-        ),
-      )}
-    >
-      <Stack gap="sm">
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <MonthPickerInput
-            label={values.repeatEvery ? 'Premier mois' : 'Mois'}
-            required
-            value={`${values.month}-01`}
-            onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
-            error={form.errors.month}
-          />
-          <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} suffix=" €" prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
-        </SimpleGrid>
-        <SegmentedControl
-          fullWidth
-          aria-label="Sens du budget"
-          data={[
-            { value: 'OUT', label: 'Sorties (dépenses)' },
-            { value: 'IN', label: 'Entrées (recettes)' },
-          ]}
-          value={direction}
-          onChange={(value) => {
-            setDirection(value as 'OUT' | 'IN');
-            // A category of the other direction no longer fits.
-            if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
-          }}
-        />
-        <Select
-          label="Catégorie"
-          required
-          searchable
-          {...treeSelectProps(categoryOptions(categories, direction))}
-          nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
-          description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
-          {...form.getInputProps('categoryId')}
-        />
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Select
-            label="Pour"
-            placeholder={me ? `${me.name} (moi)` : 'Moi'}
-            clearable
-            searchable
-            data={[
-              { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })) },
-              { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
-            ].filter((group) => group.items.length)}
-            value={values.relationId ? `r:${values.relationId}` : values.memberId ? `m:${values.memberId}` : null}
-            onChange={(key) => form.setValues({ memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
-            error={form.errors.memberId}
-          />
-          <Select
-            label="Contexte"
-            placeholder={EVERYDAY_CONTEXT}
-            clearable
-            data={(settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name }))}
-            {...form.getInputProps('contextId')}
-          />
-        </SimpleGrid>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Select
-            label="Répétition"
-            allowDeselect={false}
-            data={REPEATS}
-            value={values.repeatEvery ? String(values.repeatEvery) : ''}
-            onChange={(value) => form.setFieldValue('repeatEvery', value ? Number(value) : null)}
-          />
-          {values.repeatEvery && (
+    <Stack gap="lg">
+      <form
+        noValidate
+        onSubmit={form.onSubmit((input) =>
+          save.mutate(
+            // "Moi" is no member at all.
+            {
+              id: budget?.id ?? null,
+              input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, relationId: input.relationId ?? null, repeatUntil: input.repeatEvery ? input.repeatUntil : null },
+            },
+            { onSuccess: () => (notifySuccess(budget ? 'Budget modifié.' : 'Budget créé.'), onDone()), onError: (error) => showFormError(form, error) },
+          ),
+        )}
+      >
+        <Stack gap="sm">
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <MonthPickerInput
-              label="Jusqu’à"
-              placeholder="Sans fin"
-              clearable
-              minDate={`${values.month}-01`}
-              value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
-              onChange={(value) => form.setFieldValue('repeatUntil', value ? String(value).slice(0, 7) : null)}
-              error={form.errors.repeatUntil}
+              label={values.repeatEvery ? 'Premier mois' : 'Mois'}
+              required
+              value={`${values.month}-01`}
+              onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
+              error={form.errors.month}
             />
-          )}
-        </SimpleGrid>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={save.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
-    </form>
+            <AmountInput
+              label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'}
+              required
+              min={0}
+              suffix=" €"
+              prefix={direction === 'OUT' ? '− ' : '+ '}
+              {...form.getInputProps('amount')}
+            />
+          </SimpleGrid>
+          <SegmentedControl
+            fullWidth
+            aria-label="Sens du budget"
+            data={[
+              { value: 'OUT', label: 'Sorties (dépenses)' },
+              { value: 'IN', label: 'Entrées (recettes)' },
+            ]}
+            value={direction}
+            onChange={(value) => {
+              setDirection(value as 'OUT' | 'IN');
+              // A category of the other direction no longer fits.
+              if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
+            }}
+          />
+          <Select
+            label="Catégorie"
+            required
+            searchable
+            {...treeSelectProps(categoryOptions(categories, direction))}
+            nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
+            description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
+            {...form.getInputProps('categoryId')}
+          />
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            <Select
+              label="Pour"
+              placeholder={me ? `${me.name} (moi)` : 'Moi'}
+              clearable
+              searchable
+              data={[
+                { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })) },
+                { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
+              ].filter((group) => group.items.length)}
+              value={values.relationId ? `r:${values.relationId}` : values.memberId ? `m:${values.memberId}` : null}
+              onChange={(key) => form.setValues({ memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+              error={form.errors.memberId}
+            />
+            <Select
+              label="Contexte"
+              placeholder={EVERYDAY_CONTEXT}
+              clearable
+              data={(settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name }))}
+              {...form.getInputProps('contextId')}
+            />
+          </SimpleGrid>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            <Select
+              label="Répétition"
+              allowDeselect={false}
+              data={REPEAT_MODES}
+              value={repeatMode}
+              onChange={(mode) => {
+                setRepeatMode(mode ?? 'ONCE');
+                form.setFieldValue('repeatEvery', mode === 'YEAR' ? 12 : mode === 'MONTHS' ? (values.repeatEvery && values.repeatEvery !== 12 ? values.repeatEvery : 1) : null);
+              }}
+            />
+            {repeatMode === 'MONTHS' && (
+              <NumberInput
+                label="Tous les"
+                suffix=" mois"
+                min={1}
+                max={24}
+                allowDecimal={false}
+                value={values.repeatEvery ?? 1}
+                onChange={(value) => form.setFieldValue('repeatEvery', Math.min(24, Math.max(1, Number(value) || 1)))}
+                error={form.errors.repeatEvery}
+              />
+            )}
+            {values.repeatEvery && (
+              <MonthPickerInput
+                label="Jusqu’à"
+                placeholder="Sans fin"
+                clearable
+                minDate={`${values.month}-01`}
+                value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
+                onChange={(value) => form.setFieldValue('repeatUntil', value ? String(value).slice(0, 7) : null)}
+                error={form.errors.repeatUntil}
+              />
+            )}
+          </SimpleGrid>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={save.isPending}>
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+      {budget && <Comments target="BUDGET" id={budget.id} />}
+    </Stack>
   );
 }
 
@@ -424,11 +463,16 @@ export function BudgetsPanel() {
       { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast, text: (row) => fmt.money(row.forecast) },
     ],
   });
+  const budgetComments = useCommentCounts(
+    'BUDGET',
+    (data?.treasuryBudgets ?? []).map((budget) => budget.id),
+  );
   const definedView = useDataView({
     tableKey: 'treasury-budgets',
     title: 'Budgets',
     rows: data?.treasuryBudgets ?? [],
     columns: [
+      commentColumn<TreasuryBudget>(budgetComments, (budget) => budget.id),
       {
         id: 'period',
         label: 'Période',
@@ -608,7 +652,7 @@ export function BudgetsPanel() {
                   </Text>
                   {budget.repeatEvery && (
                     <Badge size="xs" variant="light">
-                      {REPEATS.find((item) => item.value === String(budget.repeatEvery))?.label ?? `Tous les ${budget.repeatEvery} mois`}
+                      {repeatLabel(budget.repeatEvery)}
                     </Badge>
                   )}
                 </>

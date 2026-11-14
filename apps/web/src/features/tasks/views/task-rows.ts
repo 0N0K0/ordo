@@ -2,6 +2,7 @@ import type { TaskGroupBy, TaskSortKey, TaskViewConfig } from '@ordo/shared';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
+import { beneficiaryNames } from '../../beneficiaries/use-beneficiaries';
 
 export interface TaskRow {
   kind: 'task';
@@ -54,6 +55,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return task.priorityId ? (context.priorityById.get(task.priorityId)?.position ?? null) : null;
     case 'type':
       return task.typeId ? (context.typeById.get(task.typeId)?.position ?? null) : null;
+    case 'beneficiaries':
+      return beneficiaryNames(task, context).sort(collator.compare)[0] ?? null;
     case 'assignees': {
       const names = task.assigneeIds.map((id) => context.contributorById.get(id)?.name ?? '').sort(collator.compare);
       return names[0] ?? null;
@@ -94,7 +97,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'related':
       return task.relatedIds.length || null;
     case 'comments':
-      return task.commentCount || null;
+      // A description counts as a comment.
+      return task.commentCount + (task.description?.trim() ? 1 : 0) || null;
     case 'createdAt':
       return task.createdAt;
     case 'updatedAt':
@@ -222,7 +226,7 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
     case 'state':
       return task.closed ? [{ key: 'closed', label: 'Fermées', color: 'violet', order: 1 }] : [{ key: 'open', label: 'Ouvertes', color: 'green', order: 0 }];
     case 'project':
-      return [{ key: task.projectId, label: context.projectLabel(task.projectId), order: context.projectLabel(task.projectId) }];
+      return [{ key: task.projectId ?? 'none', label: context.projectLabel(task.projectId), order: task.projectId ? context.projectLabel(task.projectId) : '\uffff' }];
     case 'status':
     case 'priority':
     case 'type': {
@@ -245,7 +249,7 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
     case 'parent': {
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
       if (!parent) return none('Sans tâche parente');
-      return [{ key: parent.id, label: context.taskLabel(parent, task.projectId), order: parent.number }];
+      return [{ key: parent.id, label: context.taskLabel(parent, task.projectId), order: parent.number ?? parent.title }];
     }
     case 'milestone': {
       const milestone = task.milestoneId ? context.milestoneById.get(task.milestoneId) : undefined;

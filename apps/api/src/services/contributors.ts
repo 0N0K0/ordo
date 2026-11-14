@@ -164,3 +164,26 @@ export async function attachAssignees(assignments: { projectId: string; contribu
     }
   }
 }
+
+/**
+ * Checks that contributors may be chosen on an item of a project (routine, event…): "Moi", those attached to the
+ * project or to one of its parents, and the ones already chosen (they stay). Anyone without project.
+ * @param {string | null} projectId Project of the item; none: no restriction.
+ * @param {string[]} ids Contributors chosen.
+ * @param {string[]} keep Contributors already chosen on the item.
+ * @param {string} field Field of the error.
+ * @returns {Promise<void>}
+ */
+export async function assertProjectContributors(projectId: string | null, ids: string[], keep: string[], field: string): Promise<void> {
+  const added = ids.filter((id) => !keep.includes(id));
+  if (!projectId || added.length === 0) return;
+  const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
+  const parentOf = new Map(projects.map((project) => [project.id, project.parentId]));
+  const scope: string[] = [];
+  for (let current: string | null | undefined = projectId; current; current = parentOf.get(current)) scope.push(current);
+  const allowed = await prisma.contributor.count({ where: { id: { in: added }, OR: [{ userId: { not: null } }, { projects: { some: { id: { in: scope } } } }] } });
+  if (allowed !== new Set(added).size) {
+    const message = 'Seuls les contributeurs du projet peuvent être choisis.';
+    throw clientError('BAD_USER_INPUT', message, { fields: { [field]: message } });
+  }
+}

@@ -6,7 +6,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useCloneTask, useDeleteTask, useTransferTask, type Task } from './api';
 import { ProjectSelect } from './task-ui';
-import type { TaskContext } from './use-task-context';
+import { taskName, taskRef, type TaskContext } from './use-task-context';
 
 interface DialogProps {
   task: Task;
@@ -44,7 +44,7 @@ export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
       { id: task.id, deleteSubtasks: mode === 'delete' },
       {
         onSuccess: () => {
-          notifySuccess(`Tâche #${task.number} supprimée.`);
+          notifySuccess(`Tâche ${taskName(task)} supprimée.`);
           onDone();
           link.close();
         },
@@ -56,7 +56,7 @@ export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
   return (
     <Stack gap="md">
       <Text size="sm">
-        La tâche <strong>#{task.number} {task.title}</strong> et ses commentaires seront supprimés définitivement. Cette
+        La tâche <strong>{taskRef(task).trim()} {task.title}</strong> et ses commentaires seront supprimés définitivement. Cette
         action est irréversible ; pour la retirer des listes sans perdre ses données, archivez-la plutôt.
       </Text>
       {subtasks > 0 && (
@@ -77,28 +77,33 @@ export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
 }
 
 /**
- * Transfer to another project; links leaving the project tree are removed, with a warning.
+ * Transfer to another project, or out of any (no number, milestone, sprint nor GitHub item then); links leaving the
+ * project tree are removed, with a warning.
  * @param {DialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
 export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
   const transferTask = useTransferTask();
   const [projectId, setProjectId] = useState<string | null>(null);
+  // Out of any project.
+  const [none, setNone] = useState(false);
+  const target = none ? null : projectId;
+  const chosen = none || projectId !== null;
   const subtasks = countSubtasks(context, task.id);
-  const leavesTree = projectId !== null && context.rootOf(projectId) !== context.rootOf(task.projectId);
+  const leavesTree = chosen && context.rootOf(target) !== context.rootOf(task.projectId);
 
   /**
    * Transfers the task.
    * @returns {void}
    */
   const handleConfirm = () => {
-    if (!projectId) return;
+    if (!chosen) return;
     transferTask.mutate(
-      { id: task.id, projectId },
+      { id: task.id, projectId: target },
       {
         onSuccess: ({ removedLinks }) => {
           notifySuccess(
-            `Tâche #${task.number} transférée.` +
+            `Tâche ${taskName(task)} transférée.` +
               (removedLinks > 0 ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''),
           );
           onDone();
@@ -115,12 +120,13 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
           ? `La tâche et ses ${subtasks} sous-tâche${subtasks > 1 ? 's' : ''} seront déplacées.`
           : 'La tâche sera déplacée dans le projet choisi.'}
       </Text>
-      <ProjectSelect
-        context={context}
-        label="Projet de destination"
-        value={projectId}
-        onChange={setProjectId}
-        data-autofocus
+      <ProjectSelect context={context} label="Projet de destination" value={projectId} onChange={setProjectId} disabled={none} data-autofocus />
+      <Checkbox
+        label="Sans projet"
+        description="La tâche perd son numéro, son jalon, ses sprints et son lien GitHub."
+        checked={none}
+        disabled={task.projectId === null}
+        onChange={(event) => setNone(event.currentTarget.checked)}
       />
       {leavesTree && (
         <Alert color="yellow" icon={<ErrorIcon />}>
@@ -134,7 +140,7 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
         </Button>
         <Button
           onClick={handleConfirm}
-          disabled={!projectId || projectId === task.projectId}
+          disabled={!chosen || target === task.projectId}
           loading={transferTask.isPending}
         >
           Transférer
@@ -164,7 +170,7 @@ export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
       { id: task.id, includeSubtasks },
       {
         onSuccess: (clone) => {
-          notifySuccess(`Tâche #${task.number} clonée en #${clone.number}.`);
+          notifySuccess(`Tâche ${taskName(task)} clonée${clone.number === null ? "" : ` en #${clone.number}`}.`);
           onDone();
           link.open(clone.id);
         },

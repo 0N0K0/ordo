@@ -13,7 +13,17 @@ import {
   type ShoppingStoreInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
-import { Prisma, type ShoppingBaseList, type ShoppingCategory, type ShoppingItem, type ShoppingList, type ShoppingProduct, type ShoppingStorage, type ShoppingStore } from '../generated/prisma/client';
+import {
+  Prisma,
+  type ShoppingBaseList,
+  type ShoppingCategory,
+  type ShoppingItem,
+  type ShoppingList,
+  type ShoppingProduct,
+  type ShoppingStorage,
+  type ShoppingStore,
+  type ShoppingUnit,
+} from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { moveInOrder, saveSiblingOrder } from './ordering';
 import { isMember } from './treasury-team';
@@ -434,6 +444,118 @@ export async function markExpired(): Promise<void> {
 export async function deleteProduct(id: string): Promise<void> {
   if (!(await prisma.shoppingProduct.findUnique({ where: { id } }))) throw notFound('Produit');
   await prisma.shoppingProduct.delete({ where: { id } });
+}
+
+/**
+ * Moves products to another base list, after its own (in their order). A product keeps its category when the target
+ * list offers it (attached to it, or to no list, or through its closest parent with lists), loses it otherwise.
+ * @param {string[]} ids Product ids.
+ * @param {string} baseListId Target base list.
+ * @returns {Promise<number>} Products moved (those already in the list stay).
+ */
+export async function moveProducts(ids: string[], baseListId: string): Promise<number> {
+  await assertBaseList(baseListId);
+  const products = await prisma.shoppingProduct.findMany({
+    where: { id: { in: ids } },
+    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    select: { id: true, baseListId: true, categoryId: true },
+  });
+  if (products.length !== new Set(ids).size) throw notFound('Produit');
+  const moved = products.filter((product) => product.baseListId !== baseListId);
+  if (moved.length === 0) return 0;
+  const categories = await prisma.shoppingCategory.findMany({ select: { id: true, parentId: true, baseLists: { select: { id: true } } } });
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  /**
+   * Whether a category is offered in the target list: the lists of the closest category with some (none: all).
+   * @param {string} categoryId Category.
+   * @returns {boolean} Offered.
+   */
+  const offered = (categoryId: string) => {
+    const seen = new Set<string>();
+    for (let current = byId.get(categoryId); current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
+      seen.add(current.id);
+      if (current.baseLists.length) return current.baseLists.some((list) => list.id === baseListId);
+    }
+    return true;
+  };
+  const { _max } = await prisma.shoppingProduct.aggregate({ where: { baseListId }, _max: { position: true } });
+  const start = (_max.position ?? -1) + 1;
+  await prisma.$transaction(
+    moved.map((product, index) =>
+      prisma.shoppingProduct.update({
+        where: { id: product.id },
+        data: { baseListId, position: start + index, ...(product.categoryId && !offered(product.categoryId) && { categoryId: null }) },
+      }),
+    ),
+  );
+  return moved.length;
+}
+
+// Units ----------------------------------------------------------------------------------------------------------
+
+const UNIT_TAKEN = 'Cette unité existe déjà.';
+
+/**
+ * Creates a unit of quantity, after the others.
+ * @param {ShoppingStoreInput} input Name (and color, unused).
+ * @returns {Promise<ShoppingUnit>} Unit.
+ */
+export async function createUnit(input: ShoppingStoreInput): Promise<ShoppingUnit> {
+  const data = parseInput(shoppingStorageSchema, input);
+  if (await prisma.shoppingUnit.findFirst({ where: { name: data.name } })) throw clientError('BAD_USER_INPUT', UNIT_TAKEN, { fields: { name: UNIT_TAKEN } });
+  const { _max } = await prisma.shoppingUnit.aggregate({ _max: { position: true } });
+  return prisma.shoppingUnit.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
+}
+
+/**
+ * Renames a unit: the products and items in it follow.
+ * @param {string} id Unit id.
+ * @param {Partial<ShoppingStoreInput>} input Changes.
+ * @returns {Promise<void>}
+ */
+export async function updateUnit(id: string, input: Partial<ShoppingStoreInput>): Promise<void> {
+  const current = await prisma.shoppingUnit.findUnique({ where: { id } });
+  if (!current) throw notFound('Unité');
+  const data = parseInput(shoppingStorageSchema, { name: input.name ?? current.name, color: input.color ?? current.color });
+  if (await prisma.shoppingUnit.findFirst({ where: { name: data.name, id: { not: id } } })) throw clientError('BAD_USER_INPUT', UNIT_TAKEN, { fields: { name: UNIT_TAKEN } });
+  await prisma.$transaction([
+    prisma.shoppingUnit.update({ where: { id }, data }),
+    ...(data.name !== current.name
+      ? [prisma.shoppingProduct.updateMany({ where: { unit: current.name }, data: { unit: data.name } }), prisma.shoppingItem.updateMany({ where: { unit: current.name }, data: { unit: data.name } })]
+      : []),
+  ]);
+}
+
+/**
+ * Deletes a unit: the products and items in it are left without one (their quantity stays).
+ * @param {string} id Unit id.
+ * @returns {Promise<void>}
+ */
+export async function deleteUnit(id: string): Promise<void> {
+  const unit = await prisma.shoppingUnit.findUnique({ where: { id } });
+  if (!unit) throw notFound('Unité');
+  await prisma.$transaction([
+    prisma.shoppingProduct.updateMany({ where: { unit: unit.name }, data: { unit: null } }),
+    prisma.shoppingItem.updateMany({ where: { unit: unit.name }, data: { unit: null } }),
+    prisma.shoppingUnit.delete({ where: { id } }),
+  ]);
+}
+
+/**
+ * Moves a unit among the others.
+ * @param {string} id Unit id.
+ * @param {number} index Target index.
+ * @returns {Promise<void>}
+ */
+export async function moveUnit(id: string, index: number): Promise<void> {
+  const all = await prisma.shoppingUnit.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+  if (!all.some((unit) => unit.id === id)) throw notFound('Unité');
+  const order = moveInOrder(
+    all.map((unit) => unit.id),
+    id,
+    index,
+  );
+  await prisma.$transaction(order.map((unitId, position) => prisma.shoppingUnit.update({ where: { id: unitId }, data: { position } })));
 }
 
 // Lists ----------------------------------------------------------------------------------------------------------

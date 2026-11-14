@@ -45,7 +45,8 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
                       {task.title}
                     </Text>
                     <Text size="xs" c="dimmed" truncate>
-                      #{task.number} · {context.projectById.get(task.projectId)?.title ?? 'Projet inconnu'}
+                      {context.projectLabel(task.projectId)}
+                      {task.number === null ? '' : ` · #${task.number}`}
                     </Text>
                   </Stack>
                   {late && task.deadline ? (
