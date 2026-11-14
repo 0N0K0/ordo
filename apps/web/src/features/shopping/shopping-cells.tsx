@@ -1,4 +1,4 @@
-import { ActionIcon, Autocomplete, ColorSwatch, Group, NumberInput, Select, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, ColorSwatch, Group, NumberInput, Select, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { shoppingItemSchema } from '@ordo/shared';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
@@ -7,8 +7,9 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError } from '../../lib/notify';
 import classes from '../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
-import type { ShoppingCategory, ShoppingStorage, ShoppingStore } from './api';
-import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, UNITS, usePeople } from './shopping-format';
+import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from './api';
+import { EditableSelect } from '../../components/data-table/EditableCells';
+import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, unitOptions, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AmountInput } from '../../components/AmountInput';
 
@@ -113,38 +114,13 @@ interface UnitCellProps {
 }
 
 /**
- * Unit cell: one of the usual units, or any other typed.
+ * Unit cell: one of the units of the shopping settings (the current one stays offered).
  * @param {UnitCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function UnitCell({ value, label, readOnly = false, onSave }: UnitCellProps) {
-  const [draft, setDraft] = useState<string | null>(null);
-
-  /**
-   * Saves a unit when valid and changed.
-   * @param {string} typed Unit typed or chosen.
-   * @returns {void}
-   */
-  const save = (typed: string) => {
-    setDraft(null);
-    const result = checkText('unit', typed);
-    if (result.ok && result.value !== value) onSave(result.value);
-  };
-
-  return (
-    <Autocomplete
-      {...cellCombobox}
-      aria-label={label}
-      placeholder={readOnly ? undefined : '—'}
-      readOnly={readOnly}
-      data={UNITS}
-      value={draft ?? value ?? ''}
-      onChange={setDraft}
-      onOptionSubmit={save}
-      onBlur={() => draft !== null && save(draft)}
-      onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
-    />
-  );
+  const { data } = useShoppingData();
+  return <EditableSelect label={label} value={value} nullable readOnly={readOnly} data={unitOptions(data?.shoppingUnits ?? [], value).map((unit) => ({ value: unit, label: unit }))} onSave={onSave} />;
 }
 
 interface NumberCellProps {

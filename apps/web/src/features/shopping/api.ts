@@ -10,6 +10,7 @@ export type ShoppingCategory = ShoppingDataQuery['shoppingCategories'][number];
 export type ShoppingStore = ShoppingDataQuery['shoppingStores'][number];
 export type ShoppingBaseList = ShoppingDataQuery['shoppingBaseLists'][number];
 export type ShoppingStorage = ShoppingDataQuery['shoppingStorages'][number];
+export type ShoppingUnit = ShoppingDataQuery['shoppingUnits'][number];
 export type ShoppingProduct = ShoppingDataQuery['shoppingProducts'][number];
 export type ShoppingList = ShoppingListsQuery['shoppingLists'][number];
 export type ShoppingItem = ShoppingList['items'][number];
@@ -27,6 +28,12 @@ const ShoppingDataDocument = graphql(`
       baseListIds
     }
     shoppingStorages {
+      id
+      name
+      color
+      position
+    }
+    shoppingUnits {
       id
       name
       color
@@ -126,6 +133,32 @@ const MoveCategory = graphql(`
     moveShoppingCategory(id: $id, parentId: $parentId, index: $index)
   }
 `);
+const CreateUnit = graphql(`
+  mutation CreateShoppingUnit($input: ShoppingStoreInput!) {
+    createShoppingUnit(input: $input)
+  }
+`);
+const UpdateUnit = graphql(`
+  mutation UpdateShoppingUnit($id: ID!, $input: ShoppingStorePatch!) {
+    updateShoppingUnit(id: $id, input: $input)
+  }
+`);
+const DeleteUnit = graphql(`
+  mutation DeleteShoppingUnit($id: ID!) {
+    deleteShoppingUnit(id: $id)
+  }
+`);
+const MoveUnit = graphql(`
+  mutation MoveShoppingUnit($id: ID!, $index: Int!) {
+    moveShoppingUnit(id: $id, index: $index)
+  }
+`);
+const MoveProducts = graphql(`
+  mutation MoveShoppingProducts($ids: [ID!]!, $baseListId: ID!) {
+    moveShoppingProducts(ids: $ids, baseListId: $baseListId)
+  }
+`);
+
 const CreateStorage = graphql(`
   mutation CreateShoppingStorage($input: ShoppingStoreInput!) {
     createShoppingStorage(input: $input)
@@ -382,6 +415,12 @@ export function useShoppingMutations() {
       (client, { id, parentId, index }) =>
         client.setQueryData<ShoppingDataQuery>([...shoppingKey, 'data'], (data) => data && { ...data, shoppingCategories: moveInTree(data.shoppingCategories, id, parentId, index) }),
     ),
+    createUnit: useShoppingMutation(async (input: ShoppingStoreInput) => (await execute(CreateUnit, { input })).createShoppingUnit),
+    // A renamed or deleted unit changes the products and items in it: the lists are refreshed too.
+    updateUnit: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateUnit, variables)).updateShoppingUnit),
+    deleteUnit: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteUnit, { id })).deleteShoppingUnit),
+    moveUnit: useShoppingMutation(async (variables: { id: string; index: number }) => (await execute(MoveUnit, variables)).moveShoppingUnit),
+    moveProducts: useShoppingMutation(async (variables: { ids: string[]; baseListId: string }) => (await execute(MoveProducts, variables)).moveShoppingProducts),
     createStorage: useShoppingMutation(async (input: ShoppingStoreInput) => (await execute(CreateStorage, { input })).createShoppingStorage),
     updateStorage: useShoppingMutation(async (variables: { id: string; input: Partial<ShoppingStoreInput> }) => (await execute(UpdateStorage, variables)).updateShoppingStorage),
     deleteStorage: useShoppingMutation(async ({ id }: { id: string }) => (await execute(DeleteStorage, { id })).deleteShoppingStorage),

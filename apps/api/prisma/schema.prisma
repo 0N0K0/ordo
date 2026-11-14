@@ -107,6 +107,7 @@ model Workspace {
   shoppingCategories        ShoppingCategory[]
   shoppingStores            ShoppingStore[]
   shoppingStorages          ShoppingStorage[]
+  shoppingUnits             ShoppingUnit[]
   shoppingBaseLists         ShoppingBaseList[]
   shoppingProducts          ShoppingProduct[]
   shoppingLists             ShoppingList[]
@@ -2195,6 +2196,23 @@ model ShoppingStorage {
 }
 
 /// Base list ("liste type"): products usually bought together (food, school supplies, children's clothes…).
+/// Unit of quantity of the shopping products and items (« kg », « boîte »…), set per workspace; products and items
+/// keep their unit as text (renaming a unit renames it there).
+model ShoppingUnit {
+  id          String    @id @default(cuid())
+  name        String
+  /// Unused (labels have one).
+  color       String    @default("gray")
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
 model ShoppingBaseList {
   id          String             @id @default(cuid())
   name        String

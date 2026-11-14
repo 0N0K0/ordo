@@ -61,6 +61,8 @@ interface LabelManagerProps {
   renderExtra?: (label: Label) => ReactNode;
   /** "projets" / "tâches", used in the deletion message. */
   usageNoun?: string;
+  /** Labels have a color (none: names only, e.g. units). Optional. Default = true. */
+  withColor?: boolean;
 }
 
 /**
@@ -78,8 +80,10 @@ function LabelRow({
   move,
   onDelete,
   extra,
+  withColor = true,
 }: {
   extra?: ReactNode;
+  withColor?: boolean;
   label: Label;
   index: number;
   count: number;
@@ -117,7 +121,8 @@ function LabelRow({
 
   return (
     <Group gap="xs" wrap="nowrap" align="flex-start">
-      <ColorInput
+      {withColor && (
+        <ColorInput
         aria-label={`Couleur de ${noun} ${label.name}`}
         value={label.color}
         onChangeEnd={(color) =>
@@ -130,6 +135,7 @@ function LabelRow({
         swatchesPerRow={7}
         w={130}
       />
+      )}
       <TextInput
         aria-label={`Nom de ${noun}`}
         value={name}
@@ -211,6 +217,7 @@ export function LabelManager({
   move,
   renderExtra,
   usageNoun = "projets",
+  withColor = true,
 }: LabelManagerProps) {
   const swatches = useColorSwatches();
   const form = useAppForm<LabelFormValues>({
@@ -284,6 +291,7 @@ export function LabelManager({
                 move={move}
                 onDelete={() => confirmDelete(label)}
                 extra={renderExtra?.(label)}
+                withColor={withColor}
               />
             ))}
           </Stack>
@@ -291,13 +299,7 @@ export function LabelManager({
 
         <form onSubmit={handleSubmit} noValidate>
           <Group gap="xs" wrap="nowrap" align="flex-start">
-            <ColorInput
-              aria-label="Couleur"
-              swatches={swatches}
-              swatchesPerRow={7}
-              w={130}
-              {...form.getInputProps("color")}
-            />
+            {withColor && <ColorInput aria-label="Couleur" swatches={swatches} swatchesPerRow={7} w={130} {...form.getInputProps("color")} />}
             <TextInput
               placeholder="Nom"
               aria-label="Nom"

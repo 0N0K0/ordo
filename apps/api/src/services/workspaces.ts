@@ -1,6 +1,6 @@
 import { parseCookie } from 'cookie';
 import type { NextFunction, Request, Response } from 'express';
-import { readTaskColumnDefaults, readWeek, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan } from '@ordo/shared';
+import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, readWeek, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../generated/prisma/client';
@@ -115,6 +115,8 @@ async function setUpWorkspace(workspace: Workspace): Promise<void> {
     await resolveCalendarId();
     // Every category of the tracking gets a status, those already there kept.
     if (workspace.kind === 'PRO') await ensureDocumentStatuses();
+    // The usual units of quantity of the shopping products.
+    if (!(await prisma.shoppingUnit.count())) await prisma.shoppingUnit.createMany({ data: DEFAULT_SHOPPING_UNITS.map((name, position) => ({ name, position })) });
   });
 }
 

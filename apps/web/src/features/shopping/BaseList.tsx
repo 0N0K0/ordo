@@ -4,7 +4,8 @@ import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Anchor, Button, Checkbox, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { openMoveProducts } from './open-move-products';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localDay } from '../../lib/dates';
@@ -93,6 +94,14 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         manualText="Sans tri : les produits par nom, dans leurs catégories."
         actions={
           <Group gap="sm" wrap="nowrap">
+            <ActionButton
+              priority="secondary"
+              icon={<ArrowsLeftRightIcon aria-hidden />}
+              disabled={products.length === 0 || (data?.shoppingBaseLists.length ?? 0) < 2}
+              onClick={() => openMoveProducts(baseList)}
+            >
+              Déplacer des produits
+            </ActionButton>
             <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
               Nouveau produit
             </ActionButton>
@@ -152,6 +161,9 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
               name={product.name}
               primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product }) }}
               items={[
+                ...((data?.shoppingBaseLists.length ?? 0) > 1
+                  ? [{ label: 'Déplacer vers une autre liste type…', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => openMoveProducts(baseList, [product.id]) }]
+                  : []),
                 {
                   label: 'Retirer',
                   icon: <TrashIcon aria-hidden />,

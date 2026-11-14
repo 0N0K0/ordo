@@ -1436,6 +1436,7 @@ type Mutation {
   createShoppingProduct(input: ShoppingProductInput!): ID!
   createShoppingStorage(input: ShoppingStoreInput!): ID!
   createShoppingStore(input: ShoppingStoreInput!): ID!
+  createShoppingUnit(input: ShoppingStoreInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createTask(input: TaskInput!): Task!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
@@ -1522,6 +1523,9 @@ type Mutation {
   deleteShoppingProduct(id: ID!): Boolean!
   deleteShoppingStorage(id: ID!): Boolean!
   deleteShoppingStore(id: ID!): Boolean!
+
+  """Deletes a unit; the products and items in it are left without one."""
+  deleteShoppingUnit(id: ID!): Boolean!
   deleteSprint(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
@@ -1663,8 +1667,14 @@ type Mutation {
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
   """
   moveShoppingCategory(id: ID!, index: Int, parentId: ID): Boolean!
+
+  """
+  Moves products to another base list (after its own); returns how many moved.
+  """
+  moveShoppingProducts(baseListId: ID!, ids: [ID!]!): Int!
   moveShoppingStorage(id: ID!, index: Int!): Boolean!
   moveShoppingStore(id: ID!, index: Int!): Boolean!
+  moveShoppingUnit(id: ID!, index: Int!): Boolean!
 
   """
   Places a task before another one in the manual order (at the end when beforeId is null), and under parentId when given (null: top-level task; omitted: parent unchanged).
@@ -1946,6 +1956,9 @@ type Mutation {
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
   updateShoppingStorage(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateShoppingStore(id: ID!, input: ShoppingStorePatch!): Boolean!
+
+  """Renames a unit; the products and items in it follow."""
+  updateShoppingUnit(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
   updateTaskComment(body: String!, id: ID!): TaskComment!
@@ -2305,6 +2318,9 @@ type Query {
   """Storage modes of the perishable products."""
   shoppingStorages: [ShoppingStorage!]!
   shoppingStores: [ShoppingStore!]!
+
+  """Units of quantity, in their order."""
+  shoppingUnits: [ShoppingUnit!]!
 
   """
   Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).
@@ -2958,6 +2974,17 @@ input ShoppingStoreInput {
 input ShoppingStorePatch {
   color: String
   name: String
+}
+
+"""
+Unit of quantity of the products and items (« kg », « boîte »…); they keep it as text.
+"""
+type ShoppingUnit {
+  """Unused."""
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
 }
 
 """Period of a project the tasks of its project tree are planned in."""

@@ -14,7 +14,17 @@ import { localToday } from '../../lib/dates';
 export const quantityText = ({ quantity, unit }: { quantity?: number | null; unit?: string | null }) => [quantity != null ? fmt.number(quantity, 3) : null, unit].filter(Boolean).join(' ');
 
 /** Units offered (any other can be typed). */
-export const UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton', 'paire'];
+/**
+ * Units of quantity offered (those of the shopping settings), with the current one even when it is no longer among
+ * them.
+ * @param {readonly { name: string }[]} units Units of the settings, in their order.
+ * @param {string | null | undefined} [current] Unit of the product or item. Optional.
+ * @returns {string[]} Units.
+ */
+export const unitOptions = (units: readonly { name: string }[], current?: string | null) => {
+  const names = units.map((unit) => unit.name);
+  return current && !names.includes(current) ? [current, ...names] : names;
+};
 
 /** Fields shared by a product of a base list and an item of a list, as shown in a table. */
 export interface ShoppingFields {

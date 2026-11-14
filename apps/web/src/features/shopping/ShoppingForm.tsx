@@ -1,11 +1,11 @@
 import { DatePickerInput } from '@mantine/dates';
-import { Autocomplete, Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
-import { categoriesForBaseList, listTasks, shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
+import { categoriesForBaseList, listTasks, shoppingCategoryOptions, unitOptions, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AmountInput } from '../../components/AmountInput';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -151,7 +151,15 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             {...form.getInputProps('quantity')}
             onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
           />
-          <Autocomplete label="Unité" data={UNITS} {...form.getInputProps('unit')} />
+          <Select
+            label="Unité"
+            description="Les unités se règlent dans les paramètres des achats."
+            placeholder="Aucune"
+            data={unitOptions(data?.shoppingUnits ?? [], current?.unit)}
+            searchable
+            clearable
+            {...form.getInputProps('unit')}
+          />
           <AmountInput
             label="Prix unitaire estimé"
             min={0}
