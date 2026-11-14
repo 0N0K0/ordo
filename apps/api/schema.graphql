@@ -334,6 +334,11 @@ input CalendarEventInput {
 
   """Minutes before the start."""
   reminders: [Int!]!
+
+  """
+  Routines of a day of the occurrence it is about (its other days kept); none when omitted.
+  """
+  routineLinks: [EventRoutineLinkInput!]
   startDate: Date!
   startTime: String
 
@@ -384,6 +389,9 @@ type CalendarEventOccurrence {
   """Relations without contributor taking part."""
   relationIds: [ID!]!
   reminders: [Int!]!
+
+  """Routines of a day of the occurrence it is about."""
+  routineLinks: [EventRoutineLink!]!
   seriesStartDate: String!
   start: DateTime!
   startDate: String!
@@ -805,6 +813,19 @@ enum DocumentStatusCategory {
 enum DocumentStatusScope {
   INVOICE
   QUOTE
+}
+
+"""Occurrence of a routine (its day) an event is about."""
+type EventRoutineLink {
+  """YYYY-MM-DD."""
+  date: String!
+  routineId: ID!
+}
+
+input EventRoutineLinkInput {
+  """YYYY-MM-DD, a day of the occurrence."""
+  date: String!
+  routineId: ID!
 }
 
 """Uploaded file, sent with a GraphQL multipart request."""

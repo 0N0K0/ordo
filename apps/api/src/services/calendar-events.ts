@@ -12,6 +12,7 @@ import {
   type CalendarEventInput,
   type EventScope,
   type Recurrence,
+  sharePeople,
 } from '@ordo/shared';
 import { prisma } from '../db';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../generated/prisma/client';
@@ -69,6 +70,8 @@ export interface EventOccurrence {
   categoryIds: string[];
   /** Tasks the event is about. */
   taskIds: string[];
+  /** Routines of a day of the occurrence it is about (their occurrence of that day is done during it). */
+  routineLinks: { routineId: string; date: string }[];
   /** Cancelled but kept in the calendar. */
   calledOff: boolean;
   /** Event (and occurrence) this one postpones. */
@@ -87,6 +90,7 @@ type EventWithRelations = CalendarEvent & {
   beneficiaryRelations: { id: string }[];
   categories: { id: string }[];
   tasks: { id: string }[];
+  routineLinks: { routineId: string; date: Date }[];
   postponedFrom: { title: string } | null;
   postponements: { id: string; title: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
   timeEntries: { calendarOccurrenceDate: Date | null; startedAt: Date; endedAt: Date | null; pausedAt: Date | null; pausedSeconds: number; duration: number | null }[];
@@ -100,6 +104,7 @@ const occurrenceInclude = {
   beneficiaryRelations: { select: { id: true } },
   categories: { select: { id: true } },
   tasks: { select: { id: true } },
+  routineLinks: { select: { routineId: true, date: true } },
   postponedFrom: { select: { title: true } },
   postponements: { select: { id: true, title: true, startDate: true, startTime: true, postponedFromDate: true } },
   timeEntries: { select: { calendarOccurrenceDate: true, startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true } },
@@ -113,6 +118,36 @@ const occurrenceInclude = {
 export function storedRecurrence(value: unknown): Recurrence | null {
   const parsed = recurrenceSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Routines linked on the days of an occurrence.
+ * @param {{ routineId: string, date: Date }[]} links Links of the event.
+ * @param {string} from First day (YYYY-MM-DD).
+ * @param {string} to Last day, included.
+ * @returns {{ routineId: string, date: string }[]} Links of those days.
+ */
+function linksWithin(links: readonly { routineId: string; date: Date }[], from: string, to: string): { routineId: string; date: string }[] {
+  return links.map((link) => ({ routineId: link.routineId, date: formatDay(link.date) })).filter((link) => link.date >= from && link.date <= to);
+}
+
+/**
+ * Sets the routines of the days of an occurrence (those of its other days kept): on the event it now belongs to; when
+ * an edit split the series, the links of the following days go with the new event.
+ * @param {string} formerId Event edited.
+ * @param {string} eventId Event the occurrence belongs to after the edit.
+ * @param {{ startDate: string, endDate: string, routineLinks: { routineId: string, date: string }[] }} fields Occurrence days and routines.
+ * @returns {Promise<void>}
+ */
+async function saveRoutineLinks(formerId: string | null, eventId: string, fields: { startDate: string; endDate: string; routineLinks: { routineId: string; date: string }[] }): Promise<void> {
+  const days = { gte: parseDay(fields.startDate), lte: parseDay(fields.endDate) };
+  await prisma.$transaction([
+    ...(formerId && formerId !== eventId ? [prisma.calendarEventRoutine.updateMany({ where: { eventId: formerId, date: { gte: parseDay(fields.startDate) } }, data: { eventId } })] : []),
+    prisma.calendarEventRoutine.deleteMany({ where: { eventId, date: days } }),
+    prisma.calendarEventRoutine.createMany({
+      data: [...new Map(fields.routineLinks.map((link) => [`${link.routineId}|${link.date}`, link])).values()].map((link) => ({ eventId, routineId: link.routineId, date: parseDay(link.date) })),
+    }),
+  ]);
 }
 
 /**
@@ -148,7 +183,23 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = []) {
   if ((await prisma.calendarCategory.count({ where: { id: { in: event.categoryIds } } })) !== new Set(event.categoryIds).size) {
     throw notFound('Catégorie');
   }
-  if ((await prisma.task.count({ where: { id: { in: event.taskIds } } })) !== new Set(event.taskIds).size) throw notFound('Tâche');
+  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { title: true, assignees: { select: { id: true } } } });
+  if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
+  // A task is about an event of someone of its assignees (or either side has nobody).
+  const apart = tasks.filter((task) => !sharePeople(task.assignees.map((assignee) => assignee.id), event.contributorIds));
+  // Routines of a day of the event (the one edited, for an occurrence).
+  if (event.routineLinks.some((link) => link.date < event.startDate || link.date > event.endDate)) {
+    const message = 'Une routine rattachée doit l’être un jour de l’évènement.';
+    throw clientError('BAD_USER_INPUT', message, { fields: { routineLinks: message } });
+  }
+  const routineIds = [...new Set(event.routineLinks.map((link) => link.routineId))];
+  const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { title: true, assignees: { select: { id: true } } } });
+  if (routines.length !== routineIds.length) throw notFound('Routine');
+  apart.push(...routines.filter((routine) => !sharePeople(routine.assignees.map((assignee) => assignee.id), event.contributorIds)));
+  if (apart.length) {
+    const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.title} »`).join(', ')}.`;
+    throw clientError('BAD_USER_INPUT', message, { fields: { [routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds']: message } });
+  }
   // A point goes with a location, both coordinates or none.
   if (!event.location || event.locationLat === null || event.locationLon === null) {
     event.locationLat = null;
@@ -210,7 +261,7 @@ async function findEvent(id: string): Promise<CalendarEvent> {
  */
 export async function createCalendarEvent(input: CalendarEventInput): Promise<CalendarEvent> {
   const event = await parseEvent(input);
-  return prisma.calendarEvent.create({
+  const created = await prisma.calendarEvent.create({
     data: {
       ...eventData(event),
       recurrence: event.recurrence ?? undefined,
@@ -222,6 +273,8 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
       tasks: { connect: [...new Set(event.taskIds)].map((id) => ({ id })) },
     },
   });
+  await saveRoutineLinks(null, created.id, event);
+  return created;
 }
 
 /**
@@ -263,7 +316,22 @@ async function endSeriesBefore(event: CalendarEvent, rule: Recurrence, date: str
  * @param {string | null} [occurrenceDate] Occurrence changed. Optional for a one-off event.
  * @returns {Promise<CalendarEvent>} Updated (or new, after a split) event.
  */
-export async function updateCalendarEvent(
+export async function updateCalendarEvent(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null): Promise<CalendarEvent> {
+  const updated = await updateEventFields(id, input, scope, occurrenceDate);
+  // The routines of the days of the occurrence edited, on the event it now belongs to.
+  await saveRoutineLinks(id, updated.id, parseInput(calendarEventInputSchema, input));
+  return updated;
+}
+
+/**
+ * Fields of an event (or of some of its occurrences) changed, the routines of its days aside.
+ * @param {string} id Event.
+ * @param {CalendarEventInput} input Fields.
+ * @param {EventScope} scope Occurrences changed.
+ * @param {string | null} [occurrenceDate] Occurrence edited. Optional.
+ * @returns {Promise<CalendarEvent>} Event the occurrence belongs to.
+ */
+async function updateEventFields(
   id: string,
   input: CalendarEventInput,
   scope: EventScope,
@@ -426,6 +494,7 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
     beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
+    routineLinks: linksWithin(event.routineLinks, startDate, endDate),
     calledOff: event.calledOff || (change?.calledOff ?? false),
     postponedFrom: event.postponedFromId
       ? { eventId: event.postponedFromId, date: event.postponedFromDate ? formatDay(event.postponedFromDate) : null, title: event.postponedFrom?.title ?? '' }
@@ -535,6 +604,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
+    routineLinks: linksWithin(event.routineLinks, date, addDays(date, span)),
   };
 }
 

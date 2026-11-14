@@ -44,6 +44,10 @@ graphql(`
     beneficiaryRelationIds
     categoryIds
     taskIds
+    routineLinks {
+      routineId
+      date
+    }
     calledOff
     postponedFrom {
       eventId

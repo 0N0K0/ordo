@@ -3,7 +3,7 @@ import { SidePanel } from '../../components/panels/SidePanel';
 import { TimeField } from '../../components/TimeField';
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
+import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput, sharePeople } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
@@ -28,6 +28,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
+import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -171,6 +172,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         beneficiaryRelationIds: [],
         categoryIds: [],
         taskIds: [],
+        routineLinks: [],
         ...defaults,
       };
   const form = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
@@ -179,6 +181,22 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const relationOptions = (treasury?.treasuryRelations ?? [])
     .filter((relation) => !relation.contributorId || (values.relationIds ?? []).includes(relation.id))
     .map((relation) => ({ value: relation.id, label: relation.name }));
+  // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
+  const { data: routinesData } = useRoutinesData();
+  const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
+  const routineById = new Map((routinesData?.routines ?? []).map((routine) => [routine.id, routine]));
+  const multiDay = values.startDate !== values.endDate;
+  const chosenLinks = new Set((values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`));
+  const routineOptions = [
+    ...new Map(
+      [...(routineDays ?? []).map((item) => ({ routineId: item.routineId, date: String(item.date) })), ...(values.routineLinks ?? [])].map((link) => [`${link.routineId}|${link.date}`, link]),
+    ).values(),
+  ].flatMap((link) => {
+    const routine = routineById.get(link.routineId);
+    const key = `${link.routineId}|${link.date}`;
+    if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
+    return [{ value: key, label: multiDay ? `${routine.title} (${fmt.weekday(link.date)})` : routine.title }];
+  });
   const recurring = occurrence?.occurrenceDate != null;
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
@@ -515,9 +533,16 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           <BatchMultiSelect
             label="Tâches"
             placeholder={values.taskIds?.length ? undefined : 'Aucune'}
-            description={values.projectId ? 'Tâches du projet et de ses sous-projets.' : undefined}
+            description={
+              [values.projectId ? 'Tâches du projet et de ses sous-projets' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null].filter(Boolean).join(', ') || undefined
+            }
+            // Of the project, and with someone in common with the event (or nobody on either side); those chosen stay.
             data={context.tasks
-              .filter((task) => values.taskIds?.includes(task.id) || (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId))))
+              .filter(
+                (task) =>
+                  values.taskIds?.includes(task.id) ||
+                  (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId)) && sharePeople(task.assigneeIds, values.contributorIds)),
+              )
               .map((task) => ({ value: task.id, label: `${context.taskLabel(task, values.projectId)}${task.closed ? ' (fermée)' : ''}` }))}
             searchable
             clearable
@@ -525,6 +550,19 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             nothingFoundMessage="Aucune tâche"
             value={values.taskIds ?? []}
             onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
+            error={form.errors.taskIds as string | undefined}
+          />
+          <BatchMultiSelect
+            label="Routines"
+            placeholder={(values.routineLinks ?? []).length ? undefined : 'Aucune'}
+            description="Routines de ces jours faites pendant l’évènement (ce jour-là seulement), avec un contributeur de l’évènement."
+            data={routineOptions}
+            searchable
+            clearable
+            nothingFoundMessage="Aucune routine ces jours-là"
+            value={(values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`)}
+            onChange={(keys) => form.setFieldValue('routineLinks', keys.map((key) => ({ routineId: key.split('|')[0], date: key.split('|')[1] })))}
+            error={form.errors.routineLinks as string | undefined}
           />
           <BatchMultiSelect
             label="Rappels"

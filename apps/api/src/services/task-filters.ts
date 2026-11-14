@@ -95,9 +95,10 @@ interface Trees {
  * sprint operator.
  * @param {FilterGroup} filter Filter.
  * @param {FilterClock} clock User clock.
+ * @param {FilterUser} user Querying user (« Moi » of the events keeping tasks from being done).
  * @returns {Promise<Trees>} Lookups.
  */
-async function loadTrees(filter: FilterGroup, clock: FilterClock): Promise<Trees> {
+async function loadTrees(filter: FilterGroup, clock: FilterClock, user: FilterUser): Promise<Trees> {
   const fields = new Set<string>();
   let relativeSprints = false;
   let doable = false;
@@ -134,7 +135,7 @@ async function loadTrees(filter: FilterGroup, clock: FilterClock): Promise<Trees
     fields.has('project') || relativeSprints ? prisma.project.findMany({ select: { id: true, parentId: true } }) : [],
     fields.has('parent') ? prisma.task.findMany({ select: { id: true, parentId: true } }) : [],
     relativeSprints ? prisma.sprint.findMany({ select: { id: true, projectId: true, startDate: true, endDate: true } }) : [],
-    doable ? doableTaskIds(clock.utcOffset) : [],
+    doable ? doableTaskIds(clock.utcOffset, user.contributorId) : [],
   ]);
   return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock), doableIds };
 }
@@ -503,7 +504,7 @@ export async function buildTaskWhere({
 }): Promise<Prisma.TaskWhereInput> {
   // « Cette semaine »: the weeks of the workspace.
   clock = clock.week ? clock : { ...clock, week: await currentWeek() };
-  const trees = await loadTrees(filter, clock);
+  const trees = await loadTrees(filter, clock, user);
   return {
     AND: [
       includeArchived ? {} : { archivedAt: null },

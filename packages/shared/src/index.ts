@@ -21,3 +21,4 @@ export * from './shopping-list-views';
 export * from './table-layout';
 export * from './table-views';
 export * from './weeks';
+export * from './event-busy';

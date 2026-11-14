@@ -108,6 +108,7 @@ model Workspace {
   shoppingStores            ShoppingStore[]
   shoppingStorages          ShoppingStorage[]
   shoppingUnits             ShoppingUnit[]
+  calendarEventRoutines     CalendarEventRoutine[]
   shoppingBaseLists         ShoppingBaseList[]
   shoppingProducts          ShoppingProduct[]
   shoppingLists             ShoppingList[]
@@ -1276,6 +1277,8 @@ model CalendarEvent {
   timeEntries       TimeEntry[]
   /// Tasks the event is about.
   tasks             Task[]                   @relation("CalendarEventTasks")
+  /// Routines of a day the event is about (their occurrence of that day is done during it).
+  routineLinks      CalendarEventRoutine[]
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -1286,6 +1289,25 @@ model CalendarEvent {
   @@index([projectId])
   @@index([calendarId])
   @@index([postponedFromId])
+  @@index([workspaceId])
+}
+
+/// Occurrence of a routine (its day) an event is about: done during the event, which does not keep its assignees from
+/// it. Even for a repeated routine, only that day.
+model CalendarEventRoutine {
+  id          String        @id @default(cuid())
+  eventId     String
+  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  routineId   String
+  routine     Routine       @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  /// Day of the occurrence of the routine.
+  date        DateTime      @db.Date
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, routineId, date])
+  @@index([routineId])
   @@index([workspaceId])
 }
 
@@ -2415,6 +2437,8 @@ model Routine {
   /// « Bénéficiaires »: whom the routine is for (contributors, and relations out of the team or household).
   beneficiaries        Contributor[]      @relation("RoutineBeneficiaries")
   beneficiaryRelations TreasuryRelation[] @relation("RoutineBeneficiaryRelations")
+  /// Events its occurrence of a day is done during.
+  eventLinks           CalendarEventRoutine[]
   /// Routines to do before this one ("étendre le linge" requires "laver le linge").
   requires       RoutineDependency[] @relation("RoutineDependent")
   /// Routines requiring this one.

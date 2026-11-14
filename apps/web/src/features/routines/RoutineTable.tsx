@@ -56,7 +56,7 @@ import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCel
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { RoutineDoneToggles } from './DoneToggle';
-import { useSlotRules } from '../slot-rules/use-slot-rules';
+import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { openRoutineForm } from './open-routine-form';
 import { openRoutineMove } from './open-routine-move';
 import { usePostponeRoutine } from './use-routine-move';
@@ -586,7 +586,7 @@ export function RoutineTable({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const today = localToday();
   const slotRules = useSlotRules();
-  const doable = (routine: Routine) => slotRules.allowed(routine.slotRule);
+  const doable = (routine: Routine) => slotRules.allowed(routineDoable(routine));
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const rows = routineRows(layout, grouping, keep);
   const shown = visibleRoutineRows(rows, collapsed);

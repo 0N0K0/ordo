@@ -12,7 +12,7 @@ import { unlockAudioOnGesture } from './alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from './ring-routines';
 import { notifyError } from '../../lib/notify';
-import { useSlotRules } from '../slot-rules/use-slot-rules';
+import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { taskPath } from '../tasks/task-links';
 import { taskRef } from '../tasks/use-task-context';
 
@@ -101,7 +101,7 @@ export function AlarmCenter() {
         now,
         [link('Voir les routines', '/routines')],
         (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: (error) => notifyError(error.message) }),
-        (routine, at) => latest.current.slotRules.nextAllowedAt(routine.slotRule, at),
+        (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );
       if (!list) return;
       const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));

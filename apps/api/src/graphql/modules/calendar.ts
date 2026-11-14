@@ -115,6 +115,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     beneficiaryRelationIds: t.exposeIDList('beneficiaryRelationIds', { description: '« Bénéficiaires »: relations the event is for.' }),
     categoryIds: t.exposeIDList('categoryIds'),
     taskIds: t.exposeIDList('taskIds'),
+    routineLinks: t.field({ type: [EventRoutineLinkRef], description: 'Routines of a day of the occurrence it is about.', resolve: (occurrence) => occurrence.routineLinks }),
     calledOff: t.exposeBoolean('calledOff', { description: 'Cancelled, kept in the calendar.' }),
     postponedFrom: t.field({ type: PostponedFrom, nullable: true, resolve: (occurrence) => occurrence.postponedFrom }),
     postponedTo: t.field({ type: [PostponedTo], resolve: (occurrence) => occurrence.postponedTo }),
@@ -182,6 +183,15 @@ const DefaultScheduleKindInput = builder.inputType('DefaultScheduleKindInput', {
 const ScheduleSubscriptionLookInput = builder.inputType('ScheduleSubscriptionLookInput', {
   description: 'Color and display of a kind of schedules subscribed to, in this workspace; null: those of the kind.',
   fields: (t) => ({ color: t.string(), dayDisplay: t.string(), dayBar: t.boolean(), monthDisplay: t.string() }),
+});
+
+const EventRoutineLinkRef = builder.objectRef<{ routineId: string; date: string }>('EventRoutineLink').implement({
+  description: 'Occurrence of a routine (its day) an event is about.',
+  fields: (t) => ({ routineId: t.exposeID('routineId'), date: t.exposeString('date', { description: 'YYYY-MM-DD.' }) }),
+});
+
+const EventRoutineLinkInput = builder.inputType('EventRoutineLinkInput', {
+  fields: (t) => ({ routineId: t.id({ required: true }), date: t.string({ required: true, description: 'YYYY-MM-DD, a day of the occurrence.' }) }),
 });
 
 const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
@@ -278,6 +288,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     beneficiaryRelationIds: t.idList({ description: 'Relations the event is for; none: none.' }),
     categoryIds: t.idList({ required: true }),
     taskIds: t.idList({ description: 'Tasks the event is about (none when omitted).' }),
+    routineLinks: t.field({ type: [EventRoutineLinkInput], description: 'Routines of a day of the occurrence it is about (its other days kept); none when omitted.' }),
   }),
 });
 
@@ -306,6 +317,7 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   projectId: input.projectId ?? null,
   calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
+  routineLinks: (input.routineLinks ?? []).map((link) => ({ routineId: String(link.routineId), date: String(link.date) })),
   relationIds: input.relationIds ?? [],
   beneficiaryIds: input.beneficiaryIds ?? [],
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
