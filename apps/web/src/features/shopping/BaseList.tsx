@@ -19,6 +19,8 @@ import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -64,7 +66,16 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
   const missing = products.filter((product) => product.missing);
   const categories = categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id);
+  const productComments = useCommentCounts(
+    'SHOPPING_PRODUCT',
+    products.map((product) => product.id),
+  );
   const columns = itemColumns<ShoppingProduct>(grouping, { categories, stores: data?.shoppingStores ?? [], members: people.members, relations: people.relations }, [
+    commentColumn<ShoppingProduct>(
+      productComments,
+      (product) => product.id,
+      (product) => product.note,
+    ),
     {
       id: 'extra',
       label: 'Dernier achat',

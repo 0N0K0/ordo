@@ -1,5 +1,5 @@
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Badge, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
 import { LinkIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
@@ -22,6 +22,8 @@ import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
 import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
+import { Comments } from '../comments/Comments';
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -67,7 +69,7 @@ interface EntryFormProps {
 
 /**
  * Treasury entry: account, execution and value dates, label, money in or out, payer or payee (client or
- * counterparty), category and method of its direction, project, note and linked entries; a forecast may repeat,
+ * counterparty), category and method of its direction, project, description and linked entries; a forecast may repeat,
  * an actual entry settles invoices (money in) or refunds credit notes (money out), Ordo or imported.
  * @param {EntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
@@ -179,385 +181,394 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   });
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="sm">
-        <SegmentedControl
-          data={[
-            { value: 'ACTUAL', label: 'Réel' },
-            { value: 'FORECAST', label: 'Prévu' },
-          ]}
-          value={values.status}
-          // Only a forecast repeats, only an actual entry settles documents.
-          onChange={(value) => form.setValues({ status: value as EntryValues['status'], recurrence: null, allocations: [] })}
-        />
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Select label="Compte" required data={open.map((account) => ({ value: account.id, label: account.name }))} allowDeselect={false} {...form.getInputProps('accountId')} />
-          <DatePickerInput
-            label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
-            required
-            {...form.getInputProps('date')}
-            // The value date follows the execution date until it is changed apart (or when it is empty).
-            onChange={(date) => form.setValues({ date: date ?? '', ...(!values.valueDate || values.valueDate === values.date ? { valueDate: date } : {}) })}
-          />
-        </SimpleGrid>
-        <DatePickerInput
-          label="Date de valeur"
-          description="Celle du relevé bancaire, pour information : le solde suit la date d’exécution. Vide, c’est la date d’exécution."
-          clearable
-          placeholder={values.date ? 'Date d’exécution' : '—'}
-          {...form.getInputProps('valueDate')}
-        />
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-        <Group gap="sm" align="flex-end" wrap="nowrap">
+    <Stack gap="lg">
+      <form onSubmit={handleSubmit} noValidate>
+        <Stack gap="sm">
           <SegmentedControl
-            aria-label="Sens"
             data={[
-              { value: 'IN', label: 'Entrée' },
-              { value: 'OUT', label: 'Sortie' },
+              { value: 'ACTUAL', label: 'Réel' },
+              { value: 'FORECAST', label: 'Prévu' },
             ]}
-            value={values.direction}
-            // Changing the direction changes which documents can be settled, and the categories and methods.
-            onChange={(direction) => {
-              const method = settings?.treasuryPaymentMethods.find((item) => item.id === values.methodId);
-              form.setValues({
-                direction: direction as EntryValues['direction'],
-                allocations: [],
-                categoryId: null,
-                lines: values.lines.map((line) => ({ ...line, categoryId: null })),
-                methodId: method && (direction === 'IN' ? method.incoming : method.outgoing) ? method.id : null,
-              });
-            }}
+            value={values.status}
+            // Only a forecast repeats, only an actual entry settles documents.
+            onChange={(value) => form.setValues({ status: value as EntryValues['status'], recurrence: null, allocations: [] })}
           />
-          <AmountInput label="Montant" required min={0} suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
-        </Group>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          {!split && (
-            <WithCreate label="Nouvelle catégorie" onCreate={() => setCreating('category')}>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            <Select label="Compte" required data={open.map((account) => ({ value: account.id, label: account.name }))} allowDeselect={false} {...form.getInputProps('accountId')} />
+            <DatePickerInput
+              label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
+              required
+              {...form.getInputProps('date')}
+              // The value date follows the execution date until it is changed apart (or when it is empty).
+              onChange={(date) => form.setValues({ date: date ?? '', ...(!values.valueDate || values.valueDate === values.date ? { valueDate: date } : {}) })}
+            />
+          </SimpleGrid>
+          <DatePickerInput
+            label="Date de valeur"
+            description="Celle du relevé bancaire, pour information : le solde suit la date d’exécution. Vide, c’est la date d’exécution."
+            clearable
+            placeholder={values.date ? 'Date d’exécution' : '—'}
+            {...form.getInputProps('valueDate')}
+          />
+          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+          <Group gap="sm" align="flex-end" wrap="nowrap">
+            <SegmentedControl
+              aria-label="Sens"
+              data={[
+                { value: 'IN', label: 'Entrée' },
+                { value: 'OUT', label: 'Sortie' },
+              ]}
+              value={values.direction}
+              // Changing the direction changes which documents can be settled, and the categories and methods.
+              onChange={(direction) => {
+                const method = settings?.treasuryPaymentMethods.find((item) => item.id === values.methodId);
+                form.setValues({
+                  direction: direction as EntryValues['direction'],
+                  allocations: [],
+                  categoryId: null,
+                  lines: values.lines.map((line) => ({ ...line, categoryId: null })),
+                  methodId: method && (direction === 'IN' ? method.incoming : method.outgoing) ? method.id : null,
+                });
+              }}
+            />
+            <AmountInput label="Montant" required min={0} suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
+          </Group>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            {!split && (
+              <WithCreate label="Nouvelle catégorie" onCreate={() => setCreating('category')}>
+                <Select
+                  label="Catégorie"
+                  clearable
+                  searchable
+                  placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
+                  {...treeSelectProps(categoryOptions(categories, values.direction))}
+                  {...form.getInputProps('categoryId')}
+                />
+              </WithCreate>
+            )}
+            <WithCreate label="Nouveau moyen de paiement" onCreate={() => setCreating('method')}>
               <Select
-                label="Catégorie"
+                label="Moyen de paiement"
                 clearable
-                searchable
-                placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : créez-en une avec +'}
-                {...treeSelectProps(categoryOptions(categories, values.direction))}
-                {...form.getInputProps('categoryId')}
+                placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'}
+                data={methods.map((method) => ({ value: method.id, label: method.name }))}
+                {...form.getInputProps('methodId')}
               />
             </WithCreate>
-          )}
-          <WithCreate label="Nouveau moyen de paiement" onCreate={() => setCreating('method')}>
+          </SimpleGrid>
+          <WithCreate label="Nouveau tiers" onCreate={() => setCreating('counterparty')}>
             <Select
-              label="Moyen de paiement"
+              label={incoming ? 'Émetteur' : 'Destinataire'}
               clearable
-              placeholder={methods.length ? '—' : 'Aucun : créez-en un avec +'}
-              data={methods.map((method) => ({ value: method.id, label: method.name }))}
-              {...form.getInputProps('methodId')}
-            />
-          </WithCreate>
-        </SimpleGrid>
-        <WithCreate label="Nouveau tiers" onCreate={() => setCreating('counterparty')}>
-          <Select
-            label={incoming ? 'Émetteur' : 'Destinataire'}
-            clearable
-            searchable
-            placeholder="Client ou tiers"
-            nothingFoundMessage="Aucun client ni tiers"
-            data={payers}
-            value={payer}
-            onChange={(key) =>
-              form.setValues({
-                clientId: key?.startsWith('client:') ? key.slice(7) : null,
-                counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null,
-              })
-            }
-            error={form.errors.clientId ?? form.errors.counterpartyId}
-          />
-        </WithCreate>
-        {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
-        <Textarea label="Note" autosize minRows={1} {...form.getInputProps('note')} />
-        <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
-
-        <Divider label="Répartition" labelPosition="left" />
-        <LinesEditor
-          lines={values.lines}
-          onChange={(lines) => {
-            if (split || !lines.length) {
-              form.setFieldValue('lines', lines);
-              return;
-            }
-            // Split now: the category and project of the entry go to its lines, its documents and links to the first.
-            const seeded = lines.map((line, index) => ({
-              ...line,
-              categoryId: line.categoryId ?? values.categoryId,
-              projectId: line.projectId ?? values.projectId,
-              ...(index === 0
-                ? {
-                    libraryDocumentIds: values.libraryDocumentIds,
-                    projectResourceIds: values.projectResourceIds,
-                    linkedEntryIds: values.linkedEntryIds,
-                    links: linked.map((item) => ({ kind: 'entry' as const, id: item.id, entryLabel: item.label, date: item.date, label: null, amount: item.amount })),
-                  }
-                : {}),
-            }));
-            form.setValues({ lines: seeded, categoryId: null, projectId: null, libraryDocumentIds: [], projectResourceIds: [], linkedEntryIds: [] });
-            setLinked([]);
-          }}
-          amount={values.amount}
-          direction={values.direction}
-          date={values.date}
-          settings={settings}
-          errors={form.errors}
-          entryId={entry?.id ?? null}
-          projects={projectChoices}
-          documentGroups={documentData}
-          onCreateContext={(index) => {
-            setContextLine(index);
-            setCreating('context');
-          }}
-          onCreateRelation={(index) => {
-            setContextLine(index);
-            setCreating('relation');
-          }}
-        />
-
-        {split ? (
-          <Text size="xs" c="dimmed">
-            Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne.
-          </Text>
-        ) : (
-          <>
-            <BatchMultiSelect
-              label="Pièces justificatives"
-              description="Documents de la bibliothèque ou des projets."
-              placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}
               searchable
-              clearable
-              nothingFoundMessage="Aucun document"
-              data={documentData}
-              value={selectedDocuments}
-              onChange={(keys) =>
+              placeholder="Client ou tiers"
+              nothingFoundMessage="Aucun client ni tiers"
+              data={payers}
+              value={payer}
+              onChange={(key) =>
                 form.setValues({
-                  libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-                  projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
+                  clientId: key?.startsWith('client:') ? key.slice(7) : null,
+                  counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null,
                 })
               }
-              error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+              error={form.errors.clientId ?? form.errors.counterpartyId}
             />
+          </WithCreate>
+          {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
+          <MarkdownEditor
+            label="Description"
+            value={form.values.note ?? ''}
+            onChange={(note) => form.setFieldValue('note', note)}
+            suggestions={{ projectId: null, tasks: [], contributors: [] }}
+            minRows={2}
+          />
+          <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
 
-            <Divider label="Mouvements liés" labelPosition="left" />
-            <Text size="xs" c="dimmed">
-              Une entrée et une sortie liées sur une même période se compensent dans les graphiques d’entrées et de sorties (remboursement de frais, virement entre comptes…).
-            </Text>
-            {linked.length > 0 && (
-              <Group gap={6}>
-                {linked.map((item) => (
-                  <Badge
-                    key={item.id}
-                    variant="light"
-                    color={item.amount < 0 ? 'red' : 'green'}
-                    leftSection={<LinkIcon aria-hidden />}
-                    rightSection={
-                      <ActionIcon
-                        size="xs"
-                        variant="transparent"
-                        color="gray"
-                        aria-label={`Délier ${item.label}`}
-                        onClick={() => {
-                          setLinked((current) => current.filter((other) => other.id !== item.id));
-                          form.setFieldValue(
-                            'linkedEntryIds',
-                            values.linkedEntryIds.filter((id) => id !== item.id),
-                          );
-                        }}
-                      >
-                        <XIcon aria-hidden />
-                      </ActionIcon>
+          <Divider label="Répartition" labelPosition="left" />
+          <LinesEditor
+            lines={values.lines}
+            onChange={(lines) => {
+              if (split || !lines.length) {
+                form.setFieldValue('lines', lines);
+                return;
+              }
+              // Split now: the category and project of the entry go to its lines, its documents and links to the first.
+              const seeded = lines.map((line, index) => ({
+                ...line,
+                categoryId: line.categoryId ?? values.categoryId,
+                projectId: line.projectId ?? values.projectId,
+                ...(index === 0
+                  ? {
+                      libraryDocumentIds: values.libraryDocumentIds,
+                      projectResourceIds: values.projectResourceIds,
+                      linkedEntryIds: values.linkedEntryIds,
+                      links: linked.map((item) => ({ kind: 'entry' as const, id: item.id, entryLabel: item.label, date: item.date, label: null, amount: item.amount })),
                     }
-                    tt="none"
-                  >
-                    {describeLinked(item)}
-                  </Badge>
-                ))}
-              </Group>
-            )}
-            <Select
-              aria-label="Lier un mouvement"
-              placeholder="Rechercher un mouvement par son libellé…"
-              searchable
-              clearable={false}
-              leftSection={<LinkIcon aria-hidden />}
-              searchValue={search}
-              onSearchChange={setSearch}
-              // Filtered by the server.
-              filter={({ options }) => options}
-              nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
-              data={linkable}
-              value={null}
-              onChange={(id) => {
-                const item = found?.find((other) => other.id === id);
-                if (!item) return;
-                setLinked((current) => [...current, { id: item.id, date: String(item.date), label: item.label, amount: item.amount }]);
-                form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, item.id]);
-                setSearch('');
-              }}
-              error={form.errors.linkedEntryIds}
-            />
-            {(entry?.linkedByLines ?? []).length > 0 && (
-              <Group gap={6}>
-                {(entry?.linkedByLines ?? []).map((line) => (
-                  <Badge key={line.id} variant="outline" color={line.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
-                    {describeLink({ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: String(line.date), label: line.label ?? null, amount: line.amount })}
-                  </Badge>
-                ))}
-              </Group>
-            )}
-          </>
-        )}
+                  : {}),
+              }));
+              form.setValues({ lines: seeded, categoryId: null, projectId: null, libraryDocumentIds: [], projectResourceIds: [], linkedEntryIds: [] });
+              setLinked([]);
+            }}
+            amount={values.amount}
+            direction={values.direction}
+            date={values.date}
+            settings={settings}
+            errors={form.errors}
+            entryId={entry?.id ?? null}
+            projects={projectChoices}
+            documentGroups={documentData}
+            onCreateContext={(index) => {
+              setContextLine(index);
+              setCreating('context');
+            }}
+            onCreateRelation={(index) => {
+              setContextLine(index);
+              setCreating('relation');
+            }}
+          />
 
-        {forecast && (
-          <>
-            <RecurrenceField value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} />
-          </>
-        )}
+          {split ? (
+            <Text size="xs" c="dimmed">
+              Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne.
+            </Text>
+          ) : (
+            <>
+              <BatchMultiSelect
+                label="Pièces justificatives"
+                description="Documents de la bibliothèque ou des projets."
+                placeholder={selectedDocuments.length ? undefined : 'Rechercher un document…'}
+                searchable
+                clearable
+                nothingFoundMessage="Aucun document"
+                data={documentData}
+                value={selectedDocuments}
+                onChange={(keys) =>
+                  form.setValues({
+                    libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
+                    projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
+                  })
+                }
+                error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+              />
 
-        {!forecast && !perso && (
-          <>
-            <Divider label={incoming ? 'Factures réglées' : 'Avoirs remboursés'} labelPosition="left" />
-            {values.allocations.map((allocation, index) => (
-              <Group key={index} gap="xs" align="flex-end" wrap="nowrap">
-                <Select
-                  aria-label={`Document ${index + 1}`}
-                  placeholder="Document"
-                  searchable
-                  style={{ flex: 1 }}
-                  data={settleable.filter((option) => option.value === keyOf(allocation) || !values.allocations.some((other) => keyOf(other) === option.value))}
-                  value={keyOf(allocation)}
-                  onChange={(key) => {
-                    const option = settleable.find((item) => item.value === key);
-                    const amount = option ? Math.min(option.balance, Math.max(0, values.amount - allocated + allocation.amount)) || option.balance : allocation.amount;
-                    form.setFieldValue(`allocations.${index}`, {
-                      documentId: key?.startsWith('doc:') ? key.slice(4) : null,
-                      importedDocumentId: key?.startsWith('imp:') ? key.slice(4) : null,
-                      amount,
-                    });
-                    // An empty entry takes the amount and the name of the document it settles.
-                    if (option && !values.amount) form.setFieldValue('amount', allocated - allocation.amount + amount);
-                    if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.label.replace(/ \(reste .*\)$/, '')}`);
-                  }}
-                />
-                <AmountInput
-                  aria-label={`Montant réglé ${index + 1}`}
-                  w={130}
-                  min={0}
-                  suffix=" €"
-                  value={allocation.amount}
-                  onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
-                />
-                <Tooltip label="Retirer">
-                  <ActionIcon variant="subtle" color="gray" size="lg" aria-label={`Retirer le document ${index + 1}`} onClick={() => form.removeListItem('allocations', index)}>
-                    <XIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            ))}
-            {form.errors.allocations && (
-              <Text size="xs" c="red">
-                {form.errors.allocations}
+              <Divider label="Mouvements liés" labelPosition="left" />
+              <Text size="xs" c="dimmed">
+                Une entrée et une sortie liées sur une même période se compensent dans les graphiques d’entrées et de sorties (remboursement de frais, virement entre comptes…).
               </Text>
-            )}
-            <Group justify="space-between">
-              <Button
-                size="xs"
-                variant="default"
-                leftSection={<PlusIcon aria-hidden />}
-                disabled={settleable.length === values.allocations.length}
-                onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}
-              >
-                {incoming ? 'Régler une facture' : 'Rembourser un avoir'}
-              </Button>
-              {values.allocations.length > 0 && (
-                <Text size="xs" c="dimmed">
-                  {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
+              {linked.length > 0 && (
+                <Group gap={6}>
+                  {linked.map((item) => (
+                    <Badge
+                      key={item.id}
+                      variant="light"
+                      color={item.amount < 0 ? 'red' : 'green'}
+                      leftSection={<LinkIcon aria-hidden />}
+                      rightSection={
+                        <ActionIcon
+                          size="xs"
+                          variant="transparent"
+                          color="gray"
+                          aria-label={`Délier ${item.label}`}
+                          onClick={() => {
+                            setLinked((current) => current.filter((other) => other.id !== item.id));
+                            form.setFieldValue(
+                              'linkedEntryIds',
+                              values.linkedEntryIds.filter((id) => id !== item.id),
+                            );
+                          }}
+                        >
+                          <XIcon aria-hidden />
+                        </ActionIcon>
+                      }
+                      tt="none"
+                    >
+                      {describeLinked(item)}
+                    </Badge>
+                  ))}
+                </Group>
+              )}
+              <Select
+                aria-label="Lier un mouvement"
+                placeholder="Rechercher un mouvement par son libellé…"
+                searchable
+                clearable={false}
+                leftSection={<LinkIcon aria-hidden />}
+                searchValue={search}
+                onSearchChange={setSearch}
+                // Filtered by the server.
+                filter={({ options }) => options}
+                nothingFoundMessage={search.trim().length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun mouvement'}
+                data={linkable}
+                value={null}
+                onChange={(id) => {
+                  const item = found?.find((other) => other.id === id);
+                  if (!item) return;
+                  setLinked((current) => [...current, { id: item.id, date: String(item.date), label: item.label, amount: item.amount }]);
+                  form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, item.id]);
+                  setSearch('');
+                }}
+                error={form.errors.linkedEntryIds}
+              />
+              {(entry?.linkedByLines ?? []).length > 0 && (
+                <Group gap={6}>
+                  {(entry?.linkedByLines ?? []).map((line) => (
+                    <Badge key={line.id} variant="outline" color={line.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
+                      {describeLink({ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: String(line.date), label: line.label ?? null, amount: line.amount })}
+                    </Badge>
+                  ))}
+                </Group>
+              )}
+            </>
+          )}
+
+          {forecast && (
+            <>
+              <RecurrenceField value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} />
+            </>
+          )}
+
+          {!forecast && !perso && (
+            <>
+              <Divider label={incoming ? 'Factures réglées' : 'Avoirs remboursés'} labelPosition="left" />
+              {values.allocations.map((allocation, index) => (
+                <Group key={index} gap="xs" align="flex-end" wrap="nowrap">
+                  <Select
+                    aria-label={`Document ${index + 1}`}
+                    placeholder="Document"
+                    searchable
+                    style={{ flex: 1 }}
+                    data={settleable.filter((option) => option.value === keyOf(allocation) || !values.allocations.some((other) => keyOf(other) === option.value))}
+                    value={keyOf(allocation)}
+                    onChange={(key) => {
+                      const option = settleable.find((item) => item.value === key);
+                      const amount = option ? Math.min(option.balance, Math.max(0, values.amount - allocated + allocation.amount)) || option.balance : allocation.amount;
+                      form.setFieldValue(`allocations.${index}`, {
+                        documentId: key?.startsWith('doc:') ? key.slice(4) : null,
+                        importedDocumentId: key?.startsWith('imp:') ? key.slice(4) : null,
+                        amount,
+                      });
+                      // An empty entry takes the amount and the name of the document it settles.
+                      if (option && !values.amount) form.setFieldValue('amount', allocated - allocation.amount + amount);
+                      if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.label.replace(/ \(reste .*\)$/, '')}`);
+                    }}
+                  />
+                  <AmountInput
+                    aria-label={`Montant réglé ${index + 1}`}
+                    w={130}
+                    min={0}
+                    suffix=" €"
+                    value={allocation.amount}
+                    onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
+                  />
+                  <Tooltip label="Retirer">
+                    <ActionIcon variant="subtle" color="gray" size="lg" aria-label={`Retirer le document ${index + 1}`} onClick={() => form.removeListItem('allocations', index)}>
+                      <XIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              ))}
+              {form.errors.allocations && (
+                <Text size="xs" c="red">
+                  {form.errors.allocations}
                 </Text>
               )}
-            </Group>
-          </>
-        )}
+              <Group justify="space-between">
+                <Button
+                  size="xs"
+                  variant="default"
+                  leftSection={<PlusIcon aria-hidden />}
+                  disabled={settleable.length === values.allocations.length}
+                  onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}
+                >
+                  {incoming ? 'Régler une facture' : 'Rembourser un avoir'}
+                </Button>
+                {values.allocations.length > 0 && (
+                  <Text size="xs" c="dimmed">
+                    {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
+                  </Text>
+                )}
+              </Group>
+            </>
+          )}
 
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createEntry.isPending || updateEntry.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
-      <SidePanel
-        opened={creating !== null}
-        onClose={() => setCreating(null)}
-        title={
-          creating === 'category'
-            ? 'Nouvelle catégorie'
-            : creating === 'method'
-              ? 'Nouveau moyen de paiement'
-              : creating === 'context'
-                ? 'Nouveau contexte'
-                : creating === 'relation'
-                  ? 'Nouvelle relation'
-                  : 'Nouveau tiers'
-        }
-      >
-        {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
-        <div onSubmit={(event) => event.stopPropagation()}>
-          {creating === 'category' && (
-            <CategoryForm
-              direction={values.direction}
-              categories={categories}
-              onDone={(id) => {
-                if (id) form.setFieldValue('categoryId', id);
-                setCreating(null);
-              }}
-            />
-          )}
-          {creating === 'relation' && (
-            <RelationForm
-              onDone={(id) => {
-                if (id && contextLine !== null) {
-                  form.setFieldValue(`lines.${contextLine}.relationId`, id);
-                  form.setFieldValue(`lines.${contextLine}.memberId`, null);
-                }
-                setContextLine(null);
-                setCreating(null);
-              }}
-            />
-          )}
-          {creating === 'context' && (
-            <ContextForm
-              onDone={(id) => {
-                if (id && contextLine !== null) form.setFieldValue(`lines.${contextLine}.contextId`, id);
-                setContextLine(null);
-                setCreating(null);
-              }}
-            />
-          )}
-          {creating === 'method' && (
-            <MethodForm
-              direction={values.direction}
-              onDone={(id) => {
-                if (id) form.setFieldValue('methodId', id);
-                setCreating(null);
-              }}
-            />
-          )}
-          {creating === 'counterparty' && (
-            <CounterpartyForm
-              onDone={(id) => {
-                if (id) form.setValues({ clientId: null, counterpartyId: id });
-                setCreating(null);
-              }}
-            />
-          )}
-        </div>
-      </SidePanel>
-    </form>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={createEntry.isPending || updateEntry.isPending}>
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+        <SidePanel
+          opened={creating !== null}
+          onClose={() => setCreating(null)}
+          title={
+            creating === 'category'
+              ? 'Nouvelle catégorie'
+              : creating === 'method'
+                ? 'Nouveau moyen de paiement'
+                : creating === 'context'
+                  ? 'Nouveau contexte'
+                  : creating === 'relation'
+                    ? 'Nouvelle relation'
+                    : 'Nouveau tiers'
+          }
+        >
+          {/* Rendered in a portal, but React events still bubble to the entry form: its submit stays apart. */}
+          <div onSubmit={(event) => event.stopPropagation()}>
+            {creating === 'category' && (
+              <CategoryForm
+                direction={values.direction}
+                categories={categories}
+                onDone={(id) => {
+                  if (id) form.setFieldValue('categoryId', id);
+                  setCreating(null);
+                }}
+              />
+            )}
+            {creating === 'relation' && (
+              <RelationForm
+                onDone={(id) => {
+                  if (id && contextLine !== null) {
+                    form.setFieldValue(`lines.${contextLine}.relationId`, id);
+                    form.setFieldValue(`lines.${contextLine}.memberId`, null);
+                  }
+                  setContextLine(null);
+                  setCreating(null);
+                }}
+              />
+            )}
+            {creating === 'context' && (
+              <ContextForm
+                onDone={(id) => {
+                  if (id && contextLine !== null) form.setFieldValue(`lines.${contextLine}.contextId`, id);
+                  setContextLine(null);
+                  setCreating(null);
+                }}
+              />
+            )}
+            {creating === 'method' && (
+              <MethodForm
+                direction={values.direction}
+                onDone={(id) => {
+                  if (id) form.setFieldValue('methodId', id);
+                  setCreating(null);
+                }}
+              />
+            )}
+            {creating === 'counterparty' && (
+              <CounterpartyForm
+                onDone={(id) => {
+                  if (id) form.setValues({ clientId: null, counterpartyId: id });
+                  setCreating(null);
+                }}
+              />
+            )}
+          </div>
+        </SidePanel>
+      </form>
+      {entry && !copy && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} />}
+    </Stack>
   );
 }

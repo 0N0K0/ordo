@@ -1,4 +1,4 @@
-import { Button, Divider, Grid, Group, NumberInput, Select, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { opensOnFits, readSlotRule, routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase, type SlotRule } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -15,6 +15,8 @@ import { OpensOnInput } from './OpensOnInput';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
+import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
+import { Comments } from '../comments/Comments';
 
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
@@ -160,7 +162,13 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
         <Grid gap="xl">
           <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
-              <Textarea label="Description" autosize minRows={3} maxRows={10} {...form.getInputProps('description')} />
+              <MarkdownEditor
+                label="Description"
+                value={form.values.description}
+                onChange={(description) => form.setFieldValue('description', description)}
+                suggestions={context?.suggestionsFor(form.values.projectId) ?? { projectId: null, tasks: [], contributors: [] }}
+                minRows={3}
+              />
               <Text size="xs" fw={600} c="dimmed" tt="uppercase">
                 Quand
               </Text>
@@ -174,6 +182,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                   error={form.errors.opensOn as string | undefined}
                 />
               )}
+              {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} />}
             </Stack>
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>

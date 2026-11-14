@@ -1,133 +1,7 @@
-import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Button, Group, Menu, Paper, Stack, Text, Tooltip } from '@mantine/core';
-import { DotsThreeIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
-import { MarkdownView } from '../../components/markdown/MarkdownView';
+import { CommentThread } from '../../components/comments/CommentThread';
 import { notifyError } from '../../lib/notify';
-import { useTaskCommentMutations, useTaskComments, type Task, type TaskComment } from './api';
+import { useTaskCommentMutations, useTaskComments, type Task } from './api';
 import type { TaskContext } from './use-task-context';
-import * as fmt from '../../lib/format';
-
-const relative = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ['year', 365 * 24 * 3600],
-  ['month', 30 * 24 * 3600],
-  ['week', 7 * 24 * 3600],
-  ['day', 24 * 3600],
-  ['hour', 3600],
-  ['minute', 60],
-];
-
-/**
- * "il y a 3 heures", "hier"…
- * @param {string} date ISO instant.
- * @returns {string} Relative time.
- */
-function fromNow(date: string): string {
-  const seconds = (Date.parse(date) - Date.now()) / 1000;
-  for (const [unit, size] of UNITS) {
-    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
-  }
-  return 'à l’instant';
-}
-
-interface CommentProps {
-  /** Project of the task: "#12" in the comment is task 12 of it (none: a task of no project). */
-  projectId: string | null;
-  comment: TaskComment;
-  context: TaskContext;
-}
-
-/**
- * One comment, editable in place.
- * @param {CommentProps} props Component props.
- * @returns {JSX.Element} Comment.
- */
-function Comment({ comment, context, projectId }: CommentProps) {
-  const { update, remove } = useTaskCommentMutations();
-  const [draft, setDraft] = useState<string | null>(null);
-
-  /**
-   * Saves the edited comment.
-   * @returns {void}
-   */
-  const save = () => {
-    if (draft === null || !draft.trim()) return;
-    update.mutate({ id: comment.id, body: draft }, { onSuccess: () => setDraft(null), onError: (e) => notifyError(e.message) });
-  };
-
-  /**
-   * Asks for confirmation, then deletes the comment.
-   * @returns {void}
-   */
-  const confirmDelete = () => {
-    confirmDestructive({ title: 'Supprimer le commentaire', risks: 'Le commentaire sera supprimé définitivement. Cette action est irréversible.', onConfirm: () => { remove.mutate({ id: comment.id }, { onError: (e) => notifyError(e.message) }); } });
-  };
-
-  return (
-    <Paper withBorder radius="md">
-      <Group justify="space-between" px="sm" py={6} bg="var(--mantine-color-default-hover)" style={{ borderRadius: 'var(--mantine-radius-md) var(--mantine-radius-md) 0 0' }}>
-        <Group gap={6}>
-          {comment.githubAuthor && (
-            <Text size="xs" fw={600}>
-              @{comment.githubAuthor} sur GitHub
-            </Text>
-          )}
-          <Tooltip label={fmt.dateTime(new Date(comment.createdAt))}>
-            <Text size="xs" c="dimmed" component="time" dateTime={comment.createdAt}>
-              {fromNow(comment.createdAt)}
-            </Text>
-          </Tooltip>
-        </Group>
-        {draft === null && (
-          <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions sur le commentaire">
-                <DotsThreeIcon weight="bold" aria-hidden />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => setDraft(comment.body)}>
-                Modifier
-              </Menu.Item>
-              <Menu.Item leftSection={<TrashIcon aria-hidden />} color="red" onClick={confirmDelete}>
-                Supprimer
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
-        )}
-      </Group>
-      <div style={{ padding: 'var(--mantine-spacing-sm)' }}>
-        {draft === null ? (
-          <MarkdownView targets={context.targetsFor(projectId)} onChange={(body) => update.mutate({ id: comment.id, body }, { onError: (error) => notifyError(error.message) })}>
-            {comment.body}
-          </MarkdownView>
-        ) : (
-          <Stack gap="xs">
-            <MarkdownEditor
-              value={draft}
-              onChange={setDraft}
-              suggestions={context.suggestionsFor(projectId)}
-              minRows={3}
-              autoFocus
-              onSubmitShortcut={save}
-            />
-            <Group justify="flex-end" gap="xs">
-              <Button variant="default" size="xs" onClick={() => setDraft(null)}>
-                Annuler
-              </Button>
-              <Button size="xs" onClick={save} loading={update.isPending} disabled={!draft.trim()}>
-                Enregistrer
-              </Button>
-            </Group>
-          </Stack>
-        )}
-      </div>
-    </Paper>
-  );
-}
 
 interface TaskCommentsProps {
   task: Task;
@@ -135,48 +9,27 @@ interface TaskCommentsProps {
 }
 
 /**
- * Comment thread of a task, with the new comment editor at the bottom.
+ * Comment thread of a task (the shared thread, on the task comments).
  * @param {TaskCommentsProps} props Component props.
  * @returns {JSX.Element} Thread.
  */
 export function TaskComments({ task, context }: TaskCommentsProps) {
   const comments = useTaskComments(task.id);
-  const { add } = useTaskCommentMutations();
-  const [body, setBody] = useState('');
-
-  /**
-   * Posts the new comment.
-   * @returns {void}
-   */
-  const submit = () => {
-    if (!body.trim()) return;
-    add.mutate(
-      { taskId: task.id, body },
-      { onSuccess: () => setBody(''), onError: (error) => notifyError(error.message) },
-    );
-  };
-
+  const { add, update, remove } = useTaskCommentMutations();
+  const onError = { onError: (error: Error) => notifyError(error.message) };
   return (
-    <Stack gap="sm">
-      {comments.isPending ? (
-        <ListSkeleton items={2} lines={2} avatar />
-      ) : (
-        comments.data?.map((comment) => <Comment key={comment.id} comment={comment} context={context} projectId={task.projectId} />)
-      )}
-      <MarkdownEditor
-        label="Ajouter un commentaire"
-        value={body}
-        onChange={setBody}
-        suggestions={context.suggestionsFor(task.projectId)}
-        minRows={3}
-        placeholder="Écrivez un commentaire…"
-        onSubmitShortcut={submit}
-      />
-      <Group justify="flex-end">
-        <Button onClick={submit} loading={add.isPending} disabled={!body.trim()}>
-          Commenter
-        </Button>
-      </Group>
-    </Stack>
+    <CommentThread
+      comments={comments.data}
+      loading={comments.isPending}
+      suggestions={context.suggestionsFor(task.projectId)}
+      targets={context.targetsFor(task.projectId)}
+      actions={{
+        add: (body, done) => add.mutate({ taskId: task.id, body }, { onSuccess: done, ...onError }),
+        update: (id, body, done) => update.mutate({ id, body }, { onSuccess: done, ...onError }),
+        remove: (id) => remove.mutate({ id }, onError),
+        adding: add.isPending,
+        updating: update.isPending,
+      }}
+    />
   );
 }

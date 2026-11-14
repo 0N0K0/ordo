@@ -27,6 +27,9 @@ import { useActiveWorkspace } from '../workspaces/api';
 import { useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
 import { ScheduleCasesEditor } from './ScheduleCasesEditor';
 import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
+import { Comments } from '../comments/Comments';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
@@ -99,127 +102,130 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
   };
 
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit(
-        (input) => {
-          const callbacks = {
-            onSuccess: () => {
-              notifySuccess(schedule ? 'Plages modifiées.' : 'Plages créées.');
-              onDone();
-            },
-            onError: (error: Error) => showFormError(form, error),
-          };
-          if (schedule) update.mutate({ id: schedule.id, input }, callbacks);
-          else create.mutate(input, callbacks);
-        },
-        // An error on a field without input (a case, an exception…) is told.
-        (errors) => {
-          const message = Object.values(errors).find(Boolean);
-          if (message) notifyError(String(message));
-        },
-      )}
-    >
-      <Stack gap="md">
-        {copyOf && (
-          <Text size="sm" c="dimmed">
-            Copie de « {copyOf.name} », sans ses dates ni ses exceptions : choisissez ses dates.
-          </Text>
+    <Stack gap="lg">
+      <form
+        noValidate
+        onSubmit={form.onSubmit(
+          (input) => {
+            const callbacks = {
+              onSuccess: () => {
+                notifySuccess(schedule ? 'Plages modifiées.' : 'Plages créées.');
+                onDone();
+              },
+              onError: (error: Error) => showFormError(form, error),
+            };
+            if (schedule) update.mutate({ id: schedule.id, input }, callbacks);
+            else create.mutate(input, callbacks);
+          },
+          // An error on a field without input (a case, an exception…) is told.
+          (errors) => {
+            const message = Object.values(errors).find(Boolean);
+            if (message) notifyError(String(message));
+          },
         )}
-        <Group grow align="flex-start">
-          <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-          <Select
-            label="Type"
-            placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
-            clearable
-            data={(types ?? []).map((type) => ({ value: type.id, label: type.name }))}
-            {...form.getInputProps('typeId')}
-          />
-        </Group>
-        <Group grow align="flex-start">
-          <DatePickerInput
-            label="À partir du"
-            required
-            placeholder="À choisir"
-            value={values.startDate || null}
-            error={form.errors.startDate}
-            onChange={(date) => date && setPeriod({ startDate: String(date) })}
-          />
-          <DatePickerInput
-            label="Jusqu’au"
-            clearable
-            placeholder="Sans fin"
-            minDate={values.startDate || undefined}
-            value={values.endDate}
-            error={form.errors.endDate}
-            onChange={(date) => setPeriod({ endDate: date ? String(date) : null })}
-          />
-        </Group>
+      >
+        <Stack gap="md">
+          {copyOf && (
+            <Text size="sm" c="dimmed">
+              Copie de « {copyOf.name} », sans ses dates ni ses exceptions : choisissez ses dates.
+            </Text>
+          )}
+          <Group grow align="flex-start">
+            <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+            <Select
+              label="Type"
+              placeholder={defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME}
+              clearable
+              data={(types ?? []).map((type) => ({ value: type.id, label: type.name }))}
+              {...form.getInputProps('typeId')}
+            />
+          </Group>
+          <Group grow align="flex-start">
+            <DatePickerInput
+              label="À partir du"
+              required
+              placeholder="À choisir"
+              value={values.startDate || null}
+              error={form.errors.startDate}
+              onChange={(date) => date && setPeriod({ startDate: String(date) })}
+            />
+            <DatePickerInput
+              label="Jusqu’au"
+              clearable
+              placeholder="Sans fin"
+              minDate={values.startDate || undefined}
+              value={values.endDate}
+              error={form.errors.endDate}
+              onChange={(date) => setPeriod({ endDate: date ? String(date) : null })}
+            />
+          </Group>
 
-        <Divider label="Cas" labelPosition="left" />
-        <ScheduleCasesEditor cases={values.cases} rhythm={rhythm} periodStart={periodStart} onChange={(cases) => form.setFieldValue('cases', cases)} />
+          <Divider label="Cas" labelPosition="left" />
+          <ScheduleCasesEditor cases={values.cases} rhythm={rhythm} periodStart={periodStart} onChange={(cases) => form.setFieldValue('cases', cases)} />
 
-        <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
-        <Text size="xs" c="dimmed">
-          Pendant une exception, ses propres cas remplacent ceux de la plage ; sans cas, c’est une pause.
-        </Text>
-        <Stack gap="sm">
-          {values.exceptions.map((exception, index) => {
-            const exceptionRhythm = periodRhythm(exception.from, exception.to);
-            const pause = exception.cases.length === 0;
-            return (
-              <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
-                <Stack gap="xs">
-                  <Group gap={6} wrap="nowrap" align="flex-end">
-                    <DatePickerInput label="Du" size="xs" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
-                    <DatePickerInput label="Au" size="xs" w={140} minDate={exception.from} value={exception.to} onChange={(date) => date && setException(index, { to: String(date) })} />
-                    <TextInput
-                      label="Motif"
+          <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
+          <Text size="xs" c="dimmed">
+            Pendant une exception, ses propres cas remplacent ceux de la plage ; sans cas, c’est une pause.
+          </Text>
+          <Stack gap="sm">
+            {values.exceptions.map((exception, index) => {
+              const exceptionRhythm = periodRhythm(exception.from, exception.to);
+              const pause = exception.cases.length === 0;
+              return (
+                <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
+                  <Stack gap="xs">
+                    <Group gap={6} wrap="nowrap" align="flex-end">
+                      <DatePickerInput label="Du" size="xs" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
+                      <DatePickerInput label="Au" size="xs" w={140} minDate={exception.from} value={exception.to} onChange={(date) => date && setException(index, { to: String(date) })} />
+                      <TextInput
+                        label="Motif"
+                        size="xs"
+                        placeholder="Congés, formation…"
+                        style={{ flex: 1 }}
+                        value={exception.label}
+                        onChange={(event) => setException(index, { label: event.currentTarget.value })}
+                      />
+                      <Tooltip label="Retirer l’exception">
+                        <ActionIcon variant="subtle" color="gray" mb={4} aria-label={`Retirer l’exception ${index + 1}`} onClick={() => form.removeListItem('exceptions', index)}>
+                          <TrashIcon aria-hidden />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                    <Checkbox
                       size="xs"
-                      placeholder="Congés, formation…"
-                      style={{ flex: 1 }}
-                      value={exception.label}
-                      onChange={(event) => setException(index, { label: event.currentTarget.value })}
+                      label="Pause (aucune plage pendant cette période)"
+                      checked={pause}
+                      onChange={(event) => setException(index, { cases: event.currentTarget.checked ? [] : [newCase(exceptionRhythm === 'DAY')] })}
                     />
-                    <Tooltip label="Retirer l’exception">
-                      <ActionIcon variant="subtle" color="gray" mb={4} aria-label={`Retirer l’exception ${index + 1}`} onClick={() => form.removeListItem('exceptions', index)}>
-                        <TrashIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                  <Checkbox
-                    size="xs"
-                    label="Pause (aucune plage pendant cette période)"
-                    checked={pause}
-                    onChange={(event) => setException(index, { cases: event.currentTarget.checked ? [] : [newCase(exceptionRhythm === 'DAY')] })}
-                  />
-                  {!pause && <ScheduleCasesEditor cases={exception.cases} rhythm={exceptionRhythm} periodStart={exception.from} onChange={(cases) => setException(index, { cases })} />}
-                </Stack>
-              </Paper>
-            );
-          })}
-          <div>
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              leftSection={<PlusIcon aria-hidden />}
-              onClick={() => form.insertListItem('exceptions', { from: localToday(), to: localToday(), label: 'Congés', cases: [] } satisfies ScheduleException)}
-            >
-              Ajouter une exception
-            </Button>
-          </div>
-        </Stack>
+                    {!pause && <ScheduleCasesEditor cases={exception.cases} rhythm={exceptionRhythm} periodStart={exception.from} onChange={(cases) => setException(index, { cases })} />}
+                  </Stack>
+                </Paper>
+              );
+            })}
+            <div>
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                leftSection={<PlusIcon aria-hidden />}
+                onClick={() => form.insertListItem('exceptions', { from: localToday(), to: localToday(), label: 'Congés', cases: [] } satisfies ScheduleException)}
+              >
+                Ajouter une exception
+              </Button>
+            </div>
+          </Stack>
 
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
-    </form>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={create.isPending || update.isPending}>
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+      {schedule && <Comments target="SCHEDULE" id={schedule.id} />}
+    </Stack>
   );
 }
 
@@ -288,6 +294,10 @@ export function WorkSchedulesManager() {
   const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
   const today = localToday();
   const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
+  const scheduleComments = useCommentCounts(
+    'SCHEDULE',
+    (schedules ?? []).map((schedule) => schedule.id),
+  );
   const columns: DataColumn<ScheduleRow>[] = [
     { id: 'name', label: 'Nom', size: 220, locked: true, sortValue: ({ schedule }) => schedule.name, text: ({ schedule }) => schedule.name },
     {
@@ -334,6 +344,7 @@ export function WorkSchedulesManager() {
       filter: { kind: 'choice', value: ({ state: rowState }) => rowState, options: (['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] })) },
       groupable: true,
     },
+    commentColumn<ScheduleRow>(scheduleComments, ({ schedule }) => schedule.id),
   ];
   const rows = (schedules ?? []).map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
   const view = useDataView({

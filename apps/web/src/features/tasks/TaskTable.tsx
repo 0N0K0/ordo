@@ -73,6 +73,8 @@ import { AddTaskRow, SummaryRow } from './views/table-extras';
 import type { DisplayRow, TaskRow } from './views/task-rows';
 import { contentWidth, useFillHeight } from './column-fit';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentTotal } from '../comments/comment-column';
 
 // Stable module-level registry. Sorting is applied when building the rows (so it works with groups
 // and sub-tasks), the table only holds the sorting state and header interactions.
@@ -227,6 +229,21 @@ interface TaskTableProps {
 }
 
 /**
+ * Number of comments of a row (its description counting as one), with its icon; nothing when none.
+ * @param {{ count: number }} props Component props.
+ * @returns {JSX.Element | null} Count.
+ */
+function CommentCount({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <Group gap={4} wrap="nowrap" c="dimmed">
+      <ChatCircleIcon aria-hidden />
+      <Text size="sm">{count}</Text>
+    </Group>
+  );
+}
+
+/**
  * Number of tasks without sub-tasks among some rows (their own sub-rows included), their total effort, and the
  * time tracked on every listed task (parents included: their time is their own). A task listed in several
  * groups counts once per group.
@@ -278,6 +295,15 @@ export function TaskTable({
   createProjectId,
   onOpenCreateForm,
 }: TaskTableProps) {
+  // Comments of the events shown (their description counts as one more).
+  const eventIds: string[] = [];
+  const collectEvents = (items: DisplayRow[]) =>
+    items.forEach((item) => {
+      if (item.kind === 'event') eventIds.push(item.event.eventId);
+      collectEvents(item.children);
+    });
+  collectEvents(rows);
+  const eventComments = useCommentCounts('EVENT', eventIds);
   const [params] = useSearchParams();
   const openId = params.get(TASK_PARAM);
   const moveTask = useMoveTask();
@@ -353,19 +379,14 @@ export function TaskTable({
       blockedBy: (task) => <BlockedByCell task={task} context={context} />,
       blocking: (task) => <TaskNumbers ids={task.blockingIds} context={context} />,
       related: (task) => <TaskNumbers ids={task.relatedIds} context={context} />,
-      comments: (task) =>
-        task.commentCount > 0 ? (
-          <Group gap={4} wrap="nowrap" c="dimmed">
-            <ChatCircleIcon aria-hidden />
-            <Text size="sm">{task.commentCount}</Text>
-          </Group>
-        ) : null,
+      comments: (task) => <CommentCount count={task.commentCount + (task.description?.trim() ? 1 : 0)} />,
       createdAt: (task) => <Text size="sm">{fmt.day(new Date(task.createdAt))}</Text>,
       updatedAt: (task) => <Text size="sm">{fmt.day(new Date(task.updatedAt))}</Text>,
     };
 
     // Events only have a title, a project, people and dates.
     const eventCells: Partial<Record<TaskColumn, (event: EventOccurrence) => ReactNode>> = {
+      comments: (event) => <CommentCount count={commentTotal(eventComments, event.eventId, event.description)} />,
       title: (event) => <EventTitleCell event={event} context={context} />,
       project: (event) =>
         event.projectId ? (
@@ -430,7 +451,7 @@ export function TaskTable({
         }),
       ),
     ]);
-  }, [context, today, alarmCounts]);
+  }, [context, today, alarmCounts, eventComments]);
 
   // Full column order: columns added after a view was saved go at the end.
   const order = useMemo(

@@ -29,6 +29,7 @@ import * as fmt from '../../lib/format';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
 import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { Comments } from '../comments/Comments';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -600,6 +601,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           suggestions={context.suggestionsFor(values.projectId ?? null)}
           minRows={3}
         />
+        {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} />}
 
         <Group justify="space-between" gap="sm">
           {occurrence ? (

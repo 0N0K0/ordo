@@ -22,6 +22,8 @@ import { openPaymentDialog } from './payment-dialog';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
 import { openSentDialog } from './sent-dialog';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -208,7 +210,22 @@ interface DocumentsTableProps {
 export function DocumentsTable({ tableKey, projectId = null, title, documents, imported = [], showType, showClient = true, empty, first = DOCUMENT_VIEWS }: DocumentsTableProps) {
   const navigate = useNavigate();
   const { remove } = useImportedDocumentMutations();
-  const columns = DOCUMENT_COLUMNS.filter((column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient));
+  const ordoComments = useCommentCounts(
+    'DOCUMENT',
+    documents.map((document) => document.id),
+  );
+  const importedComments = useCommentCounts(
+    'IMPORTED_DOCUMENT',
+    imported.map((document) => document.id),
+  );
+  const columns = [
+    ...DOCUMENT_COLUMNS.filter((column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient)),
+    commentColumn<Row>(
+      new Map([...ordoComments, ...importedComments]),
+      (row) => row.document.id,
+      (row) => (row.kind === 'imported' ? row.document.note : null),
+    ),
+  ];
   // Latest first, before any sort.
   const rows = [...documents.map((document) => ({ kind: 'ordo' as const, document })), ...imported.map((document) => ({ kind: 'imported' as const, document }))].sort((a, b) =>
     b.document.issueDate.localeCompare(a.document.issueDate),

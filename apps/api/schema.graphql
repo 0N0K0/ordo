@@ -588,6 +588,37 @@ input ClientUpdateInput {
   removeIcon: Boolean
 }
 
+"""Comment (markdown) of an item."""
+type Comment {
+  body: String!
+  createdAt: DateTime!
+  id: ID!
+  updatedAt: DateTime!
+}
+
+type CommentCount {
+  count: Int!
+  id: ID!
+}
+
+"""Kind of item a comment goes on (tasks have their own comments)."""
+enum CommentTarget {
+  BUDGET
+  CATALOG_ITEM
+  DOCUMENT
+  EVENT
+  IMPORTED_DOCUMENT
+  LIBRARY_DOCUMENT
+  MAIL
+  RELATION
+  ROUTINE
+  SCHEDULE
+  SHOPPING_LIST
+  SHOPPING_PRODUCT
+  TIME_ENTRY
+  TREASURY_ENTRY
+}
+
 type CompanyProfile {
   accountHolder: String
   activityCode: String
@@ -1345,6 +1376,7 @@ input MilestoneUpdateInput {
 type Mutation {
   acceptQuote(date: Date!, file: File, id: ID!): Boolean!
   addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
+  addComment(body: String!, id: String!, target: CommentTarget!): Comment!
   addDocumentReminder(id: ID!, note: String): Boolean!
   addLibraryFiles(files: [File!]!, folderId: ID): [ID!]!
   addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
@@ -1490,6 +1522,7 @@ type Mutation {
   ): Boolean!
   deleteClientContact(id: ID!): Boolean!
   deleteClientService(id: ID!): Boolean!
+  deleteComment(id: ID!): Boolean!
   deleteContributor(id: ID!): Boolean!
   deleteDashboard(id: ID!): Boolean!
   deleteDashboardChart(id: ID!): Boolean!
@@ -1954,6 +1987,7 @@ type Mutation {
   updateClientContact(id: ID!, input: ClientContactInput!): ClientContact!
   updateClientDetails(id: ID!, input: ClientDetailsInput!): Client!
   updateClientService(id: ID!, input: ClientServiceInput!): ClientService!
+  updateComment(body: String!, id: ID!): Comment!
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
   updateDashboardChart(id: ID!, input: DashboardChartInput!): Boolean!
@@ -2158,6 +2192,16 @@ type Query {
 
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
+
+  """Number of comments of items of a kind (descriptions not counted)."""
+  commentCounts(ids: [String!]!, target: CommentTarget!): [CommentCount!]!
+
+  """Comments of an item, oldest first."""
+  comments(
+    """Item id (Message-ID for a mail)."""
+    id: String!
+    target: CommentTarget!
+  ): [Comment!]!
   companyProfile: CompanyProfile!
   contributors: [Contributor!]!
 

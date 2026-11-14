@@ -132,6 +132,11 @@ type Documents = {
     "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.DeleteCalendarEventDocument,
     "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n": typeof types.MaterializeTaskOccurrencesDocument,
+    "\n  query Comments($target: CommentTarget!, $id: String!) {\n    comments(target: $target, id: $id) {\n      id\n      body\n      createdAt\n    }\n  }\n": typeof types.CommentsDocument,
+    "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": typeof types.CommentCountsDocument,
+    "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {\n    addComment(target: $target, id: $id, body: $body) {\n      id\n    }\n  }\n": typeof types.AddCommentDocument,
+    "\n  mutation UpdateComment($id: ID!, $body: String!) {\n    updateComment(id: $id, body: $body) {\n      id\n    }\n  }\n": typeof types.UpdateCommentDocument,
+    "\n  mutation DeleteComment($id: ID!) {\n    deleteComment(id: $id)\n  }\n": typeof types.DeleteCommentDocument,
     "\n  query SprintTaskStatuses($today: Date!) {\n    sprintTaskStatuses(today: $today) {\n      sprintId\n      taskId\n      statusId\n      closed\n    }\n  }\n": typeof types.SprintTaskStatusesDocument,
     "\n  query Dashboards($projectId: ID) {\n    dashboards(projectId: $projectId) {\n      id\n      projectId\n      name\n      position\n      charts {\n        id\n        dashboardId\n        title\n        config\n        wide\n        position\n      }\n    }\n  }\n": typeof types.DashboardsDocument,
     "\n  mutation CreateDashboard($name: String!, $projectId: ID) {\n    createDashboard(name: $name, projectId: $projectId)\n  }\n": typeof types.CreateDashboardDocument,
@@ -550,6 +555,11 @@ const documents: Documents = {
     "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.DeleteCalendarEventDocument,
     "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n": types.MaterializeTaskOccurrencesDocument,
+    "\n  query Comments($target: CommentTarget!, $id: String!) {\n    comments(target: $target, id: $id) {\n      id\n      body\n      createdAt\n    }\n  }\n": types.CommentsDocument,
+    "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": types.CommentCountsDocument,
+    "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {\n    addComment(target: $target, id: $id, body: $body) {\n      id\n    }\n  }\n": types.AddCommentDocument,
+    "\n  mutation UpdateComment($id: ID!, $body: String!) {\n    updateComment(id: $id, body: $body) {\n      id\n    }\n  }\n": types.UpdateCommentDocument,
+    "\n  mutation DeleteComment($id: ID!) {\n    deleteComment(id: $id)\n  }\n": types.DeleteCommentDocument,
     "\n  query SprintTaskStatuses($today: Date!) {\n    sprintTaskStatuses(today: $today) {\n      sprintId\n      taskId\n      statusId\n      closed\n    }\n  }\n": types.SprintTaskStatusesDocument,
     "\n  query Dashboards($projectId: ID) {\n    dashboards(projectId: $projectId) {\n      id\n      projectId\n      name\n      position\n      charts {\n        id\n        dashboardId\n        title\n        config\n        wide\n        position\n      }\n    }\n  }\n": types.DashboardsDocument,
     "\n  mutation CreateDashboard($name: String!, $projectId: ID) {\n    createDashboard(name: $name, projectId: $projectId)\n  }\n": types.CreateDashboardDocument,
@@ -1319,6 +1329,26 @@ export function graphql(source: "\n  mutation DeleteCalendarEvent($id: ID!, $sco
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n"): typeof import('./graphql').MaterializeTaskOccurrencesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Comments($target: CommentTarget!, $id: String!) {\n    comments(target: $target, id: $id) {\n      id\n      body\n      createdAt\n    }\n  }\n"): typeof import('./graphql').CommentsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n"): typeof import('./graphql').CommentCountsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {\n    addComment(target: $target, id: $id, body: $body) {\n      id\n    }\n  }\n"): typeof import('./graphql').AddCommentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateComment($id: ID!, $body: String!) {\n    updateComment(id: $id, body: $body) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateCommentDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteComment($id: ID!) {\n    deleteComment(id: $id)\n  }\n"): typeof import('./graphql').DeleteCommentDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

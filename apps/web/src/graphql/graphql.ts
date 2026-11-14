@@ -241,6 +241,23 @@ export type ClientUpdateInput = {
   removeIcon?: boolean | null | undefined;
 };
 
+/** Kind of item a comment goes on (tasks have their own comments). */
+export type CommentTarget =
+  | 'BUDGET'
+  | 'CATALOG_ITEM'
+  | 'DOCUMENT'
+  | 'EVENT'
+  | 'IMPORTED_DOCUMENT'
+  | 'LIBRARY_DOCUMENT'
+  | 'MAIL'
+  | 'RELATION'
+  | 'ROUTINE'
+  | 'SCHEDULE'
+  | 'SHOPPING_LIST'
+  | 'SHOPPING_PRODUCT'
+  | 'TIME_ENTRY'
+  | 'TREASURY_ENTRY';
+
 export type CompanyProfileInput = {
   accountHolder: string;
   activityCode: string;
@@ -1869,6 +1886,46 @@ export type MaterializeTaskOccurrencesMutationVariables = Exact<{
 
 
 export type MaterializeTaskOccurrencesMutation = { materializeTaskOccurrences: number };
+
+export type CommentsQueryVariables = Exact<{
+  target: CommentTarget;
+  id: string;
+}>;
+
+
+export type CommentsQuery = { comments: Array<{ id: string, body: string, createdAt: string }> };
+
+export type CommentCountsQueryVariables = Exact<{
+  target: CommentTarget;
+  ids: Array<string> | string;
+}>;
+
+
+export type CommentCountsQuery = { commentCounts: Array<{ id: string, count: number }> };
+
+export type AddCommentMutationVariables = Exact<{
+  target: CommentTarget;
+  id: string;
+  body: string;
+}>;
+
+
+export type AddCommentMutation = { addComment: { id: string } };
+
+export type UpdateCommentMutationVariables = Exact<{
+  id: string | number;
+  body: string;
+}>;
+
+
+export type UpdateCommentMutation = { updateComment: { id: string } };
+
+export type DeleteCommentMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteCommentMutation = { deleteComment: boolean };
 
 export type SprintTaskStatusesQueryVariables = Exact<{
   today: string;
@@ -5920,6 +5977,42 @@ export const MaterializeTaskOccurrencesDocument = new TypedDocumentString(`
   materializeTaskOccurrences(from: $from, to: $to)
 }
     `) as unknown as TypedDocumentString<MaterializeTaskOccurrencesMutation, MaterializeTaskOccurrencesMutationVariables>;
+export const CommentsDocument = new TypedDocumentString(`
+    query Comments($target: CommentTarget!, $id: String!) {
+  comments(target: $target, id: $id) {
+    id
+    body
+    createdAt
+  }
+}
+    `) as unknown as TypedDocumentString<CommentsQuery, CommentsQueryVariables>;
+export const CommentCountsDocument = new TypedDocumentString(`
+    query CommentCounts($target: CommentTarget!, $ids: [String!]!) {
+  commentCounts(target: $target, ids: $ids) {
+    id
+    count
+  }
+}
+    `) as unknown as TypedDocumentString<CommentCountsQuery, CommentCountsQueryVariables>;
+export const AddCommentDocument = new TypedDocumentString(`
+    mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {
+  addComment(target: $target, id: $id, body: $body) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<AddCommentMutation, AddCommentMutationVariables>;
+export const UpdateCommentDocument = new TypedDocumentString(`
+    mutation UpdateComment($id: ID!, $body: String!) {
+  updateComment(id: $id, body: $body) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateCommentMutation, UpdateCommentMutationVariables>;
+export const DeleteCommentDocument = new TypedDocumentString(`
+    mutation DeleteComment($id: ID!) {
+  deleteComment(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteCommentMutation, DeleteCommentMutationVariables>;
 export const SprintTaskStatusesDocument = new TypedDocumentString(`
     query SprintTaskStatuses($today: Date!) {
   sprintTaskStatuses(today: $today) {

@@ -99,8 +99,11 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
       return numbers(task.blockingIds);
     case 'related':
       return numbers(task.relatedIds);
-    case 'comments':
-      return task.commentCount ? String(task.commentCount) : '';
+    case 'comments': {
+      // A description counts as a comment.
+      const count = task.commentCount + (task.description?.trim() ? 1 : 0);
+      return count ? String(count) : '';
+    }
     case 'createdAt':
       return fmt.exportDay(new Date(task.createdAt));
     case 'updatedAt':

@@ -5,6 +5,7 @@ import './modules/auth';
 import './modules/workspace';
 import './modules/workspaces';
 import './modules/tasks';
+import './modules/comments';
 import './modules/time';
 import './modules/mail';
 import './modules/calendar';

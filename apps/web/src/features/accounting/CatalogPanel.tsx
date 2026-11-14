@@ -17,6 +17,9 @@ import { useCompanyProfile } from './api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from './catalog-api';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
+import { Comments } from '../comments/Comments';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 let modalCount = 0;
 
@@ -102,57 +105,60 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
   });
   const disbursement = form.values.kind === 'DISBURSEMENT';
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit(() => {
-        const callbacks = {
-          onSuccess: () => {
-            notifySuccess(item ? 'Article modifié.' : 'Article ajouté au catalogue.');
-            onDone();
-          },
-          onError: (error: Error) => showFormError(form, error),
-        };
-        // The raw values: the API validates (and trims) them.
-        if (item) update.mutate({ id: item.id, input: form.values }, callbacks);
-        else create.mutate(form.values, callbacks);
-      })}
-    >
-      <Stack gap="sm">
-        <SegmentedControl
-          data={[
-            { value: 'ITEM', label: 'Produit ou service' },
-            { value: 'DISBURSEMENT', label: 'Débours' },
-          ]}
-          {...form.getInputProps('kind')}
-          onChange={(kind) => form.setValues({ kind: kind as CatalogItemInput['kind'], ...(kind === 'DISBURSEMENT' && { vatRate: 0, unit: 'FLAT' }) })}
-        />
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('title')} />
-        <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
-        <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
-          <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
-          <AmountInput label="Prix unitaire HT" suffix=" €" {...form.getInputProps('unitPrice')} />
-          {!disbursement && (
-            <Select
-              label="TVA"
-              allowDeselect={false}
-              data={[...new Set([...VAT_RATES, form.values.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
-              value={String(form.values.vatRate)}
-              onChange={(rate) => rate !== null && form.setFieldValue('vatRate', Number(rate))}
-              error={form.errors.vatRate}
-            />
-          )}
-        </SimpleGrid>
-        {item && <Checkbox label="Archivé (n’est plus proposé dans les documents)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
-    </form>
+    <Stack gap="lg">
+      <form
+        noValidate
+        onSubmit={form.onSubmit(() => {
+          const callbacks = {
+            onSuccess: () => {
+              notifySuccess(item ? 'Article modifié.' : 'Article ajouté au catalogue.');
+              onDone();
+            },
+            onError: (error: Error) => showFormError(form, error),
+          };
+          // The raw values: the API validates (and trims) them.
+          if (item) update.mutate({ id: item.id, input: form.values }, callbacks);
+          else create.mutate(form.values, callbacks);
+        })}
+      >
+        <Stack gap="sm">
+          <SegmentedControl
+            data={[
+              { value: 'ITEM', label: 'Produit ou service' },
+              { value: 'DISBURSEMENT', label: 'Débours' },
+            ]}
+            {...form.getInputProps('kind')}
+            onChange={(kind) => form.setValues({ kind: kind as CatalogItemInput['kind'], ...(kind === 'DISBURSEMENT' && { vatRate: 0, unit: 'FLAT' }) })}
+          />
+          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('title')} />
+          <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
+          <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
+            <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
+            <AmountInput label="Prix unitaire HT" suffix=" €" {...form.getInputProps('unitPrice')} />
+            {!disbursement && (
+              <Select
+                label="TVA"
+                allowDeselect={false}
+                data={[...new Set([...VAT_RATES, form.values.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
+                value={String(form.values.vatRate)}
+                onChange={(rate) => rate !== null && form.setFieldValue('vatRate', Number(rate))}
+                error={form.errors.vatRate}
+              />
+            )}
+          </SimpleGrid>
+          {item && <Checkbox label="Archivé (n’est plus proposé dans les documents)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={create.isPending || update.isPending}>
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+      {item && <Comments target="CATALOG_ITEM" id={item.id} />}
+    </Stack>
   );
 }
 
@@ -188,7 +194,17 @@ export function CatalogPanel() {
       },
       { onError: (error) => notifyError(error.message) },
     );
-  const view = useDataView({ tableKey: 'catalog', columns: CATALOG_COLUMNS, rows: items ?? [], title: 'Catalogue', first: CATALOG_VIEWS });
+  const itemComments = useCommentCounts(
+    'CATALOG_ITEM',
+    (items ?? []).map((item) => item.id),
+  );
+  const view = useDataView({
+    tableKey: 'catalog',
+    columns: [...CATALOG_COLUMNS, commentColumn<CatalogItem>(itemComments, (item) => item.id)],
+    rows: items ?? [],
+    title: 'Catalogue',
+    first: CATALOG_VIEWS,
+  });
 
   /**
    * Opens the item form.

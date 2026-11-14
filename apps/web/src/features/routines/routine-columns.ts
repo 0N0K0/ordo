@@ -17,4 +17,5 @@ export const ROUTINE_COLUMNS: DataColumn<Routine>[] = [
   { id: 'categories', label: 'Catégories', size: 180, sortValue: () => null },
   { id: 'requires', label: 'Dépend de', size: 180 },
   { id: 'project', label: 'Projet', size: 180, sortValue: () => null },
+  { id: 'comments', label: 'Commentaires', size: 120, hiddenByDefault: true },
 ];

@@ -14,6 +14,8 @@ import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from './api';
 import * as fmt from '../../lib/format';
+import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
+import { MarkdownView } from '../../components/markdown/MarkdownView';
 
 /**
  * Day in words.
@@ -200,7 +202,13 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
           />
           <DatePickerInput label="Au" required minDate={form.values.startDate || undefined} {...form.getInputProps('endDate')} />
         </SimpleGrid>
-        <TextInput label="Note" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
+        <MarkdownEditor
+          label="Description"
+          value={form.values.note ?? ''}
+          onChange={(note) => form.setFieldValue('note', note)}
+          suggestions={{ projectId: null, tasks: [], contributors: [] }}
+          minRows={2}
+        />
         <Group justify="flex-end">
           <Button variant="default" onClick={onDone}>
             Annuler
@@ -495,11 +503,7 @@ export function TeamRelations() {
                       </Badge>
                     )}
                   </Group>
-                  {relation.note && (
-                    <Text size="xs" c="dimmed">
-                      {relation.note}
-                    </Text>
-                  )}
+                  {relation.note && <MarkdownView targets={{ projectId: null, taskById: new Map(), taskByNumber: new Map(), handles: new Set<string>() }}>{relation.note}</MarkdownView>}
                 </Table.Td>
                 <Table.Td>
                   <Text size="xs" c="dimmed">

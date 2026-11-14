@@ -21,6 +21,9 @@ import { categoryOptions, categoryPaths } from './categories';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
+import { Comments } from '../comments/Comments';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -106,120 +109,130 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   const direction = chosenDirection ?? (categories.find((category) => category.id === values.categoryId)?.direction as 'OUT' | 'IN' | undefined) ?? 'OUT';
 
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((input) =>
-        save.mutate(
-          // "Moi" is no member at all.
-          {
-            id: budget?.id ?? null,
-            input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, relationId: input.relationId ?? null, repeatUntil: input.repeatEvery ? input.repeatUntil : null },
-          },
-          { onSuccess: () => (notifySuccess(budget ? 'Budget modifié.' : 'Budget créé.'), onDone()), onError: (error) => showFormError(form, error) },
-        ),
-      )}
-    >
-      <Stack gap="sm">
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <MonthPickerInput
-            label={values.repeatEvery ? 'Premier mois' : 'Mois'}
-            required
-            value={`${values.month}-01`}
-            onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
-            error={form.errors.month}
-          />
-          <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} suffix=" €" prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
-        </SimpleGrid>
-        <SegmentedControl
-          fullWidth
-          aria-label="Sens du budget"
-          data={[
-            { value: 'OUT', label: 'Sorties (dépenses)' },
-            { value: 'IN', label: 'Entrées (recettes)' },
-          ]}
-          value={direction}
-          onChange={(value) => {
-            setDirection(value as 'OUT' | 'IN');
-            // A category of the other direction no longer fits.
-            if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
-          }}
-        />
-        <Select
-          label="Catégorie"
-          required
-          searchable
-          {...treeSelectProps(categoryOptions(categories, direction))}
-          nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
-          description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
-          {...form.getInputProps('categoryId')}
-        />
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Select
-            label="Pour"
-            placeholder={me ? `${me.name} (moi)` : 'Moi'}
-            clearable
-            searchable
+    <Stack gap="lg">
+      <form
+        noValidate
+        onSubmit={form.onSubmit((input) =>
+          save.mutate(
+            // "Moi" is no member at all.
+            {
+              id: budget?.id ?? null,
+              input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, relationId: input.relationId ?? null, repeatUntil: input.repeatEvery ? input.repeatUntil : null },
+            },
+            { onSuccess: () => (notifySuccess(budget ? 'Budget modifié.' : 'Budget créé.'), onDone()), onError: (error) => showFormError(form, error) },
+          ),
+        )}
+      >
+        <Stack gap="sm">
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            <MonthPickerInput
+              label={values.repeatEvery ? 'Premier mois' : 'Mois'}
+              required
+              value={`${values.month}-01`}
+              onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
+              error={form.errors.month}
+            />
+            <AmountInput
+              label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'}
+              required
+              min={0}
+              suffix=" €"
+              prefix={direction === 'OUT' ? '− ' : '+ '}
+              {...form.getInputProps('amount')}
+            />
+          </SimpleGrid>
+          <SegmentedControl
+            fullWidth
+            aria-label="Sens du budget"
             data={[
-              { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })) },
-              { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
-            ].filter((group) => group.items.length)}
-            value={values.relationId ? `r:${values.relationId}` : values.memberId ? `m:${values.memberId}` : null}
-            onChange={(key) => form.setValues({ memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
-            error={form.errors.memberId}
-          />
-          <Select
-            label="Contexte"
-            placeholder={EVERYDAY_CONTEXT}
-            clearable
-            data={(settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name }))}
-            {...form.getInputProps('contextId')}
-          />
-        </SimpleGrid>
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Select
-            label="Répétition"
-            allowDeselect={false}
-            data={REPEAT_MODES}
-            value={repeatMode}
-            onChange={(mode) => {
-              setRepeatMode(mode ?? 'ONCE');
-              form.setFieldValue('repeatEvery', mode === 'YEAR' ? 12 : mode === 'MONTHS' ? (values.repeatEvery && values.repeatEvery !== 12 ? values.repeatEvery : 1) : null);
+              { value: 'OUT', label: 'Sorties (dépenses)' },
+              { value: 'IN', label: 'Entrées (recettes)' },
+            ]}
+            value={direction}
+            onChange={(value) => {
+              setDirection(value as 'OUT' | 'IN');
+              // A category of the other direction no longer fits.
+              if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
             }}
           />
-          {repeatMode === 'MONTHS' && (
-            <NumberInput
-              label="Tous les"
-              suffix=" mois"
-              min={1}
-              max={24}
-              allowDecimal={false}
-              value={values.repeatEvery ?? 1}
-              onChange={(value) => form.setFieldValue('repeatEvery', Math.min(24, Math.max(1, Number(value) || 1)))}
-              error={form.errors.repeatEvery}
-            />
-          )}
-          {values.repeatEvery && (
-            <MonthPickerInput
-              label="Jusqu’à"
-              placeholder="Sans fin"
+          <Select
+            label="Catégorie"
+            required
+            searchable
+            {...treeSelectProps(categoryOptions(categories, direction))}
+            nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
+            description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
+            {...form.getInputProps('categoryId')}
+          />
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            <Select
+              label="Pour"
+              placeholder={me ? `${me.name} (moi)` : 'Moi'}
               clearable
-              minDate={`${values.month}-01`}
-              value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
-              onChange={(value) => form.setFieldValue('repeatUntil', value ? String(value).slice(0, 7) : null)}
-              error={form.errors.repeatUntil}
+              searchable
+              data={[
+                { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })) },
+                { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })) },
+              ].filter((group) => group.items.length)}
+              value={values.relationId ? `r:${values.relationId}` : values.memberId ? `m:${values.memberId}` : null}
+              onChange={(key) => form.setValues({ memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+              error={form.errors.memberId}
             />
-          )}
-        </SimpleGrid>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={save.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
-    </form>
+            <Select
+              label="Contexte"
+              placeholder={EVERYDAY_CONTEXT}
+              clearable
+              data={(settings?.treasuryContexts ?? []).map((item) => ({ value: item.id, label: item.name }))}
+              {...form.getInputProps('contextId')}
+            />
+          </SimpleGrid>
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+            <Select
+              label="Répétition"
+              allowDeselect={false}
+              data={REPEAT_MODES}
+              value={repeatMode}
+              onChange={(mode) => {
+                setRepeatMode(mode ?? 'ONCE');
+                form.setFieldValue('repeatEvery', mode === 'YEAR' ? 12 : mode === 'MONTHS' ? (values.repeatEvery && values.repeatEvery !== 12 ? values.repeatEvery : 1) : null);
+              }}
+            />
+            {repeatMode === 'MONTHS' && (
+              <NumberInput
+                label="Tous les"
+                suffix=" mois"
+                min={1}
+                max={24}
+                allowDecimal={false}
+                value={values.repeatEvery ?? 1}
+                onChange={(value) => form.setFieldValue('repeatEvery', Math.min(24, Math.max(1, Number(value) || 1)))}
+                error={form.errors.repeatEvery}
+              />
+            )}
+            {values.repeatEvery && (
+              <MonthPickerInput
+                label="Jusqu’à"
+                placeholder="Sans fin"
+                clearable
+                minDate={`${values.month}-01`}
+                value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
+                onChange={(value) => form.setFieldValue('repeatUntil', value ? String(value).slice(0, 7) : null)}
+                error={form.errors.repeatUntil}
+              />
+            )}
+          </SimpleGrid>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={save.isPending}>
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+      {budget && <Comments target="BUDGET" id={budget.id} />}
+    </Stack>
   );
 }
 
@@ -450,11 +463,16 @@ export function BudgetsPanel() {
       { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast, text: (row) => fmt.money(row.forecast) },
     ],
   });
+  const budgetComments = useCommentCounts(
+    'BUDGET',
+    (data?.treasuryBudgets ?? []).map((budget) => budget.id),
+  );
   const definedView = useDataView({
     tableKey: 'treasury-budgets',
     title: 'Budgets',
     rows: data?.treasuryBudgets ?? [],
     columns: [
+      commentColumn<TreasuryBudget>(budgetComments, (budget) => budget.id),
       {
         id: 'period',
         label: 'Période',

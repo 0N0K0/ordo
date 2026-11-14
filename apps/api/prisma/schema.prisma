@@ -109,6 +109,7 @@ model Workspace {
   shoppingStorages          ShoppingStorage[]
   shoppingUnits             ShoppingUnit[]
   calendarEventRoutines     CalendarEventRoutine[]
+  comments                  Comment[]
   shoppingBaseLists         ShoppingBaseList[]
   shoppingProducts          ShoppingProduct[]
   shoppingLists             ShoppingList[]
@@ -661,6 +662,63 @@ model TaskComment {
   @@index([workspaceId])
 }
 
+/// Comment (markdown) of an item other than a task (those have their own): exactly one target set — a row of the app,
+/// or a mail by its Message-ID (mails stay on their server).
+model Comment {
+  id                 String    @id @default(cuid())
+  /// Markdown.
+  body               String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  routineId          String?
+  routine            Routine?              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  eventId            String?
+  event              CalendarEvent?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  scheduleId         String?
+  schedule           WorkSchedule?         @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  timeEntryId        String?
+  timeEntry          TimeEntry?            @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  shoppingListId     String?
+  shoppingList       ShoppingList?         @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  shoppingProductId  String?
+  shoppingProduct    ShoppingProduct?      @relation(fields: [shoppingProductId], references: [id], onDelete: Cascade)
+  documentId         String?
+  document           AccountingDocument?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  importedDocumentId String?
+  importedDocument   ImportedDocument?     @relation(fields: [importedDocumentId], references: [id], onDelete: Cascade)
+  catalogItemId      String?
+  catalogItem        CatalogItem?          @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  treasuryEntryId    String?
+  treasuryEntry      TreasuryEntry?        @relation(fields: [treasuryEntryId], references: [id], onDelete: Cascade)
+  budgetId           String?
+  budget             TreasuryBudget?       @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  relationId         String?
+  relation           TreasuryRelation?     @relation(fields: [relationId], references: [id], onDelete: Cascade)
+  libraryDocumentId  String?
+  libraryDocument    LibraryDocument?      @relation(fields: [libraryDocumentId], references: [id], onDelete: Cascade)
+  /// Message-ID header of the mail (without angle brackets).
+  mailMessageId      String?
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId        String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([routineId])
+  @@index([eventId])
+  @@index([scheduleId])
+  @@index([timeEntryId])
+  @@index([shoppingListId])
+  @@index([shoppingProductId])
+  @@index([documentId])
+  @@index([importedDocumentId])
+  @@index([catalogItemId])
+  @@index([treasuryEntryId])
+  @@index([budgetId])
+  @@index([relationId])
+  @@index([libraryDocumentId])
+  @@index([mailMessageId])
+  @@index([workspaceId])
+}
+
 /// Saved task table view: filters, sorting, columns and grouping (JSON validated by @ordo/shared).
 /// What a saved view lists.
 enum ViewKind {
@@ -871,6 +929,8 @@ model LibraryDocument {
   /// Treasury entries it supports.
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryLibraryDocuments")
   treasuryLines   TreasuryEntryLine[] @relation("TreasuryLineLibraryDocuments")
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -943,6 +1003,8 @@ model TimeEntry {
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   tasks                  Task[]
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId            String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace              Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1281,6 +1343,8 @@ model CalendarEvent {
   routineLinks      CalendarEventRoutine[]
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId       String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace         Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1416,6 +1480,8 @@ model WorkSchedule {
   updatedAt     DateTime      @updatedAt
   /// Routines following it.
   routines      Routine[]
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId   String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1590,6 +1656,8 @@ model AccountingDocument {
   recurring           RecurringInvoice?        @relation("RecurringTemplate")
   recurringId         String?
   generatedBy         RecurringInvoice?        @relation("RecurringGenerated", fields: [recurringId], references: [id], onDelete: SetNull)
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId         String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace           Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1688,6 +1756,8 @@ model CatalogItem {
   archived    Boolean            @default(false)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1758,6 +1828,8 @@ model ImportedDocument {
   allocations      TreasuryAllocation[]
   /// Deposit invoices made in Ordo from this imported quote.
   derived          AccountingDocument[]
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId      String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace        Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1939,6 +2011,8 @@ model TreasuryRelation {
   /// Shopping products and items it is for.
   shoppingProducts ShoppingProduct[]   @relation("ShoppingProductRelations")
   shoppingItems    ShoppingItem[]      @relation("ShoppingItemRelations")
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId      String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1968,6 +2042,8 @@ model TreasuryBudget {
   repeatEvery Int?
   repeatUntil DateTime?         @db.Date
   createdAt   DateTime          @default(now())
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2111,6 +2187,8 @@ model TreasuryEntry {
   projectResources ProjectResource[]      @relation("TreasuryEntryProjectResources")
   /// Shopping lists it pays (attaching one added its split).
   shoppingLists    ShoppingList[]
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId      String                 @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace        Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2285,6 +2363,8 @@ model ShoppingProduct {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   items           ShoppingItem[]
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2310,6 +2390,8 @@ model ShoppingList {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   items       ShoppingItem[]
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String         @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2446,6 +2528,8 @@ model Routine {
   /// Occurrences ticked as done.
   checks         RoutineCheck[]
   timeEntries    TimeEntry[]
+  /// Comments (markdown).
+  comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId    String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

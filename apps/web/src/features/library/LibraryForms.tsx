@@ -1,9 +1,11 @@
-import { Button, FileButton, Group, Select, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, FileButton, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess } from '../../lib/notify';
 import { useLibraryMutations, type DocumentFolder, type LibraryDocument } from './api';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
+import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
+import { Comments } from '../comments/Comments';
 
 const ROOT = '__root__';
 
@@ -31,7 +33,7 @@ export function FolderSelect({ folders, value, onChange, excluded, label = 'Doss
 }
 
 /**
- * New link: title, address and note.
+ * New link: title, address and description.
  * @param {{ folderId: string | null, onDone: () => void }} props Folder and close callback.
  * @returns {JSX.Element} Form.
  */
@@ -60,7 +62,7 @@ export function LinkForm({ folderId, onDone }: { folderId: string | null; onDone
       <Stack gap="sm">
         <TextInput label="Adresse" required placeholder="https://drive.google.com/…" data-autofocus value={url} onChange={(event) => setUrl(event.currentTarget.value)} />
         <TextInput label="Titre" required placeholder="Statuts signés, dossier comptable…" value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
-        <Textarea label="Note" autosize minRows={2} value={note} onChange={(event) => setNote(event.currentTarget.value)} />
+        <MarkdownEditor label="Description" value={note} onChange={setNote} suggestions={{ projectId: null, tasks: [], contributors: [] }} minRows={2} />
         {error && (
           <Text size="sm" c="red">
             {error}
@@ -80,7 +82,7 @@ export function LinkForm({ folderId, onDone }: { folderId: string | null; onDone
 }
 
 /**
- * Edition of a document: title, note, address of a link, new version of a file.
+ * Edition of a document: title, description, address of a link, new version of a file; its comments.
  * @param {{ document: LibraryDocument, onDone: () => void }} props Document and close callback.
  * @returns {JSX.Element} Form.
  */
@@ -92,55 +94,58 @@ export function DocumentForm({ document, onDone }: { document: LibraryDocument; 
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        update.mutate(
-          { id: document.id, title, url: document.kind === 'LINK' ? url.trim() : null, note: note || null, file },
-          {
-            onSuccess: () => {
-              notifySuccess('Document modifié.');
-              onDone();
+    <Stack gap="lg">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          update.mutate(
+            { id: document.id, title, url: document.kind === 'LINK' ? url.trim() : null, note: note || null, file },
+            {
+              onSuccess: () => {
+                notifySuccess('Document modifié.');
+                onDone();
+              },
+              onError: (saveError) => setError(saveError.message),
             },
-            onError: (saveError) => setError(saveError.message),
-          },
-        );
-      }}
-    >
-      <Stack gap="sm">
-        <TextInput label="Titre" required data-autofocus value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
-        {document.kind === 'LINK' ? (
-          <TextInput label="Adresse" required value={url} onChange={(event) => setUrl(event.currentTarget.value)} />
-        ) : (
-          <Group gap="sm">
-            <Text size="sm" c="dimmed" style={{ flex: 1 }} truncate>
-              Fichier : {file?.name ?? document.fileName}
+          );
+        }}
+      >
+        <Stack gap="sm">
+          <TextInput label="Titre" required data-autofocus value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
+          {document.kind === 'LINK' ? (
+            <TextInput label="Adresse" required value={url} onChange={(event) => setUrl(event.currentTarget.value)} />
+          ) : (
+            <Group gap="sm">
+              <Text size="sm" c="dimmed" style={{ flex: 1 }} truncate>
+                Fichier : {file?.name ?? document.fileName}
+              </Text>
+              <FileButton onChange={setFile}>
+                {(props) => (
+                  <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} {...props}>
+                    Remplacer par une nouvelle version
+                  </Button>
+                )}
+              </FileButton>
+            </Group>
+          )}
+          <MarkdownEditor label="Description" placeholder="Date de validité, numéro…" value={note} onChange={setNote} suggestions={{ projectId: null, tasks: [], contributors: [] }} minRows={2} />
+          {error && (
+            <Text size="sm" c="red">
+              {error}
             </Text>
-            <FileButton onChange={setFile}>
-              {(props) => (
-                <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} {...props}>
-                  Remplacer par une nouvelle version
-                </Button>
-              )}
-            </FileButton>
+          )}
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={update.isPending}>
+              Enregistrer
+            </Button>
           </Group>
-        )}
-        <Textarea label="Note" autosize minRows={2} placeholder="Date de validité, numéro…" value={note} onChange={(event) => setNote(event.currentTarget.value)} />
-        {error && (
-          <Text size="sm" c="red">
-            {error}
-          </Text>
-        )}
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={update.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
-    </form>
+        </Stack>
+      </form>
+      {document && <Comments target="LIBRARY_DOCUMENT" id={document.id} />}
+    </Stack>
   );
 }
 

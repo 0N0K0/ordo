@@ -1,5 +1,5 @@
 import { TimeField } from '../../components/TimeField';
-import { Button, Group, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { Button, Group, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
 import { useState } from 'react';
@@ -11,6 +11,8 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { useCalendarEvents } from '../calendar/api';
 import { useTimeMutations, type TimeEntry } from './api';
 import { TimeTasksSelect } from './TimeTasksSelect';
+import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
+import { Comments } from '../comments/Comments';
 
 /**
  * Local "YYYY-MM-DD" and "HH:MM" of an instant.
@@ -91,54 +93,64 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
   });
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        <ProjectSelect
-          context={context}
-          label="Projet"
-          required={!form.values.routineId}
-          description={entry?.routineTitle ? `Temps de la routine « ${entry.routineTitle} » : le projet est facultatif.` : undefined}
-          clearable={Boolean(form.values.routineId)}
-          data-autofocus
-          {...form.getInputProps('projectId')}
-          onChange={(projectId) => {
-            form.setFieldValue('projectId', projectId ?? '');
-            form.setFieldValue('taskIds', []);
-          }}
-        />
-        <TimeTasksSelect
-          context={context}
-          projectId={form.values.projectId || null}
-          value={form.values.taskIds}
-          onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
-          error={form.errors.taskIds}
-        />
-        <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
-          <DatePickerInput label="Jour" required {...form.getInputProps('date')} />
-          <TimeField label="Début" required {...form.getInputProps('start')} />
-          <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
-        </SimpleGrid>
-        <Select
-          label="Évènement"
-          description="Le temps passé sur un évènement de l’agenda : seule la part hors de l’évènement y apparaît."
-          placeholder={eventOptions.length ? 'Aucun' : 'Aucun évènement ce jour-là'}
-          clearable
-          searchable
-          data={eventOptions}
-          value={eventKey}
-          onChange={setEventKey}
-          error={form.errors.calendarEventId}
-        />
-        <Textarea label="Description" placeholder="Ce que vous avez fait…" autosize minRows={3} maxRows={12} {...form.getInputProps('description')} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            {entry && !copy ? 'Enregistrer' : 'Ajouter'}
-          </Button>
-        </Group>
-      </Stack>
-    </form>
+    <Stack gap="lg">
+      <form onSubmit={handleSubmit} noValidate>
+        <Stack gap="md">
+          <ProjectSelect
+            context={context}
+            label="Projet"
+            required={!form.values.routineId}
+            description={entry?.routineTitle ? `Temps de la routine « ${entry.routineTitle} » : le projet est facultatif.` : undefined}
+            clearable={Boolean(form.values.routineId)}
+            data-autofocus
+            {...form.getInputProps('projectId')}
+            onChange={(projectId) => {
+              form.setFieldValue('projectId', projectId ?? '');
+              form.setFieldValue('taskIds', []);
+            }}
+          />
+          <TimeTasksSelect
+            context={context}
+            projectId={form.values.projectId || null}
+            value={form.values.taskIds}
+            onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
+            error={form.errors.taskIds}
+          />
+          <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
+            <DatePickerInput label="Jour" required {...form.getInputProps('date')} />
+            <TimeField label="Début" required {...form.getInputProps('start')} />
+            <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
+          </SimpleGrid>
+          <Select
+            label="Évènement"
+            description="Le temps passé sur un évènement de l’agenda : seule la part hors de l’évènement y apparaît."
+            placeholder={eventOptions.length ? 'Aucun' : 'Aucun évènement ce jour-là'}
+            clearable
+            searchable
+            data={eventOptions}
+            value={eventKey}
+            onChange={setEventKey}
+            error={form.errors.calendarEventId}
+          />
+          <MarkdownEditor
+            label="Description"
+            placeholder="Ce que vous avez fait…"
+            value={form.values.description}
+            onChange={(description) => form.setFieldValue('description', description)}
+            suggestions={context.suggestionsFor(form.values.projectId || null)}
+            minRows={3}
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={create.isPending || update.isPending}>
+              {entry && !copy ? 'Enregistrer' : 'Ajouter'}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+      {entry && !copy && <Comments target="TIME_ENTRY" id={entry!.id} projectId={entry!.projectId ?? null} />}
+    </Stack>
   );
 }

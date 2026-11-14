@@ -60,6 +60,8 @@ import { localDay } from '../../lib/dates';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
@@ -198,7 +200,7 @@ function libraryColumns(paths: Map<string, string>): DataColumn<LibraryDocument>
       groupable: true,
     },
     { id: 'size', label: 'Taille', size: 140, numeric: true, sortValue: (document) => document.size ?? null, text: (document) => (document.size ? fmt.fileSize(document.size) : 'Lien') },
-    { id: 'note', label: 'Note', size: 220, hiddenByDefault: true, sortValue: (document) => document.note ?? null, text: (document) => document.note ?? '' },
+    { id: 'note', label: 'Description', size: 220, hiddenByDefault: true, sortValue: (document) => document.note ?? null, text: (document) => document.note ?? '' },
     {
       id: 'updatedAt',
       label: 'Modifié le',
@@ -245,7 +247,8 @@ export function LibraryPage() {
   const documents = data?.libraryDocuments ?? [];
   const current = folders.some((folder) => folder.id === params.get('folder')) ? params.get('folder') : null;
   const paths = folderPaths(folders);
-  const columns = libraryColumns(paths);
+  const documentComments = useCommentCounts('LIBRARY_DOCUMENT', documents.map((document) => document.id));
+  const columns = [...libraryColumns(paths), commentColumn<LibraryDocument>(documentComments, (document) => document.id, (document) => document.note)];
   const view = useDataView({ tableKey: 'library', columns, rows: documents, title: 'Bibliothèque' });
   const { sorting, shown: shownCols } = view;
 
@@ -741,7 +744,7 @@ export function LibraryPage() {
                               {
                                 {
                                   folder: document.folderId ? paths.get(document.folderId) : 'Documents',
-                                  note: <EditableText value={document.note ?? null} label={`Note de ${document.title}`} nullable onSave={(note) => saveDocument(document, { note })} />,
+                                  note: <EditableText value={document.note ?? null} label={`Description de ${document.title}`} nullable onSave={(note) => saveDocument(document, { note })} />,
                                   name: (
                             <Group gap="sm" wrap="nowrap">
                               <DocumentIcon document={document} />

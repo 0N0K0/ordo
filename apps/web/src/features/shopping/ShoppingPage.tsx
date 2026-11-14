@@ -33,6 +33,7 @@ import { TasksCell } from './shopping-cells';
 import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
 
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
@@ -50,6 +51,7 @@ const LIST_COLUMNS: DataColumn<ShoppingList>[] = [
   { id: 'total', label: 'Total estimé', size: 120, numeric: true, sortValue: () => null },
   { id: 'createdAt', label: 'Créée le', size: 110, sortValue: () => null },
   { id: 'closedAt', label: 'Archivée le', size: 110, hiddenByDefault: true, sortValue: () => null },
+  { id: 'comments', label: 'Commentaires', size: 120, numeric: true, hiddenByDefault: true },
 ];
 
 /**
@@ -64,6 +66,10 @@ const LIST_COLUMNS: DataColumn<ShoppingList>[] = [
  */
 export function ListsPanel({ projectId, projectIds }: { projectId?: string; projectIds?: ReadonlySet<string> }) {
   const { data: lists, isPending } = useShoppingLists();
+  const listComments = useCommentCounts(
+    'SHOPPING_LIST',
+    (lists ?? []).map((list) => list.id),
+  );
   const { data: shopping } = useShoppingData();
   const { context } = useTaskContext();
   const { updateList } = useShoppingMutations();
@@ -130,6 +136,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   total: (list) => (shoppingTotal(list.items) > 0 ? fmt.money(shoppingTotal(list.items)) : ''),
                   createdAt: (list) => fmt.day(new Date(list.createdAt)),
                   closedAt: (list) => (list.closedAt ? fmt.day(new Date(list.closedAt)) : ''),
+                  comments: (list) => String(listComments.get(list.id) || ''),
                 };
                 return {
                   title: 'Listes d’achats',
@@ -246,6 +253,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                     total: total > 0 ? fmt.money(total) : null,
                     createdAt: fmt.day(new Date(list.createdAt)),
                     closedAt: list.closedAt ? fmt.day(new Date(list.closedAt)) : null,
+                    comments: listComments.get(list.id) || null,
                   };
                   return (
                     <Table.Tr key={row.key}>

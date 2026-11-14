@@ -27,6 +27,7 @@ import { LinkToProject } from './LinkToProject';
 import { MailBody } from './MailBody';
 import { MailFiles, MailHeader } from './MailHeader';
 import { useMailComposer } from './use-mail-composer';
+import { Comments } from '../comments/Comments';
 
 /**
  * Message read on the server, as a source of reply or forward.
@@ -300,6 +301,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
         files={files.map((file) => ({ key: String(file.index), name: file.filename, size: file.size, url: `${base}&index=${file.index}` }))}
       />
       <MailBody html={mail.html} text={mail.text} />
+      {mail.messageId && <Comments target="MAIL" id={mail.messageId} projectId={projectId ?? null} />}
     </Stack>
   );
 }

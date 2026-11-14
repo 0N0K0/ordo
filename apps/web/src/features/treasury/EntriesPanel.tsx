@@ -39,6 +39,8 @@ import { StatementForm } from './StatementForm';
 import { StatementImport } from './StatementImport';
 import { handleFileClick } from '../files/open-file';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 /**
  * Printed calendar date.
@@ -187,7 +189,21 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   const saveEntry = useEntryCellSave();
   const paths = useMemo(() => categoryPaths(settings?.treasuryCategories ?? []), [settings]);
   const tableRef = useRef<HTMLTableElement>(null);
-  const columns = useMemo(() => entryColumns(paths, accounts), [paths, accounts]);
+  const entryComments = useCommentCounts(
+    'TREASURY_ENTRY',
+    (entries ?? []).map((entry) => entry.id),
+  );
+  const columns = useMemo(
+    () => [
+      ...entryColumns(paths, accounts),
+      commentColumn<TreasuryEntry>(
+        entryComments,
+        (entry) => entry.id,
+        (entry) => entry.note,
+      ),
+    ],
+    [paths, accounts, entryComments],
+  );
   const loaded = useMemo(() => (entries ?? []).filter((entry) => entry.status === 'ACTUAL'), [entries]);
   const view = useDataView({ tableKey: 'treasury-entries', columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS });
   const { shown } = view;

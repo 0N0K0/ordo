@@ -39,6 +39,7 @@ import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
 import { StoreMode } from './StoreMode';
 import * as fmt from '../../lib/format';
+import { Comments } from '../comments/Comments';
 
 type ShoppingItem = ShoppingList['items'][number];
 
@@ -279,6 +280,7 @@ export function ShoppingListPage() {
           </Text>
         </Group>
       )}
+      <Comments target="SHOPPING_LIST" id={list.id} />
       {storeMode && <StoreMode list={list} onClose={() => setStoreMode(false)} />}
     </Stack>
   );

@@ -1,5 +1,5 @@
 import { DatePickerInput } from '@mantine/dates';
-import { Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -9,6 +9,8 @@ import { categoriesForBaseList, listTasks, shoppingCategoryOptions, unitOptions,
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AmountInput } from '../../components/AmountInput';
 import { useTaskContext } from '../tasks/use-task-context';
+import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
+import { Comments } from '../comments/Comments';
 
 /**
  * Names of the people a product or an item is for, as small badges.
@@ -50,7 +52,7 @@ export interface ShoppingFormProps {
 }
 
 /**
- * Product of a base list or item of a list: name, category, store, quantity and unit, unit price, link, note and
+ * Product of a base list or item of a list: name, category, store, quantity and unit, unit price, link, description and
  * the people it is for; a product is also marked missing or not.
  * @param {ShoppingFormProps} props Component props.
  * @returns {JSX.Element} Form.
@@ -109,109 +111,118 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
 
   const values = form.getValues();
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-        {target.kind === 'product' && (
-          <Select
-            label="Liste type"
-            required
-            allowDeselect={false}
-            data={(data?.shoppingBaseLists ?? []).map((baseList) => ({ value: baseList.id, label: baseList.name }))}
-            {...form.getInputProps('baseListId')}
-          />
-        )}
-        <SimpleGrid cols={{ base: 1, xs: 2 }}>
-          <Select
-            label="Catégorie"
-            placeholder="Aucune"
-            clearable
-            searchable
-            {...treeSelectProps(
-              shoppingCategoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? [])),
-            )}
-            {...form.getInputProps('categoryId')}
-          />
-          <Select
-            label="Magasin"
-            placeholder="Aucun"
-            clearable
-            searchable
-            data={(data?.shoppingStores ?? []).map((item) => ({ value: item.id, label: item.name }))}
-            {...form.getInputProps('storeId')}
-          />
-        </SimpleGrid>
-        <SimpleGrid cols={{ base: 1, xs: 3 }}>
-          <NumberInput
-            label="Quantité"
-            min={0}
-            decimalScale={3}
-            decimalSeparator=","
-            allowNegative={false}
-            {...form.getInputProps('quantity')}
-            onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
-          />
-          <Select
-            label="Unité"
-            description="Les unités se règlent dans les paramètres des achats."
-            placeholder="Aucune"
-            data={unitOptions(data?.shoppingUnits ?? [], current?.unit)}
-            searchable
-            clearable
-            {...form.getInputProps('unit')}
-          />
-          <AmountInput
-            label="Prix unitaire estimé"
-            min={0}
-            suffix=" €"
-            allowNegative={false}
-            {...form.getInputProps('unitPrice')}
-            onChange={(value) => form.setFieldValue('unitPrice', typeof value === 'number' ? value : null)}
-          />
-        </SimpleGrid>
-        <Checkbox label="Périssable" description="À conserver d’une certaine façon, jusqu’à une date de péremption." {...form.getInputProps('perishable', { type: 'checkbox' })} />
-        {values.perishable && (
+    <Stack gap="lg">
+      <form onSubmit={handleSubmit} noValidate>
+        <Stack gap="md">
+          <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+          {target.kind === 'product' && (
+            <Select
+              label="Liste type"
+              required
+              allowDeselect={false}
+              data={(data?.shoppingBaseLists ?? []).map((baseList) => ({ value: baseList.id, label: baseList.name }))}
+              {...form.getInputProps('baseListId')}
+            />
+          )}
           <SimpleGrid cols={{ base: 1, xs: 2 }}>
             <Select
-              label="Mode de conservation"
-              placeholder={(data?.shoppingStorages ?? []).length ? 'Aucun' : 'Aucun (ajoutez-en dans les paramètres)'}
-              clearable
-              data={(data?.shoppingStorages ?? []).map((storage) => ({ value: storage.id, label: storage.name }))}
-              {...form.getInputProps('storageId')}
-            />
-            <DatePickerInput
-              label="Date de péremption"
-              description={target.kind === 'product' ? 'Passée, le produit est marqué manquant.' : undefined}
+              label="Catégorie"
               placeholder="Aucune"
               clearable
-              {...form.getInputProps('expiresAt')}
+              searchable
+              {...treeSelectProps(
+                shoppingCategoryOptions(target.kind === 'product' && values.baseListId ? categoriesForBaseList(data?.shoppingCategories ?? [], values.baseListId) : (data?.shoppingCategories ?? [])),
+              )}
+              {...form.getInputProps('categoryId')}
+            />
+            <Select
+              label="Magasin"
+              placeholder="Aucun"
+              clearable
+              searchable
+              data={(data?.shoppingStores ?? []).map((item) => ({ value: item.id, label: item.name }))}
+              {...form.getInputProps('storeId')}
             />
           </SimpleGrid>
-        )}
-        <BatchMultiSelect
-          label="Pour"
-          description="Membres et relations concernés : la répartition d’un mouvement de trésorerie qui paie la liste."
-          placeholder={values.memberIds.length + values.relationIds.length ? undefined : 'Personne en particulier'}
-          data={people.options}
-          searchable
-          clearable
-          value={[...values.memberIds.map((id) => `m:${id}`), ...values.relationIds.map((id) => `r:${id}`)]}
-          onChange={(keys) =>
-            form.setValues({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
-          }
-        />
-        <TextInput label="Lien vers le produit" placeholder="https://…" type="url" {...form.getInputProps('url')} />
-        <Textarea label="Note" autosize minRows={1} {...form.getInputProps('note')} />
-        {target.kind === 'product' && <Checkbox label="Manque" description="Il sera mis sur la prochaine liste générée." {...form.getInputProps('missing', { type: 'checkbox' })} />}
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={pending}>
-            {current ? 'Enregistrer' : 'Ajouter'}
-          </Button>
-        </Group>
-      </Stack>
-    </form>
+          <SimpleGrid cols={{ base: 1, xs: 3 }}>
+            <NumberInput
+              label="Quantité"
+              min={0}
+              decimalScale={3}
+              decimalSeparator=","
+              allowNegative={false}
+              {...form.getInputProps('quantity')}
+              onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
+            />
+            <Select
+              label="Unité"
+              description="Les unités se règlent dans les paramètres des achats."
+              placeholder="Aucune"
+              data={unitOptions(data?.shoppingUnits ?? [], current?.unit)}
+              searchable
+              clearable
+              {...form.getInputProps('unit')}
+            />
+            <AmountInput
+              label="Prix unitaire estimé"
+              min={0}
+              suffix=" €"
+              allowNegative={false}
+              {...form.getInputProps('unitPrice')}
+              onChange={(value) => form.setFieldValue('unitPrice', typeof value === 'number' ? value : null)}
+            />
+          </SimpleGrid>
+          <Checkbox label="Périssable" description="À conserver d’une certaine façon, jusqu’à une date de péremption." {...form.getInputProps('perishable', { type: 'checkbox' })} />
+          {values.perishable && (
+            <SimpleGrid cols={{ base: 1, xs: 2 }}>
+              <Select
+                label="Mode de conservation"
+                placeholder={(data?.shoppingStorages ?? []).length ? 'Aucun' : 'Aucun (ajoutez-en dans les paramètres)'}
+                clearable
+                data={(data?.shoppingStorages ?? []).map((storage) => ({ value: storage.id, label: storage.name }))}
+                {...form.getInputProps('storageId')}
+              />
+              <DatePickerInput
+                label="Date de péremption"
+                description={target.kind === 'product' ? 'Passée, le produit est marqué manquant.' : undefined}
+                placeholder="Aucune"
+                clearable
+                {...form.getInputProps('expiresAt')}
+              />
+            </SimpleGrid>
+          )}
+          <BatchMultiSelect
+            label="Pour"
+            description="Membres et relations concernés : la répartition d’un mouvement de trésorerie qui paie la liste."
+            placeholder={values.memberIds.length + values.relationIds.length ? undefined : 'Personne en particulier'}
+            data={people.options}
+            searchable
+            clearable
+            value={[...values.memberIds.map((id) => `m:${id}`), ...values.relationIds.map((id) => `r:${id}`)]}
+            onChange={(keys) =>
+              form.setValues({ memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) })
+            }
+          />
+          <TextInput label="Lien vers le produit" placeholder="https://…" type="url" {...form.getInputProps('url')} />
+          <MarkdownEditor
+            label="Description"
+            value={form.values.note}
+            onChange={(note) => form.setFieldValue('note', note)}
+            suggestions={context?.suggestionsFor(null) ?? { projectId: null, tasks: [], contributors: [] }}
+            minRows={2}
+          />
+          {target.kind === 'product' && <Checkbox label="Manque" description="Il sera mis sur la prochaine liste générée." {...form.getInputProps('missing', { type: 'checkbox' })} />}
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={onDone}>
+              Annuler
+            </Button>
+            <Button type="submit" loading={pending}>
+              {current ? 'Enregistrer' : 'Ajouter'}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+      {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} />}
+    </Stack>
   );
 }
