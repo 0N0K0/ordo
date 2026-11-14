@@ -21,7 +21,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { taskTitleSchema } from '@ordo/shared';
+import { readSlotRule, taskTitleSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
@@ -51,6 +51,7 @@ import { ActionsMenu } from '../../components/data-table/RowActions';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 
 /**
  * Property block of the side column.
@@ -468,6 +469,11 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               clearable
               searchable
               nothingFoundMessage="Aucun sprint dans ce projet"
+            />
+            <SlotRuleInput
+              value={readSlotRule(task.slotRule)}
+              // Without any kind, an « on / out of » rule is not saved: another mode is chosen instead.
+              onChange={(slotRule) => (slotRule && slotRule.mode !== 'ANY' && !slotRule.kinds.length ? undefined : save({ slotRule }))}
             />
             <Divider />
             <LinkList

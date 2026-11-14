@@ -50,6 +50,7 @@ export const ROUTINE_FIELD_LABELS: Record<RoutineFilterField, string> = {
   waiting: 'En attente d’une autre',
   hasSubRoutines: 'A des sous-routines',
   optionalTimes: 'A des moments facultatifs',
+  doableNow: 'Faisable maintenant',
   archived: 'Archivée',
 };
 
@@ -57,7 +58,7 @@ export const ROUTINE_FIELD_GROUPS: { group: string; fields: RoutineFilterField[]
   { group: 'Texte', fields: ['title', 'description', 'location'] },
   { group: 'Organisation', fields: ['categories', 'project', 'assignees', 'parent', 'requires', 'repetition', 'estimate'] },
   { group: 'Dates', fields: ['currentDate', 'firstDate', 'nextDate', 'startDate', 'lastDoneAt'] },
-  { group: 'État', fields: ['state', 'done', 'waiting', 'hasSubRoutines', 'optionalTimes', 'archived'] },
+  { group: 'État', fields: ['state', 'done', 'waiting', 'hasSubRoutines', 'optionalTimes', 'doableNow', 'archived'] },
 ];
 
 export const ROUTINE_STATE_LABELS: Record<(typeof ROUTINE_STATES)[number], string> = { late: 'En retard', due: 'À faire', upcoming: 'À venir', done: 'Faite' };
@@ -127,6 +128,8 @@ export interface RoutineEnv {
   byId: Map<string, Routine>;
   categories: RoutineCategory[];
   context: TaskContext;
+  /** Whether the slot rule of a routine allows now. */
+  doable: (routine: Routine) => boolean;
 }
 
 /**
@@ -175,7 +178,7 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
     case 'requires':
       return routine.requiredIds;
     case 'state':
-      return stateOf(routine, env.today);
+      return stateOf(routine, env.today, env.doable(routine));
     case 'repetition':
       return repetitionOf(routine);
     case 'estimate':
@@ -198,6 +201,8 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
       return [...env.byId.values()].some((other) => other.parentId === routine.id);
     case 'optionalTimes':
       return routine.slots.some((slot) => slot.optional);
+    case 'doableNow':
+      return env.doable(routine);
     case 'archived':
       return routine.archived;
   }
@@ -324,7 +329,7 @@ export function sortRoutines(routines: Routine[], sorting: RoutineViewConfig['so
       case 'title':
         return routine.title;
       case 'state':
-        return ROUTINE_STATES.indexOf(stateOf(routine, env.today));
+        return ROUTINE_STATES.indexOf(stateOf(routine, env.today, env.doable(routine)));
       case 'currentDate':
         return routine.currentDate ? String(routine.currentDate) : null;
       case 'firstDate':
@@ -394,7 +399,7 @@ export function routineGrouping(groupBy: RoutineGroupBy | null, env: RoutineEnv)
     case 'state':
       return {
         groups: ROUTINE_STATES.map((state) => ({ id: state, name: ROUTINE_STATE_LABELS[state], color: null, parentId: null })),
-        of: (routine) => [stateOf(routine, env.today)],
+        of: (routine) => [stateOf(routine, env.today, env.doable(routine))],
         noneName: '',
       };
     case 'repetition':

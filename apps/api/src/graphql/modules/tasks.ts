@@ -10,7 +10,7 @@ import * as taskFilters from '../../services/task-filters';
 import * as taskViews from '../../services/task-views';
 import * as taskRecurrence from '../../services/task-recurrence';
 import * as tasks from '../../services/tasks';
-import { TASK_STATUS_CATEGORIES, taskFilterSchema } from '@ordo/shared';
+import { TASK_STATUS_CATEGORIES, readSlotRule, taskFilterSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../errors';
 import * as workspaces from '../../services/workspaces';
@@ -187,6 +187,7 @@ builder.prismaObject('Task', {
     startDate: t.expose('startDate', { type: 'Date', nullable: true }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date ("Date max"): an open task past it is overdue.' }),
+    slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots the task is done on or out of; null: the default of the workspace.', resolve: (task) => readSlotRule(task.slotRule) }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList({
@@ -264,6 +265,7 @@ const TaskInput = builder.inputType('TaskInput', {
     parentId: t.id(),
     milestoneId: t.id(),
     sprintIds: t.idList(),
+    slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
   }),
 });
 
@@ -284,6 +286,7 @@ const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
     parentId: t.id(),
     milestoneId: t.id(),
     sprintIds: t.idList(),
+    slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
   }),
 });
 

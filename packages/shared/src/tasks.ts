@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { dateSchema } from './workspace';
+import { slotRuleSchema } from './slot-rules';
 
 export const taskTitleSchema = z
   .string()
@@ -74,6 +75,8 @@ export const taskFormSchema = z
     parentId: z.string().nullable(),
     milestoneId: z.string().nullable(),
     sprintIds: z.array(z.string()),
+    /** Slots it is done on or out of; null: the default of the workspace. */
+    slotRule: slotRuleSchema.nullable().default(null),
   })
   .refine((values) => !values.startDate || !values.endDate || values.endDate >= values.startDate, {
     path: ['endDate'],

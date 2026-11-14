@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { readTaskColumnDefaults, type TaskColumnDefaults } from '@ordo/shared';
+import { readTaskColumnDefaults, type SlotRule, type TaskColumnDefaults } from '@ordo/shared';
 import { graphql } from '../../graphql';
 import type {
   ContributorFieldsFragment,
@@ -105,6 +105,7 @@ graphql(`
     githubLinked
     githubUrl
     githubNumber
+    slotRule
   }
 `);
 
@@ -517,6 +518,8 @@ export interface TaskInputValues {
   parentId?: string | null;
   milestoneId?: string | null;
   sprintIds?: string[];
+  /** Slots it is done on or out of; null: the default of the workspace. */
+  slotRule?: SlotRule | null;
 }
 
 /**

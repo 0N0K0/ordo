@@ -30,12 +30,16 @@ export function ruleOf(routine: Routine): Recurrence | null {
 export const isDone = (routine: Routine) => routine.done;
 
 /**
- * State of a routine today.
+ * State of a routine today: « à faire » only while its slots allow it now (« à venir » otherwise).
  * @param {Routine} routine Routine.
  * @param {string} today Today.
+ * @param {boolean} [doable] Its slot rule allows now. Optional. Default = true.
  * @returns {RoutineState} State.
  */
-export const stateOf = (routine: Routine, today: string): RoutineState => routineState(routine.currentDate, isDone(routine), today);
+export const stateOf = (routine: Routine, today: string, doable = true): RoutineState => {
+  const state = routineState(routine.currentDate, isDone(routine), today);
+  return state === 'due' && !doable ? 'upcoming' : state;
+};
 
 /**
  * Required routines of a routine still to do for their current occurrence ("étendre le linge" waits for "laver le linge").

@@ -15,6 +15,7 @@ export * from './work-schedules';
 export * from './geo';
 export * from './shopping';
 export * from './routines';
+export * from './slot-rules';
 export * from './routine-views';
 export * from './shopping-list-views';
 export * from './table-layout';

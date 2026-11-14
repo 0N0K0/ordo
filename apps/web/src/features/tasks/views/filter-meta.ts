@@ -34,6 +34,7 @@ export const FIELD_LABELS: Record<TaskFilterField, string> = {
   overdue: 'En retard',
   blocked: 'Bloquée',
   hasSubtasks: 'A des sous-tâches',
+  doableNow: 'Faisable maintenant',
   closed: 'Fermée',
   archived: 'Archivée',
 };
@@ -46,7 +47,7 @@ export const FIELD_GROUPS: { group: string; fields: TaskFilterField[] }[] = [
     fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'tags', 'effort'],
   },
   { group: 'Dates', fields: ['startDate', 'endDate', 'deadline', 'createdAt', 'updatedAt'] },
-  { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'archived'] },
+  { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'doableNow', 'archived'] },
 ];
 
 export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOperator, string>>> = {

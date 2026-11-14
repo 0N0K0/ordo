@@ -1,3 +1,4 @@
+import { slotRuleSchema } from './slot-rules';
 import { z } from 'zod';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence } from './recurrence';
 import { plannedSlots, type WorkScheduleRule } from './work-schedules';
@@ -121,10 +122,71 @@ export const routineSchema = z
     assigneeIds: z.array(z.string()).max(100),
     /** Routines to do before this one. */
     requiredIds: z.array(z.string()).max(100),
+    /**
+     * Day each occurrence can be done from, before its due date: the day of the month ("DD") of a monthly repetition,
+     * the day of the year ("MM-DD") of a yearly one; null: on its due date only (and always for the other repetitions).
+     */
+    opensOn: z
+      .string()
+      .regex(/^(\d{2}|\d{2}-\d{2})$/, 'Jour attendu.')
+      .nullable()
+      .default(null),
+    /** Slots (by kind) it is done on or out of; null: the default of the workspace. */
+    slotRule: slotRuleSchema.nullable().default(null),
   })
   .refine((routine) => !routine.fromTime || !routine.dueTime || routine.fromTime < routine.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' })
-  .refine((routine) => !routine.scheduleId || routine.scheduleAnchor !== null, { path: ['scheduleAnchor'], message: 'Choisissez le moment de la plage.' });
+  .refine((routine) => !routine.scheduleId || routine.scheduleAnchor !== null, { path: ['scheduleAnchor'], message: 'Choisissez le moment de la plage.' })
+  .refine((routine) => !routine.opensOn || opensOnFits(routine.opensOn, routine), {
+    path: ['opensOn'],
+    message: 'Le « à partir du » ne vaut que pour une répétition mensuelle (un jour du mois) ou annuelle (un jour de l’année).',
+  });
 export type RoutineInput = z.input<typeof routineSchema>;
+
+/**
+ * Whether an « à partir du » fits a routine: a day of the month for a monthly repetition, of the year for a yearly one;
+ * never for its cases nor a calendar schedule.
+ * @param {string} opensOn "DD" or "MM-DD".
+ * @param {{ recurrence: Recurrence, cases?: readonly unknown[], scheduleId?: string | null }} routine Routine.
+ * @returns {boolean} It fits.
+ */
+export function opensOnFits(opensOn: string, routine: { recurrence: Recurrence; cases?: readonly unknown[]; scheduleId?: string | null }): boolean {
+  if (routine.cases?.length || routine.scheduleId) return false;
+  if (routine.recurrence.frequency === 'MONTHLY') return /^\d{2}$/.test(opensOn) && Number(opensOn) >= 1 && Number(opensOn) <= 31;
+  if (routine.recurrence.frequency === 'YEARLY') {
+    const [month, day] = opensOn.split('-').map(Number);
+    return /^\d{2}-\d{2}$/.test(opensOn) && month >= 1 && month <= 12 && day >= 1 && day <= 31;
+  }
+  return false;
+}
+
+/**
+ * Last day of a month.
+ * @param {number} year Year.
+ * @param {number} month Month (1-12).
+ * @returns {number} Day.
+ */
+const lastDayOf = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+/**
+ * Day an occurrence can be done from: its « à partir du » in its month (monthly) or its year (yearly), the period
+ * before when that day comes after the due date; the due date itself without « à partir du ».
+ * @param {string} due Due date (YYYY-MM-DD).
+ * @param {string | null} opensOn "DD", "MM-DD" or null.
+ * @returns {string} YYYY-MM-DD.
+ */
+export function routineOpenDate(due: string, opensOn: string | null): string {
+  if (!opensOn) return due;
+  const [year, month] = due.split('-').map(Number);
+  const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, lastDayOf(y, m))).padStart(2, '0')}`;
+  if (/^\d{2}$/.test(opensOn)) {
+    const same = iso(year, month, Number(opensOn));
+    if (same <= due) return same;
+    return month === 1 ? iso(year - 1, 12, Number(opensOn)) : iso(year, month - 1, Number(opensOn));
+  }
+  const [openMonth, openDay] = opensOn.split('-').map(Number);
+  const same = iso(year, openMonth, openDay);
+  return same <= due ? same : iso(year - 1, openMonth, openDay);
+}
 
 /** Where a routine stands today. */
 export type RoutineState = 'upcoming' | 'due' | 'late' | 'done';
@@ -138,9 +200,17 @@ const PERIOD_DAYS: Record<Recurrence['frequency'], number> = { DAILY: 1, WEEKLY:
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
  * @param {string} today Today.
+ * @param {string | null} [opensOn] Day an occurrence can be done from (« à partir du »): the next one is the current one
+ * from then. Optional. Default = null.
  * @returns {{ current: string | null, next: string | null }} Dates (null: none, before the start or once the rule has ended).
  */
-export function routineOccurrences(rule: Recurrence, start: string, today: string): { current: string | null; next: string | null } {
+export function routineOccurrences(rule: Recurrence, start: string, today: string, opensOn: string | null = null): { current: string | null; next: string | null } {
+  if (opensOn) {
+    // The next occurrence is the current one as soon as it can be done (from its « à partir du »).
+    const found = routineOccurrences(rule, start, today);
+    if (found.next && today >= routineOpenDate(found.next, opensOn)) return { current: found.next, next: routineOccurrences(rule, start, found.next).next };
+    return found;
+  }
   // A period of the rule plus a year, for the paused periods and excluded dates.
   const span = PERIOD_DAYS[rule.frequency] * rule.interval + 366;
   let current: string | null = null;

@@ -1,6 +1,6 @@
 import { Button, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase } from '@ordo/shared';
+import { opensOnFits, readSlotRule, routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase, type SlotRule } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
@@ -11,6 +11,8 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { DAILY, ruleOf } from './routine-format';
 import { RoutineSchedule } from './RoutineSchedule';
+import { OpensOnInput } from './OpensOnInput';
+import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 
 interface RoutineFormValues extends Record<string, unknown> {
@@ -35,6 +37,8 @@ interface RoutineFormValues extends Record<string, unknown> {
   projectId: string | null;
   assigneeIds: string[];
   requiredIds: string[];
+  opensOn: string | null;
+  slotRule: SlotRule | null;
 }
 
 export interface RoutineFormProps {
@@ -106,6 +110,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
       requiredIds: routine?.requiredIds ?? [],
+      opensOn: routine?.opensOn ?? null,
+      slotRule: readSlotRule(routine?.slotRule ?? parent?.slotRule),
     },
     schema: routineSchema,
   });
@@ -126,7 +132,9 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     );
 
   const handleSubmit = form.onSubmit((values) => {
-    const input = { ...values, description: values.description || null };
+    // « À partir du » only for a monthly or yearly rule: dropped when the repetition changed.
+    const opensOn = values.opensOn && opensOnFits(values.opensOn, values) ? values.opensOn : null;
+    const input = { ...values, description: values.description || null, opensOn };
     const callbacks = {
       onSuccess: () => {
         notifySuccess(copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.');
@@ -170,6 +178,15 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
           />
         </SimpleGrid>
         <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
+        {!form.values.cases.length && !form.values.scheduleId && (form.values.recurrence.frequency === 'MONTHLY' || form.values.recurrence.frequency === 'YEARLY') && (
+          <OpensOnInput
+            frequency={form.values.recurrence.frequency}
+            value={form.values.opensOn}
+            onChange={(opensOn) => form.setFieldValue('opensOn', opensOn)}
+            error={form.errors.opensOn as string | undefined}
+          />
+        )}
+        <SlotRuleInput value={form.values.slotRule} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.kinds'] as string | undefined} />
         {context && (
           <AssigneesSelect
             contributors={context.contributors}

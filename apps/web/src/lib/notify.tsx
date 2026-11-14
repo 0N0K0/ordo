@@ -1,5 +1,6 @@
 import { Button, Group, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import { WarningIcon } from '@phosphor-icons/react';
 import { ErrorIcon, SuccessIcon } from '../components/feedback-icons';
 
 /**
@@ -9,6 +10,16 @@ import { ErrorIcon, SuccessIcon } from '../components/feedback-icons';
  */
 export function notifySuccess(message: string): void {
   notifications.show({ color: 'green', icon: <SuccessIcon />, message, autoClose: 4000 });
+}
+
+/**
+ * Shows a warning toast that closes on its own, a little later than a success one.
+ * @param {string} title Title.
+ * @param {string} message Message to display.
+ * @returns {void}
+ */
+export function notifyWarning(title: string, message: string): void {
+  notifications.show({ color: 'yellow', icon: <WarningIcon />, title, message, autoClose: 8000 });
 }
 
 /**

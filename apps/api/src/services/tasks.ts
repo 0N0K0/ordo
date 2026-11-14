@@ -1,7 +1,7 @@
-import { commentBodySchema, dateSchema, effortSchema, markdownSchema, taskTitleSchema } from '@ordo/shared';
+import { commentBodySchema, dateSchema, effortSchema, markdownSchema, slotRuleSchema, taskTitleSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
-import type { Prisma, Task, TaskComment } from '../generated/prisma/client';
+import { Prisma, type Task, type TaskComment } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { attachAssignees } from './contributors';
 import { forgetGithubComment, forgetGithubItems } from './github/links';
@@ -194,6 +194,8 @@ export interface TaskInput {
   parentId?: string | null;
   milestoneId?: string | null;
   sprintIds?: string[] | null;
+  /** Slots the task is done on or out of; null: the default of the workspace. */
+  slotRule?: unknown;
 }
 
 const detailsSchema = z.object({
@@ -203,6 +205,7 @@ const detailsSchema = z.object({
   startDate: dateSchema.optional(),
   endDate: dateSchema.optional(),
   deadline: dateSchema.optional(),
+  slotRule: slotRuleSchema.nullable().optional(),
 });
 
 /**
@@ -219,6 +222,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     startDate: input.startDate,
     endDate: input.endDate,
     deadline: input.deadline,
+    slotRule: input.slotRule as z.input<typeof slotRuleSchema> | null | undefined,
   });
   const startDate = details.startDate === undefined ? current?.startDate : toDate(details.startDate);
   const endDate = details.endDate === undefined ? current?.endDate : toDate(details.endDate);
@@ -232,6 +236,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     startDate: toDate(details.startDate),
     endDate: toDate(details.endDate),
     deadline: toDate(details.deadline),
+    slotRule: details.slotRule === undefined ? undefined : (details.slotRule ?? Prisma.DbNull),
   };
 }
 

@@ -36,6 +36,8 @@ export const TASK_FILTER_FIELDS = {
   hasSubtasks: 'boolean',
   closed: 'boolean',
   archived: 'boolean',
+  /** Open and allowed now by its slot rule (else the default of the workspace). */
+  doableNow: 'boolean',
 } as const satisfies Record<string, FilterFieldKind>;
 export type TaskFilterField = keyof typeof TASK_FILTER_FIELDS;
 

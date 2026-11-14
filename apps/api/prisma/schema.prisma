@@ -491,6 +491,9 @@ model Task {
   /// next of the project on creation, and of the target project on a transfer. Links use the id, never the number.
   number            Int                @default(0)
   title             String
+  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
+  /// (on the working hours in a professional workspace).
+  slotRule          Json?
   /// Markdown.
   description       String?
   projectId         String
@@ -2349,6 +2352,12 @@ model Routine {
   scheduleAnchor String?
   /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
   reminders      Int[]               @default([])
+  /// Day each occurrence can be done from, before its due date: "DD" (monthly repetition), "MM-DD" (yearly); null: on
+  /// its due date.
+  opensOn        String?
+  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
+  /// (on the working hours in a professional workspace).
+  slotRule       Json?
   /// Where it is done: free text, and its point when chosen from the map or a search.
   location       String?
   locationLat    Float?

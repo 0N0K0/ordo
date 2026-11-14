@@ -839,6 +839,9 @@ type ForeignWorkSchedule {
   monthDisplay: String!
   name: String!
   startDate: String!
+
+  """Kind in its workspace; none: its working hours."""
+  typeId: ID
   typeName: String
   workspaceId: ID!
   workspaceName: String!
@@ -2459,6 +2462,11 @@ type Routine {
 
   """First occurrence after today."""
   nextDate: Date
+
+  """
+  Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).
+  """
+  opensOn: String
   parentId: ID
   position: Int!
   projectId: ID
@@ -2477,6 +2485,11 @@ type Routine {
 
   """Calendar schedule it follows (its days and times)."""
   scheduleId: ID
+
+  """
+  Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
+  """
+  slotRule: JSON
 
   """
   Times of the day of its current occurrence (its next one before it starts), with those ticked.
@@ -2584,6 +2597,11 @@ input RoutineInput {
   location: String
   locationLat: Float
   locationLon: Float
+
+  """
+  Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).
+  """
+  opensOn: String
   parentId: ID
   projectId: ID
   recurrence: JSON!
@@ -2593,6 +2611,11 @@ input RoutineInput {
   """START, WHOLE or END."""
   scheduleAnchor: String
   scheduleId: ID
+
+  """
+  Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
+  """
+  slotRule: JSON
   startDate: Date!
   title: String!
   travelAfter: Int
@@ -2989,6 +3012,11 @@ type Task {
   """First task of the series this task is an occurrence of."""
   seriesId: ID
 
+  """
+  Slots the task is done on or out of; null: the default of the workspace.
+  """
+  slotRule: JSON
+
   """Sprints the task is planned in."""
   sprintIds: [ID!]!
   startDate: Date
@@ -3029,6 +3057,11 @@ input TaskInput {
   parentId: ID
   priorityId: ID
   projectId: ID!
+
+  """
+  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  """
+  slotRule: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID
@@ -3122,6 +3155,11 @@ input TaskUpdateInput {
   milestoneId: ID
   parentId: ID
   priorityId: ID
+
+  """
+  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  """
+  slotRule: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID

@@ -18,6 +18,7 @@ import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
+import { useSlotRules } from '../slot-rules/use-slot-rules';
 import { keptByView, routineFilterFields, routineGrouping, routineTexts, sortRoutines, useRoutineView } from './routine-view';
 import { RoutineViewToolbar } from './RoutineViewToolbar';
 import { ViewTabs } from '../tasks/views/ViewTabs';
@@ -70,7 +71,11 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const today = localToday();
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
-  const env = useMemo(() => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context } : null), [today, routines, categories, context]);
+  const slotRules = useSlotRules();
+  const env = useMemo(
+    () => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context, doable: (routine: Routine) => slotRules.allowed(routine.slotRule) } : null),
+    [today, routines, categories, context, slotRules],
+  );
 
   /**
    * Whether a routine is shown: of the project (on a project page) and kept by the view.

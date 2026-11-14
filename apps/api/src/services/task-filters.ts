@@ -10,6 +10,7 @@ import {
 } from '@ordo/shared';
 import { prisma } from '../db';
 import type { Prisma } from '../generated/prisma/client';
+import { doableTaskIds } from './slot-rules';
 
 /** Calendar context of the user: relative dates ("today", "this week") are computed in their day. */
 /** Who runs the query: "@me" in assignee conditions is their contributor profile. */
@@ -81,6 +82,8 @@ interface Trees {
   taskDescendants: (ids: string[]) => string[];
   /** Sprints matching a relative operator (current, previous, next, past, future). */
   sprintsWhere: (operator: RelativeSprintOperator) => string[];
+  /** Open tasks allowed now by their slot rule; loaded only when a condition uses it. */
+  doableIds: string[];
 }
 
 /**
@@ -93,9 +96,11 @@ interface Trees {
 async function loadTrees(filter: FilterGroup, clock: FilterClock): Promise<Trees> {
   const fields = new Set<string>();
   let relativeSprints = false;
+  let doable = false;
   const collect = (group: FilterGroup): void =>
     group.children.forEach((child) => {
       if (child.type === 'group') collect(child);
+      else if (child.field === 'doableNow') doable = true;
       else if (child.operator === 'inTree') fields.add(child.field);
       else if (child.field === 'sprint' && !['in', 'notIn', 'allOf', 'isEmpty', 'isNotEmpty'].includes(child.operator)) relativeSprints = true;
     });
@@ -121,12 +126,13 @@ async function loadTrees(filter: FilterGroup, clock: FilterClock): Promise<Trees
     return [...result];
   };
 
-  const [projects, tasks, sprints] = await Promise.all([
+  const [projects, tasks, sprints, doableIds] = await Promise.all([
     fields.has('project') || relativeSprints ? prisma.project.findMany({ select: { id: true, parentId: true } }) : [],
     fields.has('parent') ? prisma.task.findMany({ select: { id: true, parentId: true } }) : [],
     relativeSprints ? prisma.sprint.findMany({ select: { id: true, projectId: true, startDate: true, endDate: true } }) : [],
+    doable ? doableTaskIds(clock.utcOffset) : [],
   ]);
-  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock) };
+  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock), doableIds };
 }
 
 /**
@@ -346,6 +352,7 @@ function conditionWhere(
     }
 
     case 'boolean': {
+      if (field === 'doableNow') return operator === 'isTrue' ? { id: { in: trees.doableIds } } : { id: { notIn: trees.doableIds } };
       const today = new Date(dayValue(clock.today));
       const truth: Prisma.TaskWhereInput = {
         // Past its "Date max".
