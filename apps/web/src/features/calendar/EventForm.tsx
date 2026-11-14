@@ -409,7 +409,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             <div>
               <TravelCalculator
                 eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}
-                onResult={({ before, after }) => form.setValues({ travelBefore: before, travelAfter: after })}
+                onResult={({ before, after }) => form.setValues({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
               />
             </div>
           </SimpleGrid>

@@ -297,7 +297,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
           error={errors.travelAfter}
         />
         <Stack justify="flex-end">
-          <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ travelBefore: before, travelAfter: after })} />
+          <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })} />
         </Stack>
       </SimpleGrid>
       <BatchMultiSelect
