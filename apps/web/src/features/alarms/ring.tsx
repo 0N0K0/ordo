@@ -1,21 +1,16 @@
-import { Anchor, Stack, Text } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { entrySeconds, previousOccurrence } from '@ordo/shared';
 import { AlarmIcon, CalendarBlankIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
 import type { EventOccurrence } from '../calendar/api';
 import type { Alarm } from './api';
 import { playChime } from './alarm-sound';
 import * as fmt from '../../lib/format';
+import { notifyInfo, type NotifyAction } from '../../lib/notify';
 
 /** Alarms missed by more than this (app closed) do not ring any more. */
 export const MAX_DELAY_MS = 6 * 3600_000;
 
 /** Link of a notification to a page of the app. */
-export interface RingLink {
-  label: string;
-  onClick: () => void;
-}
+export type RingLink = NotifyAction;
 
 /**
  * Claims an occurrence for this tab: another open tab (of any workspace), or this one before a reload, that
@@ -52,30 +47,7 @@ export function systemNotification(title: string, body: string | undefined, tag:
 }
 
 /**
- * Body of a toast: its text lines, then its links.
- * @param {(string | null | undefined)[]} lines Text lines (empty ones are left out).
- * @param {RingLink[]} links Links.
- * @returns {JSX.Element} Body.
- */
-export function toastBody(lines: (string | null | undefined)[], links: RingLink[]): ReactNode {
-  return (
-    <Stack gap={4}>
-      {lines.filter(Boolean).map((line, index) => (
-        <Text key={index} size="sm" style={{ whiteSpace: 'pre-wrap' }}>
-          {line}
-        </Text>
-      ))}
-      {links.map((link) => (
-        <Anchor key={link.label} component="button" type="button" size="sm" ta="left" onClick={link.onClick}>
-          {link.label}
-        </Anchor>
-      ))}
-    </Stack>
-  );
-}
-
-/**
- * Rings an alarm: chime, system notification and a toast that stays until closed.
+ * Rings an alarm: chime, system notification and an information toast.
  * @param {Alarm} alarm Alarm.
  * @param {string} key Occurrence key, deduplicating tabs.
  * @param {RingLink[]} links Task or project, workspace.
@@ -86,7 +58,7 @@ export function ringAlarm(alarm: Pick<Alarm, 'title' | 'note'>, key: string, lin
   if (!claim(`ordo.alarm.${key}`)) return;
   playChime();
   systemNotification(alarm.title, [workspaceName, alarm.note].filter(Boolean).join(' · ') || undefined, key);
-  notifications.show({ color: 'orange', icon: <AlarmIcon />, title: alarm.title, autoClose: false, message: toastBody([workspaceName && `Espace « ${workspaceName} »`, alarm.note], links) });
+  notifyInfo({ icon: <AlarmIcon />, title: alarm.title, lines: [workspaceName && `Espace « ${workspaceName} »`, alarm.note], actions: links });
 }
 
 /**
@@ -118,13 +90,7 @@ export function ringReminders(occurrences: EventOccurrence[], now: Date, links: 
       const when = occurrence.allDay ? 'Journée entière' : fmt.dateTimeShort(start);
       const body = [when, occurrence.location].filter(Boolean).join(' · ');
       systemNotification(occurrence.title, [workspaceName, body].filter(Boolean).join(' · '), key);
-      notifications.show({
-        color: 'blue',
-        icon: <CalendarBlankIcon />,
-        title: occurrence.title,
-        autoClose: false,
-        message: toastBody([workspaceName && `Espace « ${workspaceName} »`, body], links),
-      });
+      notifyInfo({ icon: <CalendarBlankIcon />, title: occurrence.title, lines: [workspaceName && `Espace « ${workspaceName} »`, body], actions: links });
     }
   }
 }

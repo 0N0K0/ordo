@@ -1,11 +1,11 @@
-import { notifications } from '@mantine/notifications';
 import { routineAlertTime } from '@ordo/shared';
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react';
 import { localToday } from '../../lib/dates';
 import type { Routine } from '../routines/api';
 import { isDone, windowText } from '../routines/routine-format';
 import { playChime } from './alarm-sound';
-import { claim, MAX_DELAY_MS, systemNotification, toastBody, type RingLink } from './ring';
+import { notifyInfo } from '../../lib/notify';
+import { claim, MAX_DELAY_MS, systemNotification, type RingLink } from './ring';
 
 /**
  * Rings the alerts of the routines due today and not ticked yet, for each of their times of the day not ticked, at their
@@ -40,23 +40,7 @@ export function ringRoutineReminders(routines: Routine[], now: Date, links: Ring
         const when = [windowText(slot), routine.location].filter(Boolean).join(' · ');
         const lines = [moment !== slot.fromTime && moment !== slot.dueTime ? `Partir à ${moment}` : null, when];
         systemNotification(routine.title, lines.filter(Boolean).join(' · ') || undefined, key);
-        notifications.show({
-          id: key,
-          color: 'teal',
-          icon: <ArrowsClockwiseIcon />,
-          title: routine.title,
-          autoClose: false,
-          message: toastBody(lines, [
-            {
-              label: 'Marquer comme faite',
-              onClick: () => {
-                notifications.hide(key);
-                markDone(routine, slot.index);
-              },
-            },
-            ...links,
-          ]),
-        });
+        notifyInfo({ id: key, icon: <ArrowsClockwiseIcon />, title: routine.title, lines, actions: [{ label: 'Marquer comme faite', onClick: () => markDone(routine, slot.index) }, ...links] });
       }
     }
   }

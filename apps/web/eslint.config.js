@@ -48,11 +48,16 @@ export default defineConfig([
           selector: "CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]",
           message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.number…) : un format par rôle.',
         },
+        // Toasts: errors stay, the others close on their own, one style.
+        {
+          selector: "CallExpression[callee.object.name='notifications'][callee.property.name=/^(show|update)$/]",
+          message: 'Utiliser lib/notify (notifySuccess, notifyInfo, notifyWarning, notifyError, notifyWithUndo).',
+        },
       ],
     },
   },
   {
-    files: ['src/lib/format.ts'],
+    files: ['src/lib/format.ts', 'src/lib/notify.tsx'],
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
