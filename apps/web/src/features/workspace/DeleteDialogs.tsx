@@ -1,31 +1,8 @@
-import { Button, Group, Radio, Stack, Text } from '@mantine/core';
+import {  Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
+import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useDeleteClient, useDeleteProject, type Client, type Project } from './api';
-
-interface DialogActionsProps {
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
-}
-
-/**
- * Destructive dialog buttons: Confirm first, then Cancel, bottom-right.
- * @param {DialogActionsProps} props Component props.
- * @returns {JSX.Element} Buttons.
- */
-export function DestructiveActions({ onConfirm, onCancel, loading }: DialogActionsProps) {
-  return (
-    <Group justify="flex-end" gap="sm">
-      <Button color="red" onClick={onConfirm} loading={loading} data-autofocus>
-        Supprimer
-      </Button>
-      <Button variant="default" onClick={onCancel}>
-        Annuler
-      </Button>
-    </Group>
-  );
-}
 
 interface DeleteClientDialogProps {
   client: Client;

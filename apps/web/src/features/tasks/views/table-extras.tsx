@@ -7,6 +7,7 @@ import { useCreateTask, useSetTasksClosed } from '../api';
 import type { TaskContext } from '../use-task-context';
 import type { NewTaskDefaults } from './new-task-defaults';
 import classes from './table-extras.module.css';
+import * as fmt from '../../../lib/format';
 
 interface AddTaskRowProps {
   /** Number of visible columns, the select column included. */
@@ -88,8 +89,6 @@ export function AddTaskRow({ columnCount, titleIndex, context, defaults, project
   return <Table.Tr className={classes.addRow}>{cells}</Table.Tr>;
 }
 
-const effortFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
-
 interface SummaryRowProps {
   columnCount: number;
   titleIndex: number;
@@ -130,7 +129,7 @@ export function SummaryRow({ columnCount, titleIndex, effortIndex, trackedIndex,
       return (
         <Table.Td key={index}>
           <Text span size="xs" c="dimmed" fw={total ? 700 : 600}>
-            {effortFormat.format(effort)}
+            {fmt.number(effort, 2)}
           </Text>
         </Table.Td>
       );

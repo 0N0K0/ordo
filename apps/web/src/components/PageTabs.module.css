@@ -4,7 +4,7 @@
    * (open on its content), the others a tinted one, closed by their bottom border.
    */
   .root {
-    --page-tab-height: calc(2 * var(--vertical-step, 24px));
+    --page-tab-height: calc(2 * var(--onoko-vertical-step));
     --page-tab-border: 1px solid var(--mantine-color-default-border);
     --page-tab-closed: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
     --page-tab-hover: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));

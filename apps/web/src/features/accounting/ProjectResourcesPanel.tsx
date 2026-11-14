@@ -1,9 +1,12 @@
-import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../../components/panels/panels';
+import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from './documents-api';
 import { FileLink } from '../files/FileLink';
 
@@ -80,7 +83,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
    */
   const openForm = (resource?: ProjectResource) => {
     const modalId = `project-resource-${++modalCount}`;
-    modals.open({ modalId, title: resource ? 'Modifier' : 'Ajouter un lien', children: <ResourceForm projectId={projectId} resource={resource} onDone={() => modals.close(modalId)} /> });
+    openPanel({ panelId: modalId, title: resource ? 'Modifier' : 'Ajouter un lien', children: <ResourceForm projectId={projectId} resource={resource} onDone={() => closePanel(modalId)} /> });
   };
 
   /**
@@ -89,27 +92,14 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (resource: ProjectResource) => {
-    const modalId = `delete-resource-${resource.id}`;
-    modals.open({
-      modalId,
-      title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: resource.kind === 'FILE' ? 'Supprimer le fichier' : 'Retirer le lien', risks: (
+<>
+<Text size="sm">
             {resource.kind === 'FILE' ? `Le fichier « ${resource.title} » sera supprimé définitivement d’Ordo.` : `Le lien « ${resource.title} » sera retiré du projet.`} Cette action est
             irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+</>
+), onConfirm: () => { remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: (error) => notifyError(error.message) }); } });
   };
 
   return (
@@ -126,29 +116,16 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
             }
           >
             {(props) => (
-              <Button variant="light" leftSection={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>
-                Ajouter des fichiers
-              </Button>
+              <ActionButton icon={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>Ajouter des fichiers</ActionButton>
             )}
           </FileButton>
-          <Button variant="light" leftSection={<LinkIcon aria-hidden />} onClick={() => openForm()}>
-            Ajouter un lien
-          </Button>
+          <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openForm()}>Ajouter un lien</ActionButton>
         </Group>
       </Group>
       {isPending ? (
-        <Skeleton height={120} />
+        <ListSkeleton items={3} />
       ) : !resources?.length ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <PaperclipIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun document ni lien.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<PaperclipIcon aria-hidden />} message="Aucun document ni lien." />
       ) : (
         <Paper withBorder radius="md" p="xs">
           <Stack gap={4}>

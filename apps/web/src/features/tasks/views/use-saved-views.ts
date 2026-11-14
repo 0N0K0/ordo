@@ -20,8 +20,10 @@ function canonical(value: unknown): string {
 interface SavedViewsOptions<C> {
   /** Project, or null for the page. */
   projectId: string | null;
-  /** Tasks or routines. */
+  /** Tasks, routines, shopping lists or another table. */
   kind: ViewKind;
+  /** Table of the views of kind TABLE. Optional. */
+  tableKey?: string | null;
   /** Configuration of a stored view (the defaults when it is invalid). */
   parse: (config: unknown) => C;
   /** Configuration of a new blank view. */
@@ -41,8 +43,8 @@ interface SavedViewsOptions<C> {
  * @param {SavedViewsOptions<C>} options Scope and configurations.
  * @returns {object} Views, current view, its working configuration and the view actions.
  */
-export function useSavedViews<C>({ projectId, kind, parse, blank, first, ready = true, param = 'view' }: SavedViewsOptions<C>) {
-  const viewsQuery = useTaskViews(projectId, kind);
+export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blank, first, ready = true, param = 'view' }: SavedViewsOptions<C>) {
+  const viewsQuery = useTaskViews(projectId, kind, tableKey);
   const mutations = useTaskViewMutations();
   const [params, setParams] = useSearchParams();
   const [drafts, setDrafts] = useState<Record<string, C>>({});
@@ -59,13 +61,13 @@ export function useSavedViews<C>({ projectId, kind, parse, blank, first, ready =
   // The first visit makes the first views so there is always a tab (one after the other: in their order).
   const createAsync = mutations.create.mutateAsync;
   useEffect(() => {
-    const scope = `${kind}:${projectId ?? ''}`;
+    const scope = `${kind}:${tableKey ?? ''}:${projectId ?? ''}`;
     if (!viewsQuery.isSuccess || !ready || views.length > 0 || created.current === scope) return;
     created.current = scope;
     void (async () => {
-      for (const view of first()) await createAsync({ name: view.name, config: view.config, projectId, kind });
+      for (const view of first()) await createAsync({ name: view.name, config: view.config, projectId, kind, tableKey });
     })().catch((error: Error) => notifyError(error.message));
-  }, [viewsQuery.isSuccess, ready, views.length, createAsync, projectId, kind, first]);
+  }, [viewsQuery.isSuccess, ready, views.length, createAsync, projectId, kind, tableKey, first]);
 
   /**
    * Selects a view (kept in the URL).
@@ -127,7 +129,7 @@ export function useSavedViews<C>({ projectId, kind, parse, blank, first, ready =
      */
     createView: (name: string, fromCurrent: boolean) =>
       mutations.create.mutate(
-        { name, config: fromCurrent && config ? config : blank(), projectId, kind },
+        { name, config: fromCurrent && config ? config : blank(), projectId, kind, tableKey },
         {
           onSuccess: (view) => {
             if (fromCurrent && current) discard(current.id);

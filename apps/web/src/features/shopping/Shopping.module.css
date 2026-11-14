@@ -99,7 +99,7 @@
     align-items: center;
 
     /* Dimension */
-    min-height: calc(2 * var(--onoko-vertical-step, 24px));
+    min-height: calc(2 * var(--onoko-vertical-step));
     border-radius: var(--mantine-radius-md);
 
     /* Espacement */
@@ -141,7 +141,7 @@
   .storeHeading {
     /* Dimension */
     width: 100%;
-    min-height: calc(2 * var(--onoko-vertical-step, 24px));
+    min-height: calc(2 * var(--onoko-vertical-step));
     border-radius: var(--mantine-radius-md);
 
     /* Espacement */

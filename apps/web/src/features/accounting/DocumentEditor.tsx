@@ -1,3 +1,7 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { DetailSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import {
   ActionIcon,
   Alert,
@@ -9,12 +13,10 @@ import {
   FileButton,
   Grid,
   Group,
-  NumberInput,
   Paper,
   SegmentedControl,
   Select,
   SimpleGrid,
-  Skeleton,
   Stack,
   Switch,
   Table,
@@ -33,7 +35,6 @@ import {
   depositAmount,
   dueDateForTerms,
   formatDuration,
-  formatMoney,
   LATE_INTEREST_PRESETS,
   PAYMENT_METHOD_PRESETS,
   PAYMENT_TERMS_PRESETS,
@@ -50,7 +51,6 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailComposer } from '../mail/use-mail-composer';
 import { timeQueryKey } from '../time/api';
 import { useWorkspace } from '../workspace/api';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useCompanyProfile } from './api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from './document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, type AccountingDocument } from './documents-api';
@@ -67,6 +67,8 @@ import { FileLink } from '../files/FileLink';
 import { FilePreview } from '../files/FilePreview';
 import { projectOptions } from '../workspace/tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -195,7 +197,7 @@ function Editor({ document }: { document: AccountingDocument }) {
         <Stack gap="md">
           <Text size="sm">
             Le document reçoit son numéro définitif et ne pourra plus être modifié ni supprimé : une erreur se corrigera par un
-            avoir. Vérifiez la date ({new Date(`${values.issueDate}T12:00:00`).toLocaleDateString('fr-FR')}) : les numéros se
+            avoir. Vérifiez la date ({fmt.day(String(values.issueDate))}) : les numéros se
             suivent dans l’ordre de validation.
           </Text>
           <Group justify="flex-end" gap="sm">
@@ -227,30 +229,13 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const confirmDelete = () => {
-    const modalId = `delete-document-${document.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le brouillon',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              mutations.remove.mutate(document.id, {
+    confirmDestructive({ title: 'Supprimer le brouillon', risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes. Cette action est irréversible.', onConfirm: () => { mutations.remove.mutate(document.id, {
                 onSuccess: () => {
                   notifySuccess('Brouillon supprimé.');
                   void navigate('/accounting');
                 },
                 onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
-      ),
-    });
+              }); } });
   };
 
   /**
@@ -309,7 +294,6 @@ function Editor({ document }: { document: AccountingDocument }) {
       { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: (error) => notifyError(error.message) },
     );
 
-
   const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT';
   const billedIds = values.timeEntryIds ?? [];
 
@@ -319,11 +303,10 @@ function Editor({ document }: { document: AccountingDocument }) {
    */
   const openTimeBilling = () => {
     const modalId = `time-billing-${document.id}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: 'Facturer le temps passé',
-      size: 'xl',
-      children: (
+      size: 'lg', children: (
         <TimeBillingForm
           projectId={values.projectId}
           projects={projectOptions(
@@ -334,9 +317,9 @@ function Editor({ document }: { document: AccountingDocument }) {
           start={values.serviceStart}
           end={values.serviceEnd}
           vatApplicable={values.vatApplicable}
-          onCancel={() => modals.close(modalId)}
+          onCancel={() => closePanel(modalId)}
           onAdd={(lines: AccountingLineInput[], time, period) => {
-            modals.close(modalId);
+            closePanel(modalId);
             setTimeSeconds((current) => new Map([...current, ...time.map((entry) => [entry.id, entry.seconds] as const)]));
             form.setValues({
               lines: [...values.lines, ...lines],
@@ -427,21 +410,21 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
           {readOnly && isQuote && (
             <>
-              <Button variant="light" onClick={() => openDepositForm({ quoteId: document.id })}>
+              <Button variant="default" onClick={() => openDepositForm({ quoteId: document.id })}>
                 Facture d’acompte
               </Button>
-              <Button variant="light" onClick={() => createFrom('INVOICE')}>
+              <Button variant="default" onClick={() => createFrom('INVOICE')}>
                 Facturer
               </Button>
             </>
           )}
           {readOnly && isInvoice && (
-            <Button variant="light" color="orange" onClick={() => createFrom('CREDIT_NOTE')}>
+            <Button variant="default" color="orange" onClick={() => createFrom('CREDIT_NOTE')}>
               Créer un avoir
             </Button>
           )}
           {document.type === 'INVOICE' && !isTemplate && (
-            <Button variant="light" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
+            <Button variant="default" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
               Rendre récurrente
             </Button>
           )}
@@ -473,7 +456,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       )}
       {isQuote && readOnly && document.invoicedNet !== null && document.invoicedNet !== undefined && (
         <Text size="sm">
-          Déjà facturé : <b>{formatMoney(Math.round(document.invoicedNet * 100), currency)}</b> HT sur {formatMoney(Math.round(document.totalNet * 100), currency)} HT
+          Déjà facturé : <b>{fmt.money(document.invoicedNet, currency)}</b> HT sur {fmt.money(document.totalNet, currency)} HT
           {document.derived.length > 0 && ` (${document.derived.map((item) => item.number ?? 'brouillon').join(', ')})`}
         </Text>
       )}
@@ -540,7 +523,6 @@ function Editor({ document }: { document: AccountingDocument }) {
                   label="Date du document"
                   required
                   readOnly={readOnly}
-                  valueFormat="D MMM YYYY"
                   // Not before the latest document of its type (models of recurring invoices are dated later).
                   minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
                   description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${printedDay(latestDate)}, date du dernier document de ce type.` : undefined}
@@ -550,11 +532,10 @@ function Editor({ document }: { document: AccountingDocument }) {
                   label={isQuote ? 'Valable jusqu’au' : 'Échéance'}
                   clearable
                   readOnly={readOnly}
-                  valueFormat="D MMM YYYY"
                   {...form.getInputProps('dueDate')}
                 />
-                <DatePickerInput label="Début de la prestation" clearable readOnly={readOnly} valueFormat="D MMM YYYY" {...form.getInputProps('serviceStart')} />
-                <DatePickerInput label="Fin de la prestation" clearable readOnly={readOnly} valueFormat="D MMM YYYY" {...form.getInputProps('serviceEnd')} />
+                <DatePickerInput label="Début de la prestation" clearable readOnly={readOnly} {...form.getInputProps('serviceStart')} />
+                <DatePickerInput label="Fin de la prestation" clearable readOnly={readOnly} {...form.getInputProps('serviceEnd')} />
               </SimpleGrid>
             </Section>
 
@@ -577,7 +558,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 extraActions={
                   <>
                     {canBillTime && (
-                      <Button size="xs" variant="light" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
+                      <Button size="xs" variant="default" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
                         Temps passé
                       </Button>
                     )}
@@ -638,19 +619,16 @@ function Editor({ document }: { document: AccountingDocument }) {
               <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={readOnly} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
               {isQuote && (
                 <Group gap={4} align="flex-end" wrap="nowrap">
-                  <NumberInput
+                  <AmountInput
                     label="Acompte à la commande"
                     placeholder="Aucun"
                     min={0}
-                    decimalScale={2}
-                    decimalSeparator=","
-                    thousandSeparator=" "
                     readOnly={readOnly}
                     style={{ flex: 1 }}
                     error={form.errors.depositValue}
                     description={
                       values.depositType && values.depositValue
-                        ? `Soit ${formatMoney(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
+                        ? `Soit ${fmt.moneyCents(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
                         : undefined
                     }
                     value={values.depositValue ?? ''}
@@ -702,11 +680,9 @@ function Editor({ document }: { document: AccountingDocument }) {
             <Section title="Totaux">
               {!readOnly && (
                 <Group gap={4} align="flex-end" wrap="nowrap">
-                  <NumberInput
+                  <AmountInput
                     label="Remise générale"
                     min={0}
-                    decimalScale={2}
-                    decimalSeparator=","
                     style={{ flex: 1 }}
                     error={form.errors.globalDiscountValue}
                     value={values.globalDiscountValue ?? ''}
@@ -736,7 +712,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   <TotalRow label="Total HT" value={totals.totalNet} currency={currency} strong />
                   {values.vatApplicable ? (
                     totals.vat.map((item) => (
-                      <TotalRow key={item.rate} label={`TVA ${item.rate.toLocaleString('fr-FR')} % sur ${formatMoney(item.base, currency)}`} value={item.vat} currency={currency} />
+                      <TotalRow key={item.rate} label={`TVA ${fmt.percent(item.rate)} sur ${fmt.moneyCents(item.base, currency)}`} value={item.vat} currency={currency} />
                     ))
                   ) : (
                     <Table.Tr>
@@ -761,7 +737,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                       {DOCUMENT_TYPE_LABELS[item.type]} {item.number ?? '(brouillon)'}
                     </Anchor>
                     <Text size="sm" ff="monospace">
-                      {formatMoney(Math.round(item.totalGross * 100), currency)}
+                      {fmt.money(item.totalGross, currency)}
                     </Text>
                   </Group>
                 ))}
@@ -789,7 +765,7 @@ function TotalRow({ label, value, currency, strong }: { label: string; value: nu
       </Table.Td>
       <Table.Td ta="right">
         <Text size="sm" fw={strong ? 700 : 400} ff="monospace">
-          {formatMoney(value, currency)}
+          {fmt.moneyCents(value, currency)}
         </Text>
       </Table.Td>
     </Table.Tr>
@@ -815,7 +791,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
           }
         >
           {(props) => (
-            <Button size="xs" variant="light" leftSection={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
+            <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
               Joindre
             </Button>
           )}
@@ -823,9 +799,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
       }
     >
       {document.attachments.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          Aucune pièce jointe.
-        </Text>
+        <EmptyState compact message="Aucune pièce jointe." />
       ) : (
         document.attachments.map((attachment) => (
           <Group key={attachment.id} justify="space-between" wrap="nowrap">
@@ -854,14 +828,12 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
   );
 }
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
-
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} "09/11/2026".
  */
-const printedDay = (date: string) => dayFormat.format(new Date(`${date}T00:00:00Z`));
+const printedDay = (date: string) => fmt.day(date);
 
 /**
  * Accounting document page: editable draft (or recurring model), read-only final document with the
@@ -871,7 +843,7 @@ const printedDay = (date: string) => dayFormat.format(new Date(`${date}T00:00:00
  */
 export function DocumentEditor({ id }: { id: string }) {
   const { data: document, isPending, error } = useAccountingDocument(id);
-  if (isPending) return <Skeleton height={500} />;
+  if (isPending) return <DetailSkeleton fields={6} />;
   if (error || !document) return <Alert color="red">{error?.message ?? 'Document introuvable.'}</Alert>;
   // A validated document is shown again, read only.
   return <Editor key={`${document.id}-${document.status}`} document={document} />;

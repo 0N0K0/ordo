@@ -24,6 +24,10 @@ model Workspace {
   notifyElsewhere           NotificationSource[]       @default([])
   /// Columns new task views start with: { columnOrder, hiddenColumns }; none: the app's.
   taskColumns               Json?
+  /// First and last days of its weeks (1 = Monday … 7 = Sunday), both included: the same day twice makes weeks of
+  /// 8 days that overlap (Wednesday to Wednesday). Calendar week view, « cette semaine »…
+  weekStart                 Int                        @default(1)
+  weekEnd                   Int                        @default(7)
   places                    Place[]
   /// Schedules without kind: their name (none: "Travail"), color (none: the green of working hours) and display.
   scheduleName              String?
@@ -491,6 +495,9 @@ model Task {
   /// next of the project on creation, and of the target project on a transfer. Links use the id, never the number.
   number            Int                @default(0)
   title             String
+  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
+  /// (on the working hours in a professional workspace).
+  slotRule          Json?
   /// Markdown.
   description       String?
   projectId         String
@@ -649,6 +656,8 @@ enum ViewKind {
   TASKS
   ROUTINES
   SHOPPING_LISTS
+  /// Any other table, named by its tableKey.
+  TABLE
 }
 
 model TaskView {
@@ -656,6 +665,8 @@ model TaskView {
   name        String
   /// Tasks, routines or shopping lists (each kind with its own configuration and tabs).
   kind        ViewKind  @default(TASKS)
+  /// Table of a view of kind TABLE (« time-log »…); null for the other kinds.
+  tableKey    String?
   config      Json
   /// Project whose task tab shows the view; null for the home page.
   projectId   String?
@@ -1503,7 +1514,7 @@ model AccountingDocument {
   paymentMethods      String?
   /// Quotes: deposit asked at order, percent of the total or amount.
   depositType         DiscountType?
-  depositValue        Decimal?                 @db.Decimal(14, 2)
+  depositValue        Decimal?                 @db.Decimal(14, 4)
   lateInterest        String?
   /// Quotes: how the work will be invoiced ("Au mois, en fin de mois", "Tous les 5 du mois"…).
   billingSchedule     String?
@@ -1512,7 +1523,7 @@ model AccountingDocument {
   vatApplicable       Boolean                  @default(true)
   vatExemptionText    String?
   globalDiscountType  DiscountType?
-  globalDiscountValue Decimal?                 @db.Decimal(14, 2)
+  globalDiscountValue Decimal?                 @db.Decimal(14, 4)
   currency            String                   @default("EUR")
   /// Totals, computed on each save.
   totalNet            Decimal                  @default(0) @db.Decimal(14, 2)
@@ -1586,11 +1597,11 @@ model AccountingLine {
   description        String?
   quantity           Decimal             @default(1) @db.Decimal(14, 3)
   unit               AccountingUnit      @default(UNIT)
-  unitPrice          Decimal             @default(0) @db.Decimal(14, 2)
+  unitPrice          Decimal             @default(0) @db.Decimal(14, 4)
   /// Percent (20, 10, 5.5…).
   vatRate            Decimal             @default(0) @db.Decimal(5, 2)
   discountType       DiscountType?
-  discountValue      Decimal?            @db.Decimal(14, 2)
+  discountValue      Decimal?            @db.Decimal(14, 4)
   /// Deductions: deposit invoice whose amount the line takes off.
   deductedDocumentId String?
   deductedDocument   AccountingDocument? @relation("DeductedDeposits", fields: [deductedDocumentId], references: [id], onDelete: SetNull)
@@ -1635,7 +1646,7 @@ model CatalogItem {
   /// Markdown.
   description String?
   unit        AccountingUnit     @default(UNIT)
-  unitPrice   Decimal            @default(0) @db.Decimal(14, 2)
+  unitPrice   Decimal            @default(0) @db.Decimal(14, 4)
   /// Percent (20, 10, 5.5…).
   vatRate     Decimal            @default(20) @db.Decimal(5, 2)
   /// Archived: kept on past documents, not offered any more.
@@ -1693,9 +1704,9 @@ model ImportedDocument {
   projectId        String?
   project          Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
   title            String?
-  totalNet         Decimal                @db.Decimal(14, 2)
-  totalVat         Decimal                @default(0) @db.Decimal(14, 2)
-  totalGross       Decimal                @db.Decimal(14, 2)
+  totalNet         Decimal                @db.Decimal(14, 4)
+  totalVat         Decimal                @default(0) @db.Decimal(14, 4)
+  totalGross       Decimal                @db.Decimal(14, 4)
   currency         String                 @default("EUR")
   attachmentId     String?                @unique
   attachment       Attachment?            @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
@@ -1784,7 +1795,7 @@ model TreasuryAccount {
   id             String          @id @default(cuid())
   name           String
   /// Balance at the opening date (entries before it are not counted).
-  openingBalance Decimal         @default(0) @db.Decimal(14, 2)
+  openingBalance Decimal         @default(0) @db.Decimal(14, 4)
   openingDate    DateTime        @db.Date
   position       Int             @default(0)
   archived       Boolean         @default(false)
@@ -1913,7 +1924,7 @@ model TreasuryBudget {
   categoryId  String
   category    TreasuryCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   /// Positive: money out (or in) allowed for the category, each month.
-  amount      Decimal           @db.Decimal(14, 2)
+  amount      Decimal           @db.Decimal(14, 4)
   /// Repeated every n months (none: that month only), until a month included (none: no end).
   repeatEvery Int?
   repeatUntil DateTime?         @db.Date
@@ -2028,7 +2039,7 @@ model TreasuryEntry {
   valueDate        DateTime               @db.Date
   label            String
   /// Signed amount: positive for money in.
-  amount           Decimal                @db.Decimal(14, 2)
+  amount           Decimal                @db.Decimal(14, 4)
   categoryId       String?
   category         TreasuryCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   methodId         String?
@@ -2084,7 +2095,7 @@ model TreasuryAllocation {
   importedDocumentId String?
   importedDocument   ImportedDocument?   @relation(fields: [importedDocumentId], references: [id], onDelete: Cascade)
   /// Positive amount settled on the document.
-  amount             Decimal             @db.Decimal(14, 2)
+  amount             Decimal             @db.Decimal(14, 4)
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId        String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2199,7 +2210,7 @@ model ShoppingProduct {
   quantity        Decimal?           @db.Decimal(12, 3)
   unit            String?
   /// Estimated price of one unit.
-  unitPrice       Decimal?           @db.Decimal(14, 2)
+  unitPrice       Decimal?           @db.Decimal(14, 4)
   /// Perishable: kept in a storage mode, until a "best before" date.
   perishable      Boolean            @default(false)
   storageId       String?
@@ -2210,7 +2221,7 @@ model ShoppingProduct {
   missing         Boolean            @default(false)
   /// Last time it was ticked as bought on a list, and its price then.
   lastPurchasedAt DateTime?
-  lastPrice       Decimal?           @db.Decimal(14, 2)
+  lastPrice       Decimal?           @db.Decimal(14, 4)
   /// Members of the team or household and relations it is for (copied to the items of the lists).
   members         Contributor[]      @relation("ShoppingProductMembers")
   relations       TreasuryRelation[] @relation("ShoppingProductRelations")
@@ -2268,7 +2279,7 @@ model ShoppingItem {
   note        String?
   quantity    Decimal?           @db.Decimal(12, 3)
   unit        String?
-  unitPrice   Decimal?           @db.Decimal(14, 2)
+  unitPrice   Decimal?           @db.Decimal(14, 4)
   perishable  Boolean            @default(false)
   storageId   String?
   storage     ShoppingStorage?   @relation(fields: [storageId], references: [id], onDelete: SetNull)
@@ -2345,6 +2356,12 @@ model Routine {
   scheduleAnchor String?
   /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
   reminders      Int[]               @default([])
+  /// Day each occurrence can be done from, before its due date: "DD" (monthly repetition), "MM-DD" (yearly); null: on
+  /// its due date.
+  opensOn        String?
+  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
+  /// (on the working hours in a professional workspace).
+  slotRule       Json?
   /// Where it is done: free text, and its point when chosen from the map or a search.
   location       String?
   locationLat    Float?

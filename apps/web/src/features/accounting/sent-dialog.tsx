@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import type { SendingChannel } from '@ordo/shared';
 import { SentForm } from './SentForm';
 
@@ -11,9 +11,9 @@ let modalCount = 0;
  */
 export function openSentDialog(options: { title: string; sentAt?: string | null; sentVia?: string | null; onSubmit: (sending: { date: string; via: SendingChannel }) => Promise<unknown> }): void {
   const modalId = `document-sent-${++modalCount}`;
-  modals.open({
-    modalId,
+  openPanel({
+    panelId: modalId,
     title: options.title,
-    children: <SentForm sentAt={options.sentAt} sentVia={options.sentVia} onSubmit={options.onSubmit} onDone={() => modals.close(modalId)} />,
+    children: <SentForm sentAt={options.sentAt} sentVia={options.sentVia} onSubmit={options.onSubmit} onDone={() => closePanel(modalId)} />,
   });
 }

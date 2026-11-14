@@ -1,0 +1,6 @@
+@layer app {
+  :root {
+    /* Vertical rhythm of the design system: every height and vertical spacing lands on it. */
+    --onoko-vertical-step: 24px;
+  }
+}

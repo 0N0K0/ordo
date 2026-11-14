@@ -1,22 +1,15 @@
 import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Stack, Table, Text } from '@mantine/core';
-import { addDays, daysBetween, formatMoney, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
+import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
 import { FileCsvIcon, InfoIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from './api';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import * as fmt from '../../lib/format';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 /** Days between a bank operation and an entry or forecast of the same amount for them to match. */
 const DUPLICATE_DAYS = 3;
 const FORECAST_DAYS = 7;
-
-/**
- * Amount in euros.
- * @param {number} amount Amount.
- * @returns {string} "1 234,56 €".
- */
-const money = (amount: number) => formatMoney(Math.round(amount * 100));
 
 /**
  * Text of a file, in UTF-8 unless it is not (then Windows-1252, the usual encoding of French bank exports).
@@ -404,7 +397,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
                       }
                     />
                   </Table.Td>
-                  <Table.Td style={{ whiteSpace: 'nowrap' }}>{dateFormat.format(new Date(`${row.date}T00:00:00Z`))}</Table.Td>
+                  <Table.Td style={{ whiteSpace: 'nowrap' }}>{fmt.day(row.date)}</Table.Td>
                   <Table.Td>
                     <Text size="sm">{row.label}</Text>
                     {row.duplicate && (
@@ -416,7 +409,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
                       <Checkbox
                         size="xs"
                         mt={4}
-                        label={`Réalise la prévision « ${row.forecast.label} » du ${dateFormat.format(new Date(`${row.forecast.occurrence}T00:00:00Z`))}`}
+                        label={`Réalise la prévision « ${row.forecast.label} » du ${fmt.day(row.forecast.occurrence)}`}
                         checked={!notRealized.has(row.key)}
                         onChange={() =>
                           setNotRealized((current) => {
@@ -431,7 +424,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
                   </Table.Td>
                   <Table.Td ta="right" ff="monospace" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
                     {row.amount > 0 ? '+' : ''}
-                    {money(row.amount)}
+                    {fmt.money(row.amount)}
                   </Table.Td>
                 </Table.Tr>
               );

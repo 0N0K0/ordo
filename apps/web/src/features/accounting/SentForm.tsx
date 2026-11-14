@@ -53,16 +53,7 @@ export function SentForm({ sentAt, sentVia, onSubmit, onDone }: SentFormProps) {
         allowDeselect={false}
         onChange={(value) => value && setVia(value as SendingChannel)}
       />
-      <DatePickerInput
-        label="Date d’envoi"
-        description="Les relances comptent à partir de cette date."
-        required
-        valueFormat="D MMM YYYY"
-        maxDate={today}
-        value={date}
-        onChange={(value) => setDate(value)}
-        data-autofocus
-      />
+      <DatePickerInput label="Date d’envoi" description="Les relances comptent à partir de cette date." required maxDate={today} value={date} onChange={(value) => setDate(value)} data-autofocus />
       <Group justify="flex-end">
         <Button variant="default" onClick={onDone}>
           Annuler

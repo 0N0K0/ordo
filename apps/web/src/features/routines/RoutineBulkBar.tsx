@@ -1,3 +1,5 @@
+import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { TimeField } from '../../components/TimeField';
 import { Avatar, Button, CloseButton, Group, Menu, NumberInput, Paper, Popover, Stack, Text, type ComboboxItem } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -23,7 +25,6 @@ import { treeSelectProps, type TreeOption } from '../../components/tree-select/t
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
-import { confirmDestructive } from '../shopping/list-modals';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useRoutineMutations, type Routine, type RoutineBulkChanges, type RoutineCategory } from './api';
@@ -188,7 +189,7 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
           </Popover.Target>
           <Popover.Dropdown>
             <Stack gap="sm">
-              <DatePickerInput label="Première fois" size="xs" valueFormat="D MMM YYYY" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
+              <DatePickerInput label="Première fois" size="xs" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
               <RecurrenceEditor value={rule} onChange={(value) => setRule(value ?? DAILY)} start={startDate} withinPortal={false} />
               <Group justify="flex-end" gap="sm">
                 <Button size="xs" variant="default" onClick={() => setRepetitionOpened(false)}>
@@ -326,19 +327,19 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
         </Button>
         <Menu position="top-end" withinPortal shadow="md">
           <Menu.Target>
-            <Button size="xs" variant="default" color="red" leftSection={<TrashIcon aria-hidden />}>
+            <DestructiveButton size="xs" leftSection={<TrashIcon aria-hidden />}>
               Supprimer
-            </Button>
+            </DestructiveButton>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item
               color="red"
               leftSection={<TrashIcon aria-hidden />}
               onClick={() =>
-                confirmDestructive(
-                  'Supprimer les routines',
-                  `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible ; pour les retirer sans perdre leurs données, archivez-les plutôt.`,
-                  () =>
+                confirmDestructive({
+                  title: 'Supprimer les routines',
+                  risks: `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible ; pour les retirer sans perdre leurs données, archivez-les plutôt.`,
+                  onConfirm: () =>
                     bulkRemove.mutate(ids, {
                       onSuccess: (count) => {
                         notifySuccess(`${routinesLabel(count)} supprimée${count > 1 ? 's' : ''}.`);
@@ -346,7 +347,7 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
                       },
                       onError: (error) => notifyError(error.message),
                     }),
-                )
+                })
               }
             >
               Supprimer {label}…

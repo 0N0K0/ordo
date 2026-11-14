@@ -1,4 +1,5 @@
 import type { AccountingLineInput } from '@ordo/shared';
+import * as fmt from '../../lib/format';
 
 /** How tracked time becomes lines. */
 export type TimeGrouping = 'TOTAL' | 'DAY' | 'TASK' | 'ENTRY';
@@ -26,15 +27,13 @@ export interface TimeLineOptions {
   roundQuarter: boolean;
 }
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-
 /**
  * Printed day: "5 mars 2026".
  * @param {string} day YYYY-MM-DD.
  * @returns {string} Day.
  */
 function printedDay(day: string): string {
-  return dayFormat.format(new Date(`${day}T00:00:00Z`));
+  return fmt.day(day);
 }
 
 /**

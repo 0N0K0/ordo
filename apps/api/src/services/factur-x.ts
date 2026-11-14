@@ -277,7 +277,7 @@ export function facturXml(
         '<ram:IncludedSupplyChainTradeLineItem>',
         `<ram:AssociatedDocumentLineDocument>${element('ram:LineID', String(index + 1))}</ram:AssociatedDocumentLineDocument>`,
         `<ram:SpecifiedTradeProduct>${element('ram:Name', line.title || '-')}${element('ram:Description', line.description)}</ram:SpecifiedTradeProduct>`,
-        `<ram:SpecifiedLineTradeAgreement><ram:NetPriceProductTradePrice>${element('ram:ChargeAmount', amount(Math.abs(Math.round(line.unitPrice * 100))))}</ram:NetPriceProductTradePrice></ram:SpecifiedLineTradeAgreement>`,
+        `<ram:SpecifiedLineTradeAgreement><ram:NetPriceProductTradePrice>${element('ram:ChargeAmount', decimal(Math.abs(line.unitPrice)))}</ram:NetPriceProductTradePrice></ram:SpecifiedLineTradeAgreement>`,
         `<ram:SpecifiedLineTradeDelivery>${element('ram:BilledQuantity', decimal(line.quantity * sign), `unitCode="${UNIT_CODES[line.unit]}"`)}</ram:SpecifiedLineTradeDelivery>`,
         '<ram:SpecifiedLineTradeSettlement>',
         tradeTax(category),

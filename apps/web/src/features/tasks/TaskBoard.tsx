@@ -1,4 +1,7 @@
-import { Alert, Button, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Alert, Paper, Stack } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { addDays, filterPeriod, ME, type FilterGroup } from '@ordo/shared';
 import { CheckSquareOffsetIcon, PlusIcon } from '@phosphor-icons/react';
@@ -25,15 +28,15 @@ import { ViewTabs } from './views/ViewTabs';
 import { ViewToolbar } from './views/ViewToolbar';
 import { sprintPeriod } from './views/sprint-period';
 import classes from './TaskBoard.module.css';
-
-const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 /**
  * Short day: "3 nov.".
  * @param {string} day YYYY-MM-DD.
  * @returns {string} Day.
  */
-const dayLabel = (day: string) => shortDay.format(new Date(`${day}T00:00:00Z`));
+const dayLabel = (day: string) => fmt.dayShort(day);
 
 interface TaskBoardProps {
   /** Project whose tasks (sub-projects included) are listed, or null for the home page. */
@@ -149,7 +152,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
     if (!showEvents) return null;
     if (eventRange) return eventRange;
     if (sprintRange) return sprintRange;
-    const [from, end] = filterPeriod(eventPeriod, today);
+    const [from, end] = filterPeriod(eventPeriod, today, currentWeek());
     return { from, to: addDays(end, -1) };
   }, [showEvents, eventRange, sprintRange, eventPeriod, today]);
   const eventsQuery = useCalendarEvents(range);
@@ -175,7 +178,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
       `${taskCount} tâche${taskCount > 1 ? 's' : ''}`,
       ...(showEvents ? [`${events.length} évènement${events.length > 1 ? 's' : ''} du ${dayLabel(range!.from)} au ${dayLabel(range!.to)}`] : []),
       ...(search.trim() ? [`recherche « ${search.trim()} »`] : []),
-      `exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+      `exporté le ${fmt.exportDateTime(new Date())}`,
     ];
     const table = exportTable({ rows, config, context, title: `${title} — ${current.name}`, subtitle: parts.join(' · ') });
     if (format === 'csv') {
@@ -201,14 +204,24 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
 
   return (
     <Stack gap="md">
-      {(header || view.views.length > 0) && (
+      {(header || canCreate || view.views.length > 0) && (
         <div className={classes.top}>
           {view.views.length > 0 && (
             <div className={classes.tabs}>
               <ViewTabs state={view} />
             </div>
           )}
-          {header && <div className={classes.controls}>{header}</div>}
+          {(header || canCreate) && (
+            <div className={classes.controls}>
+              {header}
+              {/* The new task at the far right, as every « Nouveau… ». */}
+              {canCreate && (
+                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => actions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
+                  Nouvelle tâche
+                </ActionButton>
+              )}
+            </div>
+          )}
         </div>
       )}
       {config && context && (
@@ -235,11 +248,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
         </Alert>
       )}
       {loading && !matching.data && (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2, 3, 4].map((index) => (
-            <Skeleton key={index} height={36} />
-          ))}
-        </Stack>
+        <TableSkeleton rows={5} />
       )}
       {context &&
         config &&
@@ -273,28 +282,11 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
             />
           </Paper>
         ) : (
-          <Paper withBorder radius="md" p="xl">
-            <Stack align="center" gap="sm">
-              <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-                <CheckSquareOffsetIcon aria-hidden />
-              </ThemeIcon>
-              <Text size="sm" c="dimmed" ta="center">
-                {!canCreate
+          <EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={<>{!canCreate
                   ? 'Créez d’abord un projet : chaque tâche appartient à un projet.'
                   : filtered
                     ? `Aucune tâche${showEvents ? ' ni aucun évènement' : ''} ne correspond aux filtres de cette vue.`
-                    : emptyMessage}
-              </Text>
-              {canCreate && (
-                <Button
-                  leftSection={<PlusIcon aria-hidden />}
-                  onClick={() => actions.create(createProjectId ? { projectId: createProjectId } : undefined)}
-                >
-                  Nouvelle tâche
-                </Button>
-              )}
-            </Stack>
-          </Paper>
+                    : emptyMessage}</>} />
         ))}
 
       {context && selectedTasks.length > 0 && (

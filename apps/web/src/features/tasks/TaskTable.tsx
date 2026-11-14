@@ -71,6 +71,7 @@ import { EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventW
 import { AddTaskRow, SummaryRow } from './views/table-extras';
 import type { DisplayRow, TaskRow } from './views/task-rows';
 import { contentWidth, useFillHeight } from './column-fit';
+import * as fmt from '../../lib/format';
 
 // Stable module-level registry. Sorting is applied when building the rows (so it works with groups
 // and sub-tasks), the table only holds the sorting state and header interactions.
@@ -92,7 +93,6 @@ const ACTIONS_COLUMN = 'actions';
 const COLUMN_PREFIX = 'col:';
 /** Horizontal offset of one sub-task level, in px (matches the title indentation). */
 const INDENT = 20;
-const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 
 /**
  * Applies a TanStack updater (value or function) to the current value.
@@ -358,8 +358,8 @@ export function TaskTable({
             <Text size="sm">{task.commentCount}</Text>
           </Group>
         ) : null,
-      createdAt: (task) => <Text size="sm">{dateTimeFormat.format(new Date(task.createdAt))}</Text>,
-      updatedAt: (task) => <Text size="sm">{dateTimeFormat.format(new Date(task.updatedAt))}</Text>,
+      createdAt: (task) => <Text size="sm">{fmt.day(new Date(task.createdAt))}</Text>,
+      updatedAt: (task) => <Text size="sm">{fmt.day(new Date(task.updatedAt))}</Text>,
     };
 
     // Events only have a title, a project, people and dates.

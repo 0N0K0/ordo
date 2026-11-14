@@ -1,4 +1,5 @@
 import { Button, Group, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
 import { useTaskLink } from './use-task-link';
@@ -49,6 +50,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       parentId: parent?.id ?? null,
       milestoneId: null,
       sprintIds: [],
+      slotRule: null,
     },
     schema: taskFormSchema,
   });
@@ -172,6 +174,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           />
           <DatePickerInput label="Date max" clearable placeholder="—" {...form.getInputProps('deadline')} />
         </SimpleGrid>
+        <SlotRuleInput value={form.values.slotRule ? { mode: form.values.slotRule.mode, kinds: form.values.slotRule.kinds ?? [] } : null} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.kinds'] as string | undefined} />
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
             Annuler

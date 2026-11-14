@@ -1,4 +1,4 @@
-import { addDays, entrySeconds, filterPeriod, formatMoney } from '@ordo/shared';
+import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../accounting/documents-api';
 import { useMatchingTaskIds, type Task } from '../tasks/api';
@@ -6,15 +6,8 @@ import { useTimeEntriesSince } from '../time/api';
 import { useNow } from '../time/use-now';
 import { myTasksFilter } from '../tasks/my-tasks';
 import type { TaskContext } from '../tasks/use-task-context';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-
-/**
- * Amount in euros, from currency units.
- * @param {number} amount Amount.
- * @returns {string} Amount.
- */
-export const money = (amount: number) => formatMoney(Math.round(amount * 100));
+import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 /**
  * Days from a day to another (negative when the second is earlier).
@@ -34,7 +27,7 @@ export function dayLabel(date: string, today: string): string {
   if (date === today) return 'Aujourd’hui';
   if (date === addDays(today, 1)) return 'Demain';
   if (date === addDays(today, -1)) return 'Hier';
-  return dayFormat.format(new Date(`${date}T00:00:00Z`));
+  return fmt.weekday(date);
 }
 
 /**
@@ -149,7 +142,7 @@ export interface WeekTime {
  * @returns {WeekTime | null} Time, or null while loading.
  */
 export function useWeekTime(today: string): WeekTime | null {
-  const [monday] = filterPeriod('thisWeek', today);
+  const [monday] = filterPeriod('thisWeek', today, currentWeek());
   const entries = useTimeEntriesSince(localMidnight(monday));
   const running = entries.data?.some((entry) => !entry.endedAt && !entry.pausedAt && entry.duration === null) ?? false;
   const now = useNow(running);

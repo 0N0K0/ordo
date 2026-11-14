@@ -3,8 +3,7 @@ import { describeRecurrence } from '../../components/recurrence/describe-recurre
 import { categoryTree } from '../../components/category-tree/category-tree';
 import { treeOptions } from '../../components/tree-select/tree-select';
 import type { Routine, RoutineCategory } from './api';
-
-const longDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /** Rule of a new routine: every day. */
 export const DAILY: Recurrence = { ...DEFAULT_RECURRENCE, frequency: 'DAILY' };
@@ -30,12 +29,16 @@ export function ruleOf(routine: Routine): Recurrence | null {
 export const isDone = (routine: Routine) => routine.done;
 
 /**
- * State of a routine today.
+ * State of a routine today: « à faire » only while its slots allow it now (« à venir » otherwise).
  * @param {Routine} routine Routine.
  * @param {string} today Today.
+ * @param {boolean} [doable] Its slot rule allows now. Optional. Default = true.
  * @returns {RoutineState} State.
  */
-export const stateOf = (routine: Routine, today: string): RoutineState => routineState(routine.currentDate, isDone(routine), today);
+export const stateOf = (routine: Routine, today: string, doable = true): RoutineState => {
+  const state = routineState(routine.currentDate, isDone(routine), today);
+  return state === 'due' && !doable ? 'upcoming' : state;
+};
 
 /**
  * Required routines of a routine still to do for their current occurrence ("étendre le linge" waits for "laver le linge").
@@ -237,7 +240,7 @@ export function newRoutineCase(fromTime: string | null, dueTime: string | null):
  */
 export function describeRoutineCase(item: RoutineCase, start: string): string {
   const times = item.slots.map((slot) => `${windowText(slot) || 'dans la journée'}${slot.optional ? ' (facultatif)' : ''}`).join(', ');
-  return `${describeRecurrence(item.recurrence, item.from && item.from > start ? item.from : start)} · ${times}${item.from && item.from > start ? ` · dès le ${longDate.format(new Date(`${item.from}T00:00:00Z`))}` : ''}`;
+  return `${describeRecurrence(item.recurrence, item.from && item.from > start ? item.from : start)} · ${times}${item.from && item.from > start ? ` · dès le ${fmt.day(item.from)}` : ''}`;
 }
 
 /**

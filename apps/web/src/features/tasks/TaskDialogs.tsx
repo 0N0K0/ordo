@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTaskLink } from './use-task-link';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useCloneTask, useDeleteTask, useTransferTask, type Task } from './api';
 import { ProjectSelect } from './task-ui';
 import type { TaskContext } from './use-task-context';

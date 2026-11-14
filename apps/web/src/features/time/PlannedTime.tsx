@@ -1,13 +1,13 @@
 import { Group, Paper, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
-import { addDays, entrySeconds, formatDuration, mondayOf, plannedSlots, slotMinutes } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
 import { localToday } from '../../lib/dates';
 import { scheduleRules, useWorkSchedules } from '../calendar/api';
 import { localParts } from '../calendar/event-input';
 import { useTimeEntriesSince } from './api';
 import { useNow } from './use-now';
-
-const dayLabel = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 /**
  * Tracked time against planned time.
@@ -38,8 +38,10 @@ function Gauge({ label, tracked, planned }: { label: string; tracked: number; pl
  */
 export function PlannedTime() {
   const today = localToday();
-  const monday = mondayOf(today);
-  const sunday = addDays(monday, 6);
+  // The week of the workspace (it may start another day than Monday, or last 8 days).
+  const [monday, after] = weekRange(today, currentWeek());
+  const sunday = addDays(after, -1);
+  const length = Math.round((Date.parse(after) - Date.parse(monday)) / 86_400_000);
   const { data: schedules } = useWorkSchedules();
   const entries = useTimeEntriesSince(new Date(`${monday}T00:00:00`).toISOString());
   const running = (entries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
@@ -53,11 +55,11 @@ export function PlannedTime() {
       const day = localParts(new Date(entry.startedAt)).date;
       trackedByDay.set(day, (trackedByDay.get(day) ?? 0) + entrySeconds(entry, now));
     }
-    return Array.from({ length: 7 }, (_, index) => {
+    return Array.from({ length }, (_, index) => {
       const date = addDays(monday, index);
       return { date, planned: slotMinutes(slots.filter((slot) => slot.date === date)), tracked: trackedByDay.get(date) ?? 0 };
     });
-  }, [schedules, entries.data, monday, sunday, now]);
+  }, [schedules, entries.data, monday, sunday, now, length]);
 
   if (!schedules?.length) return null;
   const todayRow = days.find((day) => day.date === today);
@@ -82,10 +84,10 @@ export function PlannedTime() {
                     color={day.planned ? (day.tracked > day.planned * 60 ? 'orange' : 'blue') : 'gray'}
                     w="100%"
                     size="sm"
-                    aria-label={`${dayLabel.format(new Date(`${day.date}T00:00:00Z`))} : temps chronométré sur le temps prévu`}
+                    aria-label={`${fmt.weekday(day.date)} : temps chronométré sur le temps prévu`}
                   />
                   <Text size="xs" c={day.date === today ? undefined : 'dimmed'} fw={day.date === today ? 600 : undefined}>
-                    {dayLabel.format(new Date(`${day.date}T00:00:00Z`))}
+                    {fmt.weekday(day.date)}
                   </Text>
                 </Stack>
               </Tooltip>

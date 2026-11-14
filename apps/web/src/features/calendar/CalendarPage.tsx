@@ -1,12 +1,16 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { SidePanel } from '../../components/panels/SidePanel';
 import type { DateSelectArg, DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Alert, Button, Checkbox, Group, Modal, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay, shiftTime, type ScheduleSlotTime } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, plannedSlots, readScheduleDisplay, shiftTime, type ScheduleSlotTime, weekLength } from '@ordo/shared';
 import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -50,8 +54,8 @@ import { PlacesManager } from '../geo/PlacesManager';
 import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
-import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
+import { currentWeek, pickerFirstDay } from '../../lib/week';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -119,6 +123,7 @@ const dayOf = (date: Date) => localParts(date).date;
  */
 export function CalendarPage() {
   const calendarRef = useRef<FullCalendar>(null);
+  const week = currentWeek();
   const { context } = useTaskContext();
   const { data: categories } = useCalendarCategories();
   const { data: calendarsData } = useCalendars();
@@ -706,7 +711,7 @@ export function CalendarPage() {
   const fill = view !== 'dayGridMonth';
   return (
     <Stack gap="md" className={fill ? classes.fill : undefined}>
-      <PageTitle>Agenda</PageTitle>
+      <PageHeader title="Agenda" />
       {/* The view and the period on the left, the slots and a new event on the right. */}
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
@@ -729,9 +734,9 @@ export function CalendarPage() {
           </Text>
         </Group>
         <Group gap="xs" wrap="wrap">
-          <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
+          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             {perso ? 'Plages' : 'Plages de travail'}
-          </Button>
+          </ActionButton>
           <Tooltip label={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}>
             <Button
               variant={editingSlots ? 'filled' : 'default'}
@@ -742,9 +747,9 @@ export function CalendarPage() {
               {editingSlots ? 'Terminer' : 'Modifier les plages'}
             </Button>
           </Tooltip>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
             Nouvel évènement
-          </Button>
+          </ActionButton>
         </Group>
       </Group>
 
@@ -772,9 +777,7 @@ export function CalendarPage() {
                     Calendriers
                   </Text>
                   {calendarChoices.length === 0 ? (
-                    <Text size="sm" c="dimmed">
-                      Aucun calendrier.
-                    </Text>
+                    <EmptyState compact message="Aucun calendrier." />
                   ) : (
                     calendarChoices.map((calendar) => (
                       <Checkbox
@@ -864,9 +867,9 @@ export function CalendarPage() {
           </Tabs.Panel>
         </Tabs>
       </PageSettings>
-      <Modal opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="min(72rem, 100%)">
+      <SidePanel opened={managingSchedules} onClose={() => setManagingSchedules(false)} title={perso ? 'Plages' : 'Plages de travail'} size="lg">
         {managingSchedules && <WorkSchedulesManager />}
-      </Modal>
+      </SidePanel>
       <Paper withBorder radius="md" p="xs" className={classes.calendar}>
         <FullCalendar
           ref={calendarRef}
@@ -886,6 +889,9 @@ export function CalendarPage() {
             timeGrid: {
               dayMaxEventRows: allDayExpanded ? false : ALL_DAY_ROWS,
             },
+            // The weeks of the workspace: from its first day, as many days as they last (8 overlapping ones from a
+            // day to the same day), one week further each time.
+            timeGridWeek: { duration: { days: weekLength(week) }, dateAlignment: 'week', dateIncrement: { weeks: 1 } },
           }}
           allDayContent={() => (
             <Tooltip label={allDayExpanded ? 'Réduire la journée entière' : 'Développer la journée entière'}>
@@ -905,7 +911,7 @@ export function CalendarPage() {
             setAllDayExpanded(true);
             return info.view.type;
           }}
-          firstDay={1}
+          firstDay={pickerFirstDay(week)}
           nowIndicator
           weekNumbers
           editable

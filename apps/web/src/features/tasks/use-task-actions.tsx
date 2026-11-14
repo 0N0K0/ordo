@@ -1,4 +1,5 @@
 import { modals } from '@mantine/modals';
+import { openFormPanel } from '../../components/panels/panels';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { RowMenuEntry } from '../../components/data-table/RowActions';
 import { notifyError, notifyWithUndo } from '../../lib/notify';
@@ -10,15 +11,14 @@ import type { TaskContext } from './use-task-context';
 let modalCount = 0;
 
 /**
- * Opens a modal whose content receives a close callback.
- * @param {string} title Modal title.
- * @param {(close: () => void) => React.ReactNode} render Modal content.
- * @param {string} [size] Modal size. Optional.
+ * Opens a dialog (a confirmation: the forms open in the side panel) whose content receives a close callback.
+ * @param {string} title Dialog title.
+ * @param {(close: () => void) => React.ReactNode} render Dialog content.
  * @returns {void}
  */
-function openModal(title: string, render: (close: () => void) => React.ReactNode, size?: string): void {
-  const modalId = `task-modal-${++modalCount}`;
-  modals.open({ modalId, title, size, children: render(() => modals.close(modalId)) });
+function openDialog(title: string, render: (close: () => void) => React.ReactNode): void {
+  const modalId = `task-dialog-${++modalCount}`;
+  modals.open({ modalId, title, children: render(() => modals.close(modalId)) });
 }
 
 /**
@@ -55,21 +55,21 @@ export function useTaskActions(context: TaskContext | null) {
    * @param {Task} task Task.
    * @returns {void}
    */
-  const clone = (task: Task) => context && openModal('Cloner la tâche', (close) => <CloneTaskDialog task={task} context={context} onDone={close} />);
+  const clone = (task: Task) => context && openFormPanel('Cloner la tâche', (close) => <CloneTaskDialog task={task} context={context} onDone={close} />);
 
   /**
    * Opens the transfer dialog.
    * @param {Task} task Task.
    * @returns {void}
    */
-  const transfer = (task: Task) => context && openModal('Transférer la tâche', (close) => <TransferTaskDialog task={task} context={context} onDone={close} />);
+  const transfer = (task: Task) => context && openFormPanel('Transférer la tâche', (close) => <TransferTaskDialog task={task} context={context} onDone={close} />);
 
   /**
    * Asks for confirmation, then deletes.
    * @param {Task} task Task.
    * @returns {void}
    */
-  const remove = (task: Task) => context && openModal('Supprimer la tâche', (close) => <DeleteTaskDialog task={task} context={context} onDone={close} />);
+  const remove = (task: Task) => context && openDialog('Supprimer la tâche', (close) => <DeleteTaskDialog task={task} context={context} onDone={close} />);
 
   return {
     archive,
@@ -100,11 +100,7 @@ export function useTaskActions(context: TaskContext | null) {
      */
     create: (defaults?: { projectId?: string; parentId?: string }) => {
       if (!context) return;
-      openModal(
-        defaults?.parentId ? 'Nouvelle sous-tâche' : 'Nouvelle tâche',
-        (close) => <TaskCreateForm context={context} defaults={defaults} onDone={close} />,
-        'xl',
-      );
+      openFormPanel(defaults?.parentId ? 'Nouvelle sous-tâche' : 'Nouvelle tâche', (close) => <TaskCreateForm context={context} defaults={defaults} onDone={close} />, 'lg');
     },
   };
 }

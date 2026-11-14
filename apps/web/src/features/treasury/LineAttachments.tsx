@@ -76,7 +76,6 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         description="Si elle diffère de celle du mouvement (carte à débit différé) : budgets et graphiques la comptent ce jour-là."
         placeholder="Celle du mouvement"
         clearable
-        valueFormat="D MMM YYYY"
         value={line.date}
         onChange={(date) => onChange({ date: date ? String(date) : null })}
       />

@@ -1,42 +1,83 @@
-import {
-  Badge,
-  Button,
-  Checkbox,
-  Group,
-  NumberInput,
-  Paper,
-  SegmentedControl,
-  Select,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Switch,
-  Text,
-  Textarea,
-  TextInput,
-  ThemeIcon,
-} from '@mantine/core';
-import { modals } from '@mantine/modals';
-import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../../components/panels/panels';
+import { Badge, Button, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useCompanyProfile } from './api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from './catalog-api';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 let modalCount = 0;
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
-  { id: 'title', label: 'Article', size: 320, locked: true, sortValue: (item) => item.title },
-  { id: 'unit', label: 'Unité', size: 120, sortValue: (item) => UNIT_LABELS[item.unit].label },
-  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice },
-  { id: 'vat', label: 'TVA', size: 90, numeric: true, sortValue: (item) => (item.kind === 'DISBURSEMENT' ? null : item.vatRate) },
+  { id: 'title', label: 'Article', size: 320, locked: true, sortValue: (item) => item.title, text: (item) => item.title },
+  {
+    id: 'kind',
+    label: 'Nature',
+    size: 120,
+    hiddenByDefault: true,
+    sortValue: (item) => item.kind,
+    text: (item) => (item.kind === 'DISBURSEMENT' ? 'Débours' : 'Prestation'),
+    filter: {
+      kind: 'choice',
+      value: (item) => (item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'),
+      options: [
+        { value: 'ITEM', label: 'Prestation' },
+        { value: 'DISBURSEMENT', label: 'Débours' },
+      ],
+    },
+    groupable: true,
+  },
+  { id: 'unit', label: 'Unité', size: 120, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
+  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
+  {
+    id: 'vat',
+    label: 'TVA',
+    size: 90,
+    numeric: true,
+    sortValue: (item) => (item.kind === 'DISBURSEMENT' ? null : item.vatRate),
+    text: (item) => (item.kind === 'DISBURSEMENT' ? '' : `${fmt.percent(item.vatRate)}`),
+    groupable: true,
+  },
+  {
+    id: 'archived',
+    label: 'Archivé',
+    size: 100,
+    hiddenByDefault: true,
+    sortValue: (item) => (item.archived ? 1 : 0),
+    text: (item) => (item.archived ? 'Archivé' : 'Actif'),
+    filter: { kind: 'boolean', value: (item) => item.archived },
+    groupable: true,
+  },
+];
+
+/** Views made the first time the catalogue is shown: the items offered, the archived ones. */
+const CATALOG_VIEWS = [
+  {
+    name: 'Actifs',
+    config: {
+      filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isFalse', value: null }] },
+    },
+  },
+  {
+    name: 'Archivés',
+    config: {
+      filter: { type: 'group' as const, id: 'root', combinator: 'and' as const, children: [{ type: 'condition' as const, id: 'archived', field: 'archived', operator: 'isTrue', value: null }] },
+    },
+  },
+  { name: 'Tous' },
 ];
 
 /**
@@ -89,12 +130,12 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
         <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
         <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
           <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
-          <NumberInput label="Prix unitaire HT" decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" {...form.getInputProps('unitPrice')} />
+          <AmountInput label="Prix unitaire HT" suffix=" €" {...form.getInputProps('unitPrice')} />
           {!disbursement && (
             <Select
               label="TVA"
               allowDeselect={false}
-              data={[...new Set([...VAT_RATES, form.values.vatRate])].map((rate) => ({ value: String(rate), label: `${rate.toLocaleString('fr-FR')} %` }))}
+              data={[...new Set([...VAT_RATES, form.values.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
               value={String(form.values.vatRate)}
               onChange={(rate) => rate !== null && form.setFieldValue('vatRate', Number(rate))}
               error={form.errors.vatRate}
@@ -122,9 +163,32 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
  */
 export function CatalogPanel() {
   const { data: items, isPending } = useCatalogItems();
-  const { remove } = useCatalogMutations();
-  const [showArchived, setShowArchived] = useState(false);
-  const shown = (items ?? []).filter((item) => showArchived || !item.archived);
+  const { remove, update } = useCatalogMutations();
+
+  /**
+   * Saves a field of an item changed in its cell.
+   * @param {CatalogItem} item Item.
+   * @param {Partial<CatalogItemInput>} change Change.
+   * @returns {void}
+   */
+  const saveItem = (item: CatalogItem, change: Partial<CatalogItemInput>) =>
+    update.mutate(
+      {
+        id: item.id,
+        input: {
+          kind: item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM',
+          title: item.title,
+          description: item.description ?? null,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          vatRate: item.vatRate,
+          archived: item.archived,
+          ...change,
+        },
+      },
+      { onError: (error) => notifyError(error.message) },
+    );
+  const view = useDataView({ tableKey: 'catalog', columns: CATALOG_COLUMNS, rows: items ?? [], title: 'Catalogue', first: CATALOG_VIEWS });
 
   /**
    * Opens the item form.
@@ -133,7 +197,7 @@ export function CatalogPanel() {
    */
   const openForm = (item?: CatalogItem) => {
     const modalId = `catalog-item-${++modalCount}`;
-    modals.open({ modalId, title: item ? 'Modifier l’article' : 'Nouvel article', size: 'lg', children: <CatalogItemForm item={item} onDone={() => modals.close(modalId)} /> });
+    openPanel({ panelId: modalId, title: item ? 'Modifier l’article' : 'Nouvel article', children: <CatalogItemForm item={item} onDone={() => closePanel(modalId)} /> });
   };
 
   /**
@@ -142,75 +206,50 @@ export function CatalogPanel() {
    * @returns {void}
    */
   const confirmDelete = (item: CatalogItem) => {
-    const modalId = `delete-catalog-${item.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer l’article',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">« {item.title} » sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), onError: (error) => notifyError(error.message) });
+      },
     });
   };
 
-  if (isPending) return <Skeleton height={160} />;
-  if (!items?.length) {
-    return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <PackageIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center">
-            Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic.
-          </Text>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Ajouter un article
-          </Button>
-        </Stack>
-      </Paper>
-    );
-  }
+  if (isPending) return <TableSkeleton rows={4} />;
 
   return (
     <DataTable
       framed
-      tableKey="catalog"
-      tools={
-        <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-          Ajouter un article
-        </Button>
+      view={view}
+      bar={{
+        searchLabel: 'Rechercher un article',
+        actions: (
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+            Nouvel article
+          </ActionButton>
+        ),
+      }}
+      empty={
+        <EmptyState
+          icon={<PackageIcon aria-hidden />}
+          message="Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic."
+        />
       }
-      displayOptions={<Switch label="Articles archivés" checked={showArchived} onChange={(event) => setShowArchived(event.currentTarget.checked)} />}
       verticalSpacing="xs"
-      columns={CATALOG_COLUMNS}
-      rows={shown}
       getKey={(item) => item.id}
       rowProps={(item) => ({ opacity: item.archived ? 0.6 : 1 })}
       cells={(item) => ({
         title: (
           <>
-            <Group gap={6}>
-              <Text size="sm" fw={600}>
-                {item.title}
-              </Text>
+            <Group gap={6} wrap="nowrap">
+              <EditableText value={item.title} label={`Libellé de ${item.title}`} strong onSave={(title) => title && saveItem(item, { title })} />
               {item.kind === 'DISBURSEMENT' && (
-                <Badge size="xs" variant="light" color="grape">
+                <Badge size="xs" variant="light" color="grape" style={{ flex: 'none' }}>
                   Débours
-                </Badge>
-              )}
-              {item.archived && (
-                <Badge size="xs" variant="light" color="gray">
-                  Archivé
                 </Badge>
               )}
             </Group>
@@ -221,9 +260,47 @@ export function CatalogPanel() {
             )}
           </>
         ),
-        unit: UNIT_LABELS[item.unit].label,
-        price: formatMoney(Math.round(item.unitPrice * 100)),
-        vat: item.kind === 'DISBURSEMENT' ? '—' : `${item.vatRate.toLocaleString('fr-FR')} %`,
+        kind: (
+          <EditableSelect
+            value={item.kind}
+            label={`Nature de ${item.title}`}
+            data={[
+              { value: 'ITEM', label: 'Prestation' },
+              { value: 'DISBURSEMENT', label: 'Débours' },
+            ]}
+            onSave={(kind) => kind && saveItem(item, { kind: kind as CatalogItemInput['kind'] })}
+          />
+        ),
+        unit: (
+          <EditableSelect
+            value={item.unit}
+            label={`Unité de ${item.title}`}
+            data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))}
+            onSave={(unit) => unit && saveItem(item, { unit: unit as CatalogItemInput['unit'] })}
+          />
+        ),
+        price: (
+          <EditableNumber
+            amount
+            value={item.unitPrice}
+            label={`Prix HT de ${item.title}`}
+            suffix="€"
+            signed={item.kind === 'DISBURSEMENT'}
+            onSave={(unitPrice) => unitPrice !== null && saveItem(item, { unitPrice })}
+          />
+        ),
+        vat:
+          item.kind === 'DISBURSEMENT' ? (
+            '—'
+          ) : (
+            <EditableSelect
+              value={String(item.vatRate)}
+              label={`TVA de ${item.title}`}
+              data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
+              onSave={(rate) => rate && saveItem(item, { vatRate: Number(rate) })}
+            />
+          ),
+        archived: <EditableCheck value={item.archived} label={`${item.title} archivé`} onSave={(archived) => saveItem(item, { archived })} />,
       })}
       actions={(item) => (
         <RowActions

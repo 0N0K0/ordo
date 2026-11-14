@@ -2,6 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type { TimeEntryFieldsFragment } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
+import type { QueryClient } from '@tanstack/react-query';
+import type { RoutinesDataQuery, TasksDataQuery } from '../../graphql/graphql';
+import { notifyWarning } from '../../lib/notify';
+import { routinesKey } from '../routines/api';
+import { useSlotRules, type SlotRules } from '../slot-rules/use-slot-rules';
 import { tasksQueryKey } from '../tasks/api';
 
 export type TimeEntry = TimeEntryFieldsFragment;
@@ -163,14 +168,38 @@ export interface TimeEntryValues {
 }
 
 /**
- * Timer controls and time entry edits.
+ * Warns when a timer starts on a routine or tasks out of their slots (their slot rule, else the default of the
+ * workspace): the timer runs all the same.
+ * @param {QueryClient} queryClient Query cache (routines and tasks loaded).
+ * @param {SlotRules} slotRules Slot rules of the workspace.
+ * @param {{ routineId?: string | null, taskIds: string[] }} input Timer started.
+ * @returns {void}
+ */
+function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: { routineId?: string | null; taskIds: string[] }): void {
+  const routine = input.routineId ? queryClient.getQueryData<RoutinesDataQuery>(routinesKey)?.routines.find((item) => item.id === input.routineId) : undefined;
+  const tasks = queryClient.getQueryData<TasksDataQuery>(tasksQueryKey)?.tasks.filter((task) => input.taskIds.includes(task.id)) ?? [];
+  const out = [...(routine ? [{ title: routine.title, rule: routine.slotRule }] : []), ...tasks.map((task) => ({ title: task.title, rule: task.slotRule }))].filter(
+    (item) => !slotRules.allowed(item.rule),
+  );
+  if (!out.length) return;
+  const lines = out.map((item) => `${item.title} : ${(slotRules.describe(slotRules.ruleOf(item.rule)) ?? '').toLowerCase()}`);
+  notifyWarning('Hors des plages prévues', `Le chrono tourne quand même. ${lines.join(' · ')}.`);
+}
+
+/**
+ * Timer controls and time entry edits. Starting a timer out of the slots of its routine or tasks warns.
  * @returns {object} Mutations.
  */
 export function useTimeMutations() {
+  const queryClient = useQueryClient();
+  const slotRules = useSlotRules();
   return {
     start: useTimeMutation(
-      async (input: { projectId?: string | null; routineId?: string | null; taskIds: string[]; description?: string | null; event?: { eventId: string; occurrenceDate: string | null } | null }) =>
-        (await execute(StartTimerDocument, { input })).startTimer,
+      async (input: { projectId?: string | null; routineId?: string | null; taskIds: string[]; description?: string | null; event?: { eventId: string; occurrenceDate: string | null } | null }) => {
+        const started = (await execute(StartTimerDocument, { input })).startTimer;
+        warnOutOfSlots(queryClient, slotRules, input);
+        return started;
+      },
     ),
     setPaused: useTimeMutation(async (paused: boolean) => (await execute(SetTimerPausedDocument, { paused })).setTimerPaused),
     stop: useTimeMutation(async () => (await execute(StopTimerDocument)).stopTimer),

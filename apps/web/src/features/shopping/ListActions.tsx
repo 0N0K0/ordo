@@ -1,6 +1,9 @@
-import { Button, Group, Skeleton, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { formatMoney, shoppingListNameSchema } from '@ordo/shared';
+import { shoppingListNameSchema } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
@@ -13,11 +16,10 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useTreasuryEntrySearch } from '../treasury/api';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from './api';
 import { downloadShoppingPdf, shoppingText } from './export';
-import { confirmDestructive, openModal } from './list-modals';
+import { openFormPanel } from '../../components/panels/panels';
 import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 const listSchema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()) });
 
@@ -90,11 +92,9 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
       </Text>
       <TextInput label="Mouvement ou prévision" placeholder="Rechercher par libellé (2 caractères au moins)" data-autofocus value={text} onChange={(event) => setText(event.currentTarget.value)} />
       <Stack gap={4}>
-        {isFetching && <Skeleton height={36} />}
+        {isFetching && <ListSkeleton items={2} lines={2} />}
         {!isFetching && debounced.trim().length >= 2 && !entries?.length && (
-          <Text size="sm" c="dimmed">
-            Aucun mouvement trouvé.
-          </Text>
+          <EmptyState compact message="Aucun mouvement trouvé." />
         )}
         {entries?.map((entry) => (
           <UnstyledButton
@@ -116,12 +116,12 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
             <Stack gap={0} style={{ flex: 1 }}>
               <Text size="sm">{entry.label}</Text>
               <Text size="xs" c="dimmed">
-                {dayFormat.format(new Date(`${entry.date}T00:00:00Z`))} · {entry.accountName}
+                {fmt.day(entry.date)} · {entry.accountName}
                 {entry.status === 'FORECAST' ? ' · prévision' : ''}
               </Text>
             </Stack>
             <Text size="sm" ff="monospace" c={entry.amount < 0 ? 'red' : 'green'}>
-              {formatMoney(entry.amount)}
+              {fmt.money(entry.amount)}
             </Text>
           </UnstyledButton>
         ))}
@@ -165,14 +165,14 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     );
 
   return [
-    { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openModal('Modifier la liste', (close) => <ListForm list={list} onDone={close} />) },
+    { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier la liste', (close) => <ListForm list={list} onDone={close} />) },
     list.entryId
       ? {
           label: 'Détacher du mouvement',
           icon: <BankIcon aria-hidden />,
           onClick: () => mutations.attachEntry.mutate({ id: list.id, entryId: null }, { onSuccess: () => notifySuccess('Liste détachée du mouvement (sa répartition reste).'), onError }),
         }
-      : { label: 'Rattacher à un mouvement', icon: <BankIcon aria-hidden />, onClick: () => openModal('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />) },
+      : { label: 'Rattacher à un mouvement', icon: <BankIcon aria-hidden />, onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />) },
     {
       label: 'Dupliquer',
       icon: <CopyIcon aria-hidden />,
@@ -214,10 +214,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       icon: <TrashIcon aria-hidden />,
       danger: true,
       onClick: () =>
-        confirmDestructive(
-          'Supprimer la liste',
-          `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
-          () =>
+        confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
             mutations.deleteList.mutate(
               { id: list.id },
               {
@@ -227,8 +224,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
                 },
                 onError,
               },
-            ),
-        ),
+            ) }),
     },
   ];
 }

@@ -1,3 +1,4 @@
+import { SidePanelHost } from '../components/panels/SidePanel';
 import { AppShell, Burger, Button, Group, Menu, Stack } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
@@ -160,6 +161,8 @@ export function AppLayout() {
               </Stack>
               {/* Task of ?task=12, over any page. */}
               <TaskPanel />
+              {/* Forms opened in the side panel, over any page. */}
+              <SidePanelHost />
             </AppShell.Main>
           </AppShell>
         </WorkspaceGate>

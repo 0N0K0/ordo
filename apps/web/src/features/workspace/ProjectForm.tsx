@@ -151,14 +151,12 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
           <DatePickerInput
             label="Début"
             placeholder="—"
-            valueFormat="DD/MM/YYYY"
             clearable
             {...form.getInputProps('startDate')}
           />
           <DatePickerInput
             label="Fin"
             placeholder="—"
-            valueFormat="DD/MM/YYYY"
             clearable
             minDate={form.values.startDate ?? undefined}
             {...form.getInputProps('endDate')}

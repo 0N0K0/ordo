@@ -1,13 +1,15 @@
-import { Badge, Button, Group, Menu, Paper, Select, Skeleton, Stack, Tabs, Text, Title } from '@mantine/core';
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { modals } from '@mantine/modals';
-import { formatMoney, recurrenceSchema } from '@ordo/shared';
+import { recurrenceSchema } from '@ordo/shared';
 import {
   ArrowsClockwiseIcon,
   BellRingingIcon,
   BuildingsIcon,
-  CalendarBlankIcon,
-  CaretDownIcon,
   FileArrowUpIcon,
   FileTextIcon,
   FileZipIcon,
@@ -18,17 +20,18 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableSelect, EditableText } from '../../components/data-table/EditableCells';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { CatalogPanel } from './CatalogPanel';
 import { OverdueInvoicesPanel } from './OverdueInvoicesPanel';
 import { useOverdueInvoices } from './tracking-api';
-import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice } from './documents-api';
+import { useAccountingDocuments, useImportedDocuments, useRecurringInvoices, useRecurringMutations, type RecurringInvoice, type RecurringSettings } from './documents-api';
 import { openImportForm } from './imported-form';
 import { DocumentsTable } from './DocumentsTable';
 import { DOCUMENT_TYPE_LABELS, EMPTY_DOCUMENTS } from './labels';
@@ -38,10 +41,10 @@ import { CompanySettings } from './CompanySettings';
 import { openRecurringForm } from './recurring-form';
 import { DocumentStatusSettings } from './DocumentStatusSettings';
 import { PageTabs } from '../../components/PageTabs';
-import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
 import { useEffect } from 'react';
+import * as fmt from '../../lib/format';
 
 /** Tabs of the settings sidebar. */
 type SettingsTab = 'zip' | 'statuses' | 'company';
@@ -53,16 +56,55 @@ const TABS = [
   { value: 'CREDIT_NOTE', label: 'Avoirs' },
 ] as const;
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+/**
+ * Repetition of a recurring invoice, as a sentence.
+ * @param {RecurringInvoice} item Recurring invoice.
+ * @returns {string} Text.
+ */
+function repetitionText(item: RecurringInvoice): string {
+  const rule = recurrenceSchema.safeParse(item.recurrence);
+  return rule.success ? describeRecurrence(rule.data, String(item.startDate)) : '';
+}
 
 /** Columns of the recurring invoices. */
 const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
-  { id: 'name', label: 'Nom', size: 280, locked: true, sortValue: (item) => item.name },
-  { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null },
-  { id: 'repetition', label: 'Répétition', size: 240 },
-  { id: 'next', label: 'Prochaine', size: 130, sortValue: (item) => (item.nextDate ? String(item.nextDate) : null) },
-  { id: 'issued', label: 'Émises', size: 90, numeric: true, hiddenByDefault: true, sortValue: (item) => item.issuedCount },
-  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (item) => item.template.totalGross },
+  { id: 'name', label: 'Nom', size: 280, locked: true, sortValue: (item) => item.name, text: (item) => item.name },
+  { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null, text: (item) => item.template.clientName ?? '', groupable: true },
+  { id: 'repetition', label: 'Répétition', size: 240, text: repetitionText, groupable: true },
+  {
+    id: 'next',
+    label: 'Prochaine',
+    size: 130,
+    sortValue: (item) => (item.nextDate ? String(item.nextDate) : null),
+    text: (item) => (item.nextDate ? fmt.day(item.nextDate) : 'Terminée'),
+    filter: { kind: 'date', value: (item) => (item.nextDate ? String(item.nextDate) : null) },
+  },
+  {
+    id: 'state',
+    label: 'État',
+    size: 120,
+    hiddenByDefault: true,
+    sortValue: (item) => (item.active ? 0 : 1),
+    text: (item) => (item.active ? 'Active' : 'En pause'),
+    filter: {
+      kind: 'choice',
+      value: (item) => (item.active ? 'active' : 'paused'),
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'paused', label: 'En pause' },
+      ],
+    },
+    groupable: true,
+  },
+  { id: 'issued', label: 'Émises', size: 90, numeric: true, hiddenByDefault: true, sortValue: (item) => item.issuedCount, text: (item) => String(item.issuedCount) },
+  {
+    id: 'amount',
+    label: 'Montant',
+    size: 130,
+    numeric: true,
+    sortValue: (item) => item.template.totalGross,
+    text: (item) => fmt.money(item.template.totalGross, item.template.currency),
+  },
 ];
 
 /**
@@ -71,15 +113,21 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
  */
 function RecurringList() {
   const { data: recurring, isPending } = useRecurringInvoices();
-  const { remove } = useRecurringMutations();
-  if (isPending) return <Skeleton height={120} />;
-  if (!recurring?.length) {
-    return (
-      <Text size="sm" c="dimmed">
-        Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente ».
-      </Text>
+  const { remove, update } = useRecurringMutations();
+
+  /**
+   * Saves fields of a recurring invoice changed in their cells.
+   * @param {RecurringInvoice} item Recurring invoice.
+   * @param {Partial<RecurringSettings>} change Change.
+   * @returns {void}
+   */
+  const saveRecurring = (item: RecurringInvoice, change: Partial<RecurringSettings>) =>
+    update.mutate(
+      { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: String(item.startDate).slice(0, 10), autoFinalize: item.autoFinalize, active: item.active, ...change } },
+      { onError: (error) => notifyError(error.message) },
     );
-  }
+  const view = useDataView({ tableKey: 'recurring-invoices', columns: RECURRING_COLUMNS, rows: recurring ?? [], title: 'Factures récurrentes' });
+  if (isPending) return <TableSkeleton rows={3} />;
 
   /**
    * Asks for confirmation before deleting a schedule.
@@ -87,43 +135,32 @@ function RecurringList() {
    * @returns {void}
    */
   const confirmDelete = (item: RecurringInvoice) => {
-    const modalId = `delete-recurring-${item.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer la facture récurrente',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">« {item.name} » et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: (error) => notifyError(error.message) });
+      },
     });
   };
 
   return (
     <DataTable
       framed
-      tableKey="recurring-invoices"
+      view={view}
       verticalSpacing="xs"
-      columns={RECURRING_COLUMNS}
-      rows={recurring}
+      empty={<EmptyState compact message="Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente »." />}
       getKey={(item) => item.id}
       cells={(item) => {
-        const rule = recurrenceSchema.safeParse(item.recurrence);
         return {
           name: (
             <>
-              <Group gap={6}>
-                <Text size="sm" fw={600}>
-                  {item.name}
-                </Text>
+              <Group gap={6} wrap="nowrap">
+                <EditableText value={item.name} label={`Nom de ${item.name}`} strong onSave={(name) => name && saveRecurring(item, { name })} />
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
                     En pause
@@ -141,10 +178,21 @@ function RecurringList() {
             </>
           ),
           client: item.template.clientName,
-          repetition: <Text size="sm">{rule.success ? describeRecurrence(rule.data, String(item.startDate)) : '—'}</Text>,
-          next: item.nextDate ? dateFormat.format(new Date(`${item.nextDate}T00:00:00Z`)) : 'Terminée',
+          repetition: <Text size="sm">{repetitionText(item) || '—'}</Text>,
+          next: item.nextDate ? fmt.day(item.nextDate) : 'Terminée',
+          state: (
+            <EditableSelect
+              value={item.active ? 'active' : 'paused'}
+              label={`État de ${item.name}`}
+              data={[
+                { value: 'active', label: 'Active' },
+                { value: 'paused', label: 'En pause' },
+              ]}
+              onSave={(state) => state && saveRecurring(item, { active: state === 'active' })}
+            />
+          ),
           issued: item.issuedCount,
-          amount: formatMoney(Math.round(item.template.totalGross * 100), item.template.currency),
+          amount: fmt.money(item.template.totalGross, item.template.currency),
         };
       }}
       actions={(item) => (
@@ -182,9 +230,6 @@ export function AccountingPage() {
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
-  // Calendar year of the documents of every type (their date), kept in the address; none: the current one.
-  const currentYear = localToday().slice(0, 4);
-  const year = params.get('year') ?? currentYear;
   const [settingsTab, setSettingsTab] = useLocalStorage<SettingsTab>({ key: 'ordo.accounting.settingsTab', defaultValue: 'zip' });
   // A tab of the settings asked in the address (the former company settings): opened, then dropped from it.
   useEffect(() => {
@@ -195,13 +240,13 @@ export function AccountingPage() {
     next.delete('settingsTab');
     setParams(next, { replace: true });
   }, [params, setParams, setSettingsTab]);
-  const yearOf = (date: unknown) => String(date).slice(0, 4);
-  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), currentYear])]
-    .sort()
-    .reverse();
-  const inYear = (date: unknown) => yearOf(date) === year;
   // Documents to send (or to deposit…): final ones, and imported ones, whose status is of the "to send" category,
   // of every type and year.
+  // Years of the documents, offered by the download of a period.
+  const yearOf = (date: unknown) => String(date).slice(0, 4);
+  const years = [...new Set([...(documents ?? []).map((document) => yearOf(document.issueDate)), ...(imported.data ?? []).map((document) => yearOf(document.issueDate)), localToday().slice(0, 4)])]
+    .sort()
+    .reverse();
   const toSend = (documents ?? []).filter((document) => document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
   const importedToSend = (imported.data ?? []).filter((document) => document.trackingStatus?.category === 'TO_SEND');
   const toSendCount = toSend.length + importedToSend.length;
@@ -220,41 +265,21 @@ export function AccountingPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Facturation</PageTitle>
-      {/* The year of the documents on the left (on their tabs), the creation on the right. */}
-      <Group justify="space-between" gap="sm">
-        {TABS.some((item) => item.value === tab) ? (
-          <Select
-            w={170}
-            aria-label="Année des documents"
-            leftSection={<CalendarBlankIcon aria-hidden />}
-            data={years}
-            value={year}
-            allowDeselect={false}
-            onChange={(value) => value && setParam('year', value === currentYear ? null : value)}
-          />
-        ) : (
-          <div />
-        )}
-        <Menu position="bottom-end" shadow="md">
-          <Menu.Target>
-            <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
-              Nouveau
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {TABS.map((item) => (
-              <Menu.Item key={item.value} onClick={() => openNewDocument(item.value)}>
-                {DOCUMENT_TYPE_LABELS[item.value]}
-              </Menu.Item>
-            ))}
-            <Menu.Divider />
-            <Menu.Item leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
-              Importer un document existant
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-      </Group>
+      <PageHeader
+        title="Facturation"
+        actions={
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            menu={[
+              ...TABS.map((item) => ({ label: DOCUMENT_TYPE_LABELS[item.value], icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument(item.value) })),
+              'divider' as const,
+              { label: 'Importer un document existant', icon: <FileArrowUpIcon aria-hidden />, onClick: () => openImportForm() },
+            ]}
+          >
+            Nouveau document
+          </ActionButton>
+        }
+      />
       <PageTabs value={tab} onChange={(value) => setParam('tab', value && value !== 'QUOTE' ? value : null)} keepMounted={false}>
         <PageTabs.List>
           {TABS.map((item) => (
@@ -298,18 +323,32 @@ export function AccountingPage() {
         {TABS.map((item) => (
           <PageTabs.Panel key={item.value} value={item.value}>
             {isPending || imported.isPending ? (
-              <Skeleton height={200} />
+              <TableSkeleton rows={5} />
             ) : (
               <DocumentsTable
-                documents={(documents ?? []).filter((document) => document.type === item.value && inYear(document.issueDate))}
-                imported={(imported.data ?? []).filter((document) => document.type === item.value && inYear(document.issueDate))}
-                empty={`${EMPTY_DOCUMENTS[item.value].replace(/\.$/, '')} en ${year}.`}
+                tableKey={`documents-${item.value.toLowerCase().replace(/_/g, '-')}`}
+                title={item.label}
+                documents={(documents ?? []).filter((document) => document.type === item.value)}
+                imported={(imported.data ?? []).filter((document) => document.type === item.value)}
+                empty={EMPTY_DOCUMENTS[item.value]}
               />
             )}
           </PageTabs.Panel>
         ))}
         <PageTabs.Panel value="toSend">
-          {isPending || imported.isPending ? <Skeleton height={200} /> : <DocumentsTable documents={toSend} imported={importedToSend} showType empty="Aucun document à envoyer ni à déposer." />}
+          {isPending || imported.isPending ? (
+            <TableSkeleton rows={5} />
+          ) : (
+            <DocumentsTable
+              tableKey="documents-to-send"
+              title="Documents à envoyer"
+              first={[{ name: 'À envoyer' }]}
+              documents={toSend}
+              imported={importedToSend}
+              showType
+              empty="Aucun document à envoyer ni à déposer."
+            />
+          )}
         </PageTabs.Panel>
         <PageTabs.Panel value="overdue">
           <OverdueInvoicesPanel />
@@ -345,7 +384,7 @@ export function AccountingPage() {
                 <Title order={2} size="h4">
                   Télécharger les documents d’une période
                 </Title>
-                <DocumentsZipForm key={year} year={year} years={years} />
+                <DocumentsZipForm years={years} />
               </Stack>
             </Paper>
           </Tabs.Panel>

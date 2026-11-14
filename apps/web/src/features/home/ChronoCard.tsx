@@ -9,8 +9,7 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { useRunningTimer } from '../time/api';
 import { RunningTimer, TimerStartForm } from '../time/TimerCard';
 import { HomeCard } from './HomeCard';
-
-const nextFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+import * as fmt from '../../lib/format';
 
 /**
  * Timer and alarms: the running timer (or the form starting one), and a button programming an alarm, with
@@ -44,14 +43,14 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
                 Prochaine alarme
               </Text>
               <Text size="sm" truncate>
-                {next ? `${next.alarm.title} · ${nextFormat.format(next.at)}` : 'Aucune'}
+                {next ? `${next.alarm.title} · ${fmt.dateTimeShort(next.at)}` : 'Aucune'}
               </Text>
             </Stack>
             <Anchor component={Link} to="/alarms" size="sm" style={{ flexShrink: 0 }}>
               Gérer
             </Anchor>
           </Group>
-          <Button variant="light" leftSection={<AlarmIcon aria-hidden />} onClick={() => openAlarmForm()}>
+          <Button variant="default" leftSection={<AlarmIcon aria-hidden />} onClick={() => openAlarmForm()}>
             Programmer une alarme
           </Button>
         </Stack>

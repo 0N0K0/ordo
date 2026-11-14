@@ -31,6 +31,8 @@ export const ROUTINE_FILTER_FIELDS = {
   waiting: 'boolean',
   hasSubRoutines: 'boolean',
   optionalTimes: 'boolean',
+  /** Allowed now by its slot rule (else the default of the workspace). */
+  doableNow: 'boolean',
   archived: 'boolean',
 } as const satisfies Record<string, FilterFieldKind>;
 export type RoutineFilterField = keyof typeof ROUTINE_FILTER_FIELDS;

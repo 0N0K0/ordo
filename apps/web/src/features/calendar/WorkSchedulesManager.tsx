@@ -1,20 +1,32 @@
-import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, SegmentedControl, Select, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_SCHEDULE_KIND_NAME, periodRhythm, readScheduleCases, readScheduleExceptions, workScheduleSchema, type ScheduleCase, type ScheduleException } from '@ordo/shared';
-import { CopyIcon, ClockIcon, FunnelSimpleIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import {
+  DEFAULT_SCHEDULE_KIND_NAME,
+  periodRhythm,
+  readScheduleCases,
+  readScheduleExceptions,
+  workScheduleSchema,
+  type ScheduleCase,
+  type ScheduleException,
+  type WorkScheduleInput,
+} from '@ordo/shared';
+import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableDate, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
 import { ScheduleCasesEditor } from './ScheduleCasesEditor';
 import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
-import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
@@ -128,7 +140,6 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
           <DatePickerInput
             label="À partir du"
             required
-            valueFormat="D MMM YYYY"
             placeholder="À choisir"
             value={values.startDate || null}
             error={form.errors.startDate}
@@ -138,7 +149,6 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
             label="Jusqu’au"
             clearable
             placeholder="Sans fin"
-            valueFormat="D MMM YYYY"
             minDate={values.startDate || undefined}
             value={values.endDate}
             error={form.errors.endDate}
@@ -161,16 +171,8 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
                 <Stack gap="xs">
                   <Group gap={6} wrap="nowrap" align="flex-end">
-                    <DatePickerInput label="Du" size="xs" valueFormat="D MMM YYYY" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
-                    <DatePickerInput
-                      label="Au"
-                      size="xs"
-                      valueFormat="D MMM YYYY"
-                      w={140}
-                      minDate={exception.from}
-                      value={exception.to}
-                      onChange={(date) => date && setException(index, { to: String(date) })}
-                    />
+                    <DatePickerInput label="Du" size="xs" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
+                    <DatePickerInput label="Au" size="xs" w={140} minDate={exception.from} value={exception.to} onChange={(date) => date && setException(index, { to: String(date) })} />
                     <TextInput
                       label="Motif"
                       size="xs"
@@ -226,6 +228,9 @@ type ScheduleState = 'CURRENT' | 'UPCOMING' | 'PAST';
 const STATE_LABELS: Record<ScheduleState, string> = { CURRENT: 'En cours', UPCOMING: 'À venir', PAST: 'Passée' };
 const STATE_COLORS: Record<ScheduleState, string> = { CURRENT: 'green', UPCOMING: 'blue', PAST: 'gray' };
 const STATE_ORDER: Record<ScheduleState, number> = { CURRENT: 0, UPCOMING: 1, PAST: 2 };
+
+/** Row of the table of the schedules: a schedule, its state today, its exceptions. */
+type ScheduleRow = { schedule: WorkSchedule; state: ScheduleState; exceptions: ReturnType<typeof readScheduleExceptions> };
 /** Kind filter value of the schedules without kind. */
 const NO_KIND = 'none';
 
@@ -251,16 +256,93 @@ export function WorkSchedulesManager() {
   const { data: schedules } = useWorkSchedules();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
-  const { remove } = useWorkScheduleMutations();
+  const { remove, update } = useWorkScheduleMutations();
+
+  /**
+   * Saves fields of a schedule changed in their cells (its hours and exceptions kept).
+   * @param {WorkSchedule} schedule Schedule.
+   * @param {Partial<WorkScheduleInput>} change Change.
+   * @returns {void}
+   */
+  const saveSchedule = (schedule: WorkSchedule, change: Partial<WorkScheduleInput>) => {
+    const input = {
+      name: schedule.name,
+      startDate: String(schedule.startDate).slice(0, 10),
+      endDate: schedule.endDate ? String(schedule.endDate).slice(0, 10) : null,
+      cases: readScheduleCases(schedule.cases),
+      exceptions: readScheduleExceptions(schedule.exceptions),
+      typeId: schedule.typeId ?? null,
+      ...change,
+    };
+    const result = workScheduleSchema.safeParse(input);
+    if (!result.success) {
+      notifyError(`${result.error.issues[0]?.message ?? 'Valeur invalide.'} Rien n’a été modifié.`);
+      return;
+    }
+    update.mutate({ id: schedule.id, input }, { onError: (error) => notifyError(error.message) });
+  };
   const { perso } = useActiveWorkspace();
   const [editing, setEditing] = useState<WorkSchedule | 'new' | { copyOf: WorkSchedule } | null>(null);
   const [deleting, setDeleting] = useState<WorkSchedule | null>(null);
-  const [search, setSearch] = useState('');
-  const [kinds, setKinds] = useState<string[]>([]);
-  const [state, setState] = useState<ScheduleState | 'ALL'>('ALL');
   const typeById = new Map((types ?? []).map((type) => [type.id, type]));
   const defaultName = defaultKind?.name ?? DEFAULT_SCHEDULE_KIND_NAME;
   const today = localToday();
+  const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
+  const columns: DataColumn<ScheduleRow>[] = [
+    { id: 'name', label: 'Nom', size: 220, locked: true, sortValue: ({ schedule }) => schedule.name, text: ({ schedule }) => schedule.name },
+    {
+      id: 'type',
+      label: 'Type',
+      size: 160,
+      sortValue: ({ schedule }) => kindName(schedule),
+      text: ({ schedule }) => kindName(schedule),
+      filter: {
+        kind: 'choice',
+        value: ({ schedule }) => schedule.typeId ?? NO_KIND,
+        options: [{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name }))],
+      },
+      groupable: true,
+    },
+    {
+      id: 'start',
+      label: 'Début',
+      size: 120,
+      sortValue: ({ schedule }) => String(schedule.startDate),
+      text: ({ schedule }) => printedDate(String(schedule.startDate)),
+      filter: { kind: 'date', value: ({ schedule }) => String(schedule.startDate).slice(0, 10) },
+    },
+    {
+      id: 'end',
+      label: 'Fin',
+      size: 120,
+      sortValue: ({ schedule }) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31'),
+      text: ({ schedule }) => (schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'),
+      filter: { kind: 'date', value: ({ schedule }) => (schedule.endDate ? String(schedule.endDate).slice(0, 10) : null) },
+    },
+    {
+      id: 'hours',
+      label: 'Horaires',
+      size: 320,
+      text: ({ schedule, exceptions }) => [...readScheduleCases(schedule.cases).map(describeCase), ...exceptions.map((exception) => exception.label)].filter(Boolean).join(' ; '),
+    },
+    {
+      id: 'state',
+      label: 'État',
+      size: 110,
+      sortValue: ({ state: rowState }) => STATE_ORDER[rowState],
+      text: ({ state: rowState }) => STATE_LABELS[rowState],
+      filter: { kind: 'choice', value: ({ state: rowState }) => rowState, options: (['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] })) },
+      groupable: true,
+    },
+  ];
+  const rows = (schedules ?? []).map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
+  const view = useDataView({
+    tableKey: 'work-schedules',
+    columns,
+    rows,
+    title: perso ? 'Plages' : 'Horaires de travail',
+    first: [{ name: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
+  });
 
   if (editing) {
     return editing === 'new' ? (
@@ -298,27 +380,6 @@ export function WorkSchedulesManager() {
     );
   }
 
-  const kindName = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.name ?? '') : defaultName);
-  type Row = { schedule: WorkSchedule; state: ScheduleState; exceptions: ReturnType<typeof readScheduleExceptions> };
-  const columns: DataColumn<Row>[] = [
-    { id: 'name', label: 'Nom', size: 220, locked: true, sortValue: ({ schedule }) => schedule.name },
-    { id: 'type', label: 'Type', size: 160, sortValue: ({ schedule }) => kindName(schedule) },
-    { id: 'start', label: 'Début', size: 120, sortValue: ({ schedule }) => String(schedule.startDate) },
-    { id: 'end', label: 'Fin', size: 120, sortValue: ({ schedule }) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31') },
-    { id: 'hours', label: 'Horaires', size: 320 },
-    { id: 'state', label: 'État', size: 110, sortValue: ({ state: rowState }) => STATE_ORDER[rowState] },
-  ];
-  const needle = search.trim().toLocaleLowerCase('fr');
-  const rows = (schedules ?? [])
-    .map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }))
-    .filter(({ schedule, state: rowState, exceptions }) => {
-      if (state !== 'ALL' && rowState !== state) return false;
-      if (kinds.length && !kinds.includes(schedule.typeId ?? NO_KIND)) return false;
-      if (!needle) return true;
-      return [schedule.name, kindName(schedule), ...exceptions.map((exception) => exception.label)].some((text) => text.toLocaleLowerCase('fr').includes(needle));
-    });
-  const filtered = Boolean(needle) || kinds.length > 0 || state !== 'ALL';
-
   return (
     <Stack gap="md">
       <Group justify="space-between" wrap="nowrap" align="flex-start">
@@ -327,107 +388,42 @@ export function WorkSchedulesManager() {
             ? 'Vos plages prévues, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
             : 'Vos horaires de travail prévus : affichés dans l’agenda, comparés au temps chronométré, et signalés quand un évènement tombe en dehors.'}
         </Text>
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setEditing('new')} style={{ flexShrink: 0 }}>
-          Plages
-        </Button>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setEditing('new')} style={{ flexShrink: 0 }}>
+          Nouvelles plages
+        </ActionButton>
       </Group>
       {!schedules?.length ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ClockIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune plage.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<ClockIcon aria-hidden />} message="Aucune plage." />
       ) : (
         <DataTable
-          tableKey="work-schedules"
-          framed
-          search={{ value: search, onChange: setSearch, placeholder: 'Rechercher (nom, type, exception)…' }}
-          tools={
-            <>
-              <BatchMultiSelect
-                w={220}
-                aria-label="Types"
-                placeholder={kinds.length ? undefined : 'Tous les types'}
-                clearable
-                data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((type) => ({ value: type.id, label: type.name }))]}
-                value={kinds}
-                onChange={setKinds}
-              />
-              <SegmentedControl
-                aria-label="État"
-                data={[{ value: 'ALL', label: 'Toutes' }, ...(['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] }))]}
-                value={state}
-                onChange={(value) => setState(value as ScheduleState | 'ALL')}
-              />
-              <Text size="xs" c="dimmed">
-                {filtered ? `${rows.length} plage${rows.length > 1 ? 's' : ''} sur ${schedules.length}` : `${schedules.length} plage${schedules.length > 1 ? 's' : ''}`}
-              </Text>
-            </>
-          }
-          empty={
-            <Paper withBorder radius="md" p="xl">
-              <Stack align="center" gap="sm">
-                <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-                  <FunnelSimpleIcon aria-hidden />
-                </ThemeIcon>
-                <Text size="sm" c="dimmed">
-                  Aucune plage ne correspond.
-                </Text>
-                <Button
-                  size="xs"
-                  variant="light"
-                  onClick={() => {
-                    setSearch('');
-                    setKinds([]);
-                    setState('ALL');
-                  }}
-                >
-                  Effacer les filtres
-                </Button>
-              </Stack>
-            </Paper>
-          }
+          view={view}
+          bar={{ searchLabel: 'Rechercher (nom, type, exception)…' }}
           highlightOnHover
           verticalSpacing="xs"
-          columns={columns}
-          rows={rows}
           getKey={({ schedule }) => schedule.id}
-          initialSorting={[{ id: 'start', desc: true }]}
           cells={({ schedule, state: rowState, exceptions }) => {
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
             return {
-              name: (
-                <>
-                  <Text size="sm" fw={600}>
-                    {schedule.name}
-                  </Text>
-                </>
-              ),
+              name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && saveSchedule(schedule, { name })} />,
               type: (
-                <>
-                  <Group gap={6} wrap="nowrap">
-                    <ColorSwatch size={10} color={color} />
-                    <Text size="sm">{kindName(schedule)}</Text>
-                  </Group>
-                </>
+                <EditableSelect
+                  value={schedule.typeId ?? NO_KIND}
+                  label={`Type de ${schedule.name}`}
+                  leftSection={<ColorSwatch size={10} color={color} />}
+                  data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((item) => ({ value: item.id, label: item.name }))]}
+                  onSave={(typeId) => typeId && saveSchedule(schedule, { typeId: typeId === NO_KIND ? null : typeId })}
+                />
               ),
-              start: (
-                <>
-                  <Text size="sm">{printedDate(String(schedule.startDate))}</Text>
-                </>
-              ),
+              start: <EditableDate value={String(schedule.startDate).slice(0, 10)} label={`Début de ${schedule.name}`} onSave={(startDate) => startDate && saveSchedule(schedule, { startDate })} />,
               end: (
-                <>
-                  <Text size="sm" c={schedule.endDate ? undefined : 'dimmed'}>
-                    {schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'}
-                  </Text>
-                </>
+                <EditableDate
+                  value={schedule.endDate ? String(schedule.endDate).slice(0, 10) : null}
+                  label={`Fin de ${schedule.name}`}
+                  nullable
+                  minDate={String(schedule.startDate).slice(0, 10)}
+                  onSave={(endDate) => saveSchedule(schedule, { endDate })}
+                />
               ),
               hours: (
                 <>

@@ -130,7 +130,6 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
             {end === 'UNTIL' && (
               <DatePickerInput
                 label="Jusqu’au"
-                valueFormat="D MMM YYYY"
                 minDate={start}
                 value={rule.until}
                 onChange={(until) => until && update({ until })}
@@ -169,7 +168,6 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
                 <DatePickerInput
                   type="range"
                   aria-label={`Pause ${index + 1}`}
-                  valueFormat="D MMM YYYY"
                   allowSingleDateInRange
                   value={[pause.from, pause.to]}
                   onChange={([from, to]) =>

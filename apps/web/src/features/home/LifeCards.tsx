@@ -1,4 +1,5 @@
 import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { useSlotRules } from '../slot-rules/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRoutinesData } from '../routines/api';
@@ -21,10 +22,11 @@ const MAX_ROWS = 7;
 export function RoutinesCard({ today }: { today: string }) {
   const { data } = useRoutinesData();
   const postpone = usePostponeRoutine();
+  const slotRules = useSlotRules();
   const routines = data?.routines ?? [];
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const todo = routines
-    .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today)))
+    .filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today, slotRules.allowed(routine.slotRule))))
     // Late ones first, then by time to leave (or to do it by), those of any time of the day last.
     .sort(
       (a, b) =>
@@ -104,7 +106,7 @@ export function ShoppingCard() {
     .sort((a, b) => b.list.createdAt.localeCompare(a.list.createdAt));
 
   return (
-    <HomeCard title="Courses" icon={<BasketIcon aria-hidden />} to="/shopping" loading={!data || !lists}>
+    <HomeCard title="Achats" icon={<BasketIcon aria-hidden />} to="/shopping" loading={!data || !lists}>
       <Group gap="xl">
         <Figure label="Produits manquants" value={missing} color={missing ? 'orange' : undefined} />
         <Figure label="Listes en cours" value={open.length} />

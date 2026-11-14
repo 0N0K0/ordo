@@ -767,7 +767,7 @@ export async function deductibleDeposits(clientId: string, documentId: string | 
       const credit = line.document.type === 'CREDIT_NOTE';
       if (credit && line.document.status !== 'FINAL') continue;
       const rate = Number(line.vatRate);
-      const amount = Math.round(Number(line.quantity) * toCents(Number(line.unitPrice)));
+      const amount = Math.round(Number(line.quantity) * Number(line.unitPrice) * 100);
       left.set(rate, (left.get(rate) ?? 0) + (credit ? amount : -amount));
     }
     const remaining = [...left.entries()].filter(([, base]) => base > 0).map(([rate, base]) => ({ rate, base }));

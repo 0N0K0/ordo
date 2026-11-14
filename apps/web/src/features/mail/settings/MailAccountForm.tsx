@@ -206,7 +206,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
         )}
         <Group justify="space-between" gap="sm">
           <Button
-            variant="light"
+            variant="default"
             loading={test.isPending}
             onClick={() => {
               setTested(false);

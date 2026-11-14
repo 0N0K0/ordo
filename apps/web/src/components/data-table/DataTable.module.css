@@ -137,4 +137,22 @@
       text-align: right;
     }
   }
+
+  /* Heading of a group of rows, as on the tasks. */
+  .groupRow {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+  }
+
+  .chevron {
+    /* Effets */
+    transform: rotate(0deg);
+
+    &[data-expanded] {
+      transform: rotate(90deg);
+    }
+
+    /* Animation */
+    transition: transform 150ms ease;
+  }
 }

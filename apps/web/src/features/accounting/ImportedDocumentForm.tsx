@@ -3,7 +3,6 @@ import {
   Checkbox,
   FileInput,
   Group,
-  NumberInput,
   Select,
   SimpleGrid,
   Stack,
@@ -30,6 +29,7 @@ import {
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { projectOptions } from '../workspace/tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { AmountInput } from '../../components/AmountInput';
 
 interface FormValues extends Record<string, unknown> {
   type: AccountingDocumentType;
@@ -137,13 +137,11 @@ export function ImportedDocumentForm({
           <DatePickerInput
             label="Date"
             required
-            valueFormat="D MMM YYYY"
             {...form.getInputProps('issueDate')}
           />
           <DatePickerInput
             label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'}
             clearable
-            valueFormat="D MMM YYYY"
             {...form.getInputProps('dueDate')}
           />
           <Select
@@ -186,11 +184,8 @@ export function ImportedDocumentForm({
           )}
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-          <NumberInput
+          <AmountInput
             label="Total HT"
-            decimalScale={2}
-            decimalSeparator=","
-            thousandSeparator=" "
             {...form.getInputProps('totalNet')}
             onChange={(value) => {
               const totalNet = typeof value === 'number' ? value : 0;
@@ -201,11 +196,8 @@ export function ImportedDocumentForm({
               });
             }}
           />
-          <NumberInput
+          <AmountInput
             label="TVA"
-            decimalScale={2}
-            decimalSeparator=","
-            thousandSeparator=" "
             {...form.getInputProps('totalVat')}
             onChange={(value) => {
               const totalVat = typeof value === 'number' ? value : 0;
@@ -216,12 +208,9 @@ export function ImportedDocumentForm({
               });
             }}
           />
-          <NumberInput
+          <AmountInput
             label="Total TTC"
             description="Débours compris"
-            decimalScale={2}
-            decimalSeparator=","
-            thousandSeparator=" "
             {...form.getInputProps('totalGross')}
           />
         </SimpleGrid>

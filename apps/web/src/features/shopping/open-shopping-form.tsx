@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { ShoppingForm, type ShoppingFormProps } from './ShoppingForm';
 
 let modalCount = 0;
@@ -11,10 +11,9 @@ let modalCount = 0;
 export function openShoppingForm(target: ShoppingFormProps['target']): void {
   const modalId = `shopping-form-${++modalCount}`;
   const editing = target.kind === 'product' ? target.product : target.item;
-  modals.open({
-    modalId,
-    size: 'lg',
+  openPanel({
+    panelId: modalId,
     title: target.kind === 'product' ? (editing ? 'Modifier le produit' : 'Nouveau produit') : editing ? 'Modifier l’élément' : 'Élément hors listes types',
-    children: <ShoppingForm target={target} onDone={() => modals.close(modalId)} />,
+    children: <ShoppingForm target={target} onDone={() => closePanel(modalId)} />,
   });
 }

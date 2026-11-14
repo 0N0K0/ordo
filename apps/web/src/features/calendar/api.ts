@@ -117,6 +117,7 @@ const SubscribedSchedulesDocument = graphql(`
       cases
       exceptions
       typeName
+      typeId
       color
       dayDisplay
       dayBar

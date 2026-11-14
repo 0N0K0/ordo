@@ -7,9 +7,12 @@ import {
   type FilterCondition,
   type FilterGroup,
   type TaskStatusCategory,
+  type WeekSpan,
 } from '@ordo/shared';
 import { prisma } from '../db';
 import type { Prisma } from '../generated/prisma/client';
+import { doableTaskIds } from './slot-rules';
+import { currentWeek } from './workspaces';
 
 /** Calendar context of the user: relative dates ("today", "this week") are computed in their day. */
 /** Who runs the query: "@me" in assignee conditions is their contributor profile. */
@@ -22,6 +25,8 @@ export interface FilterClock {
   today: string;
   /** User's offset from UTC in minutes (e.g. 60 for UTC+1). */
   utcOffset: number;
+  /** Week of the workspace (« cette semaine »); none: Monday to Sunday. */
+  week?: WeekSpan;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -53,7 +58,7 @@ function resolveDay(token: string, clock: FilterClock): number {
  * @returns {[number, number]} [start, end) as UTC midnight timestamps.
  */
 function resolvePeriod(token: string, clock: FilterClock): [number, number] {
-  const [start, end] = filterPeriod(token, clock.today);
+  const [start, end] = filterPeriod(token, clock.today, clock.week);
   return [dayValue(start), dayValue(end)];
 }
 
@@ -81,6 +86,8 @@ interface Trees {
   taskDescendants: (ids: string[]) => string[];
   /** Sprints matching a relative operator (current, previous, next, past, future). */
   sprintsWhere: (operator: RelativeSprintOperator) => string[];
+  /** Open tasks allowed now by their slot rule; loaded only when a condition uses it. */
+  doableIds: string[];
 }
 
 /**
@@ -93,9 +100,11 @@ interface Trees {
 async function loadTrees(filter: FilterGroup, clock: FilterClock): Promise<Trees> {
   const fields = new Set<string>();
   let relativeSprints = false;
+  let doable = false;
   const collect = (group: FilterGroup): void =>
     group.children.forEach((child) => {
       if (child.type === 'group') collect(child);
+      else if (child.field === 'doableNow') doable = true;
       else if (child.operator === 'inTree') fields.add(child.field);
       else if (child.field === 'sprint' && !['in', 'notIn', 'allOf', 'isEmpty', 'isNotEmpty'].includes(child.operator)) relativeSprints = true;
     });
@@ -121,12 +130,13 @@ async function loadTrees(filter: FilterGroup, clock: FilterClock): Promise<Trees
     return [...result];
   };
 
-  const [projects, tasks, sprints] = await Promise.all([
+  const [projects, tasks, sprints, doableIds] = await Promise.all([
     fields.has('project') || relativeSprints ? prisma.project.findMany({ select: { id: true, parentId: true } }) : [],
     fields.has('parent') ? prisma.task.findMany({ select: { id: true, parentId: true } }) : [],
     relativeSprints ? prisma.sprint.findMany({ select: { id: true, projectId: true, startDate: true, endDate: true } }) : [],
+    doable ? doableTaskIds(clock.utcOffset) : [],
   ]);
-  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock) };
+  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock), doableIds };
 }
 
 /**
@@ -346,6 +356,7 @@ function conditionWhere(
     }
 
     case 'boolean': {
+      if (field === 'doableNow') return operator === 'isTrue' ? { id: { in: trees.doableIds } } : { id: { notIn: trees.doableIds } };
       const today = new Date(dayValue(clock.today));
       const truth: Prisma.TaskWhereInput = {
         // Past its "Date max".
@@ -489,6 +500,8 @@ export async function buildTaskWhere({
   user: FilterUser;
   statusAt?: StatusAt;
 }): Promise<Prisma.TaskWhereInput> {
+  // « Cette semaine »: the weeks of the workspace.
+  clock = clock.week ? clock : { ...clock, week: await currentWeek() };
   const trees = await loadTrees(filter, clock);
   return {
     AND: [

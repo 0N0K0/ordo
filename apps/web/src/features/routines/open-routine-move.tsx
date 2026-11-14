@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import type { Routine } from './api';
 import { RoutineMoveForm } from './RoutineMoveForm';
 
@@ -11,5 +11,5 @@ let modalCount = 0;
  */
 export function openRoutineMove(routine: Routine): void {
   const modalId = `routine-move-${++modalCount}`;
-  modals.open({ modalId, title: `Reporter ou avancer « ${routine.title} »`, children: <RoutineMoveForm routineId={routine.id} onDone={() => modals.close(modalId)} /> });
+  openPanel({ panelId: modalId, title: `Reporter ou avancer « ${routine.title} »`, children: <RoutineMoveForm routineId={routine.id} onDone={() => closePanel(modalId)} /> });
 }

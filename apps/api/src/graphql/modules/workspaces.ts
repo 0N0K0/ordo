@@ -23,6 +23,8 @@ builder.prismaObject('Workspace', {
       description: 'Notifications it still gives while another workspace is open.',
       resolve: (workspace) => workspace.notifyElsewhere,
     }),
+    weekStart: t.exposeInt('weekStart', { description: 'First day of its weeks, 1 (Monday) to 7 (Sunday).' }),
+    weekEnd: t.exposeInt('weekEnd', { description: 'Last day of its weeks, included; the first one: weeks of 8 days, overlapping.' }),
   }),
 });
 
@@ -62,6 +64,12 @@ builder.mutationFields((t) => ({
     description: 'Chooses the notifications a workspace still gives while another one is open.',
     args: { id: t.arg.id({ required: true }), sources: t.arg({ type: [NotificationSource], required: true }) },
     resolve: (_query, _root, { id, sources }) => workspaces.setWorkspaceNotifications(id, sources),
+  }),
+  setWorkspaceWeek: t.prismaField({
+    type: 'Workspace',
+    description: 'Sets the first and last days of the weeks of a workspace (1 = Monday … 7 = Sunday).',
+    args: { id: t.arg.id({ required: true }), start: t.arg.int({ required: true }), end: t.arg.int({ required: true }) },
+    resolve: (_query, _root, { id, start, end }) => workspaces.setWorkspaceWeek(id, { start, end }),
   }),
   moveWorkspace: t.boolean({
     args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },

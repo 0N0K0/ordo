@@ -1,14 +1,15 @@
+import { ActionsRow } from '../../../components/actions/ActionsRow';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import {
   ActionIcon,
   Alert,
-  Button,
   CloseButton,
   Box,
   Group,
   Menu,
   NavLink,
   ScrollArea,
-  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -103,14 +104,9 @@ function SectionEmpty({
  */
 function TreeSkeleton() {
   return (
-    <Stack gap="xs" p="xs" aria-label="Chargement">
-      {[70, 55, 80, 60, 45].map((width) => (
-        <Group key={width} gap="xs" wrap="nowrap">
-          <Skeleton circle height={22} />
-          <Skeleton height={12} width={`${width}%`} />
-        </Group>
-      ))}
-    </Stack>
+    <div style={{ padding: 'var(--mantine-spacing-xs)' }}>
+      <ListSkeleton items={5} dense avatar />
+    </div>
   );
 }
 
@@ -138,7 +134,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
       { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge /> },
       { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },
-      { to: '/shopping', label: 'Courses', icon: <BasketIcon aria-hidden /> },
+      { to: '/shopping', label: 'Achats', icon: <BasketIcon aria-hidden /> },
     ],
   },
   {
@@ -503,26 +499,20 @@ export function Sidebar() {
                   message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')}
                   action={
                     !searching && (
-                      <Stack gap="xs" align="stretch">
+                      <ActionsRow>
                         {!perso && (
-                          <Button
+                          <ActionButton priority="secondary"
                             size="xs"
-                            variant="light"
-                            leftSection={<UserPlusIcon aria-hidden />}
+                            icon={<UserPlusIcon aria-hidden />}
                             onClick={() => actions.openClientForm()}
-                          >
-                            Ajouter un client
-                          </Button>
+                          >Nouveau client</ActionButton>
                         )}
-                        <Button
+                        <ActionButton priority="secondary"
                           size="xs"
-                          variant="light"
-                          leftSection={<FolderPlusIcon aria-hidden />}
+                          icon={<FolderPlusIcon aria-hidden />}
                           onClick={() => actions.openProjectForm()}
-                        >
-                          Ajouter un projet
-                        </Button>
-                      </Stack>
+                        >Nouveau projet</ActionButton>
+                      </ActionsRow>
                     )
                   }
                 />

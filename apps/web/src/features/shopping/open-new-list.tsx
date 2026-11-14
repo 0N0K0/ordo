@@ -1,16 +1,16 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { NewListForm } from './NewListForm';
 
 /**
  * Opens the form of a new list.
- * @param {{ baseListIds?: string[], taskIds?: string[] }} [options] Base lists whose missing products it takes, tasks. Optional.
+ * @param {{ baseListIds?: string[], taskIds?: string[], projectIds?: ReadonlySet<string> }} [options] Base lists whose missing products it takes, tasks, projects it is made for (one of their tasks asked). Optional.
  * @returns {void}
  */
-export function openNewList({ baseListIds = [], taskIds = [] }: { baseListIds?: string[]; taskIds?: string[] } = {}): void {
+export function openNewList({ baseListIds = [], taskIds = [], projectIds }: { baseListIds?: string[]; taskIds?: string[]; projectIds?: ReadonlySet<string> } = {}): void {
   const modalId = 'new-shopping-list';
-  modals.open({
-    modalId,
+  openPanel({
+    panelId: modalId,
     title: 'Nouvelle liste',
-    children: <NewListForm baseListIds={baseListIds} taskIds={taskIds} onDone={() => modals.close(modalId)} />,
+    children: <NewListForm baseListIds={baseListIds} taskIds={taskIds} projectIds={projectIds} onDone={() => closePanel(modalId)} />,
   });
 }

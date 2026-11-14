@@ -1,5 +1,5 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Anchor, Button, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
 import { PauseIcon, PlayIcon, StopIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -7,12 +7,12 @@ import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useTimeMutations, type TimeEntry } from './api';
 import classes from './TimerCard.module.css';
 import { TimeTasksSelect } from './TimeTasksSelect';
 import { useNow } from './use-now';
 import { useStopTimer } from './use-stop-timer';
+import * as fmt from '../../lib/format';
 
 /** Dropdowns inside a popover stay in it (a portal would close the popover on click). */
 const inPopover = { comboboxProps: { withinPortal: false } };
@@ -124,27 +124,14 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
    * @returns {void}
    */
   const confirmDiscard = () => {
-    const modalId = `discard-timer-${entry.id}`;
-    modals.open({
-      modalId,
-      title: 'Abandonner le chrono',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(entry.id, {
+    confirmDestructive({ title: 'Abandonner le chrono', risks: (
+<>
+<Text size="sm">Le temps en cours ({formatDuration(entrySeconds(entry))}) ne sera pas enregistré. Cette action est irréversible.</Text>
+</>
+), confirmLabel: 'Abandonner', onConfirm: () => { remove.mutate(entry.id, {
                 onSuccess: () => notifySuccess('Chrono abandonné.'),
                 onError: (error) => notifyError(error.message),
-              });
-            }}
-          />
-        </Stack>
-      ),
-    });
+              }); } });
   };
 
   return (
@@ -156,7 +143,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
           </Text>
           <Text size="xs" c="dimmed">
             {paused ? 'En pause' : 'En cours'} — depuis{' '}
-            {new Date(entry.startedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} ·{' '}
+            {fmt.time(new Date(entry.startedAt))} ·{' '}
             {entry.projectId ? (
               <Anchor component={Link} to={`/projects/${entry.projectId}?tab=time`} size="xs">
                 {context.projectById.get(entry.projectId)?.title ?? 'Projet'}

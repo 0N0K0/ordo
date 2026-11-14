@@ -1,14 +1,16 @@
-import { Button, Checkbox, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, TextInput } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Button, Checkbox, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { formatDuration, formatMoney, VAT_RATES, type AccountingLineInput } from '@ordo/shared';
+import { formatDuration, VAT_RATES, type AccountingLineInput } from '@ordo/shared';
 import { useState } from 'react';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useTimeEntries } from '../time/api';
 import { useCatalogItems } from './catalog-api';
 import { timeLines, type BillableTime, type TimeGrouping } from './time-lines';
 import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
-
-const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 /**
  * Local day of an instant, YYYY-MM-DD.
@@ -71,15 +73,15 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
     .filter((entry) => (!from || entry.day >= from) && (!to || entry.day <= to));
   const selected = billable.filter((entry) => !unchecked.has(entry.id));
   const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, title: title.trim() || 'Prestation', roundQuarter });
-  const total = lines.reduce((sum, line) => sum + Math.round(line.quantity * Math.round(line.unitPrice * 100)), 0);
+  const total = lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitPrice * 100), 0);
   const days = selected.map((entry) => entry.day).sort();
 
   return (
     <Stack gap="sm">
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
         <Select label="Projet" required searchable allowDeselect={false} {...treeSelectProps(projects)} value={projectId} onChange={setProjectId} />
-        <DatePickerInput label="Du" clearable valueFormat="D MMM YYYY" value={from} onChange={setFrom} />
-        <DatePickerInput label="Au" clearable valueFormat="D MMM YYYY" value={to} onChange={setTo} />
+        <DatePickerInput label="Du" clearable value={from} onChange={setFrom} />
+        <DatePickerInput label="Au" clearable value={to} onChange={setTo} />
       </SimpleGrid>
 
       {!projectId ? (
@@ -87,11 +89,9 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
           Choisissez le projet dont le temps est facturé.
         </Text>
       ) : entries.isPending ? (
-        <Skeleton height={120} />
+        <TableSkeleton rows={3} />
       ) : billable.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          Aucun temps à facturer sur ce projet {from || to ? 'pour cette période' : ''} : tout le temps terminé est déjà facturé.
-        </Text>
+        <EmptyState compact message={`Aucun temps à facturer sur ce projet ${from || to ? 'pour cette période' : ''} : tout le temps terminé est déjà facturé.`} />
       ) : (
         <ScrollArea.Autosize mah={240} type="auto">
           <Table verticalSpacing={4} withRowBorders={false}>
@@ -128,7 +128,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
                     />
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm">{shortDay.format(new Date(`${entry.day}T00:00:00Z`))}</Text>
+                    <Text size="sm">{fmt.dayShort(entry.day)}</Text>
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm" lineClamp={1}>
@@ -152,7 +152,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
           label="Tarif du catalogue"
           placeholder="Aucun"
           clearable
-          data={rates.map((item) => ({ value: item.id, label: `${item.title} — ${formatMoney(Math.round(item.unitPrice * 100))} / ${item.unit === 'DAY' ? 'jour' : 'heure'}` }))}
+          data={rates.map((item) => ({ value: item.id, label: `${item.title} — ${fmt.money(item.unitPrice)} / ${item.unit === 'DAY' ? 'jour' : 'heure'}` }))}
           onChange={(id) => {
             const item = rates.find((rate) => rate.id === id);
             if (!item) return;
@@ -197,12 +197,9 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
         </Stack>
       </SimpleGrid>
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-        <NumberInput
+        <AmountInput
           label={unit === 'DAY' ? 'Prix HT par jour' : 'Prix HT par heure'}
           min={0}
-          decimalScale={2}
-          decimalSeparator=","
-          thousandSeparator=" "
           suffix=" €"
           value={unitPrice}
           onChange={(value) => setUnitPrice(typeof value === 'number' ? value : 0)}
@@ -216,7 +213,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
           <Select
             label="TVA"
             allowDeselect={false}
-            data={[...new Set([...VAT_RATES, vatRate])].map((rate) => ({ value: String(rate), label: `${rate.toLocaleString('fr-FR')} %` }))}
+            data={[...new Set([...VAT_RATES, vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
             value={String(vatRate)}
             onChange={(rate) => rate !== null && setVatRate(Number(rate))}
           />
@@ -225,7 +222,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
 
       <Group justify="space-between" align="center">
         <Text size="sm" c="dimmed">
-          {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} ligne{lines.length > 1 ? 's' : ''}, {formatMoney(total)} HT
+          {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} ligne{lines.length > 1 ? 's' : ''}, {fmt.moneyCents(total)} HT
         </Text>
         <Group gap="sm">
           <Button variant="default" onClick={onCancel}>

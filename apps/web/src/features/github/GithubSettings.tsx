@@ -1,9 +1,10 @@
-import { Alert, Anchor, Badge, Button, Group, Paper, PasswordInput, Skeleton, Stack, Table, Text, TextInput, Title } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { FormSkeleton } from '../../components/feedback/Skeletons';
+import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { Alert, Anchor, Badge, Button, Group, Paper, PasswordInput, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { GithubLogoIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useGithubContributors, useGithubLogin, useGithubMutations } from './api';
 import { SettingsGrid } from '../../components/settings/SettingsGrid';
 
@@ -53,29 +54,10 @@ export function GithubSettings() {
    * @returns {void}
    */
   const confirmRemove = () => {
-    const modalId = 'github-disconnect';
-    modals.open({
-      modalId,
-      title: 'Déconnecter GitHub',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
-            Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.
-          </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              removeToken.mutate(undefined, { onSuccess: () => notifySuccess('GitHub déconnecté.'), onError: (removeError) => notifyError(removeError.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+    confirmDestructive({ title: 'Déconnecter GitHub', risks: 'Le jeton sera oublié et les synchronisations s’arrêteront. Les liens entre projets et tableaux sont conservés : ils reprendront avec un nouveau jeton.', confirmLabel: 'Déconnecter', onConfirm: () => { removeToken.mutate(undefined, { onSuccess: () => notifySuccess('GitHub déconnecté.'), onError: (removeError) => notifyError(removeError.message) }); } });
   };
 
-  if (isPending) return <Skeleton height={200} />;
+  if (isPending) return <FormSkeleton fields={3} />;
   return (
     <SettingsGrid>
       <Paper withBorder radius="md" p="lg">
@@ -126,9 +108,9 @@ export function GithubSettings() {
                 {login ? 'Remplacer' : 'Connecter'}
               </Button>
               {login && (
-                <Button variant="subtle" color="red" mt={25} onClick={confirmRemove}>
+                <DestructiveButton mt={25} onClick={confirmRemove}>
                   Déconnecter
-                </Button>
+                </DestructiveButton>
               )}
             </Group>
           </form>

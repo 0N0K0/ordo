@@ -1,4 +1,5 @@
-import { ActionIcon, Anchor, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ListSkeleton, TextSkeleton } from '../../components/feedback/Skeletons';
+import { ActionIcon, Anchor, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { ArrowRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -52,15 +53,7 @@ export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, ch
             </Anchor>
           )}
         </Group>
-        {loading ? (
-          <Stack gap="xs">
-            <Skeleton height={20} />
-            <Skeleton height={20} />
-            <Skeleton height={20} />
-          </Stack>
-        ) : (
-          children
-        )}
+        {loading ? <ListSkeleton items={3} dense /> : children}
       </Stack>
     </Paper>
   );
@@ -107,7 +100,7 @@ export function StatTile({ label, value, hint, hintColor = 'dimmed', to, loading
         {label}
       </Text>
       {loading ? (
-        <Skeleton height={28} width="70%" />
+        <TextSkeleton title lines={0} />
       ) : (
         <Text fw={700} fz="xl" lh={1.2} truncate>
           {value}

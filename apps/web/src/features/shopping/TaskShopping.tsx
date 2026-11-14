@@ -1,4 +1,6 @@
-import { Anchor, Badge, Button, Group, Select, Stack, Text } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { Anchor, Badge, Group, Select, Stack, Text } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -6,7 +8,7 @@ import type { Task } from '../tasks/api';
 import { useShoppingLists, useShoppingMutations } from './api';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
-import { money } from './shopping-format';
+import * as fmt from '../../lib/format';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
@@ -24,18 +26,16 @@ export function TaskShopping({ task }: { task: Task }) {
     <Stack gap="xs">
       <Group justify="space-between" gap="xs">
         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          Courses
+          Achats
         </Text>
         {!task.archived && (
-          <Button variant="subtle" size="compact-xs" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id] })}>
+          <ActionButton priority="secondary" size="compact-xs" icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id] })}>
             Nouvelle liste
-          </Button>
+          </ActionButton>
         )}
       </Group>
       {own.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          Aucune liste de courses.
-        </Text>
+        <EmptyState compact message="Aucune liste d’achats." />
       ) : (
         own.map((list) => {
           const bought = list.items.filter((item) => item.purchasedAt).length;
@@ -50,7 +50,7 @@ export function TaskShopping({ task }: { task: Task }) {
               </Badge>
               {total > 0 && (
                 <Text size="xs" c="dimmed" ff="monospace">
-                  {money(total)}
+                  {fmt.money(total)}
                 </Text>
               )}
             </Group>
@@ -72,7 +72,7 @@ export function TaskShopping({ task }: { task: Task }) {
                 { onSuccess: () => notifySuccess('Liste rattachée à la tâche.'), onError: (error) => notifyError(error.message) },
               );
           }}
-          aria-label="Rattacher une liste de courses existante"
+          aria-label="Rattacher une liste d’achats existante"
         />
       )}
     </Stack>

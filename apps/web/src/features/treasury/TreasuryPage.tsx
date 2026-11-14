@@ -1,30 +1,20 @@
-import {
-  ActionIcon,
-  Anchor,
-  Badge,
-  Button,
-  Checkbox,
-  Group,
-  Modal,
-  NumberInput,
-  Paper,
-  Popover,
-  SegmentedControl,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-  TextInput,
-  ThemeIcon,
-  Tooltip,
-} from '@mantine/core';
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { BlockSkeleton, DetailSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { useEntryCellSave } from './entry-values';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
-import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { addDays, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
+import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableCheck, EditableDate, EditableNumber, EditableText } from '../../components/data-table/EditableCells';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
@@ -43,7 +33,6 @@ import {
   type TreasuryEntry,
 } from './api';
 import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type ChartScale } from './chart-period';
-import { confirmDeletion } from './confirm-deletion';
 import { EntriesPanel } from './EntriesPanel';
 import { EntryUrl } from './EntryUrl';
 import { EntryForm } from './EntryForm';
@@ -51,26 +40,23 @@ import { SettingsPanel } from './SettingsPanel';
 import { BudgetsPanel } from './BudgetsPanel';
 import { LoansPanel } from './LoansPanel';
 import { PageTabs } from '../../components/PageTabs';
-import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Date.
  */
-const printedDate = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`));
+const printedDate = (date: string) => fmt.day(date);
 
 /**
  * Amount in euros, from currency units.
  * @param {number} amount Amount.
  * @returns {string} Amount.
  */
-const money = (amount: number) => formatMoney(Math.round(amount * 100));
 
 const KIND_LABELS: Record<string, { label: string; color: string }> = {
   FORECAST: { label: 'Prévision', color: 'grape' },
@@ -81,20 +67,65 @@ const KIND_LABELS: Record<string, { label: string; color: string }> = {
   RECURRING_INVOICE: { label: 'Récurrente', color: 'teal' },
 };
 
+type ForecastRow = { item: ProjectionItem; index: number };
+
 /** Columns of the forecast. */
-const FORECAST_COLUMNS: DataColumn<{ item: ProjectionItem; index: number }>[] = [
-  { id: 'date', label: 'Date', size: 130, sortValue: ({ item }) => item.date },
-  { id: 'label', label: 'Libellé', size: 320, locked: true, sortValue: ({ item }) => item.label },
-  { id: 'payer', label: 'Émetteur / destinataire', size: 200, sortValue: ({ item }) => item.payerName ?? null },
-  { id: 'origin', label: 'Origine', size: 130, sortValue: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label },
-  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: ({ item }) => item.amount },
+const FORECAST_COLUMNS: DataColumn<ForecastRow>[] = [
+  { id: 'date', label: 'Date', size: 130, sortValue: ({ item }) => item.date, text: ({ item }) => printedDate(item.date), filter: { kind: 'date', value: ({ item }) => item.date } },
+  { id: 'label', label: 'Libellé', size: 320, locked: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
+  { id: 'payer', label: 'Émetteur / destinataire', size: 200, sortValue: ({ item }) => item.payerName ?? null, text: ({ item }) => item.payerName ?? '', groupable: true },
+  {
+    id: 'origin',
+    label: 'Origine',
+    size: 130,
+    sortValue: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
+    text: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
+    filter: { kind: 'choice', value: ({ item }) => (item.kind in KIND_LABELS ? item.kind : 'FORECAST'), options: Object.entries(KIND_LABELS).map(([value, kind]) => ({ value, label: kind.label })) },
+    groupable: true,
+  },
+  {
+    id: 'overdue',
+    label: 'En retard',
+    size: 110,
+    hiddenByDefault: true,
+    sortValue: ({ item }) => (item.overdue ? 1 : 0),
+    text: ({ item }) => (item.overdue ? 'En retard' : ''),
+    filter: { kind: 'boolean', value: ({ item }) => Boolean(item.overdue) },
+    groupable: true,
+  },
+  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: ({ item }) => item.amount, text: ({ item }) => `${item.amount > 0 ? '+' : ''}${fmt.money(item.amount)}` },
 ];
 
 /** Columns of the accounts. */
 const ACCOUNT_COLUMNS: DataColumn<TreasuryAccount>[] = [
-  { id: 'name', label: 'Compte', size: 260, locked: true, sortValue: (account) => account.name },
-  { id: 'opening', label: 'Ouverture', size: 240, sortValue: (account) => String(account.openingDate) },
-  { id: 'balance', label: 'Solde aujourd’hui', size: 160, numeric: true, sortValue: (account) => account.balance },
+  { id: 'name', label: 'Compte', size: 260, locked: true, sortValue: (account) => account.name, text: (account) => account.name },
+  {
+    id: 'openingBalance',
+    label: 'Solde d’ouverture',
+    size: 150,
+    numeric: true,
+    sortValue: (account) => account.openingBalance,
+    text: (account) => fmt.money(account.openingBalance),
+  },
+  {
+    id: 'openingDate',
+    label: 'Ouvert le',
+    size: 140,
+    sortValue: (account) => String(account.openingDate),
+    text: (account) => printedDate(String(account.openingDate)),
+    filter: { kind: 'date', value: (account) => String(account.openingDate).slice(0, 10) },
+  },
+  { id: 'balance', label: 'Solde aujourd’hui', size: 160, numeric: true, sortValue: (account) => account.balance, text: (account) => fmt.money(account.balance) },
+  {
+    id: 'archived',
+    label: 'Archivé',
+    size: 100,
+    hiddenByDefault: true,
+    sortValue: (account) => (account.archived ? 1 : 0),
+    text: (account) => (account.archived ? 'Archivé' : 'Ouvert'),
+    filter: { kind: 'boolean', value: (account) => account.archived },
+    groupable: true,
+  },
 ];
 
 /**
@@ -131,8 +162,8 @@ function AccountForm({ account, onDone }: { account?: TreasuryAccount; onDone: (
       <Stack gap="sm">
         <TextInput label="Nom" required placeholder="Compte courant, livret…" data-autofocus {...form.getInputProps('name')} />
         <SimpleGrid cols={2} spacing="sm">
-          <NumberInput label="Solde d’ouverture" decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" {...form.getInputProps('openingBalance')} />
-          <DatePickerInput label="Au" required valueFormat="D MMM YYYY" {...form.getInputProps('openingDate')} />
+          <AmountInput label="Solde d’ouverture" suffix=" €" {...form.getInputProps('openingBalance')} />
+          <DatePickerInput label="Au" required {...form.getInputProps('openingDate')} />
         </SimpleGrid>
         <Text size="xs" c="dimmed">
           Le solde du relevé à cette date : seuls les mouvements suivants sont comptés.
@@ -166,17 +197,8 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
         « {item.label} », prévu le {printedDate(item.dueDate)}, devient un mouvement réel.
       </Text>
       <SimpleGrid cols={2} spacing="sm">
-        <DatePickerInput label="Date réelle" required valueFormat="D MMM YYYY" value={date} onChange={setDate} />
-        <NumberInput
-          label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'}
-          min={0}
-          decimalScale={2}
-          decimalSeparator=","
-          thousandSeparator=" "
-          suffix=" €"
-          value={amount}
-          onChange={(value) => setAmount(typeof value === 'number' ? value : 0)}
-        />
+        <DatePickerInput label="Date réelle" required value={date} onChange={setDate} />
+        <AmountInput label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'} min={0} suffix=" €" value={amount} onChange={(value) => setAmount(typeof value === 'number' ? value : 0)} />
       </SimpleGrid>
       <Group justify="flex-end">
         <Button variant="default" onClick={onDone}>
@@ -219,7 +241,7 @@ function Figure({ label, value, hint, color }: { label: string; value: number; h
         {label}
       </Text>
       <Text size="xl" fw={700} ff="monospace" c={color ?? (value < 0 ? 'red' : undefined)}>
-        {money(value)}
+        {fmt.money(value)}
       </Text>
       {hint && (
         <Text size="xs" c="dimmed">
@@ -263,35 +285,54 @@ export function TreasuryPage() {
   const { data: accounts, isPending: accountsPending } = useTreasuryAccounts();
   const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
-  const { deleteEntry, deleteAccount } = useTreasuryMutations();
+  const { deleteEntry, deleteAccount, updateAccount } = useTreasuryMutations();
+  const saveEntry = useEntryCellSave();
+
+  /**
+   * Saves a field of an account changed in its cell.
+   * @param {TreasuryAccount} account Account.
+   * @param {Partial<AccountValues>} change Change.
+   * @returns {void}
+   */
+  const saveAccount = (account: TreasuryAccount, change: Partial<AccountValues>) =>
+    updateAccount.mutate(
+      { id: account.id, input: { name: account.name, openingBalance: account.openingBalance, openingDate: String(account.openingDate).slice(0, 10), archived: account.archived, ...change } },
+      { onError: (error) => notifyError(error.message) },
+    );
+  const forecastView = useDataView({ tableKey: 'treasury-forecast', columns: FORECAST_COLUMNS, rows: (projection?.items ?? []).map((item, index) => ({ item, index })), title: 'Prévisionnel' });
+  const accountsView = useDataView({ tableKey: 'treasury-accounts', columns: ACCOUNT_COLUMNS, rows: accounts ?? [], title: 'Comptes' });
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
 
-  if (accountsPending) return <Skeleton height={400} />;
+  if (accountsPending) return <DetailSkeleton />;
 
   const header = (
-    <Group justify="space-between">
-      <PageTitle>Trésorerie</PageTitle>
-      {/* On the right, also when the title is hidden (from the tablet on). */}
-      {!!accounts?.length && (
-        <Group gap="xs" ml="auto">
-          <Button variant="light" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'entry', status: 'FORECAST' })}>
-            Prévision
-          </Button>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'entry', status: 'ACTUAL' })}>
-            Mouvement
-          </Button>
-        </Group>
-      )}
-    </Group>
+    <PageHeader
+      title="Trésorerie"
+      actions={
+        !accounts?.length ? (
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
+            Nouveau compte
+          </ActionButton>
+        ) : (
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            onClick={() => setDialog({ kind: 'entry', status: 'ACTUAL' })}
+            menu={[{ label: 'Nouvelle prévision', icon: <CalendarPlusIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', status: 'FORECAST' }) }]}
+          >
+            Nouveau mouvement
+          </ActionButton>
+        )
+      }
+    />
   );
 
   const dialogs = (
-    <Modal
+    <SidePanel
       opened={dialog !== null}
       onClose={close}
       // An entry has a table of lines (its split).
-      size={dialog?.kind === 'entry' ? '72rem' : 'md'}
+      size={dialog?.kind === 'entry' ? 'lg' : 'md'}
       title={
         dialog?.kind === 'account'
           ? dialog.account
@@ -313,26 +354,14 @@ export function TreasuryPage() {
       {dialog?.kind === 'account' && <AccountForm account={dialog.account} onDone={close} />}
       {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} />}
       {dialog?.kind === 'realize' && <RealizeForm item={dialog.item} onDone={close} />}
-    </Modal>
+    </SidePanel>
   );
 
   if (!accounts?.length) {
     return (
       <Stack gap="md">
         {header}
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <BankIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed" ta="center">
-              Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là.
-            </Text>
-            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
-              Créer un compte
-            </Button>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<BankIcon aria-hidden />} message="Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là." />
         {dialogs}
       </Stack>
     );
@@ -366,7 +395,7 @@ export function TreasuryPage() {
         <Figure
           label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? printedDate(end.date) : '—'}`}
           value={end?.balance ?? 0}
-          hint={lowest ? `Point bas ${money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined}
+          hint={lowest ? `Point bas ${fmt.money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined}
         />
       </SimpleGrid>
 
@@ -430,10 +459,10 @@ export function TreasuryPage() {
           </Group>
         </Group>
         {projectionPending ? (
-          <Skeleton height={260} />
+          <BlockSkeleton height={11} />
         ) : (
           <AreaChart
-            h={260}
+            h={264}
             data={[...chart.values()]}
             dataKey="date"
             curveType="stepAfter"
@@ -444,8 +473,8 @@ export function TreasuryPage() {
               { name: 'Réel', color: 'blue.6' },
               { name: 'Prévu', color: 'grape.5', strokeDasharray: '5 5' },
             ]}
-            xAxisProps={{ tickFormatter: (value: string) => shortDate.format(new Date(`${value}T00:00:00Z`)), minTickGap: 40 }}
-            valueFormatter={(value) => money(value)}
+            xAxisProps={{ tickFormatter: (value: string) => fmt.dayShort(value), minTickGap: 40 }}
+            valueFormatter={(value) => fmt.money(value)}
             referenceLines={[{ y: 0, color: 'red.5' }]}
             yAxisProps={{ width: 90 }}
           />
@@ -476,108 +505,128 @@ export function TreasuryPage() {
         </PageTabs.List>
 
         <PageTabs.Panel value="forecast">
-          {items.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              Rien d’attendu d’ici le {printedDate(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.
-            </Text>
-          ) : (
-            <DataTable
-              framed
-              tableKey="treasury-forecast"
-              verticalSpacing="xs"
-              highlightOnHover
-              columns={FORECAST_COLUMNS}
-              rows={items.map((item, index) => ({ item, index }))}
-              getKey={({ item, index }) => `${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`}
-              cells={({ item }) => {
-                const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
-                const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
-                return {
-                  date: (
-                    <>
+          <DataTable
+            framed
+            view={forecastView}
+            bar={{ searchLabel: 'Rechercher (libellé, tiers)' }}
+            empty={
+              <EmptyState
+                compact
+                message={`Rien d’attendu d’ici le ${printedDate(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.`}
+              />
+            }
+            verticalSpacing="xs"
+            highlightOnHover
+            getKey={({ item, index }) => `${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`}
+            cells={({ item }) => {
+              const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
+              const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
+              return {
+                date: (
+                  <>
+                    {/* A repeating forecast moves by its rule (its form), each other entry by its cell. */}
+                    {entry && entry.recurrence == null ? (
+                      <EditableDate value={item.date} label={`Date de ${item.label}`} onSave={(date) => date && saveEntry(entry, { date })} />
+                    ) : (
                       <Text size="sm">{printedDate(item.date)}</Text>
-                      {item.overdue && (
-                        <Badge size="xs" color="red" variant="light">
-                          Prévu le {printedDate(item.dueDate)}
-                        </Badge>
-                      )}
-                    </>
-                  ),
-                  label: (
-                    <>
-                      {item.documentId ? (
-                        <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
-                          {item.label}
-                        </Anchor>
-                      ) : (
-                        <Group gap={4} wrap="nowrap">
-                          <Text size="sm">{item.label}</Text>
-                          <EntryUrl url={entry?.url} label={item.label} />
-                        </Group>
-                      )}
-                      {entry?.recurrence != null && (
-                        <Text size="xs" c="dimmed">
-                          {(() => {
-                            const rule = recurrenceSchema.safeParse(entry.recurrence);
-                            return rule.success ? describeRecurrence(rule.data, String(entry.date)) : '';
-                          })()}
-                        </Text>
-                      )}
-                    </>
-                  ),
-                  payer: <Text size="sm">{item.payerName ?? ''}</Text>,
-                  origin: (
-                    <>
-                      <Badge size="sm" variant="light" color={kind.color}>
-                        {kind.label}
+                    )}
+                    {item.overdue && (
+                      <Badge size="xs" color="red" variant="light">
+                        Prévu le {printedDate(item.dueDate)}
                       </Badge>
-                    </>
-                  ),
-                  amount: (
-                    <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
-                      {item.amount > 0 ? '+' : ''}
-                      {money(item.amount)}
-                    </Text>
-                  ),
-                };
-              }}
-              actions={({ item }) => {
-                const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
-                if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
-                // An actual entry is one dated after today; a forecast is realized.
-                const forecast = item.kind === 'FORECAST';
-                return (
-                  <RowActions
-                    name={item.label}
-                    primary={
-                      forecast
-                        ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => setDialog({ kind: 'realize', item }) }
-                        : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) }
-                    }
-                    items={[
-                      forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) },
-                      { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry, copy: true }) },
-                      {
-                        label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
-                        icon: <TrashIcon aria-hidden />,
-                        danger: true,
-                        onClick: () =>
-                          forecast
-                            ? confirmDeletion('Supprimer la prévision', `« ${item.label} » et toutes ses répétitions seront supprimées.`, () =>
-                                deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
-                              )
-                            : confirmDeletion(
-                                'Supprimer le mouvement',
-                                entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
-                                () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
-                              ),
-                      },
-                    ]}
-                  />
-                );
-              }}
-            />
-          )}
+                    )}
+                  </>
+                ),
+                label: (
+                  <>
+                    {item.documentId ? (
+                      <Anchor component={Link} to={`/accounting/${item.documentId}`} size="sm">
+                        {item.label}
+                      </Anchor>
+                    ) : (
+                      <Group gap={4} wrap="nowrap">
+                        {entry ? <EditableText value={entry.label} label={`Libellé de ${item.label}`} onSave={(label) => label && saveEntry(entry, { label })} /> : <Text size="sm">{item.label}</Text>}
+                        <EntryUrl url={entry?.url} label={item.label} />
+                      </Group>
+                    )}
+                    {entry?.recurrence != null && (
+                      <Text size="xs" c="dimmed">
+                        {(() => {
+                          const rule = recurrenceSchema.safeParse(entry.recurrence);
+                          return rule.success ? describeRecurrence(rule.data, String(entry.date)) : '';
+                        })()}
+                      </Text>
+                    )}
+                  </>
+                ),
+                payer: <Text size="sm">{item.payerName ?? ''}</Text>,
+                origin: (
+                  <>
+                    <Badge size="sm" variant="light" color={kind.color}>
+                      {kind.label}
+                    </Badge>
+                  </>
+                ),
+                amount: (
+                  <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
+                    {entry ? (
+                      <EditableNumber
+                        amount
+                        value={entry.amount}
+                        label={`Montant de ${item.label}`}
+                        suffix="€"
+                        signed
+                        validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
+                        onSave={(amount) => amount !== null && saveEntry(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
+                      />
+                    ) : (
+                      <>
+                        {item.amount > 0 ? '+' : ''}
+                        {fmt.money(item.amount)}
+                      </>
+                    )}
+                  </Text>
+                ),
+              };
+            }}
+            actions={({ item }) => {
+              const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
+              if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
+              // An actual entry is one dated after today; a forecast is realized.
+              const forecast = item.kind === 'FORECAST';
+              return (
+                <RowActions
+                  name={item.label}
+                  primary={
+                    forecast
+                      ? { label: 'Réaliser', icon: <CheckIcon aria-hidden />, onClick: () => setDialog({ kind: 'realize', item }) }
+                      : { label: 'Modifier le mouvement', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) }
+                  }
+                  items={[
+                    forecast && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry }) },
+                    { label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement', icon: <CopyIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', entry, copy: true }) },
+                    {
+                      label: forecast ? 'Supprimer la prévision' : 'Supprimer le mouvement',
+                      icon: <TrashIcon aria-hidden />,
+                      danger: true,
+                      onClick: () =>
+                        forecast
+                          ? confirmDestructive({
+                              title: 'Supprimer la prévision',
+                              risks: `« ${item.label} » et toutes ses répétitions seront supprimées.`,
+                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Prévision supprimée.'), onError }),
+                            })
+                          : confirmDestructive({
+                              title: 'Supprimer le mouvement',
+                              risks: entry.allocations.length ? `« ${item.label} » sera supprimé : les documents qu’il règle redeviendront dus.` : `« ${item.label} » sera supprimé définitivement.`,
+                              onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError }),
+                            }),
+                    },
+                  ]}
+                />
+              );
+            }}
+          />
         </PageTabs.Panel>
 
         <PageTabs.Panel value="entries">
@@ -595,42 +644,48 @@ export function TreasuryPage() {
         <PageTabs.Panel value="accounts">
           <DataTable
             framed
-            tableKey="treasury-accounts"
-            tools={
-              <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
-                Compte
-              </Button>
-            }
+            view={accountsView}
+            bar={{
+              searchLabel: 'Rechercher un compte',
+              actions: (
+                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
+                  Nouveau compte
+                </ActionButton>
+              ),
+            }}
             verticalSpacing="xs"
-            columns={ACCOUNT_COLUMNS}
-            rows={accounts}
             getKey={(account) => account.id}
             rowProps={(account) => ({ opacity: account.archived ? 0.6 : 1 })}
             cells={(account) => ({
               name: (
-                <>
-                  <Group gap="xs">
-                    <Text size="sm" fw={600}>
-                      {account.name}
-                    </Text>
-                    {account.archived && (
-                      <Badge size="xs" color="gray">
-                        Archivé
-                      </Badge>
-                    )}
-                  </Group>
-                </>
+                <Group gap="xs" wrap="nowrap">
+                  <EditableText value={account.name} label={`Nom du compte ${account.name}`} strong onSave={(name) => name && saveAccount(account, { name })} />
+                  {account.archived && (
+                    <Badge size="xs" color="gray" style={{ flex: 'none' }}>
+                      Archivé
+                    </Badge>
+                  )}
+                </Group>
               ),
-              opening: (
-                <>
-                  {money(account.openingBalance)} au {printedDate(String(account.openingDate))}
-                </>
+              openingBalance: (
+                <EditableNumber
+                  amount
+                  value={account.openingBalance}
+                  label={`Solde d’ouverture de ${account.name}`}
+                  suffix="€"
+                  signed
+                  onSave={(openingBalance) => openingBalance !== null && saveAccount(account, { openingBalance })}
+                />
+              ),
+              openingDate: (
+                <EditableDate value={String(account.openingDate).slice(0, 10)} label={`Ouverture de ${account.name}`} onSave={(openingDate) => openingDate && saveAccount(account, { openingDate })} />
               ),
               balance: (
                 <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
-                  {money(account.balance)}
+                  {fmt.money(account.balance)}
                 </Text>
               ),
+              archived: <EditableCheck value={account.archived} label={`${account.name} archivé`} onSave={(archived) => saveAccount(account, { archived })} />,
             })}
             actions={(account) => (
               <RowActions
@@ -644,9 +699,11 @@ export function TreasuryPage() {
                     disabled: account.entryCount > 0,
                     hint: account.entryCount ? 'A des mouvements : archivez-le' : undefined,
                     onClick: () =>
-                      confirmDeletion('Supprimer le compte', `« ${account.name} » sera supprimé définitivement.`, () =>
-                        deleteAccount.mutate(account.id, { onSuccess: () => notifySuccess('Compte supprimé.'), onError }),
-                      ),
+                      confirmDestructive({
+                        title: 'Supprimer le compte',
+                        risks: `« ${account.name} » sera supprimé définitivement.`,
+                        onConfirm: () => deleteAccount.mutate(account.id, { onSuccess: () => notifySuccess('Compte supprimé.'), onError }),
+                      }),
                   },
                 ]}
               />

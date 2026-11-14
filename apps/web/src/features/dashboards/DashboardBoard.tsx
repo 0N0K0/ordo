@@ -1,4 +1,10 @@
-import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { ActionsRow } from '../../components/actions/ActionsRow';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { BlockSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../../components/panels/panels';
+import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Stack, Tabs, Text, TextInput, Tooltip, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
 import {
@@ -32,7 +38,6 @@ import { useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from './api';
 import { ChartEditor } from './ChartEditor';
 import { chartPng, chartSizeFor, downloadChartsPdf, exportFileName, saveFile, type ExportScheme } from './chart-image';
@@ -42,6 +47,7 @@ import { describeChart, useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from './aggregate';
+import * as fmt from '../../lib/format';
 
 /** Image of a chart as exported. */
 interface Capture {
@@ -155,12 +161,12 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
     if (!capture) return;
     if (format === 'png') {
       const modalId = `export-image-${chart.id}`;
-      modals.open({
-        modalId,
+      openPanel({
+        panelId: modalId,
         title: `Exporter « ${chart.title} » en image`,
         children: (
           <ImageExportForm
-            onDone={() => modals.close(modalId)}
+            onDone={() => closePanel(modalId)}
             onExport={(settings) => {
               const frame = { width: settings.width, height: settings.height };
               return capture({ scheme: settings.scheme, frame, render: chartSizeFor(frame, data && data.series.length > 1 ? data.series.length : 0) })
@@ -177,7 +183,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
       .then((image) =>
         downloadChartsPdf({
           title: chart.title,
-          subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+          subtitle: `${dashboardName} · exporté le ${fmt.exportDateTime(new Date())}`,
           charts: [image],
         }),
       )
@@ -190,26 +196,19 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
    * @returns {void}
    */
   const confirmDelete = () => {
-    const modalId = `delete-chart-${chart.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le diagramme',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">Le diagramme « {chart.title} » sera supprimé définitivement. Les données affichées ne sont pas modifiées.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              removeChart.mutate(chart.id, {
-                onSuccess: () => notifySuccess('Diagramme supprimé.'),
-                onError: (deleteError) => notifyError(deleteError.message),
-              });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        removeChart.mutate(chart.id, {
+          onSuccess: () => notifySuccess('Diagramme supprimé.'),
+          onError: (deleteError) => notifyError(deleteError.message),
+        });
+      },
     });
   };
 
@@ -299,10 +298,10 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
                 leftSection={<ArrowBendUpRightIcon aria-hidden />}
                 onClick={() => {
                   const modalId = `transfer-chart-${chart.id}`;
-                  modals.open({
-                    modalId,
+                  openPanel({
+                    panelId: modalId,
                     title: `Déplacer « ${chart.title} »`,
-                    children: <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={() => modals.close(modalId)} />,
+                    children: <TransferChartForm chart={chart} projectId={scope.projectId} context={context} onDone={() => closePanel(modalId)} />,
                   });
                 }}
               >
@@ -343,9 +342,9 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
             {error.message}
           </Alert>
         ) : isPending || !data ? (
-          <Skeleton height={280} />
+          <BlockSkeleton height={12} />
         ) : (
-          <ChartView ref={view} config={config} data={data} height={280} />
+          <ChartView ref={view} config={config} data={data} height={288} />
         )}
         {printSize &&
           data &&
@@ -463,8 +462,8 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           },
         );
     };
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: dashboard ? 'Renommer le tableau de bord' : 'Nouveau tableau de bord',
       children: (
         <form
@@ -476,7 +475,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           <Stack gap="md">
             <TextInput label="Nom" required data-autofocus defaultValue={name} placeholder="KPI, Sprint, Mensuel…" onChange={(event) => (name = event.currentTarget.value)} />
             <Group justify="flex-end" gap="sm">
-              <Button variant="default" onClick={() => modals.close(modalId)}>
+              <Button variant="default" onClick={() => closePanel(modalId)}>
                 Annuler
               </Button>
               <Button type="submit">{dashboard ? 'Renommer' : 'Créer'}</Button>
@@ -493,29 +492,22 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
    * @returns {void}
    */
   const confirmDelete = (dashboard: Dashboard) => {
-    const modalId = `delete-dashboard-${dashboard.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le tableau de bord',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             « {dashboard.name} » et ses {dashboard.charts.length} diagramme
             {dashboard.charts.length > 1 ? 's' : ''} seront supprimés définitivement. Les données affichées ne sont pas modifiées.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              mutations.remove.mutate(dashboard.id, {
-                onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
-                onError: (deleteError) => notifyError(deleteError.message),
-              });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        mutations.remove.mutate(dashboard.id, {
+          onSuccess: () => notifySuccess('Tableau de bord supprimé.'),
+          onError: (deleteError) => notifyError(deleteError.message),
+        });
+      },
     });
   };
 
@@ -528,10 +520,10 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
   const openEditor = (chart?: DashboardChart, source: ChartSource = 'tasks') => {
     if (!context || !current) return;
     const modalId = `chart-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: chart ? 'Modifier le diagramme' : 'Nouveau diagramme',
-      size: '90rem',
+      size: 'lg',
       children: (
         <ChartEditor
           dashboardId={current.id}
@@ -551,7 +543,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
           }
           scope={scope}
           context={context}
-          onDone={() => modals.close(modalId)}
+          onDone={() => closePanel(modalId)}
         />
       ),
     });
@@ -573,7 +565,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       .then((charts) =>
         downloadChartsPdf({
           title: `${title} — ${current.name}`,
-          subtitle: `${charts.length} diagramme${charts.length > 1 ? 's' : ''} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+          subtitle: `${charts.length} diagramme${charts.length > 1 ? 's' : ''} · exporté le ${fmt.exportDateTime(new Date())}`,
           charts,
         }),
       )
@@ -588,23 +580,21 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       </Alert>
     );
   }
-  if (isPending || contextPending || !context) return <Skeleton height={320} />;
+  if (isPending || contextPending || !context) return <BlockSkeleton height={14} />;
 
   if (!dashboards?.length || !current) {
     return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <ChartBarIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center">
-            Aucun tableau de bord. Créez-en un pour suivre vos indicateurs : tâches fermées par semaine, vélocité par sprint, burndown, charge par assigné…
-          </Text>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => askName()}>
-            Créer un tableau de bord
-          </Button>
-        </Stack>
-      </Paper>
+      <Stack gap="md">
+        <ActionsRow>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => askName()}>
+            Nouveau tableau de bord
+          </ActionButton>
+        </ActionsRow>
+        <EmptyState
+          icon={<ChartBarIcon aria-hidden />}
+          message="Aucun tableau de bord. Créez-en un pour suivre vos indicateurs : tâches fermées par semaine, vélocité par sprint, burndown, charge par assigné…"
+        />
+      </Stack>
     );
   }
 
@@ -666,44 +656,24 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
         </Group>
         {/* The new chart at the far right. */}
         <Group gap="xs" ml="auto">
-          <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
+          <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
             Exporter en PDF
-          </Button>
-          <Menu position="bottom-end" shadow="md">
-            <Menu.Target>
-              <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
-                Nouveau diagramme
-              </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<CheckSquareOffsetIcon aria-hidden />} onClick={() => openEditor(undefined, 'tasks')}>
-                Tâches
-              </Menu.Item>
-              <Menu.Item leftSection={<ReceiptIcon aria-hidden />} onClick={() => openEditor(undefined, 'documents')}>
-                Facturation (devis, factures…)
-              </Menu.Item>
-              <Menu.Item leftSection={<BankIcon aria-hidden />} onClick={() => openEditor(undefined, 'treasury')}>
-                Trésorerie
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+          </ActionButton>
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            menu={[
+              { label: 'Tâches', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => openEditor(undefined, 'tasks') },
+              { label: 'Facturation (devis, factures…)', icon: <ReceiptIcon aria-hidden />, onClick: () => openEditor(undefined, 'documents') },
+              { label: 'Trésorerie', icon: <BankIcon aria-hidden />, onClick: () => openEditor(undefined, 'treasury') },
+            ]}
+          >
+            Nouveau diagramme
+          </ActionButton>
         </Group>
       </Group>
 
       {current.charts.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ChartBarIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Ce tableau de bord n’a pas encore de diagramme.
-            </Text>
-            <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openEditor()}>
-              Ajouter un diagramme
-            </Button>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<ChartBarIcon aria-hidden />} message="Ce tableau de bord n’a pas encore de diagramme." />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={current.charts.map((chart) => chart.id)} strategy={rectSortingStrategy}>

@@ -1,8 +1,11 @@
-import { ActionIcon, Button, ColorInput, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { ActionsRow } from '../../components/actions/ActionsRow';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ActionIcon, ColorInput, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useMailLabelMutations, useMailLabels, type MailLabel } from './api';
 
 const SWATCHES = ['#fa5252', '#fd7e14', '#fab005', '#40c057', '#15aabf', '#228be6', '#7950f2', '#e64980', '#868e96'];
@@ -70,22 +73,19 @@ export function MailLabelsManager() {
       {(labels ?? []).map((label) => (
         <LabelRow key={label.id} label={label} />
       ))}
-      {labels?.length === 0 && (
-        <Text size="sm" c="dimmed" ta="center" py="sm">
-          Aucun drapeau.
-        </Text>
-      )}
-      <div>
-        <Button
+      {labels?.length === 0 && <EmptyState compact message="Aucun drapeau." />}
+      <ActionsRow>
+        <ActionButton
+          priority="secondary"
           size="xs"
-          variant="light"
-          leftSection={<PlusIcon aria-hidden />}
+
+          icon={<PlusIcon aria-hidden />}
           loading={create.isPending}
           onClick={() => create.mutate({ name: `Drapeau ${(labels?.length ?? 0) + 1}`, color: SWATCHES[(labels?.length ?? 0) % SWATCHES.length] }, { onError: (error) => notifyError(error.message) })}
         >
-          Ajouter un drapeau
-        </Button>
-      </div>
+          Nouveau drapeau
+        </ActionButton>
+      </ActionsRow>
     </Stack>
   );
 }

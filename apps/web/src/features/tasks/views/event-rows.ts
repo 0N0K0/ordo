@@ -2,6 +2,7 @@ import { filterDay, filterPeriod, ME, type FilterCondition, type FilterGroup } f
 import type { EventOccurrence } from '../../calendar/api';
 import { descendantIds } from '../../workspace/api';
 import type { TaskContext } from '../use-task-context';
+import { currentWeek } from '../../../lib/week';
 
 /**
  * Text compared without case or accents.
@@ -83,7 +84,7 @@ function conditionMatches(event: EventOccurrence, condition: FilterCondition, co
     if (operator === 'isEmpty') return false;
     if (operator === 'isNotEmpty') return true;
     if (operator === 'within') {
-      const [start, end] = filterPeriod(text, today);
+      const [start, end] = filterPeriod(text, today, currentWeek());
       return day >= start && day < end;
     }
     const target = filterDay(text, today);

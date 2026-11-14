@@ -1,17 +1,17 @@
 import { isoWeek, type ScheduleCase, type ScheduleCaseInput } from '@ordo/shared';
+import * as fmt from '../../lib/format';
 
 export const WEEKDAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const WEEKDAY_SHORT = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
 export const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const POSITIONS: Record<number, string> = { 1: '1er', 2: '2e', 3: '3e', 4: '4e', [-1]: 'dernier' };
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} "12 nov. 2026".
  */
-export const printedDate = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`));
+export const printedDate = (date: string) => fmt.day(date);
 
 /**
  * New case: weekdays Monday to Friday, 9:00–17:00 (every day of a one-day period).

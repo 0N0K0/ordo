@@ -1,5 +1,5 @@
+import { openPanel } from '../../components/panels/panels';
 import { Button, Menu, UnstyledButton } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { CaretDownIcon, CheckIcon, GearSixIcon } from '@phosphor-icons/react';
 import { useActiveWorkspace, useWorkspaces } from './api';
 import { switchWorkspace } from './switch';
@@ -12,7 +12,7 @@ import classes from './WorkspaceSwitcher.module.css';
  * @returns {void}
  */
 function openWorkspacesManager(): void {
-  modals.open({ title: 'Espaces', size: 'xl', children: <WorkspacesManager /> });
+  openPanel({ title: 'Espaces', size: 'lg', children: <WorkspacesManager /> });
 }
 
 /**

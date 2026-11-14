@@ -3,6 +3,7 @@ import type { Task } from '../tasks/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { SprintTaskStatus } from './api';
 import { aggregate, localDay, none, round, type ChartData, type Key } from './aggregate';
+import * as fmt from '../../lib/format';
 
 const CATEGORY_LABELS: Record<string, string> = {
   TODO: 'À faire',
@@ -10,11 +11,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   DONE: 'Terminée',
   CANCELLED: 'Annulée',
 };
-const dayLabel = new Intl.DateTimeFormat('fr-FR', {
-  day: 'numeric',
-  month: 'short',
-  timeZone: 'UTC',
-});
 
 /**
  * Day of a task for a date dimension, or null when the task has none.
@@ -203,7 +199,7 @@ function burndown(tasks: Task[], config: ChartConfig, context: TaskContext, toda
   const days: string[] = [];
   for (let day = String(sprint.startDate); day <= String(sprint.endDate); day = addDays(day, 1)) days.push(day);
   const rows = days.map((day, index) => ({
-    x: dayLabel.format(new Date(`${day}T00:00:00Z`)),
+    x: fmt.dayShort(day),
     Restant: day > today ? null : round(inSprint.filter((task) => !task.closedAt || localDay(String(task.closedAt)) > day).reduce((sum, task) => sum + valueOf(task, measure, context), 0)),
     Idéal: round(days.length > 1 ? total * (1 - index / (days.length - 1)) : 0),
   }));

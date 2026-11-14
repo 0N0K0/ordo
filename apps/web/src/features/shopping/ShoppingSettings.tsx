@@ -35,7 +35,7 @@ export function ShoppingSettings() {
   const mutations = useShoppingMutations();
   const rows = [...(data?.shoppingProducts ?? []), ...(lists ?? []).flatMap((list) => list.items)];
   return (
-    <PageSettings title="Paramètres des courses">
+    <PageSettings title="Paramètres des achats">
       <Stack gap="md">
         <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usageOf((row) => row.categoryId, rows)} />
         <LabelManager

@@ -2,6 +2,7 @@ import { Button, Group, SegmentedControl, Select, Stack, Text } from '@mantine/c
 import { useLocalStorage } from '@mantine/hooks';
 import { useState } from 'react';
 import type { ExportScheme } from './chart-image';
+import * as fmt from '../../lib/format';
 
 /** Settings of an image export. */
 export interface ImageExportSettings {
@@ -77,7 +78,7 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
       <Select label="Format" allowDeselect={false} data={RATIOS.map(({ value, label }) => ({ value, label }))} value={ratio.value} onChange={(value) => value && set({ ratio: value })} />
       <Select label="Taille (grand côté)" allowDeselect={false} data={SIZES.map(({ value, label }) => ({ value, label }))} value={String(long)} onChange={(value) => value && set({ size: value })} />
       <Text size="sm" c="dimmed">
-        Image PNG de {width.toLocaleString('fr-FR')} × {height.toLocaleString('fr-FR')} px.
+        Image PNG de {fmt.number(width, 0)} × {fmt.number(height, 0)} px.
       </Text>
       <Group justify="flex-end" gap="sm">
         <Button variant="default" onClick={onDone}>

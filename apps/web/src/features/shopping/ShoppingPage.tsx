@@ -1,14 +1,19 @@
-import { Anchor, Badge, Button, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { SHOPPING_LIST_FILTER_FIELDS, SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS, type ShoppingListFilterField, type ShoppingListGroupBy } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
-import { BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
-import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { EditableText } from '../../components/data-table/EditableCells';
+import { ExportButtons } from '../../components/data-table/DataViewBar';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { newConditionFor } from '../tasks/views/filter-meta';
 import { shownColumns, tableWidth, type DataColumn } from '../../components/data-table/data-table';
@@ -25,10 +30,9 @@ import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
 import { ListActionsMenu } from './ListActions';
 import { TasksCell } from './shopping-cells';
-import { listClosed, listsOfProjects, listTasks, money, taskOptions, type ShoppingGrouping } from './shopping-format';
+import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+import * as fmt from '../../lib/format';
 
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
@@ -89,11 +93,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         <div style={{ minWidth: 0, flex: 1 }}>
           <ViewTabs state={view} />
         </div>
-        {!projectIds && (
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
-            Nouvelle liste
-          </Button>
-        )}
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ projectIds })}>
+          Nouvelle liste
+        </ActionButton>
       </Group>
       {config && (
         <SavedViewToolbar
@@ -112,25 +114,42 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           filterOpened={filterOpened}
           onFilterOpenedChange={setFilterOpened}
           columns={<DataColumnsPanel columns={LIST_COLUMNS} layout={layout} onLayoutChange={(next) => view.change((current) => ({ ...current, ...next }))} />}
+          exports={
+            <ExportButtons
+              disabled={shown.length === 0}
+              table={() => {
+                const texts: Record<string, (list: ShoppingList) => string> = {
+                  name: (list) => list.name,
+                  tasks: (list) =>
+                    listTasks(list, context)
+                      .map((task) => context?.taskLabel(task) ?? `#${task.number} ${task.title}`)
+                      .join(', '),
+                  progress: (list) => `${list.items.filter((item) => item.purchasedAt).length} / ${list.items.length}`,
+                  remaining: (list) => String(list.items.filter((item) => !item.purchasedAt).length),
+                  itemCount: (list) => String(list.items.length),
+                  total: (list) => (shoppingTotal(list.items) > 0 ? fmt.money(shoppingTotal(list.items)) : ''),
+                  createdAt: (list) => fmt.day(new Date(list.createdAt)),
+                  closedAt: (list) => (list.closedAt ? fmt.day(new Date(list.closedAt)) : ''),
+                };
+                return {
+                  title: 'Listes d’achats',
+                  subtitle: view.current?.name ?? '',
+                  columns: shownList.map((column) => ({ ...column, text: texts[column.id] })),
+                  groups: [{ key: '', label: '', rows: shown }],
+                  grouped: false,
+                };
+              }}
+            />
+          }
         />
       )}
       {isPending || !config || (projectIds && !context) ? (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2].map((index) => (
-            <Skeleton key={index} height={48} />
-          ))}
-        </Stack>
+        <TableSkeleton rows={3} />
       ) : shown.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ListChecksIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              {scoped.length === 0 ? (projectIds ? 'Aucune liste : une liste rattachée à une tâche du projet s’affiche ici.' : 'Aucune liste pour le moment.') : 'Aucune liste dans cette vue.'}
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<ListChecksIcon aria-hidden />}
+          message={scoped.length === 0 ? (projectIds ? 'Aucune liste : une liste rattachée à une tâche du projet s’affiche ici.' : 'Aucune liste pour le moment.') : 'Aucune liste dans cette vue.'}
+        />
       ) : (
         <Paper withBorder radius="md" className={classes.group}>
           <div className={classes.scroller}>
@@ -183,9 +202,18 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   const cells: Record<string, ReactNode> = {
                     name: (
                       <Group gap="xs" wrap="nowrap">
-                        <Anchor component={Link} to={`/shopping/${list.id}`} size="sm" truncate>
-                          {list.name}
-                        </Anchor>
+                        <EditableText
+                          value={list.name}
+                          label={`Nom de la liste ${list.name}`}
+                          strong
+                          readOnly={closedOf(list)}
+                          onSave={(name) => name && updateList.mutate({ id: list.id, name, taskIds: list.taskIds }, { onError: (error) => notifyError(error.message) })}
+                        />
+                        <Tooltip label="Ouvrir la liste">
+                          <ActionIcon component={Link} to={`/shopping/${list.id}`} variant="subtle" color="gray" size="sm" aria-label={`Ouvrir la liste ${list.name}`}>
+                            <ArrowSquareInIcon aria-hidden />
+                          </ActionIcon>
+                        </Tooltip>
                         {list.entryId && (
                           <Badge size="xs" variant="light" tt="none">
                             Payée
@@ -215,9 +243,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                     ),
                     remaining: list.items.length - bought || '',
                     itemCount: list.items.length,
-                    total: total > 0 ? money(total) : null,
-                    createdAt: dayFormat.format(new Date(list.createdAt)),
-                    closedAt: list.closedAt ? dayFormat.format(new Date(list.closedAt)) : null,
+                    total: total > 0 ? fmt.money(total) : null,
+                    createdAt: fmt.day(new Date(list.createdAt)),
+                    closedAt: list.closedAt ? fmt.day(new Date(list.closedAt)) : null,
                   };
                   return (
                     <Table.Tr key={row.key}>
@@ -260,7 +288,7 @@ export function ShoppingPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Courses</PageTitle>
+      <PageHeader title="Achats" />
       <ShoppingSettings />
       <PageTabs
         value={tab}

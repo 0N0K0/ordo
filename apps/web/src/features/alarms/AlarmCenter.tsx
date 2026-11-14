@@ -12,6 +12,7 @@ import { unlockAudioOnGesture } from './alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from './ring-routines';
 import { notifyError } from '../../lib/notify';
+import { useSlotRules } from '../slot-rules/use-slot-rules';
 
 const TICK_MS = 15_000;
 
@@ -30,6 +31,7 @@ export function AlarmCenter() {
   const { markFired } = useAlarmMutations();
   const { data: routinesData } = useRoutinesData();
   const { setDone } = useRoutineMutations();
+  const slotRules = useSlotRules();
   // Tracking alarms: last rung step per alarm and timer, so a reload does not ring past steps again.
   const trackingSteps = useRef(new Map<string, number>());
   // Event occurrences of the next days, for their reminders.
@@ -52,10 +54,10 @@ export function AlarmCenter() {
     return () => window.clearInterval(timer);
   }, []);
   const navigate = useNavigate();
-  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone });
+  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules });
 
   useEffect(() => {
-    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone };
+    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules };
   });
 
   useEffect(() => unlockAudioOnGesture(), []);
@@ -92,8 +94,12 @@ export function AlarmCenter() {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
       ringReminders(upcoming.current, now, [link('Voir l’agenda', '/calendar')]);
-      ringRoutineReminders(latest.current.routinesData?.routines ?? [], now, [link('Voir les routines', '/routines')], (routine, slot) =>
-        latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: (error) => notifyError(error.message) }),
+      ringRoutineReminders(
+        latest.current.routinesData?.routines ?? [],
+        now,
+        [link('Voir les routines', '/routines')],
+        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: (error) => notifyError(error.message) }),
+        (routine, at) => latest.current.slotRules.nextAllowedAt(routine.slotRule, at),
       );
       if (!list) return;
       const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));

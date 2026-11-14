@@ -1,3 +1,4 @@
+import { readSlotRule } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, type RoutineInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError } from '../errors';
@@ -17,7 +18,7 @@ builder.prismaObject('RoutineCategory', {
 });
 
 /** Selection computing the occurrences and times of the day of a routine. */
-const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, moves: true, fromTime: true, dueTime: true } as const;
+const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true } as const;
 
 /**
  * Calendar date as a Date (the Date scalar), or null.
@@ -91,6 +92,8 @@ builder.prismaObject('Routine', {
     scheduleId: t.exposeID('scheduleId', { nullable: true, description: 'Calendar schedule it follows (its days and times).' }),
     scheduleAnchor: t.exposeString('scheduleAnchor', { nullable: true, description: 'START, WHOLE or END of the schedule.' }),
     reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
+    opensOn: t.exposeString('opensOn', { nullable: true, description: 'Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).' }),
+    slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.', resolve: (routine) => readSlotRule(routine.slotRule) }),
     windowFrom: t.string({
       nullable: true,
       description: 'Time to do it from on its current (or next) occurrence, for its time of the day to come: its own, its case’s or its schedule’s.',
@@ -200,6 +203,8 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     scheduleAnchor: t.string({ description: 'START, WHOLE or END.' }),
     cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day); empty: the repetition.' }),
     reminders: t.intList(),
+    opensOn: t.string({ description: 'Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).' }),
+    slotRule: t.field({ type: 'JSON', description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.' }),
     dueTime: t.string({ description: 'HH:MM.' }),
     location: t.string(),
     locationLat: t.float(),
@@ -271,6 +276,8 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   scheduleId: idOrNull(input.scheduleId),
   scheduleAnchor: (input.scheduleAnchor ?? null) as RoutineInput['scheduleAnchor'],
   reminders: input.reminders ?? [],
+  opensOn: input.opensOn ?? null,
+  slotRule: (input.slotRule ?? null) as RoutineInput['slotRule'],
   cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
   location: input.location ?? null,

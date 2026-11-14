@@ -1,3 +1,7 @@
+import { ActionButton } from '../../components/actions/ActionButton';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { SidePanel } from '../../components/panels/SidePanel';
 import {
   ActionIcon,
   Badge,
@@ -5,12 +9,10 @@ import {
   Checkbox,
   ColorInput,
   Group,
-  Modal,
   Paper,
   SegmentedControl,
   Select,
   SimpleGrid,
-  Skeleton,
   Stack,
   Table,
   Text,
@@ -28,7 +30,6 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
 import { CategoryTree } from '../../components/category-tree/CategoryTree';
 import { categoryOptions } from './categories';
-import { confirmDeletion } from './confirm-deletion';
 import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useColorSwatches } from '../workspace/use-color-swatches';
@@ -331,9 +332,7 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
         <Title order={3} size="h5">
           Catégories de {direction === 'IN' ? 'recettes' : 'dépenses'}
         </Title>
-        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => open({ kind: 'category', direction })}>
-          Catégorie
-        </Button>
+        <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => open({ kind: 'category', direction })}>Nouvelle catégorie</ActionButton>
       </Group>
       {kept.length === 0 ? (
         <Empty icon={<TagIcon aria-hidden />}>Aucune catégorie de {DIRECTION_LABELS[direction].toLowerCase()}.</Empty>
@@ -357,11 +356,7 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
                 label={path}
                 onEdit={() => open({ kind: 'category', category })}
                 onDelete={() =>
-                  confirmDeletion(
-                    'Supprimer la catégorie',
-                    `« ${path} » sera supprimée définitivement.${category.entryCount ? ` Ses ${entries(category.entryCount)} n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau.`,
-                    () => deleteCategory.mutate(category.id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) }),
-                  )
+                  confirmDestructive({ title: 'Supprimer la catégorie', risks: `« ${path} » sera supprimée définitivement.${category.entryCount ? ` Ses ${entries(category.entryCount)} n’auront plus de catégorie.` : ''} Ses sous-catégories remonteront d’un niveau.`, onConfirm: () => deleteCategory.mutate(category.id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) }) })
                 }
               />
             </>
@@ -436,7 +431,7 @@ export function SettingsPanel() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
-  if (isPending || !settings) return <Skeleton height={320} />;
+  if (isPending || !settings) return <ListSkeleton items={6} />;
   const { treasuryCategories: categories, treasuryPaymentMethods: methods, treasuryCounterparties: counterparties } = settings;
 
   return (
@@ -453,9 +448,7 @@ export function SettingsPanel() {
             <Title order={3} size="h5">
               Moyens de paiement
             </Title>
-            <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'method' })}>
-              Moyen de paiement
-            </Button>
+            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'method' })}>Nouveau moyen de paiement</ActionButton>
           </Group>
           {methods.length === 0 ? (
             <Empty icon={<CreditCardIcon aria-hidden />}>Aucun moyen de paiement.</Empty>
@@ -491,11 +484,7 @@ export function SettingsPanel() {
                         label={method.name}
                         onEdit={() => setDialog({ kind: 'method', method })}
                         onDelete={() =>
-                          confirmDeletion(
-                            'Supprimer le moyen de paiement',
-                            `« ${method.name} » sera supprimé définitivement.${method.entryCount ? ` Ses ${entries(method.entryCount)} n’auront plus de moyen de paiement.` : ''}`,
-                            () => deleteMethod.mutate(method.id, { onSuccess: () => notifySuccess('Moyen de paiement supprimé.'), onError }),
-                          )
+                          confirmDestructive({ title: 'Supprimer le moyen de paiement', risks: `« ${method.name} » sera supprimé définitivement.${method.entryCount ? ` Ses ${entries(method.entryCount)} n’auront plus de moyen de paiement.` : ''}`, onConfirm: () => deleteMethod.mutate(method.id, { onSuccess: () => notifySuccess('Moyen de paiement supprimé.'), onError }) })
                         }
                       />
                     </Table.Td>
@@ -511,9 +500,7 @@ export function SettingsPanel() {
             <Title order={3} size="h5">
               Tiers
             </Title>
-            <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'counterparty' })}>
-              Tiers
-            </Button>
+            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'counterparty' })}>Nouveau tiers</ActionButton>
           </Group>
           <Text size="xs" c="dimmed" mb="xs">
             Émetteurs et destinataires qui ne sont pas des clients : fournisseurs, administrations, banques… Les clients sont proposés d’office.
@@ -550,11 +537,7 @@ export function SettingsPanel() {
                         label={counterparty.name}
                         onEdit={() => setDialog({ kind: 'counterparty', counterparty })}
                         onDelete={() =>
-                          confirmDeletion(
-                            'Supprimer le tiers',
-                            `« ${counterparty.name} » sera supprimé définitivement.${counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}`,
-                            () => deleteCounterparty.mutate(counterparty.id, { onSuccess: () => notifySuccess('Tiers supprimé.'), onError }),
-                          )
+                          confirmDestructive({ title: 'Supprimer le tiers', risks: `« ${counterparty.name} » sera supprimé définitivement.${counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}`, onConfirm: () => deleteCounterparty.mutate(counterparty.id, { onSuccess: () => notifySuccess('Tiers supprimé.'), onError }) })
                         }
                       />
                     </Table.Td>
@@ -566,7 +549,7 @@ export function SettingsPanel() {
         </Paper>
       </Stack>
 
-      <Modal
+      <SidePanel
         opened={dialog !== null}
         onClose={close}
         title={
@@ -586,7 +569,7 @@ export function SettingsPanel() {
         {dialog?.kind === 'category' && <CategoryForm category={dialog.category} direction={dialog.direction} parentId={dialog.parentId} categories={categories} onDone={close} />}
         {dialog?.kind === 'method' && <MethodForm method={dialog.method} onDone={close} />}
         {dialog?.kind === 'counterparty' && <CounterpartyForm counterparty={dialog.counterparty} onDone={close} />}
-      </Modal>
+      </SidePanel>
     </Stack>
   );
 }

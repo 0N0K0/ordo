@@ -1,6 +1,9 @@
-import { ActionIcon, Badge, Button, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../../components/panels/panels';
+import { ActionIcon, Badge, Button, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { modals } from '@mantine/modals';
 import { addDays, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
 import { DotsThreeIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -8,19 +11,16 @@ import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useSprintMutations, type Sprint } from './api';
 import { useTaskContext, type TaskContext } from './use-task-context';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
+import * as fmt from '../../lib/format';
 
 /**
  * Printed day.
  * @param {string} day YYYY-MM-DD.
  * @returns {string} "3 novembre 2026".
  */
-const printedDay = (day: string) => dayFormat.format(new Date(`${day}T00:00:00Z`));
+const printedDay = (day: string) => fmt.day(day);
 
 interface SprintFormProps {
   projectId: string;
@@ -32,7 +32,7 @@ interface SprintFormProps {
 }
 
 /**
- * Sprint creation / edition form, in a modal.
+ * Sprint creation / edition form, in the side panel.
  * @param {SprintFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -62,8 +62,8 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
         {/* By the width of the settings sidebar, not the window's. */}
         <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
-          <DatePickerInput label="Début" required valueFormat="D MMM YYYY" {...form.getInputProps('startDate')} />
-          <DatePickerInput label="Fin" required valueFormat="D MMM YYYY" {...form.getInputProps('endDate')} />
+          <DatePickerInput label="Début" required {...form.getInputProps('startDate')} />
+          <DatePickerInput label="Fin" required {...form.getInputProps('endDate')} />
         </SimpleGrid>
         <MarkdownEditor
           label="Objectif"
@@ -113,11 +113,10 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
     const start = last && String(last.endDate) >= today ? addDays(String(last.endDate), 1) : today;
     const defaults = { name: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
     const modalId = `sprint-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: sprint ? 'Modifier le sprint' : 'Nouveau sprint',
-      size: 'lg',
-      children: <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={() => modals.close(modalId)} />,
+      children: <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={() => closePanel(modalId)} />,
     });
   };
 
@@ -128,28 +127,15 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (sprint: Sprint, count: number) => {
-    const modalId = `delete-sprint-${sprint.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le sprint',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: 'Supprimer le sprint', risks: (
+<>
+<Text size="sm">
             Le sprint « {sprint.name} » sera supprimé définitivement
             {count > 0 ? ` et retiré des ${count} tâche${count > 1 ? 's' : ''} qui y sont planifiées` : ''}. Les tâches ne sont pas supprimées.
             Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate({ id: sprint.id }, { onSuccess: () => notifySuccess('Sprint supprimé.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+</>
+), onConfirm: () => { remove.mutate({ id: sprint.id }, { onSuccess: () => notifySuccess('Sprint supprimé.'), onError: (error) => notifyError(error.message) }); } });
   };
 
   return (
@@ -158,24 +144,10 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
         <Text size="sm" c="dimmed">
           Les sprints sont utilisables par les tâches du projet et de ses sous-projets.
         </Text>
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
-          Nouveau sprint
-        </Button>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau sprint</ActionButton>
       </Group>
       {sprints.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <TimerIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun sprint pour ce projet.
-            </Text>
-            <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
-              Planifier un premier sprint
-            </Button>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<TimerIcon aria-hidden />} message="Aucun sprint pour ce projet." />
       ) : (
         sprints.map((sprint) => {
           const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);
@@ -233,7 +205,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                   <Progress value={tasks.length ? (done.length / tasks.length) * 100 : 0} style={{ flex: 1 }} aria-label={`Avancement du sprint ${sprint.name}`} />
                   <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
                     {done.length}/{tasks.length} tâche{tasks.length > 1 ? 's' : ''}
-                    {effort > 0 && ` · effort ${numberFormat.format(doneEffort)}/${numberFormat.format(effort)}`}
+                    {effort > 0 && ` · effort ${fmt.number(doneEffort, 1)}/${fmt.number(effort, 1)}`}
                   </Text>
                 </Group>
                 {sprint.goal && (

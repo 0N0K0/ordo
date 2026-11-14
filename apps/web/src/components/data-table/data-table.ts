@@ -1,5 +1,23 @@
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 
+/** Choice of a column filtered by its values. */
+export interface ColumnChoice {
+  value: string;
+  label: string;
+}
+
+/**
+ * How a column is filtered: its kind and the value of a row (a text by default: the text of the column).
+ * Dates are YYYY-MM-DD; a choice is one value of its options, several choices a list of them.
+ */
+export type ColumnFilter<R> =
+  | { kind: 'text'; value?: (row: R) => string | null }
+  | { kind: 'number'; value: (row: R) => number | null }
+  | { kind: 'date'; value: (row: R) => string | null }
+  | { kind: 'boolean'; value: (row: R) => boolean }
+  | { kind: 'choice'; value: (row: R) => string | null; options: ColumnChoice[] }
+  | { kind: 'choices'; value: (row: R) => string[]; options: ColumnChoice[] };
+
 /** Column of a data table. */
 export interface DataColumn<R> {
   id: string;
@@ -14,6 +32,12 @@ export interface DataColumn<R> {
   sortValue?: (row: R) => string | number | null;
   /** Text right-aligned (amounts). Optional. */
   numeric?: boolean;
+  /** Text of the cell: exported, searched, and the name of its group. Optional: without, the column is left out of them. */
+  text?: (row: R) => string;
+  /** How the column is filtered. Optional. Default = by its text (none without text); false: not filtered. */
+  filter?: ColumnFilter<R> | false;
+  /** The rows can be grouped by its values (its text, in the order of its sort value). Optional. Default = false. */
+  groupable?: boolean;
 }
 
 /** Column shown, with its width. */

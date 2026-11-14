@@ -1,13 +1,9 @@
+import * as fmt from '../../lib/format';
 /** Address of a mail, as returned by the API. */
 export interface Address {
   name?: string | null;
   address: string;
 }
-
-const dateTime = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full', timeStyle: 'short' });
-const shortTime = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
-const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
-const shortDate = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
 /**
  * "Name <address>", or the address alone.
@@ -48,9 +44,9 @@ export function correspondent(mail: { from: Address[]; to: Address[] }, own: Rea
 export function listDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
-  if (date.toDateString() === now.toDateString()) return shortTime.format(date);
-  if (date.getFullYear() === now.getFullYear()) return shortDay.format(date);
-  return shortDate.format(date);
+  if (date.toDateString() === now.toDateString()) return fmt.time(date);
+  if (date.getFullYear() === now.getFullYear()) return fmt.dayShort(date);
+  return fmt.day(date);
 }
 
 /**
@@ -59,17 +55,7 @@ export function listDate(iso: string): string {
  * @returns {string} Label.
  */
 export function fullDate(iso: string): string {
-  return dateTime.format(new Date(iso));
-}
-
-/**
- * File size: "12 Ko", "1,2 Mo".
- * @param {number} bytes Size.
- * @returns {string} Label.
- */
-export function fileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
-  return `${(bytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
+  return fmt.dateTime(new Date(iso));
 }
 
 /**

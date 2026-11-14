@@ -1,3 +1,4 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import {
   closestCenter,
   DndContext,
@@ -50,12 +51,12 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
-import { confirmDestructive } from '../shopping/list-modals';
 import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
 import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { RoutineDoneToggles } from './DoneToggle';
+import { useSlotRules } from '../slot-rules/use-slot-rules';
 import { openRoutineForm } from './open-routine-form';
 import { openRoutineMove } from './open-routine-move';
 import { usePostponeRoutine } from './use-routine-move';
@@ -76,11 +77,11 @@ import {
   type RoutineRow,
 } from './routine-format';
 import classes from './Routines.module.css';
+import * as fmt from '../../lib/format';
 
 /** Width of the cells around the columns: handle and selection before, actions after. */
 const LEAD_WIDTH = 64;
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
-
 
 /** Bulk-editable columns and their cell selection column. */
 const CELL_COLUMNS: Record<string, RoutineColumn> = {
@@ -93,16 +94,12 @@ const CELL_COLUMNS: Record<string, RoutineColumn> = {
   project: 'project',
 };
 
-const lastDoneFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-
-const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-
 /**
  * Short date of a calendar date: "lun. 10 nov.".
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Text.
  */
-const dayText = (date: string) => shortDate.format(new Date(`${date}T00:00:00Z`));
+const dayText = (date: string) => fmt.weekday(date);
 
 /** What a routine is dropped on: a category heading (or the one without), or another routine. */
 type DropData = { kind: 'group'; categoryId: string | null } | { kind: 'routine'; routine: Routine; groupId: string | null };
@@ -170,11 +167,11 @@ function DueBadge({ routine }: { routine: Routine }) {
 
 /**
  * Where a routine stands today: due, late since a date, done, or its next date.
- * @param {{ routine: Routine, today: string }} props Component props.
+ * @param {{ routine: Routine, today: string, doable: boolean }} props Component props: `doable` when its slots allow now.
  * @returns {JSX.Element} Badge or text.
  */
-function StateCell({ routine, today }: { routine: Routine; today: string }) {
-  const state = stateOf(routine, today);
+function StateCell({ routine, today, doable }: { routine: Routine; today: string; doable: boolean }) {
+  const state = stateOf(routine, today, doable);
   const next = routine.nextDate ? `Prochaine fois : ${dayText(routine.nextDate)}` : 'Plus d’occurrence à venir';
   // The occurrence shown comes from another day (an exception).
   const moved = moveTo(routine, state === 'upcoming' ? routine.nextDate : routine.currentDate);
@@ -251,6 +248,8 @@ interface GroupRowProps {
   receives: boolean;
   row: Extract<RoutineRow, { kind: 'group' }>;
   today: string;
+  /** Whether the slot rule of a routine allows now. */
+  doable: (routine: Routine) => boolean;
   collapsed: boolean;
   /** A routine is dragged over it. */
   over: boolean;
@@ -262,9 +261,9 @@ interface GroupRowProps {
  * @param {GroupRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function GroupRow({ span, receives, row, today, collapsed, over, onToggle }: GroupRowProps) {
+function GroupRow({ span, receives, row, today, doable, collapsed, over, onToggle }: GroupRowProps) {
   const { setNodeRef } = useDroppable({ id: `group:${row.id ?? NO_CATEGORY}`, data: { kind: 'group', categoryId: row.id } satisfies DropData, disabled: !receives });
-  const left = row.routines.filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today))).length;
+  const left = row.routines.filter((routine) => !routine.archived && ['due', 'late'].includes(stateOf(routine, today, doable(routine)))).length;
   return (
     <Table.Tr ref={setNodeRef} className={classes.groupRow} data-depth={row.depth} data-over={over || undefined}>
       <Table.Td colSpan={span} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
@@ -291,6 +290,8 @@ interface RoutineRowProps {
   byId: Map<string, Routine>;
   context: TaskContext;
   today: string;
+  /** Whether the slot rule of a routine allows now. */
+  doable: (routine: Routine) => boolean;
   running: TimeEntry | null | undefined;
   collapsed: boolean;
   /** Where the dragged routine would go on it (before, after or under it), null when not over it. */
@@ -314,7 +315,7 @@ interface RoutineRowProps {
  * @param {RoutineRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function RoutineRowView({ row, routines, byId, context, today, running, collapsed, drop, movable, shown, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
+function RoutineRowView({ row, routines, byId, context, today, doable, running, collapsed, drop, movable, shown, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
   const postpone = usePostponeRoutine();
   const { routine, depth, children } = row;
   const { setArchived, remove } = useRoutineMutations();
@@ -357,7 +358,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
     ),
     currentDate: (
       <RepetitionCell routine={routine} readOnly={readOnly}>
-        <StateCell routine={routine} today={today} />
+        <StateCell routine={routine} today={today} doable={doable(routine)} />
       </RepetitionCell>
     ),
     firstDate: routine.firstDate ? (
@@ -372,7 +373,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
     ) : null,
     lastDoneAt: routine.lastDoneAt ? (
       <Text size="sm" className={classes.nowrap}>
-        {lastDoneFormat.format(new Date(String(routine.lastDoneAt)))}
+        {fmt.dateTime(new Date(String(routine.lastDoneAt)))}
       </Text>
     ) : null,
     repetition: <RepetitionText routine={routine} />,
@@ -448,11 +449,7 @@ function RoutineRowView({ row, routines, byId, context, today, running, collapse
               icon: <TrashIcon aria-hidden />,
               danger: true,
               onClick: () =>
-                confirmDestructive(
-                  'Supprimer la routine',
-                  `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`,
-                  () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }),
-                ),
+                confirmDestructive({ title: 'Supprimer la routine', risks: `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`, onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }) }),
             },
           ]}
         />
@@ -587,6 +584,8 @@ export function RoutineTable({
   const [drop, setDrop] = useState<{ id: string; place: RoutinePlace } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const today = localToday();
+  const slotRules = useSlotRules();
+  const doable = (routine: Routine) => slotRules.allowed(routine.slotRule);
   const byId = new Map(routines.map((routine) => [routine.id, routine]));
   const rows = routineRows(layout, grouping, keep);
   const shown = visibleRoutineRows(rows, collapsed);
@@ -768,6 +767,7 @@ export function RoutineTable({
             receives={groupDrop}
             row={row}
             today={today}
+            doable={doable}
             collapsed={collapsed.has(key)}
             over={dragged !== null && drop?.id === `group:${key}`}
             onToggle={() => toggle(key)}
@@ -782,6 +782,7 @@ export function RoutineTable({
             byId={byId}
             context={context}
             today={today}
+            doable={doable}
             running={running}
             collapsed={collapsed.has(row.key)}
             drop={dropOn(row)}

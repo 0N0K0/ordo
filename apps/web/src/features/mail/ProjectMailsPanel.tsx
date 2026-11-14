@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionIcon, Box, Button, Grid, Group, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
@@ -222,13 +223,13 @@ export function ProjectMailsPanel({ projectId }: { projectId: string }) {
         </Text>
         <Group gap="sm" ml="auto">
           <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
-            <Button variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
+            <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
               Relever
-            </Button>
+            </ActionButton>
           </Tooltip>
-          <Button leftSection={<PencilSimpleLineIcon aria-hidden />} disabled={!accounts?.length} onClick={() => compose({ projectId })}>
+          <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} disabled={!accounts?.length} onClick={() => compose({ projectId })}>
             Nouveau mail
-          </Button>
+          </ActionButton>
         </Group>
       </Group>
       <ProjectLiveMails projectId={projectId} />

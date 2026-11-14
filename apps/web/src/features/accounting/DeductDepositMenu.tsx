@@ -1,9 +1,8 @@
 import { Button, Menu, Text } from '@mantine/core';
-import { formatMoney, type AccountingLineInput } from '@ordo/shared';
+import { type AccountingLineInput } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from './documents-api';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 interface DeductDepositMenuProps {
   clientId: string | null;
@@ -38,14 +37,14 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
   return (
     <Menu position="bottom-start" withinPortal>
       <Menu.Target>
-        <Button size="xs" variant="light" color="orange" leftSection={<MinusCircleIcon aria-hidden />}>
+        <Button size="xs" variant="default" color="orange" leftSection={<MinusCircleIcon aria-hidden />}>
           Déduire un acompte
         </Button>
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>Factures d’acompte du client</Menu.Label>
         {offered.map((deposit) => {
-          const date = dateFormat.format(new Date(`${deposit.issueDate}T00:00:00Z`));
+          const date = fmt.day(deposit.issueDate);
           const left = deposit.remaining.reduce((sum, item) => sum + item.cents, 0);
           return (
             <Menu.Item
@@ -55,7 +54,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
                   deposit.remaining.map((item) => ({
                     kind: 'DEDUCTION',
                     title: `Acompte ${deposit.number} du ${date}`,
-                    description: deposit.remaining.length > 1 ? `Part soumise à la TVA à ${item.rate.toLocaleString('fr-FR')} %` : null,
+                    description: deposit.remaining.length > 1 ? `Part soumise à la TVA à ${fmt.percent(item.rate)}` : null,
                     quantity: 1,
                     unit: 'FLAT',
                     unitPrice: item.cents / 100,
@@ -71,7 +70,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
                 {deposit.number} du {date}
               </Text>
               <Text size="xs" c="dimmed">
-                Reste à déduire {formatMoney(left, currency)} HT sur {formatMoney(Math.round(deposit.totalGross * 100), currency)} TTC
+                Reste à déduire {fmt.moneyCents(left, currency)} HT sur {fmt.money(deposit.totalGross, currency)} TTC
               </Text>
             </Menu.Item>
           );

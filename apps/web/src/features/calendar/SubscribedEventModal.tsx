@@ -1,10 +1,9 @@
-import { Anchor, Badge, Button, ColorSwatch, Group, Modal, Stack, Text } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { Anchor, Badge, Button, ColorSwatch, Group, Stack, Text } from '@mantine/core';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { switchWorkspace } from '../workspaces/switch';
 import type { CalendarSubscription, EventOccurrence } from './api';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+import * as fmt from '../../lib/format';
 
 /**
  * When an occurrence takes place, in words.
@@ -22,13 +21,13 @@ function when(occurrence: EventOccurrence): string {
  * @returns {string} Date(s) and times.
  */
 function whenLower(occurrence: EventOccurrence): string {
-  const day = (date: string) => dayFormat.format(new Date(`${date}T12:00:00`));
+  const day = (date: string) => fmt.dayLong(date);
   if (occurrence.allDay) return occurrence.startDate === occurrence.endDate ? `${day(occurrence.startDate)}, journée entière` : `Du ${day(occurrence.startDate)} au ${day(occurrence.endDate)}`;
   const start = new Date(occurrence.start);
   const end = new Date(occurrence.end);
   return occurrence.startDate === occurrence.endDate
-    ? `${day(occurrence.startDate)}, ${timeFormat.format(start)} – ${timeFormat.format(end)}`
-    : `Du ${day(occurrence.startDate)} ${timeFormat.format(start)} au ${day(occurrence.endDate)} ${timeFormat.format(end)}`;
+    ? `${day(occurrence.startDate)}, ${fmt.time(start)} – ${fmt.time(end)}`
+    : `Du ${day(occurrence.startDate)} ${fmt.time(start)} au ${day(occurrence.endDate)} ${fmt.time(end)}`;
 }
 
 interface SubscribedEventModalProps {
@@ -46,7 +45,7 @@ export function SubscribedEventModal({ opened, onClose }: SubscribedEventModalPr
   const occurrence = opened?.occurrence;
   const subscription = opened?.subscription;
   return (
-    <Modal opened={opened !== null} onClose={onClose} title={occurrence?.title ?? ''} size="lg">
+    <SidePanel opened={opened !== null} onClose={onClose} title={occurrence?.title ?? ''}>
       {occurrence && subscription && (
         <Stack gap="sm">
           <Group gap="xs">
@@ -85,6 +84,6 @@ export function SubscribedEventModal({ opened, onClose }: SubscribedEventModalPr
           </Group>
         </Stack>
       )}
-    </Modal>
+    </SidePanel>
   );
 }

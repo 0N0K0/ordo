@@ -1,10 +1,10 @@
-import { ActionIcon, Badge, Button, Divider, Group, Modal, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Badge, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { formatMoney, treasuryEntrySchema, type Recurrence, type TreasuryAllocationInput } from '@ordo/shared';
+import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
 import { LinkIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
-import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useAccountingDocuments, useImportedDocuments } from '../accounting/documents-api';
@@ -12,15 +12,16 @@ import { useWorkspace } from '../workspace/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryEntrySearch, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from './api';
 import { categoryOptions } from './categories';
 import { LinesEditor } from './LinesEditor';
-import { describeLink, newLine, type LineValues } from './lines';
+import { describeLink } from './lines';
+import { entryPayload, entryValues, type EntryValues } from './entry-values';
 import { CategoryForm, CounterpartyForm, MethodForm } from './SettingsPanel';
 import { ContextForm, RelationForm } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { projectOptions } from '../workspace/tree';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -35,7 +36,7 @@ interface LinkedSummary {
  * @param {LinkedSummary} entry Entry.
  * @returns {string} "12 mars 2026 · Libellé · -86,20 €".
  */
-const describeLinked = (entry: LinkedSummary) => `${dateFormat.format(new Date(`${entry.date}T00:00:00Z`))} · ${entry.label} · ${formatMoney(Math.round(entry.amount * 100))}`;
+const describeLinked = (entry: LinkedSummary) => `${fmt.day(entry.date)} · ${entry.label} · ${fmt.money(entry.amount)}`;
 
 /**
  * A select with a button creating a new option next to it.
@@ -53,35 +54,6 @@ function WithCreate({ label, onCreate, children }: { label: string; onCreate: ()
       </Tooltip>
     </Group>
   );
-}
-
-interface EntryValues extends Record<string, unknown> {
-  accountId: string;
-  status: 'ACTUAL' | 'FORECAST';
-  /** Execution date. */
-  date: string;
-  valueDate: string | null;
-  label: string;
-  /** Money in or out. */
-  direction: 'IN' | 'OUT';
-  /** Positive; signed by the direction when saved. */
-  amount: number;
-  categoryId: string | null;
-  methodId: string | null;
-  /** Payer or payee: a client or a counterparty (fields of the schema, so that they are validated). */
-  clientId: string | null;
-  counterpartyId: string | null;
-  projectId: string | null;
-  note: string;
-  /** Page about it on the internet (an online order…). */
-  url: string;
-  recurrence: Recurrence | null;
-  allocations: TreasuryAllocationInput[];
-  linkedEntryIds: string[];
-  libraryDocumentIds: string[];
-  projectResourceIds: string[];
-  /** Split of the amount: values relative to the direction (signed when saved). */
-  lines: LineValues[];
 }
 
 interface EntryFormProps {
@@ -119,63 +91,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const { createEntry, updateEntry } = useTreasuryMutations();
   const open = (accounts ?? []).filter((account) => !account.archived || account.id === entry?.accountId);
   const form = useAppForm<EntryValues>({
-    initialValues: {
-      accountId: entry?.accountId ?? open[0]?.id ?? '',
-      status: entry?.status ?? status,
-      date: entry ? String(entry.date) : localToday(),
-      valueDate: entry ? String(entry.valueDate) : localToday(),
-      label: entry?.label ?? '',
-      direction: (entry?.amount ?? 0) < 0 ? 'OUT' : 'IN',
-      amount: Math.abs(entry?.amount ?? 0),
-      categoryId: entry?.categoryId ?? null,
-      methodId: entry?.methodId ?? null,
-      clientId: entry?.clientId ?? null,
-      counterpartyId: entry?.counterpartyId ?? null,
-      projectId: entry?.projectId ?? null,
-      note: entry?.note ?? '',
-      url: entry?.url ?? '',
-      recurrence: (entry?.recurrence as Recurrence | null) ?? null,
-      // A copy settles no document: the original already does.
-      allocations: (copy ? [] : (entry?.allocations ?? [])).map((allocation) => ({
-        documentId: allocation.documentId ?? null,
-        importedDocumentId: allocation.importedDocumentId ?? null,
-        amount: allocation.amount,
-      })),
-      linkedEntryIds: (entry?.linkedEntries ?? []).map((item) => item.id),
-      libraryDocumentIds: (entry?.documents ?? []).filter((document) => document.source === 'LIBRARY').map((document) => document.id),
-      projectResourceIds: (entry?.documents ?? []).filter((document) => document.source === 'PROJECT').map((document) => document.id),
-      // A stored amount is signed; edited, it is relative to the direction of the entry.
-      lines: (entry?.lines ?? []).map((line) =>
-        newLine({
-          id: copy ? null : line.id,
-          label: line.label ?? null,
-          mode: line.mode,
-          value: line.mode === 'AMOUNT' && (entry?.amount ?? 0) < 0 ? -line.value : line.value,
-          memberId: line.memberId ?? null,
-          relationId: line.relationId ?? null,
-          loan: line.loan,
-          date: line.date ? String(line.date) : null,
-          categoryId: line.categoryId ?? null,
-          contextId: line.contextId ?? null,
-          projectId: line.projectId ?? null,
-          libraryDocumentIds: line.documents.filter((document) => document.source === 'LIBRARY').map((document) => document.id),
-          projectResourceIds: line.documents.filter((document) => document.source === 'PROJECT').map((document) => document.id),
-          linkedLineIds: line.linkedLines.map((linked) => linked.id),
-          linkedEntryIds: line.linkedEntries.map((linked) => linked.id),
-          links: [
-            ...line.linkedLines.map((linked) => ({
-              kind: 'line' as const,
-              id: linked.id,
-              entryLabel: linked.entryLabel,
-              date: String(linked.date),
-              label: linked.label ?? null,
-              amount: linked.amount,
-            })),
-            ...line.linkedEntries.map((linked) => ({ kind: 'entry' as const, id: linked.id, entryLabel: linked.label, date: String(linked.date), label: null, amount: linked.amount })),
-          ],
-        }),
-      ),
-    },
+    initialValues: entryValues(entry, { status, copy, accountId: open[0]?.id ?? '' }),
     schema: treasuryEntrySchema,
   });
   const values = form.values;
@@ -234,7 +150,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
       .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
       .map((document) => ({
         value: `doc:${document.id}`,
-        label: `${document.number} — ${document.clientName} (reste ${formatMoney(Math.round((document.balance ?? 0) * 100), document.currency)})`,
+        label: `${document.number} — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
         balance: document.balance ?? 0,
       })),
     ...(imported ?? [])
@@ -242,7 +158,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
       .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
       .map((document) => ({
         value: `imp:${document.id}`,
-        label: `${document.number} (importé) — ${document.clientName} (reste ${formatMoney(Math.round((document.balance ?? 0) * 100), document.currency)})`,
+        label: `${document.number} (importé) — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
         balance: document.balance ?? 0,
       })),
   ];
@@ -250,15 +166,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const keyOf = (allocation: TreasuryAllocationInput) => (allocation.documentId ? `doc:${allocation.documentId}` : allocation.importedDocumentId ? `imp:${allocation.importedDocumentId}` : null);
 
   const handleSubmit = form.onSubmit((input) => {
-    const { direction, ...fields } = input;
-    const payload = {
-      ...fields,
-      amount: direction === 'IN' ? input.amount : -input.amount,
-      recurrence: input.status === 'FORECAST' ? input.recurrence : null,
-      allocations: input.status === 'ACTUAL' ? input.allocations : [],
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      lines: input.lines.map(({ links: _links, ...line }) => ({ ...line, value: line.mode === 'AMOUNT' && direction === 'OUT' ? -line.value : line.value })),
-    };
+    const payload = entryPayload(input);
     const callbacks = {
       onSuccess: () => {
         notifySuccess(copy ? 'Mouvement dupliqué.' : entry ? 'Mouvement modifié.' : 'Mouvement ajouté.');
@@ -287,7 +195,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           <DatePickerInput
             label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
             required
-            valueFormat="D MMM YYYY"
             {...form.getInputProps('date')}
             // The value date follows the execution date until it is changed apart (or when it is empty).
             onChange={(date) => form.setValues({ date: date ?? '', ...(!values.valueDate || values.valueDate === values.date ? { valueDate: date } : {}) })}
@@ -298,7 +205,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           description="Celle du relevé bancaire, pour information : le solde suit la date d’exécution. Vide, c’est la date d’exécution."
           clearable
           placeholder={values.date ? 'Date d’exécution' : '—'}
-          valueFormat="D MMM YYYY"
           {...form.getInputProps('valueDate')}
         />
         <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
@@ -322,7 +228,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               });
             }}
           />
-          <NumberInput label="Montant" required min={0} decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
+          <AmountInput label="Montant" required min={0} suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
         </Group>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           {!split && (
@@ -538,12 +444,10 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                     if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.label.replace(/ \(reste .*\)$/, '')}`);
                   }}
                 />
-                <NumberInput
+                <AmountInput
                   aria-label={`Montant réglé ${index + 1}`}
                   w={130}
                   min={0}
-                  decimalScale={2}
-                  decimalSeparator=","
                   suffix=" €"
                   value={allocation.amount}
                   onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
@@ -563,7 +467,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             <Group justify="space-between">
               <Button
                 size="xs"
-                variant="light"
+                variant="default"
                 leftSection={<PlusIcon aria-hidden />}
                 disabled={settleable.length === values.allocations.length}
                 onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}
@@ -572,7 +476,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               </Button>
               {values.allocations.length > 0 && (
                 <Text size="xs" c="dimmed">
-                  {formatMoney(Math.round(allocated * 100))} affectés sur {formatMoney(Math.round(values.amount * 100))}
+                  {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
                 </Text>
               )}
             </Group>
@@ -588,7 +492,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           </Button>
         </Group>
       </Stack>
-      <Modal
+      <SidePanel
         opened={creating !== null}
         onClose={() => setCreating(null)}
         title={
@@ -654,7 +558,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             />
           )}
         </div>
-      </Modal>
+      </SidePanel>
     </form>
   );
 }

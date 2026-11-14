@@ -5,8 +5,8 @@ import { useMailAccounts, useUnreadMails } from '../mail/api';
 import classes from './Home.module.css';
 import { HomeCard, HomeEmpty } from './HomeCard';
 import { dayLabel, localDayOf } from './home-data';
+import * as fmt from '../../lib/format';
 
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const MAX_ROWS = 6;
 
 /**
@@ -49,7 +49,7 @@ export function MailCard({ today }: { today: string }) {
                     </Text>
                   </Stack>
                   <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                    {day === today && message.date ? timeFormat.format(new Date(message.date)) : day ? dayLabel(day, today) : ''}
+                    {day === today && message.date ? fmt.time(new Date(message.date)) : day ? dayLabel(day, today) : ''}
                   </Text>
                 </Group>
               </Link>

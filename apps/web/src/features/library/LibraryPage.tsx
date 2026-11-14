@@ -1,3 +1,8 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { openFormPanel } from '../../components/panels/panels';
 import {
   ActionIcon,
   Anchor,
@@ -8,13 +13,11 @@ import {
   Grid,
   Group,
   Paper,
-  Skeleton,
   Stack,
   Table,
   Text,
   ThemeIcon,
 } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,
@@ -34,10 +37,9 @@ import {
   TrashIcon,
   UploadSimpleIcon,
 } from '@phosphor-icons/react';
-import { useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useLibrary, useLibraryMutations, useLibraryOptimism, zipUrl, type DocumentFolder, type LibraryDocument } from './api';
 import { folderPaths, folderSubtree } from './folders';
 import { DocumentForm, FolderNameForm, LinkForm, MoveForm } from './LibraryForms';
@@ -46,28 +48,20 @@ import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type 
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { dndId, libraryCollision } from './library-dnd';
 import { DroppableFolderLink, SortableRow } from './LibraryDnd';
-import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { DataViewBar } from '../../components/data-table/DataViewBar';
+import { EditableText } from '../../components/data-table/EditableCells';
+import { GroupHeaderRow } from '../../components/data-table/GroupHeaderRow';
+import { groupRows } from '../../components/data-table/table-engine';
+import { useDataView } from '../../components/data-table/use-data-view';
+import { countConditions } from '../tasks/views/filter-meta';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
-import { TableOptions, TableToolbar } from '../../components/data-table/TableToolbar';
-import { shownColumns, sortRows, tableWidth, type DataColumn } from '../../components/data-table/data-table';
+import { sortRows, tableWidth, type DataColumn } from '../../components/data-table/data-table';
+import { localDay } from '../../lib/dates';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
-import { useTableLayout } from '../../components/data-table/use-table-layout';
-import { PageTitle } from '../../components/PageTitle';
+import * as fmt from '../../lib/format';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-let modalCount = 0;
-
-/**
- * Size in Ko or Mo.
- * @param {number} bytes Size.
- * @returns {string} Size.
- */
-function printedSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
-  return `${(bytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
-}
 
 /**
  * Icon of a document: PDF, image, link or other file.
@@ -88,41 +82,6 @@ function DocumentIcon({ document }: { document: LibraryDocument }) {
       {icon}
     </ThemeIcon>
   );
-}
-
-/**
- * Opens a modal.
- * @param {string} title Title.
- * @param {(close: () => void) => ReactNode} content Content, given the close callback.
- * @param {string} [size] Size. Optional.
- * @returns {void}
- */
-function openModal(title: string, content: (close: () => void) => ReactNode, size?: string): void {
-  const modalId = `library-${++modalCount}`;
-  modals.open({ modalId, title, size, children: content(() => modals.close(modalId)) });
-}
-
-/**
- * Asks for confirmation before a deletion.
- * @param {string} title Title.
- * @param {string} message What is deleted.
- * @param {() => void} onConfirm Deletion.
- * @returns {void}
- */
-function confirmDeletion(title: string, message: string, onConfirm: () => void): void {
-  openModal(title, (close) => (
-    <Stack gap="md">
-      <Text size="sm">{message}</Text>
-      <DestructiveActions
-        loading={false}
-        onCancel={close}
-        onConfirm={() => {
-          close();
-          onConfirm();
-        }}
-      />
-    </Stack>
-  ));
 }
 
 /**
@@ -219,13 +178,37 @@ function FolderTree({ folders, parentId, current, open, onSelect, onToggle, coun
   );
 }
 
-/** Columns of the documents of a folder. */
-const LIBRARY_COLUMNS: DataColumn<LibraryDocument>[] = [
-  { id: 'name', label: 'Nom', size: 380, locked: true, sortValue: (document) => document.title },
-  { id: 'kind', label: 'Type', size: 140, hiddenByDefault: true, sortValue: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')) },
-  { id: 'size', label: 'Taille', size: 140, sortValue: (document) => document.size ?? null },
-  { id: 'updatedAt', label: 'Modifié le', size: 150, sortValue: (document) => document.updatedAt },
-];
+/**
+ * Columns of the documents of a folder.
+ * @param {Map<string, string>} paths Paths of the folders.
+ * @returns {DataColumn<LibraryDocument>[]} Columns.
+ */
+function libraryColumns(paths: Map<string, string>): DataColumn<LibraryDocument>[] {
+  const folderOf = (document: LibraryDocument) => (document.folderId ? (paths.get(document.folderId) ?? '') : 'Documents');
+  return [
+    { id: 'name', label: 'Nom', size: 380, locked: true, sortValue: (document) => document.title, text: (document) => document.title },
+    { id: 'folder', label: 'Dossier', size: 220, hiddenByDefault: true, sortValue: folderOf, text: folderOf, groupable: true },
+    {
+      id: 'kind',
+      label: 'Type',
+      size: 140,
+      hiddenByDefault: true,
+      sortValue: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')),
+      text: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')),
+      groupable: true,
+    },
+    { id: 'size', label: 'Taille', size: 140, numeric: true, sortValue: (document) => document.size ?? null, text: (document) => (document.size ? fmt.fileSize(document.size) : 'Lien') },
+    { id: 'note', label: 'Note', size: 220, hiddenByDefault: true, sortValue: (document) => document.note ?? null, text: (document) => document.note ?? '' },
+    {
+      id: 'updatedAt',
+      label: 'Modifié le',
+      size: 150,
+      sortValue: (document) => document.updatedAt,
+      text: (document) => fmt.day(new Date(document.updatedAt)),
+      filter: { kind: 'date', value: (document) => localDay(new Date(document.updatedAt)) },
+    },
+  ];
+}
 
 /** Sorts of the folders: by name only (the other columns are documents'). */
 const FOLDER_SORT: DataColumn<DocumentFolder>[] = [{ id: 'name', label: 'Nom', size: 0, sortValue: (folder) => folder.name }];
@@ -240,11 +223,20 @@ const FOLDER_SORT: DataColumn<DocumentFolder>[] = [{ id: 'name', label: 'Nom', s
 export function LibraryPage() {
   const { data, isPending, error } = useLibrary();
   const mutations = useLibraryMutations();
+
+  /**
+   * Saves fields of a document changed in their cells (its file or link kept).
+   * @param {LibraryDocument} document Document.
+   * @param {{ title?: string, note?: string | null }} change Change.
+   * @returns {void}
+   */
+  const saveDocument = (document: LibraryDocument, change: { title?: string; note?: string | null }) =>
+    mutations.update.mutate(
+      { id: document.id, title: document.title, url: document.kind === 'LINK' ? document.url : null, note: document.note ?? null, file: null, ...change },
+      { onError: (error) => notifyError(error.message) },
+    );
   const [params, setParams] = useSearchParams();
-  const [search, setSearch] = useState('');
-  const { layout, setLayout, sorting, setSorting } = useTableLayout('library');
   const tableRef = useRef<HTMLTableElement>(null);
-  const shownCols = shownColumns(LIBRARY_COLUMNS, layout);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
   /** Folders folded or unfolded by hand in the tree. */
@@ -253,6 +245,9 @@ export function LibraryPage() {
   const documents = data?.libraryDocuments ?? [];
   const current = folders.some((folder) => folder.id === params.get('folder')) ? params.get('folder') : null;
   const paths = folderPaths(folders);
+  const columns = libraryColumns(paths);
+  const view = useDataView({ tableKey: 'library', columns, rows: documents, title: 'Bibliothèque' });
+  const { sorting, shown: shownCols } = view;
 
   /**
    * Opens a folder (null: the root).
@@ -261,7 +256,6 @@ export function LibraryPage() {
    */
   const select = (folderId: string | null) => {
     setSelected(new Set());
-    setSearch('');
     setParams(folderId ? { folder: folderId } : {}, { replace: true });
   };
 
@@ -283,11 +277,12 @@ export function LibraryPage() {
   const counts = new Map<string | null, number>();
   for (const document of documents) counts.set(document.folderId ?? null, (counts.get(document.folderId ?? null) ?? 0) + 1);
 
-  const query = search.trim().toLowerCase();
+  // Searched or filtered: the documents of every folder kept by the view; else those of the open folder.
+  const query = Boolean(view.config && (view.config.search.trim() || countConditions(view.config.filter)));
   const subfolders = query ? [] : folders.filter((folder) => folder.parentId === current);
-  const shown = query
-    ? documents.filter((document) => [document.title, document.fileName, document.note].some((value) => value?.toLowerCase().includes(query)))
-    : documents.filter((document) => (document.folderId ?? null) === current);
+  const shown = query ? view.rows : view.rows.filter((document) => (document.folderId ?? null) === current);
+  const docGroups = view.groupColumn ? groupRows(shown, view.groupColumn, sorting) : [{ key: '', label: '', rows: shown }];
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set());
   const chosen = shown.filter((document) => selected.has(document.id));
 
   /**
@@ -332,7 +327,7 @@ export function LibraryPage() {
               label: 'Renommer',
               icon: <PencilSimpleIcon aria-hidden />,
               onClick: () =>
-                openModal('Renommer le dossier', (close) => (
+                openFormPanel('Renommer le dossier', (close) => (
                   <FolderNameForm initial={folder.name} submitLabel="Renommer" onDone={close} onSubmit={(name) => mutations.renameFolder.mutateAsync({ id: folder.id, name })} />
                 )),
             },
@@ -340,7 +335,7 @@ export function LibraryPage() {
               label: 'Déplacer',
               icon: <FolderSimpleIcon aria-hidden />,
               onClick: () =>
-                openModal('Déplacer le dossier', (close) => (
+                openFormPanel('Déplacer le dossier', (close) => (
                   <MoveForm folders={folders} excluded={tree} initial={folder.parentId ?? null} onDone={close} onSubmit={(parentId) => mutations.moveFolder.mutateAsync({ id: folder.id, parentId })} />
                 )),
             },
@@ -350,10 +345,10 @@ export function LibraryPage() {
               icon: <TrashIcon aria-hidden />,
               danger: true,
               onClick: () =>
-                confirmDeletion(
-                  'Supprimer le dossier',
-                  `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${inside} document${inside > 1 ? 's' : ''}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
-                  () =>
+                confirmDestructive({
+                  title: 'Supprimer le dossier',
+                  risks: `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${inside} document${inside > 1 ? 's' : ''}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
+                  onConfirm: () =>
                     mutations.deleteFolder.mutate(folder.id, {
                       onSuccess: () => {
                         if (current && tree.has(current)) select(folder.parentId ?? null);
@@ -361,7 +356,7 @@ export function LibraryPage() {
                       },
                       onError: (deleteError) => notifyError(deleteError.message),
                     }),
-                ),
+                }),
             },
           ]}
         />
@@ -384,12 +379,12 @@ export function LibraryPage() {
       }
       items={[
         document.kind === 'FILE' && (document.mimeType === 'application/pdf' || IMAGE_TYPES.includes(document.mimeType ?? '')) && { label: 'Aperçu', icon: <EyeIcon aria-hidden />, onClick: () => openDocument(document) },
-        { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openModal('Modifier le document', (close) => <DocumentForm document={document} onDone={close} />) },
+        { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier le document', (close) => <DocumentForm document={document} onDone={close} />) },
         {
           label: 'Déplacer',
           icon: <FolderSimpleIcon aria-hidden />,
           onClick: () =>
-            openModal('Déplacer le document', (close) => (
+            openFormPanel('Déplacer le document', (close) => (
               <MoveForm folders={folders} initial={document.folderId ?? null} onDone={close} onSubmit={(folderId) => mutations.move.mutateAsync({ ids: [document.id], folderId })} />
             )),
         },
@@ -398,9 +393,8 @@ export function LibraryPage() {
           icon: <TrashIcon aria-hidden />,
           danger: true,
           onClick: () =>
-            confirmDeletion('Supprimer le document', `« ${document.title} » sera supprimé définitivement${document.kind === 'FILE' ? ' avec son fichier' : ''}. Cette action est irréversible.`, () =>
-              mutations.remove.mutate([document.id], { onSuccess: () => notifySuccess('Document supprimé.'), onError: (deleteError) => notifyError(deleteError.message) }),
-            ),
+            confirmDestructive({ title: 'Supprimer le document', risks: `« ${document.title} » sera supprimé définitivement${document.kind === 'FILE' ? ' avec son fichier' : ''}. Cette action est irréversible.`, onConfirm: () =>
+              mutations.remove.mutate([document.id], { onSuccess: () => notifySuccess('Document supprimé.'), onError: (deleteError) => notifyError(deleteError.message) }) }),
         },
       ]}
     />
@@ -477,14 +471,11 @@ export function LibraryPage() {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Stack gap={2}>
-          <PageTitle>Documents</PageTitle>
-          <Text size="sm" c="dimmed">
-            Documents de l’entreprise : Kbis, statuts, logo, attestations… en fichiers ou en liens vers votre cloud.
-          </Text>
-        </Stack>
-        <Group gap="xs">
+      <PageHeader
+        title="Documents"
+        description="Documents de l’entreprise : Kbis, statuts, logo, attestations… en fichiers ou en liens vers votre cloud."
+        actions={
+          <>
           <Button
             component="label"
             leftSection={<UploadSimpleIcon aria-hidden />}
@@ -496,14 +487,11 @@ export function LibraryPage() {
               event.currentTarget.value = '';
             }} />
           </Button>
-          <Button variant="light" leftSection={<LinkIcon aria-hidden />} onClick={() => openModal('Ajouter un lien', (close) => <LinkForm folderId={current} onDone={close} />)}>
-            Ajouter un lien
-          </Button>
-          <Button
-            variant="default"
-            leftSection={<FolderPlusIcon aria-hidden />}
+          <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openFormPanel('Ajouter un lien', (close) => <LinkForm folderId={current} onDone={close} />)}>Ajouter un lien</ActionButton>
+          <ActionButton priority="secondary"
+            icon={<FolderPlusIcon aria-hidden />}
             onClick={() =>
-              openModal('Nouveau dossier', (close) => (
+              openFormPanel('Nouveau dossier', (close) => (
                 <FolderNameForm
                   initial=""
                   submitLabel="Créer"
@@ -512,16 +500,15 @@ export function LibraryPage() {
                 />
               ))
             }
-          >
-            Nouveau dossier
-          </Button>
-        </Group>
-      </Group>
+          >Nouveau dossier</ActionButton>
+          </>
+        }
+      />
 
       {error ? (
         <Text c="red">{error.message}</Text>
       ) : isPending ? (
-        <Skeleton height={320} />
+        <TableSkeleton rows={6} />
       ) : (
         <DndContext sensors={sensors} collisionDetection={libraryCollision} onDragEnd={handleDragEnd}>
         <Grid gap="md">
@@ -558,14 +545,15 @@ export function LibraryPage() {
                   ))}
                 </Breadcrumbs>
               </Group>
-              <TableToolbar
-                search={{ value: search, onChange: setSearch, placeholder: 'Rechercher dans tous les documents' }}
-                options={<TableOptions columns={<DataColumnsPanel columns={LIBRARY_COLUMNS} layout={layout} onLayoutChange={setLayout} />} />}
-              >
-                <Button variant="default" leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ folderId: current })} disabled={documents.length === 0}>
-                  {current ? 'Dossier en .zip' : 'Tout en .zip'}
-                </Button>
-              </TableToolbar>
+              <DataViewBar
+                view={view}
+                searchLabel="Rechercher dans tous les documents"
+                exports={
+                  <Button variant="default" leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ folderId: current })} disabled={documents.length === 0}>
+                    {current ? 'Fichiers du dossier (.zip)' : 'Tous les fichiers (.zip)'}
+                  </Button>
+                }
+              />
 
               {chosen.length > 0 && (
                 <Paper withBorder radius="md" px="sm" py={6} bg="var(--mantine-color-default-hover)">
@@ -582,7 +570,7 @@ export function LibraryPage() {
                         variant="default"
                         leftSection={<FolderSimpleIcon aria-hidden />}
                         onClick={() =>
-                          openModal('Déplacer les documents', (close) => (
+                          openFormPanel('Déplacer les documents', (close) => (
                             <MoveForm
                               folders={folders}
                               initial={current}
@@ -600,7 +588,7 @@ export function LibraryPage() {
                         color="red"
                         leftSection={<TrashIcon aria-hidden />}
                         onClick={() =>
-                          confirmDeletion('Supprimer les documents', `${chosen.length} document${chosen.length > 1 ? 's seront supprimés' : ' sera supprimé'} définitivement avec leurs fichiers. Cette action est irréversible.`, () =>
+                          confirmDestructive({ title: 'Supprimer les documents', risks: `${chosen.length} document${chosen.length > 1 ? 's seront supprimés' : ' sera supprimé'} définitivement avec leurs fichiers. Cette action est irréversible.`, onConfirm: () =>
                             mutations.remove.mutate(
                               chosen.map((document) => document.id),
                               {
@@ -610,8 +598,7 @@ export function LibraryPage() {
                                 },
                                 onError: (deleteError) => notifyError(deleteError.message),
                               },
-                            ),
-                          )
+                            ) })
                         }
                       >
                         Supprimer
@@ -647,13 +634,14 @@ export function LibraryPage() {
                 ) : (
                   <Table ref={tableRef} verticalSpacing="xs" highlightOnHover className={tableClasses.table} style={{ width: tableWidth(shownCols, 72 + ROW_ACTIONS_WIDTH), minWidth: '100%' }}>
                     <DataTableHeader
-                      columns={LIBRARY_COLUMNS}
+                      columns={columns}
                       shown={shownCols}
-                      layout={layout}
-                      onLayoutChange={setLayout}
+                      layout={view.layout}
+                      onLayoutChange={view.setLayout}
                       sorting={sorting}
-                      onSortingChange={setSorting}
+                      onSortingChange={view.setSorting}
                       tableRef={tableRef}
+                      columnExtras={view.columnExtras}
                       leadingCount={2}
                       leading={
                         <>
@@ -705,13 +693,33 @@ export function LibraryPage() {
                       })}
                       </SortableContext>
                       <SortableContext items={shown.map((document) => `doc:${document.id}`)} strategy={verticalListSortingStrategy}>
-                      {sortRows(shown, sorting, LIBRARY_COLUMNS).map((document) => (
-                        // Search results come from several folders: no order to change there.
+                      {docGroups.flatMap((group) => [
+                        ...(view.groupColumn
+                          ? [
+                              <GroupHeaderRow
+                                key={`group:${group.key}`}
+                                label={group.label}
+                                count={group.rows.length}
+                                span={shownCols.length + 3}
+                                collapsed={collapsedGroups.has(group.key)}
+                                onToggle={() =>
+                                  setCollapsedGroups((items) => {
+                                    const next = new Set(items);
+                                    if (next.has(group.key)) next.delete(group.key);
+                                    else next.add(group.key);
+                                    return next;
+                                  })
+                                }
+                              />,
+                            ]
+                          : []),
+                        ...(collapsedGroups.has(group.key) ? [] : group.rows).map((document) => (
+                        // Search results come from several folders, groups mix them: no order to change there.
                         <SortableRow
                           key={document.id}
                           id={`doc:${document.id}`}
                           label={document.title}
-                          disabled={Boolean(query) || sorting.length > 0}
+                          disabled={query || Boolean(view.groupColumn) || sorting.length > 0}
                           bg={selected.has(document.id) ? 'var(--mantine-primary-color-light)' : undefined}
                         >
                           <Table.Td>
@@ -732,13 +740,13 @@ export function LibraryPage() {
                             <Table.Td key={column.id} className={tableClasses.cell}>
                               {
                                 {
+                                  folder: document.folderId ? paths.get(document.folderId) : 'Documents',
+                                  note: <EditableText value={document.note ?? null} label={`Note de ${document.title}`} nullable onSave={(note) => saveDocument(document, { note })} />,
                                   name: (
                             <Group gap="sm" wrap="nowrap">
                               <DocumentIcon document={document} />
                               <Stack gap={0} style={{ minWidth: 0 }}>
-                                <Anchor component="button" size="sm" fw={500} ta="left" onClick={() => openDocument(document)} c="inherit">
-                                  {document.title}
-                                </Anchor>
+                                <EditableText value={document.title} label={`Titre de ${document.title}`} strong onSave={(title) => title && saveDocument(document, { title })} />
                                 <Text size="xs" c="dimmed" truncate>
                                   {[
                                     query && document.folderId ? paths.get(document.folderId) : query ? 'Documents' : null,
@@ -753,7 +761,7 @@ export function LibraryPage() {
                                   ),
                                   size: (
                                     <Text size="sm" c="dimmed">
-                                      {document.size ? printedSize(document.size) : 'Lien'}
+                                      {document.size ? fmt.fileSize(document.size) : 'Lien'}
                                     </Text>
                                   ),
                                   kind: (
@@ -763,7 +771,7 @@ export function LibraryPage() {
                                   ),
                                   updatedAt: (
                                     <Text size="sm" c="dimmed">
-                                      {dateFormat.format(new Date(document.updatedAt))}
+                                      {fmt.day(new Date(document.updatedAt))}
                                     </Text>
                                   ),
                                 }[column.id]
@@ -772,7 +780,8 @@ export function LibraryPage() {
                           ))}
                           <Table.Td>{documentActions(document)}</Table.Td>
                         </SortableRow>
-                      ))}
+                        )),
+                      ])}
                       </SortableContext>
                     </Table.Tbody>
                   </Table>

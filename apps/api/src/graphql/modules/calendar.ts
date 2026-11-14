@@ -192,6 +192,7 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
     cases: t.field({ type: 'JSON', resolve: (item) => item.rule.cases }),
     exceptions: t.field({ type: 'JSON', resolve: (item) => item.rule.exceptions }),
     typeName: t.exposeString('typeName', { nullable: true }),
+    typeId: t.id({ nullable: true, description: 'Kind in its workspace; none: its working hours.', resolve: (item) => item.rule.typeId ?? null }),
     color: t.exposeString('color', { nullable: true, description: 'In this workspace.' }),
     dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
     dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
