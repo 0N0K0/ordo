@@ -1,6 +1,7 @@
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { ActionIcon, Badge, Box, Button, Group, Menu, NavLink, Skeleton, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Group, Menu, NavLink, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
@@ -298,7 +299,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
         setDraggedFolder(null);
       }}
     >
-      {isPending && <Skeleton height={28} my={4} />}
+      {isPending && <ListSkeleton items={4} dense />}
       {error && (
         <Text size="xs" c="red" px="sm" py={4}>
           {error.message}

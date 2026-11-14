@@ -1,4 +1,6 @@
-import { Accordion, Badge, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { Accordion, Badge, Group, Stack, Table, Text } from '@mantine/core';
 import { formatMoney } from '@ordo/shared';
 import { HandCoinsIcon } from '@phosphor-icons/react';
 import { useTreasuryLoans, useTreasurySettings } from './api';
@@ -25,20 +27,13 @@ export function LoansPanel() {
   const owedToMe = (loans ?? []).filter((item) => item.balance > 0).reduce((sum, item) => sum + item.balance, 0);
   const iOwe = -(loans ?? []).filter((item) => item.balance < 0).reduce((sum, item) => sum + item.balance, 0);
 
-  if (isPending) return <Skeleton height={160} />;
+  if (isPending) return <ListSkeleton items={2} lines={3} />;
   if (!loans?.length) {
     return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="xs">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <HandCoinsIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center" maw={520}>
-            Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : une sortie lui prête ou lui rembourse, une entrée vous fait
-            prêter par elle ou vous rembourse.
-          </Text>
-        </Stack>
-      </Paper>
+      <EmptyState
+        icon={<HandCoinsIcon aria-hidden />}
+        message="Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : une sortie lui prête ou lui rembourse, une entrée vous fait prêter par elle ou vous rembourse."
+      />
     );
   }
 

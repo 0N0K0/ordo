@@ -1,4 +1,5 @@
-import { ActionIcon, Badge, Button, Group, Paper, Stack, Table, Text, ThemeIcon } from '@mantine/core';
+import { EmptyState } from '../feedback/EmptyState';
+import { ActionIcon, Badge, Button, Group, Table, Text } from '@mantine/core';
 import { CaretRightIcon, FunnelSimpleIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { emptyTableFilter } from '@ordo/shared';
@@ -53,20 +54,18 @@ export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggl
  */
 export function NoMatch<R>({ view }: { view: DataView<R> }) {
   return (
-    <Paper withBorder radius="md" p="xl">
-      <Stack align="center" gap="sm">
-        <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-          <FunnelSimpleIcon aria-hidden />
-        </ThemeIcon>
-        <Text size="sm" c="dimmed" ta="center">
-          {view.total === 0 ? 'Rien pour le moment.' : 'Aucune ligne ne correspond à cette vue.'}
-        </Text>
-        {view.total > 0 && (
-          <Button size="xs" variant="light" onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
-            Effacer la recherche et les filtres
-          </Button>
-        )}
-      </Stack>
-    </Paper>
+    <EmptyState
+      icon={<FunnelSimpleIcon aria-hidden />}
+      message={view.total === 0 ? 'Rien pour le moment.' : 'Aucune ligne ne correspond à cette vue.'}
+      action={
+        <>
+          {view.total > 0 && (
+            <Button size="xs" variant="light" onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
+              Effacer la recherche et les filtres
+            </Button>
+          )}
+        </>
+      }
+    />
   );
 }

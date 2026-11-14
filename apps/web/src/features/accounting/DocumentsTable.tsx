@@ -1,5 +1,6 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Badge, Group, Paper, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
+import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { formatMoney, type TableFilterGroup } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -349,18 +350,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       view={view}
       framed
       bar={{ searchLabel: 'Rechercher (numéro, client, objet)' }}
-      empty={
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ReceiptIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              {empty}
-            </Text>
-          </Stack>
-        </Paper>
-      }
+      empty={<EmptyState icon={<ReceiptIcon aria-hidden />} message={empty} />}
       highlightOnHover
       verticalSpacing="xs"
       getKey={(row) => `${row.kind}:${row.document.id}`}

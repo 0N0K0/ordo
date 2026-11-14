@@ -1,5 +1,7 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Anchor, Button, Checkbox, Group, Paper, Skeleton, Stack, Switch, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { Anchor, Button, Checkbox, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
@@ -107,27 +109,21 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       />
 
       {isPending ? (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2].map((index) => (
-            <Skeleton key={index} height={48} />
-          ))}
-        </Stack>
+        <TableSkeleton rows={4} />
       ) : products.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <BasketIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              {products.length ? 'Aucun produit ne correspond.' : `« ${baseList.name} » est vide : ajoutez-y ce que vous achetez d’habitude.`}
-            </Text>
-            {!products.length && (
-              <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
-                Ajouter un produit
-              </Button>
-            )}
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<BasketIcon aria-hidden />}
+          message={<>{products.length ? 'Aucun produit ne correspond.' : `« ${baseList.name} » est vide : ajoutez-y ce que vous achetez d’habitude.`}</>}
+          action={
+            <>
+              {!products.length && (
+                <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
+                  Ajouter un produit
+                </Button>
+              )}
+            </>
+          }
+        />
       ) : (
         <ShoppingTable
           view={view}

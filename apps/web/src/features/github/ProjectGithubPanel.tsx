@@ -1,6 +1,7 @@
+import { FormSkeleton } from '../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Skeleton, Stack, Switch, Table, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -290,7 +291,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
 function EditLink({ link, context, onDone }: { link: GithubLink; context: TaskContext; onDone: () => void }) {
   const board = useGithubBoard(link.url);
   if (board.error) return <Alert color="red">{board.error.message}</Alert>;
-  if (!board.data) return <Skeleton height={300} />;
+  if (!board.data) return <FormSkeleton fields={4} />;
   return (
     <LinkForm
       projectId={link.projectId}
@@ -338,7 +339,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
   const [editing, setEditing] = useState(false);
   const board = useGithubBoard(requested);
 
-  if (loginPending || isPending || !context) return <Skeleton height={240} />;
+  if (loginPending || isPending || !context) return <FormSkeleton fields={3} />;
   if (!login) {
     return (
       <Alert color="yellow" icon={<WarningIcon aria-hidden />}>

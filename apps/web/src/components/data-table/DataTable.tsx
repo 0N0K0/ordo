@@ -1,4 +1,5 @@
-import { Paper, Skeleton, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
+import { TableSkeleton } from '../feedback/Skeletons';
+import { Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
 import { useRef, useState, type ReactNode } from 'react';
 import { tableWidth, type ShownColumn } from './data-table';
 import { DataTableHeader } from './DataTableHeader';
@@ -149,7 +150,7 @@ export function DataTable<R>({
    * @returns {ReactNode} Content.
    */
   const content = () => {
-    if (!view.config) return <Skeleton height={160} />;
+    if (!view.config) return <TableSkeleton />;
     if (empty !== undefined && view.total === 0) return empty;
     if (view.rows.length === 0) return <NoMatch view={view} />;
     return framed ? (

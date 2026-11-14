@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Alert, Button, ColorSwatch, FileInput, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -256,9 +257,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             )}
           </Group>
           {document.reminders.length === 0 ? (
-            <Text size="xs" c="dimmed">
-              Aucune relance.
-            </Text>
+            <EmptyState compact message="Aucune relance." />
           ) : (
             document.reminders.map((reminder) => (
               <Group key={reminder.id} justify="space-between" wrap="nowrap">

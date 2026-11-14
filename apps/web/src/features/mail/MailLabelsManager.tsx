@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { ActionIcon, Button, ColorInput, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -70,11 +71,7 @@ export function MailLabelsManager() {
       {(labels ?? []).map((label) => (
         <LabelRow key={label.id} label={label} />
       ))}
-      {labels?.length === 0 && (
-        <Text size="sm" c="dimmed" ta="center" py="sm">
-          Aucun drapeau.
-        </Text>
-      )}
+      {labels?.length === 0 && <EmptyState compact message="Aucun drapeau." />}
       <div>
         <Button
           size="xs"

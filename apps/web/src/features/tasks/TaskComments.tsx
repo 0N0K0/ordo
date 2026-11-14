@@ -1,5 +1,6 @@
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Button, Group, Menu, Paper, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Menu, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { DotsThreeIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -158,7 +159,7 @@ export function TaskComments({ task, context }: TaskCommentsProps) {
   return (
     <Stack gap="sm">
       {comments.isPending ? (
-        <Skeleton height={80} radius="md" />
+        <ListSkeleton items={2} lines={2} avatar />
       ) : (
         comments.data?.map((comment) => <Comment key={comment.id} comment={comment} context={context} projectId={task.projectId} />)
       )}

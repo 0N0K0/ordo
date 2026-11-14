@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Button, Collapse, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { ACCOUNTING_UNITS, formatMoney, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
 import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, PlusIcon, TextAaIcon, TrashIcon } from '@phosphor-icons/react';
@@ -232,11 +233,7 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
   const offered = (catalog ?? []).filter((item) => !item.archived);
   return (
     <Stack gap="xs">
-      {lines.length === 0 && (
-        <Text size="sm" c="dimmed">
-          Aucune ligne.
-        </Text>
-      )}
+      {lines.length === 0 && <EmptyState compact message="Aucune ligne." />}
       {lines.map((line, index) => (
         <LineRow
           key={index}

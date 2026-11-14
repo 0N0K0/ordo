@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { SidePanel } from '../../components/panels/SidePanel';
 import type { DateSelectArg, DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
@@ -773,9 +774,7 @@ export function CalendarPage() {
                     Calendriers
                   </Text>
                   {calendarChoices.length === 0 ? (
-                    <Text size="sm" c="dimmed">
-                      Aucun calendrier.
-                    </Text>
+                    <EmptyState compact message="Aucun calendrier." />
                   ) : (
                     calendarChoices.map((calendar) => (
                       <Checkbox

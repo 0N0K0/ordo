@@ -1,6 +1,8 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Skeleton, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
 import { ArrowDownIcon, ArrowUpIcon, CalendarBlankIcon, DownloadSimpleIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -130,7 +132,7 @@ function OwnCalendars() {
           </Group>
         </Group>
         {isPending ? (
-          <Skeleton height={48} />
+          <ListSkeleton items={2} />
         ) : (
           <Stack gap={4}>
             {calendars.map((calendar, index) => (
@@ -208,15 +210,13 @@ function OtherCalendars() {
           </Text>
         </Stack>
         {isPending ? (
-          <Skeleton height={48} />
+          <ListSkeleton items={2} />
         ) : byWorkspace.size === 0 ? (
           <Group gap="sm">
             <ThemeIcon variant="light" color="gray" radius="xl">
               <CalendarBlankIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun autre espace pour le moment.
-            </Text>
+            <EmptyState compact message="Aucun autre espace pour le moment." />
           </Group>
         ) : (
           <Stack gap="sm">

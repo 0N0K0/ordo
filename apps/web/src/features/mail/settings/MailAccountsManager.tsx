@@ -1,5 +1,7 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../../lib/notify';
@@ -65,15 +67,13 @@ export function MailAccountsManager() {
           </Button>
         </Group>
         {isPending ? (
-          <Skeleton height={48} />
+          <ListSkeleton items={2} />
         ) : !accounts?.length ? (
           <Group gap="sm">
             <ThemeIcon variant="light" color="gray" radius="xl">
               <EnvelopeSimpleIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune boîte mail configurée.
-            </Text>
+            <EmptyState compact message="Aucune boîte mail configurée." />
           </Group>
         ) : (
           <Stack gap="xs">

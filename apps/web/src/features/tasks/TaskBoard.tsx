@@ -1,4 +1,6 @@
-import { Alert, Button, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Alert, Button, Paper, Stack } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { addDays, filterPeriod, ME, type FilterGroup } from '@ordo/shared';
 import { CheckSquareOffsetIcon, PlusIcon } from '@phosphor-icons/react';
@@ -235,11 +237,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
         </Alert>
       )}
       {loading && !matching.data && (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2, 3, 4].map((index) => (
-            <Skeleton key={index} height={36} />
-          ))}
-        </Stack>
+        <TableSkeleton rows={5} />
       )}
       {context &&
         config &&
@@ -273,28 +271,18 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
             />
           </Paper>
         ) : (
-          <Paper withBorder radius="md" p="xl">
-            <Stack align="center" gap="sm">
-              <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-                <CheckSquareOffsetIcon aria-hidden />
-              </ThemeIcon>
-              <Text size="sm" c="dimmed" ta="center">
-                {!canCreate
+          <EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={<>{!canCreate
                   ? 'Créez d’abord un projet : chaque tâche appartient à un projet.'
                   : filtered
                     ? `Aucune tâche${showEvents ? ' ni aucun évènement' : ''} ne correspond aux filtres de cette vue.`
-                    : emptyMessage}
-              </Text>
-              {canCreate && (
+                    : emptyMessage}</>} action={<>{canCreate && (
                 <Button
                   leftSection={<PlusIcon aria-hidden />}
                   onClick={() => actions.create(createProjectId ? { projectId: createProjectId } : undefined)}
                 >
                   Nouvelle tâche
                 </Button>
-              )}
-            </Stack>
-          </Paper>
+              )}</>} />
         ))}
 
       {context && selectedTasks.length > 0 && (

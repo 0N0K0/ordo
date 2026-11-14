@@ -1,4 +1,6 @@
-import { Alert, Anchor, Badge, Button, Checkbox, Group, Paper, Select, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Alert, Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { daysBetween, formatMoney, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
 import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
@@ -156,20 +158,9 @@ export function OverdueInvoicesPanel() {
     });
   };
 
-  if (isPending) return <Skeleton height={200} />;
+  if (isPending) return <TableSkeleton rows={4} />;
   if (!invoices?.length) {
-    return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="green">
-            <CheckCircleIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center">
-            Aucune facture à relancer : celles envoyées depuis {REMINDER_DELAY_DAYS} jours ou plus sont réglées.
-          </Text>
-        </Stack>
-      </Paper>
-    );
+    return <EmptyState icon={<CheckCircleIcon aria-hidden />} iconColor="green" message={<>Aucune facture à relancer : celles envoyées depuis {REMINDER_DELAY_DAYS} jours ou plus sont réglées.</>} />;
   }
 
   const total = view.rows.reduce((sum, invoice) => sum + Math.round((invoice.balance ?? 0) * 100), 0);

@@ -1,4 +1,5 @@
-import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Select, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import {
   DEFAULT_SCHEDULE_KIND_NAME,
@@ -401,16 +402,7 @@ export function WorkSchedulesManager() {
         </Button>
       </Group>
       {!schedules?.length ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ClockIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune plage.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<ClockIcon aria-hidden />} message="Aucune plage." />
       ) : (
         <DataTable
           view={view}

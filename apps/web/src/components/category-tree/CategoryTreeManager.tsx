@@ -1,3 +1,4 @@
+import { EmptyState } from '../feedback/EmptyState';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../panels/panels';
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
@@ -112,9 +113,7 @@ export function CategoryTreeManager<C extends TreeCategory>({
             <ThemeIcon variant="light" color="gray" radius="xl">
               <TagIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune catégorie pour le moment.
-            </Text>
+            <EmptyState compact message="Aucune catégorie pour le moment." />
           </Group>
         ) : (
           <CategoryTree

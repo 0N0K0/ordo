@@ -1,6 +1,7 @@
+import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Alert, Badge, Button, Group, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
   ArrowBendDoubleUpLeftIcon,
   ArrowBendUpLeftIcon,
@@ -94,7 +95,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
               }); } });
   };
 
-  if (isPending) return <Skeleton height={300} />;
+  if (isPending) return <DetailSkeleton fields={0} />;
   if (error || !mail) {
     return (
       <Alert color="red" icon={<ErrorIcon />}>

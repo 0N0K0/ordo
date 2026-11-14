@@ -1,5 +1,7 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Badge, Button, Group, Menu, Paper, Skeleton, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Badge, Button, Group, Menu, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
 import {
@@ -126,7 +128,7 @@ function RecurringList() {
       { onError: (error) => notifyError(error.message) },
     );
   const view = useDataView({ tableKey: 'recurring-invoices', columns: RECURRING_COLUMNS, rows: recurring ?? [], title: 'Factures récurrentes' });
-  if (isPending) return <Skeleton height={120} />;
+  if (isPending) return <TableSkeleton rows={3} />;
 
   /**
    * Asks for confirmation before deleting a schedule.
@@ -152,11 +154,7 @@ function RecurringList() {
       framed
       view={view}
       verticalSpacing="xs"
-      empty={
-        <Text size="sm" c="dimmed">
-          Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente ».
-        </Text>
-      }
+      empty={<EmptyState compact message="Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente »." />}
       getKey={(item) => item.id}
       cells={(item) => {
         return {
@@ -333,7 +331,7 @@ export function AccountingPage() {
         {TABS.map((item) => (
           <PageTabs.Panel key={item.value} value={item.value}>
             {isPending || imported.isPending ? (
-              <Skeleton height={200} />
+              <TableSkeleton rows={5} />
             ) : (
               <DocumentsTable
                 tableKey={`documents-${item.value.toLowerCase().replace(/_/g, '-')}`}
@@ -347,7 +345,7 @@ export function AccountingPage() {
         ))}
         <PageTabs.Panel value="toSend">
           {isPending || imported.isPending ? (
-            <Skeleton height={200} />
+            <TableSkeleton rows={5} />
           ) : (
             <DocumentsTable
               tableKey="documents-to-send"

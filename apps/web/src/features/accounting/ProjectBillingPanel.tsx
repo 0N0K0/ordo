@@ -1,4 +1,5 @@
-import { Button, Group, Menu, Skeleton, Stack, Text, Title } from '@mantine/core';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Button, Group, Menu, Stack, Text, Title } from '@mantine/core';
 import { CaretDownIcon, FileArrowUpIcon, PlusIcon } from '@phosphor-icons/react';
 import { useAccountingDocuments, useImportedDocuments } from './documents-api';
 import { DocumentsTable } from './DocumentsTable';
@@ -57,7 +58,7 @@ export function ProjectBillingPanel({ clientId, projectId, projectIds }: { clien
         </Text>
       )}
       {documents.isPending || imported.isPending ? (
-        <Skeleton height={120} />
+        <TableSkeleton rows={3} />
       ) : (
         <DocumentsTable
           tableKey="project-documents"

@@ -1,4 +1,5 @@
-import { Alert, Button, Divider, Grid, Group, Paper, Select, SegmentedControl, SimpleGrid, Skeleton, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { BlockSkeleton } from '../../components/feedback/Skeletons';
+import { Alert, Button, Divider, Grid, Group, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import {
   CHART_BUCKETS,
   CHART_PERIODS,
@@ -314,7 +315,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
             Aperçu
           </Text>
           <Paper withBorder radius="md" p="md">
-            {isPending || !data ? <Skeleton height={300} /> : <ChartView config={config} data={data} height={300} />}
+            {isPending || !data ? <BlockSkeleton height={12} /> : <ChartView config={config} data={data} height={288} />}
           </Paper>
           {data && (
             <Text size="xs" c="dimmed">

@@ -1,6 +1,7 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
+import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -200,16 +201,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         </Group>
       </Group>
       {milestones.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <FlagIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun jalon pour ce projet.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<FlagIcon aria-hidden />} message="Aucun jalon pour ce projet." />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={milestones.map((milestone) => milestone.id)} strategy={verticalListSortingStrategy}>

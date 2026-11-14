@@ -1,3 +1,5 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import {
@@ -16,7 +18,6 @@ import {
   SegmentedControl,
   Select,
   SimpleGrid,
-  Skeleton,
   Stack,
   Switch,
   Table,
@@ -806,9 +807,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
       }
     >
       {document.attachments.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          Aucune pièce jointe.
-        </Text>
+        <EmptyState compact message="Aucune pièce jointe." />
       ) : (
         document.attachments.map((attachment) => (
           <Group key={attachment.id} justify="space-between" wrap="nowrap">
@@ -854,7 +853,7 @@ const printedDay = (date: string) => dayFormat.format(new Date(`${date}T00:00:00
  */
 export function DocumentEditor({ id }: { id: string }) {
   const { data: document, isPending, error } = useAccountingDocument(id);
-  if (isPending) return <Skeleton height={500} />;
+  if (isPending) return <DetailSkeleton fields={6} />;
   if (error || !document) return <Alert color="red">{error?.message ?? 'Document introuvable.'}</Alert>;
   // A validated document is shown again, read only.
   return <Editor key={`${document.id}-${document.status}`} document={document} />;

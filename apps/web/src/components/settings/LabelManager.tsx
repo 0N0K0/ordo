@@ -1,3 +1,4 @@
+import { EmptyState } from '../feedback/EmptyState';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import {
   ActionIcon,
@@ -267,9 +268,7 @@ export function LabelManager({
             <ThemeIcon variant="light" color="gray" radius="xl">
               <TagIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun élément pour le moment.
-            </Text>
+            <EmptyState compact message="Aucun élément pour le moment." />
           </Group>
         ) : (
           <Stack gap="xs">

@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Group, Paper, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClockCountdownIcon, PaperPlaneRightIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -22,9 +23,7 @@ export function ScheduledMailsList() {
         <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
           <ClockCountdownIcon aria-hidden />
         </ThemeIcon>
-        <Text size="sm" c="dimmed" ta="center">
-          Aucun envoi programmé. Programmez un mail depuis sa fenêtre de rédaction (« Programmer »).
-        </Text>
+        <EmptyState compact message="Aucun envoi programmé. Programmez un mail depuis sa fenêtre de rédaction (« Programmer »)." />
       </Stack>
     );
   }

@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
@@ -248,9 +249,7 @@ function Contexts() {
         {contexts.length === 0 ? (
           <Group gap="xs" py="xs">
             <TagSimpleIcon aria-hidden />
-            <Text size="sm" c="dimmed">
-              Aucun contexte : tout est du {EVERYDAY_CONTEXT.toLowerCase()}.
-            </Text>
+            <EmptyState compact message={`Aucun contexte : tout est du ${EVERYDAY_CONTEXT.toLowerCase()}.`} />
           </Group>
         ) : (
           <Table verticalSpacing={4}>
@@ -481,9 +480,7 @@ export function TeamRelations() {
         Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers.
       </Text>
       {relations.length === 0 ? (
-        <Text size="sm" c="dimmed" py="xs">
-          Aucune relation.
-        </Text>
+        <EmptyState compact message="Aucune relation." />
       ) : (
         <Table verticalSpacing={4}>
           <Table.Tbody>

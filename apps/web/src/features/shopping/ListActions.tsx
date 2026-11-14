@@ -1,5 +1,7 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Button, Group, Skeleton, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+import { Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { formatMoney, shoppingListNameSchema } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
@@ -91,11 +93,9 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
       </Text>
       <TextInput label="Mouvement ou prévision" placeholder="Rechercher par libellé (2 caractères au moins)" data-autofocus value={text} onChange={(event) => setText(event.currentTarget.value)} />
       <Stack gap={4}>
-        {isFetching && <Skeleton height={36} />}
+        {isFetching && <ListSkeleton items={2} lines={2} />}
         {!isFetching && debounced.trim().length >= 2 && !entries?.length && (
-          <Text size="sm" c="dimmed">
-            Aucun mouvement trouvé.
-          </Text>
+          <EmptyState compact message="Aucun mouvement trouvé." />
         )}
         {entries?.map((entry) => (
           <UnstyledButton

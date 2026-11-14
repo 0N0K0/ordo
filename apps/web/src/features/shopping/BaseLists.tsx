@@ -1,9 +1,11 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Badge, Button, Group, Menu, Paper, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Menu, Stack, Tabs, Text, TextInput, Tooltip, type TabsTabProps } from '@mantine/core';
 import { shoppingBaseListNameSchema } from '@ordo/shared';
 import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useSearchParams } from 'react-router';
@@ -177,22 +179,20 @@ export function BaseLists() {
     });
   };
 
-  if (isPending) return <Skeleton height={36} />;
+  if (isPending) return <BlockSkeleton height={2} />;
   if (!current) {
     return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <ListBulletsIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center">
-            Aucune liste type : créez-en une par sorte d’achats (alimentation, fournitures scolaires, vêtements des enfants…), puis cochez ce qui manque pour générer une liste.
-          </Text>
-          <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Créer une liste type
-          </Button>
-        </Stack>
-      </Paper>
+      <EmptyState
+        icon={<ListBulletsIcon aria-hidden />}
+        message="Aucune liste type : créez-en une par sorte d’achats (alimentation, fournitures scolaires, vêtements des enfants…), puis cochez ce qui manque pour générer une liste."
+        action={
+          <>
+            <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+              Créer une liste type
+            </Button>
+          </>
+        }
+      />
     );
   }
 

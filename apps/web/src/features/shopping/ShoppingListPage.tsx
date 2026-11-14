@@ -1,5 +1,7 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Menu, Paper, Skeleton, Stack, Switch, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Menu, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney } from '@ordo/shared';
 import {
@@ -80,27 +82,19 @@ export function ShoppingListPage() {
   const view = useDataView({ tableKey: 'shopping-list', columns, rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position), title: list?.name ?? 'Liste de courses', first: LIST_VIEWS });
 
   if (isPending) {
-    return (
-      <Stack gap="xs" aria-label="Chargement">
-        {[0, 1, 2].map((index) => (
-          <Skeleton key={index} height={48} />
-        ))}
-      </Stack>
-    );
+    return <TableSkeleton rows={4} />;
   }
   if (!list) {
     return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <BasketIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm">Cette liste n’existe pas ou a été supprimée.</Text>
+      <EmptyState
+        icon={<BasketIcon aria-hidden />}
+        message="Cette liste n’existe pas ou a été supprimée."
+        action={
           <Button component={Link} to="/shopping?tab=lists" variant="light" leftSection={<ArrowLeftIcon aria-hidden />}>
             Retour aux listes
           </Button>
-        </Stack>
-      </Paper>
+        }
+      />
     );
   }
 
@@ -204,16 +198,7 @@ export function ShoppingListPage() {
       />
 
       {list.items.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ListPlusIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              La liste est vide : ajoutez des produits des listes types ou d’autres éléments.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<ListPlusIcon aria-hidden />} message="La liste est vide : ajoutez des produits des listes types ou d’autres éléments." />
       ) : (
         <ShoppingTable
           view={view}

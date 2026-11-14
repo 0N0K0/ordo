@@ -1,4 +1,5 @@
-import { Alert, Anchor, Button, Group, NumberInput, Select, Skeleton, Stack } from '@mantine/core';
+import { FormSkeleton } from '../../components/feedback/Skeletons';
+import { Alert, Anchor, Button, Group, NumberInput, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { documentPaymentSchema } from '@ordo/shared';
 import { Link } from 'react-router';
@@ -34,7 +35,7 @@ export function PaymentForm({ document, onDone }: { document: PayableDocument; o
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
   // The form starts once the accounts and methods are known, so that the first account and the usual method are chosen.
-  if (!accounts || !settings) return <Skeleton height={240} />;
+  if (!accounts || !settings) return <FormSkeleton fields={4} />;
   const refund = document.type === 'CREDIT_NOTE';
   const methods = settings.treasuryPaymentMethods.filter((method) => (refund ? method.outgoing : method.incoming));
   return <PaymentFields document={document} accounts={accounts} methods={methods} onDone={onDone} />;

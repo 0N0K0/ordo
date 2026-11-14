@@ -1,6 +1,8 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { ActionIcon, Button, ColorInput, Group, Paper, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, ColorInput, Group, Paper, Select, Stack, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { calendarCategoryFormSchema, type CalendarCategoryFormValues } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { CategoryTree } from '../../components/category-tree/CategoryTree';
@@ -138,15 +140,13 @@ export function CalendarCategoriesManager() {
           </Button>
         </Group>
         {isPending ? (
-          <Skeleton height={48} />
+          <ListSkeleton items={3} />
         ) : !categories?.length ? (
           <Group gap="sm">
             <ThemeIcon variant="light" color="gray" radius="xl">
               <TagIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune catégorie pour le moment.
-            </Text>
+            <EmptyState compact message="Aucune catégorie pour le moment." />
           </Group>
         ) : (
           <CategoryTree

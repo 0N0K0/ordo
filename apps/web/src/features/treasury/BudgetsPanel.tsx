@@ -1,6 +1,8 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { Badge, Button, Group, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -474,14 +476,9 @@ export function BudgetsPanel() {
           Budgets de {monthLabel(month)}
         </Title>
         {isPending && !data ? (
-          <Skeleton height={120} />
+          <TableSkeleton rows={3} />
         ) : budgeted.length === 0 ? (
-          <Group gap="xs" py="md" justify="center">
-            <ChartPieSliceIcon aria-hidden />
-            <Text size="sm" c="dimmed">
-              {categories.length ? 'Aucun budget ce mois-ci.' : 'Créez d’abord des catégories (Paramètres).'}
-            </Text>
-          </Group>
+          <EmptyState compact icon={<ChartPieSliceIcon aria-hidden />} message={categories.length ? 'Aucun budget ce mois-ci.' : 'Créez d’abord des catégories (Paramètres).'} />
         ) : (
           <DataTable
             view={reportView}
@@ -608,9 +605,7 @@ export function BudgetsPanel() {
           Budgets définis
         </Title>
         {(data?.treasuryBudgets ?? []).length === 0 ? (
-          <Text size="sm" c="dimmed">
-            Aucun budget.
-          </Text>
+          <EmptyState compact message="Aucun budget." />
         ) : (
           <DataTable
             view={definedView}

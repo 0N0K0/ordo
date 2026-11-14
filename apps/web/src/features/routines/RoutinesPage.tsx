@@ -1,4 +1,6 @@
-import { Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Button, Group, Stack } from '@mantine/core';
 import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, type RoutineViewConfig } from '@ordo/shared';
 import { useMemo, useState } from 'react';
@@ -123,29 +125,15 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
         />
       )}
       {isLoading || !context || !config || !env ? (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2, 3].map((index) => (
-            <Skeleton key={index} height={36} />
-          ))}
-        </Stack>
+        <TableSkeleton rows={4} />
       ) : count === 0 && routines.length > 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon variant="light" size="xl" radius="xl">
-              <ArrowsClockwiseIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed" ta="center">
-              {projectIds ? 'Aucune routine de ce projet dans cette vue : une routine y est rattachée par son champ « Projet ».' : 'Aucune routine dans cette vue.'}
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<ArrowsClockwiseIcon aria-hidden />}
+          message={projectIds ? 'Aucune routine de ce projet dans cette vue : une routine y est rattachée par son champ « Projet ».' : 'Aucune routine dans cette vue.'}
+        />
       ) : (
         <Stack gap="xs">
-          {routines.length === 0 && (
-            <Text size="sm" c="dimmed">
-              Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…
-            </Text>
-          )}
+          {routines.length === 0 && <EmptyState compact message="Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…" />}
           <RoutineTable
             routines={routines}
             layout={layout}

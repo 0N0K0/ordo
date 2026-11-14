@@ -1,3 +1,4 @@
+import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import {
   ActionIcon,
   Alert,
@@ -8,7 +9,6 @@ import {
   Menu,
   NavLink,
   ScrollArea,
-  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -103,14 +103,9 @@ function SectionEmpty({
  */
 function TreeSkeleton() {
   return (
-    <Stack gap="xs" p="xs" aria-label="Chargement">
-      {[70, 55, 80, 60, 45].map((width) => (
-        <Group key={width} gap="xs" wrap="nowrap">
-          <Skeleton circle height={22} />
-          <Skeleton height={12} width={`${width}%`} />
-        </Group>
-      ))}
-    </Stack>
+    <div style={{ padding: 'var(--mantine-spacing-xs)' }}>
+      <ListSkeleton items={5} dense avatar />
+    </div>
   );
 }
 

@@ -1,3 +1,5 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import {
   ActionIcon,
   Anchor,
@@ -7,10 +9,8 @@ import {
   Group,
   Paper,
   Select,
-  Skeleton,
   Stack,
   Text,
-  ThemeIcon,
   Tooltip,
 } from '@mantine/core';
 import { PlusIcon, UsersIcon, XIcon } from '@phosphor-icons/react';
@@ -31,7 +31,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { setProjectContributors } = useContributorMutations();
   const openForm = useContributorForm();
-  if (!context) return <Skeleton height={48 * 3} radius="md" />;
+  if (!context) return <ListSkeleton items={3} avatar />;
   const project = context.projectById.get(projectId);
   const subtree = descendantIds(context.projects, projectId);
   subtree.add(projectId);
@@ -117,16 +117,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
       </Group>
 
       {members.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <UsersIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun contributeur sur ce projet.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<UsersIcon aria-hidden />} message="Aucun contributeur sur ce projet." />
       ) : (
         <Paper withBorder radius="md" p="md">
           <Stack gap="sm">

@@ -1,6 +1,8 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Skeleton, Stack, Tabs, Text, TextInput, ThemeIcon, Tooltip, type TabsTabProps } from '@mantine/core';
+import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Stack, Tabs, Text, TextInput, Tooltip, type TabsTabProps } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource, type FilterGroup } from '@ordo/shared';
 import {
@@ -337,9 +339,9 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
             {error.message}
           </Alert>
         ) : isPending || !data ? (
-          <Skeleton height={280} />
+          <BlockSkeleton height={12} />
         ) : (
-          <ChartView ref={view} config={config} data={data} height={280} />
+          <ChartView ref={view} config={config} data={data} height={288} />
         )}
         {printSize &&
           data &&
@@ -575,23 +577,21 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       </Alert>
     );
   }
-  if (isPending || contextPending || !context) return <Skeleton height={320} />;
+  if (isPending || contextPending || !context) return <BlockSkeleton height={14} />;
 
   if (!dashboards?.length || !current) {
     return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <ChartBarIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center">
-            Aucun tableau de bord. Créez-en un pour suivre vos indicateurs : tâches fermées par semaine, vélocité par sprint, burndown, charge par assigné…
-          </Text>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => askName()}>
-            Créer un tableau de bord
-          </Button>
-        </Stack>
-      </Paper>
+      <EmptyState
+        icon={<ChartBarIcon aria-hidden />}
+        message="Aucun tableau de bord. Créez-en un pour suivre vos indicateurs : tâches fermées par semaine, vélocité par sprint, burndown, charge par assigné…"
+        action={
+          <>
+            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => askName()}>
+              Créer un tableau de bord
+            </Button>
+          </>
+        }
+      />
     );
   }
 
@@ -678,19 +678,17 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       </Group>
 
       {current.charts.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ChartBarIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Ce tableau de bord n’a pas encore de diagramme.
-            </Text>
-            <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openEditor()}>
-              Ajouter un diagramme
-            </Button>
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<ChartBarIcon aria-hidden />}
+          message="Ce tableau de bord n’a pas encore de diagramme."
+          action={
+            <>
+              <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openEditor()}>
+                Ajouter un diagramme
+              </Button>
+            </>
+          }
+        />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={current.charts.map((chart) => chart.id)} strategy={rectSortingStrategy}>

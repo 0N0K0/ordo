@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Avatar, Badge, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
@@ -93,9 +94,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
             <ThemeIcon variant="light" color="gray" radius="xl">
               <UsersIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun contributeur pour le moment.
-            </Text>
+            <EmptyState compact message="Aucun contributeur pour le moment." />
           </Group>
         ) : (
           <Stack gap="xs">

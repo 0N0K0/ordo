@@ -1,6 +1,8 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { Badge, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Text, Textarea, TextInput, ThemeIcon } from '@mantine/core';
+import { Badge, Button, Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
@@ -214,7 +216,7 @@ export function CatalogPanel() {
     });
   };
 
-  if (isPending) return <Skeleton height={160} />;
+  if (isPending) return <TableSkeleton rows={4} />;
 
   return (
     <DataTable
@@ -229,19 +231,17 @@ export function CatalogPanel() {
         ),
       }}
       empty={
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <PackageIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed" ta="center">
-              Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic.
-            </Text>
-            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-              Ajouter un article
-            </Button>
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<PackageIcon aria-hidden />}
+          message="Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic."
+          action={
+            <>
+              <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+                Ajouter un article
+              </Button>
+            </>
+          }
+        />
       }
       verticalSpacing="xs"
       getKey={(item) => item.id}

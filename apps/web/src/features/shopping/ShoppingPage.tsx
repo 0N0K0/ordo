@@ -1,4 +1,6 @@
-import { ActionIcon, Badge, Button, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { ActionIcon, Badge, Button, Group, Paper, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { SHOPPING_LIST_FILTER_FIELDS, SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS, type ShoppingListFilterField, type ShoppingListGroupBy } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
@@ -144,22 +146,12 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         />
       )}
       {isPending || !config || (projectIds && !context) ? (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2].map((index) => (
-            <Skeleton key={index} height={48} />
-          ))}
-        </Stack>
+        <TableSkeleton rows={3} />
       ) : shown.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ListChecksIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              {scoped.length === 0 ? (projectIds ? 'Aucune liste : une liste rattachée à une tâche du projet s’affiche ici.' : 'Aucune liste pour le moment.') : 'Aucune liste dans cette vue.'}
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<ListChecksIcon aria-hidden />}
+          message={scoped.length === 0 ? (projectIds ? 'Aucune liste : une liste rattachée à une tâche du projet s’affiche ici.' : 'Aucune liste pour le moment.') : 'Aucune liste dans cette vue.'}
+        />
       ) : (
         <Paper withBorder radius="md" className={classes.group}>
           <div className={classes.scroller}>

@@ -1,5 +1,6 @@
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Alert, Badge, Box, Checkbox, Group, Menu, NavLink, Pagination, Skeleton, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Badge, Box, Checkbox, Group, Menu, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
 import type { MailSearchCriteria } from '@ordo/shared';
 import { CheckCircleIcon, DotsThreeIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -139,13 +140,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
     );
   }
   if (results.isPending) {
-    return (
-      <Stack gap={4} p="xs">
-        {[0, 1, 2, 3, 4].map((index) => (
-          <Skeleton key={index} height={44} />
-        ))}
-      </Stack>
-    );
+    return <ListSkeleton items={5} dense />;
   }
   const total = results.data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / (results.data?.pageSize ?? 50)));

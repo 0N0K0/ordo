@@ -1,7 +1,9 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { BlockSkeleton, DetailSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from './entry-values';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, NumberInput, Paper, Popover, SegmentedControl, SimpleGrid, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, NumberInput, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
@@ -312,7 +314,7 @@ export function TreasuryPage() {
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
 
-  if (accountsPending) return <Skeleton height={400} />;
+  if (accountsPending) return <DetailSkeleton />;
 
   const header = (
     <Group justify="space-between">
@@ -365,19 +367,17 @@ export function TreasuryPage() {
     return (
       <Stack gap="md">
         {header}
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <BankIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed" ta="center">
-              Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là.
-            </Text>
-            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
-              Créer un compte
-            </Button>
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<BankIcon aria-hidden />}
+          message="Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là."
+          action={
+            <>
+              <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
+                Créer un compte
+              </Button>
+            </>
+          }
+        />
         {dialogs}
       </Stack>
     );
@@ -475,10 +475,10 @@ export function TreasuryPage() {
           </Group>
         </Group>
         {projectionPending ? (
-          <Skeleton height={260} />
+          <BlockSkeleton height={11} />
         ) : (
           <AreaChart
-            h={260}
+            h={264}
             data={[...chart.values()]}
             dataKey="date"
             curveType="stepAfter"
@@ -526,9 +526,10 @@ export function TreasuryPage() {
             view={forecastView}
             bar={{ searchLabel: 'Rechercher (libellé, tiers)' }}
             empty={
-              <Text size="sm" c="dimmed">
-                Rien d’attendu d’ici le {printedDate(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.
-              </Text>
+              <EmptyState
+                compact
+                message={`Rien d’attendu d’ici le ${printedDate(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.`}
+              />
             }
             verticalSpacing="xs"
             highlightOnHover

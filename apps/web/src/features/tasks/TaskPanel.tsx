@@ -1,3 +1,5 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { SidePanel } from '../../components/panels/SidePanel';
 import {
   ActionIcon,
@@ -12,7 +14,6 @@ import {
   NumberInput,
   Progress,
   Select,
-  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -356,9 +357,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   ))}
                 </>
               ) : (
-                <Text size="sm" c="dimmed">
-                  Aucune sous-tâche.
-                </Text>
+                <EmptyState compact message="Aucune sous-tâche." />
               )}
             </Stack>
 
@@ -517,10 +516,7 @@ export function TaskPanel() {
   return (
     <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}>
       {isPending ? (
-        <Stack gap="md">
-          <Skeleton height={32} width="60%" />
-          <Skeleton height={160} />
-        </Stack>
+        <DetailSkeleton fields={5} />
       ) : task && context ? (
         <TaskDetail key={task.id} task={task} context={context} />
       ) : (

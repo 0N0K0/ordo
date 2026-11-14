@@ -1,4 +1,6 @@
-import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { mailSearchCriteriaSchema } from '@ordo/shared';
 import { useDebouncedValue } from '@mantine/hooks';
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockCountdownIcon, EnvelopeSimpleIcon, FlagIcon, MagnifyingGlassIcon, PaperclipIcon, PencilSimpleLineIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
@@ -119,16 +121,7 @@ export function MailPage() {
     return (
       <Stack gap="lg">
         <PageTitle>Mails</PageTitle>
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <EnvelopeSimpleIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune boîte mail configurée : ajoutez-en une.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<EnvelopeSimpleIcon aria-hidden />} message="Aucune boîte mail configurée : ajoutez-en une." />
         <MailAccountsManager />
       </Stack>
     );
@@ -176,7 +169,7 @@ export function MailPage() {
             />
             <MailSearchFolders selectedId={scheduledView ? null : searchId} onSelect={(id) => update({ search: id, view: null, uid: null, page: null, adv: null })} />
             {isPending ? (
-              <Skeleton height={120} />
+              <ListSkeleton items={5} dense avatar />
             ) : (
               accounts?.map((account) => (
                 <AccountFolders
@@ -335,11 +328,7 @@ export function MailPage() {
                 {messages.error.message}
               </Alert>
             ) : messages.isPending && accountId ? (
-              <Stack gap={4} p="xs">
-                {[0, 1, 2, 3, 4, 5].map((index) => (
-                  <Skeleton key={index} height={44} />
-                ))}
-              </Stack>
+              <ListSkeleton items={6} lines={2} />
             ) : total === 0 ? (
               <Text size="sm" c="dimmed" ta="center" p="xl">
                 {debouncedSearch ? 'Aucun mail ne correspond à la recherche.' : doneFilter === 'todo' ? 'Aucun mail à traiter.' : doneFilter === 'done' ? 'Aucun mail traité.' : 'Aucun mail dans ce dossier.'}

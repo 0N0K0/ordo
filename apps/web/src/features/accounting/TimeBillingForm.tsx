@@ -1,4 +1,6 @@
-import { Button, Checkbox, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, TextInput } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Button, Checkbox, Group, NumberInput, ScrollArea, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { formatDuration, formatMoney, VAT_RATES, type AccountingLineInput } from '@ordo/shared';
 import { useState } from 'react';
@@ -87,11 +89,9 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
           Choisissez le projet dont le temps est facturé.
         </Text>
       ) : entries.isPending ? (
-        <Skeleton height={120} />
+        <TableSkeleton rows={3} />
       ) : billable.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          Aucun temps à facturer sur ce projet {from || to ? 'pour cette période' : ''} : tout le temps terminé est déjà facturé.
-        </Text>
+        <EmptyState compact message={`Aucun temps à facturer sur ce projet ${from || to ? 'pour cette période' : ''} : tout le temps terminé est déjà facturé.`} />
       ) : (
         <ScrollArea.Autosize mah={240} type="auto">
           <Table verticalSpacing={4} withRowBorders={false}>

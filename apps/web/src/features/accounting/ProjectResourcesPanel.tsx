@@ -1,6 +1,8 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Skeleton, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -124,18 +126,9 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
         </Group>
       </Group>
       {isPending ? (
-        <Skeleton height={120} />
+        <ListSkeleton items={3} />
       ) : !resources?.length ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <PaperclipIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun document ni lien.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<PaperclipIcon aria-hidden />} message="Aucun document ni lien." />
       ) : (
         <Paper withBorder radius="md" p="xs">
           <Stack gap={4}>

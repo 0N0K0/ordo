@@ -1,4 +1,5 @@
-import { ActionIcon, Anchor, Badge, Button, Grid, Group, Paper, Skeleton, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { DetailSkeleton } from '../../components/feedback/Skeletons';
+import { ActionIcon, Anchor, Badge, Button, Grid, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { formatMoney } from '@ordo/shared';
 import { ArrowLeftIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { Link, useParams } from 'react-router';
@@ -33,12 +34,7 @@ export function ImportedDocumentPage() {
   const { setStatus, markSent } = useImportedDocumentMutations();
 
   if (isLoading) {
-    return (
-      <Stack gap="md">
-        <Skeleton h={36} w={320} />
-        <Skeleton h="70vh" />
-      </Stack>
-    );
+    return <DetailSkeleton fields={6} />;
   }
   if (!document) return <NotFoundPage />;
 

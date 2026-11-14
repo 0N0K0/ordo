@@ -1,4 +1,6 @@
-import { Alert, Button, Group, Paper, Skeleton, Stack, Text, ThemeIcon } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { Alert, Button, Group, Stack, Text } from '@mantine/core';
 import { AlarmIcon, BellRingingIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -62,29 +64,15 @@ export function AlarmsPage() {
       )}
 
       {isPending || !context ? (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2].map((index) => (
-            <Skeleton key={index} height={72} />
-          ))}
-        </Stack>
+        <ListSkeleton items={3} lines={2} />
       ) : !alarms?.length ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <AlarmIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune alarme.
-            </Text>
-            <Button
+        <EmptyState icon={<AlarmIcon aria-hidden />} message="Aucune alarme." action={<><Button
               variant="light"
               leftSection={<PlusIcon aria-hidden />}
               onClick={() => openForm()}
             >
               Nouvelle alarme
-            </Button>
-          </Stack>
-        </Paper>
+            </Button></>} />
       ) : (
         <AlarmList alarms={alarms} context={context} openForm={openForm} />
       )}

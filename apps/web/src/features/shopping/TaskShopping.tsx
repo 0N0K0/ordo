@@ -1,3 +1,4 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { Anchor, Badge, Button, Group, Select, Stack, Text } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -33,9 +34,7 @@ export function TaskShopping({ task }: { task: Task }) {
         )}
       </Group>
       {own.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          Aucune liste de courses.
-        </Text>
+        <EmptyState compact message="Aucune liste de courses." />
       ) : (
         own.map((list) => {
           const bought = list.items.filter((item) => item.purchasedAt).length;

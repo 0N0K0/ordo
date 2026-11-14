@@ -1,3 +1,4 @@
+import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
 import {
@@ -10,7 +11,6 @@ import {
   Grid,
   Group,
   Paper,
-  Skeleton,
   Stack,
   Table,
   Text,
@@ -524,7 +524,7 @@ export function LibraryPage() {
       {error ? (
         <Text c="red">{error.message}</Text>
       ) : isPending ? (
-        <Skeleton height={320} />
+        <TableSkeleton rows={6} />
       ) : (
         <DndContext sensors={sensors} collisionDetection={libraryCollision} onDragEnd={handleDragEnd}>
         <Grid gap="md">

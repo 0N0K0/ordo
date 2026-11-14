@@ -1,6 +1,8 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Badge, Button, Group, Paper, Skeleton, Stack, Switch, Table, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Paper, Stack, Switch, Table, Text, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts, type TableFilterGroup } from '@ordo/shared';
 import {
   ArrowsLeftRightIcon,
@@ -264,18 +266,9 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         }
       />
       {isPending || !view.config ? (
-        <Skeleton height={240} />
+        <TableSkeleton rows={6} />
       ) : loaded.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ArrowsLeftRightIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun mouvement pour le moment.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<ArrowsLeftRightIcon aria-hidden />} message="Aucun mouvement pour le moment." />
       ) : actual.length === 0 ? (
         <NoMatch view={view} />
       ) : (

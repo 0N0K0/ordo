@@ -1,4 +1,5 @@
-import { ActionIcon, Button, Group, Paper, Select, Skeleton, Stack, Text } from '@mantine/core';
+import { BlockSkeleton } from '../../components/feedback/Skeletons';
+import { ActionIcon, Button, Group, Paper, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays } from '@ordo/shared';
@@ -128,7 +129,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
         />
       </Group>
       {isPending || occurrencesPending ? (
-        <Skeleton height={96} aria-label="Chargement" />
+        <BlockSkeleton height={20} />
       ) : (
         <Stack gap="xs">
           <Text size="sm" c="dimmed">

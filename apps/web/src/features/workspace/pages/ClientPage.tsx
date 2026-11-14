@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Button, Paper, Stack, Tabs, Text, ThemeIcon, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { FolderPlusIcon, FoldersIcon } from '@phosphor-icons/react';
@@ -85,9 +86,7 @@ export function ClientPage() {
               <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
                 <FoldersIcon aria-hidden />
               </ThemeIcon>
-              <Text size="sm" c="dimmed">
-                Aucun projet pour ce client.
-              </Text>
+              <EmptyState compact message="Aucun projet pour ce client." />
               {!client.archived && (
                 <Button
                   size="xs"

@@ -1,0 +1,70 @@
+@layer app {
+  /* Line of text: one step, its bar centered. */
+  .line {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    height: var(--onoko-vertical-step);
+  }
+
+  /* Title: two steps, its bar of one step centered. */
+  .title {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    height: calc(2 * var(--onoko-vertical-step));
+  }
+
+  /* Table: framed as the tables are. */
+  .frame {
+    /* Dimension */
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+
+    /* Bordures */
+    border: 1px solid var(--mantine-color-default-border);
+  }
+
+  /* Header and rows of a table: two steps each. */
+  .header,
+  .row {
+    /* Dimension */
+    height: calc(2 * var(--onoko-vertical-step));
+
+    /* Espacement */
+    padding-inline: var(--mantine-spacing-sm);
+  }
+
+  .header {
+    /* Arrière-Plan */
+    background: var(--mantine-color-default-hover);
+  }
+
+  .row + .row,
+  .header + .row {
+    /* Bordures */
+    border-top: 1px solid var(--mantine-color-default-border);
+  }
+
+  /* Item of a list: centered in its steps, separated as the lists are. */
+  .item,
+  .denseItem {
+    /* Agencement */
+    align-items: center;
+  }
+
+  .item + .item {
+    /* Bordures */
+    border-top: 1px solid var(--mantine-color-default-border);
+  }
+
+  /* Field of a form: its label line, its input of 1.5 steps, half a step under it (three steps in all). */
+  .field {
+    /* Dimension */
+    height: calc(3 * var(--onoko-vertical-step));
+  }
+}

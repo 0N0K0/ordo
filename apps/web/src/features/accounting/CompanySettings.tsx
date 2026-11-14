@@ -1,3 +1,4 @@
+import { FormSkeleton } from '../../components/feedback/Skeletons';
 import {
   Alert,
   Autocomplete,
@@ -10,7 +11,6 @@ import {
   Paper,
   Select,
   SimpleGrid,
-  Skeleton,
   Stack,
   Switch,
   Table,
@@ -375,7 +375,7 @@ function NumberingSettings() {
           />
         </Group>
         {isPending ? (
-          <Skeleton height={160} />
+          <FormSkeleton fields={3} />
         ) : (
           <Table>
             <Table.Thead>
@@ -466,7 +466,7 @@ export function CompanySettings() {
             </Alert>
           )}
           {isPending || !profile ? (
-            <Skeleton height={400} />
+            <FormSkeleton fields={8} />
           ) : (
             <CompanyForm profile={profile} />
           )}

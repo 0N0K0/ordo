@@ -1,6 +1,7 @@
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
-import { ActionIcon, Anchor, Badge, Button, Group, Paper, SimpleGrid, Skeleton, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../../components/address/countries';
@@ -147,7 +148,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
  */
 export function ClientBillingSection({ clientId }: { clientId: string }) {
   const { data: client, isPending } = useClientBilling(clientId);
-  if (isPending) return <Skeleton height={160} />;
+  if (isPending) return <ListSkeleton items={3} lines={2} />;
   if (!client) return null;
   const company = client.kind === 'COMPANY';
   const identifiers = [

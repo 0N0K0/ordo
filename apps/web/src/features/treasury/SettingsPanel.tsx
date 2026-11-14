@@ -1,3 +1,4 @@
+import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import {
@@ -11,7 +12,6 @@ import {
   SegmentedControl,
   Select,
   SimpleGrid,
-  Skeleton,
   Stack,
   Table,
   Text,
@@ -432,7 +432,7 @@ export function SettingsPanel() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
-  if (isPending || !settings) return <Skeleton height={320} />;
+  if (isPending || !settings) return <ListSkeleton items={6} />;
   const { treasuryCategories: categories, treasuryPaymentMethods: methods, treasuryCounterparties: counterparties } = settings;
 
   return (

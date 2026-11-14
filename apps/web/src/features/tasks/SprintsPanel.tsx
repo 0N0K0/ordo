@@ -1,6 +1,7 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { ActionIcon, Badge, Button, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Menu, Paper, Progress, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, sprintFormSchema, type SprintFormValues } from '@ordo/shared';
 import { DotsThreeIcon, PencilSimpleIcon, PlusIcon, TimerIcon, TrashIcon } from '@phosphor-icons/react';
@@ -149,19 +150,9 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
         </Button>
       </Group>
       {sprints.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <TimerIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun sprint pour ce projet.
-            </Text>
-            <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
+        <EmptyState icon={<TimerIcon aria-hidden />} message="Aucun sprint pour ce projet." action={<><Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
               Planifier un premier sprint
-            </Button>
-          </Stack>
-        </Paper>
+            </Button></>} />
       ) : (
         sprints.map((sprint) => {
           const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);

@@ -1,4 +1,5 @@
-import { Badge, Group, Paper, Stack, Table, Text, ThemeIcon } from '@mantine/core';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { Badge, Group, Table, Text } from '@mantine/core';
 import { entrySeconds, formatDuration, type TableFilterGroup } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -189,18 +190,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           </Text>
         ),
       }}
-      empty={
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <ClockIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              {emptyMessage}
-            </Text>
-          </Stack>
-        </Paper>
-      }
+      empty={<EmptyState icon={<ClockIcon aria-hidden />} message={emptyMessage} />}
       verticalSpacing="xs"
       highlightOnHover
       stickyHeader
