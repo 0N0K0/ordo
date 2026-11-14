@@ -3,12 +3,11 @@ import { SidePanel } from '../../components/panels/SidePanel';
 import { TimeField } from '../../components/TimeField';
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput } from '@ordo/shared';
+import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput, sharePeople } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
-import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -27,6 +26,10 @@ import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from './event-inpu
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
+import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
+import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
+import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { Comments } from '../comments/Comments';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -166,8 +169,11 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         calendarId: null,
         contributorIds: [],
         relationIds: [],
+        beneficiaryIds: [],
+        beneficiaryRelationIds: [],
         categoryIds: [],
         taskIds: [],
+        routineLinks: [],
         ...defaults,
       };
   const form = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
@@ -176,6 +182,22 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const relationOptions = (treasury?.treasuryRelations ?? [])
     .filter((relation) => !relation.contributorId || (values.relationIds ?? []).includes(relation.id))
     .map((relation) => ({ value: relation.id, label: relation.name }));
+  // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
+  const { data: routinesData } = useRoutinesData();
+  const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
+  const routineById = new Map((routinesData?.routines ?? []).map((routine) => [routine.id, routine]));
+  const multiDay = values.startDate !== values.endDate;
+  const chosenLinks = new Set((values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`));
+  const routineOptions = [
+    ...new Map(
+      [...(routineDays ?? []).map((item) => ({ routineId: item.routineId, date: String(item.date) })), ...(values.routineLinks ?? [])].map((link) => [`${link.routineId}|${link.date}`, link]),
+    ).values(),
+  ].flatMap((link) => {
+    const routine = routineById.get(link.routineId);
+    const key = `${link.routineId}|${link.date}`;
+    if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
+    return [{ value: key, label: multiDay ? `${routine.title} (${fmt.weekday(link.date)})` : routine.title }];
+  });
   const recurring = occurrence?.occurrenceDate != null;
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
@@ -388,14 +410,14 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             <div>
               <TravelCalculator
                 eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}
-                onResult={({ before, after }) => form.setValues({ travelBefore: before, travelAfter: after })}
+                onResult={({ before, after }) => form.setValues({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
               />
             </div>
           </SimpleGrid>
         )}
         <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
-        <RecurrenceEditor
+        <RecurrenceField
           value={values.recurrence ? { ...values.recurrence, weekParity: values.recurrence.weekParity ?? null } : null}
           onChange={(recurrence) => form.setFieldValue('recurrence', recurrence)}
           start={ruleStart}
@@ -463,14 +485,32 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               </Group>
             )}
           />
-          <ProjectSelect context={context} label="Projet" clearable placeholder="Aucun" {...form.getInputProps('projectId')} />
+          <ProjectSelect
+            context={context}
+            label="Projet"
+            clearable
+            placeholder="Aucun"
+            {...form.getInputProps('projectId')}
+            onChange={(projectId) => {
+              form.setFieldValue('projectId', projectId);
+              // Contributors out of the new project are dropped.
+              const allowed = new Set(context.assignableFor([projectId], initial.contributorIds ?? []).map((contributor) => contributor.id));
+              form.setFieldValue('contributorIds', values.contributorIds.filter((id) => allowed.has(id)));
+            }}
+          />
           <BatchMultiSelect
             label="Contributeurs"
+            description={values.projectId ? 'Contributeurs du projet.' : undefined}
             placeholder={values.contributorIds.length ? undefined : 'Aucun'}
-            data={context.contributors.map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
+            data={context.assignableFor([values.projectId ?? null], initial.contributorIds ?? []).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
             searchable
             clearable
             {...form.getInputProps('contributorIds')}
+          />
+          <BeneficiariesSelect
+            description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."
+            value={{ beneficiaryIds: values.beneficiaryIds ?? [], beneficiaryRelationIds: values.beneficiaryRelationIds ?? [] }}
+            onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
           />
           <BatchMultiSelect
             label="Relations"
@@ -494,9 +534,16 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           <BatchMultiSelect
             label="Tâches"
             placeholder={values.taskIds?.length ? undefined : 'Aucune'}
-            description={values.projectId ? 'Tâches du projet et de ses sous-projets.' : undefined}
+            description={
+              [values.projectId ? 'Tâches du projet et de ses sous-projets' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null].filter(Boolean).join(', ') || undefined
+            }
+            // Of the project, and with someone in common with the event (or nobody on either side); those chosen stay.
             data={context.tasks
-              .filter((task) => values.taskIds?.includes(task.id) || (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId))))
+              .filter(
+                (task) =>
+                  values.taskIds?.includes(task.id) ||
+                  (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId)) && sharePeople(task.assigneeIds, values.contributorIds)),
+              )
               .map((task) => ({ value: task.id, label: `${context.taskLabel(task, values.projectId)}${task.closed ? ' (fermée)' : ''}` }))}
             searchable
             clearable
@@ -504,6 +551,19 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             nothingFoundMessage="Aucune tâche"
             value={values.taskIds ?? []}
             onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
+            error={form.errors.taskIds as string | undefined}
+          />
+          <BatchMultiSelect
+            label="Routines"
+            placeholder={(values.routineLinks ?? []).length ? undefined : 'Aucune'}
+            description="Routines de ces jours faites pendant l’évènement (ce jour-là seulement), avec un contributeur de l’évènement."
+            data={routineOptions}
+            searchable
+            clearable
+            nothingFoundMessage="Aucune routine ces jours-là"
+            value={(values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`)}
+            onChange={(keys) => form.setFieldValue('routineLinks', keys.map((key) => ({ routineId: key.split('|')[0], date: key.split('|')[1] })))}
+            error={form.errors.routineLinks as string | undefined}
           />
           <BatchMultiSelect
             label="Rappels"
@@ -541,6 +601,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           suggestions={context.suggestionsFor(values.projectId ?? null)}
           minRows={3}
         />
+        {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} />}
 
         <Group justify="space-between" gap="sm">
           {occurrence ? (

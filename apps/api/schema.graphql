@@ -307,6 +307,12 @@ input CalendarCategoryInput {
 input CalendarEventInput {
   allDay: Boolean!
 
+  """Contributors the event is for; none: none."""
+  beneficiaryIds: [ID!]
+
+  """Relations the event is for; none: none."""
+  beneficiaryRelationIds: [ID!]
+
   """Calendar; the first one of the workspace when omitted."""
   calendarId: ID
   categoryIds: [ID!]!
@@ -328,6 +334,11 @@ input CalendarEventInput {
 
   """Minutes before the start."""
   reminders: [Int!]!
+
+  """
+  Routines of a day of the occurrence it is about (its other days kept); none when omitted.
+  """
+  routineLinks: [EventRoutineLinkInput!]
   startDate: Date!
   startTime: String
 
@@ -346,6 +357,12 @@ input CalendarEventInput {
 """One occurrence of an event in a period."""
 type CalendarEventOccurrence {
   allDay: Boolean!
+
+  """« Bénéficiaires »: contributors the event is for."""
+  beneficiaryIds: [ID!]!
+
+  """« Bénéficiaires »: relations the event is for."""
+  beneficiaryRelationIds: [ID!]!
   calendarId: ID!
 
   """Cancelled, kept in the calendar."""
@@ -372,6 +389,9 @@ type CalendarEventOccurrence {
   """Relations without contributor taking part."""
   relationIds: [ID!]!
   reminders: [Int!]!
+
+  """Routines of a day of the occurrence it is about."""
+  routineLinks: [EventRoutineLink!]!
   seriesStartDate: String!
   start: DateTime!
   startDate: String!
@@ -566,6 +586,37 @@ input ClientUpdateInput {
   icon: File
   name: String
   removeIcon: Boolean
+}
+
+"""Comment (markdown) of an item."""
+type Comment {
+  body: String!
+  createdAt: DateTime!
+  id: ID!
+  updatedAt: DateTime!
+}
+
+type CommentCount {
+  count: Int!
+  id: ID!
+}
+
+"""Kind of item a comment goes on (tasks have their own comments)."""
+enum CommentTarget {
+  BUDGET
+  CATALOG_ITEM
+  DOCUMENT
+  EVENT
+  IMPORTED_DOCUMENT
+  LIBRARY_DOCUMENT
+  MAIL
+  RELATION
+  ROUTINE
+  SCHEDULE
+  SHOPPING_LIST
+  SHOPPING_PRODUCT
+  TIME_ENTRY
+  TREASURY_ENTRY
 }
 
 type CompanyProfile {
@@ -793,6 +844,19 @@ enum DocumentStatusCategory {
 enum DocumentStatusScope {
   INVOICE
   QUOTE
+}
+
+"""Occurrence of a routine (its day) an event is about."""
+type EventRoutineLink {
+  """YYYY-MM-DD."""
+  date: String!
+  routineId: ID!
+}
+
+input EventRoutineLinkInput {
+  """YYYY-MM-DD, a day of the occurrence."""
+  date: String!
+  routineId: ID!
 }
 
 """Uploaded file, sent with a GraphQL multipart request."""
@@ -1312,6 +1376,7 @@ input MilestoneUpdateInput {
 type Mutation {
   acceptQuote(date: Date!, file: File, id: ID!): Boolean!
   addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
+  addComment(body: String!, id: String!, target: CommentTarget!): Comment!
   addDocumentReminder(id: ID!, note: String): Boolean!
   addLibraryFiles(files: [File!]!, folderId: ID): [ID!]!
   addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
@@ -1354,8 +1419,10 @@ type Mutation {
   bulkSetRoutinesDone(done: Boolean!, ids: [ID!]!): Int!
   bulkSetTasksArchived(archived: Boolean!, ids: [ID!]!): Boolean!
 
-  """Moves the tasks and their sub-tasks to another project."""
-  bulkTransferTasks(ids: [ID!]!, projectId: ID!): TaskTransferResult!
+  """
+  Moves the tasks and their sub-tasks to another project, or out of any (projectId null).
+  """
+  bulkTransferTasks(ids: [ID!]!, projectId: ID): TaskTransferResult!
 
   """
   Applies the same changes to several routines; returns how many changed.
@@ -1422,6 +1489,7 @@ type Mutation {
   createShoppingProduct(input: ShoppingProductInput!): ID!
   createShoppingStorage(input: ShoppingStoreInput!): ID!
   createShoppingStore(input: ShoppingStoreInput!): ID!
+  createShoppingUnit(input: ShoppingStoreInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
   createTask(input: TaskInput!): Task!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
@@ -1454,6 +1522,7 @@ type Mutation {
   ): Boolean!
   deleteClientContact(id: ID!): Boolean!
   deleteClientService(id: ID!): Boolean!
+  deleteComment(id: ID!): Boolean!
   deleteContributor(id: ID!): Boolean!
   deleteDashboard(id: ID!): Boolean!
   deleteDashboardChart(id: ID!): Boolean!
@@ -1508,6 +1577,9 @@ type Mutation {
   deleteShoppingProduct(id: ID!): Boolean!
   deleteShoppingStorage(id: ID!): Boolean!
   deleteShoppingStore(id: ID!): Boolean!
+
+  """Deletes a unit; the products and items in it are left without one."""
+  deleteShoppingUnit(id: ID!): Boolean!
   deleteSprint(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
@@ -1649,8 +1721,14 @@ type Mutation {
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
   """
   moveShoppingCategory(id: ID!, index: Int, parentId: ID): Boolean!
+
+  """
+  Moves products to another base list (after its own); returns how many moved.
+  """
+  moveShoppingProducts(baseListId: ID!, ids: [ID!]!): Int!
   moveShoppingStorage(id: ID!, index: Int!): Boolean!
   moveShoppingStore(id: ID!, index: Int!): Boolean!
+  moveShoppingUnit(id: ID!, index: Int!): Boolean!
 
   """
   Places a task before another one in the manual order (at the end when beforeId is null), and under parentId when given (null: top-level task; omitted: parent unchanged).
@@ -1885,8 +1963,10 @@ type Mutation {
   """
   transferDashboardChart(dashboardId: ID, id: ID!, projectId: ID): ID!
 
-  """Moves the task and its sub-tasks to another project."""
-  transferTask(id: ID!, projectId: ID!): TaskTransferResult!
+  """
+  Moves the task and its sub-tasks to another project, or out of any (projectId null).
+  """
+  transferTask(id: ID!, projectId: ID): TaskTransferResult!
   unlinkGithubProject(projectId: ID!): Boolean!
   unlinkMail(id: ID!): Boolean!
 
@@ -1907,6 +1987,7 @@ type Mutation {
   updateClientContact(id: ID!, input: ClientContactInput!): ClientContact!
   updateClientDetails(id: ID!, input: ClientDetailsInput!): Client!
   updateClientService(id: ID!, input: ClientServiceInput!): ClientService!
+  updateComment(body: String!, id: ID!): Comment!
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
   updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
   updateDashboardChart(id: ID!, input: DashboardChartInput!): Boolean!
@@ -1930,6 +2011,9 @@ type Mutation {
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
   updateShoppingStorage(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateShoppingStore(id: ID!, input: ShoppingStorePatch!): Boolean!
+
+  """Renames a unit; the products and items in it follow."""
+  updateShoppingUnit(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
   updateTaskComment(body: String!, id: ID!): TaskComment!
@@ -2108,6 +2192,16 @@ type Query {
 
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
+
+  """Number of comments of items of a kind (descriptions not counted)."""
+  commentCounts(ids: [String!]!, target: CommentTarget!): [CommentCount!]!
+
+  """Comments of an item, oldest first."""
+  comments(
+    """Item id (Message-ID for a mail)."""
+    id: String!
+    target: CommentTarget!
+  ): [Comment!]!
   companyProfile: CompanyProfile!
   contributors: [Contributor!]!
 
@@ -2290,6 +2384,9 @@ type Query {
   shoppingStorages: [ShoppingStorage!]!
   shoppingStores: [ShoppingStore!]!
 
+  """Units of quantity, in their order."""
+  shoppingUnits: [ShoppingUnit!]!
+
   """
   Status of the tasks of the sprints ended before a day, at the end of each sprint (tasks with a recorded status).
   """
@@ -2424,6 +2521,12 @@ Task repeating on a calendar rule, ticked once done for its current occurrence.
 type Routine {
   archived: Boolean!
   assigneeIds: [ID!]!
+
+  """« Bénéficiaires »: contributors it is for."""
+  beneficiaryIds: [ID!]!
+
+  """« Bénéficiaires »: relations it is for."""
+  beneficiaryRelationIds: [ID!]!
 
   """Cases (days and times of the day); empty: its repetition."""
   cases: JSON!
@@ -2586,6 +2689,12 @@ type RoutineCheck {
 input RoutineInput {
   assigneeIds: [ID!]!
 
+  """Contributors it is for; none: none."""
+  beneficiaryIds: [ID!]
+
+  """Relations it is for; none: none."""
+  beneficiaryRelationIds: [ID!]
+
   """Cases (days and times of the day); empty: the repetition."""
   cases: JSON
   categoryIds: [ID!]!
@@ -2640,6 +2749,8 @@ type RoutineOccurrence {
 """Changes of a routine (omitted fields unchanged)."""
 input RoutinePatch {
   assigneeIds: [ID!]
+  beneficiaryIds: [ID!]
+  beneficiaryRelationIds: [ID!]
   categoryIds: [ID!]
 
   """HH:MM; null: no limit."""
@@ -2930,6 +3041,17 @@ input ShoppingStorePatch {
   name: String
 }
 
+"""
+Unit of quantity of the products and items (« kg », « boîte »…); they keep it as text.
+"""
+type ShoppingUnit {
+  """Unused."""
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
 """Period of a project the tasks of its project tree are planned in."""
 type Sprint {
   endDate: Date!
@@ -2974,6 +3096,12 @@ type Task {
   archived: Boolean!
   assigneeIds: [ID!]!
 
+  """« Bénéficiaires »: contributors the task is for."""
+  beneficiaryIds: [ID!]!
+
+  """« Bénéficiaires »: relations the task is for."""
+  beneficiaryRelationIds: [ID!]!
+
   """Tasks blocking this task."""
   blockedByIds: [ID!]!
 
@@ -3002,13 +3130,17 @@ type Task {
   id: ID!
   milestoneId: ID
 
-  """Number within its project (#12); links use the id."""
-  number: Int!
+  """
+  Number within its project (#12); none without project. Links use the id.
+  """
+  number: Int
   occurrenceDate: Date
   parentId: ID
   position: Int!
   priorityId: ID
-  projectId: ID!
+
+  """None: a task of no project."""
+  projectId: ID
 
   """Repetition, on the first task of a recurring series."""
   recurrence: JSON
@@ -3054,6 +3186,8 @@ type TaskComment {
 
 input TaskInput {
   assigneeIds: [ID!]
+  beneficiaryIds: [ID!]
+  beneficiaryRelationIds: [ID!]
   deadline: Date
   description: String
   effort: Float
@@ -3061,7 +3195,11 @@ input TaskInput {
   milestoneId: ID
   parentId: ID
   priorityId: ID
-  projectId: ID!
+
+  """
+  None: a task of no project (no number, sprint, milestone nor GitHub item).
+  """
+  projectId: ID
 
   """
   Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
@@ -3153,6 +3291,8 @@ Omitted fields are left unchanged; null clears a field. Use transferTask to chan
 """
 input TaskUpdateInput {
   assigneeIds: [ID!]
+  beneficiaryIds: [ID!]
+  beneficiaryRelationIds: [ID!]
   deadline: Date
   description: String
   effort: Float

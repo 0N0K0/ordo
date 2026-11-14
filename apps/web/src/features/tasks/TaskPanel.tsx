@@ -37,21 +37,23 @@ import { ErrorIcon } from '../../components/feedback-icons';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
-import { notifyError } from '../../lib/notify';
-import { useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from './api';
+import { notifyError, notifySuccess } from '../../lib/notify';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { useSetTasksClosed, useTaskBlock, useTaskRelation, useTransferTask, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskAlarms } from '../alarms/TaskAlarms';
 import { TaskShopping } from '../shopping/TaskShopping';
 import { TaskTime } from '../time/TaskTime';
 import { TaskComments } from './TaskComments';
 import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks, subtreeIds } from './task-links';
-import { AssigneesSelect, LabelSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
+import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from './use-task-actions';
 import { ActionsMenu } from '../../components/data-table/RowActions';
-import { useTaskContext, type TaskContext } from './use-task-context';
+import { useTaskContext, type TaskContext, taskName, taskRef } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
+import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 
 /**
  * Property block of the side column.
@@ -98,7 +100,7 @@ function LinkList({ label, tasks, candidates, context, onAdd, onRemove }: LinkLi
       {tasks.map((task) => (
         <Group key={task.id} gap={4} wrap="nowrap" justify="space-between">
           <TaskRef task={task} blocked={context.isBlocked(task)} />
-          <CloseButton size="xs" aria-label={`Retirer #${task.number}`} onClick={() => onRemove(task.id)} />
+          <CloseButton size="xs" aria-label={`Retirer ${taskName(task)}`} onClick={() => onRemove(task.id)} />
         </Group>
       ))}
       {adding ? (
@@ -144,6 +146,7 @@ interface TaskDetailProps {
 function TaskDetail({ task, context }: TaskDetailProps) {
   const updateTask = useUpdateTask();
   const setClosed = useSetTasksClosed();
+  const transferTask = useTransferTask();
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
@@ -182,6 +185,42 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const candidates = linkableTasks(context, task.projectId, task.id);
   const resolve = (ids: string[]) => ids.map((id) => context.taskById.get(id)).filter((item): item is Task => !!item);
 
+  /**
+   * Moves the task (and its sub-tasks) to another project, or out of any. Leaving the project tree removes the links
+   * with the tasks left there, the milestone and the sprints: asked first.
+   * @param {string | null} projectId Target project; null: none.
+   * @returns {void}
+   */
+  const changeProject = (projectId: string | null) => {
+    if (projectId === task.projectId) return;
+    const transfer = () =>
+      transferTask.mutate(
+        { id: task.id, projectId },
+        {
+          onSuccess: ({ removedLinks }) =>
+            notifySuccess(
+              `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.` +
+                (removedLinks > 0 ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''),
+            ),
+          onError: (error) => notifyError(error.message),
+        },
+      );
+    const linked = task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
+    if (context.rootOf(projectId) === context.rootOf(task.projectId) || !linked) return transfer();
+    confirmDestructive({
+      title: 'Changer de projet',
+      risks: (
+        <>
+          La tâche{subtasks.length ? ' et ses sous-tâches' : ''} {projectId ? `passent dans « ${context.projectLabel(projectId)} »` : 'sortent de tout projet'}, une autre arborescence : la
+          tâche parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle, le jalon et les sprints seront retirés.
+          {projectId ? ' Elle prend le numéro suivant du projet.' : ' Elle perd son numéro et son lien GitHub.'}
+        </>
+      ),
+      confirmLabel: 'Changer de projet',
+      onConfirm: transfer,
+    });
+  };
+
   return (
     <Stack gap="lg">
       <Stack gap="xs">
@@ -190,7 +229,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {task.title}{' '}
               <Text span c="dimmed" inherit fw={400}>
-                #{task.number}
+                {taskRef(task).trim()}
               </Text>
               {task.githubLinked && (
                 <Badge
@@ -363,12 +402,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             </Stack>
 
             <Divider />
-            <TaskAlarms task={task} context={context} />
-
-            <Divider />
-            <TaskShopping task={task} />
-
-            <Divider />
             <Stack gap="xs">
               <Text size="xs" fw={600} c="dimmed" tt="uppercase">
                 Commentaires
@@ -380,6 +413,15 @@ function TaskDetail({ task, context }: TaskDetailProps) {
 
         <Grid.Col span={{ base: 12, md: 4 }}>
           <Stack gap="md">
+            <ProjectSelect
+              context={context}
+              label="Projet"
+              placeholder="Sans projet"
+              clearable
+              value={task.projectId}
+              onChange={changeProject}
+              disabled={transferTask.isPending}
+            />
             <LabelSelect
               label="Statut"
               labels={context.statuses}
@@ -399,6 +441,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               onChange={(assigneeIds) => save({ assigneeIds })}
             />
             <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
+            <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
             <NumberInput
               key={`effort-${task.effort}`}
               label="Effort"
@@ -470,11 +513,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               searchable
               nothingFoundMessage="Aucun sprint dans ce projet"
             />
-            <SlotRuleInput
-              value={readSlotRule(task.slotRule)}
-              // Without any kind, an « on / out of » rule is not saved: another mode is chosen instead.
-              onChange={(slotRule) => (slotRule && slotRule.mode !== 'ANY' && !slotRule.kinds.length ? undefined : save({ slotRule }))}
-            />
+            <SlotRuleInput value={readSlotRule(task.slotRule)} onChange={(slotRule) => save({ slotRule })} />
             <Divider />
             <LinkList
               label="Bloque"
@@ -500,6 +539,10 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, onLinkError)}
               onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, onLinkError)}
             />
+            <Divider />
+            <TaskAlarms task={task} context={context} />
+            <Divider />
+            <TaskShopping task={task} />
           </Stack>
         </Grid.Col>
       </Grid>
@@ -520,7 +563,7 @@ export function TaskPanel() {
   const task = taskId ? context?.taskById.get(taskId) : undefined;
 
   return (
-    <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}>
+    <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche ${taskName(task)}` : 'Tâche'}>
       {isPending ? (
         <DetailSkeleton fields={5} />
       ) : task && context ? (

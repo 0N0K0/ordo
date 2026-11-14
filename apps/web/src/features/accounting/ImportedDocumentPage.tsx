@@ -13,6 +13,8 @@ import { DOCUMENT_TYPE_LABELS } from './labels';
 import { StatusMenu } from './TrackingBadge';
 import { openSentDialog } from './sent-dialog';
 import * as fmt from '../../lib/format';
+import { MarkdownView } from '../../components/markdown/MarkdownView';
+import { Comments } from '../comments/Comments';
 
 /**
  * Printed calendar date.
@@ -147,13 +149,10 @@ export function ImportedDocumentPage() {
                     </Group>
                   ) : null,
                 )}
-                {document.note && (
-                  <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
-                    {document.note}
-                  </Text>
-                )}
+                {document.note && <MarkdownView targets={{ projectId: null, taskById: new Map(), taskByNumber: new Map(), handles: new Set() }}>{document.note}</MarkdownView>}
               </Stack>
             </Section>
+            <Comments target="IMPORTED_DOCUMENT" id={document.id} />
           </Stack>
         </Grid.Col>
       </Grid>

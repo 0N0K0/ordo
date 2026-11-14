@@ -1,73 +1,84 @@
-import { Group, Select } from '@mantine/core';
+import { Select, SimpleGrid, Stack } from '@mantine/core';
+import type { SlotRule } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import type { SlotMode, SlotRule } from '@ordo/shared';
 import { useSlotRules } from './use-slot-rules';
 
 const DEFAULT = 'DEFAULT';
+const CUSTOM = 'CUSTOM';
 
 interface SlotRuleInputProps {
   /** Rule; null: the default of the workspace. */
   value: SlotRule | null;
   onChange: (value: SlotRule | null) => void;
-  /** Error of the kinds (none chosen). Optional. */
+  /** Error of the kinds. Optional. */
   error?: string;
   /** Read only. Optional. */
   disabled?: boolean;
 }
 
 /**
- * Where a task or a routine is done: by default of the workspace, anywhere, on the slots of some kinds or out of them
- * (whatever the day). Kinds of this workspace and those shown from other workspaces.
+ * Slots a task or a routine is done on (whatever the day): by default of the workspace, or during some kinds of slots
+ * and out of others (both empty: anywhere). Kinds of this workspace and those shown from other workspaces.
  * @param {SlotRuleInputProps} props Component props.
  * @returns {JSX.Element} Input.
  */
 export function SlotRuleInput({ value, onChange, error, disabled }: SlotRuleInputProps) {
   const { kinds, defaultRule, describe } = useSlotRules();
   const fallback = describe(defaultRule) ?? 'partout';
-  const groups = [...new Set(kinds.map((kind) => kind.group))].map((group) => ({
-    group,
-    items: kinds.filter((kind) => kind.group === group).map(({ value: kind, label }) => ({ value: kind, label })),
-  }));
 
   /**
-   * Applies a mode, keeping the kinds already chosen (else the working hours).
-   * @param {string | null} mode Mode, or DEFAULT.
-   * @returns {void}
+   * Options of the kinds, grouped by workspace, without those chosen in the other list.
+   * @param {readonly string[]} taken Kinds of the other list.
+   * @returns {object[]} Options.
    */
-  const changeMode = (mode: string | null) => {
-    if (!mode || mode === DEFAULT) return onChange(null);
-    if (mode === 'ANY') return onChange({ mode: 'ANY', kinds: [] });
-    onChange({ mode: mode as SlotMode, kinds: value?.kinds.length ? value.kinds : defaultRule.kinds.length ? defaultRule.kinds : [kinds[0]?.value].filter(Boolean) });
-  };
+  const groups = (taken: readonly string[]) =>
+    [...new Set(kinds.map((kind) => kind.group))].map((group) => ({
+      group,
+      items: kinds.filter((kind) => kind.group === group && !taken.includes(kind.value)).map(({ value: kind, label }) => ({ value: kind, label })),
+    }));
 
   return (
-    <Group gap="sm" align="flex-start" grow>
+    <Stack gap="xs">
       <Select
         label="Plages"
         description="Quel que soit le jour."
         data={[
           { value: DEFAULT, label: `Par défaut de l’espace (${fallback.toLowerCase()})` },
-          { value: 'ANY', label: 'Partout' },
-          { value: 'INSIDE', label: 'Sur les plages…' },
-          { value: 'OUTSIDE', label: 'Hors des plages…' },
+          { value: CUSTOM, label: 'Choisies' },
         ]}
-        value={value?.mode ?? DEFAULT}
-        onChange={changeMode}
+        value={value ? CUSTOM : DEFAULT}
+        // Chosen: the default of the workspace to start from.
+        onChange={(mode) => onChange(mode === CUSTOM ? (value ?? defaultRule) : null)}
         allowDeselect={false}
         disabled={disabled}
       />
-      {value && value.mode !== 'ANY' && (
-        <BatchMultiSelect
-          label="Types de plages"
-          data={groups}
-          value={value.kinds}
-          onChange={(selected) => onChange({ mode: value.mode, kinds: selected })}
-          error={error}
-          placeholder={value.kinds.length ? undefined : 'Choisir'}
-          disabled={disabled}
-          searchable
-        />
+      {value && (
+        <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs">
+          <BatchMultiSelect
+            label="Pendant"
+            description="L’une de ces plages."
+            placeholder={value.inside.length ? undefined : 'N’importe quand'}
+            data={groups(value.outside)}
+            value={value.inside}
+            onChange={(inside) => onChange({ ...value, inside })}
+            disabled={disabled}
+            searchable
+            clearable
+          />
+          <BatchMultiSelect
+            label="Hors de"
+            description="Aucune de ces plages."
+            placeholder={value.outside.length ? undefined : 'Aucune'}
+            data={groups(value.inside)}
+            value={value.outside}
+            onChange={(outside) => onChange({ ...value, outside })}
+            error={error}
+            disabled={disabled}
+            searchable
+            clearable
+          />
+        </SimpleGrid>
       )}
-    </Group>
+    </Stack>
   );
 }

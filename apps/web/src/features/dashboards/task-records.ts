@@ -4,6 +4,7 @@ import type { TaskContext } from '../tasks/use-task-context';
 import type { SprintTaskStatus } from './api';
 import { aggregate, localDay, none, round, type ChartData, type Key } from './aggregate';
 import * as fmt from '../../lib/format';
+import { NO_PROJECT_LABEL } from '../tasks/use-task-context';
 
 const CATEGORY_LABELS: Record<string, string> = {
   TODO: 'À faire',
@@ -71,8 +72,8 @@ function groupKeys(task: Task, dimension: ChartGroupDimension, context: TaskCont
     case 'project':
       return [
         {
-          key: task.projectId,
-          label: context.projectById.get(task.projectId)?.title ?? '',
+          key: task.projectId ?? 'none',
+          label: task.projectId ? (context.projectById.get(task.projectId)?.title ?? '') : NO_PROJECT_LABEL,
           order: context.projectLabel(task.projectId),
         },
       ];

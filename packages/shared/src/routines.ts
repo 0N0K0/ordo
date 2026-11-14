@@ -120,6 +120,9 @@ export const routineSchema = z
       .default(0),
     projectId: z.string().nullable(),
     assigneeIds: z.array(z.string()).max(100),
+    /** « Bénéficiaires »: whom the routine is for (contributors, relations). */
+    beneficiaryIds: z.array(z.string()).max(100).default([]),
+    beneficiaryRelationIds: z.array(z.string()).max(100).default([]),
     /** Routines to do before this one. */
     requiredIds: z.array(z.string()).max(100),
     /**

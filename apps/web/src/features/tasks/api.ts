@@ -91,6 +91,8 @@ graphql(`
     createdAt
     updatedAt
     assigneeIds
+    beneficiaryIds
+    beneficiaryRelationIds
     tagIds
     blockingIds
     blockedByIds
@@ -199,7 +201,7 @@ const DeleteTaskDocument = graphql(`
 `);
 
 const TransferTaskDocument = graphql(`
-  mutation TransferTask($id: ID!, $projectId: ID!) {
+  mutation TransferTask($id: ID!, $projectId: ID) {
     transferTask(id: $id, projectId: $projectId) {
       removedLinks
     }
@@ -504,7 +506,7 @@ function useTasksMutation<TVariables, TResult>(mutationFn: (variables: TVariable
 
 export interface TaskInputValues {
   title?: string;
-  projectId?: string;
+  projectId?: string | null;
   description?: string | null;
   statusId?: string | null;
   priorityId?: string | null;
@@ -518,6 +520,9 @@ export interface TaskInputValues {
   parentId?: string | null;
   milestoneId?: string | null;
   sprintIds?: string[];
+  /** « Bénéficiaires »: contributors and relations the task is for. */
+  beneficiaryIds?: string[];
+  beneficiaryRelationIds?: string[];
   /** Slots it is done on or out of; null: the default of the workspace. */
   slotRule?: SlotRule | null;
 }
@@ -528,7 +533,7 @@ export interface TaskInputValues {
  */
 export function useCreateTask() {
   return useTasksMutation(
-    async (input: TaskInputValues & { title: string; projectId: string }) =>
+    async (input: TaskInputValues & { title: string }) =>
       (await execute(CreateTaskDocument, { input })).createTask,
   );
 }
@@ -602,7 +607,7 @@ export function useDeleteTask() {
  */
 export function useTransferTask() {
   return useTasksMutation(
-    async (variables: { id: string; projectId: string }) => (await execute(TransferTaskDocument, variables)).transferTask,
+    async (variables: { id: string; projectId: string | null }) => (await execute(TransferTaskDocument, variables)).transferTask,
   );
 }
 
@@ -823,7 +828,7 @@ const BulkUpdateTasksDocument = graphql(`
 `);
 
 const BulkTransferTasksDocument = graphql(`
-  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID!) {
+  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {
     bulkTransferTasks(ids: $ids, projectId: $projectId) {
       removedLinks
     }
@@ -1000,7 +1005,7 @@ export function useBulkTaskMutations() {
         (await execute(BulkUpdateTasksDocument, variables)).bulkUpdateTasks,
     ),
     transfer: useTasksMutation(
-      async (variables: { ids: string[]; projectId: string }) =>
+      async (variables: { ids: string[]; projectId: string | null }) =>
         (await execute(BulkTransferTasksDocument, variables)).bulkTransferTasks,
     ),
     archive: useTasksMutation(

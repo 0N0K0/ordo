@@ -48,7 +48,7 @@ import type { EventOccurrence } from '../calendar/api';
 import { useMoveTask, type Task } from './api';
 import classes from './TaskTable.module.css';
 import { TaskRef, TaskStateIcon } from './task-ui';
-import type { TaskContext } from './use-task-context';
+import { NO_PROJECT_LABEL, type TaskContext, taskName, taskRef } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { CellSelectionContext, type CellSelection } from './views/cell-edit';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './views/columns-meta';
@@ -65,13 +65,16 @@ import {
   SprintCell,
   TagsCell,
   TitleCell,
+  TaskBeneficiariesCell,
 } from './views/inline-cells';
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
-import { EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './views/event-cells';
+import { EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell, EventBeneficiariesCell } from './views/event-cells';
 import { AddTaskRow, SummaryRow } from './views/table-extras';
 import type { DisplayRow, TaskRow } from './views/task-rows';
 import { contentWidth, useFillHeight } from './column-fit';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentTotal } from '../comments/comment-column';
 
 // Stable module-level registry. Sorting is applied when building the rows (so it works with groups
 // and sub-tasks), the table only holds the sorting state and header interactions.
@@ -197,7 +200,7 @@ function TaskNumbers({ ids, context }: { ids: string[]; context: TaskContext }) 
             td={context.isClosed(task) ? 'line-through' : undefined}
             onClick={(event) => event.stopPropagation()}
           >
-            #{task.number}
+            {taskRef(task).trim()}
           </Anchor>
         </Tooltip>
       ))}
@@ -223,6 +226,21 @@ interface TaskTableProps {
   /** Project of tasks added from the table; without it, adding opens the creation form. */
   createProjectId?: string;
   onOpenCreateForm: (defaults: NewTaskDefaults) => void;
+}
+
+/**
+ * Number of comments of a row (its description counting as one), with its icon; nothing when none.
+ * @param {{ count: number }} props Component props.
+ * @returns {JSX.Element | null} Count.
+ */
+function CommentCount({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <Group gap={4} wrap="nowrap" c="dimmed">
+      <ChatCircleIcon aria-hidden />
+      <Text size="sm">{count}</Text>
+    </Group>
+  );
 }
 
 /**
@@ -277,6 +295,15 @@ export function TaskTable({
   createProjectId,
   onOpenCreateForm,
 }: TaskTableProps) {
+  // Comments of the events shown (their description counts as one more).
+  const eventIds: string[] = [];
+  const collectEvents = (items: DisplayRow[]) =>
+    items.forEach((item) => {
+      if (item.kind === 'event') eventIds.push(item.event.eventId);
+      collectEvents(item.children);
+    });
+  collectEvents(rows);
+  const eventComments = useCommentCounts('EVENT', eventIds);
   const [params] = useSearchParams();
   const openId = params.get(TASK_PARAM);
   const moveTask = useMoveTask();
@@ -318,13 +345,14 @@ export function TaskTable({
       ),
       project: (task) => (
         <Text size="sm" truncate title={context.projectLabel(task.projectId)}>
-          {context.projectById.get(task.projectId)?.title}
+          {task.projectId ? context.projectById.get(task.projectId)?.title : NO_PROJECT_LABEL}
         </Text>
       ),
       status: (task) => <LabelCell task={task} column="status" labels={context.statuses} />,
       priority: (task) => <LabelCell task={task} column="priority" labels={context.priorities} />,
       type: (task) => <LabelCell task={task} column="type" labels={context.types} />,
       assignees: (task) => <AssigneesCell task={task} context={context} />,
+      beneficiaries: (task) => <TaskBeneficiariesCell task={task} />,
       tags: (task) => <TagsCell task={task} context={context} />,
       effort: (task) => <EffortCell task={task} />,
       trackedTime: (task) =>
@@ -351,19 +379,14 @@ export function TaskTable({
       blockedBy: (task) => <BlockedByCell task={task} context={context} />,
       blocking: (task) => <TaskNumbers ids={task.blockingIds} context={context} />,
       related: (task) => <TaskNumbers ids={task.relatedIds} context={context} />,
-      comments: (task) =>
-        task.commentCount > 0 ? (
-          <Group gap={4} wrap="nowrap" c="dimmed">
-            <ChatCircleIcon aria-hidden />
-            <Text size="sm">{task.commentCount}</Text>
-          </Group>
-        ) : null,
+      comments: (task) => <CommentCount count={task.commentCount + (task.description?.trim() ? 1 : 0)} />,
       createdAt: (task) => <Text size="sm">{fmt.day(new Date(task.createdAt))}</Text>,
       updatedAt: (task) => <Text size="sm">{fmt.day(new Date(task.updatedAt))}</Text>,
     };
 
     // Events only have a title, a project, people and dates.
     const eventCells: Partial<Record<TaskColumn, (event: EventOccurrence) => ReactNode>> = {
+      comments: (event) => <CommentCount count={commentTotal(eventComments, event.eventId, event.description)} />,
       title: (event) => <EventTitleCell event={event} context={context} />,
       project: (event) =>
         event.projectId ? (
@@ -372,6 +395,7 @@ export function TaskTable({
           </Text>
         ) : null,
       assignees: (event) => <EventPeopleCell event={event} context={context} />,
+      beneficiaries: (event) => <EventBeneficiariesCell event={event} />,
       // Where it stands (read only), the time of its timers, and its start and end, edited in place.
       status: (event) => <EventStatusCell event={event} />,
       trackedTime: (event) => <EventTimeCell event={event} />,
@@ -427,7 +451,7 @@ export function TaskTable({
         }),
       ),
     ]);
-  }, [context, today, alarmCounts]);
+  }, [context, today, alarmCounts, eventComments]);
 
   // Full column order: columns added after a view was saved go at the end.
   const order = useMemo(
@@ -732,7 +756,7 @@ export function TaskTable({
                     {handle}
                     <Checkbox
                       size="xs"
-                      aria-label={`Sélectionner la tâche #${original.task.number}`}
+                      aria-label={`Sélectionner la tâche ${taskName(original.task)}`}
                       checked={row.getIsSelected()}
                       onChange={row.getToggleSelectedHandler()}
                     />
@@ -745,7 +769,7 @@ export function TaskTable({
               return (
                 <Table.Td key={cell.id} onClick={(event) => event.stopPropagation()}>
                   <RowActions
-                    name={`la tâche #${task.number}`}
+                    name={`la tâche ${taskName(task)}`}
                     primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(task.id) }}
                     items={[{ label: 'Ajouter une sous-tâche', icon: <TreeViewIcon aria-hidden />, onClick: () => taskActions.create({ projectId: task.projectId ?? undefined, parentId: task.id }) }, 'divider', ...taskActions.menu(task)]}
                   />

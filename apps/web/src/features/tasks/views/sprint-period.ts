@@ -31,7 +31,7 @@ function targetedSprints(filter: FilterGroup, context: TaskContext, today: strin
   const bestPerTree = (candidates: TaskContext['sprints'], better: (a: TaskContext['sprints'][number], b: TaskContext['sprints'][number]) => boolean) => {
     const best = new Map<string, TaskContext['sprints'][number]>();
     for (const sprint of candidates) {
-      const root = context.rootOf(sprint.projectId);
+      const root = context.rootOf(sprint.projectId)!;
       const current = best.get(root);
       if (!current || better(sprint, current)) best.set(root, sprint);
     }

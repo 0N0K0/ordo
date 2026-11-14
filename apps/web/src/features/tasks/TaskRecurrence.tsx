@@ -8,7 +8,7 @@ import { describeRecurrence, formatLongDate } from '../../components/recurrence/
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useSetTaskRecurrence, type Task } from './api';
-import type { TaskContext } from './use-task-context';
+import { taskName, taskRef, type TaskContext } from './use-task-context';
 import { useTaskLink } from './use-task-link';
 
 /**
@@ -83,7 +83,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
     const modalId = `task-recurrence-${first.id}`;
     openPanel({
       panelId: modalId,
-      title: `Répétition — #${first.number} ${first.title}`,
+      title: `Répétition — ${taskName(first)} ${first.title}`,
       children: <RecurrenceForm task={first} start={start} onDone={() => closePanel(modalId)} />,
     });
   };
@@ -102,7 +102,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
             <Text size="xs" c="dimmed">
               Occurrence du {task.occurrenceDate ? formatLongDate(task.occurrenceDate) : '—'} de{' '}
               <Anchor component={Link} to={link.to(series.id)} size="xs">
-                #{series.number}
+                {taskRef(series).trim()}
               </Anchor>
             </Text>
           )}

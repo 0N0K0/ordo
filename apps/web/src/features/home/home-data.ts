@@ -122,7 +122,7 @@ export function useMyTodayTasks(context: TaskContext | null, today: string) {
     const tasks = matching.data.map((id) => context.taskById.get(id)).filter((task): task is Task => task !== undefined);
     // Overdue: past its "Date max".
     const late = (task: Task) => task.deadline !== null && task.deadline < today;
-    tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || a.number - b.number);
+    tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));
     return { tasks, overdue: tasks.filter(late).length };
   }, [context, matching.data, today]);
 }

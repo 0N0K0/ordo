@@ -16,6 +16,8 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { useTimeMutations, type TimeEntry, type TimeEntryValues } from './api';
 import classes from './TimeLog.module.css';
 import * as fmt from '../../lib/format';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
 
 /**
  * Local day of an instant, YYYY-MM-DD.
@@ -53,7 +55,7 @@ const TIME_VIEWS: FirstTableView[] = [
  * @param {TaskContext | null} context Task context (names of the projects and tasks).
  * @returns {DataColumn<TimeEntry>[]} Columns.
  */
-function timeColumns(context: TaskContext | null): DataColumn<TimeEntry>[] {
+function timeColumns(context: TaskContext | null, comments: Map<string, number>): DataColumn<TimeEntry>[] {
   const projectName = (entry: TimeEntry) => (entry.projectId ? (context?.projectLabel(entry.projectId) ?? '') : '');
   return [
     {
@@ -131,6 +133,11 @@ function timeColumns(context: TaskContext | null): DataColumn<TimeEntry>[] {
       },
       groupable: true,
     },
+    commentColumn<TimeEntry>(
+      comments,
+      (entry) => entry.id,
+      (entry) => entry.description,
+    ),
   ];
 }
 
@@ -171,7 +178,11 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
    * @returns {void}
    */
   const saveEntry = (entry: TimeEntry, change: Partial<TimeEntryValues>) => update.mutate({ id: entry.id, input: change }, { onError: (error) => notifyError(error.message) });
-  const view = useDataView({ tableKey: 'time-log', projectId, columns: timeColumns(context), rows: entries ?? [], title: 'Temps passé', first: TIME_VIEWS });
+  const entryComments = useCommentCounts(
+    'TIME_ENTRY',
+    (entries ?? []).map((entry) => entry.id),
+  );
+  const view = useDataView({ tableKey: 'time-log', projectId, columns: timeColumns(context, entryComments), rows: entries ?? [], title: 'Temps passé', first: TIME_VIEWS });
   const total = finishedSeconds(view.rows);
   const unbilled = finishedSeconds(view.rows.filter((entry) => !entry.documentId));
   return (

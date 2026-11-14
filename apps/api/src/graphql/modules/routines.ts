@@ -115,6 +115,8 @@ builder.prismaObject('Routine', {
     position: t.exposeInt('position'),
     archived: t.boolean({ resolve: (routine) => routine.archivedAt !== null }),
     assigneeIds: t.idList({ select: { assignees: { select: { id: true } } }, resolve: (routine) => routine.assignees.map((assignee) => assignee.id) }),
+    beneficiaryIds: t.idList({ description: '« Bénéficiaires »: contributors it is for.', select: { beneficiaries: { select: { id: true } } }, resolve: (routine) => routine.beneficiaries.map((beneficiary) => beneficiary.id) }),
+    beneficiaryRelationIds: t.idList({ description: '« Bénéficiaires »: relations it is for.', select: { beneficiaryRelations: { select: { id: true } } }, resolve: (routine) => routine.beneficiaryRelations.map((relation) => relation.id) }),
     requiredIds: t.idList({
       description: 'Routines to do before this one.',
       select: { requires: { select: { requiredId: true } } },
@@ -213,6 +215,8 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     travelAfter: t.int(),
     projectId: t.id(),
     assigneeIds: t.idList({ required: true }),
+    beneficiaryIds: t.idList({ description: 'Contributors it is for; none: none.' }),
+    beneficiaryRelationIds: t.idList({ description: 'Relations it is for; none: none.' }),
     requiredIds: t.idList({ required: true }),
   }),
 });
@@ -225,6 +229,8 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     parentId: t.id({ description: 'Null: top level.' }),
     estimate: t.int(),
     assigneeIds: t.idList(),
+    beneficiaryIds: t.idList(),
+    beneficiaryRelationIds: t.idList(),
     requiredIds: t.idList(),
     projectId: t.id({ description: 'Null: none.' }),
     fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
@@ -287,6 +293,8 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   travelAfter: input.travelAfter ?? 0,
   projectId: idOrNull(input.projectId),
   assigneeIds: input.assigneeIds.map(String),
+  beneficiaryIds: (input.beneficiaryIds ?? []).map(String),
+  beneficiaryRelationIds: (input.beneficiaryRelationIds ?? []).map(String),
   requiredIds: input.requiredIds.map(String),
 });
 
@@ -427,6 +435,8 @@ builder.mutationFields((t) => ({
       if (input.parentId !== undefined) changes.parentId = idOrNull(input.parentId);
       if (input.estimate !== undefined) changes.estimate = input.estimate;
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds.map(String);
+      if (input.beneficiaryIds) changes.beneficiaryIds = input.beneficiaryIds.map(String);
+      if (input.beneficiaryRelationIds) changes.beneficiaryRelationIds = input.beneficiaryRelationIds.map(String);
       if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
       // Times or a repetition of its own: it no longer follows its schedule.

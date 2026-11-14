@@ -1,17 +1,19 @@
 import { TimeField } from '../../components/TimeField';
-import { ActionIcon, Button, Checkbox, Group, NumberInput, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 
 import { ROUTINE_ANCHOR_LABELS, ROUTINE_ANCHORS, routineSchedule, type Recurrence, type RoutineAnchor, type RoutineCase, type RoutineSlot } from '@ordo/shared';
-import { BellIcon, CarIcon, ClockIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { BellIcon, CarIcon, ClockIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { DatePickerInput } from '@mantine/dates';
 import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { useWorkSchedules } from '../calendar/api';
 import { DAILY, describeRoutineCase, newRoutineCase } from './routine-format';
 import { EventLocation } from '../geo/EventLocation';
 import { TravelCalculator } from '../geo/TravelCalculator';
+import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { CaseCard } from '../../components/recurrence/CaseCard';
+import { useCaseFolds } from '../../components/recurrence/use-case-folds';
 
 /** How a routine repeats: a rule and a window, cases (days and times of the day), or a calendar schedule. */
 type RepetitionMode = 'rule' | 'cases' | 'schedule';
@@ -87,23 +89,26 @@ function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; 
    * @returns {void}
    */
   const update = (index: number, changes: Partial<RoutineCase>) => onChange(cases.map((item, other) => (other === index ? { ...item, ...changes } : item)));
+  const folds = useCaseFolds();
   return (
     <Stack gap="xs">
       {cases.map((item, index) => (
-        <Paper key={index} withBorder radius="sm" p="sm">
-          <Stack gap="xs">
-            <Group justify="space-between" wrap="nowrap">
-              <Text size="xs" c="dimmed">
-                Cas {index + 1} · {describeRoutineCase(item, start)}
-              </Text>
-              {cases.length > 1 && (
-                <Tooltip label="Retirer le cas">
-                  <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Retirer le cas ${index + 1}`} onClick={() => onChange(cases.filter((_, other) => other !== index))}>
-                    <TrashIcon aria-hidden />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-            </Group>
+        <CaseCard
+          key={index}
+          index={index + 1}
+          summary={describeRoutineCase(item, start)}
+          collapsible={cases.length > 1}
+          opened={folds.isOpen(index)}
+          onToggle={() => folds.toggle(index)}
+          onRemove={
+            cases.length > 1
+              ? () => {
+                  folds.removed(index);
+                  onChange(cases.filter((_, other) => other !== index));
+                }
+              : undefined
+          }
+        >
             <DatePickerInput
               size="xs"
               w={220}
@@ -114,13 +119,15 @@ function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; 
               value={item.from}
               onChange={(date) => update(index, { from: date ? String(date) : null })}
             />
-            <RecurrenceEditor value={item.recurrence} onChange={(rule) => update(index, { recurrence: rule ?? DAILY })} start={item.from && item.from > start ? item.from : start} />
+            <RecurrenceField required value={item.recurrence} onChange={(rule) => update(index, { recurrence: rule ?? DAILY })} start={item.from && item.from > start ? item.from : start} />
             <SlotsEditor item={item} index={index} onChange={(changes) => update(index, changes)} />
-          </Stack>
-        </Paper>
+        </CaseCard>
       ))}
       <div>
-        <Button size="compact-xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...cases, newRoutineCase(null, null)])}>
+        <Button size="compact-xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => {
+            folds.open(cases.length);
+            onChange([...cases, newRoutineCase(null, null)]);
+          }}>
           Ajouter un cas
         </Button>
       </div>
@@ -195,7 +202,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
       />
       {mode === 'rule' && (
         <>
-          <RecurrenceEditor value={values.recurrence} onChange={(rule) => onChange({ recurrence: rule ?? DAILY })} start={values.startDate || localToday()} />
+          <RecurrenceField required value={values.recurrence} onChange={(rule) => onChange({ recurrence: rule ?? DAILY })} start={values.startDate || localToday()} />
           <Stack gap={4}>
             <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
               <TimeField
@@ -297,7 +304,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
           error={errors.travelAfter}
         />
         <Stack justify="flex-end">
-          <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ travelBefore: before, travelAfter: after })} />
+          <TravelCalculator eventPoint={point} onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })} />
         </Stack>
       </SimpleGrid>
       <BatchMultiSelect

@@ -104,3 +104,6 @@ export function shoppingShares(items: readonly { quantity: number | null; unitPr
   }
   return { members, relations, total };
 }
+
+/** Units of quantity a new workspace starts with (then set in the shopping settings). */
+export const DEFAULT_SHOPPING_UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton', 'paire'] as const;

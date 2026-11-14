@@ -45,7 +45,7 @@ export function groupDefaults(groupBy: TaskGroupBy, key: string, context: TaskCo
     }
     case 'parent': {
       const parent = context.taskById.get(key);
-      return parent ? { parentId: key, projectId: parent.projectId } : {};
+      return parent ? { parentId: key, projectId: parent.projectId ?? undefined } : {};
     }
   }
 }

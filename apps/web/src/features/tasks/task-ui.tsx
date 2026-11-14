@@ -15,7 +15,7 @@ import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useTaskLink } from './use-task-link';
 import type { Contributor, Task, TaskLabel } from './api';
-import type { TaskContext } from './use-task-context';
+import { taskRef, type TaskContext } from './use-task-context';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 
@@ -71,7 +71,7 @@ export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolea
       <TaskStateIcon closed={closed ?? task.closed} blocked={blocked} />
       <Anchor component={Link} to={link.to(task.id)} size="sm" truncate>
         <Text span c="dimmed" size="sm">
-          #{task.number}
+          {taskRef(task).trim()}
         </Text>{' '}
         {task.title}
       </Anchor>
@@ -224,7 +224,7 @@ interface TaskSelectProps extends Omit<SelectProps, 'data'> {
  * @param {TaskSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function TaskSelect({ tasks, labelOf = (task) => `#${task.number} ${task.title}`, context, ...props }: TaskSelectProps) {
+export function TaskSelect({ tasks, labelOf = (task) => `${taskRef(task)}${task.title}`, context, ...props }: TaskSelectProps) {
   return (
     <Select
       {...(context ? treeSelectProps(context.taskOptions(tasks)) : { data: tasks.map((task) => ({ value: task.id, label: labelOf(task) })) })}

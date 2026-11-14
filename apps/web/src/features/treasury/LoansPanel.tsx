@@ -4,6 +4,7 @@ import { Accordion, Badge, Group, Stack, Table, Text } from '@mantine/core';
 import { HandCoinsIcon } from '@phosphor-icons/react';
 import { useTreasuryLoans, useTreasurySettings } from './api';
 import * as fmt from '../../lib/format';
+import { Comments } from '../comments/Comments';
 
 /**
  * Loans with the relations, both ways: for each relation, who owes whom (what went out to it, lent or debts repaid,
@@ -81,6 +82,7 @@ export function LoansPanel() {
                   ))}
                 </Table.Tbody>
               </Table>
+              <Comments target="RELATION" id={item.relationId} />
             </Accordion.Panel>
           </Accordion.Item>
         ))}

@@ -63,6 +63,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
     context.tasks.filter(
       (task) =>
         !task.archived &&
+        task.projectId !== null &&
         subtree.has(task.projectId) &&
         task.assigneeIds.includes(contributor.id),
     ).length;

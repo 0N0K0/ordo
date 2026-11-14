@@ -7,7 +7,6 @@ import {
   SimpleGrid,
   Stack,
   Text,
-  Textarea,
   TextInput,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -30,6 +29,7 @@ import { DOCUMENT_TYPE_LABELS } from './labels';
 import { projectOptions } from '../workspace/tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AmountInput } from '../../components/AmountInput';
+import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 
 interface FormValues extends Record<string, unknown> {
   type: AccountingDocumentType;
@@ -228,12 +228,7 @@ export function ImportedDocumentForm({
           value={file}
           onChange={setFile}
         />
-        <Textarea
-          label="Note"
-          autosize
-          minRows={2}
-          {...form.getInputProps('note')}
-        />
+        <MarkdownEditor label="Description" value={form.values.note} onChange={(note) => form.setFieldValue('note', note)} suggestions={{ projectId: null, tasks: [], contributors: [] }} minRows={2} />
         {values.type !== 'QUOTE' && (
           <Checkbox
             label="Déjà réglée hors trésorerie"

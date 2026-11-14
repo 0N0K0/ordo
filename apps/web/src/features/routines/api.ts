@@ -55,6 +55,8 @@ const RoutinesDataDocument = graphql(`
       position
       archived
       assigneeIds
+      beneficiaryIds
+      beneficiaryRelationIds
       requiredIds
       currentDate
       firstDate
@@ -348,6 +350,8 @@ export interface RoutinePatchValues {
   parentId?: string | null;
   estimate?: number | null;
   assigneeIds?: string[];
+  beneficiaryIds?: string[];
+  beneficiaryRelationIds?: string[];
   requiredIds?: string[];
   projectId?: string | null;
   fromTime?: string | null;

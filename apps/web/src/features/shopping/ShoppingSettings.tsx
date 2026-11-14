@@ -24,8 +24,8 @@ function usageOf(
 }
 
 /**
- * Settings of the shopping pages (the page of the lists and the page of a list): the categories (a tree), the stores
- * and the storage modes.
+ * Settings of the shopping pages (the page of the lists and the page of a list): the categories (a tree), the stores,
+ * the units and the storage modes.
  * @returns {JSX.Element} Settings, in the sidebar.
  */
 export function ShoppingSettings() {
@@ -49,6 +49,19 @@ export function ShoppingSettings() {
           update={mutations.updateStore}
           remove={mutations.deleteStore}
           move={mutations.moveStore}
+        />
+        <LabelManager
+          title="Unités"
+          description="Unités de quantité des produits (kg, boîte, bouteille…). Renommer une unité la renomme dans les produits et les listes."
+          noun="l’unité"
+          usageNoun="produits"
+          labels={data?.shoppingUnits ?? []}
+          usage={new Map((data?.shoppingUnits ?? []).map((unit) => [unit.id, rows.filter((row) => row.unit === unit.name).length]))}
+          create={mutations.createUnit}
+          update={mutations.updateUnit}
+          remove={mutations.deleteUnit}
+          move={mutations.moveUnit}
+          withColor={false}
         />
         <LabelManager
           title="Modes de conservation"

@@ -61,7 +61,8 @@ export type ContributorFormValues = z.input<typeof contributorFormSchema>;
 export const taskFormSchema = z
   .object({
     title: taskTitleSchema,
-    projectId: z.string({ error: 'Le projet est requis.' }).min(1, 'Le projet est requis.'),
+    /** Empty: a task of no project. */
+    projectId: z.string().transform((value) => value || null),
     description: z.string(),
     statusId: z.string().nullable(),
     priorityId: z.string().nullable(),
@@ -75,6 +76,9 @@ export const taskFormSchema = z
     parentId: z.string().nullable(),
     milestoneId: z.string().nullable(),
     sprintIds: z.array(z.string()),
+    /** « Bénéficiaires »: contributors and relations the task is for. */
+    beneficiaryIds: z.array(z.string()).default([]),
+    beneficiaryRelationIds: z.array(z.string()).default([]),
     /** Slots it is done on or out of; null: the default of the workspace. */
     slotRule: slotRuleSchema.nullable().default(null),
   })

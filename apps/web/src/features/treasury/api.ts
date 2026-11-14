@@ -35,7 +35,7 @@ export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOption
 export type FoundEntry = TreasuryEntrySearchQuery['treasuryEntrySearch'][number];
 
 // Under the accounting key: payments change documents, and documents change the forecast.
-const treasuryKey = [...accountingQueryKey, 'treasury'];
+export const treasuryKey = [...accountingQueryKey, 'treasury'];
 
 graphql(`
   fragment TreasuryEntryFields on TreasuryEntry {

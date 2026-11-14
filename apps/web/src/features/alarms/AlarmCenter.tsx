@@ -12,7 +12,9 @@ import { unlockAudioOnGesture } from './alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from './ring-routines';
 import { notifyError } from '../../lib/notify';
-import { useSlotRules } from '../slot-rules/use-slot-rules';
+import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
+import { taskPath } from '../tasks/task-links';
+import { taskRef } from '../tasks/use-task-context';
 
 const TICK_MS = 15_000;
 
@@ -80,8 +82,8 @@ export function AlarmCenter() {
       const { tasksData: data, workspace: space } = latest.current;
       const task = alarm.taskId ? data?.tasks.find((item) => item.id === alarm.taskId) : undefined;
       // Its number is only unique in its project: the project comes with it.
-      const place = task ? space?.projects.find((item) => item.id === task.projectId)?.title : undefined;
-      if (task) return [link(`${place ? `${place} ` : ''}#${task.number} ${task.title}`, `/projects/${task.projectId}?tab=tasks&task=${task.id}`)];
+      const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.title : undefined;
+      if (task) return [link(`${place ? `${place} ` : ''}${taskRef(task)}${task.title}`, taskPath(task))];
       const project = alarm.projectId ? space?.projects.find((item) => item.id === alarm.projectId) : undefined;
       return project ? [link(project.title, `/projects/${project.id}`)] : [];
     };
@@ -99,7 +101,7 @@ export function AlarmCenter() {
         now,
         [link('Voir les routines', '/routines')],
         (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: (error) => notifyError(error.message) }),
-        (routine, at) => latest.current.slotRules.nextAllowedAt(routine.slotRule, at),
+        (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );
       if (!list) return;
       const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));

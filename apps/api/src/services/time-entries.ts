@@ -64,7 +64,8 @@ async function placeOf(
  */
 async function assertProjectAndTasks(projectId: string | null, taskIds: string[], active: boolean): Promise<void> {
   if (!projectId) {
-    if (taskIds.length) throw fieldError('taskIds', 'Choisissez d’abord le projet des tâches.');
+    // Without project: only tasks of no project.
+    if (taskIds.length && (await prisma.task.count({ where: { id: { in: taskIds }, projectId: { not: null } } }))) throw fieldError('taskIds', 'Choisissez d’abord le projet des tâches.');
     return;
   }
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true, archivedAt: true } });
@@ -85,7 +86,8 @@ async function assertProjectAndTasks(projectId: string | null, taskIds: string[]
   }
   const tasks = await prisma.task.findMany({ where: { id: { in: taskIds } }, select: { projectId: true } });
   if (tasks.length !== new Set(taskIds).size) throw fieldError('taskIds', 'Tâche introuvable.');
-  if (tasks.some((task) => !subtree.has(task.projectId))) {
+  // Tasks of no project go with any project.
+  if (tasks.some((task) => task.projectId !== null && !subtree.has(task.projectId))) {
     throw fieldError('taskIds', 'Les tâches doivent appartenir au projet ou à ses sous-projets.');
   }
 }

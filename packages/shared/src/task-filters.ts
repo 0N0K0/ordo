@@ -276,6 +276,7 @@ export const TASK_COLUMNS = [
   'priority',
   'type',
   'assignees',
+  'beneficiaries',
   'tags',
   'effort',
   'trackedTime',
