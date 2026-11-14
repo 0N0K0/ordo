@@ -1,3 +1,4 @@
+import { PICKER_FORMATS } from '../../lib/format';
 import { ActionIcon, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays } from '@ordo/shared';
@@ -7,15 +8,14 @@ import { notifyError } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData } from './api';
 import { movableOccurrence, moveTo, movesOf } from './routine-format';
 import { longDay, useRoutineMove } from './use-routine-move';
-
-const shortDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Short date of a calendar date: "jeu. 13 nov.".
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Text.
  */
-const shortText = (date: string) => shortDay.format(new Date(`${date}T00:00:00Z`));
+const shortText = (date: string) => fmt.weekday(date);
 
 /**
  * Moves an occurrence of a routine to another day (the next day by default): an exception to its rule. Lists the
@@ -60,7 +60,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
             label="Nouvelle date"
             description="Plus tard pour la reporter, plus tôt pour l’avancer."
             required
-            valueFormat="dddd D MMMM YYYY"
+            valueFormat={PICKER_FORMATS.weekday}
             minDate={routine.startDate}
             excludeDate={(day) => day === date}
             value={to}

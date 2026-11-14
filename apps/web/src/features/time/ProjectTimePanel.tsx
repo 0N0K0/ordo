@@ -1,5 +1,5 @@
-import { Button, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
-import { entrySeconds, formatDuration } from '@ordo/shared';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { Group, Tooltip } from '@mantine/core';
 import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRunningTimer, useTimeEntries } from './api';
@@ -20,37 +20,30 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
   const archived = context?.projectById.get(projectId)?.archived;
   const running = useRunningTimer();
 
-  const finished = (entries.data ?? []).filter((entry) => entry.endedAt !== null);
-  const total = finished.reduce((sum, entry) => sum + entrySeconds(entry), 0);
-  const unbilled = finished.filter((entry) => !entry.documentId).reduce((sum, entry) => sum + entrySeconds(entry), 0);
-
   return (
-    <Stack gap="lg">
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={2}>
-          <Title order={2} size="h4">
-            Temps passé
-          </Title>
-          <Text size="sm" c="dimmed">
-            Projet et sous-projets : {formatDuration(total)} au total
-            {total > 0 && (unbilled > 0 ? `, dont ${formatDuration(unbilled)} à facturer (depuis une facture, « Temps passé »)` : ', tout est facturé')}.
-          </Text>
-        </Stack>
-        {/* One timer runs at a time: the one running shows in the top bar. */}
-        <Group gap="sm">
-          <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>
-            Ajouter un temps
-          </Button>
+    <TimeLog
+      entries={entries.data}
+      context={context}
+      projectId={projectId}
+      emptyMessage="Aucun temps sur ce projet."
+      onEdit={openForm}
+      onDuplicate={duplicate}
+      onDelete={confirmDelete}
+      actions={
+        // One timer runs at a time: the one running shows in the top bar.
+        <Group gap="sm" wrap="nowrap">
+          <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>
+            Nouveau temps
+          </ActionButton>
           {!archived && (
             <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
-              <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
+              <ActionButton icon={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
                 Lancer un chrono
-              </Button>
+              </ActionButton>
             </Tooltip>
           )}
         </Group>
-      </Group>
-      <TimeLog entries={entries.data} context={context} projectId={projectId} emptyMessage="Aucun temps sur ce projet." onEdit={openForm} onDuplicate={duplicate} onDelete={confirmDelete} />
-    </Stack>
+      }
+    />
   );
 }

@@ -1,4 +1,8 @@
-import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Modal, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Avatar, Badge, Button, ColorInput, ColorSwatch, Group, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, TagSimpleIcon, UserMinusIcon } from '@phosphor-icons/react';
@@ -9,16 +13,14 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from './api';
-import { confirmDeletion } from './confirm-deletion';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Day in words.
  * @param {unknown} day YYYY-MM-DD.
  * @returns {string} "12 août 2026".
  */
-const formatDay = (day: unknown) => dayFormat.format(new Date(`${String(day)}T00:00:00Z`));
+const formatDay = (day: unknown) => fmt.day(String(day));
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -192,12 +194,11 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
           <DatePickerInput
             label="Du"
             required
-            valueFormat="D MMM YYYY"
             {...form.getInputProps('startDate')}
             // The end follows a start set after it.
             onChange={(date) => form.setValues({ startDate: date ?? '', ...(date && (!form.values.endDate || form.values.endDate < date) ? { endDate: date } : {}) })}
           />
-          <DatePickerInput label="Au" required valueFormat="D MMM YYYY" minDate={form.values.startDate || undefined} {...form.getInputProps('endDate')} />
+          <DatePickerInput label="Au" required minDate={form.values.startDate || undefined} {...form.getInputProps('endDate')} />
         </SimpleGrid>
         <TextInput label="Note" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
         <Group justify="flex-end">
@@ -237,9 +238,9 @@ function Contexts() {
           <Title order={3} size="h5">
             Contextes
           </Title>
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'context' })}>
-            Contexte
-          </Button>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'context' })}>
+            Nouveau contexte
+          </ActionButton>
         </Group>
         <Text size="xs" c="dimmed" mb="xs">
           Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « {EVERYDAY_CONTEXT} ».
@@ -247,9 +248,7 @@ function Contexts() {
         {contexts.length === 0 ? (
           <Group gap="xs" py="xs">
             <TagSimpleIcon aria-hidden />
-            <Text size="sm" c="dimmed">
-              Aucun contexte : tout est du {EVERYDAY_CONTEXT.toLowerCase()}.
-            </Text>
+            <EmptyState compact message={`Aucun contexte : tout est du ${EVERYDAY_CONTEXT.toLowerCase()}.`} />
           </Group>
         ) : (
           <Table verticalSpacing={4}>
@@ -272,11 +271,11 @@ function Contexts() {
                         variant="subtle"
                         color="red"
                         onClick={() =>
-                          confirmDeletion(
-                            'Supprimer le contexte',
-                            `« ${item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « ${EVERYDAY_CONTEXT} ».`,
-                            () => deleteContext.mutate(item.id, { onSuccess: () => notifySuccess('Contexte supprimé.'), onError }),
-                          )
+                          confirmDestructive({
+                            title: 'Supprimer le contexte',
+                            risks: `« ${item.name} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « ${EVERYDAY_CONTEXT} ».`,
+                            onConfirm: () => deleteContext.mutate(item.id, { onSuccess: () => notifySuccess('Contexte supprimé.'), onError }),
+                          })
                         }
                       >
                         Supprimer
@@ -295,9 +294,9 @@ function Contexts() {
           <Title order={3} size="h5">
             Contextes planifiés
           </Title>
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => setDialog({ kind: 'period' })}>
-            Période
-          </Button>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => setDialog({ kind: 'period' })}>
+            Nouvelle période
+          </ActionButton>
         </Group>
         <Text size="xs" c="dimmed" mb="xs">
           Les lignes des mouvements datés dans une période prennent son contexte (modifiable). Changer une période ne modifie pas les lignes déjà enregistrées.
@@ -342,11 +341,11 @@ function Contexts() {
                           variant="subtle"
                           color="red"
                           onClick={() =>
-                            confirmDeletion(
-                              'Supprimer la période',
-                              `La période « ${item?.name ?? ''} » du ${formatDay(period.startDate)} au ${formatDay(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
-                              () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
-                            )
+                            confirmDestructive({
+                              title: 'Supprimer la période',
+                              risks: `La période « ${item?.name ?? ''} » du ${formatDay(period.startDate)} au ${formatDay(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
+                              onConfirm: () => deleteContextPeriod.mutate(period.id, { onSuccess: () => notifySuccess('Période supprimée.'), onError }),
+                            })
                           }
                         >
                           Supprimer
@@ -361,14 +360,14 @@ function Contexts() {
         )}
       </Paper>
 
-      <Modal
+      <SidePanel
         opened={dialog !== null}
         onClose={close}
         title={dialog?.kind === 'context' ? (dialog.context ? 'Modifier le contexte' : 'Nouveau contexte') : dialog?.period ? 'Modifier la période' : 'Planifier un contexte'}
       >
         {dialog?.kind === 'context' && <ContextForm context={dialog.context} onDone={close} />}
         {dialog?.kind === 'period' && <PeriodForm period={dialog.period} contexts={contexts} onDone={close} />}
-      </Modal>
+      </SidePanel>
     </>
   );
 }
@@ -472,17 +471,15 @@ export function TeamRelations() {
         <Title order={3} size="h5">
           Relations
         </Title>
-        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
-          Relation
-        </Button>
+        <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
+          Nouvelle relation
+        </ActionButton>
       </Group>
       <Text size="xs" c="dimmed" mb="xs">
         Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers.
       </Text>
       {relations.length === 0 ? (
-        <Text size="sm" c="dimmed" py="xs">
-          Aucune relation.
-        </Text>
+        <EmptyState compact message="Aucune relation." />
       ) : (
         <Table verticalSpacing={4}>
           <Table.Tbody>
@@ -519,11 +516,11 @@ export function TeamRelations() {
                       variant="subtle"
                       color="red"
                       onClick={() =>
-                        confirmDeletion(
-                          'Supprimer la relation',
-                          `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
-                          () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: (error) => notifyError(error.message) }),
-                        )
+                        confirmDestructive({
+                          title: 'Supprimer la relation',
+                          risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
+                          onConfirm: () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: (error) => notifyError(error.message) }),
+                        })
                       }
                     >
                       Supprimer
@@ -535,9 +532,9 @@ export function TeamRelations() {
           </Table.Tbody>
         </Table>
       )}
-      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing?.relation ? 'Modifier la relation' : 'Nouvelle relation'}>
+      <SidePanel opened={editing !== null} onClose={() => setEditing(null)} title={editing?.relation ? 'Modifier la relation' : 'Nouvelle relation'}>
         {editing && <RelationForm relation={editing.relation} onDone={() => setEditing(null)} />}
-      </Modal>
+      </SidePanel>
     </Paper>
   );
 }

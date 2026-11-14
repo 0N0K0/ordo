@@ -1,3 +1,4 @@
+import { BlockSkeleton, TextSkeleton } from '../../../components/feedback/Skeletons';
 import { Button, Group, Skeleton, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -9,14 +10,14 @@ import { Link } from 'react-router';
 export function EntitySkeleton() {
   return (
     <Stack gap="lg" aria-label="Chargement">
-      <Group gap="md">
-        <Skeleton height={84} width={84} radius="md" />
-        <Stack gap="xs" style={{ flex: 1 }}>
-          <Skeleton height={28} width="40%" />
-          <Skeleton height={14} width="25%" />
-        </Stack>
+      <Group gap="md" wrap="nowrap">
+        {/* As the avatar of the header (its xl size). */}
+        <Skeleton height={84} width={84} radius="md" style={{ flex: 'none' }} />
+        <div style={{ flex: 1 }}>
+          <TextSkeleton title lines={1} />
+        </div>
       </Group>
-      <Skeleton height={120} radius="md" />
+      <BlockSkeleton height={5} />
     </Stack>
   );
 }

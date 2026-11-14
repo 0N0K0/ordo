@@ -1,3 +1,5 @@
+import { ActionButton } from '../../components/actions/ActionButton';
+import { ActionsRow } from '../../components/actions/ActionsRow';
 import { Accordion, ActionIcon, Button, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import {
   CHART_COMPARISON_KINDS,
@@ -238,14 +240,14 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
           })}
         </Accordion>
       )}
-      <Group gap="xs">
-        <Button size="xs" variant="light" leftSection={<CopyIcon aria-hidden />} onClick={() => addDataset(null)}>
+      <ActionsRow>
+        <ActionButton priority="secondary" size="xs" icon={<CopyIcon aria-hidden />} onClick={() => addDataset(null)}>
           Dupliquer le jeu principal
-        </Button>
-        <Button size="xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={() => addDataset(config.source)}>
+        </ActionButton>
+        <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => addDataset(config.source)}>
           Nouveau jeu
-        </Button>
-      </Group>
+        </ActionButton>
+      </ActionsRow>
       <Text size="xs" c="dimmed">
         Dupliquez le jeu principal puis resserrez son filtre (tâches terminées…) pour comparer un sous-ensemble à l’ensemble.
       </Text>

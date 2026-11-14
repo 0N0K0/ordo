@@ -6,10 +6,9 @@ import { useMyTodayTasks, useWeekTime } from '../../home/home-data';
 import { useTaskContext } from '../../tasks/use-task-context';
 import { useRunningTimer } from '../../time/api';
 import { useTreasuryAccounts } from '../../treasury/api';
+import * as fmt from '../../../lib/format';
 
 // Each badge is its own component: a running timer refreshes its badge every second, not the whole sidebar.
-
-const compactMoney = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', notation: 'compact', maximumFractionDigits: 1 });
 
 /**
  * Number of my tasks of today, red when some are overdue.
@@ -66,8 +65,8 @@ export function TreasuryNavBadge() {
   if (open.length === 0) return null;
   const balance = open.reduce((sum, account) => sum + account.balance, 0);
   return (
-    <Badge size="sm" variant="light" tt="none" color={balance < 0 ? 'red' : 'blue'} aria-label={`Solde du jour : ${compactMoney.format(balance)}`}>
-      {compactMoney.format(balance)}
+    <Badge size="sm" variant="light" tt="none" color={balance < 0 ? 'red' : 'blue'} aria-label={`Solde du jour : ${fmt.moneyCompact(balance)}`}>
+      {fmt.moneyCompact(balance)}
     </Badge>
   );
 }

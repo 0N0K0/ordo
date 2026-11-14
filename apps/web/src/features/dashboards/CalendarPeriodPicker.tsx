@@ -59,14 +59,9 @@ export function CalendarPeriodPicker({ value, onChange }: { value: ChartConfig['
       />
       {chosen &&
         (scale === 'year' ? (
-          <YearPickerInput aria-label="Année" valueFormat="YYYY" value={anchor} onChange={(date) => date && set(scale, calendarStart(scale, date))} />
+          <YearPickerInput aria-label="Année" value={anchor} onChange={(date) => date && set(scale, calendarStart(scale, date))} />
         ) : (
-          <MonthPickerInput
-            aria-label={scale === 'quarter' ? 'Un mois du trimestre' : 'Mois'}
-            valueFormat="MMMM YYYY"
-            value={anchor}
-            onChange={(date) => date && set(scale, calendarStart(scale, date))}
-          />
+          <MonthPickerInput aria-label={scale === 'quarter' ? 'Un mois du trimestre' : 'Mois'} value={anchor} onChange={(date) => date && set(scale, calendarStart(scale, date))} />
         ))}
     </Stack>
   );

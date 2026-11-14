@@ -109,7 +109,6 @@ function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; 
               w={220}
               label="À partir du"
               placeholder="Début de la routine"
-              valueFormat="D MMMM YYYY"
               clearable
               minDate={start}
               value={item.from}
@@ -121,7 +120,7 @@ function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; 
         </Paper>
       ))}
       <div>
-        <Button size="compact-xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...cases, newRoutineCase(null, null)])}>
+        <Button size="compact-xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...cases, newRoutineCase(null, null)])}>
           Ajouter un cas
         </Button>
       </div>

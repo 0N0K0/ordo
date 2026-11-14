@@ -21,7 +21,7 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
   return (
     <Popover opened={opened} onChange={(value) => !value && close()} width={340} position="bottom-end" shadow="md" trapFocus>
       <Popover.Target>
-        <Button size="xs" variant="light" leftSection={<FolderSimplePlusIcon aria-hidden />} onClick={toggle}>
+        <Button size="xs" variant="default" leftSection={<FolderSimplePlusIcon aria-hidden />} onClick={toggle}>
           Rattacher à un projet
         </Button>
       </Popover.Target>

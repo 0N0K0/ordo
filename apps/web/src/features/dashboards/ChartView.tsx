@@ -4,16 +4,8 @@ import type { ChartConfig } from '@ordo/shared';
 import { ChartBarIcon } from '@phosphor-icons/react';
 import { forwardRef } from 'react';
 import { MONEY_MEASURES, type ChartData } from './aggregate';
+import * as fmt from '../../lib/format';
 
-const numberFormat = new Intl.NumberFormat('fr-FR', {
-  maximumFractionDigits: 2,
-});
-const percentFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
-const moneyFormat = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-});
 /**
  * Tooltip of a mixed chart: each series with its own unit (percents for the ratios).
  * @param {object} props Component props.
@@ -74,7 +66,7 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
     );
   }
   // Amounts in euros, other measures as numbers.
-  const format = (value: number) => (MONEY_MEASURES.includes(config.measure) ? moneyFormat : numberFormat).format(value);
+  const format = (value: number) => (MONEY_MEASURES.includes(config.measure) ? fmt.moneyRound(value) : fmt.number(value));
   const common = {
     h: height,
     data: data.rows,
@@ -96,14 +88,14 @@ export const ChartView = forwardRef<HTMLDivElement, ChartViewProps>(function Cha
           withLegend
           withRightYAxis={data.percentAxis}
           // Percents: up to 100 % at least (higher when a share exceeds it).
-          rightYAxisProps={{ tickFormatter: (value: number) => `${percentFormat.format(value)} %`, domain: [0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)] }}
+          rightYAxisProps={{ tickFormatter: (value: number) => `${fmt.number(value, 1)} %`, domain: [0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)] }}
           valueFormatter={(value) => format(value)}
           tooltipProps={{
             content: ({ label, payload }) => (
               <MixedTooltip
                 label={label}
                 items={(payload ?? []).map((item) => ({ name: String(item.name), value: item.value as number | null, color: String(item.color ?? '') }))}
-                format={(name, value) => (data.series.find((serie) => serie.name === name)?.yAxisId === 'right' ? `${percentFormat.format(value)} %` : format(value))}
+                format={(name, value) => (data.series.find((serie) => serie.name === name)?.yAxisId === 'right' ? `${fmt.number(value, 1)} %` : format(value))}
               />
             ),
           }}

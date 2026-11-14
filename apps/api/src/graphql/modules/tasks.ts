@@ -10,7 +10,7 @@ import * as taskFilters from '../../services/task-filters';
 import * as taskViews from '../../services/task-views';
 import * as taskRecurrence from '../../services/task-recurrence';
 import * as tasks from '../../services/tasks';
-import { TASK_STATUS_CATEGORIES, taskFilterSchema } from '@ordo/shared';
+import { TASK_STATUS_CATEGORIES, readSlotRule, taskFilterSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../errors';
 import * as workspaces from '../../services/workspaces';
@@ -149,13 +149,14 @@ for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) {
   });
 }
 
-const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS'] as const, description: 'What a saved view lists.' });
+const ViewKindEnum = builder.enumType('ViewKind', { values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const, description: 'What a saved view lists (TABLE: any other table, named by its key).' });
 
 builder.prismaObject('TaskView', {
   description: 'Saved view of the tasks or of the routines.',
   fields: (t) => ({
     id: t.exposeID('id'),
     kind: t.field({ type: ViewKindEnum, resolve: (view) => view.kind }),
+    tableKey: t.exposeString('tableKey', { nullable: true, description: 'Table of a view of kind TABLE.' }),
     name: t.exposeString('name'),
     config: t.expose('config', { type: 'JSON' }),
     isDefault: t.exposeBoolean('isDefault'),
@@ -186,6 +187,7 @@ builder.prismaObject('Task', {
     startDate: t.expose('startDate', { type: 'Date', nullable: true }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date ("Date max"): an open task past it is overdue.' }),
+    slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots the task is done on or out of; null: the default of the workspace.', resolve: (task) => readSlotRule(task.slotRule) }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList({
@@ -263,6 +265,7 @@ const TaskInput = builder.inputType('TaskInput', {
     parentId: t.id(),
     milestoneId: t.id(),
     sprintIds: t.idList(),
+    slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
   }),
 });
 
@@ -283,6 +286,7 @@ const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
     parentId: t.id(),
     milestoneId: t.id(),
     sprintIds: t.idList(),
+    slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
   }),
 });
 
@@ -355,7 +359,8 @@ const TaskViewInput = builder.inputType('TaskViewInput', {
   fields: (t) => ({
     name: t.string({ required: true }),
     projectId: t.id({ description: 'Project of the view; omitted or null for the home page.' }),
-    kind: t.field({ type: ViewKindEnum, description: 'Tasks (default) or routines.' }),
+    kind: t.field({ type: ViewKindEnum, description: 'Tasks (default), routines, shopping lists or another table.' }),
+    tableKey: t.string({ description: 'Table of a view of kind TABLE (required for it).' }),
     config: t.field({ type: 'JSON', required: true }),
   }),
 });
@@ -475,9 +480,9 @@ builder.queryFields((t) => ({
   taskViews: t.prismaField({
     type: ['TaskView'],
     description: 'Views of the tasks (or routines, by kind) of a project\'s tab, or of their page when projectId is omitted.',
-    args: { projectId: t.arg.id(), kind: t.arg({ type: ViewKindEnum }) },
-    resolve: (query, _root, { projectId, kind }) =>
-      prisma.taskView.findMany({ ...query, where: { projectId: projectId ?? null, kind: kind ?? 'TASKS' }, orderBy: [...byManualOrder] }),
+    args: { projectId: t.arg.id(), kind: t.arg({ type: ViewKindEnum }), tableKey: t.arg.string({ description: 'Table of the views of kind TABLE.' }) },
+    resolve: (query, _root, { projectId, kind, tableKey }) =>
+      prisma.taskView.findMany({ ...query, where: taskViews.viewScope(projectId ?? null, kind ?? 'TASKS', tableKey ?? null), orderBy: [...byManualOrder] }),
   }),
   sprintTaskStatuses: t.field({
     type: [SprintTaskStatusRef],
@@ -621,7 +626,7 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { input }) =>
       prisma.taskView.findUniqueOrThrow({
         ...query,
-        where: { id: (await taskViews.createView({ name: input.name, config: input.config, projectId: input.projectId, kind: input.kind })).id },
+        where: { id: (await taskViews.createView({ name: input.name, config: input.config, projectId: input.projectId, kind: input.kind, tableKey: input.tableKey })).id },
       }),
   }),
   updateTaskView: t.prismaField({

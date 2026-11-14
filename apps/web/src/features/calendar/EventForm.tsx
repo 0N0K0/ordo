@@ -1,3 +1,5 @@
+import { PICKER_FORMATS } from '../../lib/format';
+import { SidePanel } from '../../components/panels/SidePanel';
 import { TimeField } from '../../components/TimeField';
 import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -12,7 +14,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions, DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence } from './api';
 import { useTimeMutations } from '../time/api';
 import { EventLocation } from '../geo/EventLocation';
@@ -24,10 +26,9 @@ import { categoryOptions } from './category-tree';
 import { LOCAL_TIME_ZONE, occurrenceInput, REMINDER_PRESETS } from './event-input';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import * as fmt from '../../lib/format';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * Printed day, with a time.
@@ -35,7 +36,7 @@ const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'nume
  * @param {string | null} [time] HH:MM. Optional.
  * @returns {string} "mardi 12 novembre 2026 à 10:00".
  */
-const printedDay = (date: string, time?: string | null) => `${dayFormat.format(new Date(`${date}T00:00:00Z`))}${time ? ` à ${time}` : ''}`;
+const printedDay = (date: string, time?: string | null) => `${fmt.dayLong(date)}${time ? ` à ${time}` : ''}`;
 
 interface PostponeFormProps {
   /** Fields of the event postponed (with the changes of the form). */
@@ -67,7 +68,7 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
       <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
       <TextInput label="Titre" required value={values.title} onChange={(event) => setValues({ ...values, title: event.currentTarget.value })} />
       <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
-        <DatePickerInput label="Nouvelle date" required valueFormat="ddd D MMM YYYY" value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
+        <DatePickerInput label="Nouvelle date" required valueFormat={PICKER_FORMATS.weekday} value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
         {!fields.allDay && <TimeField label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
         {!fields.allDay && <TimeField label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
       </SimpleGrid>
@@ -138,7 +139,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
   const colorOfCalendar = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
-  // Questions are stacked over this form's modal: it must stay mounted to finish the save.
+  // Questions are stacked over this form's panel: it must stay mounted to finish the save.
   const scopeQuestion = useScopeQuestion();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const today = localToday();
@@ -281,7 +282,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           />
         </Stack>
       </Modal>
-      <Modal opened={postponing} onClose={() => setPostponing(false)} title="Reporter l’évènement" centered zIndex={300}>
+      <SidePanel opened={postponing} onClose={() => setPostponing(false)} title="Reporter l’évènement">
         {postponing && occurrence && (
           <PostponeForm
             fields={values}
@@ -303,7 +304,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             }
           />
         )}
-      </Modal>
+      </SidePanel>
       <Stack gap="md">
         {occurrence?.calledOff && (
           <Alert color="gray" icon={<CalendarXIcon aria-hidden />} title="Évènement annulé">
@@ -347,7 +348,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           <DatePickerInput
             label="Début"
             required
-            valueFormat="ddd D MMM YYYY"
+            valueFormat={PICKER_FORMATS.weekday}
             {...form.getInputProps('startDate')}
             onChange={(startDate) => {
               if (!startDate) return;
@@ -357,7 +358,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             }}
           />
           {!values.allDay && <TimeField label="Heure de début" required {...form.getInputProps('startTime')} />}
-          <DatePickerInput label="Fin" required valueFormat="ddd D MMM YYYY" minDate={values.startDate} {...form.getInputProps('endDate')} />
+          <DatePickerInput label="Fin" required valueFormat={PICKER_FORMATS.weekday} minDate={values.startDate} {...form.getInputProps('endDate')} />
           {!values.allDay && <TimeField label="Heure de fin" required {...form.getInputProps('endTime')} />}
         </SimpleGrid>
         {!values.allDay && (
@@ -521,7 +522,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         {occurrence && (
           <Group gap="sm">
             <Tooltip label={values.projectId ? 'Lance un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
-              <Button variant="light" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={startTimer.isPending} onClick={handleTimer}>
+              <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={startTimer.isPending} onClick={handleTimer}>
                 Chronométrer
               </Button>
             </Tooltip>
@@ -544,9 +545,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         <Group justify="space-between" gap="sm">
           {occurrence ? (
             <Group gap={4}>
-              <Button variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
+              <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={() => void handleDelete()} loading={remove.isPending}>
                 Supprimer
-              </Button>
+              </DestructiveButton>
               {onDuplicate && (
                 <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
                   <Button

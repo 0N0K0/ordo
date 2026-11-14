@@ -1,9 +1,16 @@
-import { Badge, Button, Group, Modal, NumberInput, Paper, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
-import { EVERYDAY_CONTEXT, formatMoney, treasuryBudgetSchema } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { EditableNumber, EditableSelect } from '../../components/data-table/EditableCells';
+import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
@@ -11,8 +18,9 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from './api';
 import { categoryOptions, categoryPaths } from './categories';
-import { confirmDeletion } from './confirm-deletion';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 const REPEATS = [
   { value: '', label: 'Ce mois seulement' },
@@ -23,14 +31,12 @@ const REPEATS = [
   { value: '12', label: 'Tous les ans' },
 ];
 
-const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-
 /**
  * Month in words.
  * @param {string} month YYYY-MM.
  * @returns {string} "août 2026".
  */
-const monthLabel = (month: string) => monthFormat.format(new Date(`${month}-01T00:00:00Z`));
+const monthLabel = (month: string) => fmt.month(month);
 
 interface BudgetValues extends Record<string, unknown> {
   month: string;
@@ -107,22 +113,11 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
           <MonthPickerInput
             label={values.repeatEvery ? 'Premier mois' : 'Mois'}
             required
-            valueFormat="MMMM YYYY"
             value={`${values.month}-01`}
             onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
             error={form.errors.month}
           />
-          <NumberInput
-            label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'}
-            required
-            min={0}
-            decimalScale={2}
-            decimalSeparator=","
-            thousandSeparator=" "
-            suffix=" €"
-            prefix={direction === 'OUT' ? '− ' : '+ '}
-            {...form.getInputProps('amount')}
-          />
+          <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} suffix=" €" prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
         </SimpleGrid>
         <SegmentedControl
           fullWidth
@@ -182,7 +177,6 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               label="Jusqu’à"
               placeholder="Sans fin"
               clearable
-              valueFormat="MMMM YYYY"
               minDate={`${values.month}-01`}
               value={values.repeatUntil ? `${values.repeatUntil}-01` : null}
               onChange={(value) => form.setFieldValue('repeatUntil', value ? String(value).slice(0, 7) : null)}
@@ -217,7 +211,32 @@ export function BudgetsPanel() {
   const [month, setMonth] = useState(() => localToday().slice(0, 7));
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
-  const { remove } = useTreasuryBudgetMutations();
+  const { remove, save } = useTreasuryBudgetMutations();
+
+  /**
+   * Saves fields of a budget changed in their cells (its repetitions follow, as from its form).
+   * @param {TreasuryBudget} budget Budget.
+   * @param {{ categoryId?: string, amount?: number }} change Change.
+   * @returns {void}
+   */
+  const saveBudget = (budget: TreasuryBudget, change: { categoryId?: string; amount?: number }) =>
+    save.mutate(
+      {
+        id: budget.id,
+        input: {
+          month: budget.month,
+          memberId: budget.memberId ?? null,
+          relationId: budget.relationId ?? null,
+          contextId: budget.contextId ?? null,
+          categoryId: budget.categoryId,
+          amount: budget.amount,
+          repeatEvery: budget.repeatEvery ?? null,
+          repeatUntil: budget.repeatUntil ?? null,
+          ...change,
+        },
+      },
+      { onError: (error) => notifyError(error.message) },
+    );
   const [dialog, setDialog] = useState<Dialog>(null);
   const categories = settings?.treasuryCategories ?? [];
   const paths = categoryPaths(categories);
@@ -240,12 +259,13 @@ export function BudgetsPanel() {
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
   /**
    * Totals of the budgeted rows of a direction: budgets, actual and forecast movements used, what is left.
+   * @param {readonly BudgetReportRow[]} shownRows Rows kept by the view.
    * @param {'IN' | 'OUT'} direction Money in or out.
    * @returns {{ count: number, budget: number, actual: number, forecast: number, left: number }} Totals, in cents.
    */
-  const totalOf = (direction: 'IN' | 'OUT') => {
+  const totalOf = (shownRows: readonly BudgetReportRow[], direction: 'IN' | 'OUT') => {
     const total = { count: 0, budget: 0, actual: 0, forecast: 0, left: 0 };
-    for (const row of budgeted) {
+    for (const row of shownRows) {
       if ((row.categoryId ? directionOf.get(row.categoryId) : 'OUT') !== direction) continue;
       const actual = used(row, 'actual');
       const forecast = used(row, 'forecast');
@@ -257,43 +277,47 @@ export function BudgetsPanel() {
     }
     return total;
   };
-  const outTotal = totalOf('OUT');
-  const inTotal = totalOf('IN');
+  type TotalRow = { label: string; kind: 'OUT' | 'IN' | 'BALANCE'; budget: number; actual: number; forecast: number; left: number };
   /**
    * Total rows: money out and money in like their rows; the balance in money in minus money out, its "left" the gap
    * with the planned balance (above zero: better than planned).
+   * @param {readonly BudgetReportRow[]} shownRows Rows kept by the view.
+   * @returns {TotalRow[]} Totals.
    */
-  const totals: { label: string; kind: 'OUT' | 'IN' | 'BALANCE'; budget: number; actual: number; forecast: number; left: number }[] = [
-    ...(outTotal.count ? [{ label: 'Total sorties', kind: 'OUT' as const, ...outTotal }] : []),
-    ...(inTotal.count ? [{ label: 'Total entrées', kind: 'IN' as const, ...inTotal }] : []),
-    ...(outTotal.count && inTotal.count
-      ? [
-          {
-            label: 'Solde (entrées − sorties)',
-            kind: 'BALANCE' as const,
-            budget: inTotal.budget - outTotal.budget,
-            actual: inTotal.actual - outTotal.actual,
-            forecast: inTotal.forecast - outTotal.forecast,
-            // Money in beyond its budget and money out below its budget both make the balance better.
-            left: outTotal.left - inTotal.left,
-          },
-        ]
-      : []),
-  ];
+  const totalsOf = (shownRows: readonly BudgetReportRow[]): TotalRow[] => {
+    const outTotal = totalOf(shownRows, 'OUT');
+    const inTotal = totalOf(shownRows, 'IN');
+    return [
+      ...(outTotal.count ? [{ label: 'Total sorties', kind: 'OUT' as const, ...outTotal }] : []),
+      ...(inTotal.count ? [{ label: 'Total entrées', kind: 'IN' as const, ...inTotal }] : []),
+      ...(outTotal.count && inTotal.count
+        ? [
+            {
+              label: 'Solde (entrées − sorties)',
+              kind: 'BALANCE' as const,
+              budget: inTotal.budget - outTotal.budget,
+              actual: inTotal.actual - outTotal.actual,
+              forecast: inTotal.forecast - outTotal.forecast,
+              // Money in beyond its budget and money out below its budget both make the balance better.
+              left: outTotal.left - inTotal.left,
+            },
+          ]
+        : []),
+    ];
+  };
   /**
    * A total as printed, with its color: signed for the balance; "left" like the rows (money out over budget in red,
    * money in beyond its budget as a green surplus).
-   * @param {(typeof totals)[number]} total Total row.
+   * @param {TotalRow} total Total row.
    * @param {'budget' | 'actual' | 'forecast' | 'left'} key Column.
    * @returns {{ text: string, color?: string }} Cell.
    */
-  const totalCell = (total: (typeof totals)[number], key: 'budget' | 'actual' | 'forecast' | 'left'): { text: string; color?: string } => {
+  const totalCell = (total: TotalRow, key: 'budget' | 'actual' | 'forecast' | 'left'): { text: string; color?: string } => {
     const value = total[key];
-    if (total.kind === 'BALANCE') return { text: `${value > 0 ? '+' : ''}${money(value)}`, color: value < 0 ? 'red' : value > 0 ? 'green' : undefined };
-    if (key === 'left' && value < 0) return total.kind === 'IN' ? { text: `+${money(-value)}`, color: 'green' } : { text: money(value), color: 'red' };
-    return { text: money(value), color: key === 'forecast' ? 'dimmed' : undefined };
+    if (total.kind === 'BALANCE') return { text: `${value > 0 ? '+' : ''}${fmt.money(value)}`, color: value < 0 ? 'red' : value > 0 ? 'green' : undefined };
+    if (key === 'left' && value < 0) return total.kind === 'IN' ? { text: `+${fmt.money(-value)}`, color: 'green' } : { text: fmt.money(value), color: 'red' };
+    return { text: fmt.money(value), color: key === 'forecast' ? 'dimmed' : undefined };
   };
-  const money = (amount: number) => formatMoney(Math.round(amount * 100));
   type KeyRow = { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null };
   /**
    * Cells of the key of a budget (or of a report row): for whom, context, category.
@@ -337,18 +361,102 @@ export function BudgetsPanel() {
    * @returns {DataColumn<R>[]} Columns.
    */
   const keyColumns = <R extends KeyRow>(): DataColumn<R>[] => [
-    { id: 'who', label: 'Pour', size: 180, sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : '') },
-    { id: 'context', label: 'Contexte', size: 160, sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : '') },
-    { id: 'category', label: 'Catégorie', size: 220, locked: true, sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null) },
+    {
+      id: 'who',
+      label: 'Pour',
+      size: 180,
+      sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : ''),
+      text: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : `${me?.name ?? 'Moi'} (moi)`),
+      groupable: true,
+    },
+    {
+      id: 'context',
+      label: 'Contexte',
+      size: 160,
+      sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : ''),
+      text: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT),
+      groupable: true,
+    },
+    {
+      id: 'category',
+      label: 'Catégorie',
+      size: 220,
+      locked: true,
+      sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null),
+      text: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : 'Sans catégorie'),
+      groupable: true,
+    },
   ];
+  const reportView = useDataView({
+    tableKey: 'treasury-budget-report',
+    title: `Budgets de ${monthLabel(month)}`,
+    rows: budgeted,
+    columns: [
+      ...keyColumns<BudgetReportRow>(),
+      { id: 'budget', label: 'Budget', size: 120, numeric: true, sortValue: (row) => row.budget, text: (row) => fmt.money(row.budget) },
+      { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => used(row, 'actual'), text: (row) => fmt.money(used(row, 'actual')) },
+      { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => used(row, 'forecast'), text: (row) => fmt.money(used(row, 'forecast')) },
+      {
+        id: 'left',
+        label: 'Reste',
+        size: 120,
+        numeric: true,
+        sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast'),
+        text: (row) => fmt.money(row.budget - used(row, 'actual') - used(row, 'forecast')),
+      },
+      {
+        id: 'progress',
+        label: 'Avancement',
+        size: 160,
+        sortValue: (row) => (row.budget ? (used(row, 'actual') + used(row, 'forecast')) / row.budget : 0),
+        text: (row) => `${row.budget ? Math.round(((used(row, 'actual') + used(row, 'forecast')) / row.budget) * 100) : 0} %`,
+        filter: false,
+      },
+    ],
+  });
+  const outsideView = useDataView({
+    tableKey: 'treasury-budget-outside',
+    title: `Hors budget de ${monthLabel(month)}`,
+    rows: outside,
+    columns: [
+      ...keyColumns<BudgetReportRow>(),
+      { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => row.actual, text: (row) => fmt.money(row.actual) },
+      { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast, text: (row) => fmt.money(row.forecast) },
+    ],
+  });
+  const definedView = useDataView({
+    tableKey: 'treasury-budgets',
+    title: 'Budgets',
+    rows: data?.treasuryBudgets ?? [],
+    columns: [
+      {
+        id: 'period',
+        label: 'Période',
+        size: 220,
+        sortValue: (budget: TreasuryBudget) => budget.month,
+        text: (budget: TreasuryBudget) =>
+          `${budget.repeatEvery ? `Dès ${monthLabel(budget.month)}` : monthLabel(budget.month)}${budget.repeatUntil ? ` jusqu’à ${monthLabel(budget.repeatUntil)}` : ''}`,
+        filter: { kind: 'date', value: (budget: TreasuryBudget) => `${budget.month}-01` },
+      },
+      ...keyColumns<TreasuryBudget>(),
+      {
+        id: 'amount',
+        label: 'Montant',
+        size: 130,
+        numeric: true,
+        sortValue: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount),
+        text: (budget) => `${directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}${fmt.money(budget.amount)}`,
+      },
+    ],
+  });
 
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <MonthPickerInput aria-label="Mois" valueFormat="MMMM YYYY" value={`${month}-01`} onChange={(value) => value && setMonth(String(value).slice(0, 7))} w={200} />
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ defaults: { month } })} disabled={!categories.length}>
-          Budget
-        </Button>
+        <MonthPickerInput aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(String(value).slice(0, 7))} w={200} />
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ defaults: { month } })} disabled={!categories.length}>
+          Nouveau budget
+        </ActionButton>
       </Group>
 
       <Paper withBorder radius="md" p="md">
@@ -356,27 +464,13 @@ export function BudgetsPanel() {
           Budgets de {monthLabel(month)}
         </Title>
         {isPending && !data ? (
-          <Skeleton height={120} />
+          <TableSkeleton rows={3} />
         ) : budgeted.length === 0 ? (
-          <Group gap="xs" py="md" justify="center">
-            <ChartPieSliceIcon aria-hidden />
-            <Text size="sm" c="dimmed">
-              {categories.length ? 'Aucun budget ce mois-ci.' : 'Créez d’abord des catégories (Paramètres).'}
-            </Text>
-          </Group>
+          <EmptyState compact icon={<ChartPieSliceIcon aria-hidden />} message={categories.length ? 'Aucun budget ce mois-ci.' : 'Créez d’abord des catégories (Paramètres).'} />
         ) : (
           <DataTable
-            tableKey="treasury-budget-report"
+            view={reportView}
             verticalSpacing={6}
-            columns={[
-              ...keyColumns<BudgetReportRow>(),
-              { id: 'budget', label: 'Budget', size: 120, numeric: true, sortValue: (row) => row.budget },
-              { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => used(row, 'actual') },
-              { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => used(row, 'forecast') },
-              { id: 'left', label: 'Reste', size: 120, numeric: true, sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast') },
-              { id: 'progress', label: 'Avancement', size: 160 },
-            ]}
-            rows={budgeted}
             getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
             cells={(row) => {
               const actual = used(row, 'actual');
@@ -390,17 +484,17 @@ export function BudgetsPanel() {
               const barColor = income ? (ratio >= 100 ? 'green' : 'blue') : ratio > 100 ? 'red' : ratio > 80 ? 'orange' : 'blue';
               return {
                 ...keyContent(row),
-                budget: money(row.budget),
-                actual: money(actual),
+                budget: fmt.money(row.budget),
+                actual: fmt.money(actual),
                 forecast: (
                   <Text span inherit c="dimmed">
-                    {forecast ? money(forecast) : '—'}
+                    {forecast ? fmt.money(forecast) : '—'}
                   </Text>
                 ),
                 left: (
                   <Text span inherit c={over ? (income ? 'green' : 'red') : undefined} fw={over ? 600 : undefined}>
                     {/* Income beyond its budget: what came in on top. */}
-                    {over && income ? `+${money(-left)}` : money(left)}
+                    {over && income ? `+${fmt.money(-left)}` : fmt.money(left)}
                   </Text>
                 ),
                 progress: (
@@ -415,10 +509,10 @@ export function BudgetsPanel() {
                 ),
               };
             }}
-            footer={(shown) => (
+            footer={(shown, shownRows) => (
               // Totals per direction, and the balance of money in minus money out.
               <Table.Tfoot>
-                {totals.map((total) => (
+                {totalsOf(shownRows).map((total) => (
                   <Table.Tr
                     key={total.label}
                     // Totals stand out from the budgets: tinted in gray, the balance in the primary color.
@@ -455,21 +549,15 @@ export function BudgetsPanel() {
             Mouvements sans budget pour leur membre, contexte et catégorie ce mois-ci.
           </Text>
           <DataTable
-            tableKey="treasury-budget-outside"
+            view={outsideView}
             verticalSpacing={6}
-            columns={[
-              ...keyColumns<BudgetReportRow>(),
-              { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => row.actual },
-              { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast },
-            ]}
-            rows={outside}
             getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
             cells={(row) => ({
               ...keyContent(row),
-              actual: money(row.actual),
+              actual: fmt.money(row.actual),
               forecast: (
                 <Text span inherit c="dimmed">
-                  {row.forecast ? money(row.forecast) : '—'}
+                  {row.forecast ? fmt.money(row.forecast) : '—'}
                 </Text>
               ),
             })}
@@ -505,19 +593,11 @@ export function BudgetsPanel() {
           Budgets définis
         </Title>
         {(data?.treasuryBudgets ?? []).length === 0 ? (
-          <Text size="sm" c="dimmed">
-            Aucun budget.
-          </Text>
+          <EmptyState compact message="Aucun budget." />
         ) : (
           <DataTable
-            tableKey="treasury-budgets"
+            view={definedView}
             verticalSpacing={4}
-            columns={[
-              { id: 'period', label: 'Période', size: 220, sortValue: (budget: TreasuryBudget) => budget.month },
-              ...keyColumns<TreasuryBudget>(),
-              { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount) },
-            ]}
-            rows={data?.treasuryBudgets ?? []}
             getKey={(budget) => budget.id}
             cells={(budget) => ({
               period: (
@@ -534,11 +614,25 @@ export function BudgetsPanel() {
                 </>
               ),
               ...keyContent(budget),
-              // Money out budgeted below zero, money in above.
+              category: (
+                <EditableSelect
+                  value={budget.categoryId}
+                  label="Catégorie du budget"
+                  {...treeSelectProps([...categoryOptions(categories, 'OUT'), ...categoryOptions(categories, 'IN')])}
+                  onSave={(categoryId) => categoryId && saveBudget(budget, { categoryId })}
+                />
+              ),
+              // Money out budgeted below zero, money in above: the amount is typed positive.
               amount: (
-                <Text span inherit c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'} style={{ whiteSpace: 'nowrap' }}>
-                  {directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}
-                  {money(budget.amount)}
+                <Text span inherit c={directionOf.get(budget.categoryId) === 'IN' ? 'green' : 'red'}>
+                  <EditableNumber
+                    amount
+                    value={budget.amount}
+                    label="Montant du budget"
+                    suffix="€"
+                    validate={(amount) => (amount > 0 ? null : 'Montant positif attendu.')}
+                    onSave={(amount) => amount !== null && saveBudget(budget, { amount })}
+                  />
                 </Text>
               ),
             })}
@@ -571,11 +665,11 @@ export function BudgetsPanel() {
                     icon: <TrashIcon aria-hidden />,
                     danger: true,
                     onClick: () =>
-                      confirmDeletion(
-                        'Supprimer le budget',
-                        `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                        () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
-                      ),
+                      confirmDestructive({
+                        title: 'Supprimer le budget',
+                        risks: `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                        onConfirm: () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
+                      }),
                   },
                 ]}
               />
@@ -584,9 +678,9 @@ export function BudgetsPanel() {
         )}
       </Paper>
 
-      <Modal opened={dialog !== null} onClose={close} title={dialog?.budget ? 'Modifier le budget' : dialog?.copy ? 'Dupliquer le budget' : 'Nouveau budget'}>
+      <SidePanel opened={dialog !== null} onClose={close} title={dialog?.budget ? 'Modifier le budget' : dialog?.copy ? 'Dupliquer le budget' : 'Nouveau budget'}>
         {dialog && <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />}
-      </Modal>
+      </SidePanel>
     </Stack>
   );
 }

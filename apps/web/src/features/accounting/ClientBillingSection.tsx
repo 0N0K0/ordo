@@ -1,54 +1,15 @@
-import { ActionIcon, Anchor, Badge, Button, Group, Paper, SimpleGrid, Skeleton, Stack, Text, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { openFormPanel } from '../../components/panels/panels';
+import { ActionIcon, Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
 import { countryName } from '../../components/address/countries';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from './api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
 
-let modalCount = 0;
-
-/**
- * Opens a modal whose content receives a close callback.
- * @param {string} title Title.
- * @param {(close: () => void) => ReactNode} render Content.
- * @returns {void}
- */
-function openModal(title: string, render: (close: () => void) => ReactNode): void {
-  const modalId = `client-billing-${++modalCount}`;
-  modals.open({ modalId, title, size: 'lg', children: render(() => modals.close(modalId)) });
-}
-
-/**
- * Asks for confirmation before a deletion.
- * @param {string} title Title.
- * @param {string} message Explanation.
- * @param {() => void} onConfirm Deletion.
- * @returns {void}
- */
-function confirmDelete(title: string, message: string, onConfirm: () => void): void {
-  const modalId = `client-billing-delete-${++modalCount}`;
-  modals.open({
-    modalId,
-    title,
-    children: (
-      <Stack gap="md">
-        <Text size="sm">{message}</Text>
-        <DestructiveActions
-          loading={false}
-          onCancel={() => modals.close(modalId)}
-          onConfirm={() => {
-            modals.close(modalId);
-            onConfirm();
-          }}
-        />
-      </Stack>
-    ),
-  });
-}
 
 /**
  * Address, email and phones, as text lines.
@@ -109,7 +70,7 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
       </Stack>
       <Group gap={2} wrap="nowrap">
         <Tooltip label="Modifier">
-          <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${name}`} onClick={() => openModal('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />)}>
+          <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${name}`} onClick={() => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />)}>
             <PencilSimpleIcon aria-hidden />
           </ActionIcon>
         </Tooltip>
@@ -119,9 +80,8 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
             color="red"
             aria-label={`Supprimer ${name}`}
             onClick={() =>
-              confirmDelete('Supprimer le contact', `${name} sera supprimé définitivement. Cette action est irréversible.`, () =>
-                deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: (error) => notifyError(error.message) }),
-              )
+              confirmDestructive({ title: 'Supprimer le contact', risks: `${name} sera supprimé définitivement. Cette action est irréversible.`, onConfirm: () =>
+                deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: (error) => notifyError(error.message) }) })
             }
           >
             <TrashIcon aria-hidden />
@@ -150,12 +110,12 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
           </Stack>
           <Group gap={2} wrap="nowrap">
             <Tooltip label="Ajouter un contact">
-              <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un contact à ${service.name}`} onClick={() => openModal('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />)}>
+              <ActionIcon variant="subtle" color="gray" aria-label={`Ajouter un contact à ${service.name}`} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />)}>
                 <UserPlusIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Modifier">
-              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${service.name}`} onClick={() => openModal('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />)}>
+              <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${service.name}`} onClick={() => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />)}>
                 <PencilSimpleIcon aria-hidden />
               </ActionIcon>
             </Tooltip>
@@ -165,11 +125,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
                 color="red"
                 aria-label={`Supprimer ${service.name}`}
                 onClick={() =>
-                  confirmDelete(
-                    'Supprimer le service',
-                    `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`,
-                    () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: (error) => notifyError(error.message) }),
-                  )
+                  confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`, onConfirm: () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: (error) => notifyError(error.message) }) })
                 }
               >
                 <TrashIcon aria-hidden />
@@ -193,7 +149,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
  */
 export function ClientBillingSection({ clientId }: { clientId: string }) {
   const { data: client, isPending } = useClientBilling(clientId);
-  if (isPending) return <Skeleton height={160} />;
+  if (isPending) return <ListSkeleton items={3} lines={2} />;
   if (!client) return null;
   const company = client.kind === 'COMPANY';
   const identifiers = [
@@ -211,15 +167,9 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
           Facturation
         </Title>
         <Group gap="xs">
-          <Button size="xs" variant="light" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openModal('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>
-            Coordonnées
-          </Button>
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openModal('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>
-            Service
-          </Button>
-          <Button size="xs" variant="light" leftSection={<UserPlusIcon aria-hidden />} onClick={() => openModal('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>
-            Contact
-          </Button>
+          <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>Coordonnées</ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>Nouveau service</ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<UserPlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>Nouveau contact</ActionButton>
         </Group>
       </Group>
       {/* By the width of what holds it (the settings sidebar). */}

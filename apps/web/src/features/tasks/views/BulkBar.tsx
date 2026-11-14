@@ -1,3 +1,4 @@
+import { closePanel, openPanel } from '../../../components/panels/panels';
 import { Avatar, Button, CloseButton, ColorSwatch, Group, Menu, Paper, Radio, Stack, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import {
@@ -14,7 +15,7 @@ import {
 } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
-import { DestructiveActions } from '../../workspace/DeleteDialogs';
+import { DestructiveActions, DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task, type TaskLabel } from '../api';
 import { ProjectSelect } from '../task-ui';
 import type { TaskContext } from '../use-task-context';
@@ -188,24 +189,25 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
    * Opens a dialog on the selection; clears the selection when the action succeeds.
    * @param {string} title Modal title.
    * @param {typeof BulkTransferDialog} Dialog Dialog component.
+   * @param {boolean} [asForm] A form (in the side panel), not a confirmation. Optional. Default = false.
    * @returns {void}
    */
-  const openDialog = (title: string, Dialog: typeof BulkTransferDialog) => {
+  const openDialog = (title: string, Dialog: typeof BulkTransferDialog, asForm = false) => {
     const modalId = `bulk-${++modalCount}`;
-    modals.open({
-      modalId,
-      title,
-      children: (
-        <Dialog
-          tasks={tasks}
-          context={context}
-          onDone={(success) => {
-            modals.close(modalId);
-            if (success) onClear();
-          }}
-        />
-      ),
-    });
+    const close = () => (asForm ? closePanel(modalId) : modals.close(modalId));
+    const children = (
+      <Dialog
+        tasks={tasks}
+        context={context}
+        onDone={(success) => {
+          close();
+          if (success) onClear();
+        }}
+      />
+    );
+    // A form in the side panel, a confirmation in a dialog.
+    if (asForm) openPanel({ panelId: modalId, title, children });
+    else modals.open({ modalId, title, children });
   };
 
   /**
@@ -381,7 +383,7 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
           renderIcon: (id) => <ColorSwatch color={context.tagById.get(id)?.color ?? 'gray'} size={10} />,
           changes: (added, removed) => ({ addTagIds: added, removeTagIds: removed }),
         })}
-        <Button size="xs" variant="default" leftSection={<ArrowsLeftRightIcon aria-hidden />} onClick={() => openDialog('Transférer les tâches', BulkTransferDialog)}>
+        <Button size="xs" variant="default" leftSection={<ArrowsLeftRightIcon aria-hidden />} onClick={() => openDialog('Transférer les tâches', BulkTransferDialog, true)}>
           Transférer
         </Button>
         <Button
@@ -428,9 +430,9 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
         >
           {allArchived ? 'Désarchiver' : 'Archiver'}
         </Button>
-        <Button size="xs" variant="default" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => openDialog('Supprimer les tâches', BulkDeleteDialog)}>
+        <DestructiveButton size="xs" leftSection={<TrashIcon aria-hidden />} onClick={() => openDialog('Supprimer les tâches', BulkDeleteDialog)}>
           Supprimer
-        </Button>
+        </DestructiveButton>
         <CloseButton aria-label="Désélectionner" onClick={onClear} />
       </Group>
     </Paper>

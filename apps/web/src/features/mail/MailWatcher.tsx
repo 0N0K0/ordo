@@ -1,4 +1,3 @@
-import { notifications } from '@mantine/notifications';
 import { EnvelopeSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
@@ -6,7 +5,8 @@ import { graphql } from '../../graphql';
 import type { WatchedUnreadMailsQuery } from '../../graphql/graphql';
 import { execute, executeIn } from '../../lib/graphql-client';
 import { playChime } from '../alarms/alarm-sound';
-import { claim, systemNotification, toastBody, type RingLink } from '../alarms/ring';
+import { claim, systemNotification, type RingLink } from '../alarms/ring';
+import { notifyInfo } from '../../lib/notify';
 import { switchWorkspace } from '../workspaces/switch';
 import { MAIL_CHECK_MS, onMailCheck } from './mail-check';
 
@@ -89,11 +89,11 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
       if (fresh.length > MAX_MAIL_TOASTS) {
         const title = `${fresh.length} nouveaux mails`;
         systemNotification(title, name ?? undefined, `mail:${accountId}`);
-        notifications.show({
-          color: 'teal',
+        notifyInfo({
           icon: <EnvelopeSimpleIcon />,
           title,
-          message: toastBody([where], [link(name ? `Ouvrir la boîte de réception dans « ${name} »` : 'Ouvrir la boîte de réception', `/mail?account=${accountId}&folder=INBOX`)]),
+          lines: [where],
+          actions: [link(name ? `Ouvrir la boîte de réception dans « ${name} »` : 'Ouvrir la boîte de réception', `/mail?account=${accountId}&folder=INBOX`)],
         });
         return;
       }
@@ -101,12 +101,7 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
         const title = message.subject || '(sans objet)';
         const from = message.from[0]?.name || message.from[0]?.address;
         systemNotification(title, [name, from].filter(Boolean).join(' · ') || undefined, `mail:${accountId}:${message.uid}`);
-        notifications.show({
-          color: 'teal',
-          icon: <EnvelopeSimpleIcon />,
-          title,
-          message: toastBody([where, from && `De ${from}`], [link('Lire le mail', `/mail?account=${accountId}&folder=INBOX&uid=${message.uid}`)]),
-        });
+        notifyInfo({ icon: <EnvelopeSimpleIcon />, title, lines: [where, from && `De ${from}`], actions: [link('Lire le mail', `/mail?account=${accountId}&folder=INBOX&uid=${message.uid}`)] });
       }
     };
 

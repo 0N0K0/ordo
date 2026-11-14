@@ -839,6 +839,9 @@ type ForeignWorkSchedule {
   monthDisplay: String!
   name: String!
   startDate: String!
+
+  """Kind in its workspace; none: its working hours."""
+  typeId: ID
   typeName: String
   workspaceId: ID!
   workspaceName: String!
@@ -1854,6 +1857,11 @@ type Mutation {
   """
   setWorkspaceNotifications(id: ID!, sources: [NotificationSource!]!): Workspace!
 
+  """
+  Sets the first and last days of the weeks of a workspace (1 = Monday … 7 = Sunday).
+  """
+  setWorkspaceWeek(end: Int!, id: ID!, start: Int!): Workspace!
+
   """Starts a timer; the running one is stopped first."""
   startTimer(input: TimerInput!): TimeEntry!
   stopTimer: TimeEntry
@@ -2316,7 +2324,13 @@ type Query {
   """
   Views of the tasks (or routines, by kind) of a project's tab, or of their page when projectId is omitted.
   """
-  taskViews(kind: ViewKind, projectId: ID): [TaskView!]!
+  taskViews(
+    kind: ViewKind
+    projectId: ID
+
+    """Table of the views of kind TABLE."""
+    tableKey: String
+  ): [TaskView!]!
 
   """Every task, archived ones included, in manual order."""
   tasks: [Task!]!
@@ -2453,6 +2467,11 @@ type Routine {
 
   """First occurrence after today."""
   nextDate: Date
+
+  """
+  Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).
+  """
+  opensOn: String
   parentId: ID
   position: Int!
   projectId: ID
@@ -2471,6 +2490,11 @@ type Routine {
 
   """Calendar schedule it follows (its days and times)."""
   scheduleId: ID
+
+  """
+  Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
+  """
+  slotRule: JSON
 
   """
   Times of the day of its current occurrence (its next one before it starts), with those ticked.
@@ -2578,6 +2602,11 @@ input RoutineInput {
   location: String
   locationLat: Float
   locationLon: Float
+
+  """
+  Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).
+  """
+  opensOn: String
   parentId: ID
   projectId: ID
   recurrence: JSON!
@@ -2587,6 +2616,11 @@ input RoutineInput {
   """START, WHOLE or END."""
   scheduleAnchor: String
   scheduleId: ID
+
+  """
+  Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
+  """
+  slotRule: JSON
   startDate: Date!
   title: String!
   travelAfter: Int
@@ -2983,6 +3017,11 @@ type Task {
   """First task of the series this task is an occurrence of."""
   seriesId: ID
 
+  """
+  Slots the task is done on or out of; null: the default of the workspace.
+  """
+  slotRule: JSON
+
   """Sprints the task is planned in."""
   sprintIds: [ID!]!
   startDate: Date
@@ -3023,6 +3062,11 @@ input TaskInput {
   parentId: ID
   priorityId: ID
   projectId: ID!
+
+  """
+  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  """
+  slotRule: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID
@@ -3116,6 +3160,11 @@ input TaskUpdateInput {
   milestoneId: ID
   parentId: ID
   priorityId: ID
+
+  """
+  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  """
+  slotRule: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID
@@ -3132,17 +3181,23 @@ type TaskView {
   kind: ViewKind!
   name: String!
   position: Int!
+
+  """Table of a view of kind TABLE."""
+  tableKey: String
 }
 
 input TaskViewInput {
   config: JSON!
 
-  """Tasks (default) or routines."""
+  """Tasks (default), routines, shopping lists or another table."""
   kind: ViewKind
   name: String!
 
   """Project of the view; omitted or null for the home page."""
   projectId: ID
+
+  """Table of a view of kind TABLE (required for it)."""
+  tableKey: String
 }
 
 input TaskViewUpdateInput {
@@ -3691,10 +3746,11 @@ type User {
   username: String!
 }
 
-"""What a saved view lists."""
+"""What a saved view lists (TABLE: any other table, named by its key)."""
 enum ViewKind {
   ROUTINES
   SHOPPING_LISTS
+  TABLE
   TASKS
 }
 
@@ -3738,6 +3794,14 @@ type Workspace {
   """Notifications it still gives while another workspace is open."""
   notifyElsewhere: [NotificationSource!]!
   position: Int!
+
+  """
+  Last day of its weeks, included; the first one: weeks of 8 days, overlapping.
+  """
+  weekEnd: Int!
+
+  """First day of its weeks, 1 (Monday) to 7 (Sunday)."""
+  weekStart: Int!
 }
 
 input WorkspaceInput {

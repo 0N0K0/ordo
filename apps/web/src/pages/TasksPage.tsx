@@ -1,3 +1,4 @@
+import { PageHeader } from '../components/actions/PageHeader';
 import { SegmentedControl, Stack } from '@mantine/core';
 import { addDays, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
@@ -5,7 +6,9 @@ import { useSearchParams } from 'react-router';
 import { localToday } from '../lib/dates';
 import { MY_TASKS_PERIODS, myTasksFilter, type MyTasksPeriod } from '../features/tasks/my-tasks';
 import { TaskBoard } from '../features/tasks/TaskBoard';
-import { PageTitle } from '../components/PageTitle';
+import { TaskSettings } from '../features/tasks/settings/TaskSettings';
+import { PageSettings } from '../layouts/PageSettings';
+import { currentWeek } from '../lib/week';
 
 /**
  * My tasks of today, tomorrow or this week, across every project, with their own saved views.
@@ -19,7 +22,7 @@ export function TasksPage() {
   const today = localToday();
   const eventRange = useMemo(() => {
     if (period === 'week') {
-      const [from, end] = filterPeriod('thisWeek', today);
+      const [from, end] = filterPeriod('thisWeek', today, currentWeek());
       return { from, to: addDays(end, -1) };
     }
     const day = period === 'tomorrow' ? addDays(today, 1) : today;
@@ -28,7 +31,11 @@ export function TasksPage() {
 
   return (
     <Stack gap="md">
-      <PageTitle>Mes tâches</PageTitle>
+      <PageHeader title="Mes tâches" />
+      {/* Statuses, priorities, types, tags and columns of the tasks: in the settings sidebar, as on every page. */}
+      <PageSettings title="Paramètres des tâches">
+        <TaskSettings />
+      </PageSettings>
       <TaskBoard
         projectId={null}
         baseFilter={baseFilter}

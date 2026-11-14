@@ -1,4 +1,4 @@
-import { routineViewConfigSchema, shoppingListViewConfigSchema, taskViewConfigSchema, taskViewNameSchema } from '@ordo/shared';
+import { routineViewConfigSchema, shoppingListViewConfigSchema, tableKeySchema, tableViewConfigSchema, taskViewConfigSchema, taskViewNameSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { Prisma, TaskView, ViewKind } from '../generated/prisma/client';
@@ -23,19 +23,27 @@ async function findView(id: string): Promise<TaskView> {
  * @returns {Prisma.InputJsonObject} Configuration, ready to store.
  */
 function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonObject {
-  const schema = kind === 'ROUTINES' ? routineViewConfigSchema : kind === 'SHOPPING_LISTS' ? shoppingListViewConfigSchema : taskViewConfigSchema;
+  const schema = { ROUTINES: routineViewConfigSchema, SHOPPING_LISTS: shoppingListViewConfigSchema, TABLE: tableViewConfigSchema, TASKS: taskViewConfigSchema }[kind];
   return parseInput(z.object({ config: schema }), { config }).config as unknown as Prisma.InputJsonObject;
 }
 
 /**
- * Views of a scope: the tasks or the routines of a project's tab, or of their page (null).
+ * Views of a scope: the tasks, routines, shopping lists or rows of a table of a project's tab, or of their page (null).
  * @param {string | null} projectId Project, or null for the page.
- * @param {ViewKind} kind Tasks or routines.
+ * @param {ViewKind} kind What the views list.
+ * @param {string | null} tableKey Table of the views of kind TABLE (ignored for the other kinds).
  * @returns {Prisma.TaskViewWhereInput} Where clause.
  */
-function scope(projectId: string | null, kind: ViewKind): Prisma.TaskViewWhereInput {
-  return { projectId, kind };
+export function viewScope(projectId: string | null, kind: ViewKind, tableKey: string | null): Prisma.TaskViewWhereInput {
+  return { projectId, kind, tableKey: kind === 'TABLE' ? tableKey : null };
 }
+
+/**
+ * Scope of a stored view.
+ * @param {TaskView} view View.
+ * @returns {Prisma.TaskViewWhereInput} Where clause.
+ */
+const scopeOf = (view: TaskView) => viewScope(view.projectId, view.kind, view.tableKey);
 
 /**
  * Creates a view at the end of its scope. The first view of a scope becomes its default one.
@@ -43,23 +51,25 @@ function scope(projectId: string | null, kind: ViewKind): Prisma.TaskViewWhereIn
  * @param {string} input.name Name.
  * @param {unknown} input.config Configuration.
  * @param {string | null} [input.projectId] Project, or null / omitted for the home page. Optional.
- * @param {ViewKind | null} [input.kind] Tasks (default) or routines. Optional.
+ * @param {ViewKind | null} [input.kind] Tasks (default), routines, shopping lists or another table. Optional.
+ * @param {string | null} [input.tableKey] Table of a view of kind TABLE (required for it). Optional.
  * @returns {Promise<TaskView>} Created view.
  */
-export async function createView(input: { name: string; config: unknown; projectId?: string | null; kind?: ViewKind | null }): Promise<TaskView> {
+export async function createView(input: { name: string; config: unknown; projectId?: string | null; kind?: ViewKind | null; tableKey?: string | null }): Promise<TaskView> {
   const { name } = parseInput(z.object({ name: taskViewNameSchema }), input);
   const kind = input.kind ?? 'TASKS';
+  const tableKey = kind === 'TABLE' ? parseInput(z.object({ tableKey: tableKeySchema }), { tableKey: input.tableKey }).tableKey : null;
   const config = parseConfig(kind, input.config);
   const projectId = input.projectId ?? null;
   if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) {
     throw notFound('Projet');
   }
   const [{ _max }, count] = await Promise.all([
-    prisma.taskView.aggregate({ where: scope(projectId, kind), _max: { position: true } }),
-    prisma.taskView.count({ where: scope(projectId, kind) }),
+    prisma.taskView.aggregate({ where: viewScope(projectId, kind, tableKey), _max: { position: true } }),
+    prisma.taskView.count({ where: viewScope(projectId, kind, tableKey) }),
   ]);
   return prisma.taskView.create({
-    data: { name, kind, config, projectId, position: (_max.position ?? -1) + 1, isDefault: count === 0 },
+    data: { name, kind, tableKey, config, projectId, position: (_max.position ?? -1) + 1, isDefault: count === 0 },
   });
 }
 
@@ -86,9 +96,9 @@ export async function updateView(id: string, input: { name?: string | null; conf
  */
 export async function duplicateView(id: string, name: string): Promise<TaskView> {
   const source = await findView(id);
-  const copy = await createView({ name, config: source.config, projectId: source.projectId, kind: source.kind });
+  const copy = await createView({ name, config: source.config, projectId: source.projectId, kind: source.kind, tableKey: source.tableKey });
   const ids = (
-    await prisma.taskView.findMany({ where: scope(source.projectId, source.kind), orderBy: { position: 'asc' }, select: { id: true } })
+    await prisma.taskView.findMany({ where: scopeOf(source), orderBy: { position: 'asc' }, select: { id: true } })
   ).map((v) => v.id);
   await moveView(copy.id, ids.indexOf(source.id) + 1);
   return copy;
@@ -104,7 +114,7 @@ export async function deleteView(id: string): Promise<void> {
   await prisma.taskView.delete({ where: { id } });
   if (view.isDefault) {
     const first = await prisma.taskView.findFirst({
-      where: scope(view.projectId, view.kind),
+      where: scopeOf(view),
       orderBy: { position: 'asc' },
       select: { id: true },
     });
@@ -120,7 +130,7 @@ export async function deleteView(id: string): Promise<void> {
 export async function setDefaultView(id: string): Promise<void> {
   const view = await findView(id);
   await prisma.$transaction([
-    prisma.taskView.updateMany({ where: { ...scope(view.projectId, view.kind), isDefault: true }, data: { isDefault: false } }),
+    prisma.taskView.updateMany({ where: { ...scopeOf(view), isDefault: true }, data: { isDefault: false } }),
     prisma.taskView.update({ where: { id }, data: { isDefault: true } }),
   ]);
 }
@@ -134,7 +144,7 @@ export async function setDefaultView(id: string): Promise<void> {
 export async function moveView(id: string, index: number): Promise<void> {
   const view = await findView(id);
   const views = await prisma.taskView.findMany({
-    where: scope(view.projectId, view.kind),
+    where: scopeOf(view),
     orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     select: { id: true },
   });

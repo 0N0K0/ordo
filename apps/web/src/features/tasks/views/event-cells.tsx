@@ -12,8 +12,9 @@ import { useEventForm } from '../../calendar/use-event-form';
 import classes from '../TaskTable.module.css';
 import type { TaskContext } from '../use-task-context';
 import { EVENT_STATES, eventState } from './event-format';
-import cellClasses from './inline-cells.module.css';
+import cellClasses from '../../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from './StackedMultiCell';
+import * as fmt from '../../../lib/format';
 
 /**
  * Title of an event row: calendar icon, title (opens the event; struck through when cancelled or postponed) and
@@ -26,7 +27,7 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
   // Cancelled or postponed: struck through, like in the calendar.
   const postponed = event.postponedTo.length > 0;
   const struck = event.calledOff || postponed;
-  const reason = postponed ? `Reporté au ${event.postponedTo.map((item) => new Date(`${String(item.startDate)}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC' })).join(', ')}` : 'Annulé';
+  const reason = postponed ? `Reporté au ${event.postponedTo.map((item) => fmt.day(String(item.startDate))).join(', ')}` : 'Annulé';
   return (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
       <Tooltip label="Évènement" withArrow>
@@ -199,7 +200,6 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
       <DatePickerInput
         {...cellField}
         aria-label={label}
-        valueFormat="D MMM YYYY"
         value={side === 'start' ? startDate : endDate}
         minDate={side === 'end' ? startDate : undefined}
         onChange={(date) => {
@@ -219,7 +219,6 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
     <DateTimePicker
       {...cellField}
       aria-label={label}
-      valueFormat="D MMM YYYY HH:mm"
       value={value}
       minDate={side === 'end' ? startDate : undefined}
       onChange={(next) => {

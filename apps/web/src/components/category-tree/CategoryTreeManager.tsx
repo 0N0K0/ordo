@@ -1,8 +1,9 @@
+import { EmptyState } from '../feedback/EmptyState';
+import { confirmDestructive } from '../dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../panels/panels';
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { DestructiveActions } from '../../features/workspace/DeleteDialogs';
 import { CategoryTree } from './CategoryTree';
 import type { TreeCategory } from './category-tree';
 
@@ -56,10 +57,10 @@ export function CategoryTreeManager<C extends TreeCategory>({
    */
   const openForm = ({ category, parentId }: { category?: C; parentId?: string | null } = {}) => {
     const modalId = `category-tree-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: category ? 'Modifier la catégorie' : parentId ? 'Nouvelle sous-catégorie' : 'Nouvelle catégorie',
-      children: renderForm({ category, parentId, onDone: () => modals.close(modalId) }),
+      children: renderForm({ category, parentId, onDone: () => closePanel(modalId) }),
     });
   };
 
@@ -70,13 +71,11 @@ export function CategoryTreeManager<C extends TreeCategory>({
    * @returns {void}
    */
   const confirmDelete = (category: C, path: string) => {
-    const modalId = `delete-category-${category.id}`;
     const used = usage.get(category.id) ?? 0;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer la catégorie',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             {deleteMessage?.(category, path) ?? (
               <>
@@ -85,16 +84,11 @@ export function CategoryTreeManager<C extends TreeCategory>({
               </>
             )}
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              onDelete(category.id);
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        onDelete(category.id);
+      },
     });
   };
 
@@ -119,9 +113,7 @@ export function CategoryTreeManager<C extends TreeCategory>({
             <ThemeIcon variant="light" color="gray" radius="xl">
               <TagIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucune catégorie pour le moment.
-            </Text>
+            <EmptyState compact message="Aucune catégorie pour le moment." />
           </Group>
         ) : (
           <CategoryTree

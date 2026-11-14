@@ -1,18 +1,25 @@
-import { Button, Group, Paper, Skeleton, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { TableSkeleton } from '../../components/feedback/Skeletons';
+import { Group, Stack } from '@mantine/core';
 import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, type RoutineViewConfig } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import type { ColumnMenuExtras } from '../../components/data-table/ColumnHeaderMenu';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
+import { shownColumns } from '../../components/data-table/data-table';
+import { ExportButtons } from '../../components/data-table/DataViewBar';
 import { newConditionFor } from '../tasks/views/filter-meta';
 import { ROUTINE_COLUMNS } from './routine-columns';
 import { useSearchParams } from 'react-router';
-import { PageTitle } from '../../components/PageTitle';
+import { PageTabs } from '../../components/PageTabs';
 import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
-import { keptByView, routineFilterFields, routineGrouping, sortRoutines, useRoutineView } from './routine-view';
+import { useSlotRules } from '../slot-rules/use-slot-rules';
+import { keptByView, routineFilterFields, routineGrouping, routineTexts, sortRoutines, useRoutineView } from './routine-view';
 import { RoutineViewToolbar } from './RoutineViewToolbar';
 import { ViewTabs } from '../tasks/views/ViewTabs';
 import { RoutineHistory } from './RoutineHistory';
@@ -64,7 +71,11 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const today = localToday();
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
-  const env = useMemo(() => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context } : null), [today, routines, categories, context]);
+  const slotRules = useSlotRules();
+  const env = useMemo(
+    () => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context, doable: (routine: Routine) => slotRules.allowed(routine.slotRule) } : null),
+    [today, routines, categories, context, slotRules],
+  );
 
   /**
    * Whether a routine is shown: of the project (on a project page) and kept by the view.
@@ -87,9 +98,9 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
         <div style={{ minWidth: 0, flex: 1 }}>
           <ViewTabs state={state} />
         </div>
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
           Nouvelle routine
-        </Button>
+        </ActionButton>
       </Group>
       {config && env && columnLayout && (
         <RoutineViewToolbar
@@ -102,32 +113,33 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           filterOpened={filterOpened}
           onFilterOpenedChange={setFilterOpened}
           columns={<DataColumnsPanel columns={ROUTINE_COLUMNS} layout={columnLayout} onLayoutChange={(next) => state.change((current) => ({ ...current, ...next }))} />}
+          exports={
+            <ExportButtons
+              disabled={count === 0}
+              table={() => {
+                const texts = routineTexts(env);
+                return {
+                  title: 'Routines',
+                  subtitle: state.current?.name ?? '',
+                  columns: shownColumns(ROUTINE_COLUMNS, columnLayout).map((column) => ({ ...column, text: texts[column.id] })),
+                  groups: [{ key: '', label: '', rows: layout.filter(keep) }],
+                  grouped: false,
+                };
+              }}
+            />
+          }
         />
       )}
       {isLoading || !context || !config || !env ? (
-        <Stack gap="xs" aria-label="Chargement">
-          {[0, 1, 2, 3].map((index) => (
-            <Skeleton key={index} height={36} />
-          ))}
-        </Stack>
+        <TableSkeleton rows={4} />
       ) : count === 0 && routines.length > 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon variant="light" size="xl" radius="xl">
-              <ArrowsClockwiseIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed" ta="center">
-              {projectIds ? 'Aucune routine de ce projet dans cette vue : une routine y est rattachée par son champ « Projet ».' : 'Aucune routine dans cette vue.'}
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState
+          icon={<ArrowsClockwiseIcon aria-hidden />}
+          message={projectIds ? 'Aucune routine de ce projet dans cette vue : une routine y est rattachée par son champ « Projet ».' : 'Aucune routine dans cette vue.'}
+        />
       ) : (
         <Stack gap="xs">
-          {routines.length === 0 && (
-            <Text size="sm" c="dimmed">
-              Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…
-            </Text>
-          )}
+          {routines.length === 0 && <EmptyState compact message="Aucune routine pour le moment. Une routine est une tâche qui revient : laver le linge, arroser les plantes…" />}
           <RoutineTable
             routines={routines}
             layout={layout}
@@ -162,9 +174,9 @@ export function RoutinesPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Routines</PageTitle>
+      <PageHeader title="Routines" />
       <RoutineSettings />
-      <Tabs
+      <PageTabs
         value={tab}
         onChange={(value) =>
           setParams(
@@ -180,18 +192,18 @@ export function RoutinesPage() {
         }
         keepMounted={false}
       >
-        <Tabs.List mb="md">
-          <Tabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
+        <PageTabs.List>
+          <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Routines
-          </Tabs.Tab>
-          <Tabs.Tab value="history" leftSection={<ClockCounterClockwiseIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="history" leftSection={<ClockCounterClockwiseIcon aria-hidden />}>
             Historique
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="routines">
+          </PageTabs.Tab>
+        </PageTabs.List>
+        <PageTabs.Panel value="routines">
           <RoutinesPanel />
-        </Tabs.Panel>
-        <Tabs.Panel value="history">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="history">
           <RoutineHistory
             routineId={params.get('routine')}
             onRoutine={(id) =>
@@ -206,8 +218,8 @@ export function RoutinesPage() {
               )
             }
           />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
     </Stack>
   );
 }

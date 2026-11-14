@@ -3,6 +3,7 @@ import {
   parseDay,
   routineCategorySchema,
   routineOccurrences,
+  readSlotRule,
   routineSchema,
   routineCaseSchema,
   routineCaseOn,
@@ -34,7 +35,7 @@ import {
 import { z } from 'zod';
 import { prisma } from '../db';
 import { saveSiblingOrder } from './ordering';
-import type { Routine, RoutineCategory, WorkSchedule } from '../generated/prisma/client';
+import { Prisma, type Routine, type RoutineCategory, type WorkSchedule } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
 import { storedRecurrence } from './calendar-events';
 import { scheduleRule } from './work-schedules';
@@ -70,7 +71,8 @@ function reaches(parentOf: Map<string, string | null>, start: string, id: string
 }
 
 /** Routine with what its occurrences are computed from. */
-export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'scheduleAnchor' | 'cases' | 'moves' | 'fromTime' | 'dueTime'> & { schedule: WorkSchedule | null };
+export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'scheduleAnchor' | 'cases' | 'moves' | 'fromTime' | 'dueTime'> &
+  Partial<Pick<Routine, 'opensOn'>> & { schedule: WorkSchedule | null };
 
 /**
  * Stored cases of a routine (invalid ones left out).
@@ -112,7 +114,7 @@ export function occurrencesOf(routine: RoutineTiming, today = routineToday()): {
   const compute = (day: string) => {
     if (cases.length) return casesOccurrences(cases, start, day);
     if (schedule) return scheduleOccurrences(schedule, start, day);
-    return rule ? routineOccurrences(rule, start, day) : { current: null, next: null };
+    return rule ? routineOccurrences(rule, start, day, routine.opensOn ?? null) : { current: null, next: null };
   };
   return movedOccurrences(compute, storedMoves(routine.moves), today);
 }
@@ -347,6 +349,8 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   scheduleId: data.scheduleId,
   scheduleAnchor: data.scheduleAnchor,
   reminders: [...new Set(data.reminders)].sort((a, b) => a - b),
+  opensOn: data.opensOn,
+  slotRule: data.slotRule ?? Prisma.DbNull,
   cases: data.cases,
   location: data.location,
   locationLat: data.location ? data.locationLat : null,
@@ -427,6 +431,8 @@ async function inputOf(id: string): Promise<RoutineInput> {
     scheduleId: routine.scheduleId,
     scheduleAnchor: routine.scheduleAnchor as RoutineAnchor | null,
     reminders: routine.reminders,
+    opensOn: routine.opensOn,
+    slotRule: readSlotRule(routine.slotRule),
     cases: storedCases(routine.cases),
     location: routine.location,
     locationLat: routine.locationLat,

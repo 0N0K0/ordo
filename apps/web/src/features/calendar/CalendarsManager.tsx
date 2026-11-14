@@ -1,10 +1,12 @@
-import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Skeleton, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../../components/panels/panels';
+import { ActionIcon, Button, ColorInput, ColorSwatch, Group, Paper, Stack, Switch, Text, TextInput, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { calendarFormSchema, type CalendarFormValues } from '@ordo/shared';
 import { ArrowDownIcon, ArrowUpIcon, CalendarBlankIcon, DownloadSimpleIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { WorkspaceKindIcon } from '../workspaces/WorkspaceKindIcon';
 import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars, type Calendar, type SubscribableCalendar } from './api';
@@ -77,10 +79,10 @@ function OwnCalendars() {
    */
   const openForm = (calendar?: Calendar) => {
     const modalId = `calendar-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: calendar ? 'Modifier le calendrier' : 'Nouveau calendrier',
-      children: <CalendarForm calendar={calendar} onDone={() => modals.close(modalId)} />,
+      children: <CalendarForm calendar={calendar} onDone={() => closePanel(modalId)} />,
     });
   };
 
@@ -90,26 +92,19 @@ function OwnCalendars() {
    * @returns {void}
    */
   const confirmDelete = (calendar: Calendar) => {
-    const modalId = `delete-calendar-${calendar.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer le calendrier',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">
             Le calendrier « {calendar.name} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans lien. Les autres
             espaces abonnés ne le verront plus. Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(calendar.id, { onSuccess: () => notifySuccess('Calendrier supprimé.'), onError });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(calendar.id, { onSuccess: () => notifySuccess('Calendrier supprimé.'), onError });
+      },
     });
   };
 
@@ -137,7 +132,7 @@ function OwnCalendars() {
           </Group>
         </Group>
         {isPending ? (
-          <Skeleton height={48} />
+          <ListSkeleton items={2} />
         ) : (
           <Stack gap={4}>
             {calendars.map((calendar, index) => (
@@ -215,15 +210,13 @@ function OtherCalendars() {
           </Text>
         </Stack>
         {isPending ? (
-          <Skeleton height={48} />
+          <ListSkeleton items={2} />
         ) : byWorkspace.size === 0 ? (
           <Group gap="sm">
             <ThemeIcon variant="light" color="gray" radius="xl">
               <CalendarBlankIcon aria-hidden />
             </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun autre espace pour le moment.
-            </Text>
+            <EmptyState compact message="Aucun autre espace pour le moment." />
           </Group>
         ) : (
           <Stack gap="sm">

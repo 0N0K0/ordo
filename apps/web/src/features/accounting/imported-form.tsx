@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import type { ImportedDocument } from './documents-api';
 import { ImportedDocumentForm } from './ImportedDocumentForm';
 
@@ -11,10 +11,9 @@ let modalCount = 0;
  */
 export function openImportForm(document?: ImportedDocument): void {
   const modalId = `imported-document-${++modalCount}`;
-  modals.open({
-    modalId,
+  openPanel({
+    panelId: modalId,
     title: document ? `Document importé ${document.number}` : 'Importer un devis ou une facture',
-    size: 'lg',
-    children: <ImportedDocumentForm document={document} onDone={() => modals.close(modalId)} />,
+    children: <ImportedDocumentForm document={document} onDone={() => closePanel(modalId)} />,
   });
 }

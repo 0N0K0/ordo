@@ -14,6 +14,8 @@ interface RoutineViewToolbarProps {
   onRevert: () => void;
   /** Columns panel of the table. */
   columns: ReactNode;
+  /** Export buttons. */
+  exports: ReactNode;
   /** Filter popover state (also opened from the column menus). */
   filterOpened: boolean;
   onFilterOpenedChange: (opened: boolean) => void;
@@ -25,7 +27,7 @@ interface RoutineViewToolbarProps {
  * @param {RoutineViewToolbarProps} props Component props.
  * @returns {JSX.Element} Toolbar.
  */
-export function RoutineViewToolbar({ config, change, fields, dirty, onSave, onRevert, columns, filterOpened, onFilterOpenedChange }: RoutineViewToolbarProps) {
+export function RoutineViewToolbar({ config, change, fields, dirty, onSave, onRevert, columns, exports, filterOpened, onFilterOpenedChange }: RoutineViewToolbarProps) {
   return (
     <SavedViewToolbar
       config={config}
@@ -41,6 +43,7 @@ export function RoutineViewToolbar({ config, change, fields, dirty, onSave, onRe
       onSave={onSave}
       onRevert={onRevert}
       columns={columns}
+      exports={exports}
       filterOpened={filterOpened}
       onFilterOpenedChange={onFilterOpenedChange}
       options={

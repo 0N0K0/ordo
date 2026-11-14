@@ -1,0 +1,164 @@
+@layer app {
+  /*
+   * Tabs of a page. Height: 2 steps of the vertical rhythm. Colors: the active tab has the background of the page
+   * (open on its content), the others a tinted one, closed by their bottom border.
+   */
+  .root {
+    --page-tab-height: calc(2 * var(--onoko-vertical-step));
+    --page-tab-border: 1px solid var(--mantine-color-default-border);
+    --page-tab-closed: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+    --page-tab-hover: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    --page-tab-pressed: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  /* On all the width of the page, beyond its margins (the sidebar and the window edge close it on its sides). */
+  .list {
+    /* Position: at the top of the window while the page scrolls, with a loose density (md in width and in height). */
+    @media (min-width: 45em) and (min-height: 67.5em) {
+      position: sticky;
+      top: var(--app-shell-header-offset, 0rem);
+      z-index: 3;
+    }
+
+    /* Agencement */
+    display: flex;
+    flex-wrap: nowrap;
+
+    /* Dimension */
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    /* Espacement */
+    margin-inline: calc(-1 * var(--page-gutter, 0px));
+
+    /* Arrière-Plan: what scrolls under it is hidden. */
+    background: var(--mantine-color-body);
+
+    /* Bordures */
+    border-block-start: var(--page-tab-border);
+
+    /* Interaction */
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  /* Each tab takes an even share of the width (never less than its title: the list then scrolls). */
+  .tab {
+    /* Position */
+    position: relative;
+
+    /* The line of the main color on the top of the active tab. */
+    &[data-active]::before {
+      /* Position */
+      position: absolute;
+      inset: -1px 0 auto;
+
+      /* Dimension */
+      height: 3px;
+
+      /* Arrière-Plan */
+      background: var(--mantine-primary-color-filled);
+
+      content: '';
+    }
+
+    /* Agencement */
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+
+    /* Dimension */
+    min-width: max-content;
+    height: var(--page-tab-height);
+
+    /* Espacement */
+    padding-inline: var(--mantine-spacing-lg);
+    gap: var(--mantine-spacing-xs);
+
+    /* Typographie: the family of the UI titles; the active one in the color of the text. */
+    font-family: var(--mantine-font-family-headings);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+
+    &[data-active] {
+      color: var(--mantine-color-text);
+    }
+
+    /* Arrière-Plan: the active one open on its content (the background of the page). */
+    background: var(--page-tab-closed);
+
+    &:hover:not([data-active], [data-disabled]) {
+      background: var(--page-tab-hover);
+    }
+
+    &:active:not([data-active], [data-disabled]) {
+      background: var(--page-tab-pressed);
+    }
+
+    &[data-active] {
+      background: var(--mantine-color-body);
+    }
+
+    /* Bordures: one line between two tabs (none on the outer sides), the bottom one closing the inactive tabs. */
+    border: none;
+    border-block-end: var(--page-tab-border);
+    outline: none;
+
+    & + & {
+      border-inline-start: var(--page-tab-border);
+    }
+
+    &[data-active] {
+      border-block-end-color: transparent;
+    }
+
+    /* Effets: the keyboard focus as a ring inside the tab. */
+    &:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--mantine-primary-color-filled);
+    }
+
+    &[data-disabled] {
+      opacity: 0.4;
+    }
+
+    /* Animation */
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
+
+    /* Interaction */
+    cursor: pointer;
+
+    &[data-disabled] {
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+
+  .section {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+  }
+
+  .label {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+  }
+
+  /* The content of a tab, under it. */
+  .panel {
+    /* Espacement */
+    padding-block-start: var(--mantine-spacing-lg);
+  }
+}

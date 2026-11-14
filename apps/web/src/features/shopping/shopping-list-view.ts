@@ -24,9 +24,10 @@ import type { TaskContext } from '../tasks/use-task-context';
 import type { ShoppingCategory, ShoppingList, ShoppingStore } from './api';
 import { shoppingTotal } from './export';
 import { listClosed, listTasks } from './shopping-format';
+import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
-const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
 
 export const SHOPPING_LIST_FIELD_LABELS: Record<ShoppingListFilterField, string> = {
   name: 'Nom',
@@ -203,7 +204,7 @@ function meets(condition: ShoppingListFilterCondition, list: ShoppingList, env: 
     case 'date': {
       if (typeof value !== 'string') return false;
       if (operator === 'within') {
-        const [from, to] = filterPeriod(String(wanted), env.today);
+        const [from, to] = filterPeriod(String(wanted), env.today, currentWeek());
         return value >= from && value < to;
       }
       const day = filterDay(String(wanted), env.today);
@@ -366,7 +367,7 @@ export function listRows(lists: ShoppingList[], groupBy: ShoppingListGroupBy | n
       const monthOf = (list: ShoppingList) => String(list.createdAt).slice(0, 7);
       const months = [...new Set(lists.map(monthOf))].sort((a, b) => b.localeCompare(a));
       return flat(
-        months.map((month) => ({ key: month, name: monthFormat.format(new Date(`${month}-01T12:00:00`)) })),
+        months.map((month) => ({ key: month, name: fmt.month(month) })),
         monthOf,
       );
     }

@@ -1,5 +1,5 @@
+import { closePanel, openPanel } from '../../components/panels/panels';
 import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { recurrenceSchema, type Recurrence } from '@ordo/shared';
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -22,7 +22,7 @@ function ruleOf(task: Task): Recurrence | null {
 }
 
 /**
- * Repetition form of a series, in a modal.
+ * Repetition form of a series, in the side panel.
  * @param {{ task: Task, start: string, onDone: () => void }} props First task of the series and its date.
  * @returns {JSX.Element} Form.
  */
@@ -81,11 +81,10 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
   const open = () => {
     if (!start) return;
     const modalId = `task-recurrence-${first.id}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: `Répétition — #${first.number} ${first.title}`,
-      size: 'lg',
-      children: <RecurrenceForm task={first} start={start} onDone={() => modals.close(modalId)} />,
+      children: <RecurrenceForm task={first} start={start} onDone={() => closePanel(modalId)} />,
     });
   };
 
@@ -108,7 +107,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
             </Text>
           )}
         </Stack>
-        <Button size="compact-sm" variant="light" leftSection={<ArrowsClockwiseIcon aria-hidden />} disabled={!start || task.archived} onClick={open}>
+        <Button size="compact-sm" variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} disabled={!start || task.archived} onClick={open}>
           {rule ? 'Modifier' : 'Répéter'}
         </Button>
       </Group>

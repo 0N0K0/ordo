@@ -11,8 +11,8 @@ import { useTaskLink } from '../tasks/use-task-link';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
 import { dayLabel, daysBetween, localDayOf, type WeekTime } from './home-data';
+import * as fmt from '../../lib/format';
 
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const MAX_ROWS = 7;
 
 interface TasksCardProps {
@@ -99,14 +99,14 @@ export function AgendaCard({ today }: { today: string }) {
     for (const event of events.data) {
       if (!event.allDay && event.end && Date.parse(String(event.end)) < now.getTime()) continue;
       const start = event.allDay ? null : new Date(String(event.start));
-      list.push({ key: event.key, day: start ? localDayOf(start.toISOString()) : event.startDate, time: start ? timeFormat.format(start) : null, title: event.title, alarm: false });
+      list.push({ key: event.key, day: start ? localDayOf(start.toISOString()) : event.startDate, time: start ? fmt.time(start) : null, title: event.title, alarm: false });
     }
     for (const alarm of alarms.data) {
       if (!alarm.enabled || alarm.type === 'TRACKING_DURATION') continue;
       const next = nextOccurrence(alarm, now);
       if (!next) continue;
       const day = localDayOf(next.toISOString());
-      if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: timeFormat.format(next), title: alarm.title, alarm: true });
+      if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), title: alarm.title, alarm: true });
     }
     return list.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? '').localeCompare(b.time ?? ''));
   }, [events.data, alarms.data, today]);

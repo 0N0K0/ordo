@@ -1,8 +1,9 @@
 import { Avatar, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { PaperclipIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { addressLabel, fileSize, fullDate, senderName, type Address } from './mail-format';
+import { addressLabel, fullDate, senderName, type Address } from './mail-format';
 import { FileLink } from '../files/FileLink';
+import * as fmt from '../../lib/format';
 
 interface MailHeaderProps {
   subject: string;
@@ -67,7 +68,7 @@ export function MailFiles({ files }: { files: { key: string; name: string; size:
               {file.name}
             </FileLink>
             <Text size="xs" c="dimmed">
-              {fileSize(file.size)}
+              {fmt.fileSize(file.size)}
             </Text>
           </Group>
         </Paper>

@@ -1,10 +1,13 @@
-import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { closePanel, openPanel } from '../../components/panels/panels';
+import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
-import { modals } from '@mantine/modals';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
 import { DotsSixVerticalIcon, DotsThreeIcon, FlagIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -12,12 +15,10 @@ import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { useMilestoneMutations, type Milestone } from './api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
 import { useTaskContext, type TaskContext } from './use-task-context';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 interface MilestoneFormProps {
   projectId: string;
@@ -27,7 +28,7 @@ interface MilestoneFormProps {
 }
 
 /**
- * Milestone creation / edition form, in a modal.
+ * Milestone creation / edition form, in the side panel.
  * @param {MilestoneFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -162,11 +163,10 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
    */
   const openForm = (milestone?: Milestone) => {
     const modalId = `milestone-${++modalCount}`;
-    modals.open({
-      modalId,
+    openPanel({
+      panelId: modalId,
       title: milestone ? 'Modifier le jalon' : 'Nouveau jalon',
-      size: 'lg',
-      children: <MilestoneForm projectId={projectId} milestone={milestone} context={context} onDone={() => modals.close(modalId)} />,
+      children: <MilestoneForm projectId={projectId} milestone={milestone} context={context} onDone={() => closePanel(modalId)} />,
     });
   };
 
@@ -177,27 +177,14 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmDelete = (milestone: Milestone, count: number) => {
-    const modalId = `delete-milestone-${milestone.id}`;
-    modals.open({
-      modalId,
-      title: 'Supprimer le jalon',
-      children: (
-        <Stack gap="md">
-          <Text size="sm">
+    confirmDestructive({ title: 'Supprimer le jalon', risks: (
+<>
+<Text size="sm">
             Le jalon « {milestone.title} » sera supprimé définitivement
             {count > 0 ? ` et retiré des ${count} tâche${count > 1 ? 's' : ''} qui l’utilisent` : ''}. Les tâches ne sont pas supprimées. Cette action est irréversible.
           </Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate({ id: milestone.id }, { onSuccess: () => notifySuccess('Jalon supprimé.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
-      ),
-    });
+</>
+), onConfirm: () => { remove.mutate({ id: milestone.id }, { onSuccess: () => notifySuccess('Jalon supprimé.'), onError: (error) => notifyError(error.message) }); } });
   };
 
   return (
@@ -208,22 +195,11 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         </Text>
         <Group gap="sm">
           <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
-            Nouveau jalon
-          </Button>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
         </Group>
       </Group>
       {milestones.length === 0 ? (
-        <Paper withBorder radius="md" p="xl">
-          <Stack align="center" gap="sm">
-            <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-              <FlagIcon aria-hidden />
-            </ThemeIcon>
-            <Text size="sm" c="dimmed">
-              Aucun jalon pour ce projet.
-            </Text>
-          </Stack>
-        </Paper>
+        <EmptyState icon={<FlagIcon aria-hidden />} message="Aucun jalon pour ce projet." />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={milestones.map((milestone) => milestone.id)} strategy={verticalListSortingStrategy}>
@@ -243,7 +219,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                           </Title>
                         </Group>
                         <Text size="sm" c={late ? 'red' : 'dimmed'} fw={late ? 600 : undefined}>
-                          {milestone.dueDate ? `Échéance : ${dateFormat.format(new Date(`${milestone.dueDate}T00:00:00Z`))}` : 'Sans échéance'}
+                          {milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}
                           {late && ' — en retard'}
                         </Text>
                       </Stack>

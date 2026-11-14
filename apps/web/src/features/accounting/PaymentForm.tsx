@@ -1,4 +1,5 @@
-import { Alert, Anchor, Button, Group, NumberInput, Select, Skeleton, Stack } from '@mantine/core';
+import { FormSkeleton } from '../../components/feedback/Skeletons';
+import { Alert, Anchor, Button, Group, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { documentPaymentSchema } from '@ordo/shared';
 import { Link } from 'react-router';
@@ -7,6 +8,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type TreasuryPaymentMethod } from '../treasury/api';
 import { useTrackingMutations } from './tracking-api';
+import { AmountInput } from '../../components/AmountInput';
 
 /** Document a payment (or refund) is recorded on: what the form needs of it. */
 export interface PayableDocument {
@@ -34,7 +36,7 @@ export function PaymentForm({ document, onDone }: { document: PayableDocument; o
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
   // The form starts once the accounts and methods are known, so that the first account and the usual method are chosen.
-  if (!accounts || !settings) return <Skeleton height={240} />;
+  if (!accounts || !settings) return <FormSkeleton fields={4} />;
   const refund = document.type === 'CREDIT_NOTE';
   const methods = settings.treasuryPaymentMethods.filter((method) => (refund ? method.outgoing : method.incoming));
   return <PaymentFields document={document} accounts={accounts} methods={methods} onDone={onDone} />;
@@ -95,8 +97,8 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
     >
       <Stack gap="sm">
         <Select label="Compte" required data={open.map((account) => ({ value: account.id, label: account.name }))} allowDeselect={false} {...form.getInputProps('accountId')} />
-        <DatePickerInput label="Date" required valueFormat="D MMM YYYY" {...form.getInputProps('date')} />
-        <NumberInput label="Montant" required min={0} decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" {...form.getInputProps('amount')} />
+        <DatePickerInput label="Date" required {...form.getInputProps('date')} />
+        <AmountInput label="Montant" required min={0} suffix=" €" {...form.getInputProps('amount')} />
         <Select
           label="Moyen de paiement"
           clearable

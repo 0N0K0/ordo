@@ -1,6 +1,7 @@
 import { shoppingCost } from '@ordo/shared';
 import type { ShoppingItem, ShoppingList } from './api';
-import { money, quantityText, type ShoppingRow } from './shopping-format';
+import { quantityText, type ShoppingRow } from './shopping-format';
+import * as fmt from '../../lib/format';
 
 /**
  * Names of the people an item is for.
@@ -37,14 +38,14 @@ export function shoppingText(list: ShoppingList, rows: ShoppingRow<ShoppingItem>
     }
     const { item } = row;
     const cost = shoppingCost(item);
-    const details = [quantityText(item), peopleText(item, people) ? `pour ${peopleText(item, people)}` : '', cost !== null ? money(cost) : ''].filter(Boolean).join(' · ');
+    const details = [quantityText(item), peopleText(item, people) ? `pour ${peopleText(item, people)}` : '', cost !== null ? fmt.money(cost) : ''].filter(Boolean).join(' · ');
     lines.push(`${indent}${item.purchasedAt ? '☑' : '☐'} ${item.name}${details ? ` (${details})` : ''}`);
     if (item.note) lines.push(`${indent}    ${item.note}`);
     if (item.url) lines.push(`${indent}    ${item.url}`);
   }
   lines.push('');
   const total = shoppingTotal(list.items);
-  if (total) lines.push(`Total estimé : ${money(total)}`);
+  if (total) lines.push(`Total estimé : ${fmt.money(total)}`);
   return lines.join('\n').trim();
 }
 
@@ -64,7 +65,7 @@ export async function downloadShoppingPdf(list: ShoppingList, tableRows: Shoppin
     return {
       kind: 'row',
       depth: row.depth,
-      cells: [item.purchasedAt ? 'Oui' : '', item.name, quantityText(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? money(cost) : ''],
+      cells: [item.purchasedAt ? 'Oui' : '', item.name, quantityText(item), peopleText(item, people), [item.note, item.url].filter(Boolean).join('\n'), cost !== null ? fmt.money(cost) : ''],
     };
   });
   const response = await fetch('/api/exports/table.pdf', {
@@ -73,7 +74,7 @@ export async function downloadShoppingPdf(list: ShoppingList, tableRows: Shoppin
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       title: list.name,
-      subtitle: total ? `Total estimé : ${money(total)}` : '',
+      subtitle: total ? `Total estimé : ${fmt.money(total)}` : '',
       columns: ['Acheté', 'Produit', 'Quantité', 'Pour', 'Note', 'Prix estimé'],
       rows,
       align: ['left', 'left', 'right', 'left', 'left', 'right'],

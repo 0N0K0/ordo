@@ -1,5 +1,8 @@
-import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
+import { TaskSettings } from '../../tasks/settings/TaskSettings';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { PageTabs } from '../../../components/PageTabs';
+import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
@@ -24,8 +27,7 @@ import { EntityNotFound, EntitySkeleton } from './EntityState';
 import { ProjectList } from './ProjectList';
 import { PageSettings } from '../../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../../layouts/page-settings';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
+import * as fmt from '../../../lib/format';
 
 /**
  * Formats a YYYY-MM-DD date for display.
@@ -33,7 +35,7 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZon
  * @returns {string} Formatted date, or a dash.
  */
 function formatDate(date: string | null): string {
-  return date ? dateFormat.format(new Date(`${date}T00:00:00Z`)) : '—';
+  return date ? fmt.day(date) : '—';
 }
 
 /**
@@ -55,11 +57,12 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Sections of the settings tab of a project. */
-const SETTINGS_SECTIONS = ['milestones', 'sprints', 'contributors', 'github', 'project'] as const;
+const SETTINGS_SECTIONS = ['taskSettings', 'milestones', 'sprints', 'contributors', 'github', 'project'] as const;
 type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /**
- * Settings of a project, in the settings sidebar, one section at a time (chosen above it): milestones, sprints,
+ * Settings of a project, in the settings sidebar, one section at a time (chosen above it): the task settings of the
+ * workspace, milestones, sprints,
  * contributors, GitHub, and the project itself (title, client, parent, status, dates, color, icon…).
  * @param {{ project: Project, section: SettingsSection, onSection: (section: SettingsSection) => void }} props Project, section shown and its change.
  * @returns {JSX.Element} Settings.
@@ -69,6 +72,9 @@ function ProjectSettings({ project, section, onSection }: { project: Project; se
   return (
     <Tabs variant="pills" value={section} onChange={(value) => value && onSection(value as SettingsSection)} keepMounted={false}>
       <Tabs.List mb="md">
+        <Tabs.Tab value="taskSettings" leftSection={<ListChecksIcon aria-hidden />}>
+          Tâches
+        </Tabs.Tab>
         <Tabs.Tab value="milestones" leftSection={<FlagIcon aria-hidden />}>
           Jalons
         </Tabs.Tab>
@@ -85,6 +91,10 @@ function ProjectSettings({ project, section, onSection }: { project: Project; se
           Projet
         </Tabs.Tab>
       </Tabs.List>
+      {/* The task settings of the workspace, in every view of tasks. */}
+      <Tabs.Panel value="taskSettings" style={{ minWidth: 0 }}>
+        <TaskSettings />
+      </Tabs.Panel>
       <Tabs.Panel value="milestones" style={{ minWidth: 0 }}>
         <MilestonesPanel projectId={projectId} />
       </Tabs.Panel>
@@ -121,7 +131,8 @@ export function ProjectPage() {
   // The dashboards are in the overview.
   const tab = legacy || requested === 'settings' || requested === 'dashboards' || (perso && requested === 'billing') ? 'overview' : requested;
   const sectionParam = legacy ? requested : params.get('section');
-  const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : 'milestones';
+  // From the tasks tab, the settings open on those of the tasks.
+  const section: SettingsSection = (SETTINGS_SECTIONS as readonly string[]).includes(sectionParam ?? '') ? (sectionParam as SettingsSection) : tab === 'tasks' ? 'taskSettings' : 'milestones';
   // The former settings tab (and its sections): the settings, in the sidebar.
   useEffect(() => {
     if (!legacy && requested !== 'settings') return;
@@ -185,18 +196,15 @@ export function ProjectPage() {
         }
         extraActions={
           canAddSubProject && (
-            <Button
-              variant="light"
-              leftSection={<FolderPlusIcon aria-hidden />}
+            <ActionButton
+              icon={<FolderPlusIcon aria-hidden />}
               onClick={() => actions.openProjectForm(undefined, { parentId: project.id })}
-            >
-              Ajouter un sous-projet
-            </Button>
+            >Nouveau sous-projet</ActionButton>
           )
         }
       />
 
-      <Tabs
+      <PageTabs
         value={tab}
         onChange={(value) => {
           // Changing tab drops the view and the open task of the previous tab; the settings sidebar stays as it is.
@@ -211,35 +219,35 @@ export function ProjectPage() {
         }}
         keepMounted={false}
       >
-        <Tabs.List mb="lg">
-          <Tabs.Tab value="overview" leftSection={<InfoIcon aria-hidden />}>
+        <PageTabs.List>
+          <PageTabs.Tab value="overview" leftSection={<InfoIcon aria-hidden />}>
             Aperçu
-          </Tabs.Tab>
-          <Tabs.Tab value="tasks" leftSection={<CheckSquareOffsetIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="tasks" leftSection={<CheckSquareOffsetIcon aria-hidden />}>
             Tâches
-          </Tabs.Tab>
-          <Tabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>
             Routines
-          </Tabs.Tab>
-          <Tabs.Tab value="shopping" leftSection={<BasketIcon aria-hidden />}>
-            Courses
-          </Tabs.Tab>
-          <Tabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="shopping" leftSection={<BasketIcon aria-hidden />}>
+            Achats
+          </PageTabs.Tab>
+          <PageTabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
-          </Tabs.Tab>
+          </PageTabs.Tab>
           {!perso && (
-            <Tabs.Tab value="billing" leftSection={<ReceiptIcon aria-hidden />}>
+            <PageTabs.Tab value="billing" leftSection={<ReceiptIcon aria-hidden />}>
               Facturation
-            </Tabs.Tab>
+            </PageTabs.Tab>
           )}
-          <Tabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
+          <PageTabs.Tab value="mail" leftSection={<EnvelopeSimpleIcon aria-hidden />}>
             Mails
-          </Tabs.Tab>
-          <Tabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="resources" leftSection={<PaperclipIcon aria-hidden />}>
             Ressources
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="overview">
+          </PageTabs.Tab>
+        </PageTabs.List>
+        <PageTabs.Panel value="overview">
           <Stack gap="xl">
               <Paper withBorder p="lg" radius="md">
                 <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
@@ -294,8 +302,8 @@ export function ProjectPage() {
 
               <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
           </Stack>
-        </Tabs.Panel>
-        <Tabs.Panel value="tasks">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="tasks">
           <TaskBoard
             key={project.id}
             projectId={project.id}
@@ -304,26 +312,26 @@ export function ProjectPage() {
             createProjectId={project.archived ? undefined : project.id}
             emptyMessage="Aucune tâche dans ce projet."
           />
-        </Tabs.Panel>
-        <Tabs.Panel value="routines">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="routines">
           <RoutinesPanel key={project.id} projectId={project.archived ? undefined : project.id} projectIds={tree} />
-        </Tabs.Panel>
-        <Tabs.Panel value="shopping">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="shopping">
           <ListsPanel key={project.id} projectId={project.id} projectIds={tree} />
-        </Tabs.Panel>
-        <Tabs.Panel value="time">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="billing">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="billing">
           <ProjectBillingPanel projectId={project.id} clientId={project.clientId} />
-        </Tabs.Panel>
-        <Tabs.Panel value="resources">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="resources">
           <ProjectResourcesPanel projectId={project.id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="mail">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="mail">
           <ProjectMailsPanel projectId={project.id} />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
       {/* Milestones, sprints, contributors, GitHub and the project itself: in the settings sidebar. */}
       <PageSettings title="Paramètres du projet">
         <ProjectSettings

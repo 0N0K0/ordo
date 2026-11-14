@@ -3,7 +3,7 @@ import type { GeoPoint } from '@ordo/shared';
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
+import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
 import { PlaceMap } from './PlaceMap';
@@ -134,7 +134,7 @@ export function PlacesManager() {
           <Group gap="xs" wrap="nowrap" align="flex-start">
             <TextInput size="xs" w={160} aria-label="Nom du nouveau lieu" placeholder="Maison, bureau…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
             <AddressInput size="xs" style={{ flex: 1 }} aria-label="Adresse du nouveau lieu" placeholder="Adresse, ou un clic sur la carte" withPlaces={false} value={address} onChange={setAddress} />
-            <Button type="submit" size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim() || !address.point} loading={save.isPending}>
+            <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim() || !address.point} loading={save.isPending}>
               Ajouter
             </Button>
           </Group>

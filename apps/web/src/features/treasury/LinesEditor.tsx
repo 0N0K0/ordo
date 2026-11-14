@@ -1,5 +1,6 @@
-import { ActionIcon, Button, Group, Indicator, Modal, NumberInput, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
-import { EVERYDAY_CONTEXT, formatMoney, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
+import { SidePanel } from '../../components/panels/SidePanel';
+import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { EVERYDAY_CONTEXT, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { PaperclipIcon, PlusIcon, UsersThreeIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TreasurySettings } from './api';
@@ -7,6 +8,8 @@ import { categoryOptions } from './categories';
 import { LineAttachments } from './LineAttachments';
 import { attachmentCount, newLine, type LineValues } from './lines';
 import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -227,12 +230,9 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       />
                     </Table.Td>
                     <Table.Td>
-                      <NumberInput
+                      <AmountInput
                         size="xs"
                         aria-label={`Valeur de la ligne ${index + 1}`}
-                        decimalScale={2}
-                        decimalSeparator=","
-                        thousandSeparator=" "
                         suffix={line.mode === 'PERCENT' ? ' %' : ' €'}
                         value={line.value}
                         onChange={(value) => {
@@ -253,7 +253,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                     </Table.Td>
                     <Table.Td ta="right">
                       <Text size="sm" c={relative * sign < 0 ? 'red' : 'green'} aria-label={`Montant de la ligne ${index + 1}`}>
-                        {formatMoney(Math.round(relative * sign * 100))}
+                        {fmt.money(relative * sign)}
                       </Text>
                     </Table.Td>
                     <Table.Td>
@@ -276,7 +276,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                 </Table.Td>
                 <Table.Td ta="right">
                   <Text size="sm" fw={remainder === 0 ? undefined : 600}>
-                    {formatMoney(remainder * sign)}
+                    {fmt.moneyCents(remainder * sign)}
                   </Text>
                 </Table.Td>
                 <Table.Td />
@@ -286,7 +286,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
         </ScrollArea>
       )}
       <Group gap="xs">
-        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={add}>
+        <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={add}>
           Ajouter une ligne
         </Button>
         {members.length > 1 && (
@@ -300,7 +300,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
           {errors.lines}
         </Text>
       )}
-      <Modal opened={attaching !== null && lines[attaching] !== undefined} onClose={() => setAttaching(null)} title={`Rattachements de la ligne ${(attaching ?? 0) + 1}`} size="lg">
+      <SidePanel opened={attaching !== null && lines[attaching] !== undefined} onClose={() => setAttaching(null)} title={`Rattachements de la ligne ${(attaching ?? 0) + 1}`}>
         {attaching !== null && lines[attaching] && (
           <LineAttachments
             line={lines[attaching]}
@@ -311,7 +311,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
             onClose={() => setAttaching(null)}
           />
         )}
-      </Modal>
+      </SidePanel>
     </Stack>
   );
 }

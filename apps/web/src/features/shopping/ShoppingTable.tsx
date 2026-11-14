@@ -23,11 +23,11 @@ import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, Sto
 import { inputOf, NO_GROUP, shoppingRows, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
-import { itemColumns } from './shopping-columns';
-import { shownColumns, sortRows, tableWidth, type ShownColumn } from '../../components/data-table/data-table';
+import { tableWidth, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
-import type { TableLayoutState } from '../../components/data-table/use-table-layout';
+import type { DataView } from '../../components/data-table/use-data-view';
+import { NoMatch } from '../../components/data-table/GroupHeaderRow';
 
 /** What a row is dropped on: a heading or a row of a category (or store), null for the one without. */
 interface DropData {
@@ -47,9 +47,8 @@ const collision: CollisionDetection = (args) => {
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
-
 export interface ShoppingTableProps<T extends ShoppingFields> {
-  /** Products or items, in their order. */
+  /** Every product or item, in their order (to move them). */
   items: T[];
   grouping: ShoppingGrouping;
   /** Accessible name of the table. */
@@ -76,11 +75,11 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   add?: ShoppingAdd;
   /** Also the categories (or stores) without rows. Optional. */
   showEmpty?: boolean;
-  /** Columns and sorts of the table (remembered in this browser), chosen from the options of its toolbar. */
-  table: TableLayoutState;
+  /** Saved views of the table: the rows it keeps, sorted, its columns (as on every table). */
+  view: DataView<T>;
 }
 
-interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty' | 'table'> {
+interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty' | 'view'> {
   row: Extract<ShoppingRow<T>, { kind: 'item' }>;
   /** Columns shown. */
   shown: ShownColumn<T>[];
@@ -166,7 +165,7 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
       </Table.Td>
       {shown.map((column, index) => (
         <Table.Td key={column.id} className={tableClasses.cell} style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth - 1} * var(--mantine-spacing-lg))` } : undefined}>
-          {cells[column.id]}
+          {column.id in cells ? cells[column.id] : column.text?.(item)}
         </Table.Td>
       ))}
       <Table.Td w={1}>
@@ -223,11 +222,10 @@ function GroupRow<T>({ row, columns, over, collapsed, onToggle, summary }: Group
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, table, ...rowProps }: ShoppingTableProps<T>) {
-  const { layout, setLayout, sorting, setSorting } = table;
+export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, view, ...rowProps }: ShoppingTableProps<T>) {
+  const { layout, setLayout, sorting, setSorting } = view;
   const tableRef = useRef<HTMLTableElement>(null);
-  const allColumns = itemColumns<T>(grouping, rowProps.extra?.title);
-  const shown = shownColumns(allColumns, layout);
+  const { columns: allColumns, shown } = view;
   const { data } = useShoppingData();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [active, setActive] = useState<T | null>(null);
@@ -235,8 +233,8 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   const [overGroup, setOverGroup] = useState<string | null | undefined>(undefined);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const labels = { categories: categories ?? data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
-  // Sorted within their groups (the groups keep their tree).
-  const rows = visibleRows(shoppingRows(sortRows(items, sorting, allColumns), grouping, labels, showEmpty || active !== null), collapsed);
+  // Kept by the view, sorted within their groups (the groups keep their tree).
+  const rows = visibleRows(shoppingRows(view.rows, grouping, labels, showEmpty || active !== null), collapsed);
   const columns = shown.length + 3;
   const field = grouping === 'category' ? 'categoryId' : 'storeId';
 
@@ -324,6 +322,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
       />
     );
 
+  if (items.length > 0 && view.rows.length === 0) return <NoMatch view={view} />;
   return (
     <DndContext
       sensors={sensors}
@@ -356,6 +355,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
               sorting={sorting}
               onSortingChange={setSorting}
               tableRef={tableRef}
+              columnExtras={view.columnExtras}
               leadingCount={2}
               leading={
                 <>

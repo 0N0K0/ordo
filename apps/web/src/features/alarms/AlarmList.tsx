@@ -1,16 +1,14 @@
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Anchor, Badge, Group, Paper, Stack, Switch, Text, Tooltip } from '@mantine/core';
-import { modals } from '@mantine/modals';
 import { nextOccurrence } from '@ordo/shared';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
-import { DestructiveActions } from '../workspace/DeleteDialogs';
 import { describeAlarm } from './alarm-labels';
 import { useAlarmMutations, type Alarm } from './api';
 import type { AlarmFormOpener } from './use-alarm-form';
-
-const nextFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+import * as fmt from '../../lib/format';
 
 /**
  * Alarm fields to send back unchanged, with some changes.
@@ -50,23 +48,16 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
    * @returns {void}
    */
   const confirmDelete = (alarm: Alarm) => {
-    const modalId = `delete-alarm-${alarm.id}`;
-    modals.open({
-      modalId,
+    confirmDestructive({
       title: 'Supprimer l’alarme',
-      children: (
-        <Stack gap="md">
+      risks: (
+        <>
           <Text size="sm">L’alarme « {alarm.title} » sera supprimée définitivement et ne sonnera plus. Cette action est irréversible.</Text>
-          <DestructiveActions
-            loading={false}
-            onCancel={() => modals.close(modalId)}
-            onConfirm={() => {
-              modals.close(modalId);
-              remove.mutate(alarm.id, { onSuccess: () => notifySuccess('Alarme supprimée.'), onError: (error) => notifyError(error.message) });
-            }}
-          />
-        </Stack>
+        </>
       ),
+      onConfirm: () => {
+        remove.mutate(alarm.id, { onSuccess: () => notifySuccess('Alarme supprimée.'), onError: (error) => notifyError(error.message) });
+      },
     });
   };
 
@@ -91,7 +82,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                 <Text size="sm">{describeAlarm(alarm)}</Text>
                 {alarm.enabled && next && (
                   <Text size="xs" c="dimmed">
-                    Prochaine : {nextFormat.format(next)}
+                    Prochaine : {fmt.dateTimeShort(next)}
                   </Text>
                 )}
                 {(task ?? project) && (

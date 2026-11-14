@@ -1,11 +1,11 @@
-import { Stack, Tabs } from "@mantine/core";
-import { FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
+import { PageHeader } from '../../../components/actions/PageHeader';
+import { Stack } from "@mantine/core";
+import { FoldersIcon, GithubLogoIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { GithubSettings } from "../../github/GithubSettings";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
-import { TaskSettings } from "../../tasks/settings/TaskSettings";
 import { TeamMembers, TeamRelations } from "../../treasury/TeamPanel";
 import { useActiveWorkspace } from "../../workspaces/api";
 import { WorkspacesManager } from "../../workspaces/WorkspacesManager";
@@ -20,12 +20,13 @@ import {
   useWorkspace,
 } from "../api";
 import { SettingsGrid } from "../../../components/settings/SettingsGrid";
-import { PageTitle } from "../../../components/PageTitle";
+import { PageTabs } from '../../../components/PageTabs';
 
 /**
- * Settings, in tabs: projects (statuses, categories), team or household, contributors and relations, tasks (statuses,
- * priorities, types), GitHub and the workspaces (the company: in the settings sidebar of the invoicing). The tab is kept in the URL (?tab=). The settings of
- * the document tracking, the calendar and the mail accounts are in their own views (old links lead there).
+ * Settings of the whole workspace, in tabs: projects (statuses, categories), team or household, contributors and
+ * relations, GitHub and the workspaces. The tab is kept in the URL (?tab=). The settings of the tasks (in every view of
+ * tasks), the document tracking and the company (the invoicing), the calendar and the mail accounts are in the settings
+ * sidebar of their views (old links lead there).
  * @returns {JSX.Element} Page.
  */
 export function SettingsPage() {
@@ -68,37 +69,36 @@ export function SettingsPage() {
     company: perso ? "/" : "/accounting?settings=1&settingsTab=company",
     calendar: "/calendar?settings=1",
     mail: "/mail?settings=1",
+    // In every view of tasks.
+    tasks: "/tasks?settings=1",
   };
   if (moved[asked]) return <Navigate to={moved[asked]} replace />;
 
   return (
     <Stack gap="lg">
-      <PageTitle>Paramètres</PageTitle>
-      <Tabs
+      <PageHeader title="Paramètres" />
+      <PageTabs
         value={tab}
         onChange={(value) =>
           setParams(value && value !== "projects" ? { tab: value } : {})
         }
         keepMounted={false}
       >
-        <Tabs.List mb="lg">
-          <Tabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>
+        <PageTabs.List>
+          <PageTabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>
             Projets
-          </Tabs.Tab>
-          <Tabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
             {perso ? "Foyer et contributeurs" : "Équipe et contributeurs"}
-          </Tabs.Tab>
-          <Tabs.Tab value="tasks" leftSection={<ListChecksIcon aria-hidden />}>
-            Tâches
-          </Tabs.Tab>
-          <Tabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
             GitHub
-          </Tabs.Tab>
-          <Tabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
+          </PageTabs.Tab>
+          <PageTabs.Tab value="workspaces" leftSection={<SquaresFourIcon aria-hidden />}>
             Espaces
-          </Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="projects">
+          </PageTabs.Tab>
+        </PageTabs.List>
+        <PageTabs.Panel value="projects">
           <SettingsGrid>
             <LabelManager
               title="Statuts de projet"
@@ -124,11 +124,8 @@ export function SettingsPage() {
               remove={deleteCategory}
             />
           </SettingsGrid>
-        </Tabs.Panel>
-        <Tabs.Panel value="tasks">
-          <TaskSettings />
-        </Tabs.Panel>
-        <Tabs.Panel value="contributors">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="contributors">
           <SettingsGrid>
             <TeamMembers />
             <TeamRelations />
@@ -137,14 +134,14 @@ export function SettingsPage() {
               usage={assigneeUsage}
             />
           </SettingsGrid>
-        </Tabs.Panel>
-        <Tabs.Panel value="github">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="github">
           <GithubSettings />
-        </Tabs.Panel>
-        <Tabs.Panel value="workspaces">
+        </PageTabs.Panel>
+        <PageTabs.Panel value="workspaces">
           <WorkspacesManager />
-        </Tabs.Panel>
-      </Tabs>
+        </PageTabs.Panel>
+      </PageTabs>
     </Stack>
   );
 }

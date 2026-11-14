@@ -140,7 +140,6 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
               <DatePickerInput
                 label={frequency === 'ONCE' ? 'Date' : 'À partir du'}
                 required
-                valueFormat="D MMM YYYY"
                 {...form.getInputProps('startDate')}
               />
               <TimeField label="Heure" required {...form.getInputProps('time')} />
@@ -161,7 +160,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
                   {...form.getInputProps('interval')}
                   onChange={(value) => form.setFieldValue('interval', typeof value === 'number' ? value : 1)}
                 />
-                <DatePickerInput label="Jusqu’au" clearable placeholder="Sans fin" valueFormat="D MMM YYYY" {...form.getInputProps('endDate')} />
+                <DatePickerInput label="Jusqu’au" clearable placeholder="Sans fin" {...form.getInputProps('endDate')} />
               </SimpleGrid>
             )}
             {frequency === 'WEEKLY' && (

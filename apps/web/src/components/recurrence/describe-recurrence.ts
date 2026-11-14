@@ -1,10 +1,9 @@
 import { parseDay, type Recurrence } from '@ordo/shared';
+import * as fmt from '../../lib/format';
 
 export const WEEKDAY_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const ORDINALS = ['', '1er', '2e', '3e', '4e'];
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * Formats a YYYY-MM-DD date: "3 novembre 2026".
@@ -12,7 +11,7 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'lo
  * @returns {string} Label.
  */
 export function formatLongDate(date: string): string {
-  return dateFormat.format(parseDay(date));
+  return fmt.day(parseDay(date));
 }
 
 /**

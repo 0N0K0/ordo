@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import type { MailSearchCriteria } from '@ordo/shared';
 import type { MailSearch } from './api';
 import { MailSearchForm } from './MailSearchForm';
@@ -14,16 +14,15 @@ let modalCount = 0;
  */
 export function openSearchForm(search: MailSearch | undefined, onCreated?: (id: string) => void, initial?: MailSearchCriteria): void {
   const modalId = `mail-search-${++modalCount}`;
-  modals.open({
-    modalId,
+  openPanel({
+    panelId: modalId,
     title: search ? 'Modifier le dossier de recherche' : 'Nouveau dossier de recherche',
-    size: 'lg',
     children: (
       <MailSearchForm
         search={search}
         initial={initial}
         onDone={(id) => {
-          modals.close(modalId);
+          closePanel(modalId);
           if (id) onCreated?.(id);
         }}
       />

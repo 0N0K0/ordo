@@ -30,6 +30,8 @@ interface SavedViewToolbarProps<F extends string, K extends string, G extends st
   options?: ReactNode;
   /** Columns panel of the table. Optional. */
   columns?: ReactNode;
+  /** Export buttons. Optional. */
+  exports?: ReactNode;
   /** Filter popover state, when also opened from the column menus. Optional. */
   filterOpened?: boolean;
   onFilterOpenedChange?: (opened: boolean) => void;
@@ -56,6 +58,7 @@ export function SavedViewToolbar<F extends string, K extends string, G extends s
   groupLabels,
   options,
   columns,
+  exports,
   filterOpened,
   onFilterOpenedChange,
   dirty,
@@ -74,6 +77,7 @@ export function SavedViewToolbar<F extends string, K extends string, G extends s
           onRevert={onRevert}
           width={320}
           columns={columns}
+          exports={exports}
           display={
             <>
               <Select

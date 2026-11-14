@@ -62,6 +62,8 @@ const RoutinesDataDocument = graphql(`
       doneDates
       lastDoneAt
       trackedSeconds
+      opensOn
+      slotRule
     }
   }
 `);

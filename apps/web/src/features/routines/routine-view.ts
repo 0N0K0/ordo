@@ -1,6 +1,7 @@
 import {
   defaultRoutineViewConfig,
   filterDay,
+  formatDuration,
   filterPeriod,
   firstRoutineViews,
   ME,
@@ -25,6 +26,8 @@ import { useSavedViews } from '../tasks/views/use-saved-views';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { Routine, RoutineCategory } from './api';
 import { categoryGrouping, ruleOf, stateOf, waitingFor, type RoutineGrouping } from './routine-format';
+import * as fmt from '../../lib/format';
+import { currentWeek } from '../../lib/week';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -49,6 +52,7 @@ export const ROUTINE_FIELD_LABELS: Record<RoutineFilterField, string> = {
   waiting: 'En attente d’une autre',
   hasSubRoutines: 'A des sous-routines',
   optionalTimes: 'A des moments facultatifs',
+  doableNow: 'Faisable maintenant',
   archived: 'Archivée',
 };
 
@@ -56,7 +60,7 @@ export const ROUTINE_FIELD_GROUPS: { group: string; fields: RoutineFilterField[]
   { group: 'Texte', fields: ['title', 'description', 'location'] },
   { group: 'Organisation', fields: ['categories', 'project', 'assignees', 'parent', 'requires', 'repetition', 'estimate'] },
   { group: 'Dates', fields: ['currentDate', 'firstDate', 'nextDate', 'startDate', 'lastDoneAt'] },
-  { group: 'État', fields: ['state', 'done', 'waiting', 'hasSubRoutines', 'optionalTimes', 'archived'] },
+  { group: 'État', fields: ['state', 'done', 'waiting', 'hasSubRoutines', 'optionalTimes', 'doableNow', 'archived'] },
 ];
 
 export const ROUTINE_STATE_LABELS: Record<(typeof ROUTINE_STATES)[number], string> = { late: 'En retard', due: 'À faire', upcoming: 'À venir', done: 'Faite' };
@@ -126,6 +130,8 @@ export interface RoutineEnv {
   byId: Map<string, Routine>;
   categories: RoutineCategory[];
   context: TaskContext;
+  /** Whether the slot rule of a routine allows now. */
+  doable: (routine: Routine) => boolean;
 }
 
 /**
@@ -174,7 +180,7 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
     case 'requires':
       return routine.requiredIds;
     case 'state':
-      return stateOf(routine, env.today);
+      return stateOf(routine, env.today, env.doable(routine));
     case 'repetition':
       return repetitionOf(routine);
     case 'estimate':
@@ -197,6 +203,8 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
       return [...env.byId.values()].some((other) => other.parentId === routine.id);
     case 'optionalTimes':
       return routine.slots.some((slot) => slot.optional);
+    case 'doableNow':
+      return env.doable(routine);
     case 'archived':
       return routine.archived;
   }
@@ -235,7 +243,7 @@ function meets(condition: RoutineFilterCondition, routine: Routine, env: Routine
     case 'date': {
       if (typeof value !== 'string') return false;
       if (operator === 'within') {
-        const [from, to] = filterPeriod(String(wanted), env.today);
+        const [from, to] = filterPeriod(String(wanted), env.today, currentWeek());
         return value >= from && value < to;
       }
       const day = filterDay(String(wanted), env.today);
@@ -323,7 +331,7 @@ export function sortRoutines(routines: Routine[], sorting: RoutineViewConfig['so
       case 'title':
         return routine.title;
       case 'state':
-        return ROUTINE_STATES.indexOf(stateOf(routine, env.today));
+        return ROUTINE_STATES.indexOf(stateOf(routine, env.today, env.doable(routine)));
       case 'currentDate':
         return routine.currentDate ? String(routine.currentDate) : null;
       case 'firstDate':
@@ -393,7 +401,7 @@ export function routineGrouping(groupBy: RoutineGroupBy | null, env: RoutineEnv)
     case 'state':
       return {
         groups: ROUTINE_STATES.map((state) => ({ id: state, name: ROUTINE_STATE_LABELS[state], color: null, parentId: null })),
-        of: (routine) => [stateOf(routine, env.today)],
+        of: (routine) => [stateOf(routine, env.today, env.doable(routine))],
         noneName: '',
       };
     case 'repetition':
@@ -449,5 +457,42 @@ export function routineFilterFields(env: RoutineEnv): FilterFields<RoutineFilter
     isComplete: (condition) => routineFilterConditionSchema.safeParse(condition).success,
     operatorLabel: (field, operator) => OPERATOR_OVERRIDES[field]?.[operator],
     emptyText: 'Aucun filtre : toutes les routines sont affichées.',
+  };
+}
+
+/**
+ * Texts of the columns of the routine table, for its exports (by column id).
+ * @param {RoutineEnv} env Environment.
+ * @returns {Record<string, (routine: Routine) => string>} Texts.
+ */
+export function routineTexts(env: RoutineEnv): Record<string, (routine: Routine) => string> {
+  const day = (value: unknown) => (value ? fmt.exportDay(String(value).slice(0, 10)) : '');
+  const categoryName = new Map(env.categories.map((category) => [category.id, category.name]));
+  const contributorName = new Map(env.context.contributors.map((contributor) => [contributor.id, contributor.name]));
+  return {
+    title: (routine) => routine.title,
+    currentDate: (routine) => day(routine.currentDate),
+    firstDate: (routine) => day(routine.firstDate),
+    nextDate: (routine) => day(routine.nextDate),
+    repetition: (routine) => REPETITION_LABELS[repetitionOf(routine)],
+    estimate: (routine) => (routine.estimate ? `${routine.estimate} min` : ''),
+    trackedTime: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),
+    lastDoneAt: (routine) => (routine.lastDoneAt ? fmt.exportDateTime(new Date(String(routine.lastDoneAt))) : ''),
+    assignees: (routine) =>
+      routine.assigneeIds
+        .map((id) => contributorName.get(id) ?? '')
+        .filter(Boolean)
+        .join(', '),
+    categories: (routine) =>
+      routine.categoryIds
+        .map((id) => categoryName.get(id) ?? '')
+        .filter(Boolean)
+        .join(', '),
+    requires: (routine) =>
+      routine.requiredIds
+        .map((id) => env.byId.get(id)?.title ?? '')
+        .filter(Boolean)
+        .join(', '),
+    project: (routine) => (routine.projectId ? env.context.projectLabel(routine.projectId) : ''),
   };
 }

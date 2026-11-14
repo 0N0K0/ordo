@@ -1,3 +1,6 @@
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { DetailSkeleton } from '../../components/feedback/Skeletons';
+import { SidePanel } from '../../components/panels/SidePanel';
 import {
   ActionIcon,
   Alert,
@@ -6,13 +9,11 @@ import {
   Button,
   CloseButton,
   Divider,
-  Drawer,
   Grid,
   Group,
   NumberInput,
   Progress,
   Select,
-  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -20,7 +21,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { taskTitleSchema } from '@ordo/shared';
+import { readSlotRule, taskTitleSchema } from '@ordo/shared';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
@@ -50,6 +51,7 @@ import { ActionsMenu } from '../../components/data-table/RowActions';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 
 /**
  * Property block of the side column.
@@ -356,9 +358,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   ))}
                 </>
               ) : (
-                <Text size="sm" c="dimmed">
-                  Aucune sous-tâche.
-                </Text>
+                <EmptyState compact message="Aucune sous-tâche." />
               )}
             </Stack>
 
@@ -470,6 +470,11 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               searchable
               nothingFoundMessage="Aucun sprint dans ce projet"
             />
+            <SlotRuleInput
+              value={readSlotRule(task.slotRule)}
+              // Without any kind, an « on / out of » rule is not saved: another mode is chosen instead.
+              onChange={(slotRule) => (slotRule && slotRule.mode !== 'ANY' && !slotRule.kinds.length ? undefined : save({ slotRule }))}
+            />
             <Divider />
             <LinkList
               label="Bloque"
@@ -515,23 +520,9 @@ export function TaskPanel() {
   const task = taskId ? context?.taskById.get(taskId) : undefined;
 
   return (
-    <Drawer
-      opened
-      onClose={link.close}
-      position="right"
-      size="min(72rem, 100%)"
-      title={
-        <Text size="sm" c="dimmed">
-          {task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}
-        </Text>
-      }
-      padding="lg"
-    >
+    <SidePanel opened onClose={link.close} size="lg" title={task && context ? `${context.projectLabel(task.projectId)} · Tâche #${task.number}` : 'Tâche'}>
       {isPending ? (
-        <Stack gap="md">
-          <Skeleton height={32} width="60%" />
-          <Skeleton height={160} />
-        </Stack>
+        <DetailSkeleton fields={5} />
       ) : task && context ? (
         <TaskDetail key={task.id} task={task} context={context} />
       ) : (
@@ -539,6 +530,6 @@ export function TaskPanel() {
           Cette tâche n’existe pas ou a été supprimée.
         </Alert>
       )}
-    </Drawer>
+    </SidePanel>
   );
 }

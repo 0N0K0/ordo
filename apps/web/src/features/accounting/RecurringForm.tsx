@@ -50,7 +50,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
   return (
     <Stack gap="md">
       <TextInput label="Nom" required data-autofocus placeholder="Maintenance mensuelle…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-      <DatePickerInput label="Première facture le" required valueFormat="D MMM YYYY" value={startDate} onChange={(value) => value && setStartDate(value)} />
+      <DatePickerInput label="Première facture le" required value={startDate} onChange={(value) => value && setStartDate(value)} />
       <RecurrenceEditor value={rule} onChange={setRule} start={startDate} />
       {!rule && (
         <Text size="xs" c="red">

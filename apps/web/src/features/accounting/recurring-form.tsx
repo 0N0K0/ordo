@@ -1,4 +1,4 @@
-import { modals } from '@mantine/modals';
+import { closePanel, openPanel } from '../../components/panels/panels';
 import type { RecurringInvoice } from './documents-api';
 import { RecurringForm } from './RecurringForm';
 
@@ -11,10 +11,9 @@ let modalCount = 0;
  */
 export function openRecurringForm(options: { documentId?: string; recurring?: RecurringInvoice }): void {
   const modalId = `recurring-invoice-${++modalCount}`;
-  modals.open({
-    modalId,
+  openPanel({
+    panelId: modalId,
     title: options.recurring ? 'Facture récurrente' : 'Rendre la facture récurrente',
-    size: 'lg',
-    children: <RecurringForm {...options} onDone={() => modals.close(modalId)} />,
+    children: <RecurringForm {...options} onDone={() => closePanel(modalId)} />,
   });
 }

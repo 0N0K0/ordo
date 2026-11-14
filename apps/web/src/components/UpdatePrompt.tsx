@@ -1,16 +1,15 @@
-import { Button, Group, Text } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { notifyInfo } from '../lib/notify';
 
 const NOTIFICATION_ID = 'app-update';
 /** A deployed version is looked for this often while the app stays open. */
 const CHECK_MS = 60 * 60_000;
 
 /**
- * Offers the new version of the app once it is downloaded (installed app or browser tab): a toast that stays
- * until the user reloads or closes it. Renders nothing.
+ * Offers the new version of the app once it is downloaded (installed app or browser tab): an information toast
+ * with a reload button. Renders nothing.
  * @returns {null} Nothing.
  */
 export function UpdatePrompt() {
@@ -31,19 +30,12 @@ export function UpdatePrompt() {
 
   useEffect(() => {
     if (!needRefresh) return;
-    notifications.show({
+    notifyInfo({
       id: NOTIFICATION_ID,
       icon: <ArrowsClockwiseIcon />,
       title: 'Nouvelle version d’Ordo',
-      autoClose: false,
-      message: (
-        <Group justify="space-between" gap="sm" wrap="nowrap">
-          <Text size="sm">Rechargez pour l’utiliser.</Text>
-          <Button size="xs" onClick={() => void updateServiceWorker(true)}>
-            Recharger
-          </Button>
-        </Group>
-      ),
+      lines: ['Rechargez pour l’utiliser.'],
+      actions: [{ label: 'Recharger', onClick: () => void updateServiceWorker(true) }],
     });
   }, [needRefresh, updateServiceWorker]);
 

@@ -3,23 +3,15 @@ import { useTreasurySettings } from '../treasury/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from './api';
-
-const moneyFormat = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
-const quantityFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 });
-
-/**
- * Price as euros.
- * @param {number} value Amount.
- * @returns {string} Text.
- */
-export const money = (value: number) => moneyFormat.format(value);
+import * as fmt from '../../lib/format';
+import { localToday } from '../../lib/dates';
 
 /**
  * Quantity and unit of a product or an item ("2 kg", "3 boîte"), empty without quantity nor unit.
  * @param {{ quantity: number | null, unit: string | null }} item Product or item.
  * @returns {string} Text.
  */
-export const quantityText = ({ quantity, unit }: { quantity?: number | null; unit?: string | null }) => [quantity != null ? quantityFormat.format(quantity) : null, unit].filter(Boolean).join(' ');
+export const quantityText = ({ quantity, unit }: { quantity?: number | null; unit?: string | null }) => [quantity != null ? fmt.number(quantity, 3) : null, unit].filter(Boolean).join(' ');
 
 /** Units offered (any other can be typed). */
 export const UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte', 'paquet', 'bouteille', 'sachet', 'lot', 'rouleau', 'carton', 'paire'];
@@ -47,7 +39,7 @@ export interface ShoppingFields {
  * Today, as the dates of the products are written (YYYY-MM-DD, local time).
  * @returns {string} Date.
  */
-export const todayIso = () => new Date().toLocaleDateString('sv-SE');
+export const todayIso = () => localToday();
 
 /**
  * Whether a perishable product or item is past its date.

@@ -1,16 +1,9 @@
-import { Accordion, Badge, Group, Paper, Skeleton, Stack, Table, Text, ThemeIcon } from '@mantine/core';
-import { formatMoney } from '@ordo/shared';
+import { EmptyState } from '../../components/feedback/EmptyState';
+import { ListSkeleton } from '../../components/feedback/Skeletons';
+import { Accordion, Badge, Group, Stack, Table, Text } from '@mantine/core';
 import { HandCoinsIcon } from '@phosphor-icons/react';
 import { useTreasuryLoans, useTreasurySettings } from './api';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-
-/**
- * Amount in euros.
- * @param {number} amount Amount.
- * @returns {string} "1 234,56 €".
- */
-const money = (amount: number) => formatMoney(Math.round(amount * 100));
+import * as fmt from '../../lib/format';
 
 /**
  * Loans with the relations, both ways: for each relation, who owes whom (what went out to it, lent or debts repaid,
@@ -25,20 +18,13 @@ export function LoansPanel() {
   const owedToMe = (loans ?? []).filter((item) => item.balance > 0).reduce((sum, item) => sum + item.balance, 0);
   const iOwe = -(loans ?? []).filter((item) => item.balance < 0).reduce((sum, item) => sum + item.balance, 0);
 
-  if (isPending) return <Skeleton height={160} />;
+  if (isPending) return <ListSkeleton items={2} lines={3} />;
   if (!loans?.length) {
     return (
-      <Paper withBorder radius="md" p="xl">
-        <Stack align="center" gap="xs">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-            <HandCoinsIcon aria-hidden />
-          </ThemeIcon>
-          <Text size="sm" c="dimmed" ta="center" maw={520}>
-            Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : une sortie lui prête ou lui rembourse, une entrée vous fait
-            prêter par elle ou vous rembourse.
-          </Text>
-        </Stack>
-      </Paper>
+      <EmptyState
+        icon={<HandCoinsIcon aria-hidden />}
+        message="Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : une sortie lui prête ou lui rembourse, une entrée vous fait prêter par elle ou vous rembourse."
+      />
     );
   }
 
@@ -46,10 +32,10 @@ export function LoansPanel() {
     <Stack gap="md">
       <Group gap="xl">
         <Text size="sm">
-          On vous doit <strong>{money(owedToMe)}</strong>
+          On vous doit <strong>{fmt.money(owedToMe)}</strong>
         </Text>
         <Text size="sm">
-          Vous devez <strong>{money(iOwe)}</strong>
+          Vous devez <strong>{fmt.money(iOwe)}</strong>
         </Text>
       </Group>
       <Accordion variant="separated" multiple>
@@ -64,16 +50,16 @@ export function LoansPanel() {
                   </Badge>
                 ) : item.balance > 0 ? (
                   <Badge variant="light" color="green">
-                    Vous doit {money(item.balance)}
+                    Vous doit {fmt.money(item.balance)}
                   </Badge>
                 ) : (
                   <Badge variant="light" color="red">
-                    Vous lui devez {money(-item.balance)}
+                    Vous lui devez {fmt.money(-item.balance)}
                   </Badge>
                 )}
               </Group>
               <Text size="xs" c="dimmed">
-                Sorti vers elle {money(item.out)} · Reçu d’elle {money(item.in)}
+                Sorti vers elle {fmt.money(item.out)} · Reçu d’elle {fmt.money(item.in)}
               </Text>
             </Accordion.Control>
             <Accordion.Panel>
@@ -82,14 +68,14 @@ export function LoansPanel() {
                   {item.items.map((line) => (
                     <Table.Tr key={line.lineId}>
                       <Table.Td w={120}>
-                        <Text size="sm">{dateFormat.format(new Date(`${line.date}T00:00:00Z`))}</Text>
+                        <Text size="sm">{fmt.day(line.date)}</Text>
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm">{line.label}</Text>
                       </Table.Td>
                       <Table.Td ta="right" ff="monospace" c={line.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
                         {line.amount > 0 ? '+' : ''}
-                        {money(line.amount)}
+                        {fmt.money(line.amount)}
                       </Table.Td>
                     </Table.Tr>
                   ))}

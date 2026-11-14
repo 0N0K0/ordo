@@ -11,7 +11,7 @@ import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { notifyError } from '../../lib/notify';
 import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
-import classes from '../tasks/views/inline-cells.module.css';
+import classes from '../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
@@ -495,7 +495,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
               S’applique à {routinesLabel(count)}.
             </Text>
           )}
-          <DatePickerInput label="Première fois" size="xs" valueFormat="D MMM YYYY" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
+          <DatePickerInput label="Première fois" size="xs" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
           <RecurrenceEditor value={rule} onChange={(value) => setRule(value ?? DAILY)} start={startDate} withinPortal={false} />
           <Group justify="space-between" gap="sm">
             <Button size="xs" variant="subtle" onClick={() => (setOpened(false), openRoutineForm({ routine }))}>

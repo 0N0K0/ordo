@@ -70,17 +70,8 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
             <TextInput size="xs" label="À" placeholder="Nom ou adresse" value={criteria.to} onChange={(event) => set({ to: event.currentTarget.value })} />
             <TextInput size="xs" label="Objet" value={criteria.subject} onChange={(event) => set({ subject: event.currentTarget.value })} />
             <TextInput size="xs" label="Corps" value={criteria.body} onChange={(event) => set({ body: event.currentTarget.value })} />
-            <DatePickerInput size="xs" label="Du" clearable valueFormat="D MMM YYYY" placeholder="—" value={criteria.since} onChange={(since) => set({ since })} />
-            <DatePickerInput
-              size="xs"
-              label="Au"
-              clearable
-              valueFormat="D MMM YYYY"
-              placeholder="—"
-              minDate={criteria.since ?? undefined}
-              value={criteria.until}
-              onChange={(until) => set({ until })}
-            />
+            <DatePickerInput size="xs" label="Du" clearable placeholder="—" value={criteria.since} onChange={(since) => set({ since })} />
+            <DatePickerInput size="xs" label="Au" clearable placeholder="—" minDate={criteria.since ?? undefined} value={criteria.until} onChange={(until) => set({ until })} />
           </SimpleGrid>
           <BatchMultiSelect
             size="xs"

@@ -2,15 +2,14 @@ import { addDays } from '@ordo/shared';
 import { notifyError, notifyWithUndo } from '../../lib/notify';
 import { useRoutineMutations, type Routine } from './api';
 import { movableOccurrence } from './routine-format';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Long date of a calendar date: "jeudi 13 novembre".
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Text.
  */
-export const longDay = (date: string) => dayFormat.format(new Date(`${date}T00:00:00Z`));
+export const longDay = (date: string) => fmt.dayLong(date);
 
 /**
  * Moves an occurrence of a routine to another day (an exception to its rule), with a toast offering to undo it.
