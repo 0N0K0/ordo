@@ -13,6 +13,8 @@ export function openRoutineForm(props: Omit<RoutineFormProps, 'onDone'> = {}): v
   openPanel({
     panelId: modalId,
     title: props.routine ? (props.copy ? 'Dupliquer la routine' : 'Modifier la routine') : props.parent ? `Nouvelle sous-routine de « ${props.parent.title} »` : 'Nouvelle routine',
+    // As wide as the task panel, laid out the same.
+    size: 'lg',
     children: <RoutineForm {...props} onDone={() => closePanel(modalId)} />,
   });
 }

@@ -54,7 +54,7 @@ export interface SlotRules {
    */
   nextAllowedAt: (value: unknown, from: Date) => Date | null;
   /**
-   * Slots of a rule, told in words (« sur Travail », « hors de Travail, Sport »); null for « partout ».
+   * Slots of a rule, told in words (« Pendant Travail · hors de Sport »); null for « partout ».
    * @param {SlotRule} rule Rule.
    * @returns {string | null} Text.
    */
@@ -129,9 +129,9 @@ export function useSlotRules(): SlotRules {
         return new Date(year, month - 1, day, hours, minutes);
       },
       describe: (rule) => {
-        if (rule.mode === 'ANY') return null;
-        const names = rule.kinds.map((kind) => labelOf.get(kind) ?? 'Plages supprimées').join(', ');
-        return rule.mode === 'INSIDE' ? `Sur ${names}` : `Hors de ${names}`;
+        const names = (list: readonly string[]) => list.map((kind) => labelOf.get(kind) ?? 'Plages supprimées').join(', ');
+        const parts = [rule.inside.length ? `pendant ${names(rule.inside)}` : null, rule.outside.length ? `hors de ${names(rule.outside)}` : null].filter(Boolean).join(' · ');
+        return parts ? parts.charAt(0).toUpperCase() + parts.slice(1) : null;
       },
     };
   }, [own, types, defaultKind, foreignKinds, foreign, perso, minute, today]);

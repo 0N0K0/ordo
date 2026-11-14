@@ -1,4 +1,4 @@
-import { Button, Group, NumberInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { Button, Divider, Grid, Group, NumberInput, Select, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { opensOnFits, readSlotRule, routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase, type SlotRule } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -79,8 +79,9 @@ function subtreeOf(routines: Routine[], id: string): Set<string> {
 }
 
 /**
- * Routine: title, description, category, parent routine, repetition from a first date, time to spend on it, assignees,
- * routines it depends on, and project its tracked time goes to.
+ * Routine, laid out as the task panel: title; description and when it comes (first date, repetition, « à partir du »)
+ * on the left; project, categories, assignees, beneficiaries, time to spend, slots, parent routine and the routines it
+ * depends on on the right.
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -153,86 +154,97 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
+      <Stack gap="lg">
         <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
-        <Textarea label="Description" autosize minRows={2} maxRows={8} {...form.getInputProps('description')} />
-        <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-          <BatchMultiSelect
-            label="Catégories"
-            placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
-            clearable
-            searchable
-            {...treeSelectProps(categoryOptions(data?.routineCategories ?? []))}
-            nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
-            {...form.getInputProps('categoryIds')}
-          />
-          <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
-        </SimpleGrid>
-        <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-          <DatePickerInput label="Première fois" required {...form.getInputProps('startDate')} />
-          <NumberInput
-            label="Temps à y consacrer"
-            description="En minutes"
-            min={1}
-            max={24 * 60}
-            allowDecimal={false}
-            suffix=" min"
-            {...form.getInputProps('estimate')}
-            value={form.values.estimate ?? ''}
-            onChange={(value) => form.setFieldValue('estimate', value === '' ? null : Number(value))}
-          />
-        </SimpleGrid>
-        <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
-        {!form.values.cases.length && !form.values.scheduleId && (form.values.recurrence.frequency === 'MONTHLY' || form.values.recurrence.frequency === 'YEARLY') && (
-          <OpensOnInput
-            frequency={form.values.recurrence.frequency}
-            value={form.values.opensOn}
-            onChange={(opensOn) => form.setFieldValue('opensOn', opensOn)}
-            error={form.errors.opensOn as string | undefined}
-          />
-        )}
-        <SlotRuleInput value={form.values.slotRule} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.kinds'] as string | undefined} />
-        {context && (
-          <AssigneesSelect
-            // Of a project: its contributors only (the current assignees stay).
-            contributors={context.assignableFor([form.values.projectId], routine?.assigneeIds ?? [])}
-            value={form.values.assigneeIds}
-            onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
-            error={form.errors.assigneeIds as string | undefined}
-          />
-        )}
-        <BeneficiariesSelect
-          value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
-          onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
-        />
-        <BatchMultiSelect
-          label="Dépend de"
-          description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
-          placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
-          {...treeSelectProps(routineOptions((item) => copy || item.id !== routine?.id))}
-          searchable
-          clearable
-          {...form.getInputProps('requiredIds')}
-        />
-        {context && (
-          <ProjectSelect
-            context={context}
-            label="Projet"
-            description="Facultatif : le temps chronométré sur la routine y est compté."
-            placeholder="Aucun"
-            clearable
-            {...form.getInputProps('projectId')}
-            onChange={(projectId) => {
-              form.setFieldValue('projectId', projectId);
-              // Assignees out of the new project are dropped.
-              const allowed = new Set(context.assignableFor([projectId], routine?.assigneeIds ?? []).map((contributor) => contributor.id));
-              form.setFieldValue(
-                'assigneeIds',
-                form.values.assigneeIds.filter((id) => allowed.has(id)),
-              );
-            }}
-          />
-        )}
+        {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
+        <Grid gap="xl">
+          <Grid.Col span={{ base: 12, md: 8 }}>
+            <Stack gap="md">
+              <Textarea label="Description" autosize minRows={3} maxRows={10} {...form.getInputProps('description')} />
+              <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                Quand
+              </Text>
+              <DatePickerInput label="Première fois" required {...form.getInputProps('startDate')} />
+              <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
+              {!form.values.cases.length && !form.values.scheduleId && (form.values.recurrence.frequency === 'MONTHLY' || form.values.recurrence.frequency === 'YEARLY') && (
+                <OpensOnInput
+                  frequency={form.values.recurrence.frequency}
+                  value={form.values.opensOn}
+                  onChange={(opensOn) => form.setFieldValue('opensOn', opensOn)}
+                  error={form.errors.opensOn as string | undefined}
+                />
+              )}
+            </Stack>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <Stack gap="md">
+              {context && (
+                <ProjectSelect
+                  context={context}
+                  label="Projet"
+                  description="Facultatif : le temps chronométré sur la routine y est compté."
+                  placeholder="Aucun"
+                  clearable
+                  {...form.getInputProps('projectId')}
+                  onChange={(projectId) => {
+                    form.setFieldValue('projectId', projectId);
+                    // Assignees out of the new project are dropped.
+                    const allowed = new Set(context.assignableFor([projectId], routine?.assigneeIds ?? []).map((contributor) => contributor.id));
+                    form.setFieldValue(
+                      'assigneeIds',
+                      form.values.assigneeIds.filter((id) => allowed.has(id)),
+                    );
+                  }}
+                />
+              )}
+              <BatchMultiSelect
+                label="Catégories"
+                placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
+                clearable
+                searchable
+                {...treeSelectProps(categoryOptions(data?.routineCategories ?? []))}
+                nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
+                {...form.getInputProps('categoryIds')}
+              />
+              {context && (
+                <AssigneesSelect
+                  // Of a project: its contributors only (the current assignees stay).
+                  contributors={context.assignableFor([form.values.projectId], routine?.assigneeIds ?? [])}
+                  value={form.values.assigneeIds}
+                  onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
+                  error={form.errors.assigneeIds as string | undefined}
+                />
+              )}
+              <BeneficiariesSelect
+                value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
+                onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
+              />
+              <NumberInput
+                label="Temps à y consacrer"
+                description="En minutes"
+                min={1}
+                max={24 * 60}
+                allowDecimal={false}
+                suffix=" min"
+                {...form.getInputProps('estimate')}
+                value={form.values.estimate ?? ''}
+                onChange={(value) => form.setFieldValue('estimate', value === '' ? null : Number(value))}
+              />
+              <SlotRuleInput value={form.values.slotRule} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.outside'] as string | undefined} />
+              <Divider />
+              <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
+              <BatchMultiSelect
+                label="Dépend de"
+                description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
+                placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
+                {...treeSelectProps(routineOptions((item) => copy || item.id !== routine?.id))}
+                searchable
+                clearable
+                {...form.getInputProps('requiredIds')}
+              />
+            </Stack>
+          </Grid.Col>
+        </Grid>
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
             Annuler
