@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
@@ -195,9 +196,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         </Text>
         <Group gap="sm">
           <SegmentedControl size="xs" aria-label="Trier les jalons par" data={MILESTONE_ORDER_OPTIONS} value={order} onChange={(value) => setOrder(value as MilestoneOrder)} />
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
-            Nouveau jalon
-          </Button>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau jalon</ActionButton>
         </Group>
       </Group>
       {milestones.length === 0 ? (

@@ -287,7 +287,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
         </ScrollArea>
       )}
       <Group gap="xs">
-        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={add}>
+        <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={add}>
           Ajouter une ligne
         </Button>
         {members.length > 1 && (

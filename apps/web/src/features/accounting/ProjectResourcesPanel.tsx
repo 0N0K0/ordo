@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -115,14 +116,10 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
             }
           >
             {(props) => (
-              <Button variant="light" leftSection={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>
-                Ajouter des fichiers
-              </Button>
+              <ActionButton icon={<UploadSimpleIcon aria-hidden />} loading={addFiles.isPending} {...props}>Ajouter des fichiers</ActionButton>
             )}
           </FileButton>
-          <Button variant="light" leftSection={<LinkIcon aria-hidden />} onClick={() => openForm()}>
-            Ajouter un lien
-          </Button>
+          <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openForm()}>Ajouter un lien</ActionButton>
         </Group>
       </Group>
       {isPending ? (

@@ -257,13 +257,13 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
       ))}
       {!readOnly && (
         <Group gap="xs">
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...lines, newLine('ITEM', defaultRate)])}>
+          <Button size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...lines, newLine('ITEM', defaultRate)])}>
             Article
           </Button>
-          <Button size="xs" variant="light" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...lines, newLine('DISBURSEMENT', 0)])}>
+          <Button size="xs" variant="default" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...lines, newLine('DISBURSEMENT', 0)])}>
             Débours
           </Button>
-          <Button size="xs" variant="light" color="gray" leftSection={<TextAaIcon aria-hidden />} onClick={() => onChange([...lines, newLine('TEXT', 0)])}>
+          <Button size="xs" variant="default" color="gray" leftSection={<TextAaIcon aria-hidden />} onClick={() => onChange([...lines, newLine('TEXT', 0)])}>
             Texte
           </Button>
           {offered.length > 0 && (

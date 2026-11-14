@@ -1,13 +1,14 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { Alert, Button, Group, Stack, Text } from '@mantine/core';
+import { Alert, Button, Stack, Text } from '@mantine/core';
 import { AlarmIcon, BellRingingIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTaskContext } from '../tasks/use-task-context';
 import { AlarmList } from './AlarmList';
 import { useAlarms } from './api';
 import { useAlarmForm } from './use-alarm-form';
-import { PageTitle } from '../../components/PageTitle';
 import classes from './AlarmsPage.module.css';
 
 /**
@@ -26,18 +27,11 @@ export function AlarmsPage() {
 
   return (
     <Stack gap="lg" className={classes.root}>
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={4}>
-          <PageTitle>Alarmes</PageTitle>
-        </Stack>
-        <Button
-          leftSection={<PlusIcon aria-hidden />}
+      <PageHeader title="Alarmes" actions={<ActionButton
+          icon={<PlusIcon aria-hidden />}
           onClick={() => openForm()}
           disabled={!context}
-        >
-          Nouvelle alarme
-        </Button>
-      </Group>
+        >Nouvelle alarme</ActionButton>} />
 
       {permission === 'default' && (
         <Alert
@@ -52,7 +46,7 @@ export function AlarmsPage() {
             </Text>
             <Button
               size="xs"
-              variant="light"
+              variant="default"
               onClick={() =>
                 void Notification.requestPermission().then(setPermission)
               }
@@ -66,13 +60,7 @@ export function AlarmsPage() {
       {isPending || !context ? (
         <ListSkeleton items={3} lines={2} />
       ) : !alarms?.length ? (
-        <EmptyState icon={<AlarmIcon aria-hidden />} message="Aucune alarme." action={<><Button
-              variant="light"
-              leftSection={<PlusIcon aria-hidden />}
-              onClick={() => openForm()}
-            >
-              Nouvelle alarme
-            </Button></>} />
+        <EmptyState icon={<AlarmIcon aria-hidden />} message="Aucune alarme." />
       ) : (
         <AlarmList alarms={alarms} context={context} openForm={openForm} />
       )}

@@ -1,7 +1,8 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
-import { ActionIcon, Anchor, Badge, Button, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../../components/address/countries';
@@ -166,15 +167,9 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
           Facturation
         </Title>
         <Group gap="xs">
-          <Button size="xs" variant="light" leftSection={<PencilSimpleIcon aria-hidden />} onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>
-            Coordonnées
-          </Button>
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>
-            Service
-          </Button>
-          <Button size="xs" variant="light" leftSection={<UserPlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>
-            Contact
-          </Button>
+          <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}>Coordonnées</ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}>Nouveau service</ActionButton>
+          <ActionButton priority="secondary" size="xs" icon={<UserPlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}>Nouveau contact</ActionButton>
         </Group>
       </Group>
       {/* By the width of what holds it (the settings sidebar). */}

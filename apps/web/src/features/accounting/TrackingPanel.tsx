@@ -188,7 +188,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
               </Tooltip>
             </Group>
           )}
-          <Button variant="light" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => setDialog('accept')}>
+          <Button variant="default" color="green" leftSection={<CheckIcon aria-hidden />} onClick={() => setDialog('accept')}>
             {document.acceptedAt ? (document.signedFileUrl ? 'Remplacer le devis signé' : 'Joindre le devis signé') : 'Enregistrer l’acceptation'}
           </Button>
         </Stack>
@@ -232,7 +232,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             </Group>
           ))}
           {balance > 0 && (
-            <Button variant="light" leftSection={<CoinsIcon aria-hidden />} onClick={() => setDialog('payment')}>
+            <Button variant="default" leftSection={<CoinsIcon aria-hidden />} onClick={() => setDialog('payment')}>
               {isCredit ? 'Enregistrer un remboursement' : 'Enregistrer un paiement'}
             </Button>
           )}
@@ -247,7 +247,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             </Text>
             {balance > 0 && (
               <Group gap={4}>
-                <Button size="compact-xs" variant="light" color="orange" leftSection={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
+                <Button size="compact-xs" variant="default" color="orange" leftSection={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
                   Relancer par mail
                 </Button>
                 <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setDialog('reminder')}>

@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -397,9 +398,9 @@ export function WorkSchedulesManager() {
             ? 'Vos plages prévues, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
             : 'Vos horaires de travail prévus : affichés dans l’agenda, comparés au temps chronométré, et signalés quand un évènement tombe en dehors.'}
         </Text>
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setEditing('new')} style={{ flexShrink: 0 }}>
-          Plages
-        </Button>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setEditing('new')} style={{ flexShrink: 0 }}>
+          Nouvelles plages
+        </ActionButton>
       </Group>
       {!schedules?.length ? (
         <EmptyState icon={<ClockIcon aria-hidden />} message="Aucune plage." />

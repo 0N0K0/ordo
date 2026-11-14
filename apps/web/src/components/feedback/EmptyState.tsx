@@ -25,9 +25,10 @@ export function EmptyState({ message, icon, iconColor = 'gray', action, compact 
     return (
       <Group gap="xs" wrap="nowrap" c="dimmed">
         {icon}
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c="dimmed" style={{ flex: 1 }}>
           {message}
         </Text>
+        {/* An action is always on the right. */}
         {action}
       </Group>
     );
@@ -43,6 +44,7 @@ export function EmptyState({ message, icon, iconColor = 'gray', action, compact 
         <Text size="sm" c="dimmed" ta="center">
           {message}
         </Text>
+        {/* Only an action given nowhere else (« Retour… », « Effacer les filtres »): a « Nouveau… » is in the header, on the right. */}
         {action}
       </Stack>
     </Paper>

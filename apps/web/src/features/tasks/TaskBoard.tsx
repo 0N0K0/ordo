@@ -1,6 +1,7 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { Alert, Button, Paper, Stack } from '@mantine/core';
+import { Alert, Paper, Stack } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { addDays, filterPeriod, ME, type FilterGroup } from '@ordo/shared';
 import { CheckSquareOffsetIcon, PlusIcon } from '@phosphor-icons/react';
@@ -203,14 +204,24 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
 
   return (
     <Stack gap="md">
-      {(header || view.views.length > 0) && (
+      {(header || canCreate || view.views.length > 0) && (
         <div className={classes.top}>
           {view.views.length > 0 && (
             <div className={classes.tabs}>
               <ViewTabs state={view} />
             </div>
           )}
-          {header && <div className={classes.controls}>{header}</div>}
+          {(header || canCreate) && (
+            <div className={classes.controls}>
+              {header}
+              {/* The new task at the far right, as every « Nouveau… ». */}
+              {canCreate && (
+                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => actions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
+                  Nouvelle tâche
+                </ActionButton>
+              )}
+            </div>
+          )}
         </div>
       )}
       {config && context && (
@@ -275,14 +286,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
                   ? 'Créez d’abord un projet : chaque tâche appartient à un projet.'
                   : filtered
                     ? `Aucune tâche${showEvents ? ' ni aucun évènement' : ''} ne correspond aux filtres de cette vue.`
-                    : emptyMessage}</>} action={<>{canCreate && (
-                <Button
-                  leftSection={<PlusIcon aria-hidden />}
-                  onClick={() => actions.create(createProjectId ? { projectId: createProjectId } : undefined)}
-                >
-                  Nouvelle tâche
-                </Button>
-              )}</>} />
+                    : emptyMessage}</>} />
         ))}
 
       {context && selectedTasks.length > 0 && (

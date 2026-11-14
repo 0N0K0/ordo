@@ -1,3 +1,5 @@
+import { ActionsRow } from '../../components/actions/ActionsRow';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -182,17 +184,17 @@ export function BaseLists() {
   if (isPending) return <BlockSkeleton height={2} />;
   if (!current) {
     return (
-      <EmptyState
-        icon={<ListBulletsIcon aria-hidden />}
-        message="Aucune liste type : créez-en une par sorte d’achats (alimentation, fournitures scolaires, vêtements des enfants…), puis cochez ce qui manque pour générer une liste."
-        action={
-          <>
-            <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-              Créer une liste type
-            </Button>
-          </>
-        }
-      />
+      <Stack gap="md">
+        <ActionsRow>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+            Nouvelle liste type
+          </ActionButton>
+        </ActionsRow>
+        <EmptyState
+          icon={<ListBulletsIcon aria-hidden />}
+          message="Aucune liste type : créez-en une par sorte d’achats (alimentation, fournitures scolaires, vêtements des enfants…), puis cochez ce qui manque pour générer une liste."
+        />
+      </Stack>
     );
   }
 

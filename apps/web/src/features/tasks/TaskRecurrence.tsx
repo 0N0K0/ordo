@@ -107,7 +107,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
             </Text>
           )}
         </Stack>
-        <Button size="compact-sm" variant="light" leftSection={<ArrowsClockwiseIcon aria-hidden />} disabled={!start || task.archived} onClick={open}>
+        <Button size="compact-sm" variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} disabled={!start || task.archived} onClick={open}>
           {rule ? 'Modifier' : 'Répéter'}
         </Button>
       </Group>

@@ -1,4 +1,5 @@
-import { Button, Group, Tooltip } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
+import { Group, Tooltip } from '@mantine/core';
 import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRunningTimer, useTimeEntries } from './api';
@@ -31,14 +32,14 @@ export function ProjectTimePanel({ projectId }: { projectId: string }) {
       actions={
         // One timer runs at a time: the one running shows in the top bar.
         <Group gap="sm" wrap="nowrap">
-          <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>
-            Ajouter un temps
-          </Button>
+          <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context || archived}>
+            Nouveau temps
+          </ActionButton>
           {!archived && (
             <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
-              <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
+              <ActionButton icon={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context, projectId)} disabled={!context || Boolean(running.data)}>
                 Lancer un chrono
-              </Button>
+              </ActionButton>
             </Tooltip>
           )}
         </Group>

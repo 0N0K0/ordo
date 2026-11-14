@@ -72,7 +72,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   };
 
   const button = (
-    <Button variant="light" size="xs" leftSection={<NavigationArrowIcon aria-hidden />} disabled={!eventPoint} onClick={() => setOpened((value) => !value)}>
+    <Button variant="default" size="xs" leftSection={<NavigationArrowIcon aria-hidden />} disabled={!eventPoint} onClick={() => setOpened((value) => !value)}>
       Calculer les trajets
     </Button>
   );

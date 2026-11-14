@@ -322,7 +322,7 @@ export function ScheduleCasesEditor({ cases, onChange, rhythm, periodStart, empt
         />
       ))}
       <div>
-        <Button size="compact-xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...cases, newCase(rhythm === 'DAY')])}>
+        <Button size="compact-xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...cases, newCase(rhythm === 'DAY')])}>
           Ajouter un cas
         </Button>
       </div>

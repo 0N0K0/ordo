@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/actions/ActionButton';
 import { Button, Group, SimpleGrid, Stack, Title } from '@mantine/core';
 import { addDays, formatDuration } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
@@ -77,13 +78,9 @@ export function HomePage() {
         </Title>
         <Group gap="sm">
           {!perso && (
-            <Button variant="default" leftSection={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>
-              Nouveau client
-            </Button>
+            <ActionButton priority="secondary" icon={<UserPlusIcon aria-hidden />} onClick={() => actions.openClientForm()}>Nouveau client</ActionButton>
           )}
-          <Button leftSection={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>
-            Nouveau projet
-          </Button>
+          <ActionButton icon={<FolderPlusIcon aria-hidden />} onClick={() => actions.openProjectForm()}>Nouveau projet</ActionButton>
         </Group>
       </Group>
 

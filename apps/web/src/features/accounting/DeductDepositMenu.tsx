@@ -38,7 +38,7 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
   return (
     <Menu position="bottom-start" withinPortal>
       <Menu.Target>
-        <Button size="xs" variant="light" color="orange" leftSection={<MinusCircleIcon aria-hidden />}>
+        <Button size="xs" variant="default" color="orange" leftSection={<MinusCircleIcon aria-hidden />}>
           Déduire un acompte
         </Button>
       </Menu.Target>

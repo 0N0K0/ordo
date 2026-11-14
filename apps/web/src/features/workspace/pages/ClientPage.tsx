@@ -1,5 +1,6 @@
+import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Button, Paper, Stack, Tabs, Text, ThemeIcon, Title } from '@mantine/core';
+import { Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { FolderPlusIcon, FoldersIcon } from '@phosphor-icons/react';
 import { useParams } from 'react-router';
@@ -50,13 +51,10 @@ export function ClientPage() {
         }
         extraActions={
           !client.archived && (
-            <Button
-              variant="light"
-              leftSection={<FolderPlusIcon aria-hidden />}
+            <ActionButton
+              icon={<FolderPlusIcon aria-hidden />}
               onClick={() => actions.openProjectForm(undefined, { clientId: client.id })}
-            >
-              Ajouter un projet
-            </Button>
+            >Nouveau projet</ActionButton>
           )
         }
       />
@@ -81,24 +79,7 @@ export function ClientPage() {
           Projets
         </Title>
         {projects.length === 0 ? (
-          <Paper withBorder p="xl" radius="md">
-            <Stack align="center" gap="sm">
-              <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-                <FoldersIcon aria-hidden />
-              </ThemeIcon>
-              <EmptyState compact message="Aucun projet pour ce client." />
-              {!client.archived && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  leftSection={<FolderPlusIcon aria-hidden />}
-                  onClick={() => actions.openProjectForm(undefined, { clientId: client.id })}
-                >
-                  Ajouter un projet
-                </Button>
-              )}
-            </Stack>
-          </Paper>
+          <EmptyState icon={<FoldersIcon aria-hidden />} message="Aucun projet pour ce client." />
         ) : (
           <ProjectList projects={projects} allProjects={data.projects} rootParentId={null} clientId={client.id} statuses={data.projectStatuses} />
         )}

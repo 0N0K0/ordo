@@ -1,8 +1,9 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Badge, Button, Group, Paper, Stack, Switch, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Paper, Stack, Switch, Table, Text, Tooltip } from '@mantine/core';
 import { EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts, type TableFilterGroup } from '@ordo/shared';
 import {
   ArrowsLeftRightIcon,
@@ -241,15 +242,15 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
           )
         }
         exports={
-          <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} onClick={() => setExporting(true)}>
+          <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} onClick={() => setExporting(true)}>
             Relevé de compte (PDF)
-          </Button>
+          </ActionButton>
         }
         tools={
           <>
-            <Button variant="default" leftSection={<FileCsvIcon aria-hidden />} onClick={() => setImporting(true)} disabled={!accounts.some((account) => !account.archived)}>
+            <ActionButton priority="secondary" icon={<FileCsvIcon aria-hidden />} onClick={() => setImporting(true)} disabled={!accounts.some((account) => !account.archived)}>
               Importer un relevé
-            </Button>
+            </ActionButton>
             {actual.length > 0 && (
               <Stack gap={0} ml="auto" align="flex-end">
                 <Text size="sm" c="dimmed">

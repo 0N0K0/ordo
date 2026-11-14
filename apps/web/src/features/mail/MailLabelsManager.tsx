@@ -1,5 +1,7 @@
+import { ActionButton } from '../../components/actions/ActionButton';
+import { ActionsRow } from '../../components/actions/ActionsRow';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { ActionIcon, Button, ColorInput, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, ColorInput, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -72,17 +74,18 @@ export function MailLabelsManager() {
         <LabelRow key={label.id} label={label} />
       ))}
       {labels?.length === 0 && <EmptyState compact message="Aucun drapeau." />}
-      <div>
-        <Button
+      <ActionsRow>
+        <ActionButton
+          priority="secondary"
           size="xs"
-          variant="light"
-          leftSection={<PlusIcon aria-hidden />}
+
+          icon={<PlusIcon aria-hidden />}
           loading={create.isPending}
           onClick={() => create.mutate({ name: `Drapeau ${(labels?.length ?? 0) + 1}`, color: SWATCHES[(labels?.length ?? 0) % SWATCHES.length] }, { onError: (error) => notifyError(error.message) })}
         >
-          Ajouter un drapeau
-        </Button>
-      </div>
+          Nouveau drapeau
+        </ActionButton>
+      </ActionsRow>
     </Stack>
   );
 }

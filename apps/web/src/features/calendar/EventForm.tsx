@@ -522,7 +522,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         {occurrence && (
           <Group gap="sm">
             <Tooltip label={values.projectId ? 'Lance un chrono rattaché à cet évènement' : 'Choisissez d’abord un projet'}>
-              <Button variant="light" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={startTimer.isPending} onClick={handleTimer}>
+              <Button variant="default" size="xs" leftSection={<TimerIcon aria-hidden />} disabled={!values.projectId} loading={startTimer.isPending} onClick={handleTimer}>
                 Chronométrer
               </Button>
             </Tooltip>

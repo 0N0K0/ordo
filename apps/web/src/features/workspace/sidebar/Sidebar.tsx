@@ -1,8 +1,9 @@
+import { ActionsRow } from '../../../components/actions/ActionsRow';
+import { ActionButton } from '../../../components/actions/ActionButton';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import {
   ActionIcon,
   Alert,
-  Button,
   CloseButton,
   Box,
   Group,
@@ -498,26 +499,20 @@ export function Sidebar() {
                   message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')}
                   action={
                     !searching && (
-                      <Stack gap="xs" align="stretch">
+                      <ActionsRow>
                         {!perso && (
-                          <Button
+                          <ActionButton priority="secondary"
                             size="xs"
-                            variant="light"
-                            leftSection={<UserPlusIcon aria-hidden />}
+                            icon={<UserPlusIcon aria-hidden />}
                             onClick={() => actions.openClientForm()}
-                          >
-                            Ajouter un client
-                          </Button>
+                          >Nouveau client</ActionButton>
                         )}
-                        <Button
+                        <ActionButton priority="secondary"
                           size="xs"
-                          variant="light"
-                          leftSection={<FolderPlusIcon aria-hidden />}
+                          icon={<FolderPlusIcon aria-hidden />}
                           onClick={() => actions.openProjectForm()}
-                        >
-                          Ajouter un projet
-                        </Button>
-                      </Stack>
+                        >Nouveau projet</ActionButton>
+                      </ActionsRow>
                     )
                   }
                 />

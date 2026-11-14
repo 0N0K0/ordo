@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
@@ -331,9 +332,7 @@ function CategoryList({ direction, categories, open }: { direction: TreasuryDire
         <Title order={3} size="h5">
           Catégories de {direction === 'IN' ? 'recettes' : 'dépenses'}
         </Title>
-        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => open({ kind: 'category', direction })}>
-          Catégorie
-        </Button>
+        <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => open({ kind: 'category', direction })}>Nouvelle catégorie</ActionButton>
       </Group>
       {kept.length === 0 ? (
         <Empty icon={<TagIcon aria-hidden />}>Aucune catégorie de {DIRECTION_LABELS[direction].toLowerCase()}.</Empty>
@@ -449,9 +448,7 @@ export function SettingsPanel() {
             <Title order={3} size="h5">
               Moyens de paiement
             </Title>
-            <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'method' })}>
-              Moyen de paiement
-            </Button>
+            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'method' })}>Nouveau moyen de paiement</ActionButton>
           </Group>
           {methods.length === 0 ? (
             <Empty icon={<CreditCardIcon aria-hidden />}>Aucun moyen de paiement.</Empty>
@@ -503,9 +500,7 @@ export function SettingsPanel() {
             <Title order={3} size="h5">
               Tiers
             </Title>
-            <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'counterparty' })}>
-              Tiers
-            </Button>
+            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'counterparty' })}>Nouveau tiers</ActionButton>
           </Group>
           <Text size="xs" c="dimmed" mb="xs">
             Émetteurs et destinataires qui ne sont pas des clients : fournisseurs, administrations, banques… Les clients sont proposés d’office.

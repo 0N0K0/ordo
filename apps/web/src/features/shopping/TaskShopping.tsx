@@ -1,5 +1,6 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { Anchor, Badge, Button, Group, Select, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Group, Select, Stack, Text } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -28,9 +29,9 @@ export function TaskShopping({ task }: { task: Task }) {
           Courses
         </Text>
         {!task.archived && (
-          <Button variant="subtle" size="compact-xs" leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id] })}>
+          <ActionButton priority="secondary" size="compact-xs" icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id] })}>
             Nouvelle liste
-          </Button>
+          </ActionButton>
         )}
       </Group>
       {own.length === 0 ? (

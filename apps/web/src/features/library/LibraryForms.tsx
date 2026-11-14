@@ -118,7 +118,7 @@ export function DocumentForm({ document, onDone }: { document: LibraryDocument; 
             </Text>
             <FileButton onChange={setFile}>
               {(props) => (
-                <Button size="xs" variant="light" leftSection={<UploadSimpleIcon aria-hidden />} {...props}>
+                <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} {...props}>
                   Remplacer par une nouvelle version
                 </Button>
               )}

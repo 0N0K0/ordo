@@ -1,3 +1,5 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { ActionIcon, Alert, Badge, Box, Button, Checkbox, Grid, Group, NavLink, Pagination, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
@@ -20,7 +22,6 @@ import { openSearchForm } from './open-search-form';
 import { ScheduledMailsList } from './ScheduledMailsList';
 import { MailAccountsManager } from './settings/MailAccountsManager';
 import { useMailComposer } from './use-mail-composer';
-import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM, useSettingsOpened } from '../../layouts/page-settings';
 
@@ -120,7 +121,7 @@ export function MailPage() {
   if (!isPending && accounts?.length === 0) {
     return (
       <Stack gap="lg">
-        <PageTitle>Mails</PageTitle>
+        <PageHeader title="Mails" />
         <EmptyState icon={<EnvelopeSimpleIcon aria-hidden />} message="Aucune boîte mail configurée : ajoutez-en une." />
         <MailAccountsManager />
       </Stack>
@@ -137,20 +138,17 @@ export function MailPage() {
         <MailAccountsManager />
         <MailLabelsManager />
       </PageSettings>
-      <Group justify="space-between">
-        <PageTitle>Mails</PageTitle>
-        {/* On the right, also when the title is hidden (from the tablet on). */}
-        <Group gap="sm" ml="auto">
+      <PageHeader
+        title="Mails"
+        actions={
+          <>
           <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
-            <Button variant="default" leftSection={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
-              Relever
-            </Button>
+            <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>Relever</ActionButton>
           </Tooltip>
-          <Button leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => compose({ accountId })}>
-            Nouveau mail
-          </Button>
-        </Group>
-      </Group>
+          <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} onClick={() => compose({ accountId })}>Nouveau mail</ActionButton>
+        </>
+        }
+      />
       <Grid gap="md" classNames={{ root: classes.grid, inner: classes.gridInner }}>
         <Grid.Col span={{ base: 12, md: 3, xl: 2 }} className={classes.column}>
           <Paper withBorder radius="md" p={4} className={`${classes.pane} ${classes.paneScroll}`}>

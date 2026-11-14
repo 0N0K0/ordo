@@ -1,3 +1,4 @@
+import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { ActionIcon, Anchor, Button, Checkbox, Collapse, FileButton, Group, Modal, Paper, Popover, Select, Stack, TagsInput, Text, TextInput, Tooltip } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, PaperclipIcon, PaperPlaneTiltIcon, XIcon } from '@phosphor-icons/react';
@@ -291,9 +292,9 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
             sera alors perdu définitivement.
           </Text>
           <Group justify="flex-end" gap="sm">
-            <Button
-              color="red"
-              variant="light"
+            <DestructiveButton
+             
+             
               onClick={() => {
                 setAskingClose(false);
                 void discard()
@@ -308,7 +309,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
               }}
             >
               Supprimer le brouillon
-            </Button>
+            </DestructiveButton>
             <Button
               onClick={() => {
                 setAskingClose(false);
@@ -445,7 +446,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           <Popover opened={scheduling} onChange={setScheduling} position="top-end" shadow="md" withinPortal={false} trapFocus>
             <Popover.Target>
               <Button
-                variant="light"
+                variant="default"
                 leftSection={<ClockCountdownIcon aria-hidden />}
                 disabled={!account || recipients.length === 0 || invalid}
                 loading={schedule.isPending}

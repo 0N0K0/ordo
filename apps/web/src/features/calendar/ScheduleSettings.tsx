@@ -148,7 +148,7 @@ function ScheduleTypes() {
           <Group gap="xs" wrap="nowrap">
             <ColorInput size="xs" w={120} format="hex" swatches={swatches} aria-label="Couleur du nouveau type" value={color} onChange={setColor} />
             <TextInput size="xs" style={{ flex: 1 }} aria-label="Nom du nouveau type" placeholder="Nouveau type…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-            <Button type="submit" size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim()} loading={saveType.isPending}>
+            <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim()} loading={saveType.isPending}>
               Ajouter
             </Button>
           </Group>

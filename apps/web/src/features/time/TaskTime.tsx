@@ -30,7 +30,7 @@ export function TaskTime({ task }: { task: Task }) {
         ) : (
           <Button
             size="compact-sm"
-            variant="light"
+            variant="default"
             leftSection={<PlayIcon aria-hidden />}
             loading={start.isPending}
             disabled={task.archived}

@@ -51,7 +51,7 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
               Gérer
             </Anchor>
           </Group>
-          <Button variant="light" leftSection={<AlarmIcon aria-hidden />} onClick={() => openAlarmForm()}>
+          <Button variant="default" leftSection={<AlarmIcon aria-hidden />} onClick={() => openAlarmForm()}>
             Programmer une alarme
           </Button>
         </Stack>

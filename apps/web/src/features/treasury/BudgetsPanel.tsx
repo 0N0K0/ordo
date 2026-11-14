@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -466,9 +467,9 @@ export function BudgetsPanel() {
     <Stack gap="md">
       <Group justify="space-between">
         <MonthPickerInput aria-label="Mois" valueFormat="MMMM YYYY" value={`${month}-01`} onChange={(value) => value && setMonth(String(value).slice(0, 7))} w={200} />
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ defaults: { month } })} disabled={!categories.length}>
-          Budget
-        </Button>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ defaults: { month } })} disabled={!categories.length}>
+          Nouveau budget
+        </ActionButton>
       </Group>
 
       <Paper withBorder radius="md" p="md">

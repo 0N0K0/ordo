@@ -1,3 +1,5 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { SidePanel } from '../../components/panels/SidePanel';
 import type { DateSelectArg, DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core';
@@ -52,7 +54,6 @@ import { PlacesManager } from '../geo/PlacesManager';
 import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
-import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
@@ -708,7 +709,7 @@ export function CalendarPage() {
   const fill = view !== 'dayGridMonth';
   return (
     <Stack gap="md" className={fill ? classes.fill : undefined}>
-      <PageTitle>Agenda</PageTitle>
+      <PageHeader title="Agenda" />
       {/* The view and the period on the left, the slots and a new event on the right. */}
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
@@ -731,9 +732,9 @@ export function CalendarPage() {
           </Text>
         </Group>
         <Group gap="xs" wrap="wrap">
-          <Button variant="default" leftSection={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
+          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => setManagingSchedules(true)}>
             {perso ? 'Plages' : 'Plages de travail'}
-          </Button>
+          </ActionButton>
           <Tooltip label={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}>
             <Button
               variant={editingSlots ? 'filled' : 'default'}
@@ -744,9 +745,9 @@ export function CalendarPage() {
               {editingSlots ? 'Terminer' : 'Modifier les plages'}
             </Button>
           </Tooltip>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
             Nouvel évènement
-          </Button>
+          </ActionButton>
         </Group>
       </Group>
 

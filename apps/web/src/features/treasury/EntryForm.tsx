@@ -471,7 +471,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             <Group justify="space-between">
               <Button
                 size="xs"
-                variant="light"
+                variant="default"
                 leftSection={<PlusIcon aria-hidden />}
                 disabled={settleable.length === values.allocations.length}
                 onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}

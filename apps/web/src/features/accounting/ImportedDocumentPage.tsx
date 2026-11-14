@@ -96,11 +96,11 @@ export function ImportedDocumentPage() {
                   {document.fileUrl ? 'Ce fichier ne peut pas être affiché ici.' : 'Aucun fichier joint.'}
                 </Text>
                 {document.fileUrl ? (
-                  <Button component="a" href={downloadUrl(document.fileUrl)} variant="light" leftSection={<DownloadSimpleIcon aria-hidden />}>
+                  <Button component="a" href={downloadUrl(document.fileUrl)} variant="default" leftSection={<DownloadSimpleIcon aria-hidden />}>
                     Télécharger {document.fileName}
                   </Button>
                 ) : (
-                  <Button variant="light" onClick={() => openImportForm(document)}>
+                  <Button variant="default" onClick={() => openImportForm(document)}>
                     Joindre le fichier
                   </Button>
                 )}

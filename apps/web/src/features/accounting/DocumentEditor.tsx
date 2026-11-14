@@ -411,21 +411,21 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
           {readOnly && isQuote && (
             <>
-              <Button variant="light" onClick={() => openDepositForm({ quoteId: document.id })}>
+              <Button variant="default" onClick={() => openDepositForm({ quoteId: document.id })}>
                 Facture d’acompte
               </Button>
-              <Button variant="light" onClick={() => createFrom('INVOICE')}>
+              <Button variant="default" onClick={() => createFrom('INVOICE')}>
                 Facturer
               </Button>
             </>
           )}
           {readOnly && isInvoice && (
-            <Button variant="light" color="orange" onClick={() => createFrom('CREDIT_NOTE')}>
+            <Button variant="default" color="orange" onClick={() => createFrom('CREDIT_NOTE')}>
               Créer un avoir
             </Button>
           )}
           {document.type === 'INVOICE' && !isTemplate && (
-            <Button variant="light" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
+            <Button variant="default" color="grape" leftSection={<ArrowsClockwiseIcon aria-hidden />} onClick={() => openRecurringForm({ documentId: document.id })}>
               Rendre récurrente
             </Button>
           )}
@@ -561,7 +561,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 extraActions={
                   <>
                     {canBillTime && (
-                      <Button size="xs" variant="light" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
+                      <Button size="xs" variant="default" color="teal" leftSection={<ClockIcon aria-hidden />} onClick={openTimeBilling}>
                         Temps passé
                       </Button>
                     )}
@@ -799,7 +799,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
           }
         >
           {(props) => (
-            <Button size="xs" variant="light" leftSection={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
+            <Button size="xs" variant="default" leftSection={<UploadSimpleIcon aria-hidden />} loading={addAttachments.isPending} {...props}>
               Joindre
             </Button>
           )}

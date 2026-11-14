@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -92,9 +93,9 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         manualText="Sans tri : les produits par nom, dans leurs catégories."
         actions={
           <Group gap="sm" wrap="nowrap">
-            <Button variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
-              Ajouter un produit
-            </Button>
+            <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
+              Nouveau produit
+            </ActionButton>
             <Button leftSection={<ListPlusIcon aria-hidden />} disabled={missing.length === 0} onClick={() => openNewList({ baseListIds: [baseList.id] })}>
               Générer une liste ({missing.length})
             </Button>
@@ -111,19 +112,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       {isPending ? (
         <TableSkeleton rows={4} />
       ) : products.length === 0 ? (
-        <EmptyState
-          icon={<BasketIcon aria-hidden />}
-          message={<>{products.length ? 'Aucun produit ne correspond.' : `« ${baseList.name} » est vide : ajoutez-y ce que vous achetez d’habitude.`}</>}
-          action={
-            <>
-              {!products.length && (
-                <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'product', baseListId: baseList.id })}>
-                  Ajouter un produit
-                </Button>
-              )}
-            </>
-          }
-        />
+        <EmptyState icon={<BasketIcon aria-hidden />} message={<>{products.length ? 'Aucun produit ne correspond.' : `« ${baseList.name} » est vide : ajoutez-y ce que vous achetez d’habitude.`}</>} />
       ) : (
         <ShoppingTable
           view={view}

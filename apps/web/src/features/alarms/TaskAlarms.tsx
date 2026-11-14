@@ -1,6 +1,7 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { AlarmIcon, PlusIcon } from '@phosphor-icons/react';
 import type { Task } from '../tasks/api';
 import type { TaskContext } from '../tasks/use-task-context';
@@ -28,27 +29,16 @@ export function TaskAlarms({ task, context }: { task: Task; context: TaskContext
         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
           Alertes
         </Text>
-        {alarms.length > 0 && (
-          <Button size="compact-xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={create}>
-            Ajouter
-          </Button>
-        )}
+        <ActionButton priority="secondary" size="compact-xs" icon={<PlusIcon aria-hidden />} onClick={create}>
+          Nouvelle alerte
+        </ActionButton>
       </Group>
       {isPending ? (
         <ListSkeleton items={1} lines={2} />
       ) : alarms.length ? (
         <AlarmList alarms={alarms} context={context} openForm={openForm} showTarget={false} />
       ) : (
-        <EmptyState
-          compact
-          icon={<AlarmIcon aria-hidden />}
-          message="Aucune alerte pour cette tâche."
-          action={
-            <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={create}>
-              Ajouter une alerte
-            </Button>
-          }
-        />
+        <EmptyState compact icon={<AlarmIcon aria-hidden />} message="Aucune alerte pour cette tâche." />
       )}
     </Stack>
   );

@@ -214,7 +214,7 @@ export function WorkspacesManager() {
             <Group gap="xs" wrap="nowrap" align="flex-end">
               <TextInput label="Nom" placeholder="Nom de l’espace" style={{ flex: 1 }} value={name} maxLength={60} onChange={(event) => setName(event.currentTarget.value)} />
               <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
-              <Button type="submit" variant="light" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
+              <Button type="submit" variant="default" leftSection={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!name.trim()}>
                 Ajouter
               </Button>
             </Group>

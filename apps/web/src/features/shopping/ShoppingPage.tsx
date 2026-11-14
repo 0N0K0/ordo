@@ -1,13 +1,14 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { ActionIcon, Badge, Button, Group, Paper, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { SHOPPING_LIST_FILTER_FIELDS, SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS, type ShoppingListFilterField, type ShoppingListGroupBy } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
-import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
@@ -94,9 +95,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           <ViewTabs state={view} />
         </div>
         {!projectIds && (
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
             Nouvelle liste
-          </Button>
+          </ActionButton>
         )}
       </Group>
       {config && (
@@ -290,7 +291,7 @@ export function ShoppingPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Courses</PageTitle>
+      <PageHeader title="Courses" />
       <ShoppingSettings />
       <PageTabs
         value={tab}

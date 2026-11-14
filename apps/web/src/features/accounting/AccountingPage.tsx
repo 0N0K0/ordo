@@ -1,14 +1,15 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Badge, Button, Group, Menu, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney, recurrenceSchema } from '@ordo/shared';
 import {
   ArrowsClockwiseIcon,
   BellRingingIcon,
   BuildingsIcon,
-  CaretDownIcon,
   FileArrowUpIcon,
   FileTextIcon,
   FileZipIcon,
@@ -40,7 +41,6 @@ import { CompanySettings } from './CompanySettings';
 import { openRecurringForm } from './recurring-form';
 import { DocumentStatusSettings } from './DocumentStatusSettings';
 import { PageTabs } from '../../components/PageTabs';
-import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
 import { useEffect } from 'react';
@@ -266,28 +266,21 @@ export function AccountingPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Facturation</PageTitle>
-      {/* The creation on the right: the views of each table choose their period. */}
-      <Group justify="flex-end" gap="sm">
-        <Menu position="bottom-end" shadow="md">
-          <Menu.Target>
-            <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
-              Nouveau
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {TABS.map((item) => (
-              <Menu.Item key={item.value} onClick={() => openNewDocument(item.value)}>
-                {DOCUMENT_TYPE_LABELS[item.value]}
-              </Menu.Item>
-            ))}
-            <Menu.Divider />
-            <Menu.Item leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
-              Importer un document existant
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-      </Group>
+      <PageHeader
+        title="Facturation"
+        actions={
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            menu={[
+              ...TABS.map((item) => ({ label: DOCUMENT_TYPE_LABELS[item.value], icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument(item.value) })),
+              'divider' as const,
+              { label: 'Importer un document existant', icon: <FileArrowUpIcon aria-hidden />, onClick: () => openImportForm() },
+            ]}
+          >
+            Nouveau document
+          </ActionButton>
+        }
+      />
       <PageTabs value={tab} onChange={(value) => setParam('tab', value && value !== 'QUOTE' ? value : null)} keepMounted={false}>
         <PageTabs.List>
           {TABS.map((item) => (

@@ -35,17 +35,17 @@ export function ScopeChoices({ action, allowThis = true, allowFollowing = true, 
       </Text>
       <Stack gap="xs">
         {allowThis && (
-          <Button variant="light" color={color} onClick={() => onAnswer('THIS')}>
+          <Button variant="default" color={color} onClick={() => onAnswer('THIS')}>
             Cette occurrence
           </Button>
         )}
         {allowFollowing && (
-          <Button variant="light" color={color} onClick={() => onAnswer('FOLLOWING')}>
+          <Button variant="default" color={color} onClick={() => onAnswer('FOLLOWING')}>
             Celle-ci et les suivantes
           </Button>
         )}
         {allowAll && (
-          <Button variant="light" color={color} onClick={() => onAnswer('ALL')}>
+          <Button variant="default" color={color} onClick={() => onAnswer('ALL')}>
             Toutes les occurrences
           </Button>
         )}

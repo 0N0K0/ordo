@@ -1,3 +1,5 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
@@ -57,7 +59,6 @@ import { sortRows, tableWidth, type DataColumn } from '../../components/data-tab
 import { localDay } from '../../lib/dates';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
-import { PageTitle } from '../../components/PageTitle';
 
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -480,14 +481,11 @@ export function LibraryPage() {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Stack gap={2}>
-          <PageTitle>Documents</PageTitle>
-          <Text size="sm" c="dimmed">
-            Documents de l’entreprise : Kbis, statuts, logo, attestations… en fichiers ou en liens vers votre cloud.
-          </Text>
-        </Stack>
-        <Group gap="xs">
+      <PageHeader
+        title="Documents"
+        description="Documents de l’entreprise : Kbis, statuts, logo, attestations… en fichiers ou en liens vers votre cloud."
+        actions={
+          <>
           <Button
             component="label"
             leftSection={<UploadSimpleIcon aria-hidden />}
@@ -499,12 +497,9 @@ export function LibraryPage() {
               event.currentTarget.value = '';
             }} />
           </Button>
-          <Button variant="light" leftSection={<LinkIcon aria-hidden />} onClick={() => openFormPanel('Ajouter un lien', (close) => <LinkForm folderId={current} onDone={close} />)}>
-            Ajouter un lien
-          </Button>
-          <Button
-            variant="default"
-            leftSection={<FolderPlusIcon aria-hidden />}
+          <ActionButton priority="secondary" icon={<LinkIcon aria-hidden />} onClick={() => openFormPanel('Ajouter un lien', (close) => <LinkForm folderId={current} onDone={close} />)}>Ajouter un lien</ActionButton>
+          <ActionButton priority="secondary"
+            icon={<FolderPlusIcon aria-hidden />}
             onClick={() =>
               openFormPanel('Nouveau dossier', (close) => (
                 <FolderNameForm
@@ -515,11 +510,10 @@ export function LibraryPage() {
                 />
               ))
             }
-          >
-            Nouveau dossier
-          </Button>
-        </Group>
-      </Group>
+          >Nouveau dossier</ActionButton>
+          </>
+        }
+      />
 
       {error ? (
         <Text c="red">{error.message}</Text>

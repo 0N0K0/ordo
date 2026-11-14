@@ -1,6 +1,7 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { Button, Group, Menu, Stack, Text, Title } from '@mantine/core';
-import { CaretDownIcon, FileArrowUpIcon, PlusIcon } from '@phosphor-icons/react';
+import { Group, Stack, Text, Title } from '@mantine/core';
+import { FileArrowUpIcon, PlusIcon, FileTextIcon } from '@phosphor-icons/react';
 import { useAccountingDocuments, useImportedDocuments } from './documents-api';
 import { DocumentsTable } from './DocumentsTable';
 import { openImportForm } from './imported-form';
@@ -33,24 +34,21 @@ export function ProjectBillingPanel({ clientId, projectId, projectIds }: { clien
         <Title order={2} size="h4">
           Documents comptables
         </Title>
-        <Menu position="bottom-end" shadow="md">
-          <Menu.Target>
-            <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />} disabled={!clientId}>
-              Nouveau
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((type) => (
-              <Menu.Item key={type} onClick={() => openNewDocument(type, { clientId, projectId })}>
-                {DOCUMENT_TYPE_LABELS[type]}
-              </Menu.Item>
-            ))}
-            <Menu.Divider />
-            <Menu.Item leftSection={<FileArrowUpIcon aria-hidden />} onClick={() => openImportForm()}>
-              Importer un document existant
-            </Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
+        <ActionButton
+          icon={<PlusIcon aria-hidden />}
+          disabled={!clientId}
+          menu={[
+            ...(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((type) => ({
+              label: DOCUMENT_TYPE_LABELS[type],
+              icon: <FileTextIcon aria-hidden />,
+              onClick: () => openNewDocument(type, { clientId, projectId }),
+            })),
+            'divider' as const,
+            { label: 'Importer un document existant', icon: <FileArrowUpIcon aria-hidden />, onClick: () => openImportForm() },
+          ]}
+        >
+          Nouveau document
+        </ActionButton>
       </Group>
       {!clientId && projectId && (
         <Text size="xs" c="dimmed">

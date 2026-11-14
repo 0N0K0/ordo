@@ -1,3 +1,4 @@
+import { PageHeader } from '../../../components/actions/PageHeader';
 import { Stack } from "@mantine/core";
 import { FoldersIcon, GithubLogoIcon, ListChecksIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
@@ -21,7 +22,6 @@ import {
 } from "../api";
 import { SettingsGrid } from "../../../components/settings/SettingsGrid";
 import { PageTabs } from '../../../components/PageTabs';
-import { PageTitle } from "../../../components/PageTitle";
 
 /**
  * Settings, in tabs: projects (statuses, categories), team or household, contributors and relations, tasks (statuses,
@@ -74,7 +74,7 @@ export function SettingsPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Paramètres</PageTitle>
+      <PageHeader title="Paramètres" />
       <PageTabs
         value={tab}
         onChange={(value) =>

@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
@@ -239,9 +240,9 @@ function Contexts() {
           <Title order={3} size="h5">
             Contextes
           </Title>
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'context' })}>
-            Contexte
-          </Button>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'context' })}>
+            Nouveau contexte
+          </ActionButton>
         </Group>
         <Text size="xs" c="dimmed" mb="xs">
           Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « {EVERYDAY_CONTEXT} ».
@@ -295,9 +296,9 @@ function Contexts() {
           <Title order={3} size="h5">
             Contextes planifiés
           </Title>
-          <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => setDialog({ kind: 'period' })}>
-            Période
-          </Button>
+          <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!contexts.length} onClick={() => setDialog({ kind: 'period' })}>
+            Nouvelle période
+          </ActionButton>
         </Group>
         <Text size="xs" c="dimmed" mb="xs">
           Les lignes des mouvements datés dans une période prennent son contexte (modifiable). Changer une période ne modifie pas les lignes déjà enregistrées.
@@ -472,9 +473,9 @@ export function TeamRelations() {
         <Title order={3} size="h5">
           Relations
         </Title>
-        <Button size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
-          Relation
-        </Button>
+        <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => setEditing({})}>
+          Nouvelle relation
+        </ActionButton>
       </Group>
       <Text size="xs" c="dimmed" mb="xs">
         Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers.

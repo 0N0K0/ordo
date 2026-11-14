@@ -1,6 +1,8 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { Button, Group, Stack } from '@mantine/core';
+import { Group, Stack } from '@mantine/core';
 import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, type RoutineViewConfig } from '@ordo/shared';
 import { useMemo, useState } from 'react';
@@ -12,7 +14,6 @@ import { newConditionFor } from '../tasks/views/filter-meta';
 import { ROUTINE_COLUMNS } from './routine-columns';
 import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
-import { PageTitle } from '../../components/PageTitle';
 import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
@@ -92,9 +93,9 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
         <div style={{ minWidth: 0, flex: 1 }}>
           <ViewTabs state={state} />
         </div>
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openRoutineForm({ projectId })}>
           Nouvelle routine
-        </Button>
+        </ActionButton>
       </Group>
       {config && env && columnLayout && (
         <RoutineViewToolbar
@@ -168,7 +169,7 @@ export function RoutinesPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Routines</PageTitle>
+      <PageHeader title="Routines" />
       <RoutineSettings />
       <PageTabs
         value={tab}

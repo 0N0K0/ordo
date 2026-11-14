@@ -135,7 +135,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                     {(props) => (
                       <Button
                         size="xs"
-                        variant="light"
+                        variant="default"
                         leftSection={<UploadSimpleIcon aria-hidden />}
                         loading={setLogo.isPending}
                         {...props}
@@ -414,7 +414,7 @@ function NumberingSettings() {
                     <Table.Td>
                       <Button
                         size="xs"
-                        variant="light"
+                        variant="default"
                         disabled={value === sequence.nextNumber}
                         onClick={() =>
                           setSequence.mutate(

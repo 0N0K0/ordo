@@ -1,3 +1,4 @@
+import { PageHeader } from '../components/actions/PageHeader';
 import { SegmentedControl, Stack } from '@mantine/core';
 import { addDays, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
@@ -5,7 +6,6 @@ import { useSearchParams } from 'react-router';
 import { localToday } from '../lib/dates';
 import { MY_TASKS_PERIODS, myTasksFilter, type MyTasksPeriod } from '../features/tasks/my-tasks';
 import { TaskBoard } from '../features/tasks/TaskBoard';
-import { PageTitle } from '../components/PageTitle';
 
 /**
  * My tasks of today, tomorrow or this week, across every project, with their own saved views.
@@ -28,7 +28,7 @@ export function TasksPage() {
 
   return (
     <Stack gap="md">
-      <PageTitle>Mes tâches</PageTitle>
+      <PageHeader title="Mes tâches" />
       <TaskBoard
         projectId={null}
         baseFilter={baseFilter}

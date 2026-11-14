@@ -1,6 +1,7 @@
+import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Avatar, Badge, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Avatar, Badge, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
@@ -85,9 +86,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
               d’un projet (et de ses projets parents) sont proposés dans ses tâches.
             </Text>
           </Stack>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Ajouter
-          </Button>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>Nouveau contributeur</ActionButton>
         </Group>
         {contributors.length === 0 ? (
           <Group gap="sm">

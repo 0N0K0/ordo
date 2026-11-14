@@ -1,3 +1,5 @@
+import { ActionButton } from '../../components/actions/ActionButton';
+import { ActionsRow } from '../../components/actions/ActionsRow';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -581,17 +583,17 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
 
   if (!dashboards?.length || !current) {
     return (
-      <EmptyState
-        icon={<ChartBarIcon aria-hidden />}
-        message="Aucun tableau de bord. Créez-en un pour suivre vos indicateurs : tâches fermées par semaine, vélocité par sprint, burndown, charge par assigné…"
-        action={
-          <>
-            <Button leftSection={<PlusIcon aria-hidden />} onClick={() => askName()}>
-              Créer un tableau de bord
-            </Button>
-          </>
-        }
-      />
+      <Stack gap="md">
+        <ActionsRow>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => askName()}>
+            Nouveau tableau de bord
+          </ActionButton>
+        </ActionsRow>
+        <EmptyState
+          icon={<ChartBarIcon aria-hidden />}
+          message="Aucun tableau de bord. Créez-en un pour suivre vos indicateurs : tâches fermées par semaine, vélocité par sprint, burndown, charge par assigné…"
+        />
+      </Stack>
     );
   }
 
@@ -653,42 +655,24 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
         </Group>
         {/* The new chart at the far right. */}
         <Group gap="xs" ml="auto">
-          <Button variant="default" leftSection={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
+          <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} loading={exporting} disabled={current.charts.length === 0} onClick={exportDashboard}>
             Exporter en PDF
-          </Button>
-          <Menu position="bottom-end" shadow="md">
-            <Menu.Target>
-              <Button leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
-                Nouveau diagramme
-              </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<CheckSquareOffsetIcon aria-hidden />} onClick={() => openEditor(undefined, 'tasks')}>
-                Tâches
-              </Menu.Item>
-              <Menu.Item leftSection={<ReceiptIcon aria-hidden />} onClick={() => openEditor(undefined, 'documents')}>
-                Facturation (devis, factures…)
-              </Menu.Item>
-              <Menu.Item leftSection={<BankIcon aria-hidden />} onClick={() => openEditor(undefined, 'treasury')}>
-                Trésorerie
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+          </ActionButton>
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            menu={[
+              { label: 'Tâches', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => openEditor(undefined, 'tasks') },
+              { label: 'Facturation (devis, factures…)', icon: <ReceiptIcon aria-hidden />, onClick: () => openEditor(undefined, 'documents') },
+              { label: 'Trésorerie', icon: <BankIcon aria-hidden />, onClick: () => openEditor(undefined, 'treasury') },
+            ]}
+          >
+            Nouveau diagramme
+          </ActionButton>
         </Group>
       </Group>
 
       {current.charts.length === 0 ? (
-        <EmptyState
-          icon={<ChartBarIcon aria-hidden />}
-          message="Ce tableau de bord n’a pas encore de diagramme."
-          action={
-            <>
-              <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openEditor()}>
-                Ajouter un diagramme
-              </Button>
-            </>
-          }
-        />
+        <EmptyState icon={<ChartBarIcon aria-hidden />} message="Ce tableau de bord n’a pas encore de diagramme." />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={current.charts.map((chart) => chart.id)} strategy={rectSortingStrategy}>

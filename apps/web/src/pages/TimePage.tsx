@@ -1,4 +1,6 @@
-import { Button, Group, Stack, Title, Tooltip } from '@mantine/core';
+import { PageHeader } from '../components/actions/PageHeader';
+import { ActionButton } from '../components/actions/ActionButton';
+import { Group, Stack, Title, Tooltip } from '@mantine/core';
 import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import { useTaskContext } from '../features/tasks/use-task-context';
 import { useRunningTimer, useTimeEntriesSince } from '../features/time/api';
@@ -7,7 +9,6 @@ import { PlannedTime } from '../features/time/PlannedTime';
 import { TimeLog } from '../features/time/TimeLog';
 import { useTimeEntryDialogs } from '../features/time/use-time-dialogs';
 import { useActiveWorkspace } from '../features/workspaces/api';
-import { PageTitle } from '../components/PageTitle';
 
 /**
  * Timers of every project: a button starting one (in a modal), planned against tracked time, time added by hand,
@@ -24,7 +25,7 @@ export function TimePage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Chronos</PageTitle>
+      <PageHeader title="Chronos" />
       {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
       {!perso && <PlannedTime />}
       <Title order={2} size="h4">
@@ -41,13 +42,13 @@ export function TimePage() {
         actions={
           // One timer runs at a time: the one running shows in the top bar.
           <Group gap="sm" wrap="nowrap">
-            <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
-              Ajouter un temps
-            </Button>
+            <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
+              Nouveau temps
+            </ActionButton>
             <Tooltip label="Un chrono tourne déjà" disabled={!running.data}>
-              <Button leftSection={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context)} disabled={!context || Boolean(running.data)}>
+              <ActionButton icon={<PlayIcon aria-hidden />} onClick={() => context && openTimerForm(context)} disabled={!context || Boolean(running.data)}>
                 Lancer un chrono
-              </Button>
+              </ActionButton>
             </Tooltip>
           </Group>
         }

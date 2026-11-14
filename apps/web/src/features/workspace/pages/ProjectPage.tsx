@@ -1,4 +1,5 @@
-import { Anchor, Badge, Breadcrumbs, Button, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
 import { PageTabs } from '../../../components/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, type ReactNode } from 'react';
@@ -186,13 +187,10 @@ export function ProjectPage() {
         }
         extraActions={
           canAddSubProject && (
-            <Button
-              variant="light"
-              leftSection={<FolderPlusIcon aria-hidden />}
+            <ActionButton
+              icon={<FolderPlusIcon aria-hidden />}
               onClick={() => actions.openProjectForm(undefined, { parentId: project.id })}
-            >
-              Ajouter un sous-projet
-            </Button>
+            >Nouveau sous-projet</ActionButton>
           )
         }
       />

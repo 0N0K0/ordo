@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -225,22 +226,15 @@ export function CatalogPanel() {
       bar={{
         searchLabel: 'Rechercher un article',
         actions: (
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Ajouter un article
-          </Button>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
+            Nouvel article
+          </ActionButton>
         ),
       }}
       empty={
         <EmptyState
           icon={<PackageIcon aria-hidden />}
           message="Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic."
-          action={
-            <>
-              <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-                Ajouter un article
-              </Button>
-            </>
-          }
         />
       }
       verticalSpacing="xs"

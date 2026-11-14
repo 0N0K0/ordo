@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/actions/PageHeader';
 import { Alert, Button, Group, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
 import {
   changeEmailFormSchema,
@@ -20,7 +21,6 @@ import {
   type AccountUser,
 } from '../auth/api';
 import { PasswordStrength } from '../auth/PasswordStrength';
-import { PageTitle } from '../../components/PageTitle';
 
 interface SectionProps {
   title: string;
@@ -240,7 +240,7 @@ export function AccountPage() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Mon compte</PageTitle>
+      <PageHeader title="Mon compte" />
       <Section title="Identifiant" description="Utilisable à la place de l’adresse email pour se connecter.">
         <UsernameForm key={user.username} user={user} />
       </Section>

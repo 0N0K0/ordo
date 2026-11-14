@@ -1,7 +1,9 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Menu, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Checkbox, Group, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { formatMoney } from '@ordo/shared';
 import {
@@ -9,7 +11,6 @@ import {
   BankIcon,
   BasketIcon,
   CalendarPlusIcon,
-  CaretDownIcon,
   DotsThreeVerticalIcon,
   ListPlusIcon,
   PencilSimpleIcon,
@@ -23,7 +24,6 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
-import { PageTitle } from '../../components/PageTitle';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { TaskRef } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
@@ -90,9 +90,9 @@ export function ShoppingListPage() {
         icon={<BasketIcon aria-hidden />}
         message="Cette liste n’existe pas ou a été supprimée."
         action={
-          <Button component={Link} to="/shopping?tab=lists" variant="light" leftSection={<ArrowLeftIcon aria-hidden />}>
+          <ActionButton priority="secondary" to="/shopping?tab=lists" icon={<ArrowLeftIcon aria-hidden />}>
             Retour aux listes
-          </Button>
+          </ActionButton>
         }
       />
     );
@@ -116,7 +116,7 @@ export function ShoppingListPage() {
           </ActionIcon>
         </Tooltip>
         <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <PageTitle>Courses</PageTitle>
+          <PageHeader title="Courses" />
           <Group gap="xs">
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {list.name}
@@ -160,29 +160,25 @@ export function ShoppingListPage() {
         actions={
           <Group gap="sm" ml="auto" wrap="wrap">
             {!closed && (
-              <Menu position="bottom-end" shadow="md" withinPortal>
-                <Menu.Target>
-                  <Button variant="default" leftSection={<PlusIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden size={12} />}>
-                    Ajouter un produit
-                  </Button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Item
-                    leftSection={<ListPlusIcon aria-hidden />}
-                    disabled={baseLists.length === 0}
-                    onClick={() => openFormPanel('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />)}
-                  >
-                    Depuis les listes types…
-                  </Menu.Item>
-                  <Menu.Item leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => openShoppingForm({ kind: 'item', listId: list.id })}>
-                    Hors liste type…
-                  </Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
+              <ActionButton
+                priority="secondary"
+                icon={<PlusIcon aria-hidden />}
+                menu={[
+                  {
+                    label: 'Depuis les listes types…',
+                    icon: <ListPlusIcon aria-hidden />,
+                    disabled: baseLists.length === 0,
+                    onClick: () => openFormPanel('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />),
+                  },
+                  { label: 'Hors liste type…', icon: <PencilSimpleLineIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id }) },
+                ]}
+              >
+                Ajouter un produit
+              </ActionButton>
             )}
-            <Button leftSection={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0} onClick={() => setStoreMode(true)}>
+            <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0} onClick={() => setStoreMode(true)}>
               Mode magasin
-            </Button>
+            </ActionButton>
             <ListActionsMenu
               list={list}
               grouping={grouping}

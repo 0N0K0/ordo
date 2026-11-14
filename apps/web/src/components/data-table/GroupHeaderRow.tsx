@@ -60,7 +60,7 @@ export function NoMatch<R>({ view }: { view: DataView<R> }) {
       action={
         <>
           {view.total > 0 && (
-            <Button size="xs" variant="light" onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
+            <Button size="xs" variant="default" onClick={() => view.change((current) => ({ ...current, search: '', filter: emptyTableFilter() }))}>
               Effacer la recherche et les filtres
             </Button>
           )}

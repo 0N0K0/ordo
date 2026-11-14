@@ -1,3 +1,5 @@
+import { PageHeader } from '../../components/actions/PageHeader';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton, DetailSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -7,7 +9,7 @@ import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, NumberInput, Paper,
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
-import { BankIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
@@ -38,7 +40,6 @@ import { SettingsPanel } from './SettingsPanel';
 import { BudgetsPanel } from './BudgetsPanel';
 import { LoansPanel } from './LoansPanel';
 import { PageTabs } from '../../components/PageTabs';
-import { PageTitle } from '../../components/PageTitle';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
 
@@ -317,20 +318,24 @@ export function TreasuryPage() {
   if (accountsPending) return <DetailSkeleton />;
 
   const header = (
-    <Group justify="space-between">
-      <PageTitle>Trésorerie</PageTitle>
-      {/* On the right, also when the title is hidden (from the tablet on). */}
-      {!!accounts?.length && (
-        <Group gap="xs" ml="auto">
-          <Button variant="light" color="grape" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'entry', status: 'FORECAST' })}>
-            Prévision
-          </Button>
-          <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'entry', status: 'ACTUAL' })}>
-            Mouvement
-          </Button>
-        </Group>
-      )}
-    </Group>
+    <PageHeader
+      title="Trésorerie"
+      actions={
+        !accounts?.length ? (
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
+            Nouveau compte
+          </ActionButton>
+        ) : (
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            onClick={() => setDialog({ kind: 'entry', status: 'ACTUAL' })}
+            menu={[{ label: 'Nouvelle prévision', icon: <CalendarPlusIcon aria-hidden />, onClick: () => setDialog({ kind: 'entry', status: 'FORECAST' }) }]}
+          >
+            Nouveau mouvement
+          </ActionButton>
+        )
+      }
+    />
   );
 
   const dialogs = (
@@ -367,17 +372,7 @@ export function TreasuryPage() {
     return (
       <Stack gap="md">
         {header}
-        <EmptyState
-          icon={<BankIcon aria-hidden />}
-          message="Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là."
-          action={
-            <>
-              <Button leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
-                Créer un compte
-              </Button>
-            </>
-          }
-        />
+        <EmptyState icon={<BankIcon aria-hidden />} message="Aucun compte. Créez votre compte bancaire avec le solde de votre relevé à une date : les mouvements et le prévisionnel partent de là." />
         {dialogs}
       </Stack>
     );
@@ -663,9 +658,9 @@ export function TreasuryPage() {
             bar={{
               searchLabel: 'Rechercher un compte',
               actions: (
-                <Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
-                  Compte
-                </Button>
+                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
+                  Nouveau compte
+                </ActionButton>
               ),
             }}
             verticalSpacing="xs"

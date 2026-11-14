@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
@@ -145,14 +146,10 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
         <Text size="sm" c="dimmed">
           Les sprints sont utilisables par les tâches du projet et de ses sous-projets.
         </Text>
-        <Button leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
-          Nouveau sprint
-        </Button>
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>Nouveau sprint</ActionButton>
       </Group>
       {sprints.length === 0 ? (
-        <EmptyState icon={<TimerIcon aria-hidden />} message="Aucun sprint pour ce projet." action={<><Button variant="light" leftSection={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={project?.archived}>
-              Planifier un premier sprint
-            </Button></>} />
+        <EmptyState icon={<TimerIcon aria-hidden />} message="Aucun sprint pour ce projet." />
       ) : (
         sprints.map((sprint) => {
           const tasks = context.tasks.filter((task) => task.sprintIds.includes(sprint.id) && !task.archived);

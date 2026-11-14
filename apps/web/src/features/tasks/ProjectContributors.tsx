@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import {
@@ -5,7 +6,6 @@ import {
   Anchor,
   Avatar,
   Badge,
-  Button,
   Group,
   Paper,
   Select,
@@ -106,13 +106,9 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
             nothingFoundMessage="Aucun autre contributeur"
             disabled={others.length === 0 || project?.archived}
           />
-          <Button
-            leftSection={<PlusIcon aria-hidden />}
-            onClick={() => openForm(undefined, [projectId])}
-            disabled={project?.archived}
-          >
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm(undefined, [projectId])} disabled={project?.archived}>
             Nouveau contributeur
-          </Button>
+          </ActionButton>
         </Group>
       </Group>
 
