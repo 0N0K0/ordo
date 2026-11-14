@@ -59,19 +59,9 @@ import { sortRows, tableWidth, type DataColumn } from '../../components/data-tab
 import { localDay } from '../../lib/dates';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
+import * as fmt from '../../lib/format';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-
-/**
- * Size in Ko or Mo.
- * @param {number} bytes Size.
- * @returns {string} Size.
- */
-function printedSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
-  return `${(bytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
-}
 
 /**
  * Icon of a document: PDF, image, link or other file.
@@ -207,14 +197,14 @@ function libraryColumns(paths: Map<string, string>): DataColumn<LibraryDocument>
       text: (document) => (document.kind === 'LINK' ? 'Lien' : (document.mimeType ?? 'Fichier')),
       groupable: true,
     },
-    { id: 'size', label: 'Taille', size: 140, numeric: true, sortValue: (document) => document.size ?? null, text: (document) => (document.size ? printedSize(document.size) : 'Lien') },
+    { id: 'size', label: 'Taille', size: 140, numeric: true, sortValue: (document) => document.size ?? null, text: (document) => (document.size ? fmt.fileSize(document.size) : 'Lien') },
     { id: 'note', label: 'Note', size: 220, hiddenByDefault: true, sortValue: (document) => document.note ?? null, text: (document) => document.note ?? '' },
     {
       id: 'updatedAt',
       label: 'Modifié le',
       size: 150,
       sortValue: (document) => document.updatedAt,
-      text: (document) => dateFormat.format(new Date(document.updatedAt)),
+      text: (document) => fmt.day(new Date(document.updatedAt)),
       filter: { kind: 'date', value: (document) => localDay(new Date(document.updatedAt)) },
     },
   ];
@@ -771,7 +761,7 @@ export function LibraryPage() {
                                   ),
                                   size: (
                                     <Text size="sm" c="dimmed">
-                                      {document.size ? printedSize(document.size) : 'Lien'}
+                                      {document.size ? fmt.fileSize(document.size) : 'Lien'}
                                     </Text>
                                   ),
                                   kind: (
@@ -781,7 +771,7 @@ export function LibraryPage() {
                                   ),
                                   updatedAt: (
                                     <Text size="sm" c="dimmed">
-                                      {dateFormat.format(new Date(document.updatedAt))}
+                                      {fmt.day(new Date(document.updatedAt))}
                                     </Text>
                                   ),
                                 }[column.id]

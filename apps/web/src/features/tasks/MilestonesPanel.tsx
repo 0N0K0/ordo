@@ -18,8 +18,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMilestoneMutations, type Milestone } from './api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
 import { useTaskContext, type TaskContext } from './use-task-context';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 interface MilestoneFormProps {
   projectId: string;
@@ -220,7 +219,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                           </Title>
                         </Group>
                         <Text size="sm" c={late ? 'red' : 'dimmed'} fw={late ? 600 : undefined}>
-                          {milestone.dueDate ? `Échéance : ${dateFormat.format(new Date(`${milestone.dueDate}T00:00:00Z`))}` : 'Sans échéance'}
+                          {milestone.dueDate ? `Échéance : ${fmt.day(milestone.dueDate)}` : 'Sans échéance'}
                           {late && ' — en retard'}
                         </Text>
                       </Stack>

@@ -13,7 +13,6 @@ import {
   FileButton,
   Grid,
   Group,
-  NumberInput,
   Paper,
   SegmentedControl,
   Select,
@@ -36,7 +35,6 @@ import {
   depositAmount,
   dueDateForTerms,
   formatDuration,
-  formatMoney,
   LATE_INTEREST_PRESETS,
   PAYMENT_METHOD_PRESETS,
   PAYMENT_TERMS_PRESETS,
@@ -69,6 +67,8 @@ import { FileLink } from '../files/FileLink';
 import { FilePreview } from '../files/FilePreview';
 import { projectOptions } from '../workspace/tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -197,7 +197,7 @@ function Editor({ document }: { document: AccountingDocument }) {
         <Stack gap="md">
           <Text size="sm">
             Le document reçoit son numéro définitif et ne pourra plus être modifié ni supprimé : une erreur se corrigera par un
-            avoir. Vérifiez la date ({new Date(`${values.issueDate}T12:00:00`).toLocaleDateString('fr-FR')}) : les numéros se
+            avoir. Vérifiez la date ({fmt.day(String(values.issueDate))}) : les numéros se
             suivent dans l’ordre de validation.
           </Text>
           <Group justify="flex-end" gap="sm">
@@ -293,7 +293,6 @@ function Editor({ document }: { document: AccountingDocument }) {
       { sourceId: document.id, type, issueDate: localToday() },
       { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: (error) => notifyError(error.message) },
     );
-
 
   const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT';
   const billedIds = values.timeEntryIds ?? [];
@@ -457,7 +456,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       )}
       {isQuote && readOnly && document.invoicedNet !== null && document.invoicedNet !== undefined && (
         <Text size="sm">
-          Déjà facturé : <b>{formatMoney(Math.round(document.invoicedNet * 100), currency)}</b> HT sur {formatMoney(Math.round(document.totalNet * 100), currency)} HT
+          Déjà facturé : <b>{fmt.money(document.invoicedNet, currency)}</b> HT sur {fmt.money(document.totalNet, currency)} HT
           {document.derived.length > 0 && ` (${document.derived.map((item) => item.number ?? 'brouillon').join(', ')})`}
         </Text>
       )}
@@ -524,7 +523,6 @@ function Editor({ document }: { document: AccountingDocument }) {
                   label="Date du document"
                   required
                   readOnly={readOnly}
-                  valueFormat="D MMM YYYY"
                   // Not before the latest document of its type (models of recurring invoices are dated later).
                   minDate={document.status === 'DRAFT' ? (latestDate ?? undefined) : undefined}
                   description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${printedDay(latestDate)}, date du dernier document de ce type.` : undefined}
@@ -534,11 +532,10 @@ function Editor({ document }: { document: AccountingDocument }) {
                   label={isQuote ? 'Valable jusqu’au' : 'Échéance'}
                   clearable
                   readOnly={readOnly}
-                  valueFormat="D MMM YYYY"
                   {...form.getInputProps('dueDate')}
                 />
-                <DatePickerInput label="Début de la prestation" clearable readOnly={readOnly} valueFormat="D MMM YYYY" {...form.getInputProps('serviceStart')} />
-                <DatePickerInput label="Fin de la prestation" clearable readOnly={readOnly} valueFormat="D MMM YYYY" {...form.getInputProps('serviceEnd')} />
+                <DatePickerInput label="Début de la prestation" clearable readOnly={readOnly} {...form.getInputProps('serviceStart')} />
+                <DatePickerInput label="Fin de la prestation" clearable readOnly={readOnly} {...form.getInputProps('serviceEnd')} />
               </SimpleGrid>
             </Section>
 
@@ -622,19 +619,16 @@ function Editor({ document }: { document: AccountingDocument }) {
               <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={readOnly} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
               {isQuote && (
                 <Group gap={4} align="flex-end" wrap="nowrap">
-                  <NumberInput
+                  <AmountInput
                     label="Acompte à la commande"
                     placeholder="Aucun"
                     min={0}
-                    decimalScale={2}
-                    decimalSeparator=","
-                    thousandSeparator=" "
                     readOnly={readOnly}
                     style={{ flex: 1 }}
                     error={form.errors.depositValue}
                     description={
                       values.depositType && values.depositValue
-                        ? `Soit ${formatMoney(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
+                        ? `Soit ${fmt.moneyCents(depositAmount(values.depositType, values.depositValue, totals.totalGross), currency)}${values.vatApplicable ? ' TTC' : ''}`
                         : undefined
                     }
                     value={values.depositValue ?? ''}
@@ -686,11 +680,9 @@ function Editor({ document }: { document: AccountingDocument }) {
             <Section title="Totaux">
               {!readOnly && (
                 <Group gap={4} align="flex-end" wrap="nowrap">
-                  <NumberInput
+                  <AmountInput
                     label="Remise générale"
                     min={0}
-                    decimalScale={2}
-                    decimalSeparator=","
                     style={{ flex: 1 }}
                     error={form.errors.globalDiscountValue}
                     value={values.globalDiscountValue ?? ''}
@@ -720,7 +712,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   <TotalRow label="Total HT" value={totals.totalNet} currency={currency} strong />
                   {values.vatApplicable ? (
                     totals.vat.map((item) => (
-                      <TotalRow key={item.rate} label={`TVA ${item.rate.toLocaleString('fr-FR')} % sur ${formatMoney(item.base, currency)}`} value={item.vat} currency={currency} />
+                      <TotalRow key={item.rate} label={`TVA ${fmt.percent(item.rate)} sur ${fmt.moneyCents(item.base, currency)}`} value={item.vat} currency={currency} />
                     ))
                   ) : (
                     <Table.Tr>
@@ -745,7 +737,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                       {DOCUMENT_TYPE_LABELS[item.type]} {item.number ?? '(brouillon)'}
                     </Anchor>
                     <Text size="sm" ff="monospace">
-                      {formatMoney(Math.round(item.totalGross * 100), currency)}
+                      {fmt.money(item.totalGross, currency)}
                     </Text>
                   </Group>
                 ))}
@@ -773,7 +765,7 @@ function TotalRow({ label, value, currency, strong }: { label: string; value: nu
       </Table.Td>
       <Table.Td ta="right">
         <Text size="sm" fw={strong ? 700 : 400} ff="monospace">
-          {formatMoney(value, currency)}
+          {fmt.moneyCents(value, currency)}
         </Text>
       </Table.Td>
     </Table.Tr>
@@ -836,14 +828,12 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
   );
 }
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
-
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} "09/11/2026".
  */
-const printedDay = (date: string) => dayFormat.format(new Date(`${date}T00:00:00Z`));
+const printedDay = (date: string) => fmt.day(date);
 
 /**
  * Accounting document page: editable draft (or recurring model), read-only final document with the

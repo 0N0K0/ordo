@@ -4,6 +4,7 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { notifyError } from '../../lib/notify';
 import { BatchMultiSelect } from '../BatchMultiSelect';
 import classes from './EditableCells.module.css';
+import { AmountInput } from '../AmountInput';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -96,6 +97,8 @@ interface EditableNumberProps {
   label: string;
   /** Decimals. Optional. Default = 2. */
   decimals?: number;
+  /** An amount: typed with up to 4 decimals, shown rounded to 2 (AmountInput). Optional. Default = false. */
+  amount?: boolean;
   /** After the number (« € », « % »…). Optional. */
   suffix?: string;
   /** Negative numbers accepted. Optional. Default = false. */
@@ -111,7 +114,7 @@ interface EditableNumberProps {
  * @param {EditableNumberProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableNumber({ value, label, decimals = 2, suffix, signed = false, nullable = false, validate, readOnly = false, onSave }: EditableNumberProps) {
+export function EditableNumber({ value, label, decimals = 2, amount = false, suffix, signed = false, nullable = false, validate, readOnly = false, onSave }: EditableNumberProps) {
   const [draft, setDraft] = useState<string | number | null>(null);
 
   /**
@@ -126,8 +129,9 @@ export function EditableNumber({ value, label, decimals = 2, suffix, signed = fa
     if (next !== value) onSave(next);
   };
 
+  const Field = amount ? AmountInput : NumberInput;
   return (
-    <NumberInput
+    <Field
       {...cellField}
       aria-label={label}
       placeholder={readOnly ? undefined : '—'}
@@ -171,7 +175,6 @@ export function EditableDate({ value, label, nullable = false, minDate, readOnly
       aria-label={label}
       placeholder={readOnly ? undefined : '—'}
       readOnly={readOnly}
-      valueFormat="D MMM YYYY"
       clearable={nullable && !readOnly}
       minDate={minDate}
       popoverProps={{ withinPortal: true }}

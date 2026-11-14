@@ -495,7 +495,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
               S’applique à {routinesLabel(count)}.
             </Text>
           )}
-          <DatePickerInput label="Première fois" size="xs" valueFormat="D MMM YYYY" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
+          <DatePickerInput label="Première fois" size="xs" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
           <RecurrenceEditor value={rule} onChange={(value) => setRule(value ?? DAILY)} start={startDate} withinPortal={false} />
           <Group justify="space-between" gap="sm">
             <Button size="xs" variant="subtle" onClick={() => (setOpened(false), openRoutineForm({ routine }))}>

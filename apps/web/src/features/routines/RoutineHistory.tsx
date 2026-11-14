@@ -1,3 +1,4 @@
+import { PICKER_FORMATS } from '../../lib/format';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { ActionIcon, Button, Group, Paper, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -10,8 +11,7 @@ import { localToday } from '../../lib/dates';
 import { useRoutineChecks, useRoutineOccurrences, useRoutinesData, type Routine, type RoutineCheck, type RoutineOccurrence } from './api';
 import { RoutineDayAgenda, type AgendaLayers, type HistoryItem } from './RoutineDayAgenda';
 import { useAgendaLayerOptions } from './use-agenda-layers';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * What a day held: each time of the day planned for the routines that day (done or not, with its tick); nothing
@@ -66,7 +66,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
     byId,
   );
   const doneCount = items.filter((item) => item.check).length;
-  const label = day === today ? 'aujourd’hui' : `le ${dayFormat.format(new Date(`${day}T00:00:00Z`))}`;
+  const label = day === today ? 'aujourd’hui' : `le ${fmt.dayLong(day)}`;
 
   return (
     <Stack gap="lg">
@@ -80,7 +80,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
             value={day}
             onChange={(value) => value && setDay(value)}
             maxDate={today}
-            valueFormat="dddd D MMMM YYYY"
+            valueFormat={PICKER_FORMATS.weekday}
             w={240}
             styles={{ input: { textAlign: 'center', textTransform: 'capitalize' } }}
           />

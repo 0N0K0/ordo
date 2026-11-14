@@ -1,6 +1,6 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Button, Collapse, Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { ACCOUNTING_UNITS, formatMoney, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
+import { ACCOUNTING_UNITS, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
 import { ArrowDownIcon, ArrowUpIcon, NotePencilIcon, PackageIcon, PlusIcon, TextAaIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -8,6 +8,8 @@ import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { NO_TARGETS } from '../../components/markdown/remark-references';
 import { useCatalogItems } from './catalog-api';
 import classes from './LinesEditor.module.css';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: 'Débours', TEXT: 'Texte', DEDUCTION: 'Déjà facturé' };
 
@@ -126,13 +128,10 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
               allowDeselect={false}
               onChange={(unit) => unit && update({ unit: unit as AccountingLineInput['unit'] })}
             />
-            <NumberInput
+            <AmountInput
               label={line.kind === 'DEDUCTION' ? 'Montant HT déduit' : 'Prix unitaire HT'}
               size="xs"
               w={150}
-              decimalScale={2}
-              decimalSeparator=","
-              thousandSeparator=" "
               suffix=" €"
               readOnly={readOnly}
               value={line.unitPrice}
@@ -143,7 +142,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
                 label="TVA"
                 size="xs"
                 w={95}
-                data={[...new Set([...VAT_RATES, line.vatRate])].map((rate) => ({ value: String(rate), label: `${rate.toLocaleString('fr-FR')} %` }))}
+                data={[...new Set([...VAT_RATES, line.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
                 value={String(line.vatRate)}
                 readOnly={readOnly}
                 allowDeselect={false}
@@ -152,13 +151,11 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
             )}
             {line.kind === 'ITEM' && (
               <Group gap={4} align="flex-end" wrap="nowrap">
-                <NumberInput
+                <AmountInput
                   label="Remise"
                   size="xs"
                   w={110}
                   min={0}
-                  decimalScale={2}
-                  decimalSeparator=","
                   readOnly={readOnly}
                   error={errors.discountValue}
                   value={line.discountValue ?? ''}
@@ -184,7 +181,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
                 Total HT
               </Text>
               <Text fw={600} ff="monospace">
-                {formatMoney(total.net, currency)}
+                {fmt.moneyCents(total.net, currency)}
               </Text>
             </Stack>
           </Group>

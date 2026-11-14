@@ -6,8 +6,7 @@ import { scheduleRules, useWorkSchedules } from '../calendar/api';
 import { localParts } from '../calendar/event-input';
 import { useTimeEntriesSince } from './api';
 import { useNow } from './use-now';
-
-const dayLabel = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Tracked time against planned time.
@@ -82,10 +81,10 @@ export function PlannedTime() {
                     color={day.planned ? (day.tracked > day.planned * 60 ? 'orange' : 'blue') : 'gray'}
                     w="100%"
                     size="sm"
-                    aria-label={`${dayLabel.format(new Date(`${day.date}T00:00:00Z`))} : temps chronométré sur le temps prévu`}
+                    aria-label={`${fmt.weekday(day.date)} : temps chronométré sur le temps prévu`}
                   />
                   <Text size="xs" c={day.date === today ? undefined : 'dimmed'} fw={day.date === today ? 600 : undefined}>
-                    {dayLabel.format(new Date(`${day.date}T00:00:00Z`))}
+                    {fmt.weekday(day.date)}
                   </Text>
                 </Stack>
               </Tooltip>

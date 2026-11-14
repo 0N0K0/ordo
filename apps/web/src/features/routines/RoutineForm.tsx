@@ -164,7 +164,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
           <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-          <DatePickerInput label="Première fois" required valueFormat="D MMM YYYY" {...form.getInputProps('startDate')} />
+          <DatePickerInput label="Première fois" required {...form.getInputProps('startDate')} />
           <NumberInput
             label="Temps à y consacrer"
             description="En minutes"

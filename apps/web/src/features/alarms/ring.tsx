@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import type { EventOccurrence } from '../calendar/api';
 import type { Alarm } from './api';
 import { playChime } from './alarm-sound';
+import * as fmt from '../../lib/format';
 
 /** Alarms missed by more than this (app closed) do not ring any more. */
 export const MAX_DELAY_MS = 6 * 3600_000;
@@ -97,8 +98,6 @@ function occurrenceStart(occurrence: EventOccurrence): Date {
   return occurrence.allDay ? new Date(`${occurrence.startDate}T00:00:00`) : new Date(occurrence.start);
 }
 
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-
 /**
  * Rings the reminders of event occurrences that are due (missed by less than a few hours).
  * @param {EventOccurrence[]} occurrences Occurrences of the next days.
@@ -116,7 +115,7 @@ export function ringReminders(occurrences: EventOccurrence[], now: Date, links: 
       const key = `ordo.alarm.event:${occurrence.key}:${minutes}`;
       if (!claim(key, MAX_DELAY_MS + 3600_000)) continue;
       playChime();
-      const when = occurrence.allDay ? 'Journée entière' : timeFormat.format(start);
+      const when = occurrence.allDay ? 'Journée entière' : fmt.dateTimeShort(start);
       const body = [when, occurrence.location].filter(Boolean).join(' · ');
       systemNotification(occurrence.title, [workspaceName, body].filter(Boolean).join(' · '), key);
       notifications.show({

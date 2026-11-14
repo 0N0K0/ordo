@@ -483,7 +483,6 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       classNames={{ root: classes.root, input: classes.input, section: classes.section }}
       onClick={stop}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
-      valueFormat="D MMM YYYY"
       value={task[column]}
       // A single task keeps a valid range; with several, the API checks every task.
       minDate={column === 'endDate' && count < 2 ? (task.startDate ?? undefined) : undefined}

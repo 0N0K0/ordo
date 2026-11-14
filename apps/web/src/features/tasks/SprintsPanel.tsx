@@ -13,16 +13,14 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useSprintMutations, type Sprint } from './api';
 import { useTaskContext, type TaskContext } from './use-task-context';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
+import * as fmt from '../../lib/format';
 
 /**
  * Printed day.
  * @param {string} day YYYY-MM-DD.
  * @returns {string} "3 novembre 2026".
  */
-const printedDay = (day: string) => dayFormat.format(new Date(`${day}T00:00:00Z`));
+const printedDay = (day: string) => fmt.day(day);
 
 interface SprintFormProps {
   projectId: string;
@@ -64,8 +62,8 @@ function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintForm
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
         {/* By the width of the settings sidebar, not the window's. */}
         <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
-          <DatePickerInput label="Début" required valueFormat="D MMM YYYY" {...form.getInputProps('startDate')} />
-          <DatePickerInput label="Fin" required valueFormat="D MMM YYYY" {...form.getInputProps('endDate')} />
+          <DatePickerInput label="Début" required {...form.getInputProps('startDate')} />
+          <DatePickerInput label="Fin" required {...form.getInputProps('endDate')} />
         </SimpleGrid>
         <MarkdownEditor
           label="Objectif"
@@ -207,7 +205,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
                   <Progress value={tasks.length ? (done.length / tasks.length) * 100 : 0} style={{ flex: 1 }} aria-label={`Avancement du sprint ${sprint.name}`} />
                   <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
                     {done.length}/{tasks.length} tâche{tasks.length > 1 ? 's' : ''}
-                    {effort > 0 && ` · effort ${numberFormat.format(doneEffort)}/${numberFormat.format(effort)}`}
+                    {effort > 0 && ` · effort ${fmt.number(doneEffort, 1)}/${fmt.number(effort, 1)}`}
                   </Text>
                 </Group>
                 {sprint.goal && (

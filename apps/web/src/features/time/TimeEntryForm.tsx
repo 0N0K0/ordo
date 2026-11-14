@@ -114,7 +114,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
           error={form.errors.taskIds}
         />
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
-          <DatePickerInput label="Jour" required valueFormat="D MMM YYYY" {...form.getInputProps('date')} />
+          <DatePickerInput label="Jour" required {...form.getInputProps('date')} />
           <TimeField label="Début" required {...form.getInputProps('start')} />
           <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
         </SimpleGrid>

@@ -189,7 +189,7 @@ export function RoutineBulkBar({ routines, all, categories, context, onClear }: 
           </Popover.Target>
           <Popover.Dropdown>
             <Stack gap="sm">
-              <DatePickerInput label="Première fois" size="xs" valueFormat="D MMM YYYY" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
+              <DatePickerInput label="Première fois" size="xs" value={startDate} onChange={(value) => value && setStartDate(value)} popoverProps={{ withinPortal: false }} />
               <RecurrenceEditor value={rule} onChange={(value) => setRule(value ?? DAILY)} start={startDate} withinPortal={false} />
               <Group justify="flex-end" gap="sm">
                 <Button size="xs" variant="default" onClick={() => setRepetitionOpened(false)}>

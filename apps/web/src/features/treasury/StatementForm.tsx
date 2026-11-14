@@ -58,13 +58,12 @@ export function StatementForm({ accounts, accountId: initialAccount, onDone }: S
     <Stack gap="md">
       <Select label="Période" data={PERIOD_PRESETS} value={preset} onChange={(value) => value && setPreset(value as PeriodPreset)} allowDeselect={false} data-autofocus />
       <SimpleGrid cols={2}>
-        <DatePickerInput label="Du" value={from} disabled={preset !== 'custom'} onChange={(value) => setCustom([value, custom[1]])} valueFormat="D MMM YYYY" />
+        <DatePickerInput label="Du" value={from} disabled={preset !== 'custom'} onChange={(value) => setCustom([value, custom[1]])} />
         <DatePickerInput
           label="Au"
           value={to}
           disabled={preset !== 'custom'}
           onChange={(value) => setCustom([custom[0], value])}
-          valueFormat="D MMM YYYY"
           error={from && to && from > to ? 'Avant la date de début.' : undefined}
         />
       </SimpleGrid>

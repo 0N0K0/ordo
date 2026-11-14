@@ -1,7 +1,7 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core';
-import { formatMoney, type TableFilterGroup } from '@ordo/shared';
+import { type TableFilterGroup } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
@@ -21,11 +21,7 @@ import { pdfUrl } from './document-pdf';
 import { openPaymentDialog } from './payment-dialog';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
 import { openSentDialog } from './sent-dialog';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', {
-  dateStyle: 'medium',
-  timeZone: 'UTC',
-});
+import * as fmt from '../../lib/format';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -35,14 +31,6 @@ type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'impo
  * @returns {string} Text.
  */
 const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.name ?? ''));
-
-/**
- * Money of a document.
- * @param {number} amount Amount.
- * @param {string} currency Currency.
- * @returns {string} Text.
- */
-const money = (amount: number, currency: string) => formatMoney(Math.round(amount * 100), currency);
 
 /** Columns of the documents (type and client only where they vary). */
 const DOCUMENT_COLUMNS: DataColumn<Row>[] = [
@@ -61,7 +49,7 @@ const DOCUMENT_COLUMNS: DataColumn<Row>[] = [
     label: 'Date',
     size: 120,
     sortValue: (row) => row.document.issueDate,
-    text: (row) => dateFormat.format(new Date(`${row.document.issueDate}T00:00:00Z`)),
+    text: (row) => fmt.day(row.document.issueDate),
     filter: { kind: 'date', value: (row) => row.document.issueDate },
   },
   { id: 'client', label: 'Client', size: 180, sortValue: (row) => row.document.clientName ?? null, text: (row) => row.document.clientName ?? '', groupable: true },
@@ -84,8 +72,8 @@ const DOCUMENT_COLUMNS: DataColumn<Row>[] = [
     },
     groupable: true,
   },
-  { id: 'net', label: 'Total HT', size: 120, numeric: true, sortValue: (row) => row.document.totalNet, text: (row) => money(row.document.totalNet, row.document.currency) },
-  { id: 'gross', label: 'Total', size: 140, numeric: true, sortValue: (row) => row.document.totalGross, text: (row) => money(row.document.totalGross, row.document.currency) },
+  { id: 'net', label: 'Total HT', size: 120, numeric: true, sortValue: (row) => row.document.totalNet, text: (row) => fmt.money(row.document.totalNet, row.document.currency) },
+  { id: 'gross', label: 'Total', size: 140, numeric: true, sortValue: (row) => row.document.totalGross, text: (row) => fmt.money(row.document.totalGross, row.document.currency) },
   {
     id: 'balance',
     label: 'Reste dû',
@@ -93,7 +81,7 @@ const DOCUMENT_COLUMNS: DataColumn<Row>[] = [
     numeric: true,
     hiddenByDefault: true,
     sortValue: (row) => row.document.balance ?? 0,
-    text: (row) => (row.document.balance ? money(row.document.balance, row.document.currency) : ''),
+    text: (row) => (row.document.balance ? fmt.money(row.document.balance, row.document.currency) : ''),
   },
 ];
 
@@ -142,7 +130,7 @@ function ImportedTracking({ document }: { document: ImportedDocument }) {
       />
       {document.type !== 'QUOTE' && (
         <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
-          {document.balance ? `Reste ${money(document.balance, document.currency)}` : 'Réglée'}
+          {document.balance ? `Reste ${fmt.money(document.balance, document.currency)}` : 'Réglée'}
         </Badge>
       )}
     </Group>
@@ -303,11 +291,11 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     gross: (
       <>
         <Text span size="sm" ff="monospace" fw={600}>
-          {money(document.totalGross, document.currency)}
+          {fmt.money(document.totalGross, document.currency)}
         </Text>
         {document.balance != null && document.balance > 0 && document.balance < document.totalGross && (
           <Text size="xs" c="dimmed" fw={400}>
-            {document.type === 'CREDIT_NOTE' ? 'À rembourser' : 'Reste'} {money(document.balance, document.currency)}
+            {document.type === 'CREDIT_NOTE' ? 'À rembourser' : 'Reste'} {fmt.money(document.balance, document.currency)}
           </Text>
         )}
       </>
@@ -340,7 +328,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     tracking: <ImportedTracking document={document} />,
     gross: (
       <Text span size="sm" ff="monospace" fw={600}>
-        {money(document.totalGross, document.currency)}
+        {fmt.money(document.totalGross, document.currency)}
       </Text>
     ),
   });
@@ -357,11 +345,11 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       rowProps={(row) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(pathOf(row)) })}
       cells={(row) => ({
         type: DOCUMENT_TYPE_LABELS[row.document.type],
-        date: dateFormat.format(new Date(`${row.document.issueDate}T00:00:00Z`)),
+        date: fmt.day(row.document.issueDate),
         client: row.document.clientName,
         origin: row.kind === 'imported' ? 'Importé' : 'Ordo',
-        net: money(row.document.totalNet, row.document.currency),
-        balance: row.document.balance ? money(row.document.balance, row.document.currency) : null,
+        net: fmt.money(row.document.totalNet, row.document.currency),
+        balance: row.document.balance ? fmt.money(row.document.balance, row.document.currency) : null,
         ...(row.kind === 'ordo' ? ordoCells(row.document) : importedCells(row.document)),
       })}
       actions={(row) => (

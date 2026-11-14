@@ -8,8 +8,8 @@ import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { notifyError } from '../../lib/notify';
 import { useTaskCommentMutations, useTaskComments, type Task, type TaskComment } from './api';
 import type { TaskContext } from './use-task-context';
+import * as fmt from '../../lib/format';
 
-const absolute = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
 const relative = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['year', 365 * 24 * 3600],
@@ -75,7 +75,7 @@ function Comment({ comment, context, projectId }: CommentProps) {
               @{comment.githubAuthor} sur GitHub
             </Text>
           )}
-          <Tooltip label={absolute.format(new Date(comment.createdAt))}>
+          <Tooltip label={fmt.dateTime(new Date(comment.createdAt))}>
             <Text size="xs" c="dimmed" component="time" dateTime={comment.createdAt}>
               {fromNow(comment.createdAt)}
             </Text>

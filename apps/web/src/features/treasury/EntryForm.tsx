@@ -1,7 +1,7 @@
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Badge, Button, Divider, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { formatMoney, treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
+import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
 import { LinkIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
@@ -20,8 +20,8 @@ import { useActiveWorkspace } from '../workspaces/api';
 import { projectOptions } from '../workspace/tree';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -36,7 +36,7 @@ interface LinkedSummary {
  * @param {LinkedSummary} entry Entry.
  * @returns {string} "12 mars 2026 · Libellé · -86,20 €".
  */
-const describeLinked = (entry: LinkedSummary) => `${dateFormat.format(new Date(`${entry.date}T00:00:00Z`))} · ${entry.label} · ${formatMoney(Math.round(entry.amount * 100))}`;
+const describeLinked = (entry: LinkedSummary) => `${fmt.day(entry.date)} · ${entry.label} · ${fmt.money(entry.amount)}`;
 
 /**
  * A select with a button creating a new option next to it.
@@ -150,7 +150,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
       .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
       .map((document) => ({
         value: `doc:${document.id}`,
-        label: `${document.number} — ${document.clientName} (reste ${formatMoney(Math.round((document.balance ?? 0) * 100), document.currency)})`,
+        label: `${document.number} — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
         balance: document.balance ?? 0,
       })),
     ...(imported ?? [])
@@ -158,7 +158,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
       .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
       .map((document) => ({
         value: `imp:${document.id}`,
-        label: `${document.number} (importé) — ${document.clientName} (reste ${formatMoney(Math.round((document.balance ?? 0) * 100), document.currency)})`,
+        label: `${document.number} (importé) — ${document.clientName} (reste ${fmt.money(document.balance ?? 0, document.currency)})`,
         balance: document.balance ?? 0,
       })),
   ];
@@ -195,7 +195,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           <DatePickerInput
             label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
             required
-            valueFormat="D MMM YYYY"
             {...form.getInputProps('date')}
             // The value date follows the execution date until it is changed apart (or when it is empty).
             onChange={(date) => form.setValues({ date: date ?? '', ...(!values.valueDate || values.valueDate === values.date ? { valueDate: date } : {}) })}
@@ -206,7 +205,6 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           description="Celle du relevé bancaire, pour information : le solde suit la date d’exécution. Vide, c’est la date d’exécution."
           clearable
           placeholder={values.date ? 'Date d’exécution' : '—'}
-          valueFormat="D MMM YYYY"
           {...form.getInputProps('valueDate')}
         />
         <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
@@ -230,7 +228,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               });
             }}
           />
-          <NumberInput label="Montant" required min={0} decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
+          <AmountInput label="Montant" required min={0} suffix=" €" style={{ flex: 1 }} {...form.getInputProps('amount')} />
         </Group>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           {!split && (
@@ -446,12 +444,10 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
                     if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.label.replace(/ \(reste .*\)$/, '')}`);
                   }}
                 />
-                <NumberInput
+                <AmountInput
                   aria-label={`Montant réglé ${index + 1}`}
                   w={130}
                   min={0}
-                  decimalScale={2}
-                  decimalSeparator=","
                   suffix=" €"
                   value={allocation.amount}
                   onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
@@ -480,7 +476,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               </Button>
               {values.allocations.length > 0 && (
                 <Text size="xs" c="dimmed">
-                  {formatMoney(Math.round(allocated * 100))} affectés sur {formatMoney(Math.round(values.amount * 100))}
+                  {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
                 </Text>
               )}
             </Group>

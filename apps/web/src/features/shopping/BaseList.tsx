@@ -13,12 +13,12 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
-import { blankInput, categoriesForBaseList, money, usePeople, type ShoppingGrouping } from './shopping-format';
+import { blankInput, categoriesForBaseList, usePeople, type ShoppingGrouping } from './shopping-format';
 import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
+import * as fmt from '../../lib/format';
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 /** Views made the first time a base list is shown: every product, the missing ones. */
@@ -69,7 +69,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       label: 'Dernier achat',
       size: 120,
       sortValue: (product) => product.lastPurchasedAt ?? null,
-      text: (product) => (product.lastPurchasedAt ? `${dayFormat.format(new Date(product.lastPurchasedAt))}${product.lastPrice !== null ? ` · ${money(product.lastPrice)}` : ''}` : ''),
+      text: (product) => (product.lastPurchasedAt ? `${fmt.day(new Date(product.lastPurchasedAt))}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
       filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(new Date(product.lastPurchasedAt)) : null) },
     },
     {
@@ -141,9 +141,9 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             title: 'Dernier achat',
             render: (product: ShoppingProduct) =>
               product.lastPurchasedAt && (
-                <Text size="xs" c="dimmed" title={product.lastPrice !== null ? `${money(product.lastPrice)} l’unité` : undefined}>
-                  {dayFormat.format(new Date(product.lastPurchasedAt))}
-                  {product.lastPrice !== null && ` · ${money(product.lastPrice)}`}
+                <Text size="xs" c="dimmed" title={product.lastPrice !== null ? `${fmt.money(product.lastPrice)} l’unité` : undefined}>
+                  {fmt.day(new Date(product.lastPurchasedAt))}
+                  {product.lastPrice !== null && ` · ${fmt.money(product.lastPrice)}`}
                 </Text>
               ),
           }}

@@ -15,9 +15,7 @@ import { useNow } from '../time/use-now';
 import calendarClasses from '../calendar/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from './api';
 import { windowText } from './routine-format';
-
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -59,7 +57,7 @@ const stateOf = (item: HistoryItem, today: string): ItemState => (item.check ? '
  * @param {Date} date Instant.
  * @returns {string} Time.
  */
-const clock = (date: Date) => timeFormat.format(date);
+const clock = (date: Date) => fmt.time(date);
 
 /**
  * Hour proposed to tick a time of the day after the fact: when it was done if it was, else when it was due (its latest
@@ -116,7 +114,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   return (
     <Stack gap="md">
       <Text size="sm">
-        {dayFormat.format(new Date(`${item.date}T00:00:00Z`))}
+        {fmt.dayLong(item.date)}
         {window ? ` · ${window}` : ''} ·{' '}
         <Text span c={`${STATES[state].color}.7`}>
           {state === 'done' ? `faite à ${clock(new Date(item.check!.doneAt))}` : STATES[state].text}
@@ -249,9 +247,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       end = stop > start ? stop : '23:59';
     }
     const timed = start !== null && end !== null && start < end;
-    const status = doneAt
-      ? `faite à ${localDay(doneAt) === item.date ? clock(doneAt) : `${clock(doneAt)} le ${new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(doneAt)}`}`
-      : text;
+    const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? clock(doneAt) : `${clock(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
       id: `routine:${item.key}`,
       title: `${routine?.title ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,

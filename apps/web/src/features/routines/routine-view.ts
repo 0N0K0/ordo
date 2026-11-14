@@ -26,6 +26,7 @@ import { useSavedViews } from '../tasks/views/use-saved-views';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { Routine, RoutineCategory } from './api';
 import { categoryGrouping, ruleOf, stateOf, waitingFor, type RoutineGrouping } from './routine-format';
+import * as fmt from '../../lib/format';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -458,16 +459,13 @@ export function routineFilterFields(env: RoutineEnv): FilterFields<RoutineFilter
   };
 }
 
-const exportDay = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
-const exportInstant = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
 /**
  * Texts of the columns of the routine table, for its exports (by column id).
  * @param {RoutineEnv} env Environment.
  * @returns {Record<string, (routine: Routine) => string>} Texts.
  */
 export function routineTexts(env: RoutineEnv): Record<string, (routine: Routine) => string> {
-  const day = (value: unknown) => (value ? exportDay.format(new Date(`${String(value).slice(0, 10)}T00:00:00Z`)) : '');
+  const day = (value: unknown) => (value ? fmt.exportDay(String(value).slice(0, 10)) : '');
   const categoryName = new Map(env.categories.map((category) => [category.id, category.name]));
   const contributorName = new Map(env.context.contributors.map((contributor) => [contributor.id, contributor.name]));
   return {
@@ -478,7 +476,7 @@ export function routineTexts(env: RoutineEnv): Record<string, (routine: Routine)
     repetition: (routine) => REPETITION_LABELS[repetitionOf(routine)],
     estimate: (routine) => (routine.estimate ? `${routine.estimate} min` : ''),
     trackedTime: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),
-    lastDoneAt: (routine) => (routine.lastDoneAt ? exportInstant.format(new Date(String(routine.lastDoneAt))) : ''),
+    lastDoneAt: (routine) => (routine.lastDoneAt ? fmt.exportDateTime(new Date(String(routine.lastDoneAt))) : ''),
     assignees: (routine) =>
       routine.assigneeIds
         .map((id) => contributorName.get(id) ?? '')

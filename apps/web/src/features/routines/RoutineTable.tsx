@@ -77,11 +77,11 @@ import {
   type RoutineRow,
 } from './routine-format';
 import classes from './Routines.module.css';
+import * as fmt from '../../lib/format';
 
 /** Width of the cells around the columns: handle and selection before, actions after. */
 const LEAD_WIDTH = 64;
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
-
 
 /** Bulk-editable columns and their cell selection column. */
 const CELL_COLUMNS: Record<string, RoutineColumn> = {
@@ -94,16 +94,12 @@ const CELL_COLUMNS: Record<string, RoutineColumn> = {
   project: 'project',
 };
 
-const lastDoneFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-
-const shortDate = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-
 /**
  * Short date of a calendar date: "lun. 10 nov.".
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Text.
  */
-const dayText = (date: string) => shortDate.format(new Date(`${date}T00:00:00Z`));
+const dayText = (date: string) => fmt.weekday(date);
 
 /** What a routine is dropped on: a category heading (or the one without), or another routine. */
 type DropData = { kind: 'group'; categoryId: string | null } | { kind: 'routine'; routine: Routine; groupId: string | null };
@@ -377,7 +373,7 @@ function RoutineRowView({ row, routines, byId, context, today, doable, running, 
     ) : null,
     lastDoneAt: routine.lastDoneAt ? (
       <Text size="sm" className={classes.nowrap}>
-        {lastDoneFormat.format(new Date(String(routine.lastDoneAt)))}
+        {fmt.dateTime(new Date(String(routine.lastDoneAt)))}
       </Text>
     ) : null,
     repetition: <RepetitionText routine={routine} />,

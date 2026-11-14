@@ -1,8 +1,7 @@
 import type { Alarm } from './api';
+import * as fmt from '../../lib/format';
 
 export const WEEKDAY_LABELS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * Formats a YYYY-MM-DD date.
@@ -10,7 +9,7 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'lo
  * @returns {string} "3 novembre 2026".
  */
 function formatDay(date: string): string {
-  return dateFormat.format(new Date(`${date}T00:00:00Z`));
+  return fmt.day(date);
 }
 
 /**

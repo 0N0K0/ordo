@@ -5,7 +5,7 @@ import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Badge, Group, Paper, Stack, Tabs, Text, Title } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { formatMoney, recurrenceSchema } from '@ordo/shared';
+import { recurrenceSchema } from '@ordo/shared';
 import {
   ArrowsClockwiseIcon,
   BellRingingIcon,
@@ -44,6 +44,7 @@ import { PageTabs } from '../../components/PageTabs';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
 import { useEffect } from 'react';
+import * as fmt from '../../lib/format';
 
 /** Tabs of the settings sidebar. */
 type SettingsTab = 'zip' | 'statuses' | 'company';
@@ -54,8 +55,6 @@ const TABS = [
   { value: 'DEPOSIT_INVOICE', label: 'Acomptes' },
   { value: 'CREDIT_NOTE', label: 'Avoirs' },
 ] as const;
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 
 /**
  * Repetition of a recurring invoice, as a sentence.
@@ -77,7 +76,7 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     label: 'Prochaine',
     size: 130,
     sortValue: (item) => (item.nextDate ? String(item.nextDate) : null),
-    text: (item) => (item.nextDate ? dateFormat.format(new Date(`${item.nextDate}T00:00:00Z`)) : 'Terminée'),
+    text: (item) => (item.nextDate ? fmt.day(item.nextDate) : 'Terminée'),
     filter: { kind: 'date', value: (item) => (item.nextDate ? String(item.nextDate) : null) },
   },
   {
@@ -104,7 +103,7 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     size: 130,
     numeric: true,
     sortValue: (item) => item.template.totalGross,
-    text: (item) => formatMoney(Math.round(item.template.totalGross * 100), item.template.currency),
+    text: (item) => fmt.money(item.template.totalGross, item.template.currency),
   },
 ];
 
@@ -180,7 +179,7 @@ function RecurringList() {
           ),
           client: item.template.clientName,
           repetition: <Text size="sm">{repetitionText(item) || '—'}</Text>,
-          next: item.nextDate ? dateFormat.format(new Date(`${item.nextDate}T00:00:00Z`)) : 'Terminée',
+          next: item.nextDate ? fmt.day(item.nextDate) : 'Terminée',
           state: (
             <EditableSelect
               value={item.active ? 'active' : 'paused'}
@@ -193,7 +192,7 @@ function RecurringList() {
             />
           ),
           issued: item.issuedCount,
-          amount: formatMoney(Math.round(item.template.totalGross * 100), item.template.currency),
+          amount: fmt.money(item.template.totalGross, item.template.currency),
         };
       }}
       actions={(item) => (

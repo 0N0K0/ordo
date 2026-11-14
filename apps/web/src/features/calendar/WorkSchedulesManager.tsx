@@ -140,7 +140,6 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
           <DatePickerInput
             label="À partir du"
             required
-            valueFormat="D MMM YYYY"
             placeholder="À choisir"
             value={values.startDate || null}
             error={form.errors.startDate}
@@ -150,7 +149,6 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
             label="Jusqu’au"
             clearable
             placeholder="Sans fin"
-            valueFormat="D MMM YYYY"
             minDate={values.startDate || undefined}
             value={values.endDate}
             error={form.errors.endDate}
@@ -173,16 +171,8 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
                 <Stack gap="xs">
                   <Group gap={6} wrap="nowrap" align="flex-end">
-                    <DatePickerInput label="Du" size="xs" valueFormat="D MMM YYYY" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
-                    <DatePickerInput
-                      label="Au"
-                      size="xs"
-                      valueFormat="D MMM YYYY"
-                      w={140}
-                      minDate={exception.from}
-                      value={exception.to}
-                      onChange={(date) => date && setException(index, { to: String(date) })}
-                    />
+                    <DatePickerInput label="Du" size="xs" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
+                    <DatePickerInput label="Au" size="xs" w={140} minDate={exception.from} value={exception.to} onChange={(date) => date && setException(index, { to: String(date) })} />
                     <TextInput
                       label="Motif"
                       size="xs"

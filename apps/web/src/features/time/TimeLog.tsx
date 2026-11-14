@@ -15,9 +15,7 @@ import { TaskRef } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useTimeMutations, type TimeEntry, type TimeEntryValues } from './api';
 import classes from './TimeLog.module.css';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+import * as fmt from '../../lib/format';
 
 /**
  * Local day of an instant, YYYY-MM-DD.
@@ -64,7 +62,7 @@ function timeColumns(context: TaskContext | null): DataColumn<TimeEntry>[] {
       size: 200,
       hiddenByDefault: true,
       sortValue: (entry) => dayKey(entry.startedAt),
-      text: (entry) => dayFormat.format(new Date(entry.startedAt)).replace(/^./, (letter) => letter.toUpperCase()),
+      text: (entry) => fmt.capitalize(fmt.dayLong(new Date(entry.startedAt))),
       filter: { kind: 'date', value: (entry) => dayKey(entry.startedAt) },
       groupable: true,
     },
@@ -73,7 +71,7 @@ function timeColumns(context: TaskContext | null): DataColumn<TimeEntry>[] {
       label: 'Horaires',
       size: 130,
       sortValue: (entry) => entry.startedAt,
-      text: (entry) => `${timeFormat.format(new Date(entry.startedAt))}${entry.endedAt ? ` – ${timeFormat.format(new Date(entry.endedAt))}` : ''}`,
+      text: (entry) => `${fmt.time(new Date(entry.startedAt))}${entry.endedAt ? ` – ${fmt.time(new Date(entry.endedAt))}` : ''}`,
       filter: false,
     },
     {
@@ -199,11 +197,11 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
       cells={(entry) => {
         const tasks = context ? entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined) : [];
         return {
-          day: dayFormat.format(new Date(entry.startedAt)),
+          day: fmt.dayLong(new Date(entry.startedAt)),
           hours: (
             <span className={classes.nowrap}>
-              {timeFormat.format(new Date(entry.startedAt))}
-              {entry.endedAt && ` – ${timeFormat.format(new Date(entry.endedAt))}`}
+              {fmt.time(new Date(entry.startedAt))}
+              {entry.endedAt && ` – ${fmt.time(new Date(entry.endedAt))}`}
             </span>
           ),
           duration: entry.endedAt ? (

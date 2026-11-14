@@ -1,6 +1,5 @@
 import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { ActionIcon, Anchor, Badge, Button, Grid, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
-import { formatMoney } from '@ordo/shared';
 import { ArrowLeftIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { Link, useParams } from 'react-router';
 import { notifyError } from '../../lib/notify';
@@ -13,15 +12,14 @@ import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { StatusMenu } from './TrackingBadge';
 import { openSentDialog } from './sent-dialog';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Date.
  */
-const printed = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`));
+const printed = (date: string) => fmt.day(date);
 
 /**
  * Page of a document issued before Ordo: its file shown in place (a PDF or an image, like the documents made in
@@ -39,7 +37,7 @@ export function ImportedDocumentPage() {
   if (!document) return <NotFoundPage />;
 
   const kind = document.fileUrl ? viewableKind({ url: document.fileUrl, name: document.fileName, mimeType: document.fileMimeType }) : null;
-  const money = (amount: number) => formatMoney(Math.round(amount * 100), document.currency);
+  const money = (amount: number) => fmt.money(amount, document.currency);
   const facts: [string, string | null][] = [
     ['Client', document.clientName || null],
     ['Date', printed(String(document.issueDate))],

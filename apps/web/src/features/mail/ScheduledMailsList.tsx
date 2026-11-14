@@ -3,8 +3,7 @@ import { ActionIcon, Badge, Group, Paper, Stack, Text, ThemeIcon, Tooltip } from
 import { ArrowCounterClockwiseIcon, ClockCountdownIcon, PaperPlaneRightIcon } from '@phosphor-icons/react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailAccounts, useMailActions, useScheduledMails } from './api';
-
-const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+import * as fmt from '../../lib/format';
 
 /**
  * Mails scheduled to be sent (and those whose sending failed): send now, or cancel (back to the drafts of
@@ -41,7 +40,7 @@ export function ScheduledMailsList() {
               </Text>
               <Group gap={6}>
                 <Badge size="sm" variant="light" color={mail.status === 'FAILED' ? 'red' : 'blue'} leftSection={<ClockCountdownIcon aria-hidden />}>
-                  {mail.status === 'FAILED' ? 'Échec' : mail.status === 'SENDING' ? 'Envoi en cours' : dateTimeFormat.format(new Date(String(mail.sendAt)))}
+                  {mail.status === 'FAILED' ? 'Échec' : mail.status === 'SENDING' ? 'Envoi en cours' : fmt.dateTimeShort(new Date(String(mail.sendAt)))}
                 </Badge>
                 {mail.error && (
                   <Text size="xs" c="red" lineClamp={2}>

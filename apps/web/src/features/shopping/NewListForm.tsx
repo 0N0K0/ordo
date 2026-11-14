@@ -9,8 +9,7 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useShoppingData, useShoppingMutations } from './api';
 import { taskOptions } from './shopping-format';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
+import * as fmt from '../../lib/format';
 
 const schema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()), baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
@@ -43,7 +42,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
   const { createList } = useShoppingMutations();
   const navigate = useNavigate();
   const form = useAppForm<Values>({
-    initialValues: { name: `${perso ? 'Achats' : 'Consommables'} du ${dayFormat.format(new Date())}`, taskIds, baseListIds },
+    initialValues: { name: `${perso ? 'Achats' : 'Consommables'} du ${fmt.dayShort(new Date())}`, taskIds, baseListIds },
     schema: projectIds ? schema.extend({ taskIds: z.array(z.string()).min(1, 'Choisissez une tâche du projet : la liste y apparaît par ses tâches.') }) : schema,
   });
   // From a project: its tasks only (and those already chosen).

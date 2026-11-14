@@ -1,6 +1,7 @@
 import { isTimeDimension, type ChartConfig } from '@ordo/shared';
 import { DIMENSION_LABELS, MONEY_MEASURES, type ChartData } from './aggregate';
 import { exportFileName, saveFile } from './chart-image';
+import * as fmt from '../../lib/format';
 
 /** Data of a chart as a table: one row per value of the axis, one column per series. */
 export interface ChartTable {
@@ -14,9 +15,6 @@ export interface ChartTable {
   /** Amounts in euros. */
   money: boolean;
 }
-
-const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
-const moneyFormat = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
 /**
  * Table of the data of a chart: the axis then each series (data sets and comparisons), or the slices of a
@@ -65,7 +63,7 @@ export function downloadChartCsv(table: ChartTable, title: string): void {
  */
 export async function downloadChartTablePdf(table: ChartTable, title: string, subtitle: string): Promise<void> {
   const format = (value: string | number | null, index: number) =>
-    value === null ? '' : typeof value === 'string' ? value : table.percent[index] ? `${numberFormat.format(value)} %` : (table.money ? moneyFormat : numberFormat).format(value);
+    value === null ? '' : typeof value === 'string' ? value : table.percent[index] ? `${fmt.number(value, 2)} %` : table.money ? fmt.money(value) : fmt.number(value);
   const rows = table.rows.map((row) => ({ kind: 'row' as const, depth: 0, cells: row.map(format) }));
   if (table.total) rows.push({ kind: 'row', depth: 0, cells: ['Total', ...table.total.slice(1).map((value, index) => format(value, index + 1))] });
   const response = await fetch('/api/exports/table.pdf', {

@@ -3,8 +3,7 @@ import { describeRecurrence } from '../../components/recurrence/describe-recurre
 import { categoryTree } from '../../components/category-tree/category-tree';
 import { treeOptions } from '../../components/tree-select/tree-select';
 import type { Routine, RoutineCategory } from './api';
-
-const longDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /** Rule of a new routine: every day. */
 export const DAILY: Recurrence = { ...DEFAULT_RECURRENCE, frequency: 'DAILY' };
@@ -241,7 +240,7 @@ export function newRoutineCase(fromTime: string | null, dueTime: string | null):
  */
 export function describeRoutineCase(item: RoutineCase, start: string): string {
   const times = item.slots.map((slot) => `${windowText(slot) || 'dans la journée'}${slot.optional ? ' (facultatif)' : ''}`).join(', ');
-  return `${describeRecurrence(item.recurrence, item.from && item.from > start ? item.from : start)} · ${times}${item.from && item.from > start ? ` · dès le ${longDate.format(new Date(`${item.from}T00:00:00Z`))}` : ''}`;
+  return `${describeRecurrence(item.recurrence, item.from && item.from > start ? item.from : start)} · ${times}${item.from && item.from > start ? ` · dès le ${fmt.day(item.from)}` : ''}`;
 }
 
 /**

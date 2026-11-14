@@ -1,5 +1,6 @@
 import { createTheme, PasswordInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput, DateTimePicker, MonthPickerInput, YearPickerInput } from '@mantine/dates';
+import { PICKER_FORMATS } from './lib/format';
 import { VisibilityToggleIcon } from './components/VisibilityToggleIcon';
 
 export const theme = createTheme({
@@ -7,10 +8,11 @@ export const theme = createTheme({
     PasswordInput: PasswordInput.extend({
       defaultProps: { visibilityToggleIcon: VisibilityToggleIcon },
     }),
-    // French day-first format ("20 octobre 2026") instead of Mantine's "October 20, 2026".
-    DatePickerInput: DatePickerInput.extend({
-      defaultProps: { valueFormat: 'D MMMM YYYY' },
-    }),
+    // The readable forms of the app (lib/format) instead of Mantine's "October 20, 2026".
+    DatePickerInput: DatePickerInput.extend({ defaultProps: { valueFormat: PICKER_FORMATS.day } }),
+    DateTimePicker: DateTimePicker.extend({ defaultProps: { valueFormat: PICKER_FORMATS.dateTime } }),
+    MonthPickerInput: MonthPickerInput.extend({ defaultProps: { valueFormat: PICKER_FORMATS.month } }),
+    YearPickerInput: YearPickerInput.extend({ defaultProps: { valueFormat: PICKER_FORMATS.year } }),
   },
 });
 

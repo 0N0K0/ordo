@@ -8,7 +8,8 @@ import { useOverdueInvoices } from '../accounting/tracking-api';
 import type { TreasuryProjection } from '../treasury/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
-import { dayLabel, daysBetween, localDayOf, money, type BillingSummary } from './home-data';
+import { dayLabel, daysBetween, localDayOf, type BillingSummary } from './home-data';
+import * as fmt from '../../lib/format';
 
 const MAX_ROWS = 5;
 
@@ -24,8 +25,8 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
       {summary && overdue.data && (
         <Stack gap="sm">
           <SimpleGrid cols={3}>
-            <Figure label="CA HT du mois" value={money(summary.monthNet)} />
-            <Figure label="CA HT de l’année" value={money(summary.yearNet)} />
+            <Figure label="CA HT du mois" value={fmt.money(summary.monthNet)} />
+            <Figure label="CA HT de l’année" value={fmt.money(summary.yearNet)} />
             <Figure label="Brouillons" value={summary.drafts} />
           </SimpleGrid>
           {overdue.data.length === 0 ? (
@@ -48,7 +49,7 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
                       </Text>
                     </Stack>
                     <Text size="sm" fw={600} c="red" style={{ flexShrink: 0 }}>
-                      {money(invoice.balance ?? 0)}
+                      {fmt.money(invoice.balance ?? 0)}
                     </Text>
                   </Group>
                 </Link>
@@ -87,7 +88,7 @@ export function QuotesCard({ summary, today }: { summary: BillingSummary | null;
                     </Text>
                   </Stack>
                   <Text size="sm" fw={600} style={{ flexShrink: 0 }}>
-                    {money(quote.totalNet)}
+                    {fmt.money(quote.totalNet)}
                   </Text>
                 </Group>
               </Link>
@@ -128,9 +129,9 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
       {data && projection && (
         <Stack gap="sm">
           <SimpleGrid cols={3}>
-            <Figure label="Aujourd’hui" value={money(projection.balance)} />
-            <Figure label="Dans 30 jours" value={data.at30 ? money(data.at30.balance) : '—'} />
-            <Figure label="Point bas (3 mois)" value={data.lowest ? money(data.lowest.balance) : '—'} color={data.lowest && data.lowest.balance < 0 ? 'red' : undefined} />
+            <Figure label="Aujourd’hui" value={fmt.money(projection.balance)} />
+            <Figure label="Dans 30 jours" value={data.at30 ? fmt.money(data.at30.balance) : '—'} />
+            <Figure label="Point bas (3 mois)" value={data.lowest ? fmt.money(data.lowest.balance) : '—'} color={data.lowest && data.lowest.balance < 0 ? 'red' : undefined} />
           </SimpleGrid>
           {data.forecast.length > 1 && (
             <Sparkline
@@ -161,7 +162,7 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
                   </Group>
                   <Text size="sm" fw={600} c={item.amount < 0 ? 'red' : 'teal'} style={{ flexShrink: 0 }}>
                     {item.amount > 0 ? '+' : ''}
-                    {money(item.amount)}
+                    {fmt.money(item.amount)}
                   </Text>
                 </Group>
               ))}

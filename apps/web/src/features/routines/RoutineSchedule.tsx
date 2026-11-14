@@ -109,7 +109,6 @@ function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; 
               w={220}
               label="À partir du"
               placeholder="Début de la routine"
-              valueFormat="D MMMM YYYY"
               clearable
               minDate={start}
               value={item.from}

@@ -2,7 +2,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Alert, Button, ColorSwatch, FileInput, Group, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { formatMoney, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
+import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
@@ -13,16 +13,14 @@ import { PaymentForm } from './PaymentForm';
 import { SentForm } from './SentForm';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
 import { FileLink } from '../files/FileLink';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
+import * as fmt from '../../lib/format';
 
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Date.
  */
-const printedDate = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`));
+const printedDate = (date: string) => fmt.day(date);
 
 /**
  * Acceptance of a quote: date, and its signed copy.
@@ -35,7 +33,7 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
   const [file, setFile] = useState<File | null>(null);
   return (
     <Stack gap="sm">
-      <DatePickerInput label="Date d’acceptation" required valueFormat="D MMM YYYY" value={date} onChange={(value) => setDate(value)} />
+      <DatePickerInput label="Date d’acceptation" required value={date} onChange={(value) => setDate(value)} />
       <FileInput
         label="Devis signé"
         description={document.signedFileName ? `Remplace « ${document.signedFileName} ».` : 'PDF ou image du devis signé « Bon pour accord ».'}
@@ -128,7 +126,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
   const isQuote = document.type === 'QUOTE';
   const isCredit = document.type === 'CREDIT_NOTE';
   const scoped = (statuses ?? []).filter((status) => status.scope === (isQuote ? 'QUOTE' : 'INVOICE'));
-  const money = (amount: number) => formatMoney(Math.round(amount * 100), document.currency);
+  const money = (amount: number) => fmt.money(amount, document.currency);
   const balance = document.balance ?? 0;
   const onError = (error: Error) => notifyError(error.message);
 
@@ -163,7 +161,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
       <Group justify="space-between" wrap="nowrap">
         <Text size="sm" c="dimmed">
           {document.sentAt
-            ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${dateTimeFormat.format(new Date(document.sentAt))}`
+            ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${fmt.day(new Date(document.sentAt))}`
             : 'Pas encore envoyé.'}
         </Text>
         <Button size="compact-xs" variant="subtle" onClick={() => setDialog('sent')}>
@@ -262,7 +260,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
             document.reminders.map((reminder) => (
               <Group key={reminder.id} justify="space-between" wrap="nowrap">
                 <Text size="xs" truncate>
-                  {dateTimeFormat.format(new Date(reminder.date))}
+                  {fmt.day(new Date(reminder.date))}
                   {reminder.note ? ` · ${reminder.note}` : ''}
                 </Text>
                 <Tooltip label="Supprimer la relance">

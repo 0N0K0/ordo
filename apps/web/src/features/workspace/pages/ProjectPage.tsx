@@ -27,8 +27,7 @@ import { EntityNotFound, EntitySkeleton } from './EntityState';
 import { ProjectList } from './ProjectList';
 import { PageSettings } from '../../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../../layouts/page-settings';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
+import * as fmt from '../../../lib/format';
 
 /**
  * Formats a YYYY-MM-DD date for display.
@@ -36,7 +35,7 @@ const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZon
  * @returns {string} Formatted date, or a dash.
  */
 function formatDate(date: string | null): string {
-  return date ? dateFormat.format(new Date(`${date}T00:00:00Z`)) : '—';
+  return date ? fmt.day(date) : '—';
 }
 
 /**

@@ -8,7 +8,7 @@ import type { Task } from '../tasks/api';
 import { useShoppingLists, useShoppingMutations } from './api';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
-import { money } from './shopping-format';
+import * as fmt from '../../lib/format';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
@@ -50,7 +50,7 @@ export function TaskShopping({ task }: { task: Task }) {
               </Badge>
               {total > 0 && (
                 <Text size="xs" c="dimmed" ff="monospace">
-                  {money(total)}
+                  {fmt.money(total)}
                 </Text>
               )}
             </Group>

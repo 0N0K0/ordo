@@ -1,6 +1,6 @@
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Button, Group, Indicator, NumberInput, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
-import { EVERYDAY_CONTEXT, formatMoney, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
+import { ActionIcon, Button, Group, Indicator, ScrollArea, SegmentedControl, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { EVERYDAY_CONTEXT, plannedContext, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
 import { PaperclipIcon, PlusIcon, UsersThreeIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TreasurySettings } from './api';
@@ -8,6 +8,8 @@ import { categoryOptions } from './categories';
 import { LineAttachments } from './LineAttachments';
 import { attachmentCount, newLine, type LineValues } from './lines';
 import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -228,12 +230,9 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       />
                     </Table.Td>
                     <Table.Td>
-                      <NumberInput
+                      <AmountInput
                         size="xs"
                         aria-label={`Valeur de la ligne ${index + 1}`}
-                        decimalScale={2}
-                        decimalSeparator=","
-                        thousandSeparator=" "
                         suffix={line.mode === 'PERCENT' ? ' %' : ' €'}
                         value={line.value}
                         onChange={(value) => {
@@ -254,7 +253,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                     </Table.Td>
                     <Table.Td ta="right">
                       <Text size="sm" c={relative * sign < 0 ? 'red' : 'green'} aria-label={`Montant de la ligne ${index + 1}`}>
-                        {formatMoney(Math.round(relative * sign * 100))}
+                        {fmt.money(relative * sign)}
                       </Text>
                     </Table.Td>
                     <Table.Td>
@@ -277,7 +276,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                 </Table.Td>
                 <Table.Td ta="right">
                   <Text size="sm" fw={remainder === 0 ? undefined : 600}>
-                    {formatMoney(remainder * sign)}
+                    {fmt.moneyCents(remainder * sign)}
                   </Text>
                 </Table.Td>
                 <Table.Td />

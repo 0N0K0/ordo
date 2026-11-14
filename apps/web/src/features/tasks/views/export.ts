@@ -6,6 +6,7 @@ import type { TaskContext } from '../use-task-context';
 import { COLUMN_LABELS } from './columns-meta';
 import { EVENT_STATES, eventState, eventWhen } from './event-format';
 import type { DisplayRow } from './task-rows';
+import * as fmt from '../../../lib/format';
 
 export interface ExportRow {
   kind: 'group' | 'task' | 'event';
@@ -24,16 +25,12 @@ export interface ExportTable {
   rows: ExportRow[];
 }
 
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
-const instantFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
-
 /**
  * Calendar date (YYYY-MM-DD) as dd/mm/yyyy.
  * @param {string | null} day Date.
  * @returns {string} Text.
  */
-const printedDay = (day: string | null) => (day ? dayFormat.format(new Date(`${day}T00:00:00Z`)) : '');
+const printedDay = (day: string | null) => (day ? fmt.exportDay(day) : '');
 
 /**
  * Text of a task cell.
@@ -73,7 +70,7 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
         .filter(Boolean)
         .join(', ');
     case 'effort':
-      return task.effort === null ? '' : numberFormat.format(task.effort);
+      return task.effort === null ? '' : fmt.number(task.effort, 2);
     case 'trackedTime':
       return task.trackedSeconds > 0 ? formatDuration(task.trackedSeconds) : '';
     case 'startDate':
@@ -102,9 +99,9 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
     case 'comments':
       return task.commentCount ? String(task.commentCount) : '';
     case 'createdAt':
-      return instantFormat.format(new Date(task.createdAt));
+      return fmt.exportDay(new Date(task.createdAt));
     case 'updatedAt':
-      return instantFormat.format(new Date(task.updatedAt));
+      return fmt.exportDay(new Date(task.updatedAt));
   }
 }
 

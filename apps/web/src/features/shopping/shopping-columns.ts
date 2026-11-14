@@ -2,9 +2,7 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import type { ShoppingCategory, ShoppingStore } from './api';
 import type { ShoppingFields, ShoppingGrouping } from './shopping-format';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
-const priceFormat = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+import * as fmt from '../../lib/format';
 
 /** Names the columns of the products or items show. */
 export interface ItemNames {
@@ -56,7 +54,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       size: 110,
       numeric: true,
       sortValue: (item) => item.unitPrice ?? null,
-      text: (item) => (item.unitPrice == null ? '' : priceFormat.format(item.unitPrice)),
+      text: (item) => (item.unitPrice == null ? '' : fmt.money(item.unitPrice)),
     },
     {
       id: 'conservation',
@@ -71,7 +69,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       label: 'Péremption',
       size: 120,
       sortValue: (item) => item.expiresAt ?? null,
-      text: (item) => (item.expiresAt ? dayFormat.format(new Date(`${item.expiresAt}T00:00:00Z`)) : ''),
+      text: (item) => (item.expiresAt ? fmt.day(item.expiresAt) : ''),
       filter: { kind: 'date', value: (item) => item.expiresAt ?? null },
     },
     { id: 'people', label: 'Pour', size: 170, text: (item) => people(item).join(', ') },

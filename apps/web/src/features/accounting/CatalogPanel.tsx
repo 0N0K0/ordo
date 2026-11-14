@@ -3,8 +3,8 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { Badge, Button, Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { ACCOUNTING_UNITS, catalogItemSchema, formatMoney, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
+import { Badge, Button, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
@@ -15,6 +15,8 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useCompanyProfile } from './api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from './catalog-api';
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 let modalCount = 0;
 
@@ -39,14 +41,14 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
     groupable: true,
   },
   { id: 'unit', label: 'Unité', size: 120, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
-  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => formatMoney(Math.round(item.unitPrice * 100)) },
+  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
   {
     id: 'vat',
     label: 'TVA',
     size: 90,
     numeric: true,
     sortValue: (item) => (item.kind === 'DISBURSEMENT' ? null : item.vatRate),
-    text: (item) => (item.kind === 'DISBURSEMENT' ? '' : `${item.vatRate.toLocaleString('fr-FR')} %`),
+    text: (item) => (item.kind === 'DISBURSEMENT' ? '' : `${fmt.percent(item.vatRate)}`),
     groupable: true,
   },
   {
@@ -128,12 +130,12 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
         <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
         <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
           <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
-          <NumberInput label="Prix unitaire HT" decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" {...form.getInputProps('unitPrice')} />
+          <AmountInput label="Prix unitaire HT" suffix=" €" {...form.getInputProps('unitPrice')} />
           {!disbursement && (
             <Select
               label="TVA"
               allowDeselect={false}
-              data={[...new Set([...VAT_RATES, form.values.vatRate])].map((rate) => ({ value: String(rate), label: `${rate.toLocaleString('fr-FR')} %` }))}
+              data={[...new Set([...VAT_RATES, form.values.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
               value={String(form.values.vatRate)}
               onChange={(rate) => rate !== null && form.setFieldValue('vatRate', Number(rate))}
               error={form.errors.vatRate}
@@ -279,6 +281,7 @@ export function CatalogPanel() {
         ),
         price: (
           <EditableNumber
+            amount
             value={item.unitPrice}
             label={`Prix HT de ${item.title}`}
             suffix="€"
@@ -293,7 +296,7 @@ export function CatalogPanel() {
             <EditableSelect
               value={String(item.vatRate)}
               label={`TVA de ${item.title}`}
-              data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${rate.toLocaleString('fr-FR')} %` }))}
+              data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
               onSave={(rate) => rate && saveItem(item, { vatRate: Number(rate) })}
             />
           ),

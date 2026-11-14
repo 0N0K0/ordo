@@ -1,4 +1,5 @@
 import { addDays } from '@ordo/shared';
+import * as fmt from '../../lib/format';
 
 /** Span of the balance chart. */
 export type ChartScale = 'month' | 'quarter' | 'year';
@@ -10,7 +11,6 @@ export const CHART_SCALES: { value: ChartScale; label: string }[] = [
 ];
 
 const MONTHS: Record<ChartScale, number> = { month: 1, quarter: 3, year: 12 };
-const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * First day of a month, months overflowing the year.
@@ -66,6 +66,6 @@ export function periodLabel(scale: ChartScale, start: string): string {
     const quarter = Math.floor((Number(start.slice(5, 7)) - 1) / 3) + 1;
     return `${quarter}${quarter === 1 ? 'er' : 'e'} trimestre ${start.slice(0, 4)}`;
   }
-  const label = monthFormat.format(new Date(`${start}T00:00:00Z`));
+  const label = fmt.month(start);
   return label.charAt(0).toUpperCase() + label.slice(1);
 }

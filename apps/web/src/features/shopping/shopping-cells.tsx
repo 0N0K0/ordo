@@ -10,6 +10,7 @@ import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
 import type { ShoppingCategory, ShoppingStorage, ShoppingStore } from './api';
 import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, UNITS, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { AmountInput } from '../../components/AmountInput';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -179,14 +180,15 @@ export function NumberCell({ value, label, kind, readOnly = false, onSave }: Num
     if (result.data !== value) onSave(result.data);
   };
 
+  const Field = kind === 'price' ? AmountInput : NumberInput;
   return (
-    <NumberInput
+    <Field
       {...cellField}
       aria-label={label}
       placeholder={readOnly ? undefined : '—'}
       readOnly={readOnly}
       min={0}
-      decimalScale={kind === 'price' ? 2 : 3}
+      decimalScale={3}
       decimalSeparator=","
       thousandSeparator=" "
       suffix={kind === 'price' ? ' €' : undefined}
@@ -356,7 +358,6 @@ export function ExpiryCell({ value, label, disabled = false, readOnly = false, o
     <DatePickerInput
       {...cellField}
       aria-label={label}
-      valueFormat="D MMM YYYY"
       value={value}
       readOnly={readOnly}
       clearable={!readOnly}

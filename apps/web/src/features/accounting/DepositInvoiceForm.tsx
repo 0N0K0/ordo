@@ -1,13 +1,11 @@
 import { Button, Group, NumberInput, Paper, Select, Stack, Text } from '@mantine/core';
-import { formatMoney } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { notifyError } from '../../lib/notify';
 import { useWorkspace } from '../workspace/api';
 import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } from './documents-api';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /** Quote a deposit can be made from, of Ordo or imported. */
 interface QuoteChoice {
@@ -145,11 +143,10 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
             Article de la facture
           </Text>
           <Text size="sm">
-            Acompte de {rate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % pour le devis {selected.number} de {formatMoney(Math.round(selected.totalNet * 100), selected.currency)} HT du{' '}
-            {dateFormat.format(new Date(`${selected.issueDate}T00:00:00Z`))}
+            Acompte de {fmt.percent(rate)} pour le devis {selected.number} de {fmt.money(selected.totalNet, selected.currency)} HT du {fmt.day(selected.issueDate)}
           </Text>
           <Text size="sm" fw={600}>
-            {formatMoney(amount, selected.currency)} HT
+            {fmt.moneyCents(amount, selected.currency)} HT
           </Text>
         </Paper>
       )}

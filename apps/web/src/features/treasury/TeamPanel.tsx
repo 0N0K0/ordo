@@ -13,15 +13,14 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from './api';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Day in words.
  * @param {unknown} day YYYY-MM-DD.
  * @returns {string} "12 août 2026".
  */
-const formatDay = (day: unknown) => dayFormat.format(new Date(`${String(day)}T00:00:00Z`));
+const formatDay = (day: unknown) => fmt.day(String(day));
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -195,12 +194,11 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
           <DatePickerInput
             label="Du"
             required
-            valueFormat="D MMM YYYY"
             {...form.getInputProps('startDate')}
             // The end follows a start set after it.
             onChange={(date) => form.setValues({ startDate: date ?? '', ...(date && (!form.values.endDate || form.values.endDate < date) ? { endDate: date } : {}) })}
           />
-          <DatePickerInput label="Au" required valueFormat="D MMM YYYY" minDate={form.values.startDate || undefined} {...form.getInputProps('endDate')} />
+          <DatePickerInput label="Au" required minDate={form.values.startDate || undefined} {...form.getInputProps('endDate')} />
         </SimpleGrid>
         <TextInput label="Note" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
         <Group justify="flex-end">

@@ -2,7 +2,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { Alert, Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { daysBetween, formatMoney, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
+import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel } from '@ordo/shared';
 import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -15,9 +15,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailAccounts } from '../mail/api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { useOverdueInvoices, useTrackingMutations, type OverdueInvoice } from './tracking-api';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-const instantFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' });
+import * as fmt from '../../lib/format';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
 const REMIND_AFTER_DAYS = 7;
@@ -51,7 +49,7 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     label: 'Envoi',
     size: 230,
     sortValue: (invoice) => invoice.sentAt ?? null,
-    text: (invoice) => (invoice.sentAt ? dayFormat.format(new Date(`${localDay(new Date(invoice.sentAt))}T00:00:00Z`)) : ''),
+    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(new Date(invoice.sentAt))) : ''),
     filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(new Date(invoice.sentAt)) : null) },
   },
   {
@@ -60,14 +58,14 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
     size: 130,
     numeric: true,
     sortValue: (invoice) => invoice.balance ?? 0,
-    text: (invoice) => formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency),
+    text: (invoice) => fmt.money(invoice.balance ?? 0, invoice.currency),
   },
   {
     id: 'reminder',
     label: 'Dernière relance',
     size: 200,
     sortValue: (invoice) => invoice.lastReminderAt ?? null,
-    text: (invoice) => (invoice.lastReminderAt ? instantFormat.format(new Date(invoice.lastReminderAt)) : 'Jamais'),
+    text: (invoice) => (invoice.lastReminderAt ? fmt.day(new Date(invoice.lastReminderAt)) : 'Jamais'),
     filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(new Date(invoice.lastReminderAt)) : null) },
   },
   { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
@@ -183,7 +181,7 @@ export function OverdueInvoicesPanel() {
           tools: (
             <>
               <Text size="sm">
-                {view.rows.length} facture{view.rows.length > 1 ? 's' : ''} en retard, <b>{formatMoney(total)}</b> à encaisser.
+                {view.rows.length} facture{view.rows.length > 1 ? 's' : ''} en retard, <b>{fmt.moneyCents(total)}</b> à encaisser.
               </Text>
               <Group gap="sm" ml="auto" wrap="wrap">
                 <Button variant="subtle" size="sm" disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
@@ -246,7 +244,7 @@ export function OverdueInvoicesPanel() {
             sent: (
               <>
                 <Text size="sm">
-                  {sentDay ? dayFormat.format(new Date(`${sentDay}T00:00:00Z`)) : '—'}
+                  {sentDay ? fmt.day(sentDay) : '—'}
                   {invoice.sentVia && (
                     <Text span size="xs" c="dimmed">
                       {' '}
@@ -259,17 +257,17 @@ export function OverdueInvoicesPanel() {
                 </Badge>
                 {invoice.dueDate && (
                   <Text size="xs" c="dimmed">
-                    Échéance {dayFormat.format(new Date(`${invoice.dueDate}T00:00:00Z`))}
+                    Échéance {fmt.day(invoice.dueDate)}
                   </Text>
                 )}
               </>
             ),
-            balance: <>{formatMoney(Math.round((invoice.balance ?? 0) * 100), invoice.currency)}</>,
+            balance: <>{fmt.money(invoice.balance ?? 0, invoice.currency)}</>,
             reminder: (
               <>
                 {invoice.lastReminderAt ? (
                   <>
-                    <Text size="sm">{instantFormat.format(new Date(invoice.lastReminderAt))}</Text>
+                    <Text size="sm">{fmt.day(new Date(invoice.lastReminderAt))}</Text>
                     <Text size="xs" c="dimmed">
                       {since === 0 ? 'aujourd’hui' : `il y a ${since} jour${since && since > 1 ? 's' : ''}`} · {invoice.reminderCount} relance{invoice.reminderCount > 1 ? 's' : ''}
                     </Text>

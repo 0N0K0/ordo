@@ -12,6 +12,7 @@ import classes from './TimerCard.module.css';
 import { TimeTasksSelect } from './TimeTasksSelect';
 import { useNow } from './use-now';
 import { useStopTimer } from './use-stop-timer';
+import * as fmt from '../../lib/format';
 
 /** Dropdowns inside a popover stay in it (a portal would close the popover on click). */
 const inPopover = { comboboxProps: { withinPortal: false } };
@@ -142,7 +143,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
           </Text>
           <Text size="xs" c="dimmed">
             {paused ? 'En pause' : 'En cours'} — depuis{' '}
-            {new Date(entry.startedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} ·{' '}
+            {fmt.time(new Date(entry.startedAt))} ·{' '}
             {entry.projectId ? (
               <Anchor component={Link} to={`/projects/${entry.projectId}?tab=time`} size="xs">
                 {context.projectById.get(entry.projectId)?.title ?? 'Projet'}

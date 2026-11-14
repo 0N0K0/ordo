@@ -106,8 +106,8 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           <TextInput label="À" placeholder="Nom ou adresse" {...form.getInputProps('to')} />
           <TextInput label="Objet" {...form.getInputProps('subject')} />
           <TextInput label="Corps" {...form.getInputProps('body')} />
-          <DatePickerInput label="Reçu à partir du" clearable valueFormat="D MMM YYYY" placeholder="—" {...form.getInputProps('since')} />
-          <DatePickerInput label="Jusqu’au" clearable valueFormat="D MMM YYYY" placeholder="—" minDate={values.since ?? undefined} {...form.getInputProps('until')} />
+          <DatePickerInput label="Reçu à partir du" clearable placeholder="—" {...form.getInputProps('since')} />
+          <DatePickerInput label="Jusqu’au" clearable placeholder="—" minDate={values.since ?? undefined} {...form.getInputProps('until')} />
         </SimpleGrid>
         <Switch label="Avec pièce jointe" {...form.getInputProps('attachments', { type: 'checkbox' })} />
         <Group justify="flex-end" gap="sm">

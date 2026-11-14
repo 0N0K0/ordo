@@ -28,15 +28,14 @@ import { ViewTabs } from './views/ViewTabs';
 import { ViewToolbar } from './views/ViewToolbar';
 import { sprintPeriod } from './views/sprint-period';
 import classes from './TaskBoard.module.css';
-
-const shortDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Short day: "3 nov.".
  * @param {string} day YYYY-MM-DD.
  * @returns {string} Day.
  */
-const dayLabel = (day: string) => shortDay.format(new Date(`${day}T00:00:00Z`));
+const dayLabel = (day: string) => fmt.dayShort(day);
 
 interface TaskBoardProps {
   /** Project whose tasks (sub-projects included) are listed, or null for the home page. */
@@ -178,7 +177,7 @@ export function TaskBoard({ projectId, baseFilter, createProjectId, header, empt
       `${taskCount} tâche${taskCount > 1 ? 's' : ''}`,
       ...(showEvents ? [`${events.length} évènement${events.length > 1 ? 's' : ''} du ${dayLabel(range!.from)} au ${dayLabel(range!.to)}`] : []),
       ...(search.trim() ? [`recherche « ${search.trim()} »`] : []),
-      `exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+      `exporté le ${fmt.exportDateTime(new Date())}`,
     ];
     const table = exportTable({ rows, config, context, title: `${title} — ${current.name}`, subtitle: parts.join(' · ') });
     if (format === 'csv') {

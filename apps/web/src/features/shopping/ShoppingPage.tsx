@@ -30,10 +30,9 @@ import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
 import { ListActionsMenu } from './ListActions';
 import { TasksCell } from './shopping-cells';
-import { listClosed, listsOfProjects, listTasks, money, taskOptions, type ShoppingGrouping } from './shopping-format';
+import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+import * as fmt from '../../lib/format';
 
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
@@ -128,9 +127,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   progress: (list) => `${list.items.filter((item) => item.purchasedAt).length} / ${list.items.length}`,
                   remaining: (list) => String(list.items.filter((item) => !item.purchasedAt).length),
                   itemCount: (list) => String(list.items.length),
-                  total: (list) => (shoppingTotal(list.items) > 0 ? money(shoppingTotal(list.items)) : ''),
-                  createdAt: (list) => dayFormat.format(new Date(list.createdAt)),
-                  closedAt: (list) => (list.closedAt ? dayFormat.format(new Date(list.closedAt)) : ''),
+                  total: (list) => (shoppingTotal(list.items) > 0 ? fmt.money(shoppingTotal(list.items)) : ''),
+                  createdAt: (list) => fmt.day(new Date(list.createdAt)),
+                  closedAt: (list) => (list.closedAt ? fmt.day(new Date(list.closedAt)) : ''),
                 };
                 return {
                   title: 'Listes d’achats',
@@ -244,9 +243,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                     ),
                     remaining: list.items.length - bought || '',
                     itemCount: list.items.length,
-                    total: total > 0 ? money(total) : null,
-                    createdAt: dayFormat.format(new Date(list.createdAt)),
-                    closedAt: list.closedAt ? dayFormat.format(new Date(list.closedAt)) : null,
+                    total: total > 0 ? fmt.money(total) : null,
+                    createdAt: fmt.day(new Date(list.createdAt)),
+                    closedAt: list.closedAt ? fmt.day(new Date(list.closedAt)) : null,
                   };
                   return (
                     <Table.Tr key={row.key}>

@@ -1,8 +1,9 @@
 import { Box } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import { formatMoney, paidOnReceipt, reminderMail, type AccountingDocumentType } from '@ordo/shared';
+import { paidOnReceipt, reminderMail, type AccountingDocumentType } from '@ordo/shared';
 import type { ComposeOptions } from '../mail/compose-options';
 import { escapeHtml } from '../mail/mail-format';
+import * as fmt from '../../lib/format';
 
 /**
  * URL of the PDF of a document.
@@ -91,8 +92,8 @@ const PHRASES: Record<AccountingDocumentType, { label: string; article: string }
  */
 export async function documentMailOptions(document: DocumentMail): Promise<ComposeOptions> {
   const phrase = PHRASES[document.type];
-  const amount = formatMoney(document.totalGross, document.currency);
-  const date = document.dueDate ? new Date(`${document.dueDate}T00:00:00`).toLocaleDateString('fr-FR') : null;
+  const amount = fmt.moneyCents(document.totalGross, document.currency);
+  const date = document.dueDate ? fmt.exportDay(String(document.dueDate)) : null;
   const detail =
     document.type === 'QUOTE'
       ? `d’un montant de ${amount}${date ? `, valable jusqu’au ${date}` : ''}`

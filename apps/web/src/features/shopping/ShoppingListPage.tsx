@@ -5,7 +5,6 @@ import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { ActionIcon, Anchor, Badge, Checkbox, Group, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { formatMoney } from '@ordo/shared';
 import {
   ArrowLeftIcon,
   BankIcon,
@@ -33,14 +32,13 @@ import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
 import { openFormPanel } from '../../components/panels/panels';
 import { ProductPicker } from './ProductPicker';
-import { blankInput, listClosed, listTasks, money, usePeople, type ShoppingGrouping } from './shopping-format';
+import { blankInput, listClosed, listTasks, usePeople, type ShoppingGrouping } from './shopping-format';
 import { ShoppingSettings } from './ShoppingSettings';
 import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
 import { StoreMode } from './StoreMode';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 type ShoppingItem = ShoppingList['items'][number];
 
@@ -135,13 +133,13 @@ export function ShoppingListPage() {
               <Group gap={4} wrap="nowrap">
                 <BankIcon aria-hidden size={14} />
                 <Anchor component={Link} to="/treasury" size="sm">
-                  {list.entry.label} · {formatMoney(list.entry.amount)} · {dayFormat.format(new Date(`${list.entry.date}T00:00:00Z`))}
+                  {list.entry.label} · {fmt.money(list.entry.amount)} · {fmt.day(list.entry.date)}
                 </Anchor>
               </Group>
             )}
             <Text size="sm" c="dimmed">
               {bought} sur {list.items.length} acheté(s)
-              {total > 0 && ` · ${money(spent)} sur ${money(total)} estimés`}
+              {total > 0 && ` · ${fmt.money(spent)} sur ${fmt.money(total)} estimés`}
             </Text>
           </Group>
         </Stack>
@@ -274,7 +272,7 @@ export function ShoppingListPage() {
       {total > 0 && (
         <Group justify="flex-end">
           <Text size="sm" fw={600}>
-            Total estimé : {money(total)}
+            Total estimé : {fmt.money(total)}
           </Text>
         </Group>
       )}

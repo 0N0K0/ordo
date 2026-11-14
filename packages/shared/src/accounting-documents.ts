@@ -178,7 +178,8 @@ export function computeTotals(document: {
   let disbursements = 0;
   const lines = document.lines.map((line) => {
     if (line.kind === 'TEXT') return { gross: 0, discount: 0, net: 0 };
-    const gross = Math.round(line.quantity * toCents(line.unitPrice));
+    // The unit price keeps its decimals (1,879 €): rounded to the cent once multiplied.
+    const gross = Math.round(line.quantity * line.unitPrice * 100);
     const rate = document.vatApplicable ? line.vatRate : 0;
     if (line.kind === 'DEDUCTION') {
       deductionsByRate.set(rate, (deductionsByRate.get(rate) ?? 0) + gross);

@@ -5,12 +5,11 @@ import { useState } from 'react';
 import { notifyError } from '../../lib/notify';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { travelTime, usePlaces } from './api';
+import * as fmt from '../../lib/format';
 
 /** Start or end chosen: a saved place, another address, or (for the way back) the start. */
 const OTHER = 'other';
 const SAME = 'same';
-
-const distance = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
 
 interface TravelCalculatorProps {
   /** Point of the event; none: nothing to compute. */
@@ -62,7 +61,7 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
       const [going, back] = await Promise.all([travelTime(start, eventPoint, mode), travelTime(eventPoint, end, mode)]);
       onResult({ before: travelMinutes(going.seconds), after: travelMinutes(back.seconds) });
       setSummary(
-        `${TRAVEL_MODE_LABELS[mode]} : aller ${formatDuration(going.seconds)} (${distance.format(going.meters / 1000)} km), retour ${formatDuration(back.seconds)} (${distance.format(back.meters / 1000)} km). Arrondis aux 5 minutes.`,
+        `${TRAVEL_MODE_LABELS[mode]} : aller ${formatDuration(going.seconds)} (${fmt.number(going.meters / 1000, 1)} km), retour ${formatDuration(back.seconds)} (${fmt.number(back.meters / 1000, 1)} km). Arrondis aux 5 minutes.`,
       );
     } catch (error) {
       notifyError((error as Error).message);

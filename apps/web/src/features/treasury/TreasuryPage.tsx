@@ -5,10 +5,10 @@ import { BlockSkeleton, DetailSkeleton } from '../../components/feedback/Skeleto
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from './entry-values';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, NumberInput, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, formatMoney, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
+import { addDays, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
 import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -42,23 +42,21 @@ import { LoansPanel } from './LoansPanel';
 import { PageTabs } from '../../components/PageTabs';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
+import { AmountInput } from '../../components/AmountInput';
 
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Date.
  */
-const printedDate = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`));
+const printedDate = (date: string) => fmt.day(date);
 
 /**
  * Amount in euros, from currency units.
  * @param {number} amount Amount.
  * @returns {string} Amount.
  */
-const money = (amount: number) => formatMoney(Math.round(amount * 100));
 
 const KIND_LABELS: Record<string, { label: string; color: string }> = {
   FORECAST: { label: 'Prévision', color: 'grape' },
@@ -95,7 +93,7 @@ const FORECAST_COLUMNS: DataColumn<ForecastRow>[] = [
     filter: { kind: 'boolean', value: ({ item }) => Boolean(item.overdue) },
     groupable: true,
   },
-  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: ({ item }) => item.amount, text: ({ item }) => `${item.amount > 0 ? '+' : ''}${money(item.amount)}` },
+  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: ({ item }) => item.amount, text: ({ item }) => `${item.amount > 0 ? '+' : ''}${fmt.money(item.amount)}` },
 ];
 
 /** Columns of the accounts. */
@@ -107,7 +105,7 @@ const ACCOUNT_COLUMNS: DataColumn<TreasuryAccount>[] = [
     size: 150,
     numeric: true,
     sortValue: (account) => account.openingBalance,
-    text: (account) => money(account.openingBalance),
+    text: (account) => fmt.money(account.openingBalance),
   },
   {
     id: 'openingDate',
@@ -117,7 +115,7 @@ const ACCOUNT_COLUMNS: DataColumn<TreasuryAccount>[] = [
     text: (account) => printedDate(String(account.openingDate)),
     filter: { kind: 'date', value: (account) => String(account.openingDate).slice(0, 10) },
   },
-  { id: 'balance', label: 'Solde aujourd’hui', size: 160, numeric: true, sortValue: (account) => account.balance, text: (account) => money(account.balance) },
+  { id: 'balance', label: 'Solde aujourd’hui', size: 160, numeric: true, sortValue: (account) => account.balance, text: (account) => fmt.money(account.balance) },
   {
     id: 'archived',
     label: 'Archivé',
@@ -164,8 +162,8 @@ function AccountForm({ account, onDone }: { account?: TreasuryAccount; onDone: (
       <Stack gap="sm">
         <TextInput label="Nom" required placeholder="Compte courant, livret…" data-autofocus {...form.getInputProps('name')} />
         <SimpleGrid cols={2} spacing="sm">
-          <NumberInput label="Solde d’ouverture" decimalScale={2} decimalSeparator="," thousandSeparator=" " suffix=" €" {...form.getInputProps('openingBalance')} />
-          <DatePickerInput label="Au" required valueFormat="D MMM YYYY" {...form.getInputProps('openingDate')} />
+          <AmountInput label="Solde d’ouverture" suffix=" €" {...form.getInputProps('openingBalance')} />
+          <DatePickerInput label="Au" required {...form.getInputProps('openingDate')} />
         </SimpleGrid>
         <Text size="xs" c="dimmed">
           Le solde du relevé à cette date : seuls les mouvements suivants sont comptés.
@@ -199,17 +197,8 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
         « {item.label} », prévu le {printedDate(item.dueDate)}, devient un mouvement réel.
       </Text>
       <SimpleGrid cols={2} spacing="sm">
-        <DatePickerInput label="Date réelle" required valueFormat="D MMM YYYY" value={date} onChange={setDate} />
-        <NumberInput
-          label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'}
-          min={0}
-          decimalScale={2}
-          decimalSeparator=","
-          thousandSeparator=" "
-          suffix=" €"
-          value={amount}
-          onChange={(value) => setAmount(typeof value === 'number' ? value : 0)}
-        />
+        <DatePickerInput label="Date réelle" required value={date} onChange={setDate} />
+        <AmountInput label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'} min={0} suffix=" €" value={amount} onChange={(value) => setAmount(typeof value === 'number' ? value : 0)} />
       </SimpleGrid>
       <Group justify="flex-end">
         <Button variant="default" onClick={onDone}>
@@ -252,7 +241,7 @@ function Figure({ label, value, hint, color }: { label: string; value: number; h
         {label}
       </Text>
       <Text size="xl" fw={700} ff="monospace" c={color ?? (value < 0 ? 'red' : undefined)}>
-        {money(value)}
+        {fmt.money(value)}
       </Text>
       {hint && (
         <Text size="xs" c="dimmed">
@@ -406,7 +395,7 @@ export function TreasuryPage() {
         <Figure
           label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? printedDate(end.date) : '—'}`}
           value={end?.balance ?? 0}
-          hint={lowest ? `Point bas ${money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined}
+          hint={lowest ? `Point bas ${fmt.money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined}
         />
       </SimpleGrid>
 
@@ -484,8 +473,8 @@ export function TreasuryPage() {
               { name: 'Réel', color: 'blue.6' },
               { name: 'Prévu', color: 'grape.5', strokeDasharray: '5 5' },
             ]}
-            xAxisProps={{ tickFormatter: (value: string) => shortDate.format(new Date(`${value}T00:00:00Z`)), minTickGap: 40 }}
-            valueFormatter={(value) => money(value)}
+            xAxisProps={{ tickFormatter: (value: string) => fmt.dayShort(value), minTickGap: 40 }}
+            valueFormatter={(value) => fmt.money(value)}
             referenceLines={[{ y: 0, color: 'red.5' }]}
             yAxisProps={{ width: 90 }}
           />
@@ -582,6 +571,7 @@ export function TreasuryPage() {
                   <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
                     {entry ? (
                       <EditableNumber
+                        amount
                         value={entry.amount}
                         label={`Montant de ${item.label}`}
                         suffix="€"
@@ -592,7 +582,7 @@ export function TreasuryPage() {
                     ) : (
                       <>
                         {item.amount > 0 ? '+' : ''}
-                        {money(item.amount)}
+                        {fmt.money(item.amount)}
                       </>
                     )}
                   </Text>
@@ -679,6 +669,7 @@ export function TreasuryPage() {
               ),
               openingBalance: (
                 <EditableNumber
+                  amount
                   value={account.openingBalance}
                   label={`Solde d’ouverture de ${account.name}`}
                   suffix="€"
@@ -691,7 +682,7 @@ export function TreasuryPage() {
               ),
               balance: (
                 <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
-                  {money(account.balance)}
+                  {fmt.money(account.balance)}
                 </Text>
               ),
               archived: <EditableCheck value={account.archived} label={`${account.name} archivé`} onSave={(archived) => saveAccount(account, { archived })} />,

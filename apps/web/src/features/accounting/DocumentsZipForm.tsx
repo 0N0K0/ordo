@@ -69,13 +69,12 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
         {preset === 'calendarYear' && <Select label="Année" data={yearOptions} value={year} onChange={(value) => value && setYear(value)} allowDeselect={false} />}
       </Group>
       <SimpleGrid cols={2}>
-        <DatePickerInput label="Du" value={from} disabled={preset !== 'custom'} onChange={(value) => setCustom([value, custom[1]])} valueFormat="D MMM YYYY" />
+        <DatePickerInput label="Du" value={from} disabled={preset !== 'custom'} onChange={(value) => setCustom([value, custom[1]])} />
         <DatePickerInput
           label="Au"
           value={to}
           disabled={preset !== 'custom'}
           onChange={(value) => setCustom([custom[0], value])}
-          valueFormat="D MMM YYYY"
           error={from && to && from > to ? 'Avant la date de début.' : undefined}
         />
       </SimpleGrid>

@@ -9,7 +9,7 @@ import { useMe } from '../features/auth/api';
 import { ChronoCard } from '../features/home/ChronoCard';
 import { BillingCard, QuotesCard, TreasuryCard } from '../features/home/FinanceCards';
 import { StatTile } from '../features/home/HomeCard';
-import { billingSummary, money, useMyTodayTasks, useWeekTime } from '../features/home/home-data';
+import { billingSummary, useMyTodayTasks, useWeekTime } from '../features/home/home-data';
 import { MailCard } from '../features/home/MailCard';
 import { SortableGrid } from '../features/home/SortableGrid';
 import { RoutinesCard, ShoppingCard } from '../features/home/LifeCards';
@@ -20,7 +20,7 @@ import { useTreasuryProjection } from '../features/treasury/api';
 import { useEntityActions } from '../features/workspace/use-entity-actions';
 import { useActiveWorkspace } from '../features/workspaces/api';
 import { localToday } from '../lib/dates';
-
+import * as fmt from '../lib/format';
 
 type CardId = 'tasks' | 'routines' | 'agenda' | 'chrono' | 'shopping' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'time';
 const DEFAULT_ORDER: CardId[] = ['tasks', 'routines', 'agenda', 'chrono', 'shopping', 'billing', 'quotes', 'treasury', 'mail', 'time'];
@@ -105,19 +105,19 @@ export function HomePage() {
           <>
             <StatTile
               label="À encaisser"
-              value={money(summary?.receivable ?? 0)}
-              hint={summary && summary.overdue > 0 ? `${money(summary.overdue)} en retard` : 'Rien en retard'}
+              value={fmt.money(summary?.receivable ?? 0)}
+              hint={summary && summary.overdue > 0 ? `${fmt.money(summary.overdue)} en retard` : 'Rien en retard'}
               hintColor={summary && summary.overdue > 0 ? 'red' : 'dimmed'}
               to="/accounting?tab=overdue"
               loading={!summary}
             />
-            <StatTile label="Devis en attente" value={summary?.pendingQuotes.length ?? 0} hint={`${money(summary?.pendingQuotesNet ?? 0)} HT`} to="/accounting" loading={!summary} />
+            <StatTile label="Devis en attente" value={summary?.pendingQuotes.length ?? 0} hint={`${fmt.money(summary?.pendingQuotesNet ?? 0)} HT`} to="/accounting" loading={!summary} />
           </>
         )}
         <StatTile
           label="Trésorerie"
-          value={money(projection.data?.balance ?? 0)}
-          hint={at30 ? `Dans 30 jours : ${money(at30.balance)}` : undefined}
+          value={fmt.money(projection.data?.balance ?? 0)}
+          hint={at30 ? `Dans 30 jours : ${fmt.money(at30.balance)}` : undefined}
           hintColor={at30 && at30.balance < 0 ? 'red' : 'dimmed'}
           to="/treasury"
           loading={!projection.data}

@@ -3,7 +3,7 @@ import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { Button, Group, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { formatMoney, shoppingListNameSchema } from '@ordo/shared';
+import { shoppingListNameSchema } from '@ordo/shared';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, BankIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
@@ -19,8 +19,7 @@ import { downloadShoppingPdf, shoppingText } from './export';
 import { openFormPanel } from '../../components/panels/panels';
 import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
-
-const dayFormat = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 const listSchema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()) });
 
@@ -117,12 +116,12 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
             <Stack gap={0} style={{ flex: 1 }}>
               <Text size="sm">{entry.label}</Text>
               <Text size="xs" c="dimmed">
-                {dayFormat.format(new Date(`${entry.date}T00:00:00Z`))} · {entry.accountName}
+                {fmt.day(entry.date)} · {entry.accountName}
                 {entry.status === 'FORECAST' ? ' · prévision' : ''}
               </Text>
             </Stack>
             <Text size="sm" ff="monospace" c={entry.amount < 0 ? 'red' : 'green'}>
-              {formatMoney(entry.amount)}
+              {fmt.money(entry.amount)}
             </Text>
           </UnstyledButton>
         ))}

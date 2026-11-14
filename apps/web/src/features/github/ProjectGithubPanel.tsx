@@ -8,8 +8,7 @@ import { Link } from 'react-router';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from './api';
-
-const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+import * as fmt from '../../lib/format';
 
 /** Usual English names of the GitHub board options, for the first guess. */
 const SYNONYMS: Record<string, string[]> = {
@@ -426,7 +425,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               <Text size="sm" c="dimmed">
                 {link.linkedTaskCount} tâche{link.linkedTaskCount > 1 ? 's' : ''} liée{link.linkedTaskCount > 1 ? 's' : ''}
                 {link.repositoryName ? ` · nouvelles tâches en issues de ${link.repositoryName}` : ' · nouvelles tâches en brouillons'}
-                {link.lastSyncAt && ` · dernière synchronisation le ${dateTimeFormat.format(new Date(link.lastSyncAt))}`}
+                {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(new Date(link.lastSyncAt))}`}
               </Text>
             </Stack>
             <Group gap="xs">

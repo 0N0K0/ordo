@@ -47,6 +47,7 @@ import { describeChart, useChartData, type ChartScope } from './chart-data';
 import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from './aggregate';
+import * as fmt from '../../lib/format';
 
 /** Image of a chart as exported. */
 interface Capture {
@@ -182,7 +183,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
       .then((image) =>
         downloadChartsPdf({
           title: chart.title,
-          subtitle: `${dashboardName} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+          subtitle: `${dashboardName} · exporté le ${fmt.exportDateTime(new Date())}`,
           charts: [image],
         }),
       )
@@ -564,7 +565,7 @@ export function DashboardBoard({ projectId, baseFilter, title }: DashboardBoardP
       .then((charts) =>
         downloadChartsPdf({
           title: `${title} — ${current.name}`,
-          subtitle: `${charts.length} diagramme${charts.length > 1 ? 's' : ''} · exporté le ${new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`,
+          subtitle: `${charts.length} diagramme${charts.length > 1 ? 's' : ''} · exporté le ${fmt.exportDateTime(new Date())}`,
           charts,
         }),
       )

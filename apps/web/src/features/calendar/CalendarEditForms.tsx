@@ -1,3 +1,4 @@
+import { PICKER_FORMATS } from '../../lib/format';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -39,7 +40,7 @@ export function SlotEditForm({
         <Text size="sm" c="dimmed">
           {name}
         </Text>
-        <DatePickerInput label="Jour" required valueFormat="dddd D MMMM YYYY" value={value.date} onChange={(date) => date && setValue({ ...value, date: String(date) })} data-autofocus />
+        <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} value={value.date} onChange={(date) => date && setValue({ ...value, date: String(date) })} data-autofocus />
         <Checkbox
           label="Toute la journée"
           checked={value.allDay}
@@ -107,7 +108,7 @@ export function RoutineOccurrenceForm({
         <DatePickerInput
           label="Jour"
           required
-          valueFormat="dddd D MMMM YYYY"
+          valueFormat={PICKER_FORMATS.weekday}
           minDate={String(occurrence.routine.startDate)}
           value={date}
           onChange={(value) => value && setDate(String(value))}

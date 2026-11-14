@@ -7,14 +7,12 @@ import { RichEditor } from '../../components/rich-text/RichEditor';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailActions, useMailAccounts } from './api';
 import { mailHtml, type ComposeOptions, type MailLocation, type SourceFiles } from './compose-options';
-import { fileSize } from './mail-format';
 import { MailBody } from './MailBody';
+import * as fmt from '../../lib/format';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
 const AUTOSAVE_MS = 4000;
-const timeFormat = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
-const scheduleFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
  * Usual moments to send a mail later: this afternoon (in the morning), tomorrow morning, next Monday morning.
@@ -213,7 +211,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       {
         onSuccess: () => {
           setSavedSnapshot(snapshot);
-          notifySuccess(`Envoi programmé le ${scheduleFormat.format(sendAt)}.`);
+          notifySuccess(`Envoi programmé le ${fmt.dateTimeShort(sendAt)}.`);
           onDone();
         },
         onError: (error) => notifyError(error.message),
@@ -341,7 +339,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       <Group justify="space-between" wrap="nowrap">
         <Text size="xs" c={saveState.status === 'error' ? 'red' : 'dimmed'} aria-live="polite">
           {saveState.status === 'saving' && 'Enregistrement du brouillon…'}
-          {saveState.status === 'saved' && `Brouillon enregistré à ${timeFormat.format(saveState.at)}`}
+          {saveState.status === 'saved' && `Brouillon enregistré à ${fmt.time(saveState.at)}`}
           {saveState.status === 'error' && 'Brouillon non enregistré : nouvel essai à la prochaine modification.'}
         </Text>
         <Tooltip label="Fermer">
@@ -403,7 +401,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
             <Paper key={`source-${file.index}`} withBorder px="xs" py={2} radius="sm">
               <Group gap={4} wrap="nowrap">
                 <Text size="xs">
-                  {file.filename} · {fileSize(file.size)}
+                  {file.filename} · {fmt.fileSize(file.size)}
                 </Text>
                 <ActionIcon
                   size="xs"
@@ -421,7 +419,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
             <Paper key={`${file.name}-${index}`} withBorder px="xs" py={2} radius="sm">
               <Group gap={4} wrap="nowrap">
                 <Text size="xs">
-                  {file.name} · {fileSize(file.size)}
+                  {file.name} · {fmt.fileSize(file.size)}
                 </Text>
                 <ActionIcon size="xs" variant="subtle" color="gray" aria-label={`Retirer ${file.name}`} onClick={() => setFiles(files.filter((_, item) => item !== index))}>
                   <XIcon aria-hidden />
@@ -461,14 +459,13 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                   Envoyer plus tard
                 </Text>
                 {schedulePresets().map((preset) => (
-                  <Button key={preset.label} size="xs" variant="default" justify="space-between" onClick={() => void scheduleAt(preset.at)} rightSection={<Text size="xs" c="dimmed">{scheduleFormat.format(preset.at)}</Text>}>
+                  <Button key={preset.label} size="xs" variant="default" justify="space-between" onClick={() => void scheduleAt(preset.at)} rightSection={<Text size="xs" c="dimmed">{fmt.dateTimeShort(preset.at)}</Text>}>
                     {preset.label}
                   </Button>
                 ))}
                 <DateTimePicker
                   label="Date et heure"
                   placeholder="Choisir…"
-                  valueFormat="DD/MM/YYYY HH:mm"
                   minDate={new Date()}
                   value={sendAt}
                   onChange={setSendAt}

@@ -4,7 +4,7 @@ import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Badge, Group, Paper, Stack, Switch, Table, Text, Tooltip } from '@mantine/core';
-import { EVERYDAY_CONTEXT, formatMoney, offsetLinkedMovements, splitAmounts, type TableFilterGroup } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, offsetLinkedMovements, splitAmounts, type TableFilterGroup } from '@ordo/shared';
 import {
   ArrowsLeftRightIcon,
   CaretDownIcon,
@@ -38,23 +38,14 @@ import { EntryUrl } from './EntryUrl';
 import { StatementForm } from './StatementForm';
 import { StatementImport } from './StatementImport';
 import { handleFileClick } from '../files/open-file';
-
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-const monthFormat = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+import * as fmt from '../../lib/format';
 
 /**
  * Printed calendar date.
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Date.
  */
-const printedDate = (date: string) => dateFormat.format(new Date(`${date}T00:00:00Z`));
-
-/**
- * Amount in euros, from currency units.
- * @param {number} amount Amount.
- * @returns {string} Amount.
- */
-const money = (amount: number) => formatMoney(Math.round(amount * 100));
+const printedDate = (date: string) => fmt.day(date);
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -107,7 +98,7 @@ function entryColumns(paths: Map<string, string>, accounts: TreasuryAccount[]): 
       size: 150,
       hiddenByDefault: true,
       sortValue: monthOf,
-      text: (entry) => monthFormat.format(new Date(`${monthOf(entry)}-01T00:00:00Z`)).replace(/^./, (letter) => letter.toUpperCase()),
+      text: (entry) => fmt.capitalize(fmt.month(monthOf(entry))),
       filter: false,
       groupable: true,
     },
@@ -156,7 +147,7 @@ function entryColumns(paths: Map<string, string>, accounts: TreasuryAccount[]): 
       text: (entry) =>
         [...entry.allocations.map((allocation) => allocation.documentLabel), ...entry.documents.map((document) => document.title), ...entry.linkedEntries.map((linked) => linked.label)].join(', '),
     },
-    { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (entry) => entry.amount, text: (entry) => `${entry.amount > 0 ? '+' : ''}${money(entry.amount)}` },
+    { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (entry) => entry.amount, text: (entry) => `${entry.amount > 0 ? '+' : ''}${fmt.money(entry.amount)}` },
   ];
 }
 
@@ -254,11 +245,11 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             {actual.length > 0 && (
               <Stack gap={0} ml="auto" align="flex-end">
                 <Text size="sm" c="dimmed">
-                  Entrées {money(totals.incoming)} · Sorties {money(totals.outgoing)}
+                  Entrées {fmt.money(totals.incoming)} · Sorties {fmt.money(totals.outgoing)}
                 </Text>
                 {totals.offset > 0 && (
                   <Text size="xs" c="dimmed">
-                    {money(totals.offset)} compensés par des mouvements liés
+                    {fmt.money(totals.offset)} compensés par des mouvements liés
                   </Text>
                 )}
               </Stack>
@@ -296,7 +287,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                           key={`group:${group.key}`}
                           label={group.label}
                           count={group.rows.length}
-                          summary={`+${money(groupTotals.incoming)} · −${money(groupTotals.outgoing)}`}
+                          summary={`+${fmt.money(groupTotals.incoming)} · −${fmt.money(groupTotals.outgoing)}`}
                           span={shown.length + 1}
                           collapsed={collapsedGroups.has(group.key)}
                           onToggle={() => toggleGroup(group.key)}
@@ -400,11 +391,11 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                             to={`/accounting/${allocation.documentId}`}
                                             style={{ cursor: 'pointer' }}
                                           >
-                                            {allocation.documentLabel} · {money(allocation.amount)}
+                                            {allocation.documentLabel} · {fmt.money(allocation.amount)}
                                           </Badge>
                                         ) : (
                                           <Badge key={allocation.id} size="sm" variant="light" color="cyan" leftSection={<ReceiptIcon aria-hidden />}>
-                                            {allocation.documentLabel} · {money(allocation.amount)}
+                                            {allocation.documentLabel} · {fmt.money(allocation.amount)}
                                           </Badge>
                                         ),
                                       )}
@@ -431,7 +422,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                       {entry.linkedEntries.map((linked) => (
                                         <Tooltip key={linked.id} label={`${printedDate(String(linked.date))} · ${linked.label}`}>
                                           <Badge size="sm" variant="outline" color={linked.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
-                                            {linked.label.length > 24 ? `${linked.label.slice(0, 23)}…` : linked.label} · {money(linked.amount)}
+                                            {linked.label.length > 24 ? `${linked.label.slice(0, 23)}…` : linked.label} · {fmt.money(linked.amount)}
                                           </Badge>
                                         </Tooltip>
                                       ))}
@@ -440,6 +431,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                   amount: (
                                     <Text span inherit c={entry.amount < 0 ? 'red' : 'green'}>
                                       <EditableNumber
+                                        amount
                                         value={entry.amount}
                                         label={`Montant de ${entry.label}`}
                                         suffix="€"
@@ -557,7 +549,7 @@ function SplitRows({ entry, paths, nameOf, shown }: { entry: TreasuryEntry; path
               ) : column.id === 'amount' ? (
                 <Text span ff="monospace" fz="xs" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
                   {row.amount > 0 ? '+' : ''}
-                  {money(row.amount)}
+                  {fmt.money(row.amount)}
                 </Text>
               ) : null}
             </Table.Td>

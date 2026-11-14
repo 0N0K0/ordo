@@ -7,6 +7,7 @@ import { notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingProduct } from './api';
 import { categoriesForBaseList, shoppingCategoryOptions, UNITS, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { AmountInput } from '../../components/AmountInput';
 
 /**
  * Names of the people a product or an item is for, as small badges.
@@ -145,11 +146,9 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
           />
           <Autocomplete label="Unité" data={UNITS} {...form.getInputProps('unit')} />
-          <NumberInput
+          <AmountInput
             label="Prix unitaire estimé"
             min={0}
-            decimalScale={2}
-            decimalSeparator=","
             suffix=" €"
             allowNegative={false}
             {...form.getInputProps('unitPrice')}
@@ -170,7 +169,6 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               label="Date de péremption"
               description={target.kind === 'product' ? 'Passée, le produit est marqué manquant.' : undefined}
               placeholder="Aucune"
-              valueFormat="D MMM YYYY"
               clearable
               {...form.getInputProps('expiresAt')}
             />
