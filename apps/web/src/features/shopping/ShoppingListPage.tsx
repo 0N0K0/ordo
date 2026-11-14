@@ -79,7 +79,7 @@ export function ShoppingListPage() {
       filter: { kind: 'boolean', value: (item) => Boolean(item.purchasedAt) },
     },
   ]);
-  const view = useDataView({ tableKey: 'shopping-list', columns, rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position), title: list?.name ?? 'Liste de courses', first: LIST_VIEWS });
+  const view = useDataView({ tableKey: 'shopping-list', columns, rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position), title: list?.name ?? 'Liste d’achats', first: LIST_VIEWS });
 
   if (isPending) {
     return <TableSkeleton rows={4} />;
@@ -116,7 +116,7 @@ export function ShoppingListPage() {
           </ActionIcon>
         </Tooltip>
         <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <PageHeader title="Courses" />
+          <PageHeader title="Achats" />
           <Group gap="xs">
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {list.name}

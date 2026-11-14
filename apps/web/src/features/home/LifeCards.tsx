@@ -104,7 +104,7 @@ export function ShoppingCard() {
     .sort((a, b) => b.list.createdAt.localeCompare(a.list.createdAt));
 
   return (
-    <HomeCard title="Courses" icon={<BasketIcon aria-hidden />} to="/shopping" loading={!data || !lists}>
+    <HomeCard title="Achats" icon={<BasketIcon aria-hidden />} to="/shopping" loading={!data || !lists}>
       <Group gap="xl">
         <Figure label="Produits manquants" value={missing} color={missing ? 'orange' : undefined} />
         <Figure label="Listes en cours" value={open.length} />

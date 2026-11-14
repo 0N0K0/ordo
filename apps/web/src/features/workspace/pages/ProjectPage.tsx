@@ -231,7 +231,7 @@ export function ProjectPage() {
             Routines
           </PageTabs.Tab>
           <PageTabs.Tab value="shopping" leftSection={<BasketIcon aria-hidden />}>
-            Courses
+            Achats
           </PageTabs.Tab>
           <PageTabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps

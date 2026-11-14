@@ -20,15 +20,21 @@ export interface NewListFormProps {
   baseListIds: string[];
   /** Tasks it is attached to at first. */
   taskIds: string[];
+  /**
+   * Projects it is made for (a project and its sub-projects): a list belongs to a project through its tasks, so one of
+   * their tasks is asked. Optional.
+   */
+  projectIds?: ReadonlySet<string>;
   onDone: () => void;
 }
 
 /**
- * New list: its name, the tasks it is attached to, and the base lists whose missing products it takes.
+ * New list: its name, the tasks it is attached to (one of a project at least, made from a project), and the base lists
+ * whose missing products it takes.
  * @param {NewListFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function NewListForm({ baseListIds, taskIds, onDone }: NewListFormProps) {
+export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewListFormProps) {
   const { data } = useShoppingData();
   const missingOf = (id: string) => (data?.shoppingProducts ?? []).filter((product) => product.baseListId === id && product.missing).length;
   const baseLists = data?.shoppingBaseLists ?? [];
@@ -37,8 +43,14 @@ export function NewListForm({ baseListIds, taskIds, onDone }: NewListFormProps) 
   const { createList } = useShoppingMutations();
   const navigate = useNavigate();
   const form = useAppForm<Values>({
-    initialValues: { name: `${perso ? 'Courses' : 'Consommables'} du ${dayFormat.format(new Date())}`, taskIds, baseListIds },
-    schema,
+    initialValues: { name: `${perso ? 'Achats' : 'Consommables'} du ${dayFormat.format(new Date())}`, taskIds, baseListIds },
+    schema: projectIds ? schema.extend({ taskIds: z.array(z.string()).min(1, 'Choisissez une tâche du projet : la liste y apparaît par ses tâches.') }) : schema,
+  });
+  // From a project: its tasks only (and those already chosen).
+  const options = taskOptions(context, taskIds).filter((option) => {
+    if (!projectIds || taskIds.includes(option.value)) return true;
+    const projectId = context?.taskById.get(option.value)?.projectId;
+    return Boolean(projectId && projectIds.has(projectId));
   });
 
   const handleSubmit = form.onSubmit((values) =>
@@ -61,8 +73,9 @@ export function NewListForm({ baseListIds, taskIds, onDone }: NewListFormProps) 
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
         <BatchMultiSelect
           label="Tâches"
+          required={Boolean(projectIds)}
           placeholder={form.values.taskIds.length ? undefined : 'Aucune'}
-          data={taskOptions(context, taskIds)}
+          data={options}
           searchable
           clearable
           nothingFoundMessage="Aucune tâche"

@@ -94,11 +94,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         <div style={{ minWidth: 0, flex: 1 }}>
           <ViewTabs state={view} />
         </div>
-        {!projectIds && (
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openNewList()}>
-            Nouvelle liste
-          </ActionButton>
-        )}
+        <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ projectIds })}>
+          Nouvelle liste
+        </ActionButton>
       </Group>
       {config && (
         <SavedViewToolbar
@@ -135,7 +133,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   closedAt: (list) => (list.closedAt ? dayFormat.format(new Date(list.closedAt)) : ''),
                 };
                 return {
-                  title: 'Listes de courses',
+                  title: 'Listes d’achats',
                   subtitle: view.current?.name ?? '',
                   columns: shownList.map((column) => ({ ...column, text: texts[column.id] })),
                   groups: [{ key: '', label: '', rows: shown }],
@@ -291,7 +289,7 @@ export function ShoppingPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title="Courses" />
+      <PageHeader title="Achats" />
       <ShoppingSettings />
       <PageTabs
         value={tab}

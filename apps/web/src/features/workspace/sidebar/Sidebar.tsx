@@ -134,7 +134,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
       { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge /> },
       { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },
-      { to: '/shopping', label: 'Courses', icon: <BasketIcon aria-hidden /> },
+      { to: '/shopping', label: 'Achats', icon: <BasketIcon aria-hidden /> },
     ],
   },
   {

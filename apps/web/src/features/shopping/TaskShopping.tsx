@@ -26,7 +26,7 @@ export function TaskShopping({ task }: { task: Task }) {
     <Stack gap="xs">
       <Group justify="space-between" gap="xs">
         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-          Courses
+          Achats
         </Text>
         {!task.archived && (
           <ActionButton priority="secondary" size="compact-xs" icon={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id] })}>
@@ -35,7 +35,7 @@ export function TaskShopping({ task }: { task: Task }) {
         )}
       </Group>
       {own.length === 0 ? (
-        <EmptyState compact message="Aucune liste de courses." />
+        <EmptyState compact message="Aucune liste d’achats." />
       ) : (
         own.map((list) => {
           const bought = list.items.filter((item) => item.purchasedAt).length;
@@ -72,7 +72,7 @@ export function TaskShopping({ task }: { task: Task }) {
                 { onSuccess: () => notifySuccess('Liste rattachée à la tâche.'), onError: (error) => notifyError(error.message) },
               );
           }}
-          aria-label="Rattacher une liste de courses existante"
+          aria-label="Rattacher une liste d’achats existante"
         />
       )}
     </Stack>
