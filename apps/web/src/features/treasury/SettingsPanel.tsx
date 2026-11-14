@@ -34,6 +34,7 @@ import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { AccountsSettings } from './AccountsSettings';
 
 const DIRECTION_LABELS: Record<TreasuryDirection, string> = { IN: 'Entrées', OUT: 'Sorties' };
 
@@ -436,6 +437,7 @@ export function SettingsPanel() {
 
   return (
     <Stack gap="md">
+      <AccountsSettings />
       <TeamPanel />
       {/* One column: these settings are in the settings sidebar. */}
       <CategoryList direction="IN" categories={categories} open={setDialog} />

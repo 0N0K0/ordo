@@ -3,7 +3,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Table, Text, Title, Tooltip, NumberInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -22,14 +22,19 @@ import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
 
-const REPEATS = [
-  { value: '', label: 'Ce mois seulement' },
-  { value: '1', label: 'Tous les mois' },
-  { value: '2', label: 'Tous les 2 mois' },
-  { value: '3', label: 'Tous les 3 mois' },
-  { value: '6', label: 'Tous les 6 mois' },
-  { value: '12', label: 'Tous les ans' },
+/** Repetitions of a budget: that month only, every X months, or every year (12 months). */
+const REPEAT_MODES = [
+  { value: 'ONCE', label: 'Ce mois seulement' },
+  { value: 'MONTHS', label: 'Tous les X mois' },
+  { value: 'YEAR', label: 'Tous les ans' },
 ];
+
+/**
+ * Repetition of a budget, told in words.
+ * @param {number | null} every Months between two of its months; none: that month only.
+ * @returns {string} Text.
+ */
+const repeatLabel = (every: number | null) => (!every ? 'Ce mois seulement' : every === 12 ? 'Tous les ans' : every === 1 ? 'Tous les mois' : `Tous les ${every} mois`);
 
 /**
  * Month in words.
@@ -82,7 +87,8 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
       contextId: budget?.contextId ?? null,
       categoryId: budget?.categoryId ?? '',
       amount: budget?.amount ?? 0,
-      repeatEvery: budget?.repeatEvery ?? 1,
+      // A new budget comes back every month; one of a single month stays so.
+      repeatEvery: budget ? budget.repeatEvery : 1,
       repeatUntil: budget?.repeatUntil ?? null,
       ...defaults,
     },
@@ -92,6 +98,11 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   const me = members.find((member) => member.isMe);
   // Money out or in: the direction of the category, unless chosen first (none chosen: money out).
   const [chosenDirection, setDirection] = useState<'OUT' | 'IN' | null>(null);
+  // Kept apart from the months: « every 12 months » chosen as such stays so while edited.
+  const [repeatMode, setRepeatMode] = useState(() => {
+    const every = budget ? budget.repeatEvery : 1;
+    return !every ? 'ONCE' : every === 12 ? 'YEAR' : 'MONTHS';
+  });
   const direction = chosenDirection ?? (categories.find((category) => category.id === values.categoryId)?.direction as 'OUT' | 'IN' | undefined) ?? 'OUT';
 
   return (
@@ -168,10 +179,25 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
           <Select
             label="Répétition"
             allowDeselect={false}
-            data={REPEATS}
-            value={values.repeatEvery ? String(values.repeatEvery) : ''}
-            onChange={(value) => form.setFieldValue('repeatEvery', value ? Number(value) : null)}
+            data={REPEAT_MODES}
+            value={repeatMode}
+            onChange={(mode) => {
+              setRepeatMode(mode ?? 'ONCE');
+              form.setFieldValue('repeatEvery', mode === 'YEAR' ? 12 : mode === 'MONTHS' ? (values.repeatEvery && values.repeatEvery !== 12 ? values.repeatEvery : 1) : null);
+            }}
           />
+          {repeatMode === 'MONTHS' && (
+            <NumberInput
+              label="Tous les"
+              suffix=" mois"
+              min={1}
+              max={24}
+              allowDecimal={false}
+              value={values.repeatEvery ?? 1}
+              onChange={(value) => form.setFieldValue('repeatEvery', Math.min(24, Math.max(1, Number(value) || 1)))}
+              error={form.errors.repeatEvery}
+            />
+          )}
           {values.repeatEvery && (
             <MonthPickerInput
               label="Jusqu’à"
@@ -608,7 +634,7 @@ export function BudgetsPanel() {
                   </Text>
                   {budget.repeatEvery && (
                     <Badge size="xs" variant="light">
-                      {REPEATS.find((item) => item.value === String(budget.repeatEvery))?.label ?? `Tous les ${budget.repeatEvery} mois`}
+                      {repeatLabel(budget.repeatEvery)}
                     </Badge>
                   )}
                 </>

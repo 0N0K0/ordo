@@ -5,38 +5,28 @@ import { BlockSkeleton, DetailSkeleton } from '../../components/feedback/Skeleto
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from './entry-values';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Anchor, Badge, Button, Checkbox, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, recurrenceSchema, treasuryAccountSchema } from '@ordo/shared';
+import { addDays, recurrenceSchema } from '@ordo/shared';
 import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
-import { EditableCheck, EditableDate, EditableNumber, EditableText } from '../../components/data-table/EditableCells';
+import { EditableDate, EditableNumber, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
-import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import {
-  useForecastEntries,
-  useTreasuryAccounts,
-  useTreasuryMutations,
-  useTreasuryProjection,
-  type AccountValues,
-  type ForecastEntry,
-  type ProjectionItem,
-  type TreasuryAccount,
-  type TreasuryEntry,
-} from './api';
+import { useForecastEntries, useTreasuryAccounts, useTreasuryMutations, useTreasuryProjection, type ForecastEntry, type ProjectionItem, type TreasuryEntry } from './api';
 import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type ChartScale } from './chart-period';
 import { EntriesPanel } from './EntriesPanel';
 import { EntryUrl } from './EntryUrl';
 import { EntryForm } from './EntryForm';
 import { SettingsPanel } from './SettingsPanel';
+import { openAccountForm } from './open-account-form';
 import { BudgetsPanel } from './BudgetsPanel';
 import { LoansPanel } from './LoansPanel';
 import { PageTabs } from '../../components/PageTabs';
@@ -95,92 +85,6 @@ const FORECAST_COLUMNS: DataColumn<ForecastRow>[] = [
   },
   { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: ({ item }) => item.amount, text: ({ item }) => `${item.amount > 0 ? '+' : ''}${fmt.money(item.amount)}` },
 ];
-
-/** Columns of the accounts. */
-const ACCOUNT_COLUMNS: DataColumn<TreasuryAccount>[] = [
-  { id: 'name', label: 'Compte', size: 260, locked: true, sortValue: (account) => account.name, text: (account) => account.name },
-  {
-    id: 'openingBalance',
-    label: 'Solde d’ouverture',
-    size: 150,
-    numeric: true,
-    sortValue: (account) => account.openingBalance,
-    text: (account) => fmt.money(account.openingBalance),
-  },
-  {
-    id: 'openingDate',
-    label: 'Ouvert le',
-    size: 140,
-    sortValue: (account) => String(account.openingDate),
-    text: (account) => printedDate(String(account.openingDate)),
-    filter: { kind: 'date', value: (account) => String(account.openingDate).slice(0, 10) },
-  },
-  { id: 'balance', label: 'Solde aujourd’hui', size: 160, numeric: true, sortValue: (account) => account.balance, text: (account) => fmt.money(account.balance) },
-  {
-    id: 'archived',
-    label: 'Archivé',
-    size: 100,
-    hiddenByDefault: true,
-    sortValue: (account) => (account.archived ? 1 : 0),
-    text: (account) => (account.archived ? 'Archivé' : 'Ouvert'),
-    filter: { kind: 'boolean', value: (account) => account.archived },
-    groupable: true,
-  },
-];
-
-/**
- * Account: name, opening balance and date, archived.
- * @param {{ account?: TreasuryAccount, onDone: () => void }} props Component props.
- * @returns {JSX.Element} Form.
- */
-function AccountForm({ account, onDone }: { account?: TreasuryAccount; onDone: () => void }) {
-  const { createAccount, updateAccount } = useTreasuryMutations();
-  const form = useAppForm<AccountValues & Record<string, unknown>>({
-    initialValues: {
-      name: account?.name ?? '',
-      openingBalance: account?.openingBalance ?? 0,
-      openingDate: account ? String(account.openingDate) : localToday(),
-      archived: account?.archived ?? false,
-    },
-    schema: treasuryAccountSchema,
-  });
-  return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((input) => {
-        const callbacks = {
-          onSuccess: () => {
-            notifySuccess(account ? 'Compte modifié.' : 'Compte créé.');
-            onDone();
-          },
-          onError: (error: Error) => showFormError(form, error),
-        };
-        if (account) updateAccount.mutate({ id: account.id, input }, callbacks);
-        else createAccount.mutate(input, callbacks);
-      })}
-    >
-      <Stack gap="sm">
-        <TextInput label="Nom" required placeholder="Compte courant, livret…" data-autofocus {...form.getInputProps('name')} />
-        <SimpleGrid cols={2} spacing="sm">
-          <AmountInput label="Solde d’ouverture" suffix=" €" {...form.getInputProps('openingBalance')} />
-          <DatePickerInput label="Au" required {...form.getInputProps('openingDate')} />
-        </SimpleGrid>
-        <Text size="xs" c="dimmed">
-          Le solde du relevé à cette date : seuls les mouvements suivants sont comptés.
-        </Text>
-        {account && <Checkbox label="Archivé (n’est plus compté dans le solde)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createAccount.isPending || updateAccount.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
-      </Stack>
-    </form>
-  );
-}
 
 /**
  * Realization of an expected movement: actual date and amount.
@@ -252,11 +156,7 @@ function Figure({ label, value, hint, color }: { label: string; value: number; h
   );
 }
 
-type Dialog =
-  | { kind: 'account'; account?: TreasuryAccount }
-  | { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean }
-  | { kind: 'realize'; item: ProjectionItem }
-  | null;
+type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean } | { kind: 'realize'; item: ProjectionItem } | null;
 
 /**
  * Treasury: balance of the accounts, balance curve (actual, then forecast) over a month, a quarter or a
@@ -267,12 +167,13 @@ type Dialog =
 export function TreasuryPage() {
   const today = localToday();
   const [params, setParams] = useSearchParams();
-  // The old settings tab: its settings, in the sidebar.
+  // The old settings and accounts tabs: in the settings sidebar.
   const asked = params.get('tab') ?? 'forecast';
-  const tab = asked === 'settings' ? 'forecast' : asked;
+  const moved = asked === 'settings' || asked === 'accounts';
+  const tab = moved ? 'forecast' : asked;
   useEffect(() => {
-    if (asked === 'settings') setParams({ [SETTINGS_PARAM]: '1' }, { replace: true });
-  }, [asked, setParams]);
+    if (moved) setParams({ [SETTINGS_PARAM]: '1' }, { replace: true });
+  }, [moved, setParams]);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
   const [scale, setScale] = useState<ChartScale>('month');
   const [periodFirst, setPeriodFirst] = useState(() => periodStart('month', today));
@@ -285,22 +186,10 @@ export function TreasuryPage() {
   const { data: accounts, isPending: accountsPending } = useTreasuryAccounts();
   const { data: projection, isPending: projectionPending } = useTreasuryProjection({ today, from, until });
   const { data: forecasts } = useForecastEntries();
-  const { deleteEntry, deleteAccount, updateAccount } = useTreasuryMutations();
+  const { deleteEntry } = useTreasuryMutations();
   const saveEntry = useEntryCellSave();
 
-  /**
-   * Saves a field of an account changed in its cell.
-   * @param {TreasuryAccount} account Account.
-   * @param {Partial<AccountValues>} change Change.
-   * @returns {void}
-   */
-  const saveAccount = (account: TreasuryAccount, change: Partial<AccountValues>) =>
-    updateAccount.mutate(
-      { id: account.id, input: { name: account.name, openingBalance: account.openingBalance, openingDate: String(account.openingDate).slice(0, 10), archived: account.archived, ...change } },
-      { onError: (error) => notifyError(error.message) },
-    );
   const forecastView = useDataView({ tableKey: 'treasury-forecast', columns: FORECAST_COLUMNS, rows: (projection?.items ?? []).map((item, index) => ({ item, index })), title: 'Prévisionnel' });
-  const accountsView = useDataView({ tableKey: 'treasury-accounts', columns: ACCOUNT_COLUMNS, rows: accounts ?? [], title: 'Comptes' });
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
 
@@ -311,7 +200,7 @@ export function TreasuryPage() {
       title="Trésorerie"
       actions={
         !accounts?.length ? (
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openAccountForm()}>
             Nouveau compte
           </ActionButton>
         ) : (
@@ -334,24 +223,19 @@ export function TreasuryPage() {
       // An entry has a table of lines (its split).
       size={dialog?.kind === 'entry' ? 'lg' : 'md'}
       title={
-        dialog?.kind === 'account'
-          ? dialog.account
-            ? 'Modifier le compte'
-            : 'Nouveau compte'
-          : dialog?.kind === 'realize'
-            ? 'Réaliser la prévision'
-            : dialog?.kind === 'entry' && dialog.entry && dialog.copy
-              ? dialog.entry.status === 'FORECAST'
-                ? 'Dupliquer la prévision'
-                : 'Dupliquer le mouvement'
-              : dialog?.kind === 'entry' && dialog.entry
-                ? 'Modifier le mouvement'
-                : dialog?.kind === 'entry' && dialog.status === 'FORECAST'
-                  ? 'Nouvelle prévision'
-                  : 'Nouveau mouvement'
+        dialog?.kind === 'realize'
+          ? 'Réaliser la prévision'
+          : dialog?.kind === 'entry' && dialog.entry && dialog.copy
+            ? dialog.entry.status === 'FORECAST'
+              ? 'Dupliquer la prévision'
+              : 'Dupliquer le mouvement'
+            : dialog?.kind === 'entry' && dialog.entry
+              ? 'Modifier le mouvement'
+              : dialog?.kind === 'entry' && dialog.status === 'FORECAST'
+                ? 'Nouvelle prévision'
+                : 'Nouveau mouvement'
       }
     >
-      {dialog?.kind === 'account' && <AccountForm account={dialog.account} onDone={close} />}
       {dialog?.kind === 'entry' && <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} />}
       {dialog?.kind === 'realize' && <RealizeForm item={dialog.item} onDone={close} />}
     </SidePanel>
@@ -501,7 +385,6 @@ export function TreasuryPage() {
           <PageTabs.Tab value="entries">Mouvements</PageTabs.Tab>
           <PageTabs.Tab value="budgets">Budgets</PageTabs.Tab>
           <PageTabs.Tab value="loans">Prêts</PageTabs.Tab>
-          <PageTabs.Tab value="accounts">Comptes</PageTabs.Tab>
         </PageTabs.List>
 
         <PageTabs.Panel value="forecast">
@@ -640,78 +523,8 @@ export function TreasuryPage() {
         <PageTabs.Panel value="loans">
           <LoansPanel />
         </PageTabs.Panel>
-
-        <PageTabs.Panel value="accounts">
-          <DataTable
-            framed
-            view={accountsView}
-            bar={{
-              searchLabel: 'Rechercher un compte',
-              actions: (
-                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => setDialog({ kind: 'account' })}>
-                  Nouveau compte
-                </ActionButton>
-              ),
-            }}
-            verticalSpacing="xs"
-            getKey={(account) => account.id}
-            rowProps={(account) => ({ opacity: account.archived ? 0.6 : 1 })}
-            cells={(account) => ({
-              name: (
-                <Group gap="xs" wrap="nowrap">
-                  <EditableText value={account.name} label={`Nom du compte ${account.name}`} strong onSave={(name) => name && saveAccount(account, { name })} />
-                  {account.archived && (
-                    <Badge size="xs" color="gray" style={{ flex: 'none' }}>
-                      Archivé
-                    </Badge>
-                  )}
-                </Group>
-              ),
-              openingBalance: (
-                <EditableNumber
-                  amount
-                  value={account.openingBalance}
-                  label={`Solde d’ouverture de ${account.name}`}
-                  suffix="€"
-                  signed
-                  onSave={(openingBalance) => openingBalance !== null && saveAccount(account, { openingBalance })}
-                />
-              ),
-              openingDate: (
-                <EditableDate value={String(account.openingDate).slice(0, 10)} label={`Ouverture de ${account.name}`} onSave={(openingDate) => openingDate && saveAccount(account, { openingDate })} />
-              ),
-              balance: (
-                <Text span inherit fw={600} c={account.balance < 0 ? 'red' : undefined}>
-                  {fmt.money(account.balance)}
-                </Text>
-              ),
-              archived: <EditableCheck value={account.archived} label={`${account.name} archivé`} onSave={(archived) => saveAccount(account, { archived })} />,
-            })}
-            actions={(account) => (
-              <RowActions
-                name={account.name}
-                primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDialog({ kind: 'account', account }) }}
-                items={[
-                  {
-                    label: 'Supprimer',
-                    icon: <TrashIcon aria-hidden />,
-                    danger: true,
-                    disabled: account.entryCount > 0,
-                    hint: account.entryCount ? 'A des mouvements : archivez-le' : undefined,
-                    onClick: () =>
-                      confirmDestructive({
-                        title: 'Supprimer le compte',
-                        risks: `« ${account.name} » sera supprimé définitivement.`,
-                        onConfirm: () => deleteAccount.mutate(account.id, { onSuccess: () => notifySuccess('Compte supprimé.'), onError }),
-                      }),
-                  },
-                ]}
-              />
-            )}
-          />
-        </PageTabs.Panel>
       </PageTabs>
-      {/* Categories, payment methods, counterparties: in the settings sidebar. */}
+      {/* Accounts, categories, payment methods, counterparties: in the settings sidebar. */}
       <PageSettings title="Paramètres de la trésorerie">
         <SettingsPanel />
       </PageSettings>
