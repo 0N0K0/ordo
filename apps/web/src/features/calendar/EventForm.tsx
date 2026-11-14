@@ -8,7 +8,6 @@ import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, C
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
-import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifyError, notifySuccess } from '../../lib/notify';
@@ -29,6 +28,7 @@ import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
+import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -416,7 +416,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         )}
         <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
-        <RecurrenceEditor
+        <RecurrenceField
           value={values.recurrence ? { ...values.recurrence, weekParity: values.recurrence.weekParity ?? null } : null}
           onChange={(recurrence) => form.setFieldValue('recurrence', recurrence)}
           start={ruleStart}

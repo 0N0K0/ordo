@@ -4,7 +4,6 @@ import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput } from '@ordo/shared';
 import { LinkIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { RecurrenceEditor } from '../../components/recurrence/RecurrenceEditor';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useAccountingDocuments, useImportedDocuments } from '../accounting/documents-api';
@@ -22,6 +21,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
+import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -414,8 +414,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
 
         {forecast && (
           <>
-            <Divider label="Répétition" labelPosition="left" />
-            <RecurrenceEditor value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} withinPortal={false} />
+            <RecurrenceField value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} />
           </>
         )}
 
