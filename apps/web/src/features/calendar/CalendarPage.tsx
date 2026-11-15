@@ -338,7 +338,8 @@ export function CalendarPage() {
         return {
           rule: scheduleRules([schedule])[0],
           color: kind?.color ?? null,
-          name: kind?.name ?? schedule.name,
+          // Its own label, not its kind's.
+          name: schedule.name,
           foreign: false,
           display: readScheduleDisplay(kind),
         };
@@ -346,7 +347,7 @@ export function CalendarPage() {
       const subscribed = (foreignSchedules ?? []).map((schedule) => ({
         rule: scheduleRules([schedule])[0],
         color: schedule.color ?? null,
-        name: `${schedule.typeName ?? schedule.name} · ${schedule.workspaceName}`,
+        name: `${schedule.name} · ${schedule.workspaceName}`,
         foreign: true,
         display: readScheduleDisplay(schedule),
       }));
