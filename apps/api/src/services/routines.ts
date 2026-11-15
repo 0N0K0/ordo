@@ -9,6 +9,7 @@ import {
   routineCaseOn,
   casesOccurrences,
   scheduleOccurrences,
+  scheduleSlots,
   scheduleWindow,
   movedFrom,
   movedOccurrences,
@@ -17,7 +18,6 @@ import {
   MAX_ROUTINE_MOVES,
   occurrenceDates,
   occurrencesBefore,
-  plannedSlots,
   addDays,
   daysBetween,
   caseStart,
@@ -114,7 +114,7 @@ export function occurrencesOf(routine: RoutineTiming, today = routineToday()): {
    */
   const compute = (day: string) => {
     if (cases.length) return casesOccurrences(cases, start, day);
-    if (schedule) return scheduleOccurrences(schedule, start, day);
+    if (schedule) return scheduleOccurrences(schedule, start, day, routine);
     return rule ? routineOccurrences(rule, start, day, routine.opensOn ?? null) : { current: null, next: null };
   };
   return movedOccurrences(compute, storedMoves(routine.moves), today);
@@ -140,7 +140,7 @@ export function occurrencesBetween(routine: RoutineTiming, from: string, to: str
         const own = caseStart(item, start);
         if (own <= to) for (const day of occurrenceDates(item.recurrence, own, first < own ? own : first, to)) days.add(day);
       }
-    } else if (routine.schedule) for (const slot of plannedSlots([scheduleRule(routine.schedule)], first, to)) days.add(slot.date);
+    } else if (routine.schedule) for (const slot of scheduleSlots(scheduleRule(routine.schedule), first, to, routine)) days.add(slot.date);
     else if (rule) for (const day of occurrenceDates(rule, start, first, to)) days.add(day);
   }
   for (const move of storedMoves(routine.moves)) {
@@ -176,7 +176,7 @@ export function firstOccurrence(routine: RoutineTiming): string | null {
 function ruleSlotsOn(routine: RoutineTiming, date: string): RoutineSlot[] {
   const cases = storedCases(routine.cases);
   if (cases.length) return routineCaseOn(cases, formatDay(routine.startDate), date)?.slots ?? [];
-  if (routine.schedule && routine.scheduleAnchor) return [{ ...scheduleWindow(scheduleRule(routine.schedule), routine.scheduleAnchor as RoutineAnchor, date), optional: false }];
+  if (routine.schedule && routine.scheduleAnchor) return [{ ...scheduleWindow(scheduleRule(routine.schedule), routine.scheduleAnchor as RoutineAnchor, date, routine), optional: false }];
   return [{ fromTime: routine.fromTime, dueTime: routine.dueTime, optional: false }];
 }
 
@@ -304,8 +304,8 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   if (data.scheduleId && !(await prisma.workSchedule.findUnique({ where: { id: data.scheduleId }, select: { id: true } }))) throw fieldError('scheduleId', 'Plage introuvable.');
   // With cases, its days and times come from them; following a schedule, from it.
   if (data.cases.length) Object.assign(data, { scheduleId: null, scheduleAnchor: null, fromTime: null, dueTime: null });
-  if (data.scheduleId) Object.assign(data, { fromTime: null, dueTime: null });
-  else data.scheduleAnchor = null;
+  // Following a schedule, its own hours only keep the slots within them (breakfast before 9:00 on the meal slots).
+  if (!data.scheduleId) data.scheduleAnchor = null;
   if (data.projectId && !(await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true } }))) throw fieldError('projectId', 'Projet introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.assigneeIds } } })) !== data.assigneeIds.length) throw fieldError('assigneeIds', 'Assigné introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.beneficiaryIds } } })) !== data.beneficiaryIds.length) throw fieldError('beneficiaryIds', 'Bénéficiaire introuvable.');
@@ -531,8 +531,8 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
         ...(changes.estimate !== undefined && { estimate: changes.estimate }),
         ...(changes.projectId !== undefined && { projectId: changes.projectId }),
-        // Times or a repetition of its own: it no longer follows its schedule.
-        ...((changes.fromTime !== undefined || changes.dueTime !== undefined || changes.recurrence !== undefined) && { scheduleId: null, scheduleAnchor: null, cases: [] }),
+        // A repetition of its own: it no longer follows its schedule (its times then keep the slots within them).
+        ...(changes.recurrence !== undefined && { scheduleId: null, scheduleAnchor: null, cases: [] }),
         ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),
         ...(changes.dueTime !== undefined && { dueTime: changes.dueTime }),
         ...(changes.startDate !== undefined && { startDate: changes.startDate }),

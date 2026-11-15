@@ -171,8 +171,16 @@ interface RoutineScheduleProps {
 export function RoutineSchedule({ values, errors, onChange }: RoutineScheduleProps) {
   const { data: schedules } = useWorkSchedules();
   const [mode, setMode] = useState<RepetitionMode>(values.cases.length ? 'cases' : values.scheduleId ? 'schedule' : 'rule');
-  const { leaveAt, backAt } = routineSchedule(values);
+  // Own times only: following a schedule, they only keep its slots (its times change from day to day).
+  const { leaveAt, backAt } = routineSchedule(mode === 'schedule' ? { ...values, fromTime: null, dueTime: null } : values);
   const point = values.locationLat !== null && values.locationLon !== null ? { lat: values.locationLat, lon: values.locationLon } : null;
+  // Its own hours: when to do it (a rule), or the slots of the schedule kept (breakfast before 9:00 on the meal slots).
+  const hours = (
+    <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
+      <TimeField label="À partir de" leftSection={<ClockIcon aria-hidden />} value={values.fromTime ?? ''} onChange={(value) => onChange({ fromTime: value || null })} error={errors.fromTime} />
+      <TimeField label="Avant" leftSection={<ClockIcon aria-hidden />} value={values.dueTime ?? ''} onChange={(value) => onChange({ dueTime: value || null })} error={errors.dueTime} />
+    </SimpleGrid>
+  );
   return (
     <Stack gap="sm">
       <SegmentedControl
@@ -195,22 +203,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         <>
           <RecurrenceField required value={values.recurrence} onChange={(rule) => onChange({ recurrence: rule ?? DAILY })} start={values.startDate || localToday()} />
           <Stack gap={4}>
-            <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-              <TimeField
-                label="À partir de"
-                leftSection={<ClockIcon aria-hidden />}
-                value={values.fromTime ?? ''}
-                onChange={(value) => onChange({ fromTime: value || null })}
-                error={errors.fromTime}
-              />
-              <TimeField
-                label="Avant"
-                leftSection={<ClockIcon aria-hidden />}
-                value={values.dueTime ?? ''}
-                onChange={(value) => onChange({ dueTime: value || null })}
-                error={errors.dueTime}
-              />
-            </SimpleGrid>
+            {hours}
             <Text size="xs" c="dimmed">
               Plage horaire où la faire (déposer les enfants à l’école entre 8 h 20 et 8 h 30…) ; chaque heure est facultative, vide : n’importe quand dans la journée.
             </Text>
@@ -259,6 +252,10 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
           <Text size="xs" c="dimmed">
             La routine a lieu les jours de la plage (ses pauses et exceptions comprises), avant son début (déposer les enfants à l’école), pendant (le ménage du samedi matin) ou après sa fin (les
             récupérer).
+          </Text>
+          {hours}
+          <Text size="xs" c="dimmed">
+            Facultatif : seuls les horaires de la plage dans ces heures comptent (le petit déjeuner avant 9 h sur la plage des repas : les jours où elle a un horaire le matin, pendant celui-ci).
           </Text>
         </Stack>
       )}

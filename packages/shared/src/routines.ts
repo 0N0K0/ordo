@@ -1,7 +1,7 @@
 import { slotRuleSchema } from './slot-rules';
 import { z } from 'zod';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence } from './recurrence';
-import { plannedSlots, type WorkScheduleRule } from './work-schedules';
+import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
 import { optionalColorSchema } from './workspace';
 
 /** Category of routines, in a tree. */
@@ -280,41 +280,76 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
 /** Days scanned to find the occurrences of a routine following a schedule. */
 const SCHEDULE_SPAN = 366;
 
+/** Hours of the day a routine following a schedule keeps its slots within (null: from the start, until the end of the day). */
+export interface ScheduleBounds {
+  fromTime: string | null;
+  dueTime: string | null;
+}
+
 /**
- * Current and next occurrences of a routine following a calendar schedule: the days the schedule has slots on, from the
- * first date of the routine.
+ * Slots of a schedule between two dates (included) a routine following it keeps: those overlapping its own hours (all
+ * of them without any; a whole day always does).
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {string} from First date.
+ * @param {string} to Last date.
+ * @param {ScheduleBounds} [bounds] Hours of the routine. Optional. Default = the whole day.
+ * @returns {PlannedSlot[]} Slots, by date and start.
+ */
+export function scheduleSlots(schedule: WorkScheduleRule, from: string, to: string, bounds?: ScheduleBounds): PlannedSlot[] {
+  const after = bounds?.fromTime ?? '00:00';
+  const before = bounds?.dueTime ?? '24:00';
+  return plannedSlots([schedule], from, to).filter((slot) => slot.allDay || (slot.start < before && slot.end > after));
+}
+
+/**
+ * Current and next occurrences of a routine following a calendar schedule: the days the schedule has slots on (within
+ * the hours of the routine), from the first date of the routine.
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {string} start First date of the routine.
  * @param {string} today Today.
+ * @param {ScheduleBounds} [bounds] Hours of the routine. Optional. Default = the whole day.
  * @returns {{ current: string | null, next: string | null }} Dates.
  */
-export function scheduleOccurrences(schedule: WorkScheduleRule, start: string, today: string): { current: string | null; next: string | null } {
+export function scheduleOccurrences(schedule: WorkScheduleRule, start: string, today: string, bounds?: ScheduleBounds): { current: string | null; next: string | null } {
   let current: string | null = null;
   if (start <= today) {
     const from = daysBetween(start, today) > SCHEDULE_SPAN ? addDays(today, -SCHEDULE_SPAN) : start;
-    current = plannedSlots([schedule], from, today).at(-1)?.date ?? null;
+    current = scheduleSlots(schedule, from, today, bounds).at(-1)?.date ?? null;
   }
   const after = addDays(today, 1) < start ? start : addDays(today, 1);
-  const next = plannedSlots([schedule], after, addDays(after, SCHEDULE_SPAN))[0]?.date ?? null;
+  const next = scheduleSlots(schedule, after, addDays(after, SCHEDULE_SPAN), bounds)[0]?.date ?? null;
   return { current, next };
 }
 
 /**
  * Time window of a routine on a day of its schedule: before the start of its first slot, during its slots (first start
- * to last end), or after the end of its last slot.
+ * to last end), or after the end of its last slot; the slots within the hours of the routine, the window kept within
+ * them (left as the schedule gives it when they do not meet).
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {RoutineAnchor} anchor Part of the schedule.
  * @param {string} date Day.
+ * @param {ScheduleBounds} [bounds] Hours of the routine. Optional. Default = the whole day.
  * @returns {{ fromTime: string | null, dueTime: string | null }} Window (none when the schedule has no slot that day).
  */
-export function scheduleWindow(schedule: WorkScheduleRule, anchor: RoutineAnchor, date: string): { fromTime: string | null; dueTime: string | null } {
-  const slots = plannedSlots([schedule], date, date).filter((slot) => !slot.allDay);
+export function scheduleWindow(schedule: WorkScheduleRule, anchor: RoutineAnchor, date: string, bounds?: ScheduleBounds): { fromTime: string | null; dueTime: string | null } {
+  const slots = scheduleSlots(schedule, date, date, bounds).filter((slot) => !slot.allDay);
   if (!slots.length) return { fromTime: null, dueTime: null };
   const first = slots[0].start;
   const last = slots.reduce((end, slot) => (slot.end > end ? slot.end : end), slots[0].end);
-  if (anchor === 'START') return { fromTime: null, dueTime: first };
-  if (anchor === 'END') return { fromTime: last === '24:00' ? null : last, dueTime: null };
-  return { fromTime: first, dueTime: last === '24:00' ? null : last };
+  const window =
+    anchor === 'START'
+      ? { fromTime: null, dueTime: first }
+      : anchor === 'END'
+        ? { fromTime: last === '24:00' ? null : last, dueTime: null }
+        : { fromTime: first, dueTime: last === '24:00' ? null : last };
+  // Within the hours of the routine: the later start, the earlier end.
+  const fromTime =
+    [window.fromTime, bounds?.fromTime ?? null]
+      .filter((time): time is string => time !== null)
+      .sort()
+      .at(-1) ?? null;
+  const dueTime = [window.dueTime, bounds?.dueTime ?? null].filter((time): time is string => time !== null).sort()[0] ?? null;
+  return fromTime && dueTime && fromTime >= dueTime ? window : { fromTime, dueTime };
 }
 
 /**
