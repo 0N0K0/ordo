@@ -18,8 +18,11 @@ export const recurrenceSchema = z
     weekdays: z.array(z.number().int().min(1).max(7)).max(7),
     /** Weekly: only on even or odd ISO weeks (instead of every n weeks); null: every n weeks. */
     weekParity: z.enum(['EVEN', 'ODD']).nullable().default(null),
-    /** Monthly and yearly: same day number (the 14th), or same weekday of the month (the 2nd Tuesday, the first Saturday of April). */
-    monthlyMode: z.enum(['DAY', 'WEEKDAY']),
+    /**
+     * Monthly and yearly: same day number (the 14th), or same weekday of the month (the 2nd Tuesday, the first Saturday
+     * of April); yearly only: same weekday of the same ISO week (the Monday of week 51).
+     */
+    monthlyMode: z.enum(['DAY', 'WEEKDAY', 'WEEK']),
     /** Last date, included. */
     until: isoDate.nullable(),
     /** Number of occurrences. */
@@ -152,6 +155,12 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
       return day.getUTCDate() === Math.min(start.getUTCDate(), lastDay);
     }
     case 'YEARLY': {
+      if (rule.monthlyMode === 'WEEK') {
+        // Same weekday of the same ISO week, counted in ISO years (those of their Thursday).
+        const isoYear = (date: Date) => new Date(date.getTime() + (4 - isoWeekday(date)) * DAY_MS).getUTCFullYear();
+        const years = isoYear(day) - isoYear(start);
+        return years >= 0 && years % rule.interval === 0 && isoWeekday(day) === isoWeekday(start) && weekOfYear(day) === weekOfYear(start);
+      }
       const years = day.getUTCFullYear() - start.getUTCFullYear();
       if (years % rule.interval !== 0 || day.getUTCMonth() !== start.getUTCMonth()) return false;
       if (rule.monthlyMode === 'WEEKDAY') {

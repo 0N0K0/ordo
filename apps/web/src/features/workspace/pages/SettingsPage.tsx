@@ -1,9 +1,10 @@
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { Stack } from "@mantine/core";
-import { FoldersIcon, GithubLogoIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
+import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
 import { LabelManager } from "../../../components/settings/LabelManager";
 import { GithubSettings } from "../../github/GithubSettings";
+import { PlacesManager } from "../../geo/PlacesManager";
 import { useTasksData } from "../../tasks/api";
 import { ContributorsManager } from "../../tasks/settings/ContributorsManager";
 import { TeamMembers, TeamRelations } from "../../treasury/TeamPanel";
@@ -24,7 +25,7 @@ import { PageTabs } from '../../../components/PageTabs';
 
 /**
  * Settings of the whole workspace, in tabs: projects (statuses, categories), team or household, contributors and
- * relations, GitHub and the workspaces. The tab is kept in the URL (?tab=). The settings of the tasks (in every view of
+ * relations, places (of the events, routines, travel times…), GitHub and the workspaces. The tab is kept in the URL (?tab=). The settings of the tasks (in every view of
  * tasks), the document tracking and the company (the invoicing), the calendar and the mail accounts are in the settings
  * sidebar of their views (old links lead there).
  * @returns {JSX.Element} Page.
@@ -91,6 +92,9 @@ export function SettingsPage() {
           <PageTabs.Tab value="contributors" leftSection={<UsersIcon aria-hidden />}>
             {perso ? "Foyer et contributeurs" : "Équipe et contributeurs"}
           </PageTabs.Tab>
+          <PageTabs.Tab value="places" leftSection={<MapPinIcon aria-hidden />}>
+            Lieux
+          </PageTabs.Tab>
           <PageTabs.Tab value="github" leftSection={<GithubLogoIcon aria-hidden />}>
             GitHub
           </PageTabs.Tab>
@@ -134,6 +138,10 @@ export function SettingsPage() {
               usage={assigneeUsage}
             />
           </SettingsGrid>
+        </PageTabs.Panel>
+        {/* Places of the events, the routines, the travel times… of the whole app. */}
+        <PageTabs.Panel value="places">
+          <PlacesManager />
         </PageTabs.Panel>
         <PageTabs.Panel value="github">
           <GithubSettings />

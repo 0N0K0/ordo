@@ -25,8 +25,11 @@ export const scheduleCaseSchema = z
     weekdays: z.array(z.number().int().min(1).max(7)).max(7).default([]),
     /** WEEKLY: every n weeks; EVERY_N_DAYS: every n days; MONTHLY: every n months; YEARLY: every n years. */
     every: z.number().int().min(1, 'Au moins 1.').max(366, '366 au plus.').default(1),
-    /** MONTHLY, YEARLY: a day number (the 15th, the last day when the month has fewer), or the nth weekday. */
-    monthlyMode: z.enum(['DAY', 'WEEKDAY']).default('DAY'),
+    /**
+     * MONTHLY, YEARLY: a day number (the 15th, the last day when the month has fewer), or the nth weekday; YEARLY
+     * only: a week of the year (ISO number), or a whole month.
+     */
+    monthlyMode: z.enum(['DAY', 'WEEKDAY', 'WEEK', 'MONTH']).default('DAY'),
     monthDay: z.number().int().min(1).max(31).default(1),
     /** WEEKDAY mode: 1 to 4, or -1 for the last one of the month… */
     position: z.union([z.literal(-1), z.number().int().min(1).max(4)]).default(1),
@@ -34,6 +37,14 @@ export const scheduleCaseSchema = z
     weekday: z.number().int().min(1).max(7).default(1),
     /** YEARLY: month, 1 to 12. */
     month: z.number().int().min(1).max(12).default(1),
+    /** YEARLY, WEEK mode: ISO week number, 1 to 53 (a year without a 53rd week has none). */
+    week: z.number().int().min(1).max(53).default(1),
+    /** Last day of each occurrence (DAY mode: day number, and month for YEARLY), week (WEEK mode) or month (MONTH mode); none: its first one only. An end before the start ends in the next month or year. */
+    toDay: z.number().int().min(1).max(31).nullable().default(null),
+    toMonth: z.number().int().min(1).max(12).nullable().default(null),
+    toWeek: z.number().int().min(1).max(53).nullable().default(null),
+    /** Days each occurrence lasts, from its first day (weekdays, every n days, nth weekday…); 1: that day only. */
+    days: z.number().int().min(1, 'Au moins 1 jour.').max(366, '366 jours au plus.').default(1),
     /** First day of the rhythm (its week for WEEKLY); none: the start of the period. */
     from: isoDate.nullable().default(null),
     allDay: z.boolean().default(false),
@@ -44,6 +55,8 @@ export const scheduleCaseSchema = z
   })
   .superRefine((item, context) => {
     if (item.since && item.until && item.until < item.since) context.addIssue({ code: 'custom', path: ['until'], message: 'La fin doit suivre le début.' });
+    if (item.pattern !== 'YEARLY' && (item.monthlyMode === 'WEEK' || item.monthlyMode === 'MONTH'))
+      context.addIssue({ code: 'custom', path: ['monthlyMode'], message: 'Semaine ou mois : chaque année seulement.' });
     if (item.pattern === 'WEEKLY' && !item.weekdays.length) context.addIssue({ code: 'custom', path: ['weekdays'], message: 'Choisissez au moins un jour.' });
     if (!item.allDay && !item.ranges.length) context.addIssue({ code: 'custom', path: ['ranges'], message: 'Ajoutez des horaires, ou « toute la journée ».' });
     // Ranges of a case must not overlap.
@@ -170,22 +183,41 @@ function dayOfMonthMatches(item: ScheduleCase, date: string): boolean {
 }
 
 /**
- * Whether a case is on a date (its period checked apart).
- * @param {ScheduleCase} item Case.
- * @param {string} periodStart First day of its period (rhythm start without `from`).
+ * Year an ISO week belongs to (that of its Thursday).
  * @param {string} date YYYY-MM-DD.
- * @returns {boolean} On that day.
+ * @returns {number} Year.
  */
-function caseOn(item: ScheduleCase, periodStart: string, date: string): boolean {
-  if ((item.since && date < item.since) || (item.until && date > item.until)) return false;
-  const anchor = item.from ?? periodStart;
+export function isoWeekYear(date: string): number {
+  return Number(addDays(date, 4 - weekdayOf(date)).slice(0, 4));
+}
+
+/**
+ * Day of a month, kept within it (the 31st of a 30-day month is its 30th).
+ * @param {number} year Year.
+ * @param {number} month 1 to 12.
+ * @param {number} day Day number.
+ * @returns {string} YYYY-MM-DD.
+ */
+function dayIn(year: number, month: number, day: number): string {
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
+}
+
+/**
+ * Whether an occurrence of a case starts on a date (its first day), before its days are counted.
+ * @param {ScheduleCase} item Case.
+ * @param {string} anchor First day of its rhythm.
+ * @param {string} date YYYY-MM-DD.
+ * @returns {boolean} Starts that day.
+ */
+function startsOn(item: ScheduleCase, anchor: string, date: string): boolean {
   if (item.pattern === 'DAILY') return true;
   if (item.pattern === 'EVERY_N_DAYS') {
     const days = daysBetween(anchor, date);
     return days >= 0 && days % item.every === 0;
   }
   if (item.pattern === 'MONTHLY') {
-    const months = (Number(date.slice(0, 4)) - Number(anchor.slice(0, 4))) * 12 + Number(date.slice(5, 7)) - Number(anchor.slice(5, 7));
+    const months = monthIndex(date) - monthIndex(anchor);
     return months >= 0 && months % item.every === 0 && dayOfMonthMatches(item, date);
   }
   if (item.pattern === 'YEARLY') {
@@ -195,6 +227,81 @@ function caseOn(item: ScheduleCase, periodStart: string, date: string): boolean 
   if (!item.weekdays.includes(weekdayOf(date))) return false;
   const weeks = daysBetween(mondayOf(anchor), mondayOf(date)) / 7;
   return ((weeks % item.every) + item.every) % item.every === 0;
+}
+
+/**
+ * Last day of an occurrence started on a date: the day (and month) it ends on in DAY mode, else after its days.
+ * @param {ScheduleCase} item Case.
+ * @param {string} start First day.
+ * @returns {string} Last day, included.
+ */
+function lastDayOf(item: ScheduleCase, start: string): string {
+  const year = Number(start.slice(0, 4));
+  const month = Number(start.slice(5, 7));
+  if (item.monthlyMode === 'DAY' && item.toDay !== null && item.pattern === 'YEARLY') {
+    const end = dayIn(year, item.toMonth ?? item.month, item.toDay);
+    return end >= start ? end : dayIn(year + 1, item.toMonth ?? item.month, item.toDay);
+  }
+  if (item.monthlyMode === 'DAY' && item.toDay !== null && item.pattern === 'MONTHLY') {
+    const end = dayIn(year, month, item.toDay);
+    return end >= start ? end : dayIn(month === 12 ? year + 1 : year, (month % 12) + 1, item.toDay);
+  }
+  return addDays(start, item.days - 1);
+}
+
+/**
+ * Whether a position is within a span of positions that may wrap (December to January, week 50 to week 2).
+ * @param {number} value Position.
+ * @param {number} from First one.
+ * @param {number} to Last one (before the first: wraps).
+ * @returns {boolean} Within.
+ */
+const withinWrap = (value: number, from: number, to: number) => (from <= to ? value >= from && value <= to : value >= from || value <= to);
+
+/**
+ * Whether a case is on a date (its period checked apart): a day of one of its occurrences, which last a day, several
+ * days, from a day to another, a week or weeks of the year, a month or months of the year.
+ * @param {ScheduleCase} item Case.
+ * @param {string} periodStart First day of its period (rhythm start without `from`).
+ * @param {string} date YYYY-MM-DD.
+ * @returns {boolean} On that day.
+ */
+function caseOn(item: ScheduleCase, periodStart: string, date: string): boolean {
+  if ((item.since && date < item.since) || (item.until && date > item.until)) return false;
+  const anchor = item.from ?? periodStart;
+  if (item.pattern === 'YEARLY' && item.monthlyMode === 'MONTH') {
+    const month = Number(date.slice(5, 7));
+    const to = item.toMonth ?? item.month;
+    if (!withinWrap(month, item.month, to)) return false;
+    // The months after a wrap belong to the occurrence started the year before.
+    const startYear = Number(date.slice(0, 4)) - (item.month > to && month < item.month ? 1 : 0);
+    const years = startYear - Number(anchor.slice(0, 4));
+    return years >= 0 && years % item.every === 0;
+  }
+  if (item.pattern === 'YEARLY' && item.monthlyMode === 'WEEK') {
+    const week = isoWeek(date);
+    const to = item.toWeek ?? item.week;
+    if (!withinWrap(week, item.week, to)) return false;
+    const startYear = isoWeekYear(date) - (item.week > to && week < item.week ? 1 : 0);
+    const years = startYear - isoWeekYear(anchor);
+    return years >= 0 && years % item.every === 0;
+  }
+  // From a day to another: the occurrence started this month (year), or the one before.
+  if (item.monthlyMode === 'DAY' && item.toDay !== null && (item.pattern === 'YEARLY' || item.pattern === 'MONTHLY')) {
+    const year = Number(date.slice(0, 4));
+    const month = Number(date.slice(5, 7));
+    const starts =
+      item.pattern === 'YEARLY'
+        ? [dayIn(year - 1, item.month, item.monthDay), dayIn(year, item.month, item.monthDay)]
+        : [dayIn(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1, item.monthDay), dayIn(year, month, item.monthDay)];
+    return starts.some((start) => start <= date && startsOn(item, anchor, start) && lastDayOf(item, start) >= date);
+  }
+  // Occurrences started up to their length before.
+  for (let offset = 0; offset < item.days; offset += 1) {
+    const start = addDays(date, -offset);
+    if (startsOn(item, anchor, start) && lastDayOf(item, start) >= date) return true;
+  }
+  return false;
 }
 
 /**
@@ -326,6 +433,11 @@ export function fromLegacySchedule(legacy: { startDate: string; intervalWeeks: n
       position: 1,
       weekday: 1,
       month: 1,
+      week: 1,
+      toDay: null,
+      toMonth: null,
+      toWeek: null,
+      days: 1,
       allDay: group.allDay,
       ranges: group.ranges,
       since: null,

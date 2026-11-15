@@ -29,6 +29,11 @@ export function newCase(oneDay: boolean): ScheduleCase {
     position: 1,
     weekday: 1,
     month: 1,
+    week: 1,
+    toDay: null,
+    toMonth: null,
+    toWeek: null,
+    days: 1,
     allDay: false,
     ranges: [{ start: '09:00', end: '17:00' }],
     since: null,
@@ -84,13 +89,25 @@ export function describeCase(item: ScheduleCaseInput): string {
     case 'EVERY_N_DAYS':
       days = `tous les ${every} jours${item.from ? ` dès le ${printedDate(item.from)}` : ''}`;
       break;
-    case 'MONTHLY':
-      days = `${monthDayText(item)} ${every === 1 ? 'de chaque mois' : `tous les ${every} mois`}`;
+    case 'MONTHLY': {
+      const span = item.monthlyMode !== 'WEEKDAY' && item.toDay ? `du ${item.monthDay ?? 1} au ${item.toDay}` : monthDayText(item);
+      days = `${span} ${every === 1 ? 'de chaque mois' : `tous les ${every} mois`}`;
       break;
-    case 'YEARLY':
-      days = `${monthDayText(item)} ${item.monthlyMode === 'WEEKDAY' ? 'de ' : ''}${MONTH_NAMES[(item.month ?? 1) - 1]}${every === 1 ? '' : ` tous les ${every} ans`}`;
+    }
+    case 'YEARLY': {
+      const month = MONTH_NAMES[(item.month ?? 1) - 1];
+      const years = every === 1 ? 'chaque année' : `tous les ${every} ans`;
+      if (item.monthlyMode === 'WEEK') days = `${item.toWeek && item.toWeek !== item.week ? `de la semaine ${item.week ?? 1} à la semaine ${item.toWeek}` : `la semaine ${item.week ?? 1}`} ${years}`;
+      else if (item.monthlyMode === 'MONTH')
+        days = `${item.toMonth && item.toMonth !== item.month ? `de ${month} à ${MONTH_NAMES[item.toMonth - 1]}` : `en ${month}`} ${years}`;
+      else if (item.monthlyMode !== 'WEEKDAY' && item.toDay) days = `du ${item.monthDay ?? 1} ${month} au ${item.toDay} ${MONTH_NAMES[(item.toMonth ?? item.month ?? 1) - 1]} ${years}`;
+      else days = `${monthDayText(item)} ${item.monthlyMode === 'WEEKDAY' ? 'de ' : ''}${month}${every === 1 ? '' : ` tous les ${every} ans`}`;
       break;
+    }
   }
+  // Occurrences of several days.
+  if ((item.days ?? 1) > 1 && !(item.pattern === 'YEARLY' && (item.monthlyMode === 'WEEK' || item.monthlyMode === 'MONTH')) && !(item.monthlyMode === 'DAY' && item.toDay))
+    days += ` · ${item.days} jours`;
   const hours = item.allDay ? 'toute la journée' : (item.ranges ?? []).map((range) => `${range.start}–${range.end}`).join(', ');
   const bounds = item.since && item.until ? ` · du ${printedDate(item.since)} au ${printedDate(item.until)}` : item.since ? ` · dès le ${printedDate(item.since)}` : item.until ? ` · jusqu’au ${printedDate(item.until)}` : '';
   return `${days.charAt(0).toUpperCase()}${days.slice(1)} · ${hours}${bounds}`;

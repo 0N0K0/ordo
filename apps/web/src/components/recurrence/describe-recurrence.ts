@@ -1,4 +1,4 @@
-import { parseDay, type Recurrence } from '@ordo/shared';
+import { isoWeek, parseDay, weekdayOf, type Recurrence } from '@ordo/shared';
 import * as fmt from '../../lib/format';
 
 export const WEEKDAY_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
@@ -72,7 +72,13 @@ export function describeRecurrence(rule: Recurrence, start: string): string {
       text = `${n === 1 ? 'Tous les mois' : `Tous les ${n} mois`} ${rule.monthlyMode === 'WEEKDAY' ? weekdayOfMonth(start) : `le ${day.getUTCDate()}`}`;
       break;
     case 'YEARLY':
-      text = `${n === 1 ? 'Tous les ans' : `Tous les ${n} ans`} ${rule.monthlyMode === 'WEEKDAY' ? `${weekdayOfMonth(start)} ${monthOf(start)}` : `le ${day.getUTCDate()} ${MONTHS[day.getUTCMonth()]}`}`;
+      text = `${n === 1 ? 'Tous les ans' : `Tous les ${n} ans`} ${
+        rule.monthlyMode === 'WEEK'
+          ? `le ${WEEKDAY_NAMES[weekdayOf(start) - 1]} de la semaine ${isoWeek(start)}`
+          : rule.monthlyMode === 'WEEKDAY'
+            ? `${weekdayOfMonth(start)} ${monthOf(start)}`
+            : `le ${day.getUTCDate()} ${MONTHS[day.getUTCMonth()]}`
+      }`;
       break;
   }
   if (rule.until) text += `, jusqu’au ${formatLongDate(rule.until)}`;
