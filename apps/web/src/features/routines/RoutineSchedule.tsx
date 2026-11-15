@@ -14,6 +14,7 @@ import { TravelCalculator } from '../geo/TravelCalculator';
 import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
 import { CaseCard } from '../../components/recurrence/CaseCard';
 import { useCaseFolds } from '../../components/recurrence/use-case-folds';
+import { ROUTINE_REMINDERS } from './routine-format';
 
 /** How a routine repeats: a rule and a window, cases (days and times of the day), or a calendar schedule. */
 type RepetitionMode = 'rule' | 'cases' | 'schedule';
@@ -135,16 +136,6 @@ function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; 
   );
 }
 
-/** Alert presets, in minutes before the moment of the routine. */
-const ROUTINE_REMINDERS: { value: number; label: string }[] = [
-  { value: 0, label: 'À l’heure' },
-  { value: 5, label: '5 min avant' },
-  { value: 10, label: '10 min avant' },
-  { value: 15, label: '15 min avant' },
-  { value: 30, label: '30 min avant' },
-  { value: 60, label: '1 h avant' },
-  { value: 120, label: '2 h avant' },
-];
 
 /** Time and place fields of a routine. */
 export interface RoutineScheduleValues {

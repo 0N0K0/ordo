@@ -17,6 +17,7 @@ import {
   type RoutineGroupBy,
   type RoutineSortKey,
   type RoutineViewConfig,
+  readSlotRule,
 } from '@ordo/shared';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
@@ -29,11 +30,12 @@ import { categoryGrouping, ruleOf, stateOf, waitingFor, type RoutineGrouping } f
 import * as fmt from '../../lib/format';
 import { currentWeek } from '../../lib/week';
 import { beneficiaryNames } from '../beneficiaries/use-beneficiaries';
+import { commentTotal } from '../comments/comment-column';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
 export const ROUTINE_FIELD_LABELS: Record<RoutineFilterField, string> = {
-  title: 'Titre',
+  title: 'Label',
   description: 'Description',
   location: 'Lieu',
   categories: 'Catégories',
@@ -53,14 +55,26 @@ export const ROUTINE_FIELD_LABELS: Record<RoutineFilterField, string> = {
   waiting: 'En attente d’une autre',
   hasSubRoutines: 'A des sous-routines',
   optionalTimes: 'A des moments facultatifs',
+  fromTime: 'À partir de (heure)',
+  dueTime: 'Avant (heure)',
+  travelBefore: 'Trajet aller (min)',
+  travelAfter: 'Trajet retour (min)',
+  hasReminders: 'A des alertes',
+  opensOn: 'À partir du (jour)',
+  slots: 'Plages',
+  blocks: 'Bloque',
+  beneficiaries: 'Bénéficiaires',
+  hasComments: 'A des commentaires',
   doableNow: 'Faisable maintenant',
   archived: 'Archivée',
 };
 
 export const ROUTINE_FIELD_GROUPS: { group: string; fields: RoutineFilterField[] }[] = [
-  { group: 'Texte', fields: ['title', 'description', 'location'] },
+  { group: 'Texte', fields: ['title', 'description'] },
   { group: 'Organisation', fields: ['categories', 'project', 'assignees', 'parent', 'requires', 'repetition', 'estimate'] },
   { group: 'Dates', fields: ['currentDate', 'firstDate', 'nextDate', 'startDate', 'lastDoneAt'] },
+  { group: 'Moments et lieu', fields: ['fromTime', 'dueTime', 'opensOn', 'slots', 'location', 'travelBefore', 'travelAfter'] },
+  { group: 'Liens', fields: ['blocks', 'beneficiaries', 'hasReminders', 'hasComments'] },
   { group: 'État', fields: ['state', 'done', 'waiting', 'hasSubRoutines', 'optionalTimes', 'doableNow', 'archived'] },
 ];
 
@@ -96,6 +110,14 @@ export const ROUTINE_GROUP_BY_LABELS: Record<RoutineGroupBy, string> = {
   assignees: 'Assignés',
   state: 'État',
   repetition: 'Répétition',
+  beneficiaries: 'Bénéficiaire',
+  location: 'Lieu',
+  requires: 'Dépend de',
+  blocks: 'Bloque',
+  opensOn: 'À partir du',
+  nextDate: 'Mois de la prochaine échéance',
+  firstDate: 'Mois de la première échéance',
+  lastDoneAt: 'Mois de la dernière exécution',
 };
 
 /**
@@ -133,6 +155,12 @@ export interface RoutineEnv {
   context: TaskContext;
   /** Whether the slot rule of a routine allows now. */
   doable: (routine: Routine) => boolean;
+  /** Comments by routine (its description counts as one more). Optional. */
+  comments?: Map<string, number>;
+  /** Kinds of slots, to filter on. Optional. */
+  slotKinds?: { value: string; label: string }[];
+  /** People routines can be for, to filter on. Optional. */
+  beneficiaries?: { value: string; label: string }[];
 }
 
 /**
@@ -202,6 +230,28 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
       return waitingFor(routine, env.byId).length > 0;
     case 'hasSubRoutines':
       return [...env.byId.values()].some((other) => other.parentId === routine.id);
+    case 'fromTime':
+      return routine.fromTime ?? null;
+    case 'dueTime':
+      return routine.dueTime ?? null;
+    case 'travelBefore':
+      return routine.travelBefore || null;
+    case 'travelAfter':
+      return routine.travelAfter || null;
+    case 'hasReminders':
+      return routine.reminders.length > 0;
+    case 'opensOn':
+      return routine.opensOn ?? null;
+    case 'slots': {
+      const rule = readSlotRule(routine.slotRule);
+      return rule ? [...rule.inside, ...rule.outside] : [];
+    }
+    case 'blocks':
+      return [...env.byId.values()].filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
+    case 'beneficiaries':
+      return [...routine.beneficiaryIds.map((id) => `c:${id}`), ...routine.beneficiaryRelationIds.map((id) => `r:${id}`)];
+    case 'hasComments':
+      return commentTotal(env.comments ?? new Map(), routine.id, routine.description) > 0;
     case 'optionalTimes':
       return routine.slots.some((slot) => slot.optional);
     case 'doableNow':
@@ -411,7 +461,60 @@ export function routineGrouping(groupBy: RoutineGroupBy | null, env: RoutineEnv)
         of: (routine) => [repetitionOf(routine)],
         noneName: '',
       };
+    case 'beneficiaries':
+      return {
+        groups: (env.beneficiaries ?? []).map((option) => ({ id: option.value, name: option.label, color: null, parentId: null })),
+        of: (routine) => [...routine.beneficiaryIds.map((id) => `c:${id}`), ...routine.beneficiaryRelationIds.map((id) => `r:${id}`)],
+        noneName: 'Sans bénéficiaire',
+      };
+    case 'location':
+      return valueGrouping(
+        env,
+        (routine) => (routine.location ? [routine.location] : []),
+        (value) => value,
+        'Sans lieu',
+      );
+    case 'opensOn':
+      return valueGrouping(
+        env,
+        (routine) => (routine.opensOn ? [routine.opensOn] : []),
+        (value) => (value.includes('-') ? `Le ${value.slice(3)}/${value.slice(0, 2)}` : `Le ${Number(value)} du mois`),
+        'Sans « à partir du »',
+      );
+    case 'requires':
+    case 'blocks': {
+      const routines = [...env.byId.values()];
+      return {
+        groups: routines.map((routine) => ({ id: routine.id, name: routine.title, color: null, parentId: null })),
+        of: (routine) => (groupBy === 'requires' ? routine.requiredIds : routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id)),
+        noneName: groupBy === 'requires' ? 'Ne dépend de rien' : 'Ne bloque rien',
+      };
+    }
+    case 'nextDate':
+    case 'firstDate':
+    case 'lastDoneAt': {
+      // By month.
+      const monthOf = (routine: Routine) => {
+        const value = routine[groupBy];
+        if (!value) return [];
+        return [(groupBy === 'lastDoneAt' ? localDay(new Date(String(value))) : String(value)).slice(0, 7)];
+      };
+      return valueGrouping(env, monthOf, (month) => fmt.capitalize(fmt.month(month)), { nextDate: 'Sans prochaine échéance', firstDate: 'Sans échéance', lastDoneAt: 'Jamais faite' }[groupBy]);
+    }
   }
+}
+
+/**
+ * Grouping by the values the routines have (sorted), each its group.
+ * @param {RoutineEnv} env Environment.
+ * @param {(routine: Routine) => string[]} of Values of a routine.
+ * @param {(value: string) => string} name Heading of a value.
+ * @param {string} noneName Heading of the routines without value.
+ * @returns {RoutineGrouping} Grouping.
+ */
+function valueGrouping(env: RoutineEnv, of: (routine: Routine) => string[], name: (value: string) => string, noneName: string): RoutineGrouping {
+  const values = [...new Set([...env.byId.values()].flatMap(of))].sort(collator.compare);
+  return { groups: values.map((value) => ({ id: value, name: name(value), color: null, parentId: null })), of, noneName };
 }
 
 /** Operator labels of the routine fields, where those of their kind do not fit. */
@@ -442,7 +545,12 @@ export function routineFilterFields(env: RoutineEnv): FilterFields<RoutineFilter
           return treeSelectProps(env.context.projectOptions(env.context.projects));
         case 'parent':
         case 'requires':
+        case 'blocks':
           return treeSelectProps(routineTree);
+        case 'slots':
+          return { data: env.slotKinds ?? [] };
+        case 'beneficiaries':
+          return { data: env.beneficiaries ?? [] };
         case 'assignees':
           return {
             data: [{ value: ME, label: 'Moi' }, ...env.context.contributors.filter((contributor) => !contributor.isMe).map((contributor) => ({ value: contributor.id, label: contributor.name }))],

@@ -34,6 +34,22 @@ export const ROUTINE_FILTER_FIELDS = {
   optionalTimes: 'boolean',
   /** Allowed now by its slot rule (else the default of the workspace). */
   doableNow: 'boolean',
+  /** Times of the day it is done from and by (HH:MM). */
+  fromTime: 'text',
+  dueTime: 'text',
+  /** Minutes to get there and back. */
+  travelBefore: 'number',
+  travelAfter: 'number',
+  hasReminders: 'boolean',
+  /** « À partir du » ("DD" or "MM-DD"). */
+  opensOn: 'text',
+  /** Kinds of slots its rule names. */
+  slots: 'multiReference',
+  /** Routines waiting for it. */
+  blocks: 'multiReference',
+  /** Contributors (« c:<id> ») or relations (« r:<id> ») it is for. */
+  beneficiaries: 'multiReference',
+  hasComments: 'boolean',
   archived: 'boolean',
 } as const satisfies Record<string, FilterFieldKind>;
 export type RoutineFilterField = keyof typeof ROUTINE_FILTER_FIELDS;
@@ -68,7 +84,22 @@ export const ROUTINE_SORT_KEYS = [
 export type RoutineSortKey = (typeof ROUTINE_SORT_KEYS)[number];
 
 /** Fields the routines can be grouped by. */
-export const ROUTINE_GROUP_BY = ['category', 'project', 'assignees', 'state', 'repetition'] as const;
+export const ROUTINE_GROUP_BY = [
+  'category',
+  'project',
+  'assignees',
+  'beneficiaries',
+  'state',
+  'repetition',
+  'location',
+  'requires',
+  'blocks',
+  'opensOn',
+  // Dates: by month.
+  'nextDate',
+  'firstDate',
+  'lastDoneAt',
+] as const;
 export type RoutineGroupBy = (typeof ROUTINE_GROUP_BY)[number];
 
 export const routineViewConfigSchema = z.object({

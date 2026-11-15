@@ -13,6 +13,7 @@ import { useTimeMutations, type TimeEntry } from './api';
 import { TimeTasksSelect } from './TimeTasksSelect';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
+import { useRoutinesData } from '../routines/api';
 
 /**
  * Local "YYYY-MM-DD" and "HH:MM" of an instant.
@@ -43,6 +44,7 @@ interface TimeEntryFormProps {
  */
 export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, onDone }: TimeEntryFormProps) {
   const { create, update } = useTimeMutations();
+  const { data: routinesData } = useRoutinesData();
   const initial = entry ? localParts(new Date(entry.startedAt)) : { date: localToday(), start: '09:00' };
   const minutes = entry?.duration ? Math.round(entry.duration / 60) : 60;
   const form = useAppForm<TimeEntryFormValues>({
@@ -100,7 +102,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
             context={context}
             label="Projet"
             required={!form.values.routineId}
-            description={entry?.routineTitle ? `Temps de la routine « ${entry.routineTitle} » : le projet est facultatif.` : undefined}
+            description={form.values.routineId ? 'Temps d’une routine : le projet est facultatif.' : undefined}
             clearable={Boolean(form.values.routineId)}
             data-autofocus
             {...form.getInputProps('projectId')}
@@ -108,6 +110,14 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
               form.setFieldValue('projectId', projectId ?? '');
               form.setFieldValue('taskIds', []);
             }}
+          />
+          <Select
+            label="Routine"
+            placeholder="Aucune"
+            clearable
+            searchable
+            data={(routinesData?.routines ?? []).filter((routine) => !routine.archived || routine.id === form.values.routineId).map((routine) => ({ value: routine.id, label: routine.title }))}
+            {...form.getInputProps('routineId')}
           />
           <TimeTasksSelect
             context={context}

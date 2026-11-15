@@ -86,6 +86,7 @@ graphql(`
     milestoneId
     sprintIds
     deadline
+    minDate
     position
     archived
     createdAt
@@ -517,6 +518,8 @@ export interface TaskInputValues {
   startDate?: string | null;
   endDate?: string | null;
   deadline?: string | null;
+  /** « Date min ». */
+  minDate?: string | null;
   parentId?: string | null;
   milestoneId?: string | null;
   sprintIds?: string[];
@@ -988,6 +991,7 @@ export interface BulkChanges {
   startDate?: string | null;
   endDate?: string | null;
   deadline?: string | null;
+  minDate?: string | null;
   addAssigneeIds?: string[];
   removeAssigneeIds?: string[];
   addTagIds?: string[];

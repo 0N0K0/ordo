@@ -31,6 +31,7 @@ export const TASK_FILTER_FIELDS = {
   startDate: 'date',
   endDate: 'date',
   deadline: 'date',
+  minDate: 'date',
   createdAt: 'date',
   updatedAt: 'date',
   overdue: 'boolean',
@@ -40,6 +41,19 @@ export const TASK_FILTER_FIELDS = {
   archived: 'boolean',
   /** Open and allowed now by its slot rule (else the default of the workspace). */
   doableNow: 'boolean',
+  /** Contributors (« c:<id> ») or relations (« r:<id> ») it is for. */
+  beneficiaries: 'multiReference',
+  /** Kinds of slots its rule names (during or out of). */
+  slots: 'multiReference',
+  /** Tasks it depends on, those it blocks, those it is related to. */
+  dependsOn: 'multiReference',
+  blocks: 'multiReference',
+  relatedTo: 'multiReference',
+  /** Time tracked on it, in hours. */
+  trackedHours: 'number',
+  hasShopping: 'boolean',
+  hasAlarms: 'boolean',
+  hasComments: 'boolean',
 } as const satisfies Record<string, FilterFieldKind>;
 export type TaskFilterField = keyof typeof TASK_FILTER_FIELDS;
 
@@ -284,13 +298,20 @@ export const TASK_COLUMNS = [
   'startDate',
   'endDate',
   'deadline',
+  'minDate',
+  'slots',
+  'timer',
   'parent',
+  'subtasks',
+  'progress',
   'milestone',
   'sprint',
   'blockedBy',
   'blocking',
   'related',
   'comments',
+  'alarms',
+  'shopping',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -305,7 +326,27 @@ export const EVENT_PERIODS = ['thisWeek', 'nextWeek', 'thisMonth', 'nextMonth', 
 export type EventPeriod = (typeof EVENT_PERIODS)[number];
 
 /** Fields the table can be grouped by. */
-export const TASK_GROUP_BY = ['state', 'project', 'status', 'priority', 'type', 'assignees', 'tags', 'parent', 'milestone', 'sprint'] as const;
+export const TASK_GROUP_BY = [
+  'state',
+  'project',
+  'status',
+  'priority',
+  'type',
+  'assignees',
+  'beneficiaries',
+  'tags',
+  'parent',
+  'milestone',
+  'sprint',
+  'blockedBy',
+  'blocking',
+  'related',
+  // Dates: by month.
+  'startDate',
+  'endDate',
+  'minDate',
+  'deadline',
+] as const;
 export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
 
 const columnSchema = z.enum(TASK_COLUMNS);

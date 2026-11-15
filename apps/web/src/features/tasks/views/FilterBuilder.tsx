@@ -33,6 +33,8 @@ import classes from './FilterBuilder.module.css';
 import { defaultValueFor, FIELD_GROUPS, FIELD_LABELS, isComplete, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor, PERIOD_LABELS } from './filter-meta';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree-select/tree-select';
+import { useBeneficiaries } from '../../beneficiaries/use-beneficiaries';
+import { useSlotRules } from '../../slot-rules/use-slot-rules';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -46,7 +48,7 @@ const CATEGORY_LABELS = { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Term
  * @param {TaskContext} context Task context.
  * @returns {{ value: string, label: string }[]} Options.
  */
-function referenceOptions(field: TaskFilterField, context: TaskContext): { value: string; label: string }[] {
+function referenceOptions(field: TaskFilterField, context: TaskContext, extra: ExtraOptions): { value: string; label: string }[] {
   const labels = (items: { id: string; name: string }[]) => items.map((item) => ({ value: item.id, label: item.name }));
   switch (field) {
     case 'project':
@@ -77,6 +79,14 @@ function referenceOptions(field: TaskFilterField, context: TaskContext): { value
         value: sprint.id,
         label: `${sprint.name} — ${context.projectById.get(sprint.projectId)?.title ?? ''}`,
       }));
+    case 'beneficiaries':
+      return extra.beneficiaries;
+    case 'slots':
+      return extra.slotKinds;
+    case 'dependsOn':
+    case 'blocks':
+    case 'relatedTo':
+      return context.tasks.map((task) => ({ value: task.id, label: context.taskLabel(task) }));
     case 'statusCategory':
       return TASK_STATUS_CATEGORIES.map((category) => ({ value: category, label: CATEGORY_LABELS[category] }));
     default:
@@ -433,19 +443,26 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
   );
 }
 
+/** Options read from other data than the task context: the beneficiaries, the kinds of slots. */
+interface ExtraOptions {
+  beneficiaries: { value: string; label: string }[];
+  slotKinds: { value: string; label: string }[];
+}
+
 /**
- * Fields of the task filters, their values from the task context.
+ * Fields of the task filters, their values from the task context (and the beneficiaries and kinds of slots).
  * @param {TaskContext} context Task context.
+ * @param {ExtraOptions} extra Other options.
  * @returns {FilterFields<TaskFilterField>} Fields.
  */
-function taskFilterFields(context: TaskContext): FilterFields<TaskFilterField> {
+function taskFilterFields(context: TaskContext, extra: ExtraOptions): FilterFields<TaskFilterField> {
   return {
     kinds: TASK_FILTER_FIELDS,
     labels: FIELD_LABELS,
     groups: FIELD_GROUPS,
     first: 'title',
     options: (field) =>
-      field === 'project' ? treeSelectProps(context.projectOptions(context.projects)) : field === 'parent' ? treeSelectProps(context.taskOptions(context.tasks)) : { data: referenceOptions(field, context) },
+      field === 'project' ? treeSelectProps(context.projectOptions(context.projects)) : field === 'parent' ? treeSelectProps(context.taskOptions(context.tasks)) : { data: referenceOptions(field, context, extra) },
     isComplete,
     emptyText: 'Aucun filtre : toutes les tâches sont affichées.',
   };
@@ -478,5 +495,11 @@ interface FilterBuilderProps {
  * @returns {JSX.Element} Builder.
  */
 export function FilterBuilder({ filter, context, onChange }: FilterBuilderProps) {
-  return <FieldsFilterBuilder filter={filter} fields={taskFilterFields(context)} onChange={onChange} />;
+  const { options: beneficiaryGroups } = useBeneficiaries();
+  const { kinds } = useSlotRules();
+  const extra = {
+    beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
+    slotKinds: kinds.map((kind) => ({ value: kind.value, label: kind.label })),
+  };
+  return <FieldsFilterBuilder filter={filter} fields={taskFilterFields(context, extra)} onChange={onChange} />;
 }

@@ -25,6 +25,8 @@ import { ViewTabs } from '../tasks/views/ViewTabs';
 import { RoutineHistory } from './RoutineHistory';
 import { RoutineSettings } from './RoutineSettings';
 import { RoutineTable } from './RoutineTable';
+import { useCommentCounts } from '../comments/api';
+import { useBeneficiaries } from '../beneficiaries/use-beneficiaries';
 
 /** Groups offered from the menu of a column. */
 const COLUMN_GROUP_BY: Partial<Record<string, RoutineGroupBy>> = { categories: 'category', project: 'project', assignees: 'assignees', repetition: 'repetition' };
@@ -72,9 +74,26 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
+  const comments = useCommentCounts(
+    'ROUTINE',
+    routines.map((routine) => routine.id),
+  );
+  const { options: beneficiaryGroups } = useBeneficiaries();
   const env = useMemo(
-    () => (context ? { today, byId: new Map(routines.map((routine) => [routine.id, routine])), categories, context, doable: (routine: Routine) => slotRules.allowed(routineDoable(routine)) } : null),
-    [today, routines, categories, context, slotRules],
+    () =>
+      context
+        ? {
+            today,
+            byId: new Map(routines.map((routine) => [routine.id, routine])),
+            categories,
+            context,
+            doable: (routine: Routine) => slotRules.allowed(routineDoable(routine)),
+            comments,
+            slotKinds: slotRules.kinds.map((kind) => ({ value: kind.value, label: kind.label })),
+            beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
+          }
+        : null,
+    [today, routines, categories, context, slotRules, comments, beneficiaryGroups],
   );
 
   /**

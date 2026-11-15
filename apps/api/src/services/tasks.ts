@@ -199,6 +199,8 @@ export interface TaskInput {
   startDate?: string | null;
   endDate?: string | null;
   deadline?: string | null;
+  /** « Date min »: not to be done before. */
+  minDate?: string | null;
   parentId?: string | null;
   milestoneId?: string | null;
   sprintIds?: string[] | null;
@@ -216,6 +218,7 @@ const detailsSchema = z.object({
   startDate: dateSchema.optional(),
   endDate: dateSchema.optional(),
   deadline: dateSchema.optional(),
+  minDate: dateSchema.optional(),
   slotRule: slotRuleSchema.nullable().optional(),
 });
 
@@ -233,6 +236,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     startDate: input.startDate,
     endDate: input.endDate,
     deadline: input.deadline,
+    minDate: input.minDate,
     slotRule: input.slotRule as z.input<typeof slotRuleSchema> | null | undefined,
   });
   const startDate = details.startDate === undefined ? current?.startDate : toDate(details.startDate);
@@ -247,6 +251,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     startDate: toDate(details.startDate),
     endDate: toDate(details.endDate),
     deadline: toDate(details.deadline),
+    minDate: toDate(details.minDate),
     slotRule: details.slotRule === undefined ? undefined : (details.slotRule ?? Prisma.DbNull),
   };
 }
@@ -510,6 +515,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           startDate: task.startDate,
           endDate: task.endDate,
           deadline: task.deadline,
+          minDate: task.minDate,
           parentId,
           milestoneId: task.milestoneId,
           sprints: { connect: task.sprints },
@@ -731,6 +737,8 @@ export interface BulkTaskChanges {
   startDate?: string | null;
   endDate?: string | null;
   deadline?: string | null;
+  /** « Date min »: not to be done before. */
+  minDate?: string | null;
   addAssigneeIds?: string[] | null;
   removeAssigneeIds?: string[] | null;
   addTagIds?: string[] | null;
@@ -767,11 +775,12 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
   const removeTags = (changes.removeTagIds ?? []).map((tagId) => ({ id: tagId }));
   const addSprints = (changes.addSprintIds ?? []).map((sprintId) => ({ id: sprintId }));
   const removeSprints = (changes.removeSprintIds ?? []).map((sprintId) => ({ id: sprintId }));
-  const details = parseInput(detailsSchema.pick({ effort: true, startDate: true, endDate: true, deadline: true }), {
+  const details = parseInput(detailsSchema.pick({ effort: true, startDate: true, endDate: true, deadline: true, minDate: true }), {
     effort: changes.effort,
     startDate: changes.startDate,
     endDate: changes.endDate,
     deadline: changes.deadline,
+    minDate: changes.minDate,
   });
 
   const tasks = await prisma.task.findMany({
@@ -799,6 +808,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges): 
         startDate: toDate(details.startDate),
         endDate: toDate(details.endDate),
         deadline: toDate(details.deadline),
+        minDate: toDate(details.minDate),
       },
     }),
     ...(add.length || remove.length || addTags.length || removeTags.length || addSprints.length || removeSprints.length

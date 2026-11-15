@@ -155,4 +155,15 @@
     /* Animation */
     transition: transform 150ms ease;
   }
+
+  /* Details of a row unfolded under it (the splits of a treasury entry…). */
+  .details {
+    /* Arrière-Plan */
+    background-color: var(--mantine-color-default-hover);
+  }
+
+  .detailsCell {
+    /* Espacement */
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) var(--mantine-spacing-sm) var(--mantine-spacing-xl);
+  }
 }

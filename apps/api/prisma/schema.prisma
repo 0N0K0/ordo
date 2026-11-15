@@ -533,6 +533,8 @@ model Task {
   startDate         DateTime?          @db.Date
   endDate           DateTime?          @db.Date
   /// Latest acceptable date ("Date max"): an open task past it is overdue.
+  /// Earliest acceptable date (« Date min »): the task is not to be done before it.
+  minDate           DateTime?          @db.Date
   deadline          DateTime?          @db.Date
   /// Parent task, possibly in another project of the same tree.
   parentId          String?
@@ -682,6 +684,8 @@ model Comment {
   shoppingList       ShoppingList?         @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
   shoppingProductId  String?
   shoppingProduct    ShoppingProduct?      @relation(fields: [shoppingProductId], references: [id], onDelete: Cascade)
+  shoppingItemId     String?
+  shoppingItem       ShoppingItem?         @relation(fields: [shoppingItemId], references: [id], onDelete: Cascade)
   documentId         String?
   document           AccountingDocument?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
   importedDocumentId String?
@@ -708,6 +712,7 @@ model Comment {
   @@index([timeEntryId])
   @@index([shoppingListId])
   @@index([shoppingProductId])
+  @@index([shoppingItemId])
   @@index([documentId])
   @@index([importedDocumentId])
   @@index([catalogItemId])
@@ -2428,6 +2433,7 @@ model ShoppingItem {
   /// Members of the team or household and relations it is for: the split of a treasury entry paying the list.
   members     Contributor[]      @relation("ShoppingItemMembers")
   relations   TreasuryRelation[] @relation("ShoppingItemRelations")
+  comments    Comment[]
   position    Int                @default(0)
   createdAt   DateTime           @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).

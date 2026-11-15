@@ -8,7 +8,7 @@ import { SidePanel } from '../../components/panels/SidePanel';
 import { ActionIcon, Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
-import { addDays, recurrenceSchema } from '@ordo/shared';
+import { addDays } from '@ordo/shared';
 import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -17,12 +17,15 @@ import { EditableDate, EditableNumber, EditableText } from '../../components/dat
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
-import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { useForecastEntries, useTreasuryAccounts, useTreasuryMutations, useTreasuryProjection, type ForecastEntry, type ProjectionItem, type TreasuryEntry } from './api';
+import { useForecastEntries, useTreasuryAccounts, useTreasuryMutations, useTreasuryProjection, type ForecastEntry, type ProjectionItem, type TreasuryAccount, type TreasuryEntry } from './api';
 import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type ChartScale } from './chart-period';
 import { EntriesPanel } from './EntriesPanel';
+import { DetailsToggle, PayerCell } from './entry-cells';
+import { entryFieldCells, entryFieldColumns } from './entry-columns';
+import { useEntryEnv, type EntryEnv } from './entry-env';
+import { EntryLinesTable } from './EntryLinesTable';
 import { EntryUrl } from './EntryUrl';
 import { EntryForm } from './EntryForm';
 import { SettingsPanel } from './SettingsPanel';
@@ -59,32 +62,62 @@ const KIND_LABELS: Record<string, { label: string; color: string }> = {
 
 type ForecastRow = { item: ProjectionItem; index: number };
 
-/** Columns of the forecast. */
-const FORECAST_COLUMNS: DataColumn<ForecastRow>[] = [
-  { id: 'date', label: 'Date', size: 130, sortValue: ({ item }) => item.date, text: ({ item }) => printedDate(item.date), filter: { kind: 'date', value: ({ item }) => item.date } },
-  { id: 'label', label: 'Libellé', size: 320, locked: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
-  { id: 'payer', label: 'Émetteur / destinataire', size: 200, sortValue: ({ item }) => item.payerName ?? null, text: ({ item }) => item.payerName ?? '', groupable: true },
-  {
-    id: 'origin',
-    label: 'Origine',
-    size: 130,
-    sortValue: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
-    text: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
-    filter: { kind: 'choice', value: ({ item }) => (item.kind in KIND_LABELS ? item.kind : 'FORECAST'), options: Object.entries(KIND_LABELS).map(([value, kind]) => ({ value, label: kind.label })) },
-    groupable: true,
-  },
-  {
-    id: 'overdue',
-    label: 'En retard',
-    size: 110,
-    hiddenByDefault: true,
-    sortValue: ({ item }) => (item.overdue ? 1 : 0),
-    text: ({ item }) => (item.overdue ? 'En retard' : ''),
-    filter: { kind: 'boolean', value: ({ item }) => Boolean(item.overdue) },
-    groupable: true,
-  },
-  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: ({ item }) => item.amount, text: ({ item }) => `${item.amount > 0 ? '+' : ''}${fmt.money(item.amount)}` },
-];
+/** No account yet. */
+const NO_ACCOUNTS: TreasuryAccount[] = [];
+
+/**
+ * Columns of the forecast: date, label, origin, overdue, amount, then the columns every table of entries shares (those
+ * of an entry: none for an invoice due or a recurring invoice).
+ * @param {(row: ForecastRow) => ForecastEntry | undefined} entryOf Entry of a row.
+ * @param {EntryEnv} env Names.
+ * @returns {DataColumn<ForecastRow>[]} Columns.
+ */
+function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefined, env: EntryEnv): DataColumn<ForecastRow>[] {
+  return [
+    {
+      id: 'month',
+      label: 'Mois',
+      size: 150,
+      hiddenByDefault: true,
+      sortValue: ({ item }) => item.date.slice(0, 7),
+      text: ({ item }) => fmt.capitalize(fmt.month(item.date.slice(0, 7))),
+      filter: false,
+      groupable: true,
+    },
+    { id: 'date', label: 'Date d’exécution', size: 140, sortValue: ({ item }) => item.date, text: ({ item }) => printedDate(item.date), filter: { kind: 'date', value: ({ item }) => item.date } },
+    { id: 'label', label: 'Libellé', size: 320, locked: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
+    {
+      id: 'origin',
+      label: 'Origine',
+      size: 130,
+      sortValue: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
+      text: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
+      filter: { kind: 'choice', value: ({ item }) => (item.kind in KIND_LABELS ? item.kind : 'FORECAST'), options: Object.entries(KIND_LABELS).map(([value, kind]) => ({ value, label: kind.label })) },
+      groupable: true,
+    },
+    {
+      id: 'overdue',
+      label: 'En retard',
+      size: 110,
+      hiddenByDefault: true,
+      sortValue: ({ item }) => (item.overdue ? 1 : 0),
+      text: ({ item }) => (item.overdue ? 'En retard' : ''),
+      filter: { kind: 'boolean', value: ({ item }) => Boolean(item.overdue) },
+      groupable: true,
+    },
+    ...entryFieldColumns<ForecastRow>(entryOf, env, { payerName: ({ item }) => item.payerName ?? '', recurrence: true }),
+    {
+      id: 'amount',
+      label: 'Montant',
+      size: 130,
+      numeric: true,
+      sortValue: ({ item }) => item.amount,
+      formatTotal: fmt.money,
+      text: ({ item }) => `${item.amount > 0 ? '+' : ''}${fmt.money(item.amount)}`,
+      filter: { kind: 'number', value: ({ item }) => item.amount },
+    },
+  ];
+}
 
 /**
  * Realization of an expected movement: actual date and amount.
@@ -189,7 +222,24 @@ export function TreasuryPage() {
   const { deleteEntry } = useTreasuryMutations();
   const saveEntry = useEntryCellSave();
 
-  const forecastView = useDataView({ tableKey: 'treasury-forecast', columns: FORECAST_COLUMNS, rows: (projection?.items ?? []).map((item, index) => ({ item, index })), title: 'Prévisionnel' });
+  const env = useEntryEnv(accounts ?? NO_ACCOUNTS);
+  const forecastById = new Map((forecasts ?? []).map((entry) => [entry.id, entry]));
+  const forecastOf = ({ item }: ForecastRow) => (item.entryId ? forecastById.get(item.entryId) : undefined);
+  // Rows whose splits are unfolded.
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
+  const forecastKey = ({ item, index }: ForecastRow) => `${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`;
+  const unfold = (key: string) =>
+    setUnfolded((current) => {
+      const next = new Set(current);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  const forecastView = useDataView({
+    tableKey: 'treasury-forecast',
+    columns: forecastColumns(forecastOf, env),
+    rows: (projection?.items ?? []).map((item, index) => ({ item, index })),
+    title: 'Prévisionnel',
+  });
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
 
@@ -267,8 +317,6 @@ export function TreasuryPage() {
     else row.Réel = point.balance;
     chart.set(point.date, row);
   }
-  const forecastById = new Map((forecasts ?? []).map((entry) => [entry.id, entry]));
-
   return (
     <Stack gap="md">
       {header}
@@ -400,11 +448,17 @@ export function TreasuryPage() {
             }
             verticalSpacing="xs"
             highlightOnHover
-            getKey={({ item, index }) => `${item.kind}-${item.entryId ?? item.documentId ?? item.importedDocumentId ?? item.recurringInvoiceId}-${item.dueDate}-${index}`}
-            cells={({ item }) => {
+            getKey={forecastKey}
+            details={(row) => {
+              const entry = forecastOf(row);
+              return entry && entry.lines.length > 0 && unfolded.has(forecastKey(row)) ? <EntryLinesTable entry={entry} env={env} save={saveEntry} /> : null;
+            }}
+            cells={(row) => {
+              const { item } = row;
               const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
-              const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
+              const entry = forecastOf(row);
               return {
+                ...(entry ? entryFieldCells(entry, env, saveEntry) : {}),
                 date: (
                   <>
                     {/* A repeating forecast moves by its rule (its form), each other entry by its cell. */}
@@ -430,19 +484,14 @@ export function TreasuryPage() {
                       <Group gap={4} wrap="nowrap">
                         {entry ? <EditableText value={entry.label} label={`Libellé de ${item.label}`} onSave={(label) => label && saveEntry(entry, { label })} /> : <Text size="sm">{item.label}</Text>}
                         <EntryUrl url={entry?.url} label={item.label} />
+                        {entry && entry.lines.length > 0 && (
+                          <DetailsToggle opened={unfolded.has(forecastKey(row))} count={entry.lines.length} label={item.label} onToggle={() => unfold(forecastKey(row))} />
+                        )}
                       </Group>
-                    )}
-                    {entry?.recurrence != null && (
-                      <Text size="xs" c="dimmed">
-                        {(() => {
-                          const rule = recurrenceSchema.safeParse(entry.recurrence);
-                          return rule.success ? describeRecurrence(rule.data, String(entry.date)) : '';
-                        })()}
-                      </Text>
                     )}
                   </>
                 ),
-                payer: <Text size="sm">{item.payerName ?? ''}</Text>,
+                payer: entry ? <PayerCell entry={entry} env={env} save={saveEntry} /> : <Text size="sm">{item.payerName ?? ''}</Text>,
                 origin: (
                   <>
                     <Badge size="sm" variant="light" color={kind.color}>

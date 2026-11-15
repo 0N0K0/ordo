@@ -53,7 +53,7 @@ import { useRunningTimer, useTimeMutations, type TimeEntry } from '../time/api';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { useRoutineMutations, type Routine, type RoutineCategory, type RoutinePlace } from './api';
-import { AssigneesCell, CategoriesCell, TimeWindowCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell, RoutineBeneficiariesCell } from './routine-cells';
+import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, TitleCell, RoutineBeneficiariesCell } from './routine-cells';
 import { RoutineCellSelectionContext, type RoutineCellSelection, type RoutineColumn } from './routine-cell-edit';
 import { RoutineBulkBar } from './RoutineBulkBar';
 import { RoutineDoneToggles } from './DoneToggle';
@@ -82,6 +82,7 @@ import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
 import { TableFooter } from '../../components/data-table/TableFooter';
+import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, RoutineSlotsCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from './extra-cells';
 
 /** Width of the cells around the columns: handle and selection before, actions after. */
 const LEAD_WIDTH = 64;
@@ -91,7 +92,6 @@ const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 const CELL_COLUMNS: Record<string, RoutineColumn> = {
   currentDate: 'repetition',
   estimate: 'estimate',
-  time: 'time',
   assignees: 'assignees',
   categories: 'categories',
   requires: 'requires',
@@ -384,7 +384,17 @@ function RoutineRowView({ row, comments, routines, byId, context, today, doable,
     ) : null,
     repetition: <RepetitionText routine={routine} />,
     estimate: <EstimateCell routine={routine} readOnly={readOnly} />,
-    time: <TimeWindowCell routine={routine} readOnly={readOnly} />,
+    fromTime: <TimeOfDayCell routine={routine} field="fromTime" />,
+    dueTime: <TimeOfDayCell routine={routine} field="dueTime" />,
+    opensOn: <OpensOnCell routine={routine} />,
+    slots: <RoutineSlotsCell routine={routine} />,
+    location: <LocationCell routine={routine} />,
+    travelBefore: <TravelCell routine={routine} field="travelBefore" />,
+    travelAfter: <TravelCell routine={routine} field="travelAfter" />,
+    alarms: <RemindersCell routine={routine} />,
+    blocks: <BlocksCell routine={routine} routines={routines} />,
+    parent: <ParentRoutineCell routine={routine} routines={routines} />,
+    subRoutines: <SubRoutinesCell routine={routine} routines={routines} />,
     trackedTime: <ChronoCell routine={routine} running={running} />,
     assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
     beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
