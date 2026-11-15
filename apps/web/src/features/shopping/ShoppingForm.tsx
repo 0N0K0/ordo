@@ -1,5 +1,6 @@
 import { DatePickerInput } from '@mantine/dates';
-import { Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Anchor, Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -118,9 +119,18 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
           <TextInput label="Label" required data-autofocus {...form.getInputProps('name')} />
+          {target.kind === 'item' && target.item && target.item.sheetSources.length > 0 && (
+            <Text size="xs" c="dimmed">
+              Vient {target.item.sheetSources.length > 1 ? 'des fiches' : 'de la fiche'}{' '}
+              <Anchor component={Link} to="/sheets" size="xs">
+                {target.item.sheetSources.map((source) => `${source.name}${source.quantity !== null ? ` (${String(source.quantity).replace('.', ',')})` : ''}`).join(', ')}
+              </Anchor>
+              .
+            </Text>
+          )}
           {target.kind === 'product' && (
             <Select
-              label="Liste type"
+              label="Référence"
               required
               allowDeselect={false}
               data={(data?.shoppingBaseLists ?? []).map((baseList) => ({ value: baseList.id, label: baseList.name }))}

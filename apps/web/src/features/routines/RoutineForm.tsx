@@ -17,6 +17,7 @@ import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
+import { SheetsSection } from '../sheets/SheetsSection';
 import { useDefaultColor } from '../workspace/use-default-color';
 
 interface RoutineFormValues extends Record<string, unknown> {
@@ -184,6 +185,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                   error={form.errors.opensOn as string | undefined}
                 />
               )}
+              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? String(routine.currentDate) : null} name={routine.title} />}
               {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} />}
             </Stack>
           </Grid.Col>

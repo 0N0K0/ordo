@@ -20,7 +20,9 @@ import { useRef, useState, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
 import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
+import * as fmt from '../../lib/format';
 import { applyDiff, bulkSaver, type BulkChange } from '../../components/data-table/bulk-edit';
+import { StackedValues } from '../../components/data-table/StackedValues';
 import { inputOf, moveToGroup, NO_GROUP, NO_GROUP_NAME, placeInGroup, shoppingRows, usePeople, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
@@ -172,6 +174,22 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
       />
     ),
     url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save('url', { url })} />,
+    // Sheets an item of a list comes from, with their share (products of the references have none).
+    sheets: 'sheetSources' in item && Array.isArray(item.sheetSources) && (
+      <StackedValues>
+        {(item.sheetSources as { sheetId: string; name: string; quantity: number | null }[]).map((source) => (
+          <Text key={source.sheetId} size="sm" truncate>
+            {source.name}
+            {source.quantity !== null && (
+              <Text span size="sm" c="dimmed">
+                {' '}
+                · {fmt.number(source.quantity, 3)}
+              </Text>
+            )}
+          </Text>
+        ))}
+      </StackedValues>
+    ),
     extra: extra?.render(item),
   };
 

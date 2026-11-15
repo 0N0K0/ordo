@@ -219,7 +219,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       icon: <TrashIcon aria-hidden />,
       danger: true,
       onClick: () =>
-        confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les listes types et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
+        confirmDestructive({ title: 'Supprimer la liste', risks: `« ${list.name} » et ses ${list.items.length} élément(s) seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`, onConfirm: () =>
             mutations.deleteList.mutate(
               { id: list.id },
               {

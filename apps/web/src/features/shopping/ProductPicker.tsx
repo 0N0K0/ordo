@@ -59,8 +59,8 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
           style={{ flex: 1, minWidth: 160 }}
         />
         <Select
-          aria-label="Liste type"
-          placeholder="Toutes les listes types"
+          aria-label="Référence"
+          placeholder="Toutes les références"
           clearable
           data={baseLists.map((baseList) => ({ value: baseList.id, label: baseList.name }))}
           value={baseListId}
@@ -84,7 +84,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
       <ScrollArea.Autosize mah="50vh" type="auto" offsetScrollbars>
         {groups.length === 0 ? (
           <Text size="sm" c="dimmed">
-            {data?.shoppingProducts.length ? 'Aucun produit ne correspond.' : 'Les listes types sont vides.'}
+            {data?.shoppingProducts.length ? 'Aucun produit ne correspond.' : 'Les références sont vides.'}
           </Text>
         ) : (
           <Stack gap="md">

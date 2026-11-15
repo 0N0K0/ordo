@@ -21,6 +21,8 @@ import {
   AlarmIcon,
   ArrowsClockwiseIcon,
   BasketIcon,
+  ClipboardTextIcon,
+  PackageIcon,
   ArchiveIcon,
   BankIcon,
   CalendarBlankIcon,
@@ -126,7 +128,7 @@ interface MenuGroup {
 /** Menu below « Accueil »: groups folding and unfolding their pages. */
 const MENU_GROUPS: MenuGroup[] = [
   {
-    label: 'Organisation',
+    label: 'Activités',
     icon: <SquaresFourIcon aria-hidden />,
     links: [
       { to: '/tasks', label: 'Tâches', icon: <CheckSquareOffsetIcon aria-hidden />, badge: <TasksNavBadge /> },
@@ -134,7 +136,14 @@ const MENU_GROUPS: MenuGroup[] = [
       { to: '/calendar', label: 'Agenda', icon: <CalendarBlankIcon aria-hidden />, badge: <AgendaNavBadge /> },
       { to: '/time', label: 'Chronos', icon: <TimerIcon aria-hidden />, badge: <TimeNavBadge /> },
       { to: '/alarms', label: 'Alarmes', icon: <AlarmIcon aria-hidden /> },
+    ],
+  },
+  {
+    label: 'Économat',
+    icon: <PackageIcon aria-hidden />,
+    links: [
       { to: '/shopping', label: 'Achats', icon: <BasketIcon aria-hidden /> },
+      { to: '/sheets', label: 'Fiches', icon: <ClipboardTextIcon aria-hidden /> },
     ],
   },
   {

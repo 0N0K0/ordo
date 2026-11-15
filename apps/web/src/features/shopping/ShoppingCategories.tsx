@@ -64,7 +64,7 @@ function CategoryForm({ categories, category, parentId = null, onDone }: Categor
           {...form.getInputProps('parentId')}
         />
         <BatchMultiSelect
-          label="Listes types"
+          label="Références"
           description="Celles où elle est proposée. Aucune : toutes (une sous-catégorie sans liste prend celles de sa catégorie parente)."
           placeholder={form.getValues().baseListIds.length ? undefined : 'Toutes'}
           data={(data?.shoppingBaseLists ?? []).map((baseList) => ({ value: baseList.id, label: baseList.name }))}
@@ -98,7 +98,7 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
   const baseListNames = new Map((data?.shoppingBaseLists ?? []).map((baseList) => [baseList.id, baseList.name]));
   return (
     <CategoryTreeManager
-      description="Classent les produits, en arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente. Une catégorie peut être réservée à certaines listes types."
+      description="Classent les produits, en arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente. Une catégorie peut être réservée à certaines références."
       categories={categories}
       usage={usage}
       usageNoun="produit(s) et élément(s)"

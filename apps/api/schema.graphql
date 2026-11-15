@@ -491,6 +491,34 @@ input CatalogItemInput {
   vatRate: Float!
 }
 
+"""
+Checklist made of the sheets of a routine or an event (one per occurrence) or of a task.
+"""
+type Checklist {
+  createdAt: DateTime!
+  eventId: ID
+  id: ID!
+  items: [ChecklistItem!]!
+  occurrenceDate: Date
+  routineId: ID
+  taskId: ID
+}
+
+"""Item of a checklist, ticked when done."""
+type ChecklistItem {
+  categoryId: ID
+  checkedAt: DateTime
+  id: ID!
+  label: String!
+  listId: ID!
+  note: String
+  position: Int!
+  productId: ID
+  quantity: Float
+  sources: [SheetSource!]!
+  unit: String
+}
+
 type Client {
   activityCode: String
 
@@ -614,6 +642,7 @@ enum CommentTarget {
   RELATION
   ROUTINE
   SCHEDULE
+  SHEET_ITEM
   SHOPPING_ITEM
   SHOPPING_LIST
   SHOPPING_PRODUCT
@@ -1378,12 +1407,19 @@ input MilestoneUpdateInput {
 type Mutation {
   acceptQuote(date: Date!, file: File, id: ID!): Boolean!
   addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
+  addChecklistItem(input: SheetItemInput!, listId: ID!): ID!
   addComment(body: String!, id: String!, target: CommentTarget!): Comment!
   addDocumentReminder(id: ID!, note: String): Boolean!
   addLibraryFiles(files: [File!]!, folderId: ID): [ID!]!
   addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
   addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
   addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
+  addSheetToChecklist(id: ID!, multiplier: Float!, sheetId: ID!): Boolean!
+
+  """
+  Adds a sheet (times a multiplier) to a shopping list, summed with its items; returns the number of items of the sheet.
+  """
+  addSheetToShoppingList(listId: ID!, multiplier: Float!, sheetId: ID!): Int!
 
   """Adds an item of this list only (not from a base list) to a list."""
   addShoppingItem(input: ShoppingItemInput!, listId: ID!): ID!
@@ -1483,6 +1519,7 @@ type Mutation {
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
   createRoutine(input: RoutineInput!): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
+  createSheet(input: SheetInput!): ID!
   createShoppingBaseList(name: String!): ID!
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
 
@@ -1517,6 +1554,7 @@ type Mutation {
   deleteCalendarCategory(id: ID!): Boolean!
   deleteCalendarEvent(id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
   deleteCatalogItem(id: ID!): Boolean!
+  deleteChecklistItem(id: ID!): Boolean!
   deleteClient(
     """true deletes the projects, false moves them to "no client"."""
     deleteProjects: Boolean!
@@ -1568,6 +1606,7 @@ type Mutation {
 
   """Deletes a kind of time slots (its schedules stay, without kind)."""
   deleteScheduleType(id: ID!): Boolean!
+  deleteSheet(id: ID!): Boolean!
 
   """
   Deletes a base list with its products (the lists made from them keep their items).
@@ -1618,6 +1657,7 @@ type Mutation {
   deleteWorkspace(id: ID!): Boolean!
   duplicateAccountingDocument(id: ID!, issueDate: Date!): ID!
   duplicateDashboardChart(id: ID!): ID!
+  duplicateSheet(id: ID!): ID!
 
   """
   Adds the same item again to its list, not bought, without date (the same product bought with another date).
@@ -1764,6 +1804,7 @@ type Mutation {
 
   """Removes an exception: the occurrence goes back to its own day."""
   removeRoutineMove(from: Date!, id: ID!): Boolean!
+  removeSheetFromShoppingList(listId: ID!, sheetId: ID!): Boolean!
   removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
@@ -1799,6 +1840,11 @@ type Mutation {
 
   """Always returns true, whether or not the account exists."""
   requestPasswordReset(identifier: String!): Boolean!
+
+  """
+  Makes a checklist again from the sheets of its owner (ticks and changes lost).
+  """
+  resetChecklist(id: ID!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
   saveDefaultScheduleKind(input: DefaultScheduleKindInput!): DefaultScheduleKind!
 
@@ -1850,6 +1896,7 @@ type Mutation {
   Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.
   """
   setCalendarEventCalledOff(calledOff: Boolean!, id: ID!, occurrenceDate: Date, scope: CalendarEventScope!): Boolean!
+  setChecklistItemsChecked(checked: Boolean!, ids: [ID!]!): Boolean!
 
   """Archiving cascades to the active projects; restoring brings them back."""
   setClientArchived(archived: Boolean!, id: ID!): Client!
@@ -1913,6 +1960,9 @@ type Mutation {
   Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).
   """
   setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
+
+  """Sets the sheets of a routine, an event or a task (one of them)."""
+  setSheetLinks(eventId: ID, links: [SheetLinkInput!]!, routineId: ID, taskId: ID): Boolean!
   setShoppingItemPurchased(id: ID!, purchased: Boolean!): Boolean!
   setShoppingListClosed(closed: Boolean!, id: ID!): Boolean!
   setShoppingProductsMissing(ids: [ID!]!, missing: Boolean!): Boolean!
@@ -1991,6 +2041,7 @@ type Mutation {
   """
   updateCalendarEvent(id: ID!, input: CalendarEventInput!, occurrenceDate: Date, scope: CalendarEventScope!): ID!
   updateCatalogItem(id: ID!, input: CatalogItemInput!): Boolean!
+  updateChecklistItem(id: ID!, input: SheetItemInput!): Boolean!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
   updateClientContact(id: ID!, input: ClientContactInput!): ClientContact!
   updateClientDetails(id: ID!, input: ClientDetailsInput!): Client!
@@ -2013,6 +2064,7 @@ type Mutation {
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
   updateRoutine(id: ID!, input: RoutineInput!): Boolean!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
+  updateSheet(id: ID!, input: SheetInput!): Boolean!
   updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
   updateShoppingList(id: ID!, name: String!, taskIds: [ID!]!): Boolean!
@@ -2196,6 +2248,11 @@ type Query {
 
   """Catalogue, by title."""
   catalogItems: [CatalogItem!]!
+
+  """
+  Checklist of a routine or an event occurrence, or of a task: made of its sheets the first time it is asked (none without sheets).
+  """
+  checklist(eventId: ID, occurrenceDate: Date, routineId: ID, taskId: ID): Checklist
   client(id: ID!): Client
 
   """Every client, archived ones included, in manual order."""
@@ -2373,6 +2430,12 @@ type Query {
   Addresses and places matching a text (3 characters at least), the closest to `near` first.
   """
   searchAddresses(near: GeoPointInput, text: String!): [AddressSuggestion!]!
+
+  """Sheets of a routine, an event or a task, in their order."""
+  sheetLinks(eventId: ID, routineId: ID, taskId: ID): [SheetLink!]!
+
+  """Sheets, in their order: all, or those of a project."""
+  sheets(projectId: ID): [Sheet!]!
 
   """Base lists ("listes types")."""
   shoppingBaseLists: [ShoppingBaseList!]!
@@ -2912,6 +2975,75 @@ input SendMailInput {
   to: [String!]!
 }
 
+"""
+Sheet: products and items used together (a recipe, a suitcase…), added to shopping lists or made a checklist of.
+"""
+type Sheet {
+  createdAt: DateTime!
+  id: ID!
+  items: [SheetItem!]!
+  name: String!
+  note: String
+  position: Int!
+  projectId: ID
+  updatedAt: DateTime!
+
+  """Routines, events and tasks it is attached to."""
+  usedBy: Int!
+}
+
+input SheetInput {
+  items: [SheetItemInput!]!
+  name: String!
+  note: String
+  projectId: ID
+}
+
+"""Item of a sheet: a product of the references, or a label of its own."""
+type SheetItem {
+  categoryId: ID
+  id: ID!
+  label: String!
+  note: String
+  position: Int!
+  productId: ID
+  quantity: Float
+  unit: String
+}
+
+input SheetItemInput {
+  categoryId: ID
+  id: ID
+  label: String!
+  note: String
+  productId: ID
+  quantity: Float
+  unit: String
+}
+
+"""Sheet of a routine, an event or a task, times a multiplier."""
+type SheetLink {
+  eventId: ID
+  id: ID!
+  multiplier: Float!
+  routineId: ID
+  sheetId: ID!
+  taskId: ID
+}
+
+input SheetLinkInput {
+  multiplier: Float!
+  sheetId: ID!
+}
+
+"""Share of a sheet in an item of a shopping list or of a checklist."""
+type SheetSource {
+  """Name of the sheet when it was added."""
+  name: String!
+  quantity: Float
+  sheetId: ID!
+}
+
 """Base list ("liste type"): products usually bought together."""
 type ShoppingBaseList {
   id: ID!
@@ -2958,6 +3090,11 @@ type ShoppingItem {
   purchasedAt: DateTime
   quantity: Float
   relationIds: [ID!]!
+
+  """
+  Sheets it comes from, with their share of its quantity; none: added by hand.
+  """
+  sheetSources: [SheetSource!]!
   storageId: ID
   storeId: ID
   unit: String
