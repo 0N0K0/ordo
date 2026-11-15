@@ -43,6 +43,7 @@ import {
 } from './api';
 import { askScope } from './ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from './calendar-edits';
+import { slotColumns } from './slot-columns';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from './calendar-pdf';
 import { localParts, occurrenceInput } from './event-input';
@@ -353,6 +354,9 @@ export function CalendarPage() {
       // Lines of several schedules on a day stand side by side (week, day) or one above the other (month): each
       // schedule with a line that day takes the next lane.
       const lanes = new Map<string, number>();
+      // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
+      const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
+      let order = 0;
       for (const { rule, color, name, foreign, display } of [...own, ...subscribed]) {
         if (!foreign && editingSlots) {
           // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
@@ -447,11 +451,32 @@ export function CalendarPage() {
                 start: `${slot.date}T${slot.start}:00`,
                 end: `${slot.date}T${slot.end}:00`,
               };
+          if (display.dayDisplay === 'SLOT_BACKGROUND' && !slot.allDay) {
+            const day = columns.get(slot.date) ?? [];
+            day.push({ key: `${slot.scheduleId}:${slot.start}`, order: order++, start: slot.start, end: slot.end, look: background });
+            columns.set(slot.date, day);
+            continue;
+          }
           result.push({
             // The lane in the id: a line moved to another lane is drawn again (see eventDidMount).
             id: `work:${slot.scheduleId}:${slot.date}:${slot.start}:${lane}`,
             ...hours,
             ...(display.dayDisplay === 'SLOT_BORDER' ? line(classes.slotBorderLeft, lane) : background),
+          });
+        }
+      }
+      // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
+      // are then (alone, the whole day).
+      for (const [date, slots] of columns) {
+        for (const part of slotColumns(slots)) {
+          result.push({
+            // Its column in the id: a part placed elsewhere is drawn again (see eventDidMount).
+            id: `work:${part.key}:${date}:${part.start}:${part.column}/${part.columns}`,
+            start: `${date}T${part.start}:00`,
+            end: `${date}T${part.end}:00`,
+            ...part.look,
+            classNames: [...((part.look.classNames as string[] | undefined) ?? []), classes.slotColumn],
+            extendedProps: { slotColumn: part.column, slotColumns: part.columns },
           });
         }
       }
@@ -913,6 +938,12 @@ export function CalendarPage() {
           eventDidMount={(info) => {
             const lane: unknown = info.event.extendedProps.slotLane;
             if (typeof lane === 'number') info.el.style.setProperty('--slot-lane', String(lane));
+            // Column of a slot beside those at the same time.
+            const { slotColumn, slotColumns: count } = info.event.extendedProps as { slotColumn?: unknown; slotColumns?: unknown };
+            if (typeof slotColumn === 'number' && typeof count === 'number') {
+              info.el.style.setProperty('--slot-column', String(slotColumn));
+              info.el.style.setProperty('--slot-columns', String(count));
+            }
           }}
           initialView={view}
           initialDate={requestedDate ?? undefined}

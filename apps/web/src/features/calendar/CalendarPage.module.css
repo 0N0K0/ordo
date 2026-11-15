@@ -177,6 +177,16 @@
     opacity: 1 !important;
   }
 
+  /* Planned slots in the background at the same time: side by side, each as wide as the slots there are then. */
+  .slotColumn {
+    /* Position */
+    right: auto !important;
+    left: calc(100% * var(--slot-column, 0) / var(--slot-columns, 1)) !important;
+
+    /* Dimension */
+    width: calc(100% / var(--slot-columns, 1));
+  }
+
   /* Day of planned slots as a thin line at its bottom (month). */
   .slotBorderBottom {
     /* Position */
