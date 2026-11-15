@@ -1,33 +1,25 @@
 import { ActionIcon, Badge, FileButton, Group, Tooltip } from '@mantine/core';
 import { PaperclipIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { StackedValues } from '../../components/data-table/StackedValues';
 import { EditableSelect } from '../../components/data-table/EditableCells';
 import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { openFile } from '../files/open-file';
-import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
+import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
 
 /** Cells do not open the document when used. */
 const stop = (event: React.SyntheticEvent) => event.stopPropagation();
 
 /**
  * Project of a document, chosen in place: drafts and final documents alike (it is not printed on them).
- * @param {{ kind: 'ordo' | 'imported', document: AccountingDocumentSummary | ImportedDocument, projects: TreeOption[] }} props Component props.
+ * @param {{ document: AccountingDocumentSummary | ImportedDocument, projects: TreeOption[], onSave: (projectId: string | null) => void }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function DocumentProjectCell({ kind, document, projects }: { kind: 'ordo' | 'imported'; document: AccountingDocumentSummary | ImportedDocument; projects: TreeOption[] }) {
-  const ordo = useDocumentMutations();
-  const imported = useImportedDocumentMutations();
-  const mutation = kind === 'ordo' ? ordo.setProject : imported.setProject;
+export function DocumentProjectCell({ document, projects, onSave }: { document: AccountingDocumentSummary | ImportedDocument; projects: TreeOption[]; onSave: (projectId: string | null) => void }) {
   return (
     <div onClick={stop}>
-      <EditableSelect
-        value={document.projectId ?? null}
-        label={`Projet de ${document.number ?? 'ce brouillon'}`}
-        nullable
-        {...treeSelectProps(projects)}
-        onSave={(projectId) => mutation.mutate({ id: document.id, projectId }, { onError: (error) => notifyError(error.message) })}
-      />
+      <EditableSelect value={document.projectId ?? null} label={`Projet de ${document.number ?? 'ce brouillon'}`} nullable {...treeSelectProps(projects)} onSave={onSave} />
     </div>
   );
 }
@@ -35,10 +27,10 @@ export function DocumentProjectCell({ kind, document, projects }: { kind: 'ordo'
 /**
  * Attachments of a document made in Ordo: opened in a click, added from the computer, removed (once confirmed);
  * the file of an imported document, opened in a click.
- * @param {{ kind: 'ordo', document: AccountingDocumentSummary } | { kind: 'imported', document: ImportedDocument }} props Component props.
+ * @param {({ kind: 'ordo', document: AccountingDocumentSummary } | { kind: 'imported', document: ImportedDocument }) & { onAdd: (files: File[]) => void }} props Document, and adding files (to it, or to the bulk selection).
  * @returns {JSX.Element} Cell.
  */
-export function DocumentAttachmentsCell(props: { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument }) {
+export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument }) & { onAdd: (files: File[]) => void }) {
   const { addAttachments, removeAttachment } = useDocumentMutations();
   if (props.kind === 'imported') {
     const { document } = props;
@@ -62,45 +54,42 @@ export function DocumentAttachmentsCell(props: { kind: 'ordo'; document: Account
   const { document } = props;
   const name = document.number ?? 'ce brouillon';
   return (
-    <Group gap={4} wrap="wrap" onClick={stop}>
-      {document.attachments.map((attachment) => (
-        <Badge
-          key={attachment.id}
-          size="sm"
-          variant="light"
-          color="gray"
-          tt="none"
-          leftSection={<PaperclipIcon aria-hidden />}
-          style={{ cursor: 'pointer' }}
-          onClick={() => openFile({ url: attachment.url, name: attachment.name })}
-          rightSection={
-            <ActionIcon
-              size="xs"
-              variant="transparent"
-              color="gray"
-              aria-label={`Retirer ${attachment.name}`}
-              onClick={(event) => {
-                stop(event);
-                confirmDestructive({
-                  title: 'Retirer la pièce jointe',
-                  risks: `« ${attachment.name} » sera supprimée définitivement de ${name}.`,
-                  onConfirm: () => removeAttachment.mutate(attachment.id, { onSuccess: () => notifySuccess('Pièce jointe retirée.'), onError: (error) => notifyError(error.message) }),
-                });
-              }}
-            >
-              <XIcon aria-hidden />
-            </ActionIcon>
-          }
-        >
-          {attachment.name.length > 24 ? `${attachment.name.slice(0, 23)}…` : attachment.name}
-        </Badge>
-      ))}
-      <FileButton
-        multiple
-        onChange={(files) =>
-          files.length && addAttachments.mutate({ id: document.id, files }, { onSuccess: () => notifySuccess('Pièces jointes ajoutées.'), onError: (error) => notifyError(error.message) })
-        }
-      >
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop}>
+      <StackedValues>
+        {document.attachments.map((attachment) => (
+          <Badge
+            key={attachment.id}
+            size="sm"
+            variant="light"
+            color="gray"
+            tt="none"
+            leftSection={<PaperclipIcon aria-hidden />}
+            style={{ cursor: 'pointer' }}
+            onClick={() => openFile({ url: attachment.url, name: attachment.name })}
+            rightSection={
+              <ActionIcon
+                size="xs"
+                variant="transparent"
+                color="gray"
+                aria-label={`Retirer ${attachment.name}`}
+                onClick={(event) => {
+                  stop(event);
+                  confirmDestructive({
+                    title: 'Retirer la pièce jointe',
+                    risks: `« ${attachment.name} » sera supprimée définitivement de ${name}.`,
+                    onConfirm: () => removeAttachment.mutate(attachment.id, { onSuccess: () => notifySuccess('Pièce jointe retirée.'), onError: (error) => notifyError(error.message) }),
+                  });
+                }}
+              >
+                <XIcon aria-hidden />
+              </ActionIcon>
+            }
+          >
+            {attachment.name.length > 24 ? `${attachment.name.slice(0, 23)}…` : attachment.name}
+          </Badge>
+        ))}
+      </StackedValues>
+      <FileButton multiple onChange={(files) => files.length && props.onAdd(files)}>
         {(buttonProps) => (
           <Tooltip label="Joindre des fichiers">
             <ActionIcon {...buttonProps} variant="subtle" color="gray" size="sm" loading={addAttachments.isPending} aria-label={`Joindre des fichiers à ${name}`}>

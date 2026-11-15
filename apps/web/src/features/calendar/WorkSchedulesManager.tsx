@@ -15,6 +15,7 @@ import {
 } from '@ordo/shared';
 import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
 import { EditableDate, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
@@ -305,9 +306,10 @@ export function WorkSchedulesManager() {
     (schedules ?? []).map((schedule) => schedule.id),
   );
   const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'name', label: 'Nom', size: 220, locked: true, sortValue: ({ schedule }) => schedule.name, text: ({ schedule }) => schedule.name },
+    { id: 'name', label: 'Nom', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.name, text: ({ schedule }) => schedule.name },
     {
       id: 'type',
+      bulk: true,
       label: 'Type',
       size: 160,
       sortValue: ({ schedule }) => kindName(schedule),
@@ -321,6 +323,7 @@ export function WorkSchedulesManager() {
     },
     {
       id: 'start',
+      bulk: true,
       label: 'Début',
       size: 120,
       sortValue: ({ schedule }) => String(schedule.startDate),
@@ -329,6 +332,7 @@ export function WorkSchedulesManager() {
     },
     {
       id: 'end',
+      bulk: true,
       label: 'Fin',
       size: 120,
       sortValue: ({ schedule }) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31'),
@@ -355,11 +359,13 @@ export function WorkSchedulesManager() {
   const rows = (schedules ?? []).map((schedule) => ({ schedule, state: stateOf(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
   const view = useDataView({
     tableKey: 'work-schedules',
+    getKey: ({ schedule }) => schedule.id,
     columns,
     rows,
     title: perso ? 'Plages' : 'Horaires de travail',
     first: [{ name: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
   });
+  const bulk = bulkSaver<ScheduleRow, Partial<WorkScheduleInput>>(view, (row, change) => Object.keys(change).length > 0 && saveSchedule(row.schedule, change));
 
   if (editing) {
     return editing === 'new' ? (
@@ -418,28 +424,35 @@ export function WorkSchedulesManager() {
           highlightOnHover
           verticalSpacing="xs"
           getKey={({ schedule }) => schedule.id}
-          cells={({ schedule, state: rowState, exceptions }) => {
+          cells={(row) => {
+            const { schedule, state: rowState, exceptions } = row;
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
             const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
             return {
-              name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && saveSchedule(schedule, { name })} />,
+              name: <EditableText value={schedule.name} label={`Nom de ${schedule.name}`} strong onSave={(name) => name && bulk('name')(row, { name })} />,
               type: (
                 <EditableSelect
                   value={schedule.typeId ?? NO_KIND}
                   label={`Type de ${schedule.name}`}
                   leftSection={<ColorSwatch size={10} color={color} />}
                   data={[{ value: NO_KIND, label: defaultName }, ...(types ?? []).map((item) => ({ value: item.id, label: item.name }))]}
-                  onSave={(typeId) => typeId && saveSchedule(schedule, { typeId: typeId === NO_KIND ? null : typeId })}
+                  onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),
-              start: <EditableDate value={String(schedule.startDate).slice(0, 10)} label={`Début de ${schedule.name}`} onSave={(startDate) => startDate && saveSchedule(schedule, { startDate })} />,
+              start: (
+                <EditableDate
+                  value={String(schedule.startDate).slice(0, 10)}
+                  label={`Début de ${schedule.name}`}
+                  onSave={(startDate) => startDate && bulk('start')(row, (target) => (target.schedule.endDate && String(target.schedule.endDate).slice(0, 10) < startDate ? {} : { startDate }))}
+                />
+              ),
               end: (
                 <EditableDate
                   value={schedule.endDate ? String(schedule.endDate).slice(0, 10) : null}
                   label={`Fin de ${schedule.name}`}
                   nullable
                   minDate={String(schedule.startDate).slice(0, 10)}
-                  onSave={(endDate) => saveSchedule(schedule, { endDate })}
+                  onSave={(endDate) => bulk('end')(row, (target) => (endDate && endDate < String(target.schedule.startDate).slice(0, 10) ? {} : { endDate }))}
                 />
               ),
               hours: (

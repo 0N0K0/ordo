@@ -24,7 +24,9 @@ import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type Ch
 import { EntriesPanel } from './EntriesPanel';
 import { DetailsToggle, PayerCell } from './entry-cells';
 import { entryFieldCells, entryFieldColumns } from './entry-columns';
-import { useEntryEnv, type EntryEnv } from './entry-env';
+import { useEntryEnv, type EntryEnv, type EntrySave } from './entry-env';
+import { bulkSaver, changeOf } from '../../components/data-table/bulk-edit';
+import type { EntryValues } from './entry-values';
 import { EntryLinesTable } from './EntryLinesTable';
 import { EntryUrl } from './EntryUrl';
 import { EntryForm } from './EntryForm';
@@ -84,8 +86,16 @@ function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefine
       filter: false,
       groupable: true,
     },
-    { id: 'date', label: 'Date d’exécution', size: 140, sortValue: ({ item }) => item.date, text: ({ item }) => printedDate(item.date), filter: { kind: 'date', value: ({ item }) => item.date } },
-    { id: 'label', label: 'Libellé', size: 320, locked: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
+    {
+      id: 'date',
+      label: 'Date d’exécution',
+      size: 140,
+      bulk: true,
+      sortValue: ({ item }) => item.date,
+      text: ({ item }) => printedDate(item.date),
+      filter: { kind: 'date', value: ({ item }) => item.date },
+    },
+    { id: 'label', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
     {
       id: 'origin',
       label: 'Origine',
@@ -108,6 +118,7 @@ function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefine
     ...entryFieldColumns<ForecastRow>(entryOf, env, { payerName: ({ item }) => item.payerName ?? '', recurrence: true }),
     {
       id: 'amount',
+      bulk: true,
       label: 'Montant',
       size: 130,
       numeric: true,
@@ -236,10 +247,42 @@ export function TreasuryPage() {
     });
   const forecastView = useDataView({
     tableKey: 'treasury-forecast',
+    getKey: forecastKey,
     columns: forecastColumns(forecastOf, env),
     rows: (projection?.items ?? []).map((item, index) => ({ item, index })),
     title: 'Prévisionnel',
   });
+  /**
+   * Saves the forecast entries of rows, each once (a repeating one shows on several rows); rows without entry (an
+   * invoice due…) and changes that do not fit are left out.
+   * @param {ForecastRow[]} rows Rows.
+   * @param {(row: ForecastRow) => Partial<EntryValues>} changeFor Change of each.
+   * @returns {void}
+   */
+  const saveForecasts = (rows: ForecastRow[], changeFor: (row: ForecastRow) => Partial<EntryValues>) => {
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const entry = forecastOf(row);
+      if (!entry || seen.has(entry.id)) continue;
+      seen.add(entry.id);
+      const change = changeFor(row);
+      if (Object.keys(change).length) saveEntry(entry, change);
+    }
+  };
+  const forecastBulk = bulkSaver<ForecastRow, Partial<EntryValues>>(forecastView, (row, change) => saveForecasts([row], () => change), saveForecasts);
+  /**
+   * Save of a column of a row, as the entry cells call it.
+   * @param {ForecastRow} row Row.
+   * @returns {(column: string) => EntrySave} Save of a column.
+   */
+  const forecastSave =
+    (row: ForecastRow) =>
+    (column: string): EntrySave =>
+    (_entry, change) =>
+      forecastBulk(column)(row, (target) => {
+        const entry = forecastOf(target);
+        return entry ? changeOf(change, entry) : {};
+      });
   const close = () => setDialog(null);
   const onError = (error: Error) => notifyError(error.message);
 
@@ -458,12 +501,16 @@ export function TreasuryPage() {
               const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
               const entry = forecastOf(row);
               return {
-                ...(entry ? entryFieldCells(entry, env, saveEntry) : {}),
+                ...(entry ? entryFieldCells(entry, env, forecastSave(row)) : {}),
                 date: (
                   <>
                     {/* A repeating forecast moves by its rule (its form), each other entry by its cell. */}
                     {entry && entry.recurrence == null ? (
-                      <EditableDate value={item.date} label={`Date de ${item.label}`} onSave={(date) => date && saveEntry(entry, { date })} />
+                      <EditableDate
+                        value={item.date}
+                        label={`Date de ${item.label}`}
+                        onSave={(date) => date && forecastSave(row)('date')(entry, (target) => (target.recurrence == null ? { date } : {}))}
+                      />
                     ) : (
                       <Text size="sm">{printedDate(item.date)}</Text>
                     )}
@@ -482,7 +529,11 @@ export function TreasuryPage() {
                       </Anchor>
                     ) : (
                       <Group gap={4} wrap="nowrap">
-                        {entry ? <EditableText value={entry.label} label={`Libellé de ${item.label}`} onSave={(label) => label && saveEntry(entry, { label })} /> : <Text size="sm">{item.label}</Text>}
+                        {entry ? (
+                          <EditableText value={entry.label} label={`Libellé de ${item.label}`} onSave={(label) => label && forecastSave(row)('label')(entry, { label })} />
+                        ) : (
+                          <Text size="sm">{item.label}</Text>
+                        )}
                         <EntryUrl url={entry?.url} label={item.label} />
                         {entry && entry.lines.length > 0 && (
                           <DetailsToggle opened={unfolded.has(forecastKey(row))} count={entry.lines.length} label={item.label} onToggle={() => unfold(forecastKey(row))} />
@@ -491,7 +542,7 @@ export function TreasuryPage() {
                     )}
                   </>
                 ),
-                payer: entry ? <PayerCell entry={entry} env={env} save={saveEntry} /> : <Text size="sm">{item.payerName ?? ''}</Text>,
+                payer: entry ? <PayerCell entry={entry} env={env} save={forecastSave(row)('payer')} /> : <Text size="sm">{item.payerName ?? ''}</Text>,
                 origin: (
                   <>
                     <Badge size="sm" variant="light" color={kind.color}>
@@ -509,7 +560,7 @@ export function TreasuryPage() {
                         suffix="€"
                         signed
                         validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
-                        onSave={(amount) => amount !== null && saveEntry(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
+                        onSave={(amount) => amount !== null && forecastSave(row)('amount')(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
                       />
                     ) : (
                       <>

@@ -166,4 +166,13 @@
     /* Espacement */
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) var(--mantine-spacing-sm) var(--mantine-spacing-xl);
   }
+
+  /* Cell of the bulk selection: a change made in one applies to all. */
+  .cell[data-bulk-selected] {
+    /* Arrière-Plan */
+    background-color: var(--mantine-primary-color-light);
+
+    /* Bordures */
+    box-shadow: inset 0 0 0 1px var(--mantine-primary-color-filled);
+  }
 }

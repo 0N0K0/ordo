@@ -146,6 +146,15 @@ export const COLUMN_GROUP_BY: Partial<Record<TaskColumn, TaskGroupBy>> = {
 
 /** Columns whose cells can be selected and edited together. */
 export const BULK_EDITABLE_COLUMNS: readonly TaskColumn[] = [
+  'title',
+  'project',
+  'beneficiaries',
+  'slots',
+  'parent',
+  'blockedBy',
+  'blocking',
+  'related',
+  'shopping',
   'status',
   'priority',
   'type',

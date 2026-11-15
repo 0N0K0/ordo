@@ -1,4 +1,5 @@
 import { recurrenceSchema } from '@ordo/shared';
+import type { BulkChange } from '../../components/data-table/bulk-edit';
 import { useMemo } from 'react';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import type { TreeOption } from '../../components/tree-select/tree-select';
@@ -12,8 +13,11 @@ import type { LineLink } from './lines';
 /** Entry of a treasury table: actual or forecast. */
 export type AnyEntry = TreasuryEntry | ForecastEntry;
 
-/** Saves fields of an entry changed in a cell. */
-export type EntrySave = (entry: AnyEntry, change: Partial<EntryValues>) => void;
+/** Saves fields of an entry changed in a cell: the same change for each entry of the bulk selection, or made for each. */
+export type EntrySave = (entry: AnyEntry, change: BulkChange<AnyEntry, Partial<EntryValues>>) => void;
+
+/** Saves fields of one entry. */
+export type EntryUpdate = (entry: AnyEntry, change: Partial<EntryValues>) => void;
 
 /** Supporting document of an entry or a line. */
 export type EntryDocument = TreasuryEntry['documents'][number];

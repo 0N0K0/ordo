@@ -20,6 +20,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
 import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
+import { applyDiff, bulkSaver, type BulkChange } from '../../components/data-table/bulk-edit';
 import { inputOf, moveToGroup, NO_GROUP, NO_GROUP_NAME, placeInGroup, shoppingRows, usePeople, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
@@ -28,7 +29,7 @@ import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import type { DataView } from '../../components/data-table/use-data-view';
 import { NoMatch } from '../../components/data-table/GroupHeaderRow';
-import { TableFooter } from '../../components/data-table/TableFooter';
+import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 
 /** What a row is dropped on: a heading or a row of a category (or store), null for the one without. */
 interface DropData {
@@ -91,6 +92,10 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
   grouping: ShoppingGrouping;
   /** Categories offered. */
   categories: ShoppingCategory[];
+  /** Saving of a column (and of its bulk selection). */
+  saveCell: (column: string) => (row: T, change: BulkChange<T, Partial<ShoppingItemInput>>) => void;
+  /** Props of a cell in the bulk selection. */
+  cellProps: DataView<T>['cellProps'];
 }
 
 /**
@@ -98,7 +103,7 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
  * @param {ItemRowProps<T>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
+function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, saveCell, cellProps, check, badge, extra, actions, done }: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
   const {
@@ -114,13 +119,13 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
    * @param {Partial<ShoppingItemInput>} patch Changed fields.
    * @returns {void}
    */
-  const save = (patch: Partial<ShoppingItemInput>) => onSave(item, { ...inputOf(item), ...patch });
+  const save = (column: string, patch: BulkChange<T, Partial<ShoppingItemInput>>) => saveCell(column)(item, patch);
   const name = item.name;
   const cells: Record<string, ReactNode> = {
     name: (
       <>
         <Group gap={4} wrap="nowrap">
-          <TextCell field="name" value={name} label={`Label de ${name}`} readOnly={readOnly} onSave={(value) => value && save({ name: value })} />
+          <TextCell field="name" value={name} label={`Label de ${name}`} readOnly={readOnly} onSave={(value) => value && save('name', { name: value })} />
           {badge?.(item)}
         </Group>
         {item.note && (
@@ -130,11 +135,11 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
         )}
       </>
     ),
-    category: <CategoryCell value={item.categoryId ?? null} categories={categories} label={`Catégorie de ${name}`} readOnly={readOnly} onSave={(categoryId) => save({ categoryId })} />,
-    store: <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save({ storeId })} />,
-    quantity: <NumberCell kind="quantity" value={item.quantity ?? null} label={`Quantité de ${name}`} readOnly={readOnly} onSave={(quantity) => save({ quantity })} />,
-    unit: <UnitCell value={item.unit ?? null} label={`Unité de ${name}`} readOnly={readOnly} onSave={(unit) => save({ unit })} />,
-    unitPrice: <NumberCell kind="price" value={item.unitPrice ?? null} label={`Prix unitaire estimé de ${name}`} readOnly={readOnly} onSave={(unitPrice) => save({ unitPrice })} />,
+    category: <CategoryCell value={item.categoryId ?? null} categories={categories} label={`Catégorie de ${name}`} readOnly={readOnly} onSave={(categoryId) => save('category', { categoryId })} />,
+    store: <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save('store', { storeId })} />,
+    quantity: <NumberCell kind="quantity" value={item.quantity ?? null} label={`Quantité de ${name}`} readOnly={readOnly} onSave={(quantity) => save('quantity', { quantity })} />,
+    unit: <UnitCell value={item.unit ?? null} label={`Unité de ${name}`} readOnly={readOnly} onSave={(unit) => save('unit', { unit })} />,
+    unitPrice: <NumberCell kind="price" value={item.unitPrice ?? null} label={`Prix unitaire estimé de ${name}`} readOnly={readOnly} onSave={(unitPrice) => save('unitPrice', { unitPrice })} />,
     conservation: (
       <ConservationCell
         perishable={item.perishable}
@@ -142,12 +147,31 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
         storages={data?.shoppingStorages ?? []}
         label={`Conservation de ${name}`}
         readOnly={readOnly}
-        onSave={(conservation) => save({ ...conservation, expiresAt: conservation.perishable ? (item.expiresAt ?? null) : null })}
+        onSave={(conservation) => save('conservation', (target) => ({ ...conservation, expiresAt: conservation.perishable ? (target.expiresAt ?? null) : null }))}
       />
     ),
-    expiresAt: <ExpiryCell value={item.expiresAt ?? null} disabled={!item.perishable} label={`Date de péremption de ${name}`} readOnly={readOnly} onSave={(expiresAt) => save({ expiresAt })} />,
-    people: <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Bénéficiaires de ${name}`} readOnly={readOnly} projectIds={projectIds} onSave={(people) => save(people)} />,
-    url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save({ url })} />,
+    expiresAt: (
+      <ExpiryCell
+        value={item.expiresAt ?? null}
+        disabled={!item.perishable}
+        label={`Date de péremption de ${name}`}
+        readOnly={readOnly}
+        onSave={(expiresAt) => save('expiresAt', (target) => (target.perishable ? { expiresAt } : {}))}
+      />
+    ),
+    people: (
+      <PeopleCell
+        memberIds={item.memberIds}
+        relationIds={item.relationIds}
+        label={`Bénéficiaires de ${name}`}
+        readOnly={readOnly}
+        projectIds={projectIds}
+        onSave={(people) =>
+          save('people', (target) => ({ memberIds: applyDiff(target.memberIds, item.memberIds, people.memberIds), relationIds: applyDiff(target.relationIds, item.relationIds, people.relationIds) }))
+        }
+      />
+    ),
+    url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save('url', { url })} />,
     extra: extra?.render(item),
   };
 
@@ -173,7 +197,12 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
         {check(item)}
       </Table.Td>
       {shown.map((column, index) => (
-        <Table.Td key={column.id} className={tableClasses.cell} style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth - 1} * var(--mantine-spacing-lg))` } : undefined}>
+        <Table.Td
+          key={column.id}
+          className={tableClasses.cell}
+          style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth - 1} * var(--mantine-spacing-lg))` } : undefined}
+          {...cellProps(column.id, item.id)}
+        >
           {column.id in cells ? cells[column.id] : column.text?.(item)}
         </Table.Td>
       ))}
@@ -251,6 +280,8 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   // Kept by the view, sorted within their groups (the groups keep their tree).
   const rows = visibleRows(shoppingRows(view.rows, grouping, labels, showEmpty || active !== null), collapsed);
   const columns = shown.length + 3;
+  // A change in a cell saves its row, or every row of the bulk selection of its column.
+  const saveCell = bulkSaver<T, Partial<ShoppingItemInput>>(view, (row, patch) => Object.keys(patch).length > 0 && rowProps.onSave(row, { ...inputOf(row), ...patch }));
 
   /**
    * Folds or unfolds a group.
@@ -294,6 +325,12 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
      */
     const close = () => {
       if (add && open && !collapsed.has(open.id ?? NO_GROUP) && active === null) out.push(addRow(open.id, open.depth + 1, open.name));
+      // The totals chosen in the footer of the table, over the own rows of the group.
+      if (view.config?.footer && open && !collapsed.has(open.id ?? NO_GROUP)) {
+        const groupId = open.id;
+        const own = rows.flatMap((row) => (row.kind === 'item' && row.groupId === groupId ? [row.item] : []));
+        out.push(<GroupFooter key={`footer:${groupId ?? NO_GROUP}`} shown={shown} rows={own} totals={view.config.footer} label={open.name} before={2} after={1} />);
+      }
       open = null;
     };
     for (const row of rows) {
@@ -320,6 +357,8 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
             over={active !== null && overGroup === row.groupId}
             grouping={grouping}
             categories={labels.categories}
+            saveCell={saveCell}
+            cellProps={view.cellProps}
             {...rowProps}
           />,
         );

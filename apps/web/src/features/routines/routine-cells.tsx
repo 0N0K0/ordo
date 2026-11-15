@@ -12,9 +12,10 @@ import { notifyError } from '../../lib/notify';
 import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
 import classes from '../../components/data-table/EditableCells.module.css';
-import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
-import { useRoutineMutations, type Routine, type RoutineCategory } from './api';
+import { StackedMultiCell } from '../../components/data-table/StackedMultiCell';
+import type { Routine, RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
+import { applyDiff } from '../../components/data-table/bulk-edit';
 import { DAILY, describeRoutineCase, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
@@ -75,7 +76,7 @@ interface CellProps {
  * @returns {JSX.Element} Cell.
  */
 export function TitleCell({ routine, readOnly = false }: CellProps) {
-  const { patch } = useRoutineMutations();
+  const { apply } = useRoutineCellEdit(routine, 'title');
   const [draft, setDraft] = useState<string | null>(null);
 
   /**
@@ -90,7 +91,7 @@ export function TitleCell({ routine, readOnly = false }: CellProps) {
       notifyError(`${result.error.issues[0]?.message ?? 'Titre invalide.'} Rien n’a été modifié.`);
       return;
     }
-    if (result.data !== routine.title) patch.mutate({ id: routine.id, input: { title: result.data } }, { onError: (error) => notifyError(error.message) });
+    if (result.data !== routine.title) apply({ title: result.data });
   };
 
   return (
@@ -531,5 +532,18 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
  */
 export function RoutineBeneficiariesCell({ routine, readOnly = false }: CellProps) {
   const { apply, count } = useRoutineCellEdit(routine, 'beneficiaries');
-  return <BeneficiariesCell label={fieldLabel('Bénéficiaires', routine, count)} value={routine} readOnly={readOnly} onSave={(beneficiaries) => apply(beneficiaries)} />;
+  // On a selection, those added here are added to each routine, those removed here removed.
+  return (
+    <BeneficiariesCell
+      label={fieldLabel('Bénéficiaires', routine, count)}
+      value={routine}
+      readOnly={readOnly}
+      onSave={(beneficiaries) =>
+        apply((target) => ({
+          beneficiaryIds: applyDiff(target.beneficiaryIds, routine.beneficiaryIds, beneficiaries.beneficiaryIds),
+          beneficiaryRelationIds: applyDiff(target.beneficiaryRelationIds, routine.beneficiaryRelationIds, beneficiaries.beneficiaryRelationIds),
+        }))
+      }
+    />
+  );
 }

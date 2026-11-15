@@ -3,13 +3,13 @@ import { Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantin
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Fragment, useRef, useState, type ReactNode } from 'react';
-import { tableWidth, type ShownColumn } from './data-table';
+import { tableWidth } from './data-table';
 import { DataTableHeader } from './DataTableHeader';
 import { DataViewBar, type DataViewBarProps } from './DataViewBar';
 import { GroupHeaderRow, NoMatch } from './GroupHeaderRow';
 import { ROW_ACTIONS_WIDTH } from './RowActions';
 import { DRAG_HANDLE_WIDTH, SortableRow } from './SortableRow';
-import { TableFooter } from './TableFooter';
+import { GroupFooter, TableFooter } from './TableFooter';
 import classes from './DataTable.module.css';
 import type { DataView } from './use-data-view';
 
@@ -34,8 +34,6 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   leading?: LeadingCell<R>;
   /** Props of a row (click, style…). Optional. */
   rowProps?: (row: R) => TableTrProps;
-  /** Rows under the body (totals…), given the columns shown and the rows kept (a cell before them with `leading`, one after). Optional. */
-  footer?: (shown: ShownColumn<R>[], rows: R[]) => ReactNode;
   /** What a group heading tells of its rows (a total…), after its count. Optional. */
   groupSummary?: (rows: R[]) => ReactNode;
   /** Tabs and toolbar of the views (search, filters, sorts, options), minus the view. Optional. */
@@ -63,7 +61,6 @@ export function DataTable<R>({
   actionsWidth = ROW_ACTIONS_WIDTH,
   leading,
   rowProps,
-  footer,
   groupSummary,
   bar,
   framed = false,
@@ -115,7 +112,7 @@ export function DataTable<R>({
       <>
         {leading && <Table.Td>{leading.cell(row)}</Table.Td>}
         {shown.map((column) => (
-          <Table.Td key={column.id} className={classes.cell} data-numeric={column.numeric || undefined} ff={column.numeric ? 'monospace' : undefined}>
+          <Table.Td key={column.id} className={classes.cell} data-numeric={column.numeric || undefined} ff={column.numeric ? 'monospace' : undefined} {...view.cellProps(column.id, getKey(row))}>
             {content[column.id]}
           </Table.Td>
         ))}
@@ -199,10 +196,22 @@ export function DataTable<R>({
                       onToggle={() => toggle(group.key)}
                     />,
                     ...(collapsed.has(group.key) ? [] : inOrder(group.rows).map(renderRow)),
+                    ...(view.config?.footer && !collapsed.has(group.key)
+                      ? [
+                          <GroupFooter
+                            key={`footer:${group.key}`}
+                            shown={shown}
+                            rows={group.rows}
+                            totals={view.config.footer}
+                            label={group.label}
+                            before={(draggable ? 1 : 0) + (leading ? 1 : 0)}
+                            after={1}
+                          />,
+                        ]
+                      : []),
                   ])
                 : rows.map(renderRow)}
             </Table.Tbody>
-            {footer?.(shown, rows)}
             {view.config?.footer && (
               <TableFooter
                 shown={shown}

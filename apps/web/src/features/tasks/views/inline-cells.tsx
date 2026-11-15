@@ -16,7 +16,7 @@ import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { notifyError } from '../../../lib/notify';
-import { useTaskBlock, useTaskRelation, useTransferTask, useUpdateTask, type Task, type TaskLabel } from '../api';
+import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useTransferTask, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess } from '../../../lib/notify';
 import { ProjectSelect, TaskSelect } from '../task-ui';
@@ -26,9 +26,10 @@ import { LabelBadge } from '../task-ui';
 import { taskName, taskRef, type TaskContext } from '../use-task-context';
 import { useTaskLink } from '../use-task-link';
 import { useCellEdit } from './cell-edit';
+import { applyDiff } from '../../../components/data-table/bulk-edit';
 import classes from '../../../components/data-table/EditableCells.module.css';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
-import { StackedMultiCell } from './StackedMultiCell';
+import { StackedMultiCell } from '../../../components/data-table/StackedMultiCell';
 import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
 
 /**
@@ -368,6 +369,7 @@ export function AssigneesCell({ task, context }: { task: Task; context: TaskCont
  */
 export function BlockedByCell({ task, context }: { task: Task; context: TaskContext }) {
   const taskBlock = useTaskBlock();
+  const { targets, count } = useCellEdit(task, 'blockedBy');
   const candidates = linkableTasks(context, task.projectId, task.id);
   // Archived blockers stay listed so they can be removed.
   const extra = task.blockedByIds
@@ -375,7 +377,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
   const onError = { onError: (error: Error) => notifyError(error.message) };
-  const label = `Tâches dont dépend la tâche ${taskName(task)}`;
+  const label = count > 1 ? `Tâches dont dépendent les ${count} tâches sélectionnées` : `Tâches dont dépend la tâche ${taskName(task)}`;
   return (
     <StackedMultiCell
       label={label}
@@ -404,11 +406,14 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
           data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${taskName(item)} ${item.title}` }))}
           value={task.blockedByIds}
           onChange={(ids) => {
-            for (const id of ids.filter((item) => !task.blockedByIds.includes(item))) {
-              taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, onError);
-            }
-            for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
-              taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, onError);
+            // On a selection, each selected task gets (or loses) the same blockers.
+            for (const target of targets) {
+              for (const id of ids.filter((item) => !task.blockedByIds.includes(item) && item !== target)) {
+                taskBlock.mutate({ add: true, blockerId: id, blockedId: target }, onError);
+              }
+              for (const id of task.blockedByIds.filter((item) => !ids.includes(item))) {
+                taskBlock.mutate({ add: false, blockerId: id, blockedId: target }, onError);
+              }
             }
           }}
           onDropdownClose={onDropdownClose}
@@ -509,7 +514,19 @@ export function DateCell({ task, column, alert }: DateCellProps) {
  */
 export function TaskBeneficiariesCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'beneficiaries');
-  return <BeneficiariesCell label={fieldLabel('Bénéficiaires', task, count)} value={task} onSave={(beneficiaries) => apply(beneficiaries)} />;
+  // On a selection, those added here are added to each task, those removed here removed.
+  return (
+    <BeneficiariesCell
+      label={fieldLabel('Bénéficiaires', task, count)}
+      value={task}
+      onSave={(beneficiaries) =>
+        apply((target) => ({
+          beneficiaryIds: applyDiff(target.beneficiaryIds, task.beneficiaryIds, beneficiaries.beneficiaryIds),
+          beneficiaryRelationIds: applyDiff(target.beneficiaryRelationIds, task.beneficiaryRelationIds, beneficiaries.beneficiaryRelationIds),
+        }))
+      }
+    />
+  );
 }
 
 /**
@@ -519,20 +536,30 @@ export function TaskBeneficiariesCell({ task }: { task: Task }) {
  */
 export function TaskLinksCell({ task, context, kind }: { task: Task; context: TaskContext; kind: 'blocking' | 'related' }) {
   const taskBlock = useTaskBlock();
+  const { targets, count } = useCellEdit(task, kind);
   const taskRelation = useTaskRelation();
   const ids = kind === 'blocking' ? task.blockingIds : task.relatedIds;
   const candidates = linkableTasks(context, task.projectId, task.id);
   const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
   const onError = { onError: (error: Error) => notifyError(error.message) };
-  const label = kind === 'blocking' ? `Tâches que bloque la tâche ${taskName(task)}` : `Tâches relatives à la tâche ${taskName(task)}`;
+  const label =
+    count > 1
+      ? `${kind === 'blocking' ? 'Tâches que bloquent' : 'Tâches relatives aux'} ${count} tâches sélectionnées`
+      : kind === 'blocking'
+        ? `Tâches que bloque la tâche ${taskName(task)}`
+        : `Tâches relatives à la tâche ${taskName(task)}`;
   /**
-   * Adds or removes a link.
+   * Adds or removes a link, on the edited task or each task of the selection.
    * @param {string} id Other task.
    * @param {boolean} add Added or removed.
    * @returns {void}
    */
-  const link = (id: string, add: boolean) =>
-    kind === 'blocking' ? taskBlock.mutate({ add, blockerId: task.id, blockedId: id }, onError) : taskRelation.mutate({ add, taskId: task.id, otherId: id }, onError);
+  const link = (id: string, add: boolean) => {
+    for (const target of targets.filter((item) => item !== id)) {
+      if (kind === 'blocking') taskBlock.mutate({ add, blockerId: target, blockedId: id }, onError);
+      else taskRelation.mutate({ add, taskId: target, otherId: id }, onError);
+    }
+  };
   return (
     <StackedMultiCell
       label={label}
@@ -567,7 +594,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
  * @returns {JSX.Element} Cell.
  */
 export function ParentCell({ task, context }: { task: Task; context: TaskContext }) {
-  const updateTask = useUpdateTask();
+  const { apply, count } = useCellEdit(task, 'parent');
   const excluded = subtreeIds(context, task.id);
   const candidates = linkableTasks(context, task.projectId, task.id, (candidate) => !excluded.has(candidate.id));
   return (
@@ -576,10 +603,11 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
       tasks={candidates}
       variant="unstyled"
       size="xs"
-      aria-label={`Tâche parente de ${taskName(task)}`}
+      aria-label={fieldLabel('Tâche parente', task, count)}
       placeholder="—"
       value={task.parentId}
-      onChange={(parentId) => updateTask.mutate({ id: task.id, input: { parentId } }, { onError: (error) => notifyError(error.message) })}
+      // A task is not its own parent (the API refuses the other loops).
+      onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
       onClick={stop}
       comboboxProps={{ withinPortal: true }}
     />
@@ -594,23 +622,35 @@ export function ParentCell({ task, context }: { task: Task; context: TaskContext
  */
 export function TaskProjectCell({ task, context }: { task: Task; context: TaskContext }) {
   const transferTask = useTransferTask();
+  const { transfer: bulkTransfer } = useBulkTaskMutations();
+  const { targets, count } = useCellEdit(task, 'project');
   /**
    * Moves the task.
    * @param {string | null} projectId Target project; null: none.
    * @returns {void}
    */
   const move = (projectId: string | null) => {
-    if (projectId === task.projectId) return;
+    if (projectId === task.projectId && count < 2) return;
+    const moved = targets.map((id) => context.taskById.get(id)).filter((item) => item !== undefined);
     const transfer = () =>
-      transferTask.mutate(
+      count > 1
+        ? bulkTransfer.mutate(
+            { ids: targets, projectId },
+            {
+              onSuccess: ({ removedLinks }) => notifySuccess(`${count} tâches déplacées.${removedLinks ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''}`),
+              onError: (error) => notifyError(error.message),
+            },
+          )
+        : transferTask.mutate(
         { id: task.id, projectId },
         {
           onSuccess: ({ removedLinks }) => notifySuccess(`Tâche déplacée.${removedLinks ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''}`),
           onError: (error) => notifyError(error.message),
         },
       );
-    const linked = task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0;
-    if (!linked || context.rootOf(projectId) === context.rootOf(task.projectId)) return transfer();
+    const linked = (item: Task) =>
+      item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
+    if (!moved.some((item) => linked(item) && context.rootOf(projectId) !== context.rootOf(item.projectId))) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
       risks: 'La tâche (et ses sous-tâches) passe dans une autre arborescence : sa tâche parente, ses blocages et relations avec les tâches restées, son jalon et ses sprints seront retirés.',
@@ -623,7 +663,7 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
       context={context}
       variant="unstyled"
       size="xs"
-      aria-label={`Projet de ${taskName(task)}`}
+      aria-label={fieldLabel('Projet', task, count)}
       placeholder="Sans projet"
       clearable
       value={task.projectId}

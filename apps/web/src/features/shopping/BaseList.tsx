@@ -98,7 +98,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       },
     ],
   );
-  const view = useDataView({ tableKey: 'shopping-base-list', columns, rows: products, title: baseList.name, first: BASE_LIST_VIEWS });
+  const view = useDataView({ tableKey: 'shopping-base-list', getKey: (item) => item.id, columns, rows: products, title: baseList.name, first: BASE_LIST_VIEWS });
   const onError = (error: Error) => notifyError(error.message);
 
   return (

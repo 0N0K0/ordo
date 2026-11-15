@@ -1,8 +1,7 @@
 import { Anchor, Popover, Select, Text } from '@mantine/core';
 import { formatDuration, parseDuration } from '@ordo/shared';
 import { useState } from 'react';
-import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { EditableDate, EditableText } from '../../components/data-table/EditableCells';
+import { EditableDate, EditableMultiSelect, EditableText } from '../../components/data-table/EditableCells';
 import { TimeField } from '../../components/TimeField';
 import { localDay } from '../../lib/dates';
 import * as fmt from '../../lib/format';
@@ -13,8 +12,9 @@ import { taskRef, type TaskContext } from '../tasks/use-task-context';
 import { entrySeconds } from '@ordo/shared';
 import type { TimeEntry, TimeEntryValues } from './api';
 import { timeTasks } from './time-tasks';
+import { applyDiff, type BulkChange } from '../../components/data-table/bulk-edit';
 
-type Save = (entry: TimeEntry, change: Partial<TimeEntryValues>) => void;
+type Save = (entry: TimeEntry, change: BulkChange<TimeEntry, Partial<TimeEntryValues>>) => void;
 
 /** Cells do not open the time when used. */
 const stop = (event: React.SyntheticEvent) => event.stopPropagation();
@@ -27,7 +27,13 @@ const stop = (event: React.SyntheticEvent) => event.stopPropagation();
 export function TimeDayCell({ entry, readOnly, save }: { entry: TimeEntry; readOnly: boolean; save: Save }) {
   const start = localParts(new Date(entry.startedAt));
   if (readOnly) return <>{fmt.dayLong(new Date(entry.startedAt))}</>;
-  return <EditableDate value={start.date} label="Jour de ce temps" onSave={(date) => date && date !== start.date && save(entry, { startedAt: new Date(`${date}T${start.time}`).toISOString() })} />;
+  return (
+    <EditableDate
+      value={start.date}
+      label="Jour de ce temps"
+      onSave={(date) => date && date !== start.date && save(entry, (row) => ({ startedAt: new Date(`${date}T${localParts(new Date(row.startedAt)).time}`).toISOString() }))}
+    />
+  );
 }
 
 /**
@@ -44,7 +50,7 @@ export function TimeStartCell({ entry, readOnly, save }: { entry: TimeEntry; rea
       size="xs"
       aria-label="Heure de début de ce temps"
       value={start.time}
-      onChange={(time) => time && time !== start.time && save(entry, { startedAt: new Date(`${start.date}T${time}`).toISOString() })}
+      onChange={(time) => time && time !== start.time && save(entry, (row) => ({ startedAt: new Date(`${localParts(new Date(row.startedAt)).date}T${time}`).toISOString() }))}
       onClick={stop}
     />
   );
@@ -109,18 +115,12 @@ export function TimeRoutineCell({ entry, readOnly, save }: { entry: TimeEntry; r
 export function TimeTasksCell({ entry, context, readOnly, save }: { entry: TimeEntry; context: TaskContext; readOnly: boolean; save: Save }) {
   const options = timeTasks(context, entry.projectId ?? null, entry.taskIds).map((task) => ({ value: task.id, label: `${taskRef(task)}${task.title}` }));
   return (
-    <BatchMultiSelect
-      variant="unstyled"
-      size="xs"
-      aria-label="Tâches de ce temps"
-      placeholder={entry.taskIds.length ? undefined : '—'}
+    <EditableMultiSelect
+      label="Tâches de ce temps"
       data={options}
       value={entry.taskIds}
       readOnly={readOnly}
-      onChange={(taskIds) => save(entry, { taskIds })}
-      onClick={stop}
-      searchable
-      comboboxProps={{ withinPortal: true }}
+      onSave={(taskIds) => save(entry, (row) => ({ taskIds: applyDiff(row.taskIds, entry.taskIds, taskIds) }))}
     />
   );
 }
