@@ -1,6 +1,6 @@
 import { ActionIcon, Button, Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_RECURRENCE, type Recurrence, type RecurrenceFrequency } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, isoWeek, weekdayOf, type Recurrence, type RecurrenceFrequency } from '@ordo/shared';
 import { PauseIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { describeRecurrence, formatDayMonth, formatLongDate, monthOf, WEEKDAY_NAMES, weekdayOfMonth } from './describe-recurrence';
 
@@ -50,7 +50,12 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
           allowDeselect={false}
           comboboxProps={comboboxProps}
           onChange={(frequency) =>
-            onChange(frequency === 'NONE' || !frequency ? null : { ...(rule ?? DEFAULT_RECURRENCE), frequency: frequency as RecurrenceFrequency })
+            onChange(frequency === 'NONE' || !frequency ? null : {
+                  ...(rule ?? DEFAULT_RECURRENCE),
+                  frequency: frequency as RecurrenceFrequency,
+                  // The week of the year is a yearly choice.
+                  ...(frequency !== 'YEARLY' && rule?.monthlyMode === 'WEEK' ? { monthlyMode: 'DAY' as const } : {}),
+                })
           }
         />
         {rule && !(rule.frequency === 'WEEKLY' && rule.weekParity) && (
@@ -94,6 +99,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
         <SegmentedControl
           size="xs"
           value={rule.monthlyMode}
+          // A month repeats a day or a weekday: the week of the year is a yearly choice.
           onChange={(monthlyMode) => update({ monthlyMode: monthlyMode as Recurrence['monthlyMode'] })}
           data={
             rule.frequency === 'MONTHLY'
@@ -104,6 +110,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
               : [
                   { value: 'DAY', label: `Le ${formatDayMonth(start)}` },
                   { value: 'WEEKDAY', label: `${weekdayOfMonth(start).replace(/^le /, 'Le ')} ${monthOf(start)}` },
+                  { value: 'WEEK', label: `Le ${WEEKDAY_NAMES[weekdayOf(start) - 1]} de la semaine ${isoWeek(start)}` },
                 ]
           }
         />

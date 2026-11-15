@@ -40,6 +40,11 @@ export interface DataColumn<R> {
   filter?: ColumnFilter<R> | false;
   /** The rows can be grouped by its values (its text, in the order of its sort value). Optional. Default = false. */
   groupable?: boolean;
+  /**
+   * Its cells are edited in bulk: selected (Ctrl / ⌘ + click, Shift + click for a range, or « Sélectionner la colonne »),
+   * a change made in one of them applies to all. Optional. Default = false.
+   */
+  bulk?: boolean;
 }
 
 /** Column shown, with its width. */

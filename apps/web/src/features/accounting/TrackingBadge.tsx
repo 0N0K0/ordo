@@ -54,10 +54,10 @@ export function StatusMenu({ type, current, onSelect, pending }: StatusMenuProps
 
 /**
  * Status menu of a final document of Ordo.
- * @param {{ document: TrackedDocument }} props Component props.
+ * @param {{ document: TrackedDocument, onSelect?: (status: { id: string, category: string }) => void }} props Document, and what a chosen status does (default: set on it).
  * @returns {JSX.Element} Menu.
  */
-function DocumentStatusMenu({ document }: { document: TrackedDocument }) {
+function DocumentStatusMenu({ document, onSelect }: { document: TrackedDocument; onSelect?: (status: { id: string; category: string }) => void }) {
   const { setStatus, markSent } = useTrackingMutations();
   return (
     <StatusMenu
@@ -65,15 +65,17 @@ function DocumentStatusMenu({ document }: { document: TrackedDocument }) {
       current={document.trackingStatus}
       pending={setStatus.isPending}
       onSelect={(status) =>
-        // A "sent" status asks when and how it was sent.
-        status.category === 'SENT'
-          ? openSentDialog({
-              title: `Envoi de ${document.number ?? 'ce document'}`,
-              sentAt: document.sentAt,
-              sentVia: document.sentVia,
-              onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
-            })
-          : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+        onSelect
+          ? onSelect(status)
+          : // A "sent" status asks when and how it was sent.
+            status.category === 'SENT'
+            ? openSentDialog({
+                title: `Envoi de ${document.number ?? 'ce document'}`,
+                sentAt: document.sentAt,
+                sentVia: document.sentVia,
+                onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
+              })
+            : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
       }
     />
   );
@@ -82,10 +84,10 @@ function DocumentStatusMenu({ document }: { document: TrackedDocument }) {
 /**
  * Tracking of a document: its status (draft, or configurable status of a final document, changed from its menu
  * when `editable`), and "overdue" for an invoice still due after its due date or a quote waiting after its validity.
- * @param {{ document: TrackedDocument, editable?: boolean }} props Component props.
+ * @param {{ document: TrackedDocument, editable?: boolean, onSelect?: (status: { id: string, category: string }) => void }} props Document, editable, and what a chosen status does (default: set on it). Optional.
  * @returns {JSX.Element} Badges.
  */
-export function TrackingBadge({ document, editable = false }: { document: TrackedDocument; editable?: boolean }) {
+export function TrackingBadge({ document, editable = false, onSelect }: { document: TrackedDocument; editable?: boolean; onSelect?: (status: { id: string; category: string }) => void }) {
   if (document.status !== 'FINAL') {
     return (
       <Badge size="sm" variant="light" color="gray">
@@ -96,7 +98,7 @@ export function TrackingBadge({ document, editable = false }: { document: Tracke
   return (
     <Group gap={4} wrap="nowrap">
       {editable ? (
-        <DocumentStatusMenu document={document} />
+        <DocumentStatusMenu document={document} onSelect={onSelect} />
       ) : (
         document.trackingStatus && (
           <Badge size="sm" variant="light" color={document.trackingStatus.color}>

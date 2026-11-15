@@ -9,7 +9,11 @@ import { notifyError } from '../../lib/notify';
 import { AddressInput, type AddressValue } from '../geo/AddressInput';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { useSlotRules } from '../slot-rules/use-slot-rules';
-import { useRoutineMutations, type Routine, type RoutinePatchValues } from './api';
+import { useRoutineMutations, type Routine } from './api';
+import { useRoutineCellEdit } from './routine-cell-edit';
+import { applyDiff } from '../../components/data-table/bulk-edit';
+import { EditableMultiSelect } from '../../components/data-table/EditableCells';
+import { StackedValues } from '../../components/data-table/StackedValues';
 import { openRoutineForm } from './open-routine-form';
 import { OpensOnInput } from './OpensOnInput';
 import { ruleOf } from './routine-format';
@@ -19,13 +23,11 @@ import { ROUTINE_REMINDERS } from './routine-format';
 const stop = (event: React.SyntheticEvent) => event.stopPropagation();
 
 /**
- * Saves a change of a routine made in a cell.
- * @returns {(routine: Routine, input: RoutinePatchValues) => void} Saver.
+ * Whether a routine has its own times (not those of cases or of a schedule).
+ * @param {Routine} routine Routine.
+ * @returns {boolean} Own times.
  */
-function usePatch() {
-  const { patch } = useRoutineMutations();
-  return (routine: Routine, input: RoutinePatchValues) => patch.mutate({ id: routine.id, input }, { onError: (error) => notifyError(error.message) });
-}
+const hasOwnTimes = (routine: Routine) => !routine.scheduleId && !(routine.cases as unknown[] | null)?.length;
 
 /**
  * Parent routine cell: chosen in place (not itself nor one of its sub-routines).
@@ -33,7 +35,7 @@ function usePatch() {
  * @returns {JSX.Element} Cell.
  */
 export function ParentRoutineCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
-  const save = usePatch();
+  const { apply } = useRoutineCellEdit(routine, 'parent');
   const below = new Set([routine.id]);
   for (let grown = true; grown;) {
     grown = false;
@@ -58,7 +60,8 @@ export function ParentRoutineCell({ routine, routines }: { routine: Routine; rou
       searchable
       {...treeSelectProps(options)}
       value={routine.parentId ?? null}
-      onChange={(parentId) => save(routine, { parentId })}
+      // A routine is not its own parent (the API refuses the other loops).
+      onChange={(parentId) => apply((target) => (target.id === parentId ? {} : { parentId }))}
       onClick={stop}
       comboboxProps={{ withinPortal: true }}
     />
@@ -73,10 +76,14 @@ export function ParentRoutineCell({ routine, routines }: { routine: Routine; rou
 export function SubRoutinesCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
   const children = routines.filter((other) => other.parentId === routine.id && !other.archived);
   return (
-    <Group gap={4} wrap="nowrap" onClick={stop} style={{ minWidth: 0 }}>
-      <Text size="sm" truncate style={{ minWidth: 0 }} title={children.map((child) => child.title).join(', ')}>
-        {children.map((child) => child.title).join(', ')}
-      </Text>
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop} style={{ minWidth: 0 }}>
+      <StackedValues>
+        {children.map((child) => (
+          <Text key={child.id} size="sm" truncate>
+            {child.title}
+          </Text>
+        ))}
+      </StackedValues>
       <Tooltip label="Ajouter une sous-routine">
         <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-routine à ${routine.title}`} onClick={() => openRoutineForm({ parent: routine })} style={{ flex: 'none' }}>
           <PlusIcon aria-hidden />
@@ -93,8 +100,8 @@ export function SubRoutinesCell({ routine, routines }: { routine: Routine; routi
  * @returns {JSX.Element} Cell.
  */
 export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fromTime' | 'dueTime' }) {
-  const save = usePatch();
-  const ownTimes = !routine.scheduleId && !(routine.cases as unknown[] | null)?.length;
+  const { apply } = useRoutineCellEdit(routine, field);
+  const ownTimes = hasOwnTimes(routine);
   if (!ownTimes) {
     return (
       <Text size="xs" c="dimmed">
@@ -108,7 +115,7 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
       size="xs"
       aria-label={`${field === 'fromTime' ? 'À partir de' : 'Avant'} (${routine.title})`}
       value={routine[field] ?? ''}
-      onChange={(value) => value !== (routine[field] ?? '') && save(routine, { [field]: value || null })}
+      onChange={(value) => value !== (routine[field] ?? '') && apply((target) => (hasOwnTimes(target) ? { [field]: value || null } : {}))}
       onClick={stop}
       clearable
     />
@@ -121,7 +128,7 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
  * @returns {JSX.Element} Cell.
  */
 export function LocationCell({ routine }: { routine: Routine }) {
-  const save = usePatch();
+  const { apply } = useRoutineCellEdit(routine, 'location');
   const [draft, setDraft] = useState<AddressValue | null>(null);
   const current: AddressValue = { text: routine.location ?? '', point: routine.locationLat != null && routine.locationLon != null ? { lat: routine.locationLat, lon: routine.locationLon } : null };
   return (
@@ -140,7 +147,7 @@ export function LocationCell({ routine }: { routine: Routine }) {
           onChange={(value) => {
             setDraft(value);
             // Saved once a proposed address is chosen, or when the text is cleared.
-            if (value.point || !value.text.trim()) save(routine, { location: value.text.trim() || null, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null });
+            if (value.point || !value.text.trim()) apply({ location: value.text.trim() || null, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null });
           }}
         />
       </Popover.Dropdown>
@@ -154,7 +161,7 @@ export function LocationCell({ routine }: { routine: Routine }) {
  * @returns {JSX.Element} Cell.
  */
 export function TravelCell({ routine, field }: { routine: Routine; field: 'travelBefore' | 'travelAfter' }) {
-  const save = usePatch();
+  const { apply } = useRoutineCellEdit(routine, field);
   const [draft, setDraft] = useState<string | number | null>(null);
   return (
     <NumberInput
@@ -173,7 +180,7 @@ export function TravelCell({ routine, field }: { routine: Routine; field: 'trave
         if (draft === null) return;
         setDraft(null);
         const minutes = draft === '' ? 0 : Number(draft);
-        if (Number.isFinite(minutes) && minutes !== routine[field]) save(routine, { [field]: minutes });
+        if (Number.isFinite(minutes) && minutes !== routine[field]) apply({ [field]: minutes });
       }}
       onClick={stop}
       styles={{ input: { textAlign: 'right' } }}
@@ -187,7 +194,7 @@ export function TravelCell({ routine, field }: { routine: Routine; field: 'trave
  * @returns {JSX.Element} Cell.
  */
 export function RemindersCell({ routine }: { routine: Routine }) {
-  const save = usePatch();
+  const { apply } = useRoutineCellEdit(routine, 'alarms');
   const labels = new Map(ROUTINE_REMINDERS.map((preset) => [preset.value, preset.label]));
   return (
     <Popover position="bottom-start" withinPortal shadow="md" width={280}>
@@ -210,7 +217,14 @@ export function RemindersCell({ routine }: { routine: Routine }) {
             label="Alertes"
             data={ROUTINE_REMINDERS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
             value={routine.reminders.map(String)}
-            onChange={(values) => save(routine, { reminders: values.map(Number).sort((a, b) => a - b) })}
+            // On a selection, those added here are added to each routine, those removed here removed.
+            onChange={(values) =>
+              apply((target) => ({
+                reminders: applyDiff(target.reminders.map(String), routine.reminders.map(String), values)
+                  .map(Number)
+                  .sort((a, b) => a - b),
+              }))
+            }
             comboboxProps={{ withinPortal: false }}
           />
           <Text size="xs" c="dimmed">
@@ -228,7 +242,7 @@ export function RemindersCell({ routine }: { routine: Routine }) {
  * @returns {JSX.Element} Cell.
  */
 export function OpensOnCell({ routine }: { routine: Routine }) {
-  const save = usePatch();
+  const { apply } = useRoutineCellEdit(routine, 'opensOn');
   const rule = ruleOf(routine);
   const frequency = rule?.frequency;
   if (routine.scheduleId || (routine.cases as unknown[] | null)?.length || (frequency !== 'MONTHLY' && frequency !== 'YEARLY')) {
@@ -243,7 +257,11 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
         </Anchor>
       </Popover.Target>
       <Popover.Dropdown onClick={stop}>
-        <OpensOnInput frequency={frequency} value={routine.opensOn ?? null} onChange={(opensOn) => save(routine, { opensOn })} />
+        <OpensOnInput
+          frequency={frequency}
+          value={routine.opensOn ?? null} // The day is that of a month, or of a year: only routines of the same frequency take it.
+          onChange={(opensOn) => apply((target) => (hasOwnTimes(target) && ruleOf(target)?.frequency === frequency ? { opensOn } : {}))}
+        />
       </Popover.Dropdown>
     </Popover>
   );
@@ -255,7 +273,7 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
  * @returns {JSX.Element} Cell.
  */
 export function RoutineSlotsCell({ routine }: { routine: Routine }) {
-  const save = usePatch();
+  const { apply } = useRoutineCellEdit(routine, 'slots');
   const { describe, ruleOf: ruleOfSlots } = useSlotRules();
   const own = readSlotRule(routine.slotRule);
   return (
@@ -267,7 +285,7 @@ export function RoutineSlotsCell({ routine }: { routine: Routine }) {
         </Anchor>
       </Popover.Target>
       <Popover.Dropdown onClick={stop}>
-        <SlotRuleInput value={own} onChange={(slotRule: SlotRule | null) => save(routine, { slotRule })} />
+        <SlotRuleInput value={own} onChange={(slotRule: SlotRule | null) => apply({ slotRule })} />
       </Popover.Dropdown>
     </Popover>
   );
@@ -279,27 +297,27 @@ export function RoutineSlotsCell({ routine }: { routine: Routine }) {
  * @returns {JSX.Element} Cell.
  */
 export function BlocksCell({ routine, routines }: { routine: Routine; routines: Routine[] }) {
-  const save = usePatch();
+  const { patch } = useRoutineMutations();
+  const { targets } = useRoutineCellEdit(routine, 'blocks');
   const waiting = routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
   return (
-    <BatchMultiSelect
-      variant="unstyled"
-      size="xs"
-      aria-label={`Routines qu’attend ${routine.title}`}
-      placeholder={waiting.length ? undefined : '—'}
-      data={routines.filter((other) => other.id !== routine.id && !other.archived).map((other) => ({ value: other.id, label: other.title }))}
+    <EditableMultiSelect
+      label={`Routines qu’attend ${routine.title}`}
+      data={routines.filter((other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))).map((other) => ({ value: other.id, label: other.title }))}
       value={waiting}
-      onChange={(next) => {
+      onSave={(next) => {
+        // Those added here wait for this routine (and each one of the selection), those removed here no more.
+        const added = next.filter((id) => !waiting.includes(id));
+        const removed = waiting.filter((id) => !next.includes(id));
         for (const other of routines) {
-          const wants = next.includes(other.id);
-          const has = other.requiredIds.includes(routine.id);
-          if (wants && !has) save(other, { requiredIds: [...other.requiredIds, routine.id] });
-          if (!wants && has) save(other, { requiredIds: other.requiredIds.filter((id) => id !== routine.id) });
+          let required = other.requiredIds;
+          if (added.includes(other.id)) required = [...new Set([...required, ...targets.filter((id) => id !== other.id)])];
+          if (removed.includes(other.id)) required = required.filter((id) => !targets.includes(id));
+          if (required.length !== other.requiredIds.length || required.some((id) => !other.requiredIds.includes(id))) {
+            patch.mutate({ id: other.id, input: { requiredIds: required } }, { onError: (error) => notifyError(error.message) });
+          }
         }
       }}
-      onClick={stop}
-      searchable
-      comboboxProps={{ withinPortal: true }}
     />
   );
 }

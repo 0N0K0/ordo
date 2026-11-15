@@ -81,7 +81,7 @@ import classes from './Routines.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
-import { TableFooter } from '../../components/data-table/TableFooter';
+import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, RoutineSlotsCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from './extra-cells';
 
 /** Width of the cells around the columns: handle and selection before, actions after. */
@@ -90,7 +90,20 @@ const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
 /** Bulk-editable columns and their cell selection column. */
 const CELL_COLUMNS: Record<string, RoutineColumn> = {
+  title: 'title',
   currentDate: 'repetition',
+  repetition: 'repetition',
+  fromTime: 'fromTime',
+  dueTime: 'dueTime',
+  opensOn: 'opensOn',
+  slots: 'slots',
+  location: 'location',
+  travelBefore: 'travelBefore',
+  travelAfter: 'travelAfter',
+  alarms: 'alarms',
+  beneficiaries: 'beneficiaries',
+  blocks: 'blocks',
+  parent: 'parent',
   estimate: 'estimate',
   assignees: 'assignees',
   categories: 'categories',
@@ -777,8 +790,28 @@ export function RoutineTable({
   const dropOn = (row: Extract<RoutineRow, { kind: 'routine' }>): RoutinePlace | null =>
     dragged !== null && drop?.id === `routine:${row.key}` && canPlace(dragged, row.routine, drop.place) ? drop.place : null;
 
+  // Columns of the footers: numbers of the numeric columns, the text of the others (counted).
+  const footerCols = footer
+    ? shownCols.map((column) => ({
+      ...column,
+      // Numbers of the numeric columns, the text of the others (counted).
+      sortValue:
+        column.id === 'estimate'
+          ? (routine: Routine) => routine.estimate ?? null
+          : column.id === 'trackedTime'
+            ? (routine: Routine) => routine.trackedSeconds || null
+            : column.id === 'comments'
+              ? (routine: Routine) => commentTotal(comments, routine.id, routine.description) || null
+              : undefined,
+      text: footer.texts[column.id] ?? (() => ''),
+      numeric: ['estimate', 'trackedTime', 'comments'].includes(column.id),
+      formatTotal: column.id === 'trackedTime' ? (seconds: number) => formatDuration(Math.round(seconds)) : column.id === 'estimate' ? (minutes: number) => `${fmt.number(minutes, 0)} min` : undefined,
+    }))
+    : [];
+
   /**
-   * Rows of the body, with the "add" row at the end of each unfolded category.
+   * Rows of the body, with the "add" row and the footer (the totals chosen in the footer of the table) at the end of
+   * each unfolded category.
    * @returns {JSX.Element[]} Rows.
    */
   const body = () => {
@@ -825,13 +858,15 @@ export function RoutineTable({
       }
       // End of the own routines of a category: the next row is a heading (or the end).
       const next = shown[index + 1];
-      if (!addable || (next && next.kind !== 'group')) return;
-      const group = shown
-        .slice(0, index + 1)
-        .reverse()
-        .find((item): item is Extract<RoutineRow, { kind: 'group' }> => item.kind === 'group');
-      if (!group || collapsed.has(group.id ?? NO_CATEGORY)) return;
-      out.push(<AddRoutineRow key={`add:${group.id ?? NO_CATEGORY}`} span={span} categoryId={group.id} projectId={projectId} depth={group.depth + 1} groupName={group.name} />);
+      if (next && next.kind !== 'group') return;
+      const groupIndex = shown.slice(0, index + 1).findLastIndex((item) => item.kind === 'group');
+      const group = shown[groupIndex];
+      if (!group || group.kind !== 'group' || collapsed.has(group.id ?? NO_CATEGORY)) return;
+      if (addable) out.push(<AddRoutineRow key={`add:${group.id ?? NO_CATEGORY}`} span={span} categoryId={group.id} projectId={projectId} depth={group.depth + 1} groupName={group.name} />);
+      if (footer) {
+        const own = shown.slice(groupIndex + 1, index + 1).flatMap((item) => (item.kind === 'routine' ? [item.routine] : []));
+        out.push(<GroupFooter key={`footer:${group.id ?? NO_CATEGORY}`} shown={footerCols} rows={[...new Set(own)]} totals={footer.totals} label={group.name} before={1} after={1} />);
+      }
     });
     if (addable && !rows.some((row) => row.kind === 'group')) out.push(<AddRoutineRow key="add" span={span} categoryId={null} projectId={projectId} depth={0} groupName="les routines" />);
     return out;
@@ -890,21 +925,7 @@ export function RoutineTable({
             <Table.Tbody>{body()}</Table.Tbody>
             {footer && (
               <TableFooter
-                shown={shownCols.map((column) => ({
-                  ...column,
-                  // Numbers of the numeric columns, the text of the others (counted).
-                  sortValue:
-                    column.id === 'estimate'
-                      ? (routine: Routine) => routine.estimate ?? null
-                      : column.id === 'trackedTime'
-                        ? (routine: Routine) => routine.trackedSeconds || null
-                        : column.id === 'comments'
-                          ? (routine: Routine) => commentTotal(comments, routine.id, routine.description) || null
-                          : undefined,
-                  text: footer.texts[column.id] ?? (() => ''),
-                  numeric: ['estimate', 'trackedTime', 'comments'].includes(column.id),
-                  formatTotal: column.id === 'trackedTime' ? (seconds: number) => formatDuration(Math.round(seconds)) : column.id === 'estimate' ? (minutes: number) => `${fmt.number(minutes, 0)} min` : undefined,
-                }))}
+                shown={footerCols}
                 rows={[...new Map(routineRowsShown.map((row) => [row.routine.id, row.routine])).values()]}
                 totals={footer.totals}
                 onChange={footer.onChange}

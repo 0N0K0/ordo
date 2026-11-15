@@ -1,5 +1,6 @@
 import { Button, Group, Select } from '@mantine/core';
 import { FileCsvIcon, FilePdfIcon } from '@phosphor-icons/react';
+import { BulkHint } from './BulkHint';
 import { useState, type ReactNode } from 'react';
 import { notifyError } from '../../lib/notify';
 import { FieldsFilterBuilder } from '../../features/tasks/views/FilterBuilder';
@@ -154,6 +155,7 @@ export function DataViewBar<R>({
           {tools}
         </TableToolbar>
       )}
+      <BulkHint selection={view.selection} labelOf={(id) => view.columns.find((column) => column.id === id)?.label ?? ''} onClear={() => view.setSelection(null)} />
     </>
   );
 }

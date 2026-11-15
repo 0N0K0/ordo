@@ -1,4 +1,4 @@
-import { addDays, formatDay, occurrenceDates, zonedInstant, type Recurrence } from '@ordo/shared';
+import { addDays, formatDay, isoWeek, occurrenceDates, zonedInstant, type Recurrence } from '@ordo/shared';
 import { prisma } from '../db';
 import type { CalendarEvent, CalendarEventException } from '../generated/prisma/client';
 import { notFound } from '../graphql/errors';
@@ -81,7 +81,7 @@ function moment(name: string, day: string, time: string | null, timeZone: string
  */
 function clampedDates(rule: Recurrence, start: string, until: string | null): string[] {
   const day = Number(start.slice(8, 10));
-  if (day <= 28 || !(rule.frequency === 'YEARLY' || (rule.frequency === 'MONTHLY' && rule.monthlyMode === 'DAY'))) return [];
+  if (day <= 28 || rule.monthlyMode !== 'DAY' || (rule.frequency !== 'YEARLY' && rule.frequency !== 'MONTHLY')) return [];
   const horizon = addDays(start, 366 * HORIZON_YEARS);
   const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
   return occurrenceDates(pattern, start, start, until && until < horizon ? until : horizon).filter((date) => Number(date.slice(8, 10)) !== day);
@@ -110,7 +110,14 @@ function rrule(rule: Recurrence, start: string, time: string | null, timeZone: s
       parts.push(`BYDAY=${position}${WEEKDAYS[isoWeekday - 1]}`);
     } else parts.push(`BYMONTHDAY=${first.getUTCDate()}`);
   }
-  if (rule.frequency === 'YEARLY') parts.push(`BYMONTH=${first.getUTCMonth() + 1}`, `BYMONTHDAY=${first.getUTCDate()}`);
+  if (rule.frequency === 'YEARLY') {
+    if (rule.monthlyMode === 'WEEK') parts.push(`BYWEEKNO=${isoWeek(start)}`, `BYDAY=${WEEKDAYS[isoWeekday - 1]}`, 'WKST=MO');
+    else if (rule.monthlyMode === 'WEEKDAY') {
+      const daysInMonth = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+      const position = first.getUTCDate() + 7 > daysInMonth ? -1 : Math.ceil(first.getUTCDate() / 7);
+      parts.push(`BYMONTH=${first.getUTCMonth() + 1}`, `BYDAY=${position}${WEEKDAYS[isoWeekday - 1]}`);
+    } else parts.push(`BYMONTH=${first.getUTCMonth() + 1}`, `BYMONTHDAY=${first.getUTCDate()}`);
+  }
   let until = rule.until;
   if (rule.count !== null) {
     const dates = occurrenceDates(rule, start, start, addDays(start, 366 * 100));

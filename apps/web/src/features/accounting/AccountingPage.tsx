@@ -20,6 +20,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
 import { EditableSelect, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
@@ -68,7 +69,7 @@ function repetitionText(item: RecurringInvoice): string {
 
 /** Columns of the recurring invoices. */
 const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
-  { id: 'name', label: 'Nom', size: 280, locked: true, sortValue: (item) => item.name, text: (item) => item.name },
+  { id: 'name', label: 'Nom', size: 280, locked: true, bulk: true, sortValue: (item) => item.name, text: (item) => item.name },
   { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null, text: (item) => item.template.clientName ?? '', groupable: true },
   { id: 'repetition', label: 'Répétition', size: 240, text: repetitionText, groupable: true },
   {
@@ -126,7 +127,8 @@ function RecurringList() {
       { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: String(item.startDate).slice(0, 10), autoFinalize: item.autoFinalize, active: item.active, ...change } },
       { onError: (error) => notifyError(error.message) },
     );
-  const view = useDataView({ tableKey: 'recurring-invoices', columns: RECURRING_COLUMNS, rows: recurring ?? [], title: 'Factures récurrentes' });
+  const view = useDataView({ tableKey: 'recurring-invoices', getKey: (item) => item.id, columns: RECURRING_COLUMNS, rows: recurring ?? [], title: 'Factures récurrentes' });
+  const bulk = bulkSaver(view, saveRecurring);
   if (isPending) return <TableSkeleton rows={3} />;
 
   /**
@@ -160,7 +162,7 @@ function RecurringList() {
           name: (
             <>
               <Group gap={6} wrap="nowrap">
-                <EditableText value={item.name} label={`Nom de ${item.name}`} strong onSave={(name) => name && saveRecurring(item, { name })} />
+                <EditableText value={item.name} label={`Nom de ${item.name}`} strong onSave={(name) => name && bulk('name')(item, { name })} />
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
                     En pause
@@ -188,7 +190,7 @@ function RecurringList() {
                 { value: 'active', label: 'Active' },
                 { value: 'paused', label: 'En pause' },
               ]}
-              onSave={(state) => state && saveRecurring(item, { active: state === 'active' })}
+              onSave={(state) => state && bulk('state')(item, { active: state === 'active' })}
             />
           ),
           issued: item.issuedCount,

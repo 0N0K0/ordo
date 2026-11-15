@@ -7,6 +7,7 @@ import { Badge, Button, Checkbox, Group, SegmentedControl, Select, SimpleGrid, S
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
@@ -25,9 +26,10 @@ let modalCount = 0;
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
-  { id: 'title', label: 'Article', size: 320, locked: true, sortValue: (item) => item.title, text: (item) => item.title },
+  { id: 'title', label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.title, text: (item) => item.title },
   {
     id: 'kind',
+    bulk: true,
     label: 'Nature',
     size: 120,
     hiddenByDefault: true,
@@ -43,10 +45,11 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
     },
     groupable: true,
   },
-  { id: 'unit', label: 'Unité', size: 120, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
-  { id: 'price', label: 'Prix HT', size: 120, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
+  { id: 'unit', label: 'Unité', size: 120, bulk: true, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
+  { id: 'price', label: 'Prix HT', size: 120, bulk: true, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
   {
     id: 'vat',
+    bulk: true,
     label: 'TVA',
     size: 90,
     numeric: true,
@@ -56,6 +59,7 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
   },
   {
     id: 'archived',
+    bulk: true,
     label: 'Archivé',
     size: 100,
     hiddenByDefault: true,
@@ -200,11 +204,13 @@ export function CatalogPanel() {
   );
   const view = useDataView({
     tableKey: 'catalog',
+    getKey: (item) => item.id,
     columns: [...CATALOG_COLUMNS, commentColumn<CatalogItem>(itemComments, (item) => item.id)],
     rows: items ?? [],
     title: 'Catalogue',
     first: CATALOG_VIEWS,
   });
+  const bulk = bulkSaver(view, saveItem);
 
   /**
    * Opens the item form.
@@ -262,7 +268,7 @@ export function CatalogPanel() {
         title: (
           <>
             <Group gap={6} wrap="nowrap">
-              <EditableText value={item.title} label={`Libellé de ${item.title}`} strong onSave={(title) => title && saveItem(item, { title })} />
+              <EditableText value={item.title} label={`Libellé de ${item.title}`} strong onSave={(title) => title && bulk('title')(item, { title })} />
               {item.kind === 'DISBURSEMENT' && (
                 <Badge size="xs" variant="light" color="grape" style={{ flex: 'none' }}>
                   Débours
@@ -284,7 +290,7 @@ export function CatalogPanel() {
               { value: 'ITEM', label: 'Prestation' },
               { value: 'DISBURSEMENT', label: 'Débours' },
             ]}
-            onSave={(kind) => kind && saveItem(item, { kind: kind as CatalogItemInput['kind'] })}
+            onSave={(kind) => kind && bulk('kind')(item, { kind: kind as CatalogItemInput['kind'] })}
           />
         ),
         unit: (
@@ -292,7 +298,7 @@ export function CatalogPanel() {
             value={item.unit}
             label={`Unité de ${item.title}`}
             data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))}
-            onSave={(unit) => unit && saveItem(item, { unit: unit as CatalogItemInput['unit'] })}
+            onSave={(unit) => unit && bulk('unit')(item, { unit: unit as CatalogItemInput['unit'] })}
           />
         ),
         price: (
@@ -302,7 +308,7 @@ export function CatalogPanel() {
             label={`Prix HT de ${item.title}`}
             suffix="€"
             signed={item.kind === 'DISBURSEMENT'}
-            onSave={(unitPrice) => unitPrice !== null && saveItem(item, { unitPrice })}
+            onSave={(unitPrice) => unitPrice !== null && bulk('price')(item, { unitPrice })}
           />
         ),
         vat:
@@ -313,10 +319,10 @@ export function CatalogPanel() {
               value={String(item.vatRate)}
               label={`TVA de ${item.title}`}
               data={[...new Set([...VAT_RATES, item.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
-              onSave={(rate) => rate && saveItem(item, { vatRate: Number(rate) })}
+              onSave={(rate) => rate && bulk('vat')(item, (target) => (target.kind === 'DISBURSEMENT' ? {} : { vatRate: Number(rate) }))}
             />
           ),
-        archived: <EditableCheck value={item.archived} label={`${item.title} archivé`} onSave={(archived) => saveItem(item, { archived })} />,
+        archived: <EditableCheck value={item.archived} label={`${item.title} archivé`} onSave={(archived) => bulk('archived')(item, { archived })} />,
       })}
       actions={(item) => (
         <RowActions

@@ -13,7 +13,7 @@ import classes from '../TaskTable.module.css';
 import type { TaskContext } from '../use-task-context';
 import { EVENT_STATES, eventState } from './event-format';
 import cellClasses from '../../../components/data-table/EditableCells.module.css';
-import { StackedMultiCell } from './StackedMultiCell';
+import { StackedMultiCell } from '../../../components/data-table/StackedMultiCell';
 import * as fmt from '../../../lib/format';
 import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
 

@@ -50,7 +50,6 @@ import { SubscribedEventModal } from './SubscribedEventModal';
 import { useEventForm } from './use-event-form';
 import { CalendarCategoriesManager } from './CalendarCategoriesManager';
 import { CalendarsManager } from './CalendarsManager';
-import { PlacesManager } from '../geo/PlacesManager';
 import { ScheduleSettings } from './ScheduleSettings';
 import { WorkSchedulesManager } from './WorkSchedulesManager';
 import { useActiveWorkspace } from '../workspaces/api';
@@ -75,6 +74,8 @@ interface Filters {
   timers?: boolean;
   /** Calendars hidden (of the workspace, or of other workspaces it subscribes to). */
   hiddenCalendarIds?: string[];
+  /** Slots (schedules) hidden (of the workspace, or of other workspaces it subscribes to). */
+  hiddenScheduleIds?: string[];
 }
 
 /** Tabs of the settings sidebar. */
@@ -373,7 +374,7 @@ export function CalendarPage() {
           }
           continue;
         }
-        if (filters.workHours === false) continue;
+        if (filters.workHours === false || filters.hiddenScheduleIds?.includes(rule.id)) continue;
         const hatched = foreign ? [classes.subscribedSlot] : [];
         const background = {
           display: 'background',
@@ -680,6 +681,17 @@ export function CalendarPage() {
       color: subscription.color,
     })),
   ];
+  // Slots that can be shown or hidden: of the workspace, then of the workspaces it subscribes to.
+  const typeById = new Map((scheduleTypes ?? []).map((type) => [type.id, type]));
+  const scheduleChoices = [
+    ...(schedules ?? []).map((schedule) => ({
+      id: schedule.id,
+      label: schedule.name,
+      color: (schedule.typeId ? typeById.get(schedule.typeId)?.color : undefined) ?? defaultKind?.color ?? 'green',
+    })),
+    ...(foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: `${schedule.name} · ${schedule.workspaceName}`, color: schedule.color ?? 'green' })),
+  ];
+  const hiddenSchedules = new Set(filters.hiddenScheduleIds ?? []);
   const [exporting, setExporting] = useState(false);
 
   /**
@@ -797,6 +809,30 @@ export function CalendarPage() {
                 </Stack>
                 <Stack gap="xs">
                   <Text size="sm" fw={500}>
+                    {perso ? 'Plages' : 'Plages de travail'}
+                  </Text>
+                  {scheduleChoices.length === 0 ? (
+                    <EmptyState compact message="Aucune plage." />
+                  ) : (
+                    scheduleChoices.map((schedule) => (
+                      <Checkbox
+                        key={schedule.id}
+                        color={schedule.color}
+                        label={schedule.label}
+                        disabled={filters.workHours === false}
+                        checked={!hiddenSchedules.has(schedule.id)}
+                        onChange={(event) =>
+                          setFilters({
+                            ...filters,
+                            hiddenScheduleIds: event.currentTarget.checked ? [...hiddenSchedules].filter((id) => id !== schedule.id) : [...hiddenSchedules, schedule.id],
+                          })
+                        }
+                      />
+                    ))
+                  )}
+                </Stack>
+                <Stack gap="xs">
+                  <Text size="sm" fw={500}>
                     Aussi dans l’agenda
                   </Text>
                   <Switch
@@ -862,7 +898,6 @@ export function CalendarPage() {
               <CalendarsManager />
               <CalendarCategoriesManager />
               <ScheduleSettings />
-              <PlacesManager />
             </Stack>
           </Tabs.Panel>
         </Tabs>

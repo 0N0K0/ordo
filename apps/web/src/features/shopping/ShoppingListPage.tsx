@@ -95,7 +95,14 @@ export function ShoppingListPage() {
       ),
     ],
   );
-  const view = useDataView({ tableKey: 'shopping-list', columns, rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position), title: list?.name ?? 'Liste d’achats', first: LIST_VIEWS });
+  const view = useDataView({
+    tableKey: 'shopping-list',
+    getKey: (item) => item.id,
+    columns,
+    rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position),
+    title: list?.name ?? 'Liste d’achats',
+    first: LIST_VIEWS,
+  });
 
   if (isPending) {
     return <TableSkeleton rows={4} />;

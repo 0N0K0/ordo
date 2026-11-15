@@ -4,6 +4,7 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { notifyError } from '../../lib/notify';
 import { BatchMultiSelect } from '../BatchMultiSelect';
 import classes from './EditableCells.module.css';
+import { StackedMultiCell } from './StackedMultiCell';
 import { AmountInput } from '../AmountInput';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
@@ -237,25 +238,34 @@ interface EditableMultiSelectProps {
 }
 
 /**
- * Choices cell: several of a list, saved once the list closes.
+ * Choices cell: several of a list, one under the other (5 at most; beyond, 4 and « X de plus »); a click opens their
+ * list, saved once it closes.
  * @param {EditableMultiSelectProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function EditableMultiSelect({ value, label, data, renderOption, filter, readOnly = false, onSave }: EditableMultiSelectProps) {
+  const labels = new Map(data.flatMap((item) => ('group' in item ? item.items : [item])).map((item) => [item.value, item.label]));
   return (
-    <BatchMultiSelect
-      {...cellCombobox}
-      classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-      aria-label={label}
-      placeholder={readOnly || value.length ? undefined : '—'}
+    <StackedMultiCell
+      label={label}
       readOnly={readOnly}
-      searchable
-      data={data}
-      renderOption={renderOption}
-      filter={filter}
-      value={value}
-      onChange={(next) => onSave(next)}
-      onClick={(event) => event.stopPropagation()}
+      items={value.map((id) => ({ id, label: labels.get(id) ?? id }))}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={label}
+          placeholder={value.length ? undefined : '—'}
+          searchable
+          data={data}
+          renderOption={renderOption}
+          filter={filter}
+          value={value}
+          onChange={(next) => onSave(next)}
+          onDropdownClose={onDropdownClose}
+          onClick={(event) => event.stopPropagation()}
+        />
+      )}
     />
   );
 }

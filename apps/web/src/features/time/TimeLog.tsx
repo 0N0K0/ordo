@@ -1,10 +1,12 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { Badge, Group, Text } from '@mantine/core';
+import { Badge, Text } from '@mantine/core';
 import { entrySeconds, formatDuration, type TableFilterGroup } from '@ordo/shared';
 import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
+import { StackedValues } from '../../components/data-table/StackedValues';
 import { EditableSelect } from '../../components/data-table/EditableCells';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { notifyError } from '../../lib/notify';
@@ -75,6 +77,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
   return [
     {
       id: 'day',
+      bulk: true,
       label: 'Date',
       size: 200,
       locked: true,
@@ -93,7 +96,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
       filter: false,
       groupable: true,
     },
-    { id: 'start', label: 'Heure de début', size: 110, sortValue: (entry) => fmt.time(new Date(entry.startedAt)), text: (entry) => fmt.time(new Date(entry.startedAt)), filter: false },
+    { id: 'start', bulk: true, label: 'Heure de début', size: 110, sortValue: (entry) => fmt.time(new Date(entry.startedAt)), text: (entry) => fmt.time(new Date(entry.startedAt)), filter: false },
     {
       id: 'end',
       label: 'Heure de fin',
@@ -104,6 +107,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     },
     {
       id: 'duration',
+      bulk: true,
       label: 'Durée',
       size: 100,
       numeric: true,
@@ -114,6 +118,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     },
     {
       id: 'project',
+      bulk: true,
       label: 'Projet',
       size: 180,
       sortValue: (entry) => projectName(entry) || null,
@@ -132,6 +137,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     },
     {
       id: 'routine',
+      bulk: true,
       label: 'Routine',
       size: 180,
       sortValue: (entry) => entry.routineTitle ?? null,
@@ -141,6 +147,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     },
     {
       id: 'tasks',
+      bulk: true,
       label: 'Tâches',
       size: 240,
       text: (entry) =>
@@ -153,6 +160,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     },
     {
       id: 'event',
+      bulk: true,
       label: 'Évènement',
       size: 200,
       sortValue: (entry) => entry.calendarEventTitle ?? null,
@@ -221,7 +229,9 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
    * @param {Partial<TimeEntryValues>} change Change.
    * @returns {void}
    */
-  const saveEntry = (entry: TimeEntry, change: Partial<TimeEntryValues>) => update.mutate({ id: entry.id, input: change }, { onError: (error) => notifyError(error.message) });
+  const saveOne = (entry: TimeEntry, change: Partial<TimeEntryValues>) =>
+    // A time on a final invoice, or running, is left as it is.
+    editable(entry) && update.mutate({ id: entry.id, input: change }, { onError: (error) => notifyError(error.message) });
   const { data: routinesData } = useRoutinesData();
   const routineOptions = (routinesData?.routines ?? []).map((routine) => ({ value: routine.id, label: routine.title }));
   const entryComments = useCommentCounts(
@@ -236,6 +246,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
     title: 'Temps passé',
     first: TIME_VIEWS,
   });
+  const bulk = bulkSaver(view, saveOne);
   const total = finishedSeconds(view.rows);
   const unbilled = finishedSeconds(view.rows.filter((entry) => !entry.documentId));
   return (
@@ -261,16 +272,16 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
       cells={(entry) => {
         const tasks = context ? entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined) : [];
         return {
-          day: <TimeDayCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
+          day: <TimeDayCell entry={entry} readOnly={!editable(entry)} save={bulk('day')} />,
           month: fmt.capitalize(fmt.month(new Date(entry.startedAt))),
-          start: <TimeStartCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
+          start: <TimeStartCell entry={entry} readOnly={!editable(entry)} save={bulk('start')} />,
           end: entry.endedAt ? (
             <Text span size="sm" c="dimmed">
               {fmt.time(new Date(entry.endedAt))}
             </Text>
           ) : null,
           duration: entry.endedAt ? (
-            <TimeDurationCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />
+            <TimeDurationCell entry={entry} readOnly={!editable(entry)} save={bulk('duration')} />
           ) : (
             <Badge size="sm" color="red" variant="light">
               En cours
@@ -283,25 +294,25 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
                   value={entry.projectId ?? null}
                   label="Projet de ce temps"
                   {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === entry.projectId)))}
-                  onSave={(next) => (next || entry.routineId) && saveEntry(entry, { projectId: next || null })}
+                  onSave={(next) => (next || entry.routineId) && bulk('project')(entry, { projectId: next || null })}
                 />
               ) : entry.projectId && entry.projectId !== projectId ? (
                 context?.projectById.get(entry.projectId)?.title
               ) : null}
             </>
           ),
-          routine: <TimeRoutineCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
+          routine: <TimeRoutineCell entry={entry} readOnly={!editable(entry)} save={bulk('routine')} />,
           tasks:
             context && editable(entry) ? (
-              <TimeTasksCell entry={entry} context={context} readOnly={false} save={saveEntry} />
+              <TimeTasksCell entry={entry} context={context} readOnly={false} save={bulk('tasks')} />
             ) : (
-              <Group gap={4}>
+              <StackedValues>
                 {tasks.map((task) => (
                   <TaskRef key={task.id} task={task} blocked={context?.isBlocked(task) ?? false} />
                 ))}
-              </Group>
+              </StackedValues>
             ),
-          event: <TimeEventCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
+          event: <TimeEventCell entry={entry} readOnly={!editable(entry)} save={bulk('event')} />,
           invoice: entry.documentId && (
             <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
               {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}

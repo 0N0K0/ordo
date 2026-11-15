@@ -49,6 +49,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { dndId, libraryCollision } from './library-dnd';
 import { DroppableFolderLink, SortableRow } from './LibraryDnd';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
 import { EditableText } from '../../components/data-table/EditableCells';
 import { GroupHeaderRow } from '../../components/data-table/GroupHeaderRow';
 import { groupRows } from '../../components/data-table/table-engine';
@@ -62,7 +63,7 @@ import tableClasses from '../../components/data-table/DataTable.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
-import { TableFooter } from '../../components/data-table/TableFooter';
+import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
@@ -189,7 +190,7 @@ function FolderTree({ folders, parentId, current, open, onSelect, onToggle, coun
 function libraryColumns(paths: Map<string, string>): DataColumn<LibraryDocument>[] {
   const folderOf = (document: LibraryDocument) => (document.folderId ? (paths.get(document.folderId) ?? '') : 'Documents');
   return [
-    { id: 'name', label: 'Nom', size: 380, locked: true, sortValue: (document) => document.title, text: (document) => document.title },
+    { id: 'name', label: 'Nom', size: 380, locked: true, bulk: true, sortValue: (document) => document.title, text: (document) => document.title },
     { id: 'folder', label: 'Dossier', size: 220, hiddenByDefault: true, sortValue: folderOf, text: folderOf, groupable: true },
     {
       id: 'kind',
@@ -201,7 +202,7 @@ function libraryColumns(paths: Map<string, string>): DataColumn<LibraryDocument>
       groupable: true,
     },
     { id: 'size', label: 'Taille', size: 140, numeric: true, sortValue: (document) => document.size ?? null, text: (document) => (document.size ? fmt.fileSize(document.size) : 'Lien') },
-    { id: 'note', label: 'Description', size: 220, hiddenByDefault: true, sortValue: (document) => document.note ?? null, text: (document) => document.note ?? '' },
+    { id: 'note', label: 'Description', size: 220, hiddenByDefault: true, bulk: true, sortValue: (document) => document.note ?? null, text: (document) => document.note ?? '' },
     {
       id: 'updatedAt',
       label: 'Modifié le',
@@ -250,7 +251,8 @@ export function LibraryPage() {
   const paths = folderPaths(folders);
   const documentComments = useCommentCounts('LIBRARY_DOCUMENT', documents.map((document) => document.id));
   const columns = [...libraryColumns(paths), commentColumn<LibraryDocument>(documentComments, (document) => document.id, (document) => document.note)];
-  const view = useDataView({ tableKey: 'library', columns, rows: documents, title: 'Bibliothèque' });
+  const view = useDataView({ tableKey: 'library', getKey: (document) => document.id, columns, rows: documents, title: 'Bibliothèque' });
+  const bulk = bulkSaver(view, saveDocument);
   const { sorting, shown: shownCols } = view;
 
   /**
@@ -741,16 +743,16 @@ export function LibraryPage() {
                             />
                           </Table.Td>
                           {shownCols.map((column) => (
-                            <Table.Td key={column.id} className={tableClasses.cell}>
+                            <Table.Td key={column.id} className={tableClasses.cell} {...view.cellProps(column.id, document.id)}>
                               {
                                 {
                                   folder: document.folderId ? paths.get(document.folderId) : 'Documents',
-                                  note: <EditableText value={document.note ?? null} label={`Description de ${document.title}`} nullable onSave={(note) => saveDocument(document, { note })} />,
+                                  note: <EditableText value={document.note ?? null} label={`Description de ${document.title}`} nullable onSave={(note) => bulk('note')(document, { note })} />,
                                   name: (
                             <Group gap="sm" wrap="nowrap">
                               <DocumentIcon document={document} />
                               <Stack gap={0} style={{ minWidth: 0 }}>
-                                <EditableText value={document.title} label={`Titre de ${document.title}`} strong onSave={(title) => title && saveDocument(document, { title })} />
+                                <EditableText value={document.title} label={`Titre de ${document.title}`} strong onSave={(title) => title && bulk('name')(document, { title })} />
                                 <Text size="xs" c="dimmed" truncate>
                                   {[
                                     query && document.folderId ? paths.get(document.folderId) : query ? 'Documents' : null,
@@ -785,6 +787,9 @@ export function LibraryPage() {
                           <Table.Td>{documentActions(document)}</Table.Td>
                         </SortableRow>
                         )),
+                        ...(view.groupColumn && view.config?.footer && !collapsedGroups.has(group.key)
+                          ? [<GroupFooter key={`footer:${group.key}`} shown={shownCols} rows={group.rows} totals={view.config.footer} label={group.label} before={2} after={1} />]
+                          : []),
                       ])}
                       </SortableContext>
                     </Table.Tbody>

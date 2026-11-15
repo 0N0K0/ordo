@@ -3,7 +3,9 @@ import type { Recurrence } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { EditableMultiSelect, EditableSelect } from '../../components/data-table/EditableCells';
+import { EditableSelect } from '../../components/data-table/EditableCells';
+import { StackedValues } from '../../components/data-table/StackedValues';
+import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
@@ -61,27 +63,29 @@ export function DocumentsCell({
   const missing = documents.filter((document) => !known.has(documentKey(document)));
   if (missing.length) data.push({ group: 'Choisis', items: missing.map((document) => ({ value: documentKey(document), label: document.title })) });
   return (
-    <Group gap={4} wrap="wrap">
-      {documents.map((document) => (
-        <Tooltip key={documentKey(document)} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
-          <Badge
-            size="sm"
-            variant="light"
-            color="gray"
-            leftSection={<PaperclipIcon aria-hidden />}
-            component="a"
-            href={document.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            // A file of the app (PDF, image) opens in its viewer.
-            onClick={(event: React.MouseEvent) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
-            style={{ cursor: 'pointer' }}
-            tt="none"
-          >
-            {document.title.length > 24 ? `${document.title.slice(0, 23)}…` : document.title}
-          </Badge>
-        </Tooltip>
-      ))}
+    <Group gap={4} wrap="nowrap" align="flex-start">
+      <StackedValues>
+        {documents.map((document) => (
+          <Tooltip key={documentKey(document)} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
+            <Badge
+              size="sm"
+              variant="light"
+              color="gray"
+              leftSection={<PaperclipIcon aria-hidden />}
+              component="a"
+              href={document.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              // A file of the app (PDF, image) opens in its viewer.
+              onClick={(event: React.MouseEvent) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
+              style={{ cursor: 'pointer' }}
+              tt="none"
+            >
+              {document.title.length > 24 ? `${document.title.slice(0, 23)}…` : document.title}
+            </Badge>
+          </Tooltip>
+        ))}
+      </StackedValues>
       <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={360} trapFocus>
         <Popover.Target>
           <Tooltip label="Choisir les pièces justificatives">
@@ -91,11 +95,15 @@ export function DocumentsCell({
           </Tooltip>
         </Popover.Target>
         <Popover.Dropdown>
-          <EditableMultiSelect
-            value={documents.map(documentKey)}
-            label={label}
+          <BatchMultiSelect
+            aria-label={label}
+            searchable
+            clearable
+            nothingFoundMessage="Aucun document"
             data={data}
-            onSave={(keys) =>
+            value={documents.map(documentKey)}
+            comboboxProps={{ withinPortal: false }}
+            onChange={(keys) =>
               onSave({
                 libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
                 projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
@@ -131,25 +139,27 @@ export function LinksCell({ links, entryId, lines, label, onSave }: { links: Lin
     })
     .filter((link) => !linked.has(`${link.kind}:${link.id}`));
   return (
-    <Group gap={4} wrap="wrap">
-      {links.map((link) => (
-        <Tooltip key={`${link.kind}:${link.id}`} label={describeLink(link)}>
-          <Badge
-            size="sm"
-            variant="outline"
-            color={link.amount < 0 ? 'red' : 'green'}
-            leftSection={<LinkIcon aria-hidden />}
-            rightSection={
-              <ActionIcon size="xs" variant="transparent" color="gray" aria-label={`Délier ${describeLink(link)}`} onClick={() => onSave(links.filter((other) => other !== link))}>
-                <XIcon aria-hidden />
-              </ActionIcon>
-            }
-            tt="none"
-          >
-            {link.entryLabel.length > 20 ? `${link.entryLabel.slice(0, 19)}…` : link.entryLabel} · {fmt.money(link.amount)}
-          </Badge>
-        </Tooltip>
-      ))}
+    <Group gap={4} wrap="nowrap" align="flex-start">
+      <StackedValues>
+        {links.map((link) => (
+          <Tooltip key={`${link.kind}:${link.id}`} label={describeLink(link)}>
+            <Badge
+              size="sm"
+              variant="outline"
+              color={link.amount < 0 ? 'red' : 'green'}
+              leftSection={<LinkIcon aria-hidden />}
+              rightSection={
+                <ActionIcon size="xs" variant="transparent" color="gray" aria-label={`Délier ${describeLink(link)}`} onClick={() => onSave(links.filter((other) => other !== link))}>
+                  <XIcon aria-hidden />
+                </ActionIcon>
+              }
+              tt="none"
+            >
+              {link.entryLabel.length > 20 ? `${link.entryLabel.slice(0, 19)}…` : link.entryLabel} · {fmt.money(link.amount)}
+            </Badge>
+          </Tooltip>
+        ))}
+      </StackedValues>
       <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={380} trapFocus>
         <Popover.Target>
           <Tooltip label="Lier un mouvement">
@@ -194,11 +204,11 @@ export function LinksCell({ links, entryId, lines, label, onSave }: { links: Lin
 /**
  * Invoices an actual entry settles (credit notes it refunds), each opening its document.
  * @param {{ entry: TreasuryEntry }} props Component props.
- * @returns {JSX.Element} Badges.
+ * @returns {JSX.Element | null} Badges.
  */
 export function SettledCell({ entry }: { entry: AnyEntry }) {
   return (
-    <Group gap={4}>
+    <StackedValues>
       {entry.allocations.map((allocation) =>
         allocation.documentId ? (
           <Badge key={allocation.id} size="sm" variant="light" leftSection={<ReceiptIcon aria-hidden />} component={Link} to={`/accounting/${allocation.documentId}`} style={{ cursor: 'pointer' }}>
@@ -210,7 +220,7 @@ export function SettledCell({ entry }: { entry: AnyEntry }) {
           </Badge>
         ),
       )}
-    </Group>
+    </StackedValues>
   );
 }
 
