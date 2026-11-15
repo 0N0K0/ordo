@@ -453,8 +453,8 @@ builder.mutationFields((t) => ({
       if (input.reminders) changes.reminders = input.reminders;
       if (input.opensOn !== undefined) changes.opensOn = input.opensOn ?? null;
       if (input.slotRule !== undefined) changes.slotRule = (input.slotRule ?? null) as RoutineInput['slotRule'];
-      // Times or a repetition of its own: it no longer follows its schedule.
-      if (input.fromTime !== undefined || input.dueTime !== undefined || (input.recurrence !== undefined && input.recurrence !== null))
+      // A repetition of its own: it no longer follows its schedule (its times then keep the slots within them).
+      if (input.recurrence !== undefined && input.recurrence !== null)
         Object.assign(changes, { scheduleId: null, scheduleAnchor: null, cases: [] });
       if (input.fromTime !== undefined) changes.fromTime = input.fromTime;
       if (input.dueTime !== undefined) changes.dueTime = input.dueTime;
