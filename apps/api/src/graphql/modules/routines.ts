@@ -3,6 +3,8 @@ import { daysBetween, formatDay, parseDay, type RoutineInput } from '@ordo/share
 import { prisma } from '../../db';
 import { clientError } from '../errors';
 import * as routines from '../../services/routines';
+import { loadSlotContext, type SlotContext } from '../../services/slot-rules';
+import type { Context } from '../context';
 import { builder } from '../builder';
 import { EventScope } from './calendar';
 
@@ -18,7 +20,20 @@ builder.prismaObject('RoutineCategory', {
 });
 
 /** Selection computing the occurrences and times of the day of a routine. */
-const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true } as const;
+const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, slotRule: true } as const;
+
+const slotContexts = new WeakMap<Context, Promise<SlotContext>>();
+
+/**
+ * Slots of the workspace for the slot rules of the routines, loaded once per request.
+ * @param {Context} ctx GraphQL context.
+ * @returns {Promise<SlotContext>} Slots.
+ */
+function slotsOf(ctx: Context): Promise<SlotContext> {
+  let slots = slotContexts.get(ctx);
+  if (!slots) slotContexts.set(ctx, (slots = loadSlotContext()));
+  return slots;
+}
 
 /**
  * Calendar date as a Date (the Date scalar), or null.
@@ -39,13 +54,14 @@ interface SlotState {
 /**
  * Times of the day of the current occurrence of a routine (its next one before it starts), with those ticked.
  * @param {routines.RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
+ * @param {SlotContext} context Slots of the workspace.
  * @returns {{ date: string | null, slots: SlotState[] }} Day and its times.
  */
-const slotStates = (routine: routines.RoutineTiming & { checks: { date: Date; slot: number }[] }) => {
-  const { current, next } = routines.occurrencesOf(routine);
+const slotStates = (routine: routines.RoutineTiming & { checks: { date: Date; slot: number }[] }, context: SlotContext) => {
+  const { current, next } = routines.occurrencesOf(routine, undefined, context);
   const date = current ?? next;
   const ticked = new Set(routine.checks.filter((check) => current && formatDay(check.date) === current).map((check) => check.slot));
-  return { date, slots: routines.slotsOf(routine, date).map((slot, index) => ({ index, ...slot, done: ticked.has(index) })) };
+  return { date, slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(index) })) };
 };
 
 /**
@@ -98,13 +114,13 @@ builder.prismaObject('Routine', {
       nullable: true,
       description: 'Time to do it from on its current (or next) occurrence, for its time of the day to come: its own, its case’s or its schedule’s.',
       select: { ...TIMING, ...TODAY_CHECKS },
-      resolve: (routine) => pendingSlot(slotStates(routine).slots)?.fromTime ?? null,
+      resolve: async (routine, _args, ctx) => pendingSlot(slotStates(routine, await slotsOf(ctx)).slots)?.fromTime ?? null,
     }),
     windowTo: t.string({
       nullable: true,
       description: 'Latest time to do it by on its current (or next) occurrence, for its time of the day to come.',
       select: { ...TIMING, ...TODAY_CHECKS },
-      resolve: (routine) => pendingSlot(slotStates(routine).slots)?.dueTime ?? null,
+      resolve: async (routine, _args, ctx) => pendingSlot(slotStates(routine, await slotsOf(ctx)).slots)?.dueTime ?? null,
     }),
     dueTime: t.exposeString('dueTime', { nullable: true, description: 'Latest time to do it by (HH:MM).' }),
     location: t.exposeString('location', { nullable: true }),
@@ -127,21 +143,21 @@ builder.prismaObject('Routine', {
       nullable: true,
       description: 'Current occurrence: the last one on or before today (null before the start or after the end).',
       select: TIMING,
-      resolve: (routine) => asDate(routines.occurrencesOf(routine).current),
+      resolve: async (routine, _args, ctx) => asDate(routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).current),
     }),
     firstDate: t.field({
       type: 'Date',
       nullable: true,
       description: 'First occurrence of the routine (from its start).',
       select: TIMING,
-      resolve: (routine) => asDate(routines.firstOccurrence(routine)),
+      resolve: async (routine, _args, ctx) => asDate(routines.firstOccurrence(routine, await slotsOf(ctx))),
     }),
     nextDate: t.field({
       type: 'Date',
       nullable: true,
       description: 'First occurrence after today.',
       select: TIMING,
-      resolve: (routine) => asDate(routines.occurrencesOf(routine).next),
+      resolve: async (routine, _args, ctx) => asDate(routines.occurrencesOf(routine, undefined, await slotsOf(ctx)).next),
     }),
     cases: t.expose('cases', { type: 'JSON', description: 'Cases (days and times of the day); empty: its repetition.' }),
     moves: t.field({
@@ -154,14 +170,15 @@ builder.prismaObject('Routine', {
       type: [RoutineSlotRef],
       description: 'Times of the day of its current occurrence (its next one before it starts), with those ticked.',
       select: { ...TIMING, ...TODAY_CHECKS },
-      resolve: (routine) => slotStates(routine).slots,
+      resolve: async (routine, _args, ctx) => slotStates(routine, await slotsOf(ctx)).slots,
     }),
     done: t.boolean({
       description: 'Its current occurrence is done: every required time of the day ticked.',
       select: { ...TIMING, ...TODAY_CHECKS },
-      resolve: (routine) => {
-        const { current } = routines.occurrencesOf(routine);
-        const { slots } = slotStates(routine);
+      resolve: async (routine, _args, ctx) => {
+        const context = await slotsOf(ctx);
+        const { current } = routines.occurrencesOf(routine, undefined, context);
+        const { slots } = slotStates(routine, context);
         return current !== null && slots.length > 0 && slots.every((slot) => slot.done || slot.optional);
       },
     }),
@@ -338,13 +355,13 @@ builder.prismaObject('RoutineCheck', {
       nullable: true,
       description: 'Start of the time of the day ticked (as the routine is now).',
       select: { routine: { select: TIMING } },
-      resolve: (check) => routines.slotsOf(check.routine, formatDay(check.date))[check.slot]?.fromTime ?? null,
+      resolve: async (check, _args, ctx) => routines.slotsOf(check.routine, formatDay(check.date), await slotsOf(ctx))[check.slot]?.fromTime ?? null,
     }),
     dueTime: t.string({
       nullable: true,
       description: 'End of the time of the day ticked (as the routine is now).',
       select: { routine: { select: TIMING } },
-      resolve: (check) => routines.slotsOf(check.routine, formatDay(check.date))[check.slot]?.dueTime ?? null,
+      resolve: async (check, _args, ctx) => routines.slotsOf(check.routine, formatDay(check.date), await slotsOf(ctx))[check.slot]?.dueTime ?? null,
     }),
   }),
 });
@@ -363,20 +380,21 @@ builder.queryFields((t) => ({
     type: [RoutineOccurrenceRef],
     description: `Occurrences of the routines not archived in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked.`,
     args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
-    resolve: async (_root, { from, to }) => {
+    resolve: async (_root, { from, to }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
       const list = await prisma.routine.findMany({
         where: { archivedAt: null },
         select: { id: true, ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
       });
+      const context = await slotsOf(ctx);
       return list.flatMap((routine) => {
         const moves = routines.storedMoves(routine.moves);
         const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
-        return routines.occurrencesBetween(routine, from, to).map((date) => ({
+        return routines.occurrencesBetween(routine, from, to, context).map((date) => ({
           routineId: routine.id,
           date,
           movedFrom: moves.find((move) => move.to === date && move.from !== date)?.from ?? null,
-          slots: routines.slotsOf(routine, date).map((slot, index) => ({ index, ...slot, done: ticked.has(`${date}/${index}`) })),
+          slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(`${date}/${index}`) })),
         }));
       });
     },

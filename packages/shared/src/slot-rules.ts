@@ -148,3 +148,47 @@ export function knownSlotRule(rule: SlotRule, known: ReadonlySet<string>): SlotR
 export function scheduleKinds(own: readonly { typeId?: string | null }[], foreign: readonly { workspaceId: string; typeId?: string | null }[]): Set<string> {
   return new Set([...own.map((schedule) => ownSlotKind(schedule.typeId)), ...foreign.map((schedule) => foreignSlotKind(schedule.workspaceId, schedule.typeId))]);
 }
+
+/**
+ * Window of a routine on a day kept within the slots its rule allows: the parts of the window on an `inside` slot
+ * (all of it when none) and on no `outside` slot, from the first of them to the end of the last; null when none is
+ * left (not that day).
+ * @param {SlotRule} rule Rule.
+ * @param {readonly KindedSlot[]} slots Slots of the day.
+ * @param {{ fromTime: string | null, dueTime: string | null }} window Window (null: from the start, until the end of the day).
+ * @returns {{ fromTime: string | null, dueTime: string | null } | null} Window kept, or null.
+ */
+export function windowWithinSlots(
+  rule: SlotRule,
+  slots: readonly KindedSlot[],
+  window: { fromTime: string | null; dueTime: string | null },
+): { fromTime: string | null; dueTime: string | null } | null {
+  if (isAnySlotRule(rule)) return window;
+  const from = window.fromTime ?? '00:00';
+  const to = window.dueTime ?? '24:00';
+  const span = (slot: KindedSlot) => (slot.allDay ? { start: '00:00', end: '24:00' } : { start: slot.start, end: slot.end });
+  // Parts on an inside slot, clipped to the window.
+  let parts = rule.inside.length
+    ? slots
+        .filter((slot) => rule.inside.includes(slot.kind))
+        .map(span)
+        .map((part) => ({ start: part.start > from ? part.start : from, end: part.end < to ? part.end : to }))
+        .filter((part) => part.start < part.end)
+    : [{ start: from, end: to }];
+  // Out of every outside slot.
+  for (const outside of slots.filter((slot) => rule.outside.includes(slot.kind)).map(span)) {
+    parts = parts.flatMap((part) =>
+      outside.end <= part.start || outside.start >= part.end
+        ? [part]
+        : [...(part.start < outside.start ? [{ start: part.start, end: outside.start }] : []), ...(outside.end < part.end ? [{ start: outside.end, end: part.end }] : [])],
+    );
+  }
+  if (!parts.length) return null;
+  const start = parts.map((part) => part.start).sort()[0];
+  const end =
+    parts
+      .map((part) => part.end)
+      .sort()
+      .at(-1) ?? to;
+  return { fromTime: start === '00:00' ? null : start, dueTime: end === '24:00' ? null : end };
+}
