@@ -508,6 +508,9 @@ type Checklist {
 type ChecklistItem {
   categoryId: ID
   checkedAt: DateTime
+
+  """Taken from the stock when ticked."""
+  consumable: Boolean!
   id: ID!
   label: String!
   listId: ID!
@@ -646,6 +649,7 @@ enum CommentTarget {
   SHOPPING_ITEM
   SHOPPING_LIST
   SHOPPING_PRODUCT
+  STOCK_ITEM
   TIME_ENTRY
   TREASURY_ENTRY
 }
@@ -1414,6 +1418,10 @@ type Mutation {
   addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
   addProjectFiles(files: [File!]!, projectId: ID!): Boolean!
   addProjectLink(note: String, projectId: ID!, title: String!, url: String!): Boolean!
+  addSheetItem(input: SheetItemInput!, sheetId: ID!): ID!
+
+  """Adds products of the references to a sheet; returns the number added."""
+  addSheetProducts(productIds: [ID!]!, sheetId: ID!): Int!
   addSheetToChecklist(id: ID!, multiplier: Float!, sheetId: ID!): Boolean!
 
   """
@@ -1428,6 +1436,9 @@ type Mutation {
   Adds products of base lists to a list (those already in it are left out); returns the number added.
   """
   addShoppingProducts(listId: ID!, productIds: [ID!]!): Int!
+
+  """Adds an item bought on a shopping list to the stock."""
+  addStockPurchase(input: StockPurchaseInput!): Boolean!
 
   """blockerId blocks blockedId."""
   addTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
@@ -1520,8 +1531,10 @@ type Mutation {
   createRoutine(input: RoutineInput!): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
   createSheet(input: SheetInput!): ID!
+  createSheetCategory(input: SheetCategoryInput!): ID!
   createShoppingBaseList(name: String!): ID!
   createShoppingCategory(input: ShoppingCategoryInput!): ID!
+  createShoppingDelivery(input: ShoppingDeliveryInput!, listId: ID!): ID!
 
   """Creates a list, empty or with the missing products of some base lists."""
   createShoppingList(baseListIds: [ID!]!, name: String!, taskIds: [ID!]!): ID!
@@ -1530,6 +1543,8 @@ type Mutation {
   createShoppingStore(input: ShoppingStoreInput!): ID!
   createShoppingUnit(input: ShoppingStoreInput!): ID!
   createSprint(input: SprintInput!, projectId: ID!): ID!
+  createStockItem(input: StockItemInput!): ID!
+  createStockLocation(input: StockLocationInput!): ID!
   createTask(input: TaskInput!): Task!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
   createTaskStatus(input: TaskLabelInput!): TaskStatus!
@@ -1607,12 +1622,15 @@ type Mutation {
   """Deletes a kind of time slots (its schedules stay, without kind)."""
   deleteScheduleType(id: ID!): Boolean!
   deleteSheet(id: ID!): Boolean!
+  deleteSheetCategory(id: ID!): Boolean!
+  deleteSheetItems(ids: [ID!]!): Boolean!
 
   """
   Deletes a base list with its products (the lists made from them keep their items).
   """
   deleteShoppingBaseList(id: ID!): Boolean!
   deleteShoppingCategory(id: ID!): Boolean!
+  deleteShoppingDelivery(id: ID!): Boolean!
   deleteShoppingItem(id: ID!): Boolean!
   deleteShoppingList(id: ID!): Boolean!
   deleteShoppingProduct(id: ID!): Boolean!
@@ -1622,6 +1640,8 @@ type Mutation {
   """Deletes a unit; the products and items in it are left without one."""
   deleteShoppingUnit(id: ID!): Boolean!
   deleteSprint(id: ID!): Boolean!
+  deleteStockItem(id: ID!): Boolean!
+  deleteStockLocation(id: ID!): Boolean!
   deleteTask(
     """false moves the sub-tasks up to the parent."""
     deleteSubtasks: Boolean!
@@ -1757,6 +1777,7 @@ type Mutation {
   Moves an occurrence to another day (postponed or brought forward); back to its own day, the exception is removed.
   """
   moveRoutineOccurrence(date: Date!, id: ID!, to: Date!): Boolean!
+  moveSheetCategory(id: ID!, index: Int!): Boolean!
   moveShoppingBaseList(id: ID!, index: Int!): Boolean!
 
   """
@@ -1771,6 +1792,12 @@ type Mutation {
   moveShoppingStorage(id: ID!, index: Int!): Boolean!
   moveShoppingStore(id: ID!, index: Int!): Boolean!
   moveShoppingUnit(id: ID!, index: Int!): Boolean!
+
+  """
+  Quantity in or out of an item by hand; returns the quantity moved (signed).
+  """
+  moveStock(input: StockMoveInput!): Float!
+  moveStockLocation(id: ID!, index: Int, parentId: ID): Boolean!
 
   """
   Places a task before another one in the manual order (at the end when beforeId is null), and under parentId when given (null: top-level task; omitted: parent unchanged).
@@ -1799,6 +1826,7 @@ type Mutation {
   """Records a forecast (one date of a repeated one) as an actual entry."""
   realizeTreasuryForecast(amount: Float!, date: Date!, id: ID!, occurrence: Date!): ID!
   recordDocumentPayment(id: ID!, input: DocumentPaymentInput!): Boolean!
+  recordStockCount(input: StockCountInput!): ID!
   removeAccountingAttachment(attachmentId: ID!): Boolean!
   removeGithubToken: Boolean!
 
@@ -1928,6 +1956,7 @@ type Mutation {
   setInvoiceTreasuryCategories(creditNoteCategoryId: ID, invoiceCategoryId: ID): Boolean!
   setMailSeen(accountId: ID!, folder: String!, seen: Boolean!, uids: [Int!]!): Boolean!
   setMailSignature(id: ID!, signature: String!): MailAccount!
+  setProductStock(id: ID!, input: ProductStockInput!): Boolean!
 
   """
   Archiving cascades to sub-projects; restoring a project restores its archived ancestors and client.
@@ -1963,9 +1992,16 @@ type Mutation {
 
   """Sets the sheets of a routine, an event or a task (one of them)."""
   setSheetLinks(eventId: ID, links: [SheetLinkInput!]!, routineId: ID, taskId: ID): Boolean!
+
+  """
+  Marks a delivery received (its items ticked as bought) or not; returns the items ticked now.
+  """
+  setShoppingDeliveryReceived(id: ID!, received: Boolean!): [ID!]!
   setShoppingItemPurchased(id: ID!, purchased: Boolean!): Boolean!
   setShoppingListClosed(closed: Boolean!, id: ID!): Boolean!
+  setShoppingOrder(input: ShoppingOrderInput!, listId: ID!): Boolean!
   setShoppingProductsMissing(ids: [ID!]!, missing: Boolean!): Boolean!
+  setStockLotExpiry(expiresAt: Date, id: ID!): Boolean!
 
   """
   Archiving cascades to sub-tasks; restoring restores them and the archived parents.
@@ -2065,7 +2101,10 @@ type Mutation {
   updateRoutine(id: ID!, input: RoutineInput!): Boolean!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
+  updateSheetCategory(id: ID!, input: SheetCategoryPatch!): Boolean!
+  updateSheetItem(id: ID!, input: SheetItemInput!): Boolean!
   updateShoppingCategory(id: ID!, input: ShoppingCategoryInput!): Boolean!
+  updateShoppingDelivery(id: ID!, input: ShoppingDeliveryInput!): Boolean!
   updateShoppingItem(id: ID!, input: ShoppingItemInput!): Boolean!
   updateShoppingList(id: ID!, name: String!, taskIds: [ID!]!): Boolean!
   updateShoppingProduct(id: ID!, input: ShoppingProductInput!): Boolean!
@@ -2075,6 +2114,8 @@ type Mutation {
   """Renames a unit; the products and items in it follow."""
   updateShoppingUnit(id: ID!, input: ShoppingStorePatch!): Boolean!
   updateSprint(id: ID!, input: SprintInput!): Boolean!
+  updateStockItem(id: ID!, input: StockItemInput!): Boolean!
+  updateStockLocation(id: ID!, input: StockLocationInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
   updateTaskComment(body: String!, id: ID!): TaskComment!
   updateTaskPriority(id: ID!, input: TaskLabelUpdateInput!): TaskPriority!
@@ -2097,6 +2138,11 @@ type Mutation {
 
   """Stores a file to link from a markdown text (10 MB maximum)."""
   uploadAttachment(file: File!): Attachment!
+
+  """
+  Uses a sheet (times a multiplier): its items used up that are references are taken from the stock.
+  """
+  useSheet(id: ID!, multiplier: Float!): SheetUse!
 }
 
 """Kind of notification a workspace can give while another one is open."""
@@ -2120,6 +2166,18 @@ input PlaceInput {
   lat: Float!
   lon: Float!
   name: String!
+}
+
+type ProductStock {
+  productId: ID!
+  quantity: Float!
+}
+
+input ProductStockInput {
+  autoStock: Boolean!
+  consumable: Boolean!
+  stockLocationId: ID
+  stockTracked: Boolean!
 }
 
 type Project {
@@ -2393,6 +2451,9 @@ type Query {
   """
   overdueInvoices(today: Date!): [AccountingDocument!]!
   places: [Place!]!
+
+  """Quantities in stock of the references (for the shopping lists)."""
+  productStock: [ProductStock!]!
   projectCategories: [ProjectCategory!]!
 
   """Mails linked to a project, latest first."""
@@ -2430,6 +2491,10 @@ type Query {
   Addresses and places matching a text (3 characters at least), the closest to `near` first.
   """
   searchAddresses(near: GeoPointInput, text: String!): [AddressSuggestion!]!
+  sheet(id: ID!): Sheet
+
+  """Categories of the sheets, in their order."""
+  sheetCategories: [SheetCategory!]!
 
   """Sheets of a routine, an event or a task, in their order."""
   sheetLinks(eventId: ID, routineId: ID, taskId: ID): [SheetLink!]!
@@ -2446,9 +2511,7 @@ type Query {
   """Shopping lists, latest first: all, or those of a task."""
   shoppingLists(taskId: ID): [ShoppingList!]!
 
-  """
-  Products of all the base lists (the perishable ones past their date are marked missing first).
-  """
+  """Products of all the base lists (references)."""
   shoppingProducts: [ShoppingProduct!]!
 
   """Storage modes of the perishable products."""
@@ -2465,6 +2528,16 @@ type Query {
 
   """Sprints, by start date."""
   sprints: [Sprint!]!
+
+  """Inventories, latest first."""
+  stockCounts: [StockCount!]!
+
+  """Items of the stock, in their order."""
+  stockItems: [StockItem!]!
+  stockLocations: [StockLocation!]!
+
+  """Movements of the stock, latest first: all, or those of an item."""
+  stockMovements(itemId: ID): [StockMovement!]!
 
   """Calendars of the other workspaces."""
   subscribableCalendars: [SubscribableCalendar!]!
@@ -2979,6 +3052,7 @@ input SendMailInput {
 Sheet: products and items used together (a recipe, a suitcase…), added to shopping lists or made a checklist of.
 """
 type Sheet {
+  categoryIds: [ID!]!
   createdAt: DateTime!
   id: ID!
   items: [SheetItem!]!
@@ -2992,8 +3066,26 @@ type Sheet {
   usedBy: Int!
 }
 
+"""Category of the sheets (flat, set in the settings)."""
+type SheetCategory {
+  color: String!
+  id: ID!
+  name: String!
+  position: Int!
+}
+
+input SheetCategoryInput {
+  color: String!
+  name: String!
+}
+
+input SheetCategoryPatch {
+  color: String
+  name: String
+}
+
 input SheetInput {
-  items: [SheetItemInput!]!
+  categoryIds: [ID!]!
   name: String!
   note: String
   projectId: ID
@@ -3002,6 +3094,9 @@ input SheetInput {
 """Item of a sheet: a product of the references, or a label of its own."""
 type SheetItem {
   categoryId: ID
+
+  """Used up when the sheet is used (taken from the stock)."""
+  consumable: Boolean!
   id: ID!
   label: String!
   note: String
@@ -3013,6 +3108,7 @@ type SheetItem {
 
 input SheetItemInput {
   categoryId: ID
+  consumable: Boolean
   id: ID
   label: String!
   note: String
@@ -3042,6 +3138,14 @@ type SheetSource {
   name: String!
   quantity: Float
   sheetId: ID!
+}
+
+type SheetUse {
+  """Items short of stock (what there was was taken)."""
+  short: [String!]!
+
+  """Items taken from the stock."""
+  taken: Int!
 }
 
 """Base list ("liste type"): products usually bought together."""
@@ -3074,10 +3178,43 @@ input ShoppingCategoryInput {
 }
 
 """
+Delivery of a remote order: its tracking, where it arrives (delivered or to pick up), when, received or not.
+"""
+type ShoppingDelivery {
+  address: String
+  id: ID!
+  label: String
+  lat: Float
+  listId: ID!
+  lon: Float
+  pickup: Boolean!
+  position: Int!
+  receivedAt: DateTime
+  trackingUrl: String
+  windowFrom: Date
+  windowTo: Date
+}
+
+input ShoppingDeliveryInput {
+  address: String
+  itemIds: [ID!]!
+  label: String
+  lat: Float
+  lon: Float
+  pickup: Boolean!
+  trackingUrl: String
+  windowFrom: Date
+  windowTo: Date
+}
+
+"""
 Item of a shopping list: a copy of a product of the base list, or an item of this list only.
 """
 type ShoppingItem {
   categoryId: ID
+
+  """Delivery of the remote order it comes with."""
+  deliveryId: ID
   expiresAt: Date
   id: ID!
   listId: ID!
@@ -3126,6 +3263,10 @@ type ShoppingList {
   closed: Boolean!
   closedAt: DateTime
   createdAt: DateTime!
+  deliveries: [ShoppingDelivery!]!
+  deliveryAddress: String
+  deliveryLat: Float
+  deliveryLon: Float
 
   """Treasury entry paying the list."""
   entry: TreasuryEntry
@@ -3133,13 +3274,28 @@ type ShoppingList {
   id: ID!
   items: [ShoppingItem!]!
   name: String!
+
+  """Ordered remotely: followed by its deliveries."""
+  remote: Boolean!
   taskIds: [ID!]!
+}
+
+input ShoppingOrderInput {
+  deliveryAddress: String
+  deliveryLat: Float
+  deliveryLon: Float
+  remote: Boolean!
 }
 
 """Product of a base list: what is usually bought, marked when missing."""
 type ShoppingProduct {
+  """Added to the stock by itself once bought (else proposed)."""
+  autoStock: Boolean!
   baseListId: ID!
   categoryId: ID
+
+  """Used up (taken from the stock by sheets and checklists)."""
+  consumable: Boolean!
 
   """Date of the last purchase: once past, the product is marked missing."""
   expiresAt: Date
@@ -3153,6 +3309,12 @@ type ShoppingProduct {
   perishable: Boolean!
   quantity: Float
   relationIds: [ID!]!
+
+  """Place it goes to in the stock."""
+  stockLocationId: ID
+
+  """Followed in the stock."""
+  stockTracked: Boolean!
   storageId: ID
   storeId: ID
   unit: String
@@ -3246,6 +3408,139 @@ type SprintTaskStatus {
   sprintId: ID!
   statusId: ID
   taskId: ID!
+}
+
+"""Inventory: the quantities counted on a day."""
+type StockCount {
+  date: DateTime!
+  id: ID!
+  lines: Int!
+  locationId: ID
+  note: String
+}
+
+input StockCountInput {
+  lines: [StockCountLineInput!]!
+  locationId: ID
+  note: String
+}
+
+input StockCountLineInput {
+  counted: Float!
+  itemId: ID!
+}
+
+"""
+Item of the stock: a reference followed in stock, or an item of its own; its quantity is that of its lots.
+"""
+type StockItem {
+  categoryId: ID
+
+  """Used up: that of its reference (an item of its own is)."""
+  consumable: Boolean!
+  createdAt: DateTime!
+  id: ID!
+  label: String!
+  locationId: ID
+  lots: [StockLot!]!
+  memberIds: [ID!]!
+  note: String
+  perishable: Boolean!
+  position: Int!
+  productId: ID
+
+  """Quantity of its lots."""
+  quantity: Float!
+  relationIds: [ID!]!
+  unit: String
+  updatedAt: DateTime!
+}
+
+input StockItemInput {
+  categoryId: ID
+
+  """New item: the date of its first lot."""
+  expiresAt: Date
+  label: String!
+  locationId: ID
+  memberIds: [ID!]!
+  note: String
+  perishable: Boolean!
+  productId: ID
+
+  """New item: its quantity to start with."""
+  quantity: Float
+  relationIds: [ID!]!
+  unit: String
+}
+
+"""Place things are kept (Frigo, Congélateur…), in a tree."""
+type StockLocation {
+  color: String
+  id: ID!
+  name: String!
+  parentId: ID
+  position: Int!
+}
+
+input StockLocationInput {
+  color: String
+  name: String!
+  parentId: ID
+}
+
+"""Lot of an item of the stock: a quantity and its date."""
+type StockLot {
+  createdAt: DateTime!
+  expiresAt: Date
+  id: ID!
+  itemId: ID!
+  quantity: Float!
+}
+
+input StockMoveInput {
+  expiresAt: Date
+  itemId: ID!
+  kind: StockMovementKind!
+  lotId: ID
+  note: String
+  quantity: Float!
+}
+
+"""Change of a quantity of the stock, signed, with where it comes from."""
+type StockMovement {
+  countId: ID
+  date: DateTime!
+  id: ID!
+  itemId: ID!
+  itemLabel: String!
+  kind: StockMovementKind!
+  lotId: ID
+  note: String
+  quantity: Float!
+  sheetId: ID
+  shoppingListId: ID
+
+  """
+  What it comes from: the shopping list, the sheet, the checklist, the inventory.
+  """
+  source: String
+}
+
+"""Why a quantity of the stock changed."""
+enum StockMovementKind {
+  CONSUMPTION
+  CORRECTION
+  COUNT
+  LOSS
+  PURCHASE
+}
+
+input StockPurchaseInput {
+  expiresAt: Date
+  locationId: ID
+  quantity: Float!
+  shoppingItemId: ID!
 }
 
 """Calendar of another workspace, with whether this one shows it."""

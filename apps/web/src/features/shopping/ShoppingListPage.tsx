@@ -6,6 +6,7 @@ import { confirmDestructive } from '../../components/dialogs/confirm-destructive
 import { ActionIcon, Anchor, Badge, Checkbox, Group, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
+  ArchiveIcon,
   ArrowLeftIcon,
   BankIcon,
   BasketIcon,
@@ -18,6 +19,7 @@ import {
   PlusIcon,
   ShoppingCartIcon,
   TrashIcon,
+  TruckIcon,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -43,6 +45,13 @@ import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
 import { StoreMode } from './StoreMode';
+import { OrderPanel } from './OrderPanel';
+import { deliveryInput, deliveryWindow } from './delivery-format';
+import { StockPurchaseForm } from '../stock/StockPurchaseForm';
+import { useStockProposal } from '../stock/use-stock-proposal';
+import { useProductStock, useStockMutations } from '../stock/api';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
+import { EditableSelect } from '../../components/data-table/EditableCells';
 import * as fmt from '../../lib/format';
 import { Comments } from '../comments/Comments';
 
@@ -84,6 +93,14 @@ export function ShoppingListPage() {
   const listProjects = list ? [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))] : [];
   const people = usePeople();
   const sheetMutations = useSheetMutations();
+  const stockMutations = useStockMutations();
+  const inStock = useProductStock();
+  const propose = useStockProposal();
+  const deliveries = list?.deliveries ?? [];
+  const deliveryName = (id: string | null | undefined) => {
+    const delivery = deliveries.find((item) => item.id === id);
+    return delivery ? delivery.label || `${delivery.pickup ? 'Retrait' : 'Livraison'} ${deliveryWindow(delivery)}`.trim() : '';
+  };
   const itemComments = useCommentCounts(
     'SHOPPING_ITEM',
     (list?.items ?? []).map((item) => item.id),
@@ -100,6 +117,26 @@ export function ShoppingListPage() {
         sortValue: (item) => (item.purchasedAt ? 1 : 0),
         text: (item) => (item.purchasedAt ? 'Acheté' : ''),
         filter: { kind: 'boolean', value: (item) => Boolean(item.purchasedAt) },
+      },
+      {
+        id: 'inStock',
+        label: 'En stock',
+        size: 100,
+        numeric: true,
+        sortValue: (item) => (item.productId && inStock.has(item.productId) ? inStock.get(item.productId)! : null),
+        text: (item) => (item.productId && inStock.has(item.productId) ? fmt.number(inStock.get(item.productId)!, 3) : ''),
+        filter: { kind: 'number', value: (item) => (item.productId ? (inStock.get(item.productId) ?? null) : null) },
+      },
+      {
+        id: 'delivery',
+        label: 'Livraison',
+        size: 170,
+        bulk: true,
+        hiddenByDefault: !list?.remote,
+        sortValue: (item) => deliveryName(item.deliveryId) || null,
+        text: (item) => deliveryName(item.deliveryId),
+        filter: { kind: 'choice', value: (item) => item.deliveryId ?? null, options: deliveries.map((delivery) => ({ value: delivery.id, label: deliveryName(delivery.id) })) },
+        groupable: true,
       },
       {
         id: 'sheets',
@@ -128,6 +165,26 @@ export function ShoppingListPage() {
     title: list?.name ?? 'Liste d’achats',
     first: LIST_VIEWS,
   });
+
+  /**
+   * Puts items in a delivery (or out of any): the deliveries they leave and the one they join are saved.
+   * @param {ShoppingItem[]} moved Items.
+   * @param {string | null} deliveryId Delivery (none: out of any).
+   * @returns {void}
+   */
+  const assignDelivery = (moved: ShoppingItem[], deliveryId: string | null) => {
+    const ids = new Set(moved.map((item) => item.id));
+    for (const delivery of deliveries) {
+      const own = (list?.items ?? []).filter((item) => item.deliveryId === delivery.id).map((item) => item.id);
+      const next = delivery.id === deliveryId ? [...new Set([...own, ...ids])] : own.filter((id) => !ids.has(id));
+      if (next.length !== own.length || next.some((id) => !own.includes(id))) stockMutations.updateDelivery.mutate({ id: delivery.id, input: deliveryInput(delivery, next) }, { onError });
+    }
+  };
+  const bulkDelivery = bulkSaver<ShoppingItem, string | null>(
+    view,
+    (item, deliveryId) => assignDelivery([item], deliveryId),
+    (moved, deliveryFor) => assignDelivery(moved, deliveryFor(moved[0])),
+  )('delivery');
 
   if (isPending) {
     return <TableSkeleton rows={4} />;
@@ -237,8 +294,11 @@ export function ShoppingListPage() {
                 Ajouter un produit
               </ActionButton>
             )}
+            <ActionButton priority="secondary" icon={<TruckIcon aria-hidden />} onClick={() => openFormPanel('Commande à distance', () => <OrderPanel listId={list.id} />)}>
+              {list.remote ? `Commande · ${list.deliveries.filter((delivery) => !delivery.receivedAt).length} livraison(s) en cours` : 'Commande à distance'}
+            </ActionButton>
             <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0} onClick={() => setStoreMode(true)}>
-              Mode magasin
+              Mode collecte
             </ActionButton>
             <ListActionsMenu
               list={list}
@@ -275,12 +335,32 @@ export function ShoppingListPage() {
                 }
           }
           onSave={(item, input) => mutations.updateItem.mutate({ id: item.id, input }, { onError })}
+          extraCells={(item) => ({
+            inStock: item.productId && inStock.has(item.productId) && (
+              <Text span size="sm" c="dimmed" ff="monospace">
+                {fmt.number(inStock.get(item.productId)!, 3)}
+              </Text>
+            ),
+            delivery: list.remote && (
+              <EditableSelect
+                value={item.deliveryId ?? null}
+                label={`Livraison de ${item.name}`}
+                nullable
+                data={deliveries.map((delivery) => ({ value: delivery.id, label: deliveryName(delivery.id) }))}
+                onSave={(deliveryId) => bulkDelivery(item, deliveryId)}
+              />
+            ),
+          })}
           done={(item) => Boolean(item.purchasedAt)}
           check={(item) => (
             <Checkbox
               aria-label={`${item.name} acheté`}
               checked={Boolean(item.purchasedAt)}
-              onChange={(event) => mutations.setPurchased.mutate({ id: item.id, purchased: event.currentTarget.checked }, { onError })}
+              onChange={(event) => {
+                const purchased = event.currentTarget.checked;
+                // Bought: a reference followed in stock is proposed for the stock (unless it goes there by itself).
+                mutations.setPurchased.mutate({ id: item.id, purchased }, { onSuccess: () => purchased && propose([item]), onError });
+              }}
             />
           )}
           badge={(item) =>
@@ -310,6 +390,7 @@ export function ShoppingListPage() {
                   disabled: closed,
                   onClick: () => mutations.duplicateItem.mutate({ id: item.id }, { onSuccess: () => notifySuccess('Ligne ajoutée : indiquez sa date.'), onError }),
                 },
+                { label: 'Ajouter au stock…', icon: <ArchiveIcon aria-hidden />, onClick: () => openFormPanel('Ajouter au stock', (close) => <StockPurchaseForm items={[item]} onDone={close} />) },
                 {
                   label: 'Retirer de la liste',
                   icon: <TrashIcon aria-hidden />,

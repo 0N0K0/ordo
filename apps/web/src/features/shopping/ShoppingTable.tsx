@@ -69,6 +69,8 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   badge?: (row: T) => ReactNode;
   /** Column after the link (last purchase…). */
   extra?: { title: string; render: (row: T) => ReactNode };
+  /** Cells of the columns of their own (stock, delivery…), by column id. Optional. */
+  extraCells?: (row: T) => Record<string, ReactNode>;
   /** Buttons at the end of a row. */
   actions: (row: T) => ReactNode;
   /** Text after the name of a category (or store), from the rows in it and in its sub-categories. */
@@ -105,7 +107,7 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
  * @param {ItemRowProps<T>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, saveCell, cellProps, check, badge, extra, actions, done }: ItemRowProps<T>) {
+function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, saveCell, cellProps, check, badge, extra, extraCells, actions, done }: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
   const {
@@ -191,6 +193,7 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
       </StackedValues>
     ),
     extra: extra?.render(item),
+    ...extraCells?.(item),
   };
 
   return (

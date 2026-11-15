@@ -69,6 +69,10 @@ const ShoppingDataDocument = graphql(`
       lastPrice
       memberIds
       relationIds
+      stockTracked
+      consumable
+      autoStock
+      stockLocationId
     }
   }
 `);
@@ -88,6 +92,23 @@ const ShoppingListsDocument = graphql(`
       }
       closed
       closedAt
+      remote
+      deliveryAddress
+      deliveryLat
+      deliveryLon
+      deliveries {
+        id
+        label
+        trackingUrl
+        pickup
+        windowFrom
+        windowTo
+        address
+        lat
+        lon
+        receivedAt
+        position
+      }
       createdAt
       items {
         id
@@ -105,6 +126,7 @@ const ShoppingListsDocument = graphql(`
         storageId
         expiresAt
         purchasedAt
+        deliveryId
         sheetSources {
           sheetId
           name

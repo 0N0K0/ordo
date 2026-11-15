@@ -22,7 +22,7 @@ import { useChecklist, useSheetMutations, type ChecklistItem, type SheetOwner } 
 import { SheetLinksField } from './SheetLinksField';
 import { SheetPicker } from './SheetPicker';
 
-type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; checked?: boolean };
+type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
 
 /**
  * Checklist of a routine or an event occurrence, or of a task: made of its sheets when first opened, then ticked and
@@ -70,6 +70,17 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: [...paths].map(([value, name]) => ({ value, label: name })) },
       groupable: true,
     },
+    {
+      id: 'consumable',
+      label: 'Consommable',
+      size: 120,
+      bulk: true,
+      hiddenByDefault: true,
+      sortValue: (item) => (item.consumable ? 1 : 0),
+      text: (item) => (item.consumable ? 'Consommable' : ''),
+      filter: { kind: 'boolean', value: (item) => item.consumable },
+      groupable: true,
+    },
     { id: 'note', label: 'Description', size: 220, bulk: true, hiddenByDefault: true, sortValue: (item) => item.note ?? null, text: (item) => item.note ?? '' },
     {
       id: 'sources',
@@ -106,6 +117,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           quantity: item.quantity ?? null,
           unit: item.unit ?? null,
           note: item.note ?? null,
+          consumable: item.consumable,
           ...change,
         },
       },
@@ -180,6 +192,8 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
             />
           ),
           note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
+          // Ticked, a consumable item that is a reference is taken from the stock.
+          consumable: <EditableCheck value={item.consumable} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
           sources: (
             <StackedValues>
               {item.sources.map((source) => (
@@ -200,7 +214,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           const name = label.trim();
           if (!name) return;
           mutations.addChecklistItem.mutate(
-            { listId: list.id, input: { productId: null, label: name, categoryId: null, quantity: null, unit: null, note: null } },
+            { listId: list.id, input: { productId: null, label: name, categoryId: null, quantity: null, unit: null, note: null, consumable: false } },
             { onSuccess: () => setLabel(''), ...onError },
           );
         }}
