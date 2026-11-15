@@ -94,10 +94,10 @@ export function AddShoppingRow({ label, onCreate, onPick, place, depth, columns,
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Item leftSection={<ListPlusIcon aria-hidden />} onClick={onPick}>
-                Depuis les listes types…
+                Depuis les références…
               </Menu.Item>
               <Menu.Item leftSection={<PencilSimpleLineIcon aria-hidden />} onClick={() => setTyping(true)}>
-                Hors liste type
+                Hors références
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>

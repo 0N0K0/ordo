@@ -118,6 +118,11 @@ model Workspace {
   routines                  Routine[]
   routineDependencies       RoutineDependency[]
   routineChecks             RoutineCheck[]
+  sheets                    Sheet[]
+  sheetItems                SheetItem[]
+  sheetLinks                SheetLink[]
+  checklists                Checklist[]
+  checklistItems            ChecklistItem[]
 }
 
 /// Kind of notification a workspace can give while another one is open.
@@ -333,6 +338,7 @@ model Project {
   alarms        Alarm[]
   mails         MailMessage[]
   events        CalendarEvent[]
+  sheets        Sheet[]
   documents     AccountingDocument[]
   resources     ProjectResource[]
   imported      ImportedDocument[]
@@ -566,6 +572,9 @@ model Task {
   relationsA        TaskRelation[]     @relation("RelationA")
   relationsB        TaskRelation[]     @relation("RelationB")
   comments          TaskComment[]
+  /// Sheets the task gets a checklist of.
+  sheetLinks        SheetLink[]
+  checklists        Checklist[]
   timeEntries       TimeEntry[]
   /// Calendar events about the task.
   calendarEvents    CalendarEvent[]    @relation("CalendarEventTasks")
@@ -686,6 +695,8 @@ model Comment {
   shoppingProduct    ShoppingProduct?      @relation(fields: [shoppingProductId], references: [id], onDelete: Cascade)
   shoppingItemId     String?
   shoppingItem       ShoppingItem?         @relation(fields: [shoppingItemId], references: [id], onDelete: Cascade)
+  sheetItemId        String?
+  sheetItem          SheetItem?            @relation(fields: [sheetItemId], references: [id], onDelete: Cascade)
   documentId         String?
   document           AccountingDocument?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
   importedDocumentId String?
@@ -713,6 +724,7 @@ model Comment {
   @@index([shoppingListId])
   @@index([shoppingProductId])
   @@index([shoppingItemId])
+  @@index([sheetItemId])
   @@index([documentId])
   @@index([importedDocumentId])
   @@index([catalogItemId])
@@ -1350,6 +1362,9 @@ model CalendarEvent {
   updatedAt         DateTime                 @updatedAt
   /// Comments (markdown).
   comments    Comment[]
+  /// Sheets each occurrence gets a checklist of.
+  sheetLinks  SheetLink[]
+  checklists  Checklist[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId       String                   @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace         Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2245,22 +2260,24 @@ model Place {
 
 /// Category of the shopping products, in a tree (as the treasury categories).
 model ShoppingCategory {
-  id          String             @id @default(cuid())
-  name        String
-  color       String?
-  parentId    String?
-  parent      ShoppingCategory?  @relation("ShoppingCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    ShoppingCategory[] @relation("ShoppingCategoryTree")
+  id             String             @id @default(cuid())
+  name           String
+  color          String?
+  parentId       String?
+  parent         ShoppingCategory?  @relation("ShoppingCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children       ShoppingCategory[] @relation("ShoppingCategoryTree")
   /// Manual order among siblings.
-  position    Int                @default(0)
+  position       Int                @default(0)
   /// Base lists it is offered in (none: all; a sub-category without any takes those of its parent).
-  baseLists   ShoppingBaseList[] @relation("ShoppingCategoryBaseLists")
-  createdAt   DateTime           @default(now())
-  products    ShoppingProduct[]
-  items       ShoppingItem[]
+  baseLists      ShoppingBaseList[] @relation("ShoppingCategoryBaseLists")
+  createdAt      DateTime           @default(now())
+  products       ShoppingProduct[]
+  items          ShoppingItem[]
+  sheetItems     SheetItem[]
+  checklistItems ChecklistItem[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId    String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([parentId])
   @@index([workspaceId])
@@ -2368,6 +2385,8 @@ model ShoppingProduct {
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   items           ShoppingItem[]
+  sheetItems      SheetItem[]
+  checklistItems  ChecklistItem[]
   /// Comments (markdown).
   comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -2430,6 +2449,8 @@ model ShoppingItem {
   expiresAt   DateTime?          @db.Date
   /// Ticked as bought.
   purchasedAt DateTime?
+  /// Sheets it comes from, with their share of its quantity: [{ sheetId, name, quantity }] (none: added by hand).
+  sheetSources Json               @default("[]")
   /// Members of the team or household and relations it is for: the split of a treasury entry paying the list.
   members     Contributor[]      @relation("ShoppingItemMembers")
   relations   TreasuryRelation[] @relation("ShoppingItemRelations")
@@ -2443,6 +2464,132 @@ model ShoppingItem {
   @@index([listId])
   @@index([productId])
   @@index([storageId])
+  @@index([workspaceId])
+}
+
+/// Sheet: products (of the base lists) and other items used together, a recipe, the content of a suitcase…, added to
+/// shopping lists (summed with the other sheets) or made a checklist of for a routine, an event or a task.
+model Sheet {
+  id          String      @id @default(cuid())
+  name        String
+  note        String?
+  /// Project it belongs to (shown in its tab); none: of the workspace.
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  position    Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  items       SheetItem[]
+  links       SheetLink[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String      @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([workspaceId])
+}
+
+/// Item of a sheet: a product of a base list (summed by product), or a label of its own (summed by label and unit).
+model SheetItem {
+  id          String            @id @default(cuid())
+  sheetId     String
+  sheet       Sheet             @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     ShoppingProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  /// Its own label, or the name of its product when it was chosen (kept when the product is deleted).
+  label       String
+  /// Category of the shopping products (the item of a shopping list made of it takes it).
+  categoryId  String?
+  category    ShoppingCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  quantity    Decimal?          @db.Decimal(12, 3)
+  unit        String?
+  /// Description (markdown).
+  note        String?
+  position    Int               @default(0)
+  /// Comments (markdown).
+  comments    Comment[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([sheetId])
+  @@index([productId])
+  @@index([categoryId])
+  @@index([workspaceId])
+}
+
+/// Sheet of a routine, an event or a task (one of them), times a multiplier: their checklists are made of it.
+model SheetLink {
+  id          String         @id @default(cuid())
+  sheetId     String
+  sheet       Sheet          @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  multiplier  Decimal        @default(1) @db.Decimal(8, 2)
+  routineId   String?
+  routine     Routine?       @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  eventId     String?
+  event       CalendarEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        Task?          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  position    Int            @default(0)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String         @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([sheetId])
+  @@index([routineId])
+  @@index([eventId])
+  @@index([taskId])
+  @@index([workspaceId])
+}
+
+/// Checklist made of the sheets of a routine or an event (one per occurrence) or of a task, changed and ticked freely.
+model Checklist {
+  id             String          @id @default(cuid())
+  routineId      String?
+  routine        Routine?        @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  eventId        String?
+  event          CalendarEvent?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  taskId         String?
+  task           Task?           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /// Occurrence of the routine or the event (none for a task).
+  occurrenceDate DateTime?       @db.Date
+  createdAt      DateTime        @default(now())
+  items          ChecklistItem[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId    String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, occurrenceDate])
+  @@unique([eventId, occurrenceDate])
+  @@index([taskId])
+  @@index([workspaceId])
+}
+
+/// Item of a checklist: summed from its sheets (or added by hand), ticked when done.
+model ChecklistItem {
+  id          String            @id @default(cuid())
+  listId      String
+  list        Checklist         @relation(fields: [listId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     ShoppingProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  label       String
+  categoryId  String?
+  category    ShoppingCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  quantity    Decimal?          @db.Decimal(12, 3)
+  unit        String?
+  /// Description (markdown).
+  note        String?
+  /// Sheets it comes from, with their share of its quantity: [{ sheetId, name, quantity }].
+  sources     Json              @default("[]")
+  checkedAt   DateTime?
+  position    Int               @default(0)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([listId])
+  @@index([productId])
+  @@index([categoryId])
   @@index([workspaceId])
 }
 
@@ -2536,6 +2683,9 @@ model Routine {
   timeEntries    TimeEntry[]
   /// Comments (markdown).
   comments    Comment[]
+  /// Sheets each occurrence gets a checklist of.
+  sheetLinks  SheetLink[]
+  checklists  Checklist[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId    String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

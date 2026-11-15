@@ -14,6 +14,7 @@ export * from './dashboards';
 export * from './work-schedules';
 export * from './geo';
 export * from './shopping';
+export * from './sheets';
 export * from './routines';
 export * from './slot-rules';
 export * from './routine-views';

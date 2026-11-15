@@ -4,6 +4,7 @@ import { PageSettings } from '../../layouts/PageSettings';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useShoppingData, useShoppingLists, useShoppingMutations } from './api';
 import { ShoppingCategories } from './ShoppingCategories';
+import { useSheets } from '../sheets/api';
 
 /**
  * Number of products and items of each category or store, for the settings.
@@ -33,11 +34,14 @@ export function ShoppingSettings() {
   const { data } = useShoppingData();
   const { data: lists } = useShoppingLists();
   const mutations = useShoppingMutations();
+  const { data: sheets } = useSheets();
   const rows = [...(data?.shoppingProducts ?? []), ...(lists ?? []).flatMap((list) => list.items)];
+  // The categories are those of the sheets too.
+  const categoryRows = [...rows, ...(sheets ?? []).flatMap((sheet) => sheet.items)];
   return (
     <PageSettings title="Paramètres des achats">
       <Stack gap="md">
-        <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usageOf((row) => row.categoryId, rows)} />
+        <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usageOf((row) => row.categoryId, categoryRows)} />
         <LabelManager
           title="Magasins"
           description={perso ? 'Où vous achetez les produits.' : 'Magasins et fournisseurs des produits.'}

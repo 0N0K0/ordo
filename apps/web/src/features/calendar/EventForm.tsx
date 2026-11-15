@@ -30,6 +30,7 @@ import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
 import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
 import { Comments } from '../comments/Comments';
+import { SheetsSection } from '../sheets/SheetsSection';
 import { useDefaultColor } from '../workspace/use-default-color';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
@@ -605,6 +606,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           suggestions={context.suggestionsFor(values.projectId ?? null)}
           minRows={3}
         />
+        {occurrence && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={String(occurrence.occurrenceDate ?? occurrence.startDate)} name={values.title || 'l’évènement'} />}
         {occurrence && <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} />}
 
         <Group justify="space-between" gap="sm">

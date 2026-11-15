@@ -36,7 +36,7 @@ function BaseListForm({ baseList, onDone }: { baseList?: ShoppingBaseList; onDon
         { id: baseList.id, name },
         {
           onSuccess: () => {
-            notifySuccess('Liste type renommée.');
+            notifySuccess('Référence renommée.');
             onDone();
           },
           onError,
@@ -47,7 +47,7 @@ function BaseListForm({ baseList, onDone }: { baseList?: ShoppingBaseList; onDon
         { name },
         {
           onSuccess: (id) => {
-            notifySuccess('Liste type créée.');
+            notifySuccess('Référence créée.');
             onDone(id);
           },
           onError,
@@ -91,7 +91,7 @@ function SortableTab(props: TabsTabProps & { value: string }) {
 }
 
 /**
- * Base lists ("listes types": food, school supplies, children's clothes…), one tab each, created, renamed, moved and
+ * Base lists ("références": food, school supplies, children's clothes…), one tab each, created, renamed, moved and
  * deleted from the menu of its tab, reordered by drag and drop; the products of the one chosen below.
  * @returns {JSX.Element} Base lists.
  */
@@ -136,7 +136,7 @@ export function BaseLists() {
     const modalId = 'shopping-base-list';
     openPanel({
       panelId: modalId,
-      title: baseList ? 'Renommer la liste type' : 'Nouvelle liste type',
+      title: baseList ? 'Renommer la référence' : 'Nouvelle référence',
       children: (
         <BaseListForm
           baseList={baseList}
@@ -157,7 +157,7 @@ export function BaseLists() {
   const confirmDelete = (baseList: ShoppingBaseList) => {
     const count = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).length;
     confirmDestructive({
-      title: 'Supprimer la liste type',
+      title: 'Supprimer la référence',
       risks: (
         <>
           <Text size="sm">
@@ -171,7 +171,7 @@ export function BaseLists() {
           { id: baseList.id },
           {
             onSuccess: () => {
-              notifySuccess('Liste type supprimée.');
+              notifySuccess('Référence supprimée.');
               select(null);
             },
             onError: (error) => notifyError(error.message),
@@ -187,12 +187,12 @@ export function BaseLists() {
       <Stack gap="md">
         <ActionsRow>
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Nouvelle liste type
+            Nouvelle référence
           </ActionButton>
         </ActionsRow>
         <EmptyState
           icon={<ListBulletsIcon aria-hidden />}
-          message="Aucune liste type : créez-en une par sorte d’achats (alimentation, fournitures scolaires, vêtements des enfants…), puis cochez ce qui manque pour générer une liste."
+          message="Aucune référence : créez-en une par sorte d’achats (alimentation, fournitures scolaires, vêtements des enfants…), puis cochez ce qui manque pour générer une liste."
         />
       </Stack>
     );
@@ -231,7 +231,7 @@ export function BaseLists() {
                                 variant="subtle"
                                 color="gray"
                                 size="xs"
-                                aria-label={`Actions sur la liste type ${baseList.name}`}
+                                aria-label={`Actions sur la référence ${baseList.name}`}
                                 onClick={(event) => event.stopPropagation()}
                               >
                                 <CaretDownIcon aria-hidden />
@@ -271,8 +271,8 @@ export function BaseLists() {
             </SortableContext>
           </DndContext>
         </Tabs>
-        <Tooltip label="Nouvelle liste type">
-          <ActionIcon variant="subtle" color="gray" ml="xs" aria-label="Nouvelle liste type" onClick={() => openForm()}>
+        <Tooltip label="Nouvelle référence">
+          <ActionIcon variant="subtle" color="gray" ml="xs" aria-label="Nouvelle référence" onClick={() => openForm()}>
             <PlusIcon aria-hidden />
           </ActionIcon>
         </Tooltip>

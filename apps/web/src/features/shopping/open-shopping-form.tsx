@@ -13,7 +13,7 @@ export function openShoppingForm(target: ShoppingFormProps['target']): void {
   const editing = target.kind === 'product' ? target.product : target.item;
   openPanel({
     panelId: modalId,
-    title: target.kind === 'product' ? (editing ? 'Modifier le produit' : 'Nouveau produit') : editing ? 'Modifier l’élément' : 'Élément hors listes types',
+    title: target.kind === 'product' ? (editing ? 'Modifier le produit' : 'Nouveau produit') : editing ? 'Modifier l’élément' : 'Élément hors références',
     children: <ShoppingForm target={target} onDone={() => closePanel(modalId)} />,
   });
 }

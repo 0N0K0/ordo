@@ -17,6 +17,7 @@ import './modules/catalog';
 import './modules/dashboards';
 import './modules/github';
 import './modules/library';
+import './modules/sheets';
 import './modules/shopping';
 import './modules/routines';
 

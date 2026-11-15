@@ -11,6 +11,7 @@ import { CalendarPage } from './features/calendar/CalendarPage';
 import { MailPage } from './features/mail/MailPage';
 import { ShoppingListPage } from './features/shopping/ShoppingListPage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
+import { SheetsPage } from './features/sheets/SheetsPage';
 import { RoutinesPage } from './features/routines/RoutinesPage';
 import { AuthLayout } from './features/auth/AuthLayout';
 import { RequireAuth, RequireGuest } from './features/auth/guards';
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
           { path: 'alarms', element: <AlarmsPage /> },
           { path: 'shopping', element: <ShoppingPage /> },
           { path: 'shopping/:id', element: <ShoppingListPage /> },
+          { path: 'sheets', element: <SheetsPage /> },
           { path: 'routines', element: <RoutinesPage /> },
           { path: 'mail', element: <MailPage /> },
           { path: 'calendar', element: <CalendarPage /> },

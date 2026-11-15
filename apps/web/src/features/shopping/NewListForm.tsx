@@ -91,7 +91,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
           </Checkbox.Group>
         )}
         <Text size="xs" c="dimmed">
-          D’autres produits des listes types pourront être ajoutés ensuite.
+          D’autres produits des références pourront être ajoutés ensuite.
         </Text>
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>
