@@ -1,11 +1,28 @@
 import { createContext, useContext } from 'react';
-import { notifyError, notifyWithUndo } from '../../lib/notify';
+import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from './api';
 
 /** Columns of the routine table edited together on a cell selection. */
-export type RoutineColumn = 'categories' | 'repetition' | 'time' | 'assignees' | 'beneficiaries' | 'estimate' | 'requires' | 'project';
-
-export const BULK_COLUMNS: readonly RoutineColumn[] = ['categories', 'repetition', 'time', 'assignees', 'estimate', 'requires', 'project'];
+export type RoutineColumn =
+  | 'title'
+  | 'categories'
+  | 'repetition'
+  | 'time'
+  | 'fromTime'
+  | 'dueTime'
+  | 'opensOn'
+  | 'slots'
+  | 'location'
+  | 'travelBefore'
+  | 'travelAfter'
+  | 'alarms'
+  | 'assignees'
+  | 'beneficiaries'
+  | 'estimate'
+  | 'requires'
+  | 'blocks'
+  | 'parent'
+  | 'project';
 
 /** Cells selected in one column, by row key (a routine can show on several rows, one per category). */
 export interface RoutineCellSelection {
@@ -55,22 +72,35 @@ export function useBulkRoutineChanges() {
 export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
   const selection = useContext(RoutineCellSelectionContext);
   const { patch } = useRoutineMutations();
+  const { data } = useRoutinesData();
   const applyBulk = useBulkRoutineChanges();
   const targets = selection && selection.column === column && selection.routineIds.includes(routine.id) ? selection.routineIds : [routine.id];
   return {
     count: targets.length,
+    /** Routines the edit applies to. */
+    targets,
     /**
-     * Saves the edit.
-     * @param {RoutinePatchValues} single Change of the edited routine alone.
-     * @param {RoutineBulkChanges} [bulk] Same change for several routines; without it the edit stays single. Optional.
+     * Saves the edit: on several routines, in one bulk change when given, else routine by routine (the change made for
+     * each; an empty one leaves it as it is).
+     * @param {RoutinePatchValues | ((routine: Routine) => RoutinePatchValues)} single Change of the edited routine (or of each).
+     * @param {RoutineBulkChanges} [bulk] Same change for several routines at once. Optional.
      * @returns {void}
      */
-    apply: (single: RoutinePatchValues, bulk?: RoutineBulkChanges) => {
+    apply: (single: RoutinePatchValues | ((routine: Routine) => RoutinePatchValues), bulk?: RoutineBulkChanges) => {
+      const changeFor = (item: Routine) => (typeof single === 'function' ? single(item) : single);
       if (bulk && targets.length > 1) {
         applyBulk(targets, bulk, `Modification appliquée à ${routinesLabel(targets.length)}.`);
         return;
       }
-      patch.mutate({ id: routine.id, input: single }, { onError: (error) => notifyError(error.message) });
+      if (targets.length > 1) {
+        for (const item of (data?.routines ?? []).filter((other) => targets.includes(other.id))) {
+          const change = changeFor(item);
+          if (Object.keys(change).length) patch.mutate({ id: item.id, input: change }, { onError: (error) => notifyError(error.message) });
+        }
+        notifySuccess(`Modification appliquée à ${routinesLabel(targets.length)}.`);
+        return;
+      }
+      patch.mutate({ id: routine.id, input: changeFor(routine) }, { onError: (error) => notifyError(error.message) });
     },
   };
 }

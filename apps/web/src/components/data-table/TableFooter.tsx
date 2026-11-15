@@ -28,8 +28,26 @@ function valuesOf<R>(column: ShownColumn<R>, rows: R[]): (number | string | null
 }
 
 /**
+ * Total of a column over rows, as its cells write their values.
+ * @param {ShownColumn<R>} column Column.
+ * @param {R[]} rows Rows.
+ * @param {TableAggregate | undefined} chosen Total chosen.
+ * @returns {{ numeric: boolean, text: string }} Whether the column has numbers, and the total written ("—" for none).
+ */
+function totalOf<R>(column: ShownColumn<R>, rows: R[], chosen: TableAggregate | undefined): { numeric: boolean; text: string } {
+  const values = valuesOf(column, rows);
+  const numeric = values.some((value) => typeof value === 'number');
+  const total = chosen ? aggregateValues(chosen, values) : null;
+  // Amounts (their cells show euros) as money, by default.
+  const money = rows.some((row) => column.text?.(row).includes('€'));
+  const format = column.formatTotal ?? ((value: number) => (money ? fmt.money(value) : fmt.number(value, 2)));
+  return { numeric, text: total === null ? '—' : chosen === 'count' ? fmt.number(total, 0) : format(total) };
+}
+
+/**
  * Footer of a table: under each column, the total chosen in place (count of the rows with a value; sum, average or
- * median of its numbers when it has some), over the rows kept by the filters.
+ * median of its numbers when it has some), over the rows kept by the filters. The groups repeat it over their rows
+ * (GroupFooter).
  * @param {TableFooterProps<R>} props Component props.
  * @returns {JSX.Element} Footer.
  */
@@ -41,15 +59,9 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
         {shown.map((column) => {
           // A column without values (selection, handles…): nothing under it.
           if (!column.sortValue && !column.text) return <Table.Th key={column.id} />;
-          const values = valuesOf(column, rows);
-          const numeric = values.some((value) => typeof value === 'number');
           const chosen = totals[column.id];
-          const total = chosen ? aggregateValues(chosen, values) : null;
+          const { numeric, text } = totalOf(column, rows, chosen);
           const options = (['count', ...(numeric ? (['sum', 'avg', 'median'] as const) : [])] as TableAggregate[]).map((value) => ({ value, label: LABELS[value] }));
-          // Amounts (their cells show euros) as money, by default.
-          const money = rows.some((row) => column.text?.(row).includes('€'));
-          const format = column.formatTotal ?? ((value: number) => (money ? fmt.money(value) : fmt.number(value, 2)));
-          const shownValue = total === null ? '—' : chosen === 'count' ? fmt.number(total, 0) : format(total);
           return (
             <Table.Th key={column.id} ta={column.numeric ? 'right' : undefined} fw={500}>
               <Menu position="bottom-start" withinPortal>
@@ -60,7 +72,7 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
                         <Text span size="xs" c="dimmed">
                           {LABELS[chosen]}{' '}
                         </Text>
-                        {shownValue}
+                        {text}
                       </Text>
                     ) : (
                       <Text span size="xs" c="dimmed">
@@ -95,5 +107,34 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
         {after > 0 && <Table.Th colSpan={after} />}
       </Table.Tr>
     </Table.Tfoot>
+  );
+}
+
+/**
+ * Footer of a group of rows: the totals chosen in the footer of the table, over the rows of the group.
+ * @param {Omit<TableFooterProps<R>, 'onChange'> & { label: string }} props Columns, rows of the group, totals, cells around, name of the group.
+ * @returns {JSX.Element | null} Row (none while no total is chosen).
+ */
+export function GroupFooter<R>({ shown, rows, totals, before, after, label }: Omit<TableFooterProps<R>, 'onChange'> & { label: string }) {
+  if (!shown.some((column) => totals[column.id])) return null;
+  return (
+    <Table.Tr bg="var(--mantine-color-default-hover)" aria-label={`Totaux de ${label}`}>
+      {before > 0 && <Table.Td colSpan={before} />}
+      {shown.map((column) => {
+        const chosen = totals[column.id];
+        if (!chosen || (!column.sortValue && !column.text)) return <Table.Td key={column.id} />;
+        return (
+          <Table.Td key={column.id} ta={column.numeric ? 'right' : undefined} style={{ whiteSpace: 'nowrap' }}>
+            <Text span size="xs" ff={column.numeric ? 'monospace' : undefined}>
+              <Text span size="xs" c="dimmed">
+                {LABELS[chosen]}{' '}
+              </Text>
+              {totalOf(column, rows, chosen).text}
+            </Text>
+          </Table.Td>
+        );
+      })}
+      {after > 0 && <Table.Td colSpan={after} />}
+    </Table.Tr>
   );
 }

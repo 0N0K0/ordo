@@ -2,6 +2,8 @@ import { Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { EditableDate, EditableSelect } from '../../components/data-table/EditableCells';
 import type { DataColumn } from '../../components/data-table/data-table';
+import { applyDiff } from '../../components/data-table/bulk-edit';
+import { StackedValues } from '../../components/data-table/StackedValues';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { categoryOptions } from './categories';
@@ -60,6 +62,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
   const columns: DataColumn<R>[] = [
     {
       id: 'account',
+      bulk: true,
       label: 'Compte',
       size: 150,
       sortValue: (row) => entryOf(row)?.accountName ?? null,
@@ -69,6 +72,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'valueDate',
+      bulk: true,
       label: 'Date de valeur',
       size: 130,
       hiddenByDefault: true,
@@ -88,6 +92,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'payer',
+      bulk: true,
       label: 'Émetteur / destinataire',
       size: 200,
       sortValue: (row) => options.payerName(row) || null,
@@ -104,6 +109,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'category',
+      bulk: true,
       label: 'Catégories',
       size: 180,
       sortValue: (row) => categoryText(row) || null,
@@ -113,6 +119,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'method',
+      bulk: true,
       label: 'Moyen de paiement',
       size: 150,
       hiddenByDefault: true,
@@ -127,6 +134,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'project',
+      bulk: true,
       label: 'Projet',
       size: 180,
       hiddenByDefault: true,
@@ -137,6 +145,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'documents',
+      bulk: true,
       label: 'Pièces justificatives',
       size: 220,
       hiddenByDefault: true,
@@ -152,6 +161,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'links',
+      bulk: true,
       label: 'Mouvements liés',
       size: 220,
       hiddenByDefault: true,
@@ -162,6 +172,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
   if (options.recurrence) {
     columns.push({
       id: 'recurrence',
+      bulk: true,
       label: 'Répétition',
       size: 220,
       sortValue: (row) => {
@@ -179,41 +190,62 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
 }
 
 /**
- * Cells of the shared columns of an entry, changed in place; split entries have their category, project, documents
- * and links on their lines.
+ * Cells of the shared columns of an entry, changed in place (and on the bulk selection of their column: the entries a
+ * change does not fit, split or of the other direction, are left as they are); split entries have their category,
+ * project, documents and links on their lines.
  * @param {AnyEntry} entry Entry.
  * @param {EntryEnv} env Names and options.
- * @param {EntrySave} save Save.
+ * @param {(column: string) => EntrySave} save Save of a column.
  * @returns {Record<string, ReactNode>} Cells by column id.
  */
-export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: EntrySave): Record<string, ReactNode> {
+export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: string) => EntrySave): Record<string, ReactNode> {
   const split = entry.lines.length > 0;
-  const onLines = (
-    <Text size="xs" c="dimmed">
-      Sur les lignes
-    </Text>
-  );
+  /**
+   * Values a split entry has on its lines, one under the other (read only: changed on the lines).
+   * @param {string[]} values Names.
+   * @returns {JSX.Element} Cell.
+   */
+  const onLines = (values: string[]) =>
+    values.length ? (
+      <StackedValues>
+        {[...new Set(values)].map((value) => (
+          <Text key={value} size="sm" title="Sur les lignes" truncate>
+            {value}
+          </Text>
+        ))}
+      </StackedValues>
+    ) : (
+      <Text size="xs" c="dimmed">
+        Sur les lignes
+      </Text>
+    );
   const valueDate = String(entry.valueDate ?? entry.date).slice(0, 10);
+  const categories = env.settings?.treasuryCategories ?? [];
+  const methods = env.settings?.treasuryPaymentMethods ?? [];
+  const direction = (row: AnyEntry) => (row.amount < 0 ? 'OUT' : 'IN');
   return {
     account: (
       <EditableSelect
         value={entry.accountId}
         label={`Compte de ${entry.label}`}
         data={env.accounts.filter((account) => !account.archived || account.id === entry.accountId).map((account) => ({ value: account.id, label: account.name }))}
-        onSave={(accountId) => accountId && save(entry, { accountId })}
+        onSave={(accountId) => accountId && save('account')(entry, { accountId })}
       />
     ),
-    valueDate: <EditableDate value={valueDate} label={`Date de valeur de ${entry.label}`} nullable onSave={(next) => save(entry, { valueDate: next })} />,
-    payer: <PayerCell entry={entry} env={env} save={save} />,
+    valueDate: <EditableDate value={valueDate} label={`Date de valeur de ${entry.label}`} nullable onSave={(next) => save('valueDate')(entry, { valueDate: next })} />,
+    payer: <PayerCell entry={entry} env={env} save={save('payer')} />,
     category: split ? (
-      onLines
+      onLines(entryCategories(entry).map((id) => env.paths.get(id) ?? ''))
     ) : (
       <EditableSelect
         value={entry.categoryId ?? null}
         label={`Catégorie de ${entry.label}`}
         nullable
-        {...treeSelectProps(categoryOptions(env.settings?.treasuryCategories ?? [], entry.amount < 0 ? 'OUT' : 'IN'))}
-        onSave={(categoryId) => save(entry, { categoryId })}
+        {...treeSelectProps(categoryOptions(categories, direction(entry)))}
+        // A category of money out goes to money out only (and in to in).
+        onSave={(categoryId) =>
+          save('category')(entry, (row) => (row.lines.length || (categoryId && categories.find((item) => item.id === categoryId)?.direction !== direction(row)) ? {} : { categoryId }))
+        }
       />
     ),
     method: (
@@ -221,25 +253,62 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: EntrySave)
         value={entry.methodId ?? null}
         label={`Moyen de paiement de ${entry.label}`}
         nullable
-        data={(env.settings?.treasuryPaymentMethods ?? [])
-          .filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId)
-          .map((method) => ({ value: method.id, label: method.name }))}
-        onSave={(methodId) => save(entry, { methodId })}
+        data={methods.filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId).map((method) => ({ value: method.id, label: method.name }))}
+        onSave={(methodId) =>
+          save('method')(entry, (row) => {
+            const method = methods.find((item) => item.id === methodId);
+            return method && !(row.amount < 0 ? method.outgoing : method.incoming) ? {} : { methodId };
+          })
+        }
       />
     ),
-    project: split ? onLines : <ProjectCell value={entry.projectId ?? null} env={env} label={`Projet de ${entry.label}`} onSave={(projectId) => save(entry, { projectId })} />,
-    documents: split ? onLines : <DocumentsCell documents={entry.documents} env={env} label={`Pièces justificatives de ${entry.label}`} onSave={(ids) => save(entry, ids)} />,
+    project: split ? (
+      onLines(entryProjects(entry).map((id) => env.projectNames.get(id) ?? ''))
+    ) : (
+      <ProjectCell value={entry.projectId ?? null} env={env} label={`Projet de ${entry.label}`} onSave={(projectId) => save('project')(entry, (row) => (row.lines.length ? {} : { projectId }))} />
+    ),
+    documents: split ? (
+      onLines(entry.lines.flatMap((line) => line.documents.map((document) => document.title)))
+    ) : (
+      <DocumentsCell
+        documents={entry.documents}
+        env={env}
+        label={`Pièces justificatives de ${entry.label}`}
+        onSave={(ids) =>
+          save('documents')(entry, (row) => {
+            if (row.lines.length) return {};
+            const of = (source: string, target: AnyEntry) => target.documents.filter((document) => document.source === source).map((document) => document.id);
+            return {
+              libraryDocumentIds: applyDiff(of('LIBRARY', row), of('LIBRARY', entry), ids.libraryDocumentIds),
+              projectResourceIds: applyDiff(of('PROJECT', row), of('PROJECT', entry), ids.projectResourceIds),
+            };
+          })
+        }
+      />
+    ),
     links: split ? (
-      onLines
+      onLines(entry.lines.flatMap((line) => [...line.linkedEntries.map((linked) => linked.label), ...line.linkedLines.map((linked) => linked.entryLabel)]))
     ) : (
       <LinksCell
         links={entryLinks(entry)}
         entryId={entry.id}
         lines={false}
         label={`Lier ${entry.label} à un mouvement`}
-        onSave={(links) => save(entry, { linkedEntryIds: links.map((link) => link.id) })}
+        onSave={(links) =>
+          save('links')(entry, (row) =>
+            row.lines.length
+              ? {}
+              : {
+                  linkedEntryIds: applyDiff(
+                    row.linkedEntries.map((linked) => linked.id),
+                    entry.linkedEntries.map((linked) => linked.id),
+                    links.map((link) => link.id),
+                  ).filter((id) => id !== row.id),
+                },
+          )
+        }
       />
     ),
-    recurrence: entry.status === 'FORECAST' ? <RecurrenceCell entry={entry} save={save} /> : null,
+    recurrence: entry.status === 'FORECAST' ? <RecurrenceCell entry={entry} save={save('recurrence')} /> : null,
   };
 }

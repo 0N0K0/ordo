@@ -72,13 +72,13 @@ import {
 } from './views/inline-cells';
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
 import { EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell, EventBeneficiariesCell } from './views/event-cells';
-import { AddTaskRow, SummaryRow } from './views/table-extras';
+import { AddTaskRow } from './views/table-extras';
 import { eventSortValue, sortValue, type DisplayRow, type TaskRow } from './views/task-rows';
 import { contentWidth, useFillHeight } from './column-fit';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
-import { TableFooter } from '../../components/data-table/TableFooter';
+import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 import type { ShownColumn } from '../../components/data-table/data-table';
 import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './views/extra-cells';
 import { useShoppingLists } from '../shopping/api';
@@ -219,36 +219,6 @@ function CommentCount({ count }: { count: number }) {
       <Text size="sm">{count}</Text>
     </Group>
   );
-}
-
-/**
- * Number of tasks without sub-tasks among some rows (their own sub-rows included), their total effort, and the
- * time tracked on every listed task (parents included: their time is their own). A task listed in several
- * groups counts once per group.
- * @param {DisplayRow[]} rows Rows.
- * @param {TaskContext} context Task context.
- * @returns {{ count: number, effort: number, tracked: number }} Summary.
- */
-function summarize(rows: DisplayRow[], context: TaskContext): { count: number; effort: number; tracked: number } {
-  const leaves = new Set<string>();
-  const listed = new Set<string>();
-  let effort = 0;
-  let tracked = 0;
-  const walk = (items: DisplayRow[]) => {
-    for (const item of items) {
-      if (item.kind === 'task' && !listed.has(item.task.id)) {
-        listed.add(item.task.id);
-        tracked += item.task.trackedSeconds;
-        if (context.childrenOf(item.task.id).length === 0) {
-          leaves.add(item.task.id);
-          effort += item.task.effort ?? 0;
-        }
-      }
-      walk(item.children);
-    }
-  };
-  walk(rows);
-  return { count: leaves.size, effort, tracked };
 }
 
 /**
@@ -640,17 +610,14 @@ export function TaskTable({
     titleIndex: columnIds.indexOf('title'),
     context,
   };
-  const effortIndex = columnIds.indexOf('effort');
-  const trackedIndex = columnIds.indexOf('trackedTime');
 
   /**
-   * Add row and subtotal closing a group.
+   * Add row and footer (the totals chosen in the footer of the table) closing a group.
    * @param {string} groupRowId Group row id ("g:<key>").
-   * @param {DisplayRow[]} groupRows Rows of the group.
+   * @param {DisplayRow[]} groupRows Rows of the group shown.
    * @returns {ReactNode} Rows.
    */
   const groupEnd = (groupRowId: string, groupRows: DisplayRow[]) => {
-    const summary = summarize(groupRows, context);
     return [
       <AddTaskRow
         key={`${groupRowId}-add`}
@@ -659,7 +626,7 @@ export function TaskTable({
         projectId={createProjectId}
         onOpenForm={onOpenCreateForm}
       />,
-      <SummaryRow key={`${groupRowId}-sum`} {...extraProps} effortIndex={effortIndex} trackedIndex={trackedIndex} {...summary} />,
+      config.footer && <GroupFooter key={`${groupRowId}-footer`} shown={footerColumns} rows={groupRows} totals={config.footer} label="le groupe" before={0} after={0} />,
     ];
   };
 
@@ -808,14 +775,14 @@ export function TaskTable({
     );
   });
 
-  // Each expanded group ends with its add row and subtotal; without groups, the add row ends the table.
+  // Each expanded group ends with its add row and footer; without groups, the add row ends the table.
   const body: ReactNode[] = [];
   let openGroup: { id: string; rows: DisplayRow[] } | null = null;
   visibleRows.forEach((row, index) => {
     if (row.original.kind === 'group') {
       if (openGroup) body.push(...groupEnd(openGroup.id, openGroup.rows));
-      openGroup = row.getIsExpanded() ? { id: row.id, rows: row.original.children } : null;
-    }
+      openGroup = row.getIsExpanded() ? { id: row.id, rows: [] } : null;
+    } else openGroup?.rows.push(row.original);
     body.push(tableRows[index]);
   });
   const lastGroup = openGroup as { id: string; rows: DisplayRow[] } | null;
@@ -934,15 +901,6 @@ export function TaskTable({
                 />
               )}
             </SortableContext>
-            <Table.Tfoot>
-              <SummaryRow
-                {...extraProps}
-                effortIndex={effortIndex}
-                trackedIndex={trackedIndex}
-                {...summarize(rows, context)}
-                total
-              />
-            </Table.Tfoot>
           </Table>
         </div>
       </CellSelectionContext.Provider>

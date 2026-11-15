@@ -6,7 +6,7 @@ import { useState, type KeyboardEvent } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError } from '../../lib/notify';
 import classes from '../../components/data-table/EditableCells.module.css';
-import { StackedMultiCell } from '../tasks/views/StackedMultiCell';
+import { StackedMultiCell } from '../../components/data-table/StackedMultiCell';
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from './api';
 import { EditableSelect } from '../../components/data-table/EditableCells';
 import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, unitOptions, usePeople } from './shopping-format';

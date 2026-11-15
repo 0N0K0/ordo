@@ -6,6 +6,8 @@ import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIc
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
+import { useTrackingMutations } from './tracking-api';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { RowActions } from '../../components/data-table/RowActions';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
@@ -29,6 +31,13 @@ import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
+
+/**
+ * Key of a row.
+ * @param {Row} row Row.
+ * @returns {string} Key.
+ */
+const rowKey = (row: Row) => `${row.kind}:${row.document.id}`;
 
 /**
  * Tracking status of a document, as a text.
@@ -113,6 +122,7 @@ function documentColumns({ rows, projectNames }: { rows: Row[]; projectNames: Ma
     },
     {
       id: 'project',
+      bulk: true,
       label: 'Projet',
       size: 200,
       sortValue: (row) => projectOf(row) || null,
@@ -123,6 +133,7 @@ function documentColumns({ rows, projectNames }: { rows: Row[]; projectNames: Ma
     { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.title ?? null, text: (row) => row.document.title ?? '' },
     {
       id: 'tracking',
+      bulk: true,
       label: 'Statut',
       size: 200,
       sortValue: trackingText,
@@ -180,6 +191,7 @@ function documentColumns({ rows, projectNames }: { rows: Row[]; projectNames: Ma
     },
     {
       id: 'attachments',
+      bulk: true,
       label: 'Pièces jointes',
       size: 220,
       hiddenByDefault: true,
@@ -208,30 +220,28 @@ const DOCUMENT_VIEWS: FirstTableView[] = [
   { name: 'Tous' },
 ];
 
+/** Status chosen in a cell, with the scope of its statuses (quotes, or invoices). */
+interface StatusChoice {
+  status: { id: string; category: string };
+  scope: 'QUOTE' | 'INVOICE';
+}
+
 /**
- * Tracking status of an imported document, chosen in place (a sent one asks when and how).
- * @param {{ document: ImportedDocument }} props Component props.
+ * Scope of the statuses of a type of document.
+ * @param {string} type Type.
+ * @returns {'QUOTE' | 'INVOICE'} Scope.
+ */
+const scopeOf = (type: string): StatusChoice['scope'] => (type === 'QUOTE' ? 'QUOTE' : 'INVOICE');
+
+/**
+ * Tracking status of an imported document, chosen in place.
+ * @param {{ document: ImportedDocument, onSelect: (status: { id: string, category: string }) => void }} props Document, and what a chosen status does.
  * @returns {JSX.Element} Cell.
  */
-function ImportedTracking({ document }: { document: ImportedDocument }) {
-  const { setStatus, markSent } = useImportedDocumentMutations();
+function ImportedTracking({ document, onSelect }: { document: ImportedDocument; onSelect: (status: { id: string; category: string }) => void }) {
   return (
     <Group gap={4} wrap="nowrap" onClick={(event) => event.stopPropagation()}>
-      <StatusMenu
-        type={document.type}
-        current={document.trackingStatus}
-        pending={setStatus.isPending}
-        onSelect={(status) =>
-          status.category === 'SENT'
-            ? openSentDialog({
-                title: `Envoi de ${document.number}`,
-                sentAt: document.sentAt,
-                sentVia: document.sentVia,
-                onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
-              })
-            : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
-        }
-      />
+      <StatusMenu type={document.type} current={document.trackingStatus} onSelect={onSelect} />
       {document.type !== 'QUOTE' && (
         <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
           {document.balance ? `Reste ${fmt.money(document.balance, document.currency)}` : 'Réglée'}
@@ -311,7 +321,11 @@ interface DocumentsTableProps {
  */
 export function DocumentsTable({ tableKey, projectId = null, title, documents, imported = [], showType, showClient = true, empty, first = DOCUMENT_VIEWS }: DocumentsTableProps) {
   const navigate = useNavigate();
-  const { remove } = useImportedDocumentMutations();
+  const importedMutations = useImportedDocumentMutations();
+  const { remove } = importedMutations;
+  const documentMutations = useDocumentMutations();
+  const tracking = useTrackingMutations();
+  const onError = { onError: (error: Error) => notifyError(error.message) };
   const ordoComments = useCommentCounts(
     'DOCUMENT',
     documents.map((document) => document.id),
@@ -338,7 +352,48 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       (row) => (row.kind === 'imported' ? row.document.note : null),
     ),
   ];
-  const view = useDataView({ tableKey, projectId, columns, rows, title, first });
+  const view = useDataView({ tableKey, getKey: rowKey, projectId, columns, rows, title, first });
+
+  /**
+   * Sets a status on documents of its scope (final ones of Ordo, imported ones); a "sent" one asks once when and how.
+   * @param {Row[]} targets Documents.
+   * @param {StatusChoice} choice Status.
+   * @returns {void}
+   */
+  const setTracking = (targets: Row[], { status, scope }: StatusChoice) => {
+    const kept = targets.filter((row) => scopeOf(row.document.type) === scope && (row.kind === 'imported' || row.document.status === 'FINAL'));
+    if (!kept.length) return;
+    if (status.category !== 'SENT') {
+      for (const row of kept) (row.kind === 'ordo' ? tracking.setStatus : importedMutations.setStatus).mutate({ id: row.document.id, statusId: status.id }, onError);
+      return;
+    }
+    const [first] = kept;
+    openSentDialog({
+      title: kept.length > 1 ? `Envoi de ${kept.length} documents` : `Envoi de ${first.document.number ?? 'ce document'}`,
+      sentAt: kept.length === 1 ? first.document.sentAt : null,
+      sentVia: kept.length === 1 ? first.document.sentVia : null,
+      onSubmit: ({ date, via }) =>
+        Promise.all(
+          kept.map((row) =>
+            row.kind === 'ordo'
+              ? tracking.markSent.mutateAsync({ id: row.document.id, date, via, statusId: status.id })
+              : importedMutations.markSent.mutateAsync({ id: row.document.id, date, via, statusId: status.id }),
+          ),
+        ),
+    });
+  };
+  const bulkTracking = bulkSaver<Row, StatusChoice>(
+    view,
+    (row, choice) => setTracking([row], choice),
+    (targets, choiceFor) => setTracking(targets, choiceFor(targets[0])),
+  )('tracking');
+  const bulkProject = bulkSaver<Row, string | null>(view, (row, projectId) =>
+    (row.kind === 'ordo' ? documentMutations.setProject : importedMutations.setProject).mutate({ id: row.document.id, projectId }, onError),
+  )('project');
+  // Files join the documents of Ordo (an imported one has its single file).
+  const bulkFiles = bulkSaver<Row, File[]>(view, (row, files) => {
+    if (row.kind === 'ordo') documentMutations.addAttachments.mutate({ id: row.document.id, files }, onError);
+  })('attachments');
 
   /**
    * Asks for confirmation before deleting an imported document.
@@ -410,7 +465,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     ),
     tracking: (
       <div onClick={(event) => event.stopPropagation()}>
-        <TrackingBadge document={document} editable />
+        <TrackingBadge document={document} editable onSelect={(status) => bulkTracking({ kind: 'ordo', document }, { status, scope: scopeOf(document.type) })} />
       </div>
     ),
     gross: (
@@ -450,7 +505,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         {document.title ?? '—'}
       </Text>
     ),
-    tracking: <ImportedTracking document={document} />,
+    tracking: <ImportedTracking document={document} onSelect={(status) => bulkTracking({ kind: 'imported', document }, { status, scope: scopeOf(document.type) })} />,
     gross: (
       <Text span size="sm" ff="monospace" fw={600}>
         {fmt.money(document.totalGross, document.currency)}
@@ -466,14 +521,19 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       empty={<EmptyState icon={<ReceiptIcon aria-hidden />} message={empty} />}
       highlightOnHover
       verticalSpacing="xs"
-      getKey={(row) => `${row.kind}:${row.document.id}`}
+      getKey={rowKey}
       rowProps={(row) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(pathOf(row)) })}
       cells={(row) => ({
         type: DOCUMENT_TYPE_LABELS[row.document.type],
         date: fmt.day(row.document.issueDate),
         dueDate: row.document.dueDate ? fmt.day(row.document.dueDate) : null,
-        project: <DocumentProjectCell kind={row.kind} document={row.document} projects={projects} />,
-        attachments: row.kind === 'ordo' ? <DocumentAttachmentsCell kind="ordo" document={row.document} /> : <DocumentAttachmentsCell kind="imported" document={row.document} />,
+        project: <DocumentProjectCell document={row.document} projects={projects} onSave={(projectId) => bulkProject(row, projectId)} />,
+        attachments:
+          row.kind === 'ordo' ? (
+            <DocumentAttachmentsCell kind="ordo" document={row.document} onAdd={(files) => bulkFiles(row, files)} />
+          ) : (
+            <DocumentAttachmentsCell kind="imported" document={row.document} onAdd={(files) => bulkFiles(row, files)} />
+          ),
         client: row.document.clientName,
         origin: row.kind === 'imported' ? 'Importé' : 'Ordo',
         net: fmt.money(row.document.totalNet, row.document.currency),

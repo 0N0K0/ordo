@@ -9,7 +9,8 @@ import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIc
 import { Fragment, useMemo, useRef, useState } from 'react';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
 import { EditableDate, EditableNumber, EditableText } from '../../components/data-table/EditableCells';
-import { useEntryCellSave } from './entry-values';
+import { useEntryCellSave, type EntryValues } from './entry-values';
+import { bulkSaver, type BulkChange } from '../../components/data-table/bulk-edit';
 import { GroupHeaderRow, NoMatch } from '../../components/data-table/GroupHeaderRow';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
@@ -28,7 +29,7 @@ import { StatementImport } from './StatementImport';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
-import { TableFooter } from '../../components/data-table/TableFooter';
+import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 
 /**
  * Printed calendar date.
@@ -93,13 +94,14 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
     },
     {
       id: 'date',
+      bulk: true,
       label: 'Date d’exécution',
       size: 130,
       sortValue: (entry) => String(entry.date),
       text: (entry) => printedDate(String(entry.date)),
       filter: { kind: 'date', value: (entry) => String(entry.date).slice(0, 10) },
     },
-    { id: 'label', label: 'Libellé', size: 300, locked: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
+    { id: 'label', label: 'Libellé', size: 300, locked: true, bulk: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
     ...entryFieldColumns<TreasuryEntry>((entry) => entry, env, { payerName: (entry) => entry.payerName ?? '' }),
     {
       id: 'settled',
@@ -111,6 +113,7 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
     },
     {
       id: 'amount',
+      bulk: true,
       label: 'Montant',
       size: 130,
       numeric: true,
@@ -173,8 +176,10 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
     [env, entryComments],
   );
   const loaded = useMemo(() => (entries ?? []).filter((entry) => entry.status === 'ACTUAL'), [entries]);
-  const view = useDataView({ tableKey: 'treasury-entries', columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS });
+  const view = useDataView({ tableKey: 'treasury-entries', getKey: (entry) => entry.id, columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS });
   const { shown } = view;
+  // A change made on the bulk selection of a column saves each entry it fits (none: left as it is).
+  const bulk = bulkSaver<TreasuryEntry, Partial<EntryValues>>(view, (entry, change) => Object.keys(change).length > 0 && saveEntry(entry, change));
   const actual = view.rows;
   const totals = periodTotals(actual);
   // Split entries whose lines are shown.
@@ -274,14 +279,14 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                       <Fragment key={entry.id}>
                         <Table.Tr>
                           {shown.map((column) => (
-                            <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined}>
+                            <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined} {...view.cellProps(column.id, entry.id)}>
                               {
                                 {
-                                  ...entryFieldCells(entry, env, saveEntry),
-                                  date: <EditableDate value={date.slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && saveEntry(entry, { date: next })} />,
+                                  ...entryFieldCells(entry, env, (column) => (row, change) => bulk(column)(row as TreasuryEntry, change as BulkChange<TreasuryEntry, Partial<EntryValues>>)),
+                                  date: <EditableDate value={date.slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && bulk('date')(entry, { date: next })} />,
                                   label: (
                                     <Group gap={4} wrap="nowrap">
-                                      <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && saveEntry(entry, { label })} />
+                                      <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && bulk('label')(entry, { label })} />
                                       <EntryUrl url={entry.url} label={entry.label} />
                                       {entry.lines.length > 0 && <DetailsToggle opened={expanded.has(entry.id)} count={entry.lines.length} label={entry.label} onToggle={() => toggle(entry.id)} />}
                                     </Group>
@@ -296,7 +301,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                         suffix="€"
                                         signed
                                         validate={(amount) => (amount === 0 ? 'Le montant ne peut pas être nul.' : null)}
-                                        onSave={(amount) => amount !== null && saveEntry(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
+                                        onSave={(amount) => amount !== null && bulk('amount')(entry, { direction: amount < 0 ? 'OUT' : 'IN', amount: Math.abs(amount) })}
                                       />
                                     </Text>
                                   ),
@@ -342,6 +347,9 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                       </Fragment>
                     );
                   }),
+                  ...(view.groupColumn && view.config?.footer && !collapsedGroups.has(group.key)
+                    ? [<GroupFooter key={`footer:${group.key}`} shown={shown} rows={group.rows} totals={view.config.footer} label={group.label} before={0} after={1} />]
+                    : []),
                 ];
               })}
             </Table.Tbody>

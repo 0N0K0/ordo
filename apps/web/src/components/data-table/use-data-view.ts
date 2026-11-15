@@ -1,5 +1,6 @@
 import { tableViewConfig, tableViewConfigSchema, type ColumnLayout, type TableSort, type TableViewConfig } from '@ordo/shared';
 import { useCallback, useState } from 'react';
+import { useBulkSelection, type BulkCellProps, type BulkSelection } from './bulk-selection';
 import { newConditionFor } from '../../features/tasks/views/filter-meta';
 import type { ColumnMenuExtras } from './ColumnHeaderMenu';
 import { localToday } from '../../lib/dates';
@@ -25,6 +26,8 @@ interface DataViewOptions<R> {
   title: string;
   /** Views made the first time the table is shown, the first one opened. Optional. Default = « Toutes ». */
   first?: readonly FirstTableView[];
+  /** Key of a row (that of the table): needed to edit cells in bulk. Optional. */
+  getKey?: (row: R) => string;
 }
 
 /** Saved views of a table, the current one applied to its rows. */
@@ -54,6 +57,13 @@ export interface DataView<R> {
   setFilterOpened: (opened: boolean) => void;
   /** Filter and group actions of a column, in its menu. */
   columnExtras: (id: string) => ColumnMenuExtras;
+  /** Key of a row (none: no bulk editing). */
+  keyOf: ((row: R) => string) | null;
+  /** Cells selected in one column (among the rows kept), to edit them in bulk. */
+  selection: BulkSelection | null;
+  setSelection: (selection: BulkSelection | null) => void;
+  /** Props of a cell: its place in the selection, and the clicks selecting it. */
+  cellProps: (columnId: string, key: string) => BulkCellProps;
 }
 
 /**
@@ -72,7 +82,7 @@ function parseConfig(config: unknown): TableViewConfig {
  * @param {DataViewOptions<R>} options Table.
  * @returns {DataView<R>} View.
  */
-export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first }: DataViewOptions<R>): DataView<R> {
+export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey }: DataViewOptions<R>): DataView<R> {
   const firstKey = JSON.stringify(first ?? null);
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
@@ -87,6 +97,8 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
   const [filterOpened, setFilterOpened] = useState(false);
   const fields = tableFilterFields(columns);
   const groupColumn = (config?.groupBy && columns.find((column) => column.id === config.groupBy && column.groupable && column.text)) || null;
+  const keys = getKey ? kept.map(getKey) : [];
+  const bulk = useBulkSelection({ keys, isBulk: (id) => Boolean(getKey && columns.find((column) => column.id === id)?.bulk) });
   return {
     tableKey,
     title,
@@ -105,6 +117,10 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
     setSorting: (next) => views.change((current) => ({ ...current, sorting: next })),
     filterOpened,
     setFilterOpened,
+    keyOf: getKey ?? null,
+    selection: bulk.selection,
+    setSelection: bulk.setSelection,
+    cellProps: bulk.cellProps,
     columnExtras: (id) => {
       const column = columns.find((item) => item.id === id);
       return {
@@ -117,6 +133,7 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
             : undefined,
         group:
           column?.groupable && column.text ? { active: groupColumn?.id === id, onToggle: () => views.change((current) => ({ ...current, groupBy: current.groupBy === id ? null : id })) } : undefined,
+        onSelect: column?.bulk && getKey ? () => bulk.selectColumn(id) : undefined,
       };
     },
   };

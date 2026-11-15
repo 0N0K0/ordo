@@ -9,8 +9,10 @@ import { openNewList } from '../../shopping/open-new-list';
 import { SlotRuleInput } from '../../slot-rules/SlotRuleInput';
 import { useSlotRules } from '../../slot-rules/use-slot-rules';
 import { useRunningTimer, useTimeMutations } from '../../time/api';
-import { useUpdateTask, type Task } from '../api';
+import type { Task } from '../api';
 import { TaskRef } from '../task-ui';
+import { useCellEdit } from './cell-edit';
+import { StackedValues } from '../../../components/data-table/StackedValues';
 import type { TaskContext } from '../use-task-context';
 
 /** Cells of a task table do not open the task when used. */
@@ -22,7 +24,7 @@ const stop = (event: React.SyntheticEvent) => event.stopPropagation();
  * @returns {JSX.Element} Cell.
  */
 export function SlotsCell({ task }: { task: Task }) {
-  const updateTask = useUpdateTask();
+  const { apply } = useCellEdit(task, 'slots');
   const { describe, ruleOf } = useSlotRules();
   const own = readSlotRule(task.slotRule);
   return (
@@ -34,7 +36,7 @@ export function SlotsCell({ task }: { task: Task }) {
         </Anchor>
       </Popover.Target>
       <Popover.Dropdown onClick={stop}>
-        <SlotRuleInput value={own} onChange={(slotRule) => updateTask.mutate({ id: task.id, input: { slotRule } }, { onError: (error) => notifyError(error.message) })} />
+        <SlotRuleInput value={own} onChange={(slotRule) => apply({ slotRule })} />
       </Popover.Dropdown>
     </Popover>
   );
@@ -91,17 +93,12 @@ export function TrackedCell({ task }: { task: Task }) {
 export function SubtasksCell({ task, context, onAdd }: { task: Task; context: TaskContext; onAdd: () => void }) {
   const children = context.childrenOf(task.id);
   return (
-    <Group gap={4} wrap="nowrap" onClick={stop} style={{ minWidth: 0 }}>
-      <Group gap={6} wrap="nowrap" style={{ minWidth: 0, overflow: 'hidden' }}>
-        {children.slice(0, 3).map((child) => (
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop} style={{ minWidth: 0 }}>
+      <StackedValues>
+        {children.map((child) => (
           <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
         ))}
-        {children.length > 3 && (
-          <Text size="xs" c="dimmed">
-            +{children.length - 3}
-          </Text>
-        )}
-      </Group>
+      </StackedValues>
       <Tooltip label="Ajouter une sous-tâche">
         <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Ajouter une sous-tâche à ${task.title}`} onClick={onAdd} style={{ flex: 'none' }}>
           <PlusIcon aria-hidden />
@@ -168,17 +165,19 @@ export function AlarmsCell({ task, context, count }: { task: Task; context: Task
  */
 export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[] }) {
   const { updateList } = useShoppingMutations();
+  // On a selection, the list goes to each selected task.
+  const { targets } = useCellEdit(task, 'shopping');
   const own = lists.filter((list) => list.taskIds.includes(task.id));
   const free = lists.filter((list) => !list.taskIds.includes(task.id) && !list.closed);
   return (
-    <Group gap={4} wrap="nowrap" onClick={stop} style={{ minWidth: 0 }}>
-      <Group gap={6} wrap="nowrap" style={{ minWidth: 0, overflow: 'hidden' }}>
+    <Group gap={4} wrap="nowrap" align="flex-start" onClick={stop} style={{ minWidth: 0 }}>
+      <StackedValues>
         {own.map((list) => (
           <Anchor key={list.id} component={Link} to={`/shopping/${list.id}`} size="sm" truncate>
             <BasketIcon aria-hidden style={{ verticalAlign: 'middle' }} /> {list.name}
           </Anchor>
         ))}
-      </Group>
+      </StackedValues>
       <Menu position="bottom-end" withinPortal>
         <Menu.Target>
           <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Achats de ${task.title}`} style={{ flex: 'none' }}>
@@ -186,7 +185,7 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
           </ActionIcon>
         </Menu.Target>
         <Menu.Dropdown>
-          <Menu.Item leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: [task.id], projectIds: task.projectId ? new Set([task.projectId]) : undefined })}>
+          <Menu.Item leftSection={<PlusIcon aria-hidden />} onClick={() => openNewList({ taskIds: targets, projectIds: task.projectId ? new Set([task.projectId]) : undefined })}>
             Nouvelle liste
           </Menu.Item>
           {free.length > 0 && <Menu.Label>Rattacher une liste</Menu.Label>}
@@ -196,8 +195,11 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
               leftSection={<BasketIcon aria-hidden />}
               onClick={() =>
                 updateList.mutate(
-                  { id: list.id, name: list.name, taskIds: [...list.taskIds, task.id] },
-                  { onSuccess: () => notifySuccess('Liste rattachée à la tâche.'), onError: (error) => notifyError(error.message) },
+                  { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
+                  {
+                    onSuccess: () => notifySuccess(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
+                    onError: (error) => notifyError(error.message),
+                  },
                 )
               }
             >

@@ -9,10 +9,13 @@ import { ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosph
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifyError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
 import { EditableText } from '../../components/data-table/EditableCells';
+import { applyDiff, bulkSaver } from '../../components/data-table/bulk-edit';
+import { useBulkSelection } from '../../components/data-table/bulk-selection';
+import { BulkHint } from '../../components/data-table/BulkHint';
 import { ExportButtons } from '../../components/data-table/DataViewBar';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { newConditionFor } from '../tasks/views/filter-meta';
@@ -23,7 +26,7 @@ import { localToday } from '../../lib/dates';
 import { SavedViewToolbar } from '../tasks/views/SavedViewToolbar';
 import { ViewTabs } from '../tasks/views/ViewTabs';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
-import { keptByListView, listRows, SHOPPING_LIST_GROUP_BY_LABELS, SHOPPING_LIST_SORT_LABELS, shoppingListFilterFields, sortLists, useShoppingListView } from './shopping-list-view';
+import { keptByListView, listRows, type ListRow, SHOPPING_LIST_GROUP_BY_LABELS, SHOPPING_LIST_SORT_LABELS, shoppingListFilterFields, sortLists, useShoppingListView } from './shopping-list-view';
 import { BaseLists } from './BaseLists';
 import { ShoppingSettings } from './ShoppingSettings';
 import { shoppingTotal } from './export';
@@ -34,13 +37,16 @@ import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGroup
 import classes from './Shopping.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
-import { TableFooter } from '../../components/data-table/TableFooter';
+import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
 /** Groups offered from the menu of a column. */
 const COLUMN_GROUP_BY: Partial<Record<string, ShoppingListGroupBy>> = { project: 'project', createdAt: 'month' };
+
+/** Columns of the lists edited in bulk. */
+const BULK_LIST_COLUMNS = ['name', 'tasks'];
 
 /** Columns of the table of the lists (sorted through the sorts of the view: same ids). */
 const LIST_COLUMNS: DataColumn<ShoppingList>[] = [
@@ -93,6 +99,133 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   const layout = { columnOrder: config?.columnOrder ?? [], hiddenColumns: config?.hiddenColumns ?? [], columnSizing: config?.columnSizing ?? {} };
   const shownList = shownColumns(LIST_COLUMNS, layout);
   const [filterOpened, setFilterOpened] = useState(false);
+  // Names and tasks of the lists, edited in bulk.
+  const listRowsShown = rows.filter((row): row is Extract<ListRow, { kind: 'list' }> => row.kind === 'list');
+  const bulkSelection = useBulkSelection({ keys: listRowsShown.map((row) => row.key), isBulk: (id) => BULK_LIST_COLUMNS.includes(id) });
+
+  /**
+   * Saves lists, each once (a list shows under each of its groups), the closed ones left as they are.
+   * @param {Extract<ListRow, { kind: 'list' }>[]} targets Rows.
+   * @param {(row: Extract<ListRow, { kind: 'list' }>) => { name?: string, taskIds?: string[] }} changeFor Change of each.
+   * @returns {void}
+   */
+  const saveLists = (targets: Extract<ListRow, { kind: 'list' }>[], changeFor: (row: Extract<ListRow, { kind: 'list' }>) => { name?: string; taskIds?: string[] }) => {
+    const seen = new Set<string>();
+    for (const row of targets) {
+      if (seen.has(row.list.id) || closedOf(row.list)) continue;
+      seen.add(row.list.id);
+      const change = changeFor(row);
+      updateList.mutate({ id: row.list.id, name: change.name ?? row.list.name, taskIds: change.taskIds ?? row.list.taskIds }, { onError: (error) => notifyError(error.message) });
+    }
+  };
+  const bulk = bulkSaver<Extract<ListRow, { kind: 'list' }>, { name?: string; taskIds?: string[] }>(
+    { selection: bulkSelection.selection, keyOf: (row) => row.key, rows: listRowsShown },
+    (row, change) => saveLists([row], () => change),
+    saveLists,
+  );
+
+  /**
+   * Row of the table of the lists: a group heading, or a list.
+   * @param {ListRow} row Row.
+   * @returns {JSX.Element} Row.
+   */
+  const renderRow = (row: ListRow) => {
+    if (row.kind === 'group')
+      return (
+        <Table.Tr key={`group:${row.key}`} className={classes.groupRow}>
+          <Table.Td colSpan={shownList.length + 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
+            <Group gap="xs" wrap="nowrap">
+              <Text size="sm" fw={row.depth === 0 ? 700 : 600}>
+                {row.name}
+              </Text>
+              <Badge size="sm" variant="light" color="gray">
+                {row.count}
+              </Badge>
+            </Group>
+          </Table.Td>
+        </Table.Tr>
+      );
+    const { list } = row;
+    const bought = list.items.filter((item) => item.purchasedAt).length;
+    const total = shoppingTotal(list.items);
+    const cells: Record<string, ReactNode> = {
+      name: (
+        <Group gap="xs" wrap="nowrap">
+          <EditableText value={list.name} label={`Nom de la liste ${list.name}`} strong readOnly={closedOf(list)} onSave={(name) => name && bulk('name')(row, { name })} />
+          <Tooltip label="Ouvrir la liste">
+            <ActionIcon component={Link} to={`/shopping/${list.id}`} variant="subtle" color="gray" size="sm" aria-label={`Ouvrir la liste ${list.name}`}>
+              <ArrowSquareInIcon aria-hidden />
+            </ActionIcon>
+          </Tooltip>
+          {list.entryId && (
+            <Badge size="xs" variant="light" tt="none">
+              Payée
+            </Badge>
+          )}
+        </Group>
+      ),
+      tasks: (
+        <TasksCell
+          label={`Tâches de la liste ${list.name}`}
+          readOnly={closedOf(list) || !context}
+          items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `#${task.number} ${task.title}` }))}
+          options={taskOptions(context, list.taskIds)}
+          value={list.taskIds}
+          onSave={(taskIds) => bulk('tasks')(row, (target) => ({ taskIds: applyDiff(target.list.taskIds, list.taskIds, taskIds) }))}
+        />
+      ),
+      progress: (
+        <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
+          {bought} / {list.items.length}
+        </Badge>
+      ),
+      remaining: list.items.length - bought || '',
+      itemCount: list.items.length,
+      total: total > 0 ? fmt.money(total) : null,
+      createdAt: fmt.day(new Date(list.createdAt)),
+      closedAt: list.closedAt ? fmt.day(new Date(list.closedAt)) : null,
+      comments: listComments.get(list.id) || null,
+    };
+    return (
+      <Table.Tr key={row.key}>
+        {shownList.map((column, index) => (
+          <Table.Td
+            key={column.id}
+            className={tableClasses.cell}
+            data-numeric={column.numeric || undefined}
+            ff={column.numeric ? 'monospace' : undefined}
+            style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` } : undefined}
+            {...bulkSelection.cellProps(column.id, row.key)}
+          >
+            {cells[column.id]}
+          </Table.Td>
+        ))}
+        <Table.Td>
+          <Group justify="flex-end">
+            <ListActionsMenu list={list} grouping={grouping} />
+          </Group>
+        </Table.Td>
+      </Table.Tr>
+    );
+  };
+
+  // Columns of the footers: numbers of the counted columns, a text for the others (counted).
+  const footerCols = shownList.map((column) => ({
+    ...column,
+    // Numbers of the counted columns, a text for the others (counted).
+    sortValue:
+      column.id === 'remaining'
+        ? (list: ShoppingList) => list.items.filter((item) => !item.purchasedAt).length
+        : column.id === 'itemCount'
+          ? (list: ShoppingList) => list.items.length
+          : column.id === 'total'
+            ? (list: ShoppingList) => shoppingTotal(list.items) || null
+            : column.id === 'comments'
+              ? (list: ShoppingList) => listComments.get(list.id) || null
+              : (list: ShoppingList) => (column.id === 'tasks' ? (list.taskIds.length ? list.taskIds.length : null) : column.id === 'closedAt' ? list.closedAt : list.name),
+    numeric: ['remaining', 'itemCount', 'total', 'comments'].includes(column.id),
+    formatTotal: column.id === 'total' ? (amount: number) => fmt.money(amount) : undefined,
+  }));
 
   return (
     <Stack gap="md">
@@ -151,6 +284,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
           }
         />
       )}
+      <BulkHint selection={bulkSelection.selection} labelOf={(id) => LIST_COLUMNS.find((column) => column.id === id)?.label ?? ''} onClear={() => bulkSelection.setSelection(null)} />
       {isPending || !config || (projectIds && !context) ? (
         <TableSkeleton rows={3} />
       ) : shown.length === 0 ? (
@@ -175,6 +309,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                   const field = id in SHOPPING_LIST_FILTER_FIELDS ? (id as ShoppingListFilterField) : null;
                   const groupBy = COLUMN_GROUP_BY[id];
                   return {
+                    onSelect: BULK_LIST_COLUMNS.includes(id) ? () => bulkSelection.selectColumn(id) : undefined,
                     onFilter: field
                       ? () => {
                           view.change((current) => ({ ...current, filter: { ...current.filter, children: [...current.filter.children, newConditionFor(SHOPPING_LIST_FILTER_FIELDS, field)] } }));
@@ -188,120 +323,27 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                 }}
               />
               <Table.Tbody>
-                {rows.map((row) => {
-                  if (row.kind === 'group')
-                    return (
-                      <Table.Tr key={`group:${row.key}`} className={classes.groupRow}>
-                        <Table.Td colSpan={shownList.length + 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
-                          <Group gap="xs" wrap="nowrap">
-                            <Text size="sm" fw={row.depth === 0 ? 700 : 600}>
-                              {row.name}
-                            </Text>
-                            <Badge size="sm" variant="light" color="gray">
-                              {row.count}
-                            </Badge>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  const { list } = row;
-                  const bought = list.items.filter((item) => item.purchasedAt).length;
-                  const total = shoppingTotal(list.items);
-                  const cells: Record<string, ReactNode> = {
-                    name: (
-                      <Group gap="xs" wrap="nowrap">
-                        <EditableText
-                          value={list.name}
-                          label={`Nom de la liste ${list.name}`}
-                          strong
-                          readOnly={closedOf(list)}
-                          onSave={(name) => name && updateList.mutate({ id: list.id, name, taskIds: list.taskIds }, { onError: (error) => notifyError(error.message) })}
-                        />
-                        <Tooltip label="Ouvrir la liste">
-                          <ActionIcon component={Link} to={`/shopping/${list.id}`} variant="subtle" color="gray" size="sm" aria-label={`Ouvrir la liste ${list.name}`}>
-                            <ArrowSquareInIcon aria-hidden />
-                          </ActionIcon>
-                        </Tooltip>
-                        {list.entryId && (
-                          <Badge size="xs" variant="light" tt="none">
-                            Payée
-                          </Badge>
-                        )}
-                      </Group>
-                    ),
-                    tasks: (
-                      <TasksCell
-                        label={`Tâches de la liste ${list.name}`}
-                        readOnly={closedOf(list) || !context}
-                        items={listTasks(list, context).map((task) => ({ id: task.id, label: context?.taskLabel(task) ?? `#${task.number} ${task.title}` }))}
-                        options={taskOptions(context, list.taskIds)}
-                        value={list.taskIds}
-                        onSave={(taskIds) =>
-                          updateList.mutate(
-                            { id: list.id, name: list.name, taskIds },
-                            { onSuccess: () => notifySuccess(taskIds.length ? 'Tâches de la liste modifiées.' : 'Liste détachée de ses tâches.'), onError: (error) => notifyError(error.message) },
-                          )
-                        }
-                      />
-                    ),
-                    progress: (
-                      <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
-                        {bought} / {list.items.length}
-                      </Badge>
-                    ),
-                    remaining: list.items.length - bought || '',
-                    itemCount: list.items.length,
-                    total: total > 0 ? fmt.money(total) : null,
-                    createdAt: fmt.day(new Date(list.createdAt)),
-                    closedAt: list.closedAt ? fmt.day(new Date(list.closedAt)) : null,
-                    comments: listComments.get(list.id) || null,
-                  };
-                  return (
-                    <Table.Tr key={row.key}>
-                      {shownList.map((column, index) => (
-                        <Table.Td
-                          key={column.id}
-                          className={tableClasses.cell}
-                          data-numeric={column.numeric || undefined}
-                          ff={column.numeric ? 'monospace' : undefined}
-                          style={index === 0 ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` } : undefined}
-                        >
-                          {cells[column.id]}
-                        </Table.Td>
-                      ))}
-                      <Table.Td>
-                        <Group justify="flex-end">
-                          <ListActionsMenu list={list} grouping={grouping} />
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
+                {rows.flatMap((row, index) => {
+                  // A group ends with the totals chosen in the footer of the table, over its lists.
+                  const next = rows[index + 1];
+                  const groupIndex = rows.slice(0, index + 1).findLastIndex((item) => item.kind === 'group');
+                  const ends = config.footer && groupIndex >= 0 && row.kind === 'list' && (!next || next.kind === 'group' || next.depth < row.depth);
+                  const footer = ends ? (
+                    <GroupFooter
+                      key={`footer:${rows[groupIndex].key}`}
+                      shown={footerCols}
+                      rows={[...new Set(rows.slice(groupIndex + 1, index + 1).flatMap((item) => (item.kind === 'list' ? [item.list] : [])))]}
+                      totals={config.footer!}
+                      label={(rows[groupIndex] as Extract<ListRow, { kind: 'group' }>).name}
+                      before={0}
+                      after={1}
+                    />
+                  ) : null;
+                  return [renderRow(row), footer];
                 })}
               </Table.Tbody>
               {config?.footer && (
-                <TableFooter
-                  shown={shownList.map((column) => ({
-                    ...column,
-                    // Numbers of the counted columns, a text for the others (counted).
-                    sortValue:
-                      column.id === 'remaining'
-                        ? (list: ShoppingList) => list.items.filter((item) => !item.purchasedAt).length
-                        : column.id === 'itemCount'
-                          ? (list: ShoppingList) => list.items.length
-                          : column.id === 'total'
-                            ? (list: ShoppingList) => shoppingTotal(list.items) || null
-                            : column.id === 'comments'
-                              ? (list: ShoppingList) => listComments.get(list.id) || null
-                              : (list: ShoppingList) => (column.id === 'tasks' ? (list.taskIds.length ? list.taskIds.length : null) : column.id === 'closedAt' ? list.closedAt : list.name),
-                    numeric: ['remaining', 'itemCount', 'total', 'comments'].includes(column.id),
-                    formatTotal: column.id === 'total' ? (amount: number) => fmt.money(amount) : undefined,
-                  }))}
-                  rows={shown}
-                  totals={config.footer}
-                  onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))}
-                  before={0}
-                  after={1}
-                />
+                <TableFooter shown={footerCols} rows={shown} totals={config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={0} after={1} />
               )}
             </Table>
           </div>

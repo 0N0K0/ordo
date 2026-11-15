@@ -1,9 +1,8 @@
-import { Anchor, Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import classes from '../../../components/data-table/EditableCells.module.css';
-
-/** Values listed in a cell before « X de plus ». */
-const SHOWN_VALUES = 3;
+import classes from './EditableCells.module.css';
+import { MAX_STACKED, stackedCount } from './stacked';
+import { StackedToggle } from './StackedValues';
 
 /** Value listed in a stacked cell. */
 export interface StackedItem {
@@ -27,7 +26,7 @@ interface StackedMultiCellProps {
 }
 
 /**
- * Multi-value cell of a table: its values one under the other (3 at most, the others behind « X de plus »); a click
+ * Multi-value cell of a table: its values one under the other (5 at most; beyond, 4 and « X de plus »); a click
  * opens its multi-select, open at once, which gives its choices when its list closes.
  * @param {StackedMultiCellProps} props Component props.
  * @returns {JSX.Element} Cell.
@@ -36,8 +35,7 @@ export function StackedMultiCell({ label, readOnly = false, items, renderSelect 
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const container = useRef<HTMLDivElement>(null);
-  const shown = expanded ? items : items.slice(0, SHOWN_VALUES);
-  const hidden = items.length - SHOWN_VALUES;
+  const shown = items.slice(0, stackedCount(items.length, expanded));
 
   // The select opens as soon as it shows (as if clicked).
   useEffect(() => {
@@ -74,11 +72,7 @@ export function StackedMultiCell({ label, readOnly = false, items, renderSelect 
           ))}
         </Stack>
       </UnstyledButton>
-      {hidden > 0 && (
-        <Anchor component="button" type="button" size="xs" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
-          {expanded ? 'Moins' : `${hidden} de plus`}
-        </Anchor>
-      )}
+      {items.length > MAX_STACKED && <StackedToggle hidden={items.length - shown.length} expanded={expanded} onToggle={() => setExpanded((value) => !value)} />}
     </Stack>
   );
 }

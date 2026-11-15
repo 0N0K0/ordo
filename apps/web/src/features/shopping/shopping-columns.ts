@@ -35,9 +35,10 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
   const storageOf = (item: T) => (item.storageId ? (storageName.get(item.storageId) ?? '') : '');
   const people = (item: T) => [...item.memberIds.map((id) => names.members.get(id) ?? ''), ...item.relationIds.map((id) => names.relations.get(id) ?? '')].filter(Boolean);
   return [
-    { id: 'name', label: 'Label', size: 260, locked: true, sortValue: (item) => item.name, text: (item) => item.name },
+    { id: 'name', label: 'Label', size: 260, locked: true, bulk: true, sortValue: (item) => item.name, text: (item) => item.name },
     {
       id: 'category',
+      bulk: true,
       label: 'Catégorie',
       size: 150,
       hiddenByDefault: grouping === 'category',
@@ -47,6 +48,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     },
     {
       id: 'store',
+      bulk: true,
       label: 'Magasin',
       size: 150,
       hiddenByDefault: grouping === 'store',
@@ -56,6 +58,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     },
     {
       id: 'quantity',
+      bulk: true,
       label: 'Quantité',
       size: 88,
       numeric: true,
@@ -63,9 +66,10 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       text: (item) => (item.quantity == null ? '' : String(item.quantity).replace('.', ',')),
       filter: { kind: 'number', value: (item) => item.quantity ?? null },
     },
-    { id: 'unit', label: 'Unité', size: 100, sortValue: (item) => item.unit ?? null, text: (item) => item.unit ?? '' },
+    { id: 'unit', bulk: true, label: 'Unité', size: 100, sortValue: (item) => item.unit ?? null, text: (item) => item.unit ?? '' },
     {
       id: 'unitPrice',
+      bulk: true,
       label: 'Prix unitaire estimé',
       size: 130,
       numeric: true,
@@ -76,6 +80,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     },
     {
       id: 'conservation',
+      bulk: true,
       label: 'Conservation',
       size: 150,
       hiddenByDefault: grouping === 'storage',
@@ -94,6 +99,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     },
     {
       id: 'expiresAt',
+      bulk: true,
       label: 'Date de péremption',
       size: 140,
       sortValue: (item) => item.expiresAt ?? null,
@@ -102,6 +108,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     },
     {
       id: 'people',
+      bulk: true,
       label: 'Bénéficiaire',
       size: 170,
       hiddenByDefault: grouping === 'people',
@@ -113,7 +120,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
         options: [...[...names.members].map(([id, name]) => ({ value: `m:${id}`, label: name })), ...[...names.relations].map(([id, name]) => ({ value: `r:${id}`, label: name }))],
       },
     },
-    { id: 'url', label: 'Lien vers le produit', size: 160, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },
+    { id: 'url', bulk: true, label: 'Lien vers le produit', size: 160, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },
     ...extra,
   ];
 }

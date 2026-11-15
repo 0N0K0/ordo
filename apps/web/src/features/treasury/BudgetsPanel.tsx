@@ -9,6 +9,7 @@ import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
 import { EditableNumber, EditableSelect } from '../../components/data-table/EditableCells';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
@@ -347,6 +348,22 @@ export function BudgetsPanel() {
     ...(settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })),
     ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })),
   ];
+  /**
+   * What is out of budget, counted as the budgets count it: spent (money out) or received (money in) by the direction of
+   * its category; without category, signed.
+   * @param {BudgetReportRow} row Row.
+   * @param {'actual' | 'forecast'} kind Actual or forecast.
+   * @returns {number} Amount.
+   */
+  const outsideUsed = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.has(row.categoryId) ? used(row, kind) : row[kind]);
+  /**
+   * Amount out of budget, written: signed without category (+ received, − spent).
+   * @param {BudgetReportRow} row Row.
+   * @param {'actual' | 'forecast'} kind Actual or forecast.
+   * @returns {string} Text.
+   */
+  const outsideText = (row: BudgetReportRow, kind: 'actual' | 'forecast') =>
+    row.categoryId && directionOf.has(row.categoryId) ? fmt.money(used(row, kind)) : `${row[kind] > 0 ? '+' : ''}${fmt.money(row[kind])}`;
   type KeyRow = { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null };
   /**
    * Cells of the key of a budget (or of a report row): for whom, context, category.
@@ -392,6 +409,7 @@ export function BudgetsPanel() {
   const keyColumns = <R extends KeyRow>(): DataColumn<R>[] => [
     {
       id: 'who',
+      bulk: true,
       label: 'Bénéficiaire',
       size: 180,
       sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : ''),
@@ -401,6 +419,7 @@ export function BudgetsPanel() {
     },
     {
       id: 'context',
+      bulk: true,
       label: 'Contexte',
       size: 160,
       sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : ''),
@@ -410,6 +429,7 @@ export function BudgetsPanel() {
     },
     {
       id: 'category',
+      bulk: true,
       label: 'Catégorie',
       size: 220,
       locked: true,
@@ -477,15 +497,23 @@ export function BudgetsPanel() {
     rows: outside,
     columns: [
       ...keyColumns<BudgetReportRow>(),
-      { id: 'actual', label: 'Montant réel', size: 130, numeric: true, sortValue: (row) => row.actual, text: (row) => fmt.money(row.actual), filter: { kind: 'number', value: (row) => row.actual } },
+      {
+        id: 'actual',
+        label: 'Montant réel',
+        size: 130,
+        numeric: true,
+        sortValue: (row) => outsideUsed(row, 'actual'),
+        text: (row) => outsideText(row, 'actual'),
+        filter: { kind: 'number', value: (row) => outsideUsed(row, 'actual') },
+      },
       {
         id: 'forecast',
         label: 'Montant prévu',
         size: 130,
         numeric: true,
-        sortValue: (row) => row.forecast,
-        text: (row) => fmt.money(row.forecast),
-        filter: { kind: 'number', value: (row) => row.forecast },
+        sortValue: (row) => outsideUsed(row, 'forecast'),
+        text: (row) => outsideText(row, 'forecast'),
+        filter: { kind: 'number', value: (row) => outsideUsed(row, 'forecast') },
       },
     ],
   });
@@ -495,11 +523,13 @@ export function BudgetsPanel() {
   );
   const definedView = useDataView({
     tableKey: 'treasury-budgets',
+    getKey: (budget: TreasuryBudget) => budget.id,
     title: 'Budgets',
     rows: data?.treasuryBudgets ?? [],
     columns: [
       {
         id: 'month',
+        bulk: true,
         label: 'À partir de',
         size: 150,
         sortValue: (budget: TreasuryBudget) => budget.month,
@@ -508,6 +538,7 @@ export function BudgetsPanel() {
       },
       {
         id: 'amount',
+        bulk: true,
         label: 'Montant',
         size: 130,
         numeric: true,
@@ -516,9 +547,10 @@ export function BudgetsPanel() {
         filter: { kind: 'number', value: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount) },
       },
       ...keyColumns<TreasuryBudget>(),
-      { id: 'repeat', label: 'Répétition', size: 170, sortValue: (budget) => budget.repeatEvery ?? 0, text: (budget) => repeatLabel(budget.repeatEvery ?? null), groupable: true },
+      { id: 'repeat', bulk: true, label: 'Répétition', size: 170, sortValue: (budget) => budget.repeatEvery ?? 0, text: (budget) => repeatLabel(budget.repeatEvery ?? null), groupable: true },
       {
         id: 'until',
+        bulk: true,
         label: 'Jusqu’à',
         size: 150,
         sortValue: (budget) => (budget.repeatEvery ? (budget.repeatUntil ?? '9999-12') : budget.month),
@@ -528,6 +560,8 @@ export function BudgetsPanel() {
       commentColumn<TreasuryBudget>(budgetComments, (budget) => budget.id),
     ],
   });
+
+  const bulk = bulkSaver<TreasuryBudget, Partial<BudgetValues>>(definedView, (budget, change) => Object.keys(change).length > 0 && saveBudget(budget, change));
 
   return (
     <Stack gap="md">
@@ -609,10 +643,10 @@ export function BudgetsPanel() {
             getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
             cells={(row) => ({
               ...keyContent(row),
-              actual: fmt.money(row.actual),
+              actual: outsideText(row, 'actual'),
               forecast: (
                 <Text span inherit c="dimmed">
-                  {row.forecast ? fmt.money(row.forecast) : '—'}
+                  {row.forecast ? outsideText(row, 'forecast') : '—'}
                 </Text>
               ),
             })}
@@ -655,7 +689,13 @@ export function BudgetsPanel() {
             verticalSpacing={4}
             getKey={(budget) => budget.id}
             cells={(budget) => ({
-              month: <MonthCell value={budget.month} label="Premier mois du budget" onSave={(month) => month && saveBudget(budget, { month })} />,
+              month: (
+                <MonthCell
+                  value={budget.month}
+                  label="Premier mois du budget"
+                  onSave={(month) => month && bulk('month')(budget, (row) => (row.repeatUntil && row.repeatUntil < month ? {} : { month }))}
+                />
+              ),
               repeat: (
                 <EditableSelect
                   value={budget.repeatEvery ? String(budget.repeatEvery) : 'ONCE'}
@@ -666,11 +706,17 @@ export function BudgetsPanel() {
                       ? [{ value: String(budget.repeatEvery), label: repeatLabel(budget.repeatEvery) }]
                       : []),
                   ]}
-                  onSave={(every) => every && saveBudget(budget, { repeatEvery: every === 'ONCE' ? null : Number(every) })}
+                  onSave={(every) => every && bulk('repeat')(budget, { repeatEvery: every === 'ONCE' ? null : Number(every) })}
                 />
               ),
               until: budget.repeatEvery ? (
-                <MonthCell value={budget.repeatUntil ?? null} label="Dernier mois du budget" nullable minMonth={budget.month} onSave={(repeatUntil) => saveBudget(budget, { repeatUntil })} />
+                <MonthCell
+                  value={budget.repeatUntil ?? null}
+                  label="Dernier mois du budget"
+                  nullable
+                  minMonth={budget.month}
+                  onSave={(repeatUntil) => bulk('until')(budget, (row) => (!row.repeatEvery || (repeatUntil && repeatUntil < row.month) ? {} : { repeatUntil }))}
+                />
               ) : (
                 <Text size="sm" c="dimmed">
                   {monthLabel(budget.month)}
@@ -683,7 +729,7 @@ export function BudgetsPanel() {
                   label="Bénéficiaire du budget"
                   nullable
                   data={whoChoices.filter((choice) => choice.value !== ME_KEY)}
-                  onSave={(key) => saveBudget(budget, { memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+                  onSave={(key) => bulk('who')(budget, { memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
                 />
               ),
               context: (
@@ -692,7 +738,7 @@ export function BudgetsPanel() {
                   label="Contexte du budget"
                   nullable
                   data={[...contextName].map(([value, label]) => ({ value, label }))}
-                  onSave={(contextId) => saveBudget(budget, { contextId })}
+                  onSave={(contextId) => bulk('context')(budget, { contextId })}
                 />
               ),
               category: (
@@ -700,7 +746,7 @@ export function BudgetsPanel() {
                   value={budget.categoryId}
                   label="Catégorie du budget"
                   {...treeSelectProps([...categoryOptions(categories, 'OUT'), ...categoryOptions(categories, 'IN')])}
-                  onSave={(categoryId) => categoryId && saveBudget(budget, { categoryId })}
+                  onSave={(categoryId) => categoryId && bulk('category')(budget, { categoryId })}
                 />
               ),
               // Money out budgeted below zero, money in above: the amount is typed positive.
@@ -712,7 +758,7 @@ export function BudgetsPanel() {
                     label="Montant du budget"
                     suffix="€"
                     validate={(amount) => (amount > 0 ? null : 'Montant positif attendu.')}
-                    onSave={(amount) => amount !== null && saveBudget(budget, { amount })}
+                    onSave={(amount) => amount !== null && bulk('amount')(budget, { amount })}
                   />
                 </Text>
               ),

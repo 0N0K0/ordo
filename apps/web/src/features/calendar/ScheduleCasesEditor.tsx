@@ -20,6 +20,27 @@ const SHORTCUTS = [
   { label: 'Week-end', days: [6, 7] },
 ];
 
+/**
+ * Days each occurrence of a case lasts, from its first day.
+ * @param {{ item: ScheduleCase, onChange: (changes: Partial<ScheduleCase>) => void }} props Case and its change.
+ * @returns {JSX.Element} Field.
+ */
+function DaysInput({ item, onChange }: { item: ScheduleCase; onChange: (changes: Partial<ScheduleCase>) => void }) {
+  return (
+    <NumberInput
+      size="xs"
+      w={140}
+      min={1}
+      max={366}
+      prefix="pendant "
+      suffix={item.days > 1 ? ' jours' : ' jour'}
+      aria-label="Jours de chaque fois"
+      value={item.days}
+      onChange={(value) => onChange({ days: Math.min(366, Math.max(1, Number(value) || 1)) })}
+    />
+  );
+}
+
 interface CaseEditorProps {
   item: ScheduleCase;
   onChange: (changes: Partial<ScheduleCase>) => void;
@@ -130,34 +151,67 @@ function CaseEditor({ item, onChange, onRemove, rhythm, periodStart, index, coll
             value={item.from}
             onChange={(date) => onChange({ from: date ? String(date) : null })}
           />
+          <DaysInput item={item} onChange={onChange} />
         </Group>
       )}
 
       {monthly && (
         <Group gap="xs" align="flex-end">
-          {item.pattern === 'YEARLY' && (
+          <SegmentedControl
+            size="xs"
+            data={[
+              { value: 'DAY', label: 'Le jour…' },
+              { value: 'WEEKDAY', label: 'Le …e jour de semaine' },
+              ...(item.pattern === 'YEARLY'
+                ? [
+                    { value: 'WEEK', label: 'La semaine…' },
+                    { value: 'MONTH', label: 'Le mois…' },
+                  ]
+                : []),
+            ]}
+            value={item.monthlyMode}
+            onChange={(value) => onChange({ monthlyMode: value as ScheduleCase['monthlyMode'], toDay: null, toMonth: null, toWeek: null, days: 1 })}
+          />
+          {item.pattern === 'YEARLY' && item.monthlyMode !== 'WEEK' && (
             <Select
               size="xs"
               w={130}
-              aria-label="Mois"
+              aria-label={item.monthlyMode === 'MONTH' ? 'Premier mois' : 'Mois'}
               data={MONTH_NAMES.map((name, month) => ({ value: String(month + 1), label: name }))}
               value={String(item.month)}
               allowDeselect={false}
               onChange={(value) => value && onChange({ month: Number(value) })}
             />
           )}
-          <SegmentedControl
-            size="xs"
-            data={[
-              { value: 'DAY', label: 'Le jour…' },
-              { value: 'WEEKDAY', label: 'Le …e jour de semaine' },
-            ]}
-            value={item.monthlyMode}
-            onChange={(value) => onChange({ monthlyMode: value as ScheduleCase['monthlyMode'] })}
-          />
-          {item.monthlyMode === 'DAY' ? (
-            <NumberInput size="xs" w={90} min={1} max={31} prefix="le " value={item.monthDay} onChange={(value) => onChange({ monthDay: Math.min(31, Math.max(1, Number(value) || 1)) })} />
-          ) : (
+          {item.monthlyMode === 'DAY' && (
+            <>
+              <NumberInput size="xs" w={90} min={1} max={31} prefix="le " value={item.monthDay} onChange={(value) => onChange({ monthDay: Math.min(31, Math.max(1, Number(value) || 1)) })} />
+              {/* Several days: up to a day of the month (or of a month of the year), the next one when it comes before. */}
+              <NumberInput
+                size="xs"
+                w={100}
+                min={1}
+                max={31}
+                prefix="au "
+                placeholder="au …"
+                aria-label="Dernier jour"
+                value={item.toDay ?? ''}
+                onChange={(value) => onChange({ toDay: value === '' ? null : Math.min(31, Math.max(1, Number(value) || 1)) })}
+              />
+              {item.pattern === 'YEARLY' && item.toDay !== null && (
+                <Select
+                  size="xs"
+                  w={130}
+                  aria-label="Mois du dernier jour"
+                  data={MONTH_NAMES.map((name, month) => ({ value: String(month + 1), label: name }))}
+                  value={String(item.toMonth ?? item.month)}
+                  allowDeselect={false}
+                  onChange={(value) => value && onChange({ toMonth: Number(value) })}
+                />
+              )}
+            </>
+          )}
+          {item.monthlyMode === 'WEEKDAY' && (
             <>
               <Select
                 size="xs"
@@ -183,14 +237,43 @@ function CaseEditor({ item, onChange, onRemove, rhythm, periodStart, index, coll
                 allowDeselect={false}
                 onChange={(value) => value && onChange({ weekday: Number(value) })}
               />
+              <DaysInput item={item} onChange={onChange} />
             </>
+          )}
+          {item.monthlyMode === 'WEEK' && (
+            <>
+              <NumberInput size="xs" w={130} min={1} max={53} prefix="semaine " value={item.week} onChange={(value) => onChange({ week: Math.min(53, Math.max(1, Number(value) || 1)) })} />
+              <NumberInput
+                size="xs"
+                w={150}
+                min={1}
+                max={53}
+                prefix="à la semaine "
+                placeholder="à la semaine …"
+                aria-label="Dernière semaine"
+                value={item.toWeek ?? ''}
+                onChange={(value) => onChange({ toWeek: value === '' ? null : Math.min(53, Math.max(1, Number(value) || 1)) })}
+              />
+            </>
+          )}
+          {item.monthlyMode === 'MONTH' && (
+            <Select
+              size="xs"
+              w={140}
+              aria-label="Dernier mois"
+              placeholder="à …"
+              clearable
+              data={MONTH_NAMES.map((name, month) => ({ value: String(month + 1), label: `à ${name}` }))}
+              value={item.toMonth ? String(item.toMonth) : null}
+              onChange={(value) => onChange({ toMonth: value ? Number(value) : null })}
+            />
           )}
           <NumberInput
             size="xs"
             w={150}
             min={1}
             max={99}
-            prefix={item.pattern === 'MONTHLY' ? 'Tous les ' : 'Tous les '}
+            prefix="Tous les "
             suffix={item.pattern === 'MONTHLY' ? ' mois' : ' ans'}
             value={item.every}
             onChange={(value) => onChange({ every: Math.max(1, Number(value) || 1) })}

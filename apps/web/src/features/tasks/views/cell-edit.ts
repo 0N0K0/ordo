@@ -1,6 +1,6 @@
 import type { TaskColumn } from '@ordo/shared';
 import { createContext, useContext } from 'react';
-import { notifyError, notifyWithUndo } from '../../../lib/notify';
+import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
 import { useBulkTaskMutations, useTasksData, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
 import { useBulkUndo } from './bulk-undo';
 
@@ -37,12 +37,21 @@ export function useCellEdit(task: Task, column: TaskColumn) {
     targets,
 
     /**
-     * Saves the edit.
-     * @param {Omit<TaskInputValues, 'projectId'>} single Change for the edited task alone.
-     * @param {BulkChanges} [bulk] Same change for several tasks; without it the edit stays single. Optional.
+     * Saves the edit: on several tasks, in one bulk change when given, else task by task (the change made for each).
+     * @param {Omit<TaskInputValues, 'projectId'> | ((task: Task) => Omit<TaskInputValues, 'projectId'>)} single Change of the edited task (or of each).
+     * @param {BulkChanges} [bulk] Same change for several tasks at once. Optional.
      * @returns {void}
      */
-    apply: (single: Omit<TaskInputValues, 'projectId'>, bulk?: BulkChanges) => {
+    apply: (single: Omit<TaskInputValues, 'projectId'> | ((task: Task) => Omit<TaskInputValues, 'projectId'>), bulk?: BulkChanges) => {
+      const changeFor = (item: Task) => (typeof single === 'function' ? single(item) : single);
+      if (!bulk && targets.length > 1) {
+        for (const item of (data?.tasks ?? []).filter((other) => targets.includes(other.id))) {
+          const change = changeFor(item);
+          if (Object.keys(change).length) updateTask.mutate({ id: item.id, input: change }, { onError: (error) => notifyError(error.message) });
+        }
+        notifySuccess(`Modification appliquée à ${targets.length} tâches.`);
+        return;
+      }
       if (bulk && targets.length > 1) {
         // Snapshot taken before the change, for the undo.
         const before = (data?.tasks ?? []).filter((item) => targets.includes(item.id));
@@ -55,7 +64,7 @@ export function useCellEdit(task: Task, column: TaskColumn) {
         );
         return;
       }
-      updateTask.mutate({ id: task.id, input: single }, { onError: (error) => notifyError(error.message) });
+      updateTask.mutate({ id: task.id, input: changeFor(task) }, { onError: (error) => notifyError(error.message) });
     },
   };
 }
