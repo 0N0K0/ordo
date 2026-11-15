@@ -14,7 +14,7 @@ export function openMoveProducts(baseList: ShoppingBaseList, productIds: string[
   const panelId = `move-products-${++panelCount}`;
   openPanel({
     panelId,
-    title: 'Déplacer vers une autre liste type',
+    title: 'Déplacer vers une autre référence',
     children: <MoveProductsForm baseList={baseList} productIds={productIds} onDone={() => closePanel(panelId)} />,
   });
 }

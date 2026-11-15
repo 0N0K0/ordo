@@ -41,7 +41,7 @@ function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
     title: 'Retirer le produit',
     risks: (
       <>
-        <Text size="sm">« {product.name} » sera retiré de la liste type, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</Text>
+        <Text size="sm">« {product.name} » sera retiré de la référence, avec son historique d’achat. Les listes déjà faites le gardent. Cette action est irréversible.</Text>
       </>
     ),
     confirmLabel: 'Retirer',
@@ -177,7 +177,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
               primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'product', baseListId: product.baseListId, product }) }}
               items={[
                 ...((data?.shoppingBaseLists.length ?? 0) > 1
-                  ? [{ label: 'Déplacer vers une autre liste type…', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => openMoveProducts(baseList, [product.id]) }]
+                  ? [{ label: 'Déplacer vers une autre référence…', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => openMoveProducts(baseList, [product.id]) }]
                   : []),
                 {
                   label: 'Retirer',

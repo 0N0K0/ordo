@@ -14,6 +14,7 @@ import {
   ListPlusIcon,
   PencilSimpleIcon,
   PencilSimpleLineIcon,
+  ClipboardTextIcon,
   PlusIcon,
   ShoppingCartIcon,
   TrashIcon,
@@ -30,6 +31,8 @@ import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingL
 import { shoppingTotal } from './export';
 import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
+import { SheetPicker } from '../sheets/SheetPicker';
+import { useSheetMutations } from '../sheets/api';
 import { openFormPanel } from '../../components/panels/panels';
 import { ProductPicker } from './ProductPicker';
 import { useCommentCounts } from '../comments/api';
@@ -44,6 +47,15 @@ import * as fmt from '../../lib/format';
 import { Comments } from '../comments/Comments';
 
 type ShoppingItem = ShoppingList['items'][number];
+
+/**
+ * Sheets the items of a list come from, each once.
+ * @param {ShoppingItem[]} items Items.
+ * @returns {{ sheetId: string, name: string }[]} Sheets.
+ */
+const listSheets = (items: ShoppingItem[]) => [
+  ...new Map(items.flatMap((item) => item.sheetSources.map((source) => [source.sheetId, { sheetId: source.sheetId, name: source.name }] as const))).values(),
+];
 
 /** Views made the first time a list is shown: every item (opened first), what is left to buy. */
 const LIST_VIEWS: FirstTableView[] = [
@@ -71,6 +83,7 @@ export function ShoppingListPage() {
   // Projects of the list, through its tasks: their contributors are the members offered.
   const listProjects = list ? [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))] : [];
   const people = usePeople();
+  const sheetMutations = useSheetMutations();
   const itemComments = useCommentCounts(
     'SHOPPING_ITEM',
     (list?.items ?? []).map((item) => item.id),
@@ -87,6 +100,18 @@ export function ShoppingListPage() {
         sortValue: (item) => (item.purchasedAt ? 1 : 0),
         text: (item) => (item.purchasedAt ? 'Acheté' : ''),
         filter: { kind: 'boolean', value: (item) => Boolean(item.purchasedAt) },
+      },
+      {
+        id: 'sheets',
+        label: 'Fiches',
+        size: 180,
+        sortValue: (item) => item.sheetSources.map((source) => source.name).join(', ') || null,
+        text: (item) => item.sheetSources.map((source) => source.name).join(', '),
+        filter: {
+          kind: 'choices',
+          value: (item) => item.sheetSources.map((source) => source.sheetId),
+          options: listSheets(list?.items ?? []).map((sheet) => ({ value: sheet.sheetId, label: sheet.name })),
+        },
       },
       commentColumn<ShoppingItem>(
         itemComments,
@@ -188,12 +213,25 @@ export function ShoppingListPage() {
                 icon={<PlusIcon aria-hidden />}
                 menu={[
                   {
-                    label: 'Depuis les listes types…',
+                    label: 'Depuis les références…',
                     icon: <ListPlusIcon aria-hidden />,
                     disabled: baseLists.length === 0,
-                    onClick: () => openFormPanel('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />),
+                    onClick: () => openFormPanel('Ajouter des produits des références', (close) => <ProductPicker list={list} onDone={close} />),
                   },
-                  { label: 'Hors liste type…', icon: <PencilSimpleLineIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id }) },
+                  { label: 'Hors références…', icon: <PencilSimpleLineIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id }) },
+                  {
+                    label: 'Depuis une fiche…',
+                    icon: <ClipboardTextIcon aria-hidden />,
+                    onClick: () =>
+                      openFormPanel('Ajouter une fiche', (close) => (
+                        <SheetPicker
+                          present={listSheets(list.items)}
+                          onAdd={(sheetId, multiplier) => sheetMutations.addToShoppingList.mutateAsync({ listId: list.id, sheetId, multiplier })}
+                          onRemove={(sheetId) => sheetMutations.removeFromShoppingList.mutateAsync({ listId: list.id, sheetId })}
+                          onDone={close}
+                        />
+                      )),
+                  },
                 ]}
               >
                 Ajouter un produit
@@ -217,7 +255,7 @@ export function ShoppingListPage() {
       />
 
       {list.items.length === 0 ? (
-        <EmptyState icon={<ListPlusIcon aria-hidden />} message="La liste est vide : ajoutez des produits des listes types ou d’autres éléments." />
+        <EmptyState icon={<ListPlusIcon aria-hidden />} message="La liste est vide : ajoutez des produits des références ou d’autres éléments." />
       ) : (
         <ShoppingTable
           view={view}
@@ -231,9 +269,9 @@ export function ShoppingListPage() {
             closed
               ? undefined
               : {
-                  label: 'Ajouter un élément hors liste type',
+                  label: 'Ajouter un élément hors références',
                   onCreate: (name, place) => mutations.addItem.mutateAsync({ listId: list.id, input: blankInput(name, place) }),
-                  onPick: baseLists.length ? () => openFormPanel('Ajouter des produits des listes types', (close) => <ProductPicker list={list} onDone={close} />) : undefined,
+                  onPick: baseLists.length ? () => openFormPanel('Ajouter des produits des références', (close) => <ProductPicker list={list} onDone={close} />) : undefined,
                 }
           }
           onSave={(item, input) => mutations.updateItem.mutate({ id: item.id, input }, { onError })}
@@ -284,7 +322,7 @@ export function ShoppingListPage() {
                     else
                       confirmDestructive({
                         title: 'Retirer l’élément',
-                        risks: `« ${item.name} » n’est dans aucune liste type : il sera supprimé définitivement. Cette action est irréversible.`,
+                        risks: `« ${item.name} » n’est dans aucune référence : il sera supprimé définitivement. Cette action est irréversible.`,
                         confirmLabel: 'Retirer',
                         onConfirm: remove,
                       });

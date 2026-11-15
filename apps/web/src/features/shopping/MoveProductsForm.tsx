@@ -63,9 +63,9 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
           required
         />
         <Select
-          label="Vers la liste type"
+          label="Vers la référence"
           description="Ils y passent après ses produits ; une catégorie qu’elle ne propose pas leur est retirée."
-          placeholder={targets.length ? 'Choisir' : 'Aucune autre liste type'}
+          placeholder={targets.length ? 'Choisir' : 'Aucune autre référence'}
           data={targets.map((list) => ({ value: list.id, label: list.name }))}
           value={target}
           onChange={setTarget}

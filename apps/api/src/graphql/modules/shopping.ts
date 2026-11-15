@@ -1,6 +1,8 @@
 import { prisma } from '../../db';
 import * as shopping from '../../services/shopping';
+import { readSheetSources } from '@ordo/shared';
 import { builder } from '../builder';
+import { SheetSourceRef } from './sheets';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
 
@@ -104,6 +106,11 @@ builder.prismaObject('ShoppingItem', {
     position: t.exposeInt('position'),
     memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (item) => item.members.map((member) => member.id) }),
     relationIds: t.idList({ select: { relations: { select: { id: true } } }, resolve: (item) => item.relations.map((relation) => relation.id) }),
+    sheetSources: t.field({
+      type: [SheetSourceRef],
+      description: 'Sheets it comes from, with their share of its quantity; none: added by hand.',
+      resolve: (item) => readSheetSources(item.sheetSources),
+    }),
   }),
 });
 

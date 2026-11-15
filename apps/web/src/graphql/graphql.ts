@@ -254,6 +254,7 @@ export type CommentTarget =
   | 'RELATION'
   | 'ROUTINE'
   | 'SCHEDULE'
+  | 'SHEET_ITEM'
   | 'SHOPPING_ITEM'
   | 'SHOPPING_LIST'
   | 'SHOPPING_PRODUCT'
@@ -695,6 +696,28 @@ export type SendMailInput = {
   references?: Array<string> | null | undefined;
   subject: string;
   to: Array<string>;
+};
+
+export type SheetInput = {
+  items: Array<SheetItemInput>;
+  name: string;
+  note?: string | null | undefined;
+  projectId?: string | number | null | undefined;
+};
+
+export type SheetItemInput = {
+  categoryId?: string | number | null | undefined;
+  id?: string | number | null | undefined;
+  label: string;
+  note?: string | null | undefined;
+  productId?: string | number | null | undefined;
+  quantity?: number | null | undefined;
+  unit?: string | null | undefined;
+};
+
+export type SheetLinkInput = {
+  multiplier: number;
+  sheetId: string | number;
 };
 
 export type ShoppingCategoryInput = {
@@ -2792,6 +2815,135 @@ export type RoutineOccurrencesQueryVariables = Exact<{
 
 export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, movedFrom: string | null, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
 
+export type SheetsQueryVariables = Exact<{
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type SheetsQuery = { sheets: Array<{ id: string, name: string, note: string | null, projectId: string | null, position: number, createdAt: string, updatedAt: string, usedBy: number, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, position: number }> }> };
+
+export type SheetLinksQueryVariables = Exact<{
+  routineId?: string | number | null | undefined;
+  eventId?: string | number | null | undefined;
+  taskId?: string | number | null | undefined;
+}>;
+
+
+export type SheetLinksQuery = { sheetLinks: Array<{ id: string, sheetId: string, multiplier: number }> };
+
+export type ChecklistQueryVariables = Exact<{
+  routineId?: string | number | null | undefined;
+  eventId?: string | number | null | undefined;
+  taskId?: string | number | null | undefined;
+  occurrenceDate?: string | null | undefined;
+}>;
+
+
+export type ChecklistQuery = { checklist: { id: string, routineId: string | null, eventId: string | null, taskId: string | null, occurrenceDate: string | null, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, checkedAt: string | null, position: number, sources: Array<{ sheetId: string, name: string, quantity: number | null }> }> } | null };
+
+export type CreateSheetMutationVariables = Exact<{
+  input: SheetInput;
+}>;
+
+
+export type CreateSheetMutation = { createSheet: string };
+
+export type UpdateSheetMutationVariables = Exact<{
+  id: string | number;
+  input: SheetInput;
+}>;
+
+
+export type UpdateSheetMutation = { updateSheet: boolean };
+
+export type DuplicateSheetMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DuplicateSheetMutation = { duplicateSheet: string };
+
+export type DeleteSheetMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteSheetMutation = { deleteSheet: boolean };
+
+export type AddSheetToShoppingListMutationVariables = Exact<{
+  listId: string | number;
+  sheetId: string | number;
+  multiplier: number;
+}>;
+
+
+export type AddSheetToShoppingListMutation = { addSheetToShoppingList: number };
+
+export type RemoveSheetFromShoppingListMutationVariables = Exact<{
+  listId: string | number;
+  sheetId: string | number;
+}>;
+
+
+export type RemoveSheetFromShoppingListMutation = { removeSheetFromShoppingList: boolean };
+
+export type SetSheetLinksMutationVariables = Exact<{
+  routineId?: string | number | null | undefined;
+  eventId?: string | number | null | undefined;
+  taskId?: string | number | null | undefined;
+  links: Array<SheetLinkInput> | SheetLinkInput;
+}>;
+
+
+export type SetSheetLinksMutation = { setSheetLinks: boolean };
+
+export type ResetChecklistMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type ResetChecklistMutation = { resetChecklist: boolean };
+
+export type AddSheetToChecklistMutationVariables = Exact<{
+  id: string | number;
+  sheetId: string | number;
+  multiplier: number;
+}>;
+
+
+export type AddSheetToChecklistMutation = { addSheetToChecklist: boolean };
+
+export type AddChecklistItemMutationVariables = Exact<{
+  listId: string | number;
+  input: SheetItemInput;
+}>;
+
+
+export type AddChecklistItemMutation = { addChecklistItem: string };
+
+export type UpdateChecklistItemMutationVariables = Exact<{
+  id: string | number;
+  input: SheetItemInput;
+}>;
+
+
+export type UpdateChecklistItemMutation = { updateChecklistItem: boolean };
+
+export type SetChecklistItemsCheckedMutationVariables = Exact<{
+  ids: Array<string | number> | string | number;
+  checked: boolean;
+}>;
+
+
+export type SetChecklistItemsCheckedMutation = { setChecklistItemsChecked: boolean };
+
+export type DeleteChecklistItemMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteChecklistItemMutation = { deleteChecklistItem: boolean };
+
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -2802,7 +2954,7 @@ export type ShoppingListsQueryVariables = Exact<{
 }>;
 
 
-export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskIds: Array<string>, entryId: string | null, closed: boolean, closedAt: string | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, position: number, memberIds: Array<string>, relationIds: Array<string> }> }> };
+export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskIds: Array<string>, entryId: string | null, closed: boolean, closedAt: string | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, position: number, memberIds: Array<string>, relationIds: Array<string>, sheetSources: Array<{ sheetId: string, name: string, quantity: number | null }> }> }> };
 
 export type CreateShoppingCategoryMutationVariables = Exact<{
   input: ShoppingCategoryInput;
@@ -7079,6 +7231,145 @@ export const RoutineOccurrencesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<RoutineOccurrencesQuery, RoutineOccurrencesQueryVariables>;
+export const SheetsDocument = new TypedDocumentString(`
+    query Sheets($projectId: ID) {
+  sheets(projectId: $projectId) {
+    id
+    name
+    note
+    projectId
+    position
+    createdAt
+    updatedAt
+    usedBy
+    items {
+      id
+      productId
+      label
+      categoryId
+      quantity
+      unit
+      note
+      position
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<SheetsQuery, SheetsQueryVariables>;
+export const SheetLinksDocument = new TypedDocumentString(`
+    query SheetLinks($routineId: ID, $eventId: ID, $taskId: ID) {
+  sheetLinks(routineId: $routineId, eventId: $eventId, taskId: $taskId) {
+    id
+    sheetId
+    multiplier
+  }
+}
+    `) as unknown as TypedDocumentString<SheetLinksQuery, SheetLinksQueryVariables>;
+export const ChecklistDocument = new TypedDocumentString(`
+    query Checklist($routineId: ID, $eventId: ID, $taskId: ID, $occurrenceDate: Date) {
+  checklist(
+    routineId: $routineId
+    eventId: $eventId
+    taskId: $taskId
+    occurrenceDate: $occurrenceDate
+  ) {
+    id
+    routineId
+    eventId
+    taskId
+    occurrenceDate
+    items {
+      id
+      productId
+      label
+      categoryId
+      quantity
+      unit
+      note
+      checkedAt
+      position
+      sources {
+        sheetId
+        name
+        quantity
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ChecklistQuery, ChecklistQueryVariables>;
+export const CreateSheetDocument = new TypedDocumentString(`
+    mutation CreateSheet($input: SheetInput!) {
+  createSheet(input: $input)
+}
+    `) as unknown as TypedDocumentString<CreateSheetMutation, CreateSheetMutationVariables>;
+export const UpdateSheetDocument = new TypedDocumentString(`
+    mutation UpdateSheet($id: ID!, $input: SheetInput!) {
+  updateSheet(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateSheetMutation, UpdateSheetMutationVariables>;
+export const DuplicateSheetDocument = new TypedDocumentString(`
+    mutation DuplicateSheet($id: ID!) {
+  duplicateSheet(id: $id)
+}
+    `) as unknown as TypedDocumentString<DuplicateSheetMutation, DuplicateSheetMutationVariables>;
+export const DeleteSheetDocument = new TypedDocumentString(`
+    mutation DeleteSheet($id: ID!) {
+  deleteSheet(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteSheetMutation, DeleteSheetMutationVariables>;
+export const AddSheetToShoppingListDocument = new TypedDocumentString(`
+    mutation AddSheetToShoppingList($listId: ID!, $sheetId: ID!, $multiplier: Float!) {
+  addSheetToShoppingList(
+    listId: $listId
+    sheetId: $sheetId
+    multiplier: $multiplier
+  )
+}
+    `) as unknown as TypedDocumentString<AddSheetToShoppingListMutation, AddSheetToShoppingListMutationVariables>;
+export const RemoveSheetFromShoppingListDocument = new TypedDocumentString(`
+    mutation RemoveSheetFromShoppingList($listId: ID!, $sheetId: ID!) {
+  removeSheetFromShoppingList(listId: $listId, sheetId: $sheetId)
+}
+    `) as unknown as TypedDocumentString<RemoveSheetFromShoppingListMutation, RemoveSheetFromShoppingListMutationVariables>;
+export const SetSheetLinksDocument = new TypedDocumentString(`
+    mutation SetSheetLinks($routineId: ID, $eventId: ID, $taskId: ID, $links: [SheetLinkInput!]!) {
+  setSheetLinks(
+    routineId: $routineId
+    eventId: $eventId
+    taskId: $taskId
+    links: $links
+  )
+}
+    `) as unknown as TypedDocumentString<SetSheetLinksMutation, SetSheetLinksMutationVariables>;
+export const ResetChecklistDocument = new TypedDocumentString(`
+    mutation ResetChecklist($id: ID!) {
+  resetChecklist(id: $id)
+}
+    `) as unknown as TypedDocumentString<ResetChecklistMutation, ResetChecklistMutationVariables>;
+export const AddSheetToChecklistDocument = new TypedDocumentString(`
+    mutation AddSheetToChecklist($id: ID!, $sheetId: ID!, $multiplier: Float!) {
+  addSheetToChecklist(id: $id, sheetId: $sheetId, multiplier: $multiplier)
+}
+    `) as unknown as TypedDocumentString<AddSheetToChecklistMutation, AddSheetToChecklistMutationVariables>;
+export const AddChecklistItemDocument = new TypedDocumentString(`
+    mutation AddChecklistItem($listId: ID!, $input: SheetItemInput!) {
+  addChecklistItem(listId: $listId, input: $input)
+}
+    `) as unknown as TypedDocumentString<AddChecklistItemMutation, AddChecklistItemMutationVariables>;
+export const UpdateChecklistItemDocument = new TypedDocumentString(`
+    mutation UpdateChecklistItem($id: ID!, $input: SheetItemInput!) {
+  updateChecklistItem(id: $id, input: $input)
+}
+    `) as unknown as TypedDocumentString<UpdateChecklistItemMutation, UpdateChecklistItemMutationVariables>;
+export const SetChecklistItemsCheckedDocument = new TypedDocumentString(`
+    mutation SetChecklistItemsChecked($ids: [ID!]!, $checked: Boolean!) {
+  setChecklistItemsChecked(ids: $ids, checked: $checked)
+}
+    `) as unknown as TypedDocumentString<SetChecklistItemsCheckedMutation, SetChecklistItemsCheckedMutationVariables>;
+export const DeleteChecklistItemDocument = new TypedDocumentString(`
+    mutation DeleteChecklistItem($id: ID!) {
+  deleteChecklistItem(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteChecklistItemMutation, DeleteChecklistItemMutationVariables>;
 export const ShoppingDataDocument = new TypedDocumentString(`
     query ShoppingData {
   shoppingCategories {
@@ -7166,6 +7457,11 @@ export const ShoppingListsDocument = new TypedDocumentString(`
       storageId
       expiresAt
       purchasedAt
+      sheetSources {
+        sheetId
+        name
+        quantity
+      }
       position
       memberIds
       relationIds

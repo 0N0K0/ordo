@@ -1,8 +1,9 @@
 import { TaskSettings } from '../../tasks/settings/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { SheetsTable } from '../../sheets/SheetsTable';
 import { PageTabs } from '../../../components/PageTabs';
-import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/DashboardBoard';
@@ -232,6 +233,9 @@ export function ProjectPage() {
           <PageTabs.Tab value="shopping" leftSection={<BasketIcon aria-hidden />}>
             Achats
           </PageTabs.Tab>
+          <PageTabs.Tab value="sheets" leftSection={<ClipboardTextIcon aria-hidden />}>
+            Fiches
+          </PageTabs.Tab>
           <PageTabs.Tab value="time" leftSection={<ClockIcon aria-hidden />}>
             Temps
           </PageTabs.Tab>
@@ -318,6 +322,9 @@ export function ProjectPage() {
         </PageTabs.Panel>
         <PageTabs.Panel value="shopping">
           <ListsPanel key={project.id} projectId={project.id} projectIds={tree} />
+        </PageTabs.Panel>
+        <PageTabs.Panel value="sheets">
+          <SheetsTable key={project.id} projectId={project.id} />
         </PageTabs.Panel>
         <PageTabs.Panel value="time">
           <ProjectTimePanel projectId={project.id} />

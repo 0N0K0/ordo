@@ -354,7 +354,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
 }
 
 /**
- * Shopping page (consumables in a professional workspace): the base lists ("listes types"), where what is missing is
+ * Shopping page (consumables in a professional workspace): the base lists ("références"), where what is missing is
  * marked, and the lists made from them; the settings hold the categories (a tree) and the stores.
  * @returns {JSX.Element} Page.
  */
@@ -383,7 +383,7 @@ export function ShoppingPage() {
       >
         <PageTabs.List>
           <PageTabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>
-            Listes types
+            Références
           </PageTabs.Tab>
           <PageTabs.Tab value="lists" leftSection={<ListChecksIcon aria-hidden />}>
             Listes

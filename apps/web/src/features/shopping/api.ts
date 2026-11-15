@@ -105,6 +105,11 @@ const ShoppingListsDocument = graphql(`
         storageId
         expiresAt
         purchasedAt
+        sheetSources {
+          sheetId
+          name
+          quantity
+        }
         position
         memberIds
         relationIds

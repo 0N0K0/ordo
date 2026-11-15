@@ -42,6 +42,7 @@ import { confirmDestructive } from '../../components/dialogs/confirm-destructive
 import { useSetTasksClosed, useTaskBlock, useTaskRelation, useTransferTask, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskAlarms } from '../alarms/TaskAlarms';
 import { TaskShopping } from '../shopping/TaskShopping';
+import { SheetsSection } from '../sheets/SheetsSection';
 import { TaskTime } from '../time/TaskTime';
 import { TaskComments } from './TaskComments';
 import { TaskRecurrence } from './TaskRecurrence';
@@ -553,6 +554,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <TaskAlarms task={task} context={context} />
             <Divider />
             <TaskShopping task={task} />
+            <Divider />
+            <SheetsSection owner={{ taskId: task.id }} name={task.title} />
           </Stack>
         </Grid.Col>
       </Grid>
