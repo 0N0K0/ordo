@@ -716,6 +716,18 @@ export async function addDocumentAttachments(id: string, files: File[]): Promise
 }
 
 /**
+ * Moves a document to a project, or out of any: drafts and final documents alike (the project is not printed on it).
+ * @param {string} id Document id.
+ * @param {string | null} projectId Project, null for none.
+ * @returns {Promise<void>}
+ */
+export async function setDocumentProject(id: string, projectId: string | null): Promise<void> {
+  await findDocument(id);
+  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  await prisma.accountingDocument.update({ where: { id }, data: { projectId } });
+}
+
+/**
  * Removes a file from a document.
  * @param {string} attachmentId File.
  * @returns {Promise<void>}

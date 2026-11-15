@@ -1,13 +1,19 @@
 import type { DataColumn } from '../../components/data-table/data-table';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import type { ShoppingCategory, ShoppingStore } from './api';
-import type { ShoppingFields, ShoppingGrouping } from './shopping-format';
+import { peopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import * as fmt from '../../lib/format';
+
+/** Filter values of the rows not perishable, and perishable without a way of keeping. */
+const NOT_PERISHABLE = 'no';
+const PERISHABLE = 'yes';
 
 /** Names the columns of the products or items show. */
 export interface ItemNames {
   categories: readonly ShoppingCategory[];
   stores: readonly ShoppingStore[];
+  /** Ways of keeping. Optional. */
+  storages?: readonly { id: string; name: string }[];
   /** Names of the members and relations. */
   members: ReadonlyMap<string, string>;
   relations: ReadonlyMap<string, string>;
@@ -25,9 +31,11 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
   const storeName = new Map(names.stores.map((store) => [store.id, store.name]));
   const categoryOf = (item: T) => (item.categoryId ? (paths.get(item.categoryId) ?? '') : '');
   const storeOf = (item: T) => (item.storeId ? (storeName.get(item.storeId) ?? '') : '');
+  const storageName = new Map((names.storages ?? []).map((storage) => [storage.id, storage.name]));
+  const storageOf = (item: T) => (item.storageId ? (storageName.get(item.storageId) ?? '') : '');
   const people = (item: T) => [...item.memberIds.map((id) => names.members.get(id) ?? ''), ...item.relationIds.map((id) => names.relations.get(id) ?? '')].filter(Boolean);
   return [
-    { id: 'name', label: 'Produit', size: 260, locked: true, sortValue: (item) => item.name, text: (item) => item.name },
+    { id: 'name', label: 'Label', size: 260, locked: true, sortValue: (item) => item.name, text: (item) => item.name },
     {
       id: 'category',
       label: 'Catégorie',
@@ -46,34 +54,66 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       text: storeOf,
       filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: names.stores.map((store) => ({ value: store.id, label: store.name })) },
     },
-    { id: 'quantity', label: 'Quantité', size: 88, numeric: true, sortValue: (item) => item.quantity ?? null, text: (item) => (item.quantity == null ? '' : String(item.quantity).replace('.', ',')) },
+    {
+      id: 'quantity',
+      label: 'Quantité',
+      size: 88,
+      numeric: true,
+      sortValue: (item) => item.quantity ?? null,
+      text: (item) => (item.quantity == null ? '' : String(item.quantity).replace('.', ',')),
+      filter: { kind: 'number', value: (item) => item.quantity ?? null },
+    },
     { id: 'unit', label: 'Unité', size: 100, sortValue: (item) => item.unit ?? null, text: (item) => item.unit ?? '' },
     {
       id: 'unitPrice',
-      label: 'Prix unitaire',
-      size: 110,
+      label: 'Prix unitaire estimé',
+      size: 130,
       numeric: true,
       sortValue: (item) => item.unitPrice ?? null,
+      formatTotal: fmt.money,
       text: (item) => (item.unitPrice == null ? '' : fmt.money(item.unitPrice)),
+      filter: { kind: 'number', value: (item) => item.unitPrice ?? null },
     },
     {
       id: 'conservation',
       label: 'Conservation',
       size: 150,
-      sortValue: (item) => (item.perishable ? 1 : 0),
-      text: (item) => (item.perishable ? 'Périssable' : ''),
-      filter: { kind: 'boolean', value: (item) => item.perishable },
+      hiddenByDefault: grouping === 'storage',
+      sortValue: (item) => (item.perishable ? storageOf(item) || 'Périssable' : null),
+      text: (item) => (item.perishable ? storageOf(item) || 'Périssable' : ''),
+      // Not perishable, perishable without a way of keeping, or each way of keeping.
+      filter: {
+        kind: 'choice',
+        value: (item) => (item.perishable ? (item.storageId ?? PERISHABLE) : NOT_PERISHABLE),
+        options: [
+          { value: NOT_PERISHABLE, label: 'Non périssable' },
+          { value: PERISHABLE, label: 'Périssable, sans mode' },
+          ...(names.storages ?? []).map((storage) => ({ value: storage.id, label: storage.name })),
+        ],
+      },
     },
     {
       id: 'expiresAt',
-      label: 'Péremption',
-      size: 120,
+      label: 'Date de péremption',
+      size: 140,
       sortValue: (item) => item.expiresAt ?? null,
       text: (item) => (item.expiresAt ? fmt.day(item.expiresAt) : ''),
       filter: { kind: 'date', value: (item) => item.expiresAt ?? null },
     },
-    { id: 'people', label: 'Pour', size: 170, text: (item) => people(item).join(', ') },
-    { id: 'url', label: 'Lien', size: 150, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },
+    {
+      id: 'people',
+      label: 'Bénéficiaire',
+      size: 170,
+      hiddenByDefault: grouping === 'people',
+      sortValue: (item) => people(item).join(', ') || null,
+      text: (item) => people(item).join(', '),
+      filter: {
+        kind: 'choices',
+        value: peopleKeys,
+        options: [...[...names.members].map(([id, name]) => ({ value: `m:${id}`, label: name })), ...[...names.relations].map(([id, name]) => ({ value: `r:${id}`, label: name }))],
+      },
+    },
+    { id: 'url', label: 'Lien vers le produit', size: 160, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },
     ...extra,
   ];
 }

@@ -161,7 +161,12 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     shoppingRows(
       [...list.items].sort((a, b) => a.position - b.position),
       grouping,
-      { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] },
+      {
+        categories: data?.shoppingCategories ?? [],
+        stores: data?.shoppingStores ?? [],
+        storages: data?.shoppingStorages ?? [],
+        people: people.byKey,
+      },
     );
 
   return [

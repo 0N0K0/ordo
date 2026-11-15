@@ -2,7 +2,7 @@ import { TableSkeleton } from '../feedback/Skeletons';
 import { Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useRef, useState, type ReactNode } from 'react';
+import { Fragment, useRef, useState, type ReactNode } from 'react';
 import { tableWidth, type ShownColumn } from './data-table';
 import { DataTableHeader } from './DataTableHeader';
 import { DataViewBar, type DataViewBarProps } from './DataViewBar';
@@ -44,6 +44,8 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   framed?: boolean;
   /** Shown under the toolbar instead of the table when the table has no row at all. Optional. */
   empty?: ReactNode;
+  /** Content unfolded under a row, across the table (its details); nothing for none. Optional. */
+  details?: (row: R) => ReactNode;
 }
 
 /**
@@ -66,6 +68,7 @@ export function DataTable<R>({
   bar,
   framed = false,
   empty,
+  details,
   className,
   style,
   ...tableProps
@@ -119,14 +122,24 @@ export function DataTable<R>({
         <Table.Td>{actions?.(row)}</Table.Td>
       </>
     );
-    return draggable ? (
-      <SortableRow key={getKey(row)} id={getKey(row)} {...rowProps?.(row)}>
-        {inside}
-      </SortableRow>
-    ) : (
-      <Table.Tr key={getKey(row)} {...rowProps?.(row)}>
-        {inside}
-      </Table.Tr>
+    const unfolded = details?.(row);
+    return (
+      <Fragment key={getKey(row)}>
+        {draggable ? (
+          <SortableRow id={getKey(row)} {...rowProps?.(row)}>
+            {inside}
+          </SortableRow>
+        ) : (
+          <Table.Tr {...rowProps?.(row)}>{inside}</Table.Tr>
+        )}
+        {unfolded && (
+          <Table.Tr className={classes.details}>
+            <Table.Td colSpan={span} className={classes.detailsCell}>
+              {unfolded}
+            </Table.Td>
+          </Table.Tr>
+        )}
+      </Fragment>
     );
   };
 

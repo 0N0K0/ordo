@@ -73,6 +73,8 @@ export const taskFormSchema = z
     startDate: dateSchema,
     endDate: dateSchema,
     deadline: dateSchema,
+    /** « Date min »: not to be done before. */
+    minDate: dateSchema,
     parentId: z.string().nullable(),
     milestoneId: z.string().nullable(),
     sprintIds: z.array(z.string()),

@@ -117,7 +117,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
             <Table.Thead>
               <Table.Tr>
                 <Table.Th w="16%">Libellé</Table.Th>
-                <Table.Th w="17%">Pour</Table.Th>
+                <Table.Th w="17%">Bénéficiaire</Table.Th>
                 <Table.Th w="20%">Catégorie</Table.Th>
                 <Table.Th w="18%">Contexte</Table.Th>
                 <Table.Th w={84}>Unité</Table.Th>
@@ -153,7 +153,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                         <Select
                           size="xs"
                           style={{ flex: 1, minWidth: 0 }}
-                          aria-label={`Pour qui, ligne ${index + 1}`}
+                          aria-label={`Bénéficiaire de la ligne ${index + 1}`}
                           placeholder={me ? `${me.name} (moi)` : 'Moi'}
                           clearable
                           searchable

@@ -20,7 +20,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
 import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
-import { inputOf, NO_GROUP, shoppingRows, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
+import { inputOf, moveToGroup, NO_GROUP, NO_GROUP_NAME, placeInGroup, shoppingRows, usePeople, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { tableWidth, type ShownColumn } from '../../components/data-table/data-table';
@@ -101,8 +101,14 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
 function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, onSave, check, badge, extra, actions, done }: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
-  const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: `row:${item.id}`, data: { groupId } satisfies DropData, disabled: readOnly });
-  const { setNodeRef: setDropRef } = useDroppable({ id: `row:${item.id}`, data: { groupId } satisfies DropData });
+  const {
+    setNodeRef: setDragRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    isDragging,
+  } = useDraggable({ id: `row:${groupId ?? NO_GROUP}:${item.id}`, data: { groupId } satisfies DropData, disabled: readOnly });
+  const { setNodeRef: setDropRef } = useDroppable({ id: `row:${groupId ?? NO_GROUP}:${item.id}`, data: { groupId } satisfies DropData });
   /**
    * Saves some fields of the row.
    * @param {Partial<ShoppingItemInput>} patch Changed fields.
@@ -114,7 +120,7 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
     name: (
       <>
         <Group gap={4} wrap="nowrap">
-          <TextCell field="name" value={name} label={`Nom de ${name}`} readOnly={readOnly} onSave={(value) => value && save({ name: value })} />
+          <TextCell field="name" value={name} label={`Label de ${name}`} readOnly={readOnly} onSave={(value) => value && save({ name: value })} />
           {badge?.(item)}
         </Group>
         {item.note && (
@@ -140,7 +146,7 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
       />
     ),
     expiresAt: <ExpiryCell value={item.expiresAt ?? null} disabled={!item.perishable} label={`Date de péremption de ${name}`} readOnly={readOnly} onSave={(expiresAt) => save({ expiresAt })} />,
-    people: <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Pour qui est ${name}`} readOnly={readOnly} projectIds={projectIds} onSave={(people) => save(people)} />,
+    people: <PeopleCell memberIds={item.memberIds} relationIds={item.relationIds} label={`Bénéficiaires de ${name}`} readOnly={readOnly} projectIds={projectIds} onSave={(people) => save(people)} />,
     url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save({ url })} />,
     extra: extra?.render(item),
   };
@@ -235,11 +241,16 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   // Group under the dragged row: undefined for none, null for the one without category (or store).
   const [overGroup, setOverGroup] = useState<string | null | undefined>(undefined);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
-  const labels = { categories: categories ?? data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [] };
+  const people = usePeople();
+  const labels = {
+    categories: categories ?? data?.shoppingCategories ?? [],
+    stores: data?.shoppingStores ?? [],
+    storages: data?.shoppingStorages ?? [],
+    people: people.byKey,
+  };
   // Kept by the view, sorted within their groups (the groups keep their tree).
   const rows = visibleRows(shoppingRows(view.rows, grouping, labels, showEmpty || active !== null), collapsed);
   const columns = shown.length + 3;
-  const field = grouping === 'category' ? 'categoryId' : 'storeId';
 
   /**
    * Folds or unfolds a group.
@@ -262,10 +273,11 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   const handleDragEnd = ({ active: dragged, over }: DragEndEvent) => {
     setActive(null);
     setOverGroup(undefined);
-    const row = items.find((item) => `row:${item.id}` === dragged.id);
+    const row = items.find((item) => String(dragged.id).endsWith(`:${item.id}`));
+    const from = (dragged.data.current as DropData | undefined)?.groupId ?? null;
     const target = over?.data.current as DropData | undefined;
-    if (!row || !target || (row[field] ?? null) === target.groupId) return;
-    rowProps.onSave(row, { ...inputOf(row), [field]: target.groupId });
+    const change = row && target ? moveToGroup(row, grouping, from, target.groupId) : null;
+    if (row && change) rowProps.onSave(row, { ...inputOf(row), ...change });
   };
 
   /**
@@ -299,10 +311,21 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
             summary={summary}
           />,
         );
-      } else out.push(<ItemRow key={row.item.id} row={row} shown={shown} over={active !== null && overGroup === row.groupId} grouping={grouping} categories={labels.categories} {...rowProps} />);
+      } else
+        out.push(
+          <ItemRow
+            key={`${row.groupId ?? NO_GROUP}:${row.item.id}`}
+            row={row}
+            shown={shown}
+            over={active !== null && overGroup === row.groupId}
+            grouping={grouping}
+            categories={labels.categories}
+            {...rowProps}
+          />,
+        );
     }
     close();
-    if (add && active === null && !rows.some((row) => row.kind === 'group' && row.id === null)) out.push(addRow(null, 1, grouping === 'category' ? 'Sans catégorie' : 'Sans magasin'));
+    if (add && active === null && !rows.some((row) => row.kind === 'group' && row.id === null)) out.push(addRow(null, 1, NO_GROUP_NAME[grouping]));
     return out;
   };
 
@@ -314,16 +337,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
    * @returns {JSX.Element} Row.
    */
   const addRow = (groupId: string | null, depth: number, groupName: string) =>
-    add && (
-      <AddShoppingRow
-        key={`add:${groupId ?? NO_GROUP}`}
-        {...add}
-        place={{ categoryId: grouping === 'category' ? groupId : null, storeId: grouping === 'store' ? groupId : null }}
-        depth={depth}
-        columns={columns}
-        groupName={groupName}
-      />
-    );
+    add && <AddShoppingRow key={`add:${groupId ?? NO_GROUP}`} {...add} place={placeInGroup(grouping, groupId)} depth={depth} columns={columns} groupName={groupName} />;
 
   if (items.length > 0 && view.rows.length === 0) return <NoMatch view={view} />;
   return (
@@ -331,7 +345,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
       sensors={sensors}
       collisionDetection={collision}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-      onDragStart={({ active: dragged }) => setActive(items.find((item) => `row:${item.id}` === dragged.id) ?? null)}
+      onDragStart={({ active: dragged }) => setActive(items.find((item) => String(dragged.id).endsWith(`:${item.id}`)) ?? null)}
       onDragOver={({ over }) => setOverGroup(over ? ((over.data.current as DropData | undefined)?.groupId ?? null) : undefined)}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {

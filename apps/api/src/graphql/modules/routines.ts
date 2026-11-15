@@ -233,6 +233,14 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     beneficiaryRelationIds: t.idList(),
     requiredIds: t.idList(),
     projectId: t.id({ description: 'Null: none.' }),
+    location: t.string({ description: 'Null: none (its point too).' }),
+    locationLat: t.float(),
+    locationLon: t.float(),
+    travelBefore: t.int({ description: 'Minutes to get there.' }),
+    travelAfter: t.int({ description: 'Minutes to come back.' }),
+    reminders: t.intList({ description: 'Minutes before its moment.' }),
+    opensOn: t.string({ description: '« À partir du »: "DD" (monthly) or "MM-DD" (yearly); null: none.' }),
+    slotRule: t.field({ type: 'JSON', description: 'Slots it is done on; null: the default of the workspace.' }),
     fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
     dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
     startDate: t.field({ type: 'Date' }),
@@ -439,6 +447,12 @@ builder.mutationFields((t) => ({
       if (input.beneficiaryRelationIds) changes.beneficiaryRelationIds = input.beneficiaryRelationIds.map(String);
       if (input.requiredIds) changes.requiredIds = input.requiredIds.map(String);
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
+      if (input.location !== undefined) Object.assign(changes, { location: input.location ?? null, locationLat: input.locationLat ?? null, locationLon: input.locationLon ?? null });
+      if (input.travelBefore !== undefined && input.travelBefore !== null) changes.travelBefore = input.travelBefore;
+      if (input.travelAfter !== undefined && input.travelAfter !== null) changes.travelAfter = input.travelAfter;
+      if (input.reminders) changes.reminders = input.reminders;
+      if (input.opensOn !== undefined) changes.opensOn = input.opensOn ?? null;
+      if (input.slotRule !== undefined) changes.slotRule = (input.slotRule ?? null) as RoutineInput['slotRule'];
       // Times or a repetition of its own: it no longer follows its schedule.
       if (input.fromTime !== undefined || input.dueTime !== undefined || (input.recurrence !== undefined && input.recurrence !== null))
         Object.assign(changes, { scheduleId: null, scheduleAnchor: null, cases: [] });

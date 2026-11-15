@@ -3,41 +3,28 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { ActionIcon, Badge, Group, Paper, Stack, Switch, Table, Text, Tooltip } from '@mantine/core';
-import { EVERYDAY_CONTEXT, offsetLinkedMovements, splitAmounts, type TableFilterGroup } from '@ordo/shared';
-import {
-  ArrowsLeftRightIcon,
-  CaretDownIcon,
-  CaretRightIcon,
-  CopyIcon,
-  FileCsvIcon,
-  FilePdfIcon,
-  HandCoinsIcon,
-  LinkIcon,
-  PaperclipIcon,
-  PencilSimpleIcon,
-  ReceiptIcon,
-  TrashIcon,
-} from '@phosphor-icons/react';
+import { Group, Paper, Stack, Switch, Table, Text } from '@mantine/core';
+import { offsetLinkedMovements, type TableFilterGroup } from '@ordo/shared';
+import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Fragment, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
-import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
-import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { EditableDate, EditableNumber, EditableText } from '../../components/data-table/EditableCells';
 import { useEntryCellSave } from './entry-values';
 import { GroupHeaderRow, NoMatch } from '../../components/data-table/GroupHeaderRow';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
-import { tableWidth, type DataColumn, type ShownColumn } from '../../components/data-table/data-table';
+import { tableWidth, type DataColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import { notifyError, notifySuccess } from '../../lib/notify';
-import { useTreasuryEntries, useTreasuryMutations, useTreasurySettings, type TreasuryAccount, type TreasuryEntry } from './api';
-import { categoryOptions, categoryPaths } from './categories';
+import { useTreasuryEntries, useTreasuryMutations, type TreasuryAccount, type TreasuryEntry } from './api';
+import { DetailsToggle, SettledCell } from './entry-cells';
+import { useEntryEnv, type EntryEnv } from './entry-env';
+import { entryFieldCells, entryFieldColumns } from './entry-columns';
+import { EntryLinesTable } from './EntryLinesTable';
 import { EntryUrl } from './EntryUrl';
 import { StatementForm } from './StatementForm';
 import { StatementImport } from './StatementImport';
-import { handleFileClick } from '../files/open-file';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
@@ -87,13 +74,12 @@ const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 const monthOf = (entry: TreasuryEntry) => String(entry.date).slice(0, 7);
 
 /**
- * Columns of the entries.
- * @param {Map<string, string>} paths Full names of the categories.
- * @param {TreasuryAccount[]} accounts Accounts.
+ * Columns of the entries: month (to group), execution date, label, amount, documents settled, then the columns every
+ * table of entries shares.
+ * @param {EntryEnv} env Names.
  * @returns {DataColumn<TreasuryEntry>[]} Columns.
  */
-function entryColumns(paths: Map<string, string>, accounts: TreasuryAccount[]): DataColumn<TreasuryEntry>[] {
-  const categoryOf = (entry: TreasuryEntry) => (entry.categoryId ? (paths.get(entry.categoryId) ?? '') : '');
+function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
   return [
     {
       id: 'month',
@@ -107,50 +93,32 @@ function entryColumns(paths: Map<string, string>, accounts: TreasuryAccount[]): 
     },
     {
       id: 'date',
-      label: 'Exécution',
-      size: 120,
+      label: 'Date d’exécution',
+      size: 130,
       sortValue: (entry) => String(entry.date),
       text: (entry) => printedDate(String(entry.date)),
       filter: { kind: 'date', value: (entry) => String(entry.date).slice(0, 10) },
     },
     { id: 'label', label: 'Libellé', size: 300, locked: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
-    { id: 'payer', label: 'Émetteur / destinataire', size: 200, sortValue: (entry) => entry.payerName ?? null, text: (entry) => entry.payerName ?? '', groupable: true },
+    ...entryFieldColumns<TreasuryEntry>((entry) => entry, env, { payerName: (entry) => entry.payerName ?? '' }),
     {
-      id: 'account',
-      label: 'Compte',
-      size: 150,
-      sortValue: (entry) => entry.accountName,
-      text: (entry) => entry.accountName,
-      filter: { kind: 'choice', value: (entry) => entry.accountId, options: accounts.map((account) => ({ value: account.id, label: account.name })) },
-      groupable: true,
-    },
-    { id: 'category', label: 'Catégorie', size: 180, hiddenByDefault: true, sortValue: (entry) => categoryOf(entry) || null, text: categoryOf, groupable: true },
-    { id: 'method', label: 'Moyen de paiement', size: 150, hiddenByDefault: true, sortValue: (entry) => entry.methodName ?? null, text: (entry) => entry.methodName ?? '', groupable: true },
-    {
-      id: 'direction',
-      label: 'Sens',
-      size: 100,
+      id: 'settled',
+      label: 'Documents réglés',
+      size: 200,
       hiddenByDefault: true,
-      sortValue: (entry) => (entry.amount < 0 ? 1 : 0),
-      text: (entry) => (entry.amount < 0 ? 'Sortie' : 'Entrée'),
-      filter: {
-        kind: 'choice',
-        value: (entry) => (entry.amount < 0 ? 'OUT' : 'IN'),
-        options: [
-          { value: 'IN', label: 'Entrée' },
-          { value: 'OUT', label: 'Sortie' },
-        ],
-      },
-      groupable: true,
+      text: (entry) => entry.allocations.map((allocation) => allocation.documentLabel).join(', '),
+      filter: { kind: 'boolean', value: (entry) => entry.allocations.length > 0 },
     },
     {
-      id: 'documents',
-      label: 'Documents, pièces et liens',
-      size: 280,
-      text: (entry) =>
-        [...entry.allocations.map((allocation) => allocation.documentLabel), ...entry.documents.map((document) => document.title), ...entry.linkedEntries.map((linked) => linked.label)].join(', '),
+      id: 'amount',
+      label: 'Montant',
+      size: 130,
+      numeric: true,
+      sortValue: (entry) => entry.amount,
+      formatTotal: fmt.money,
+      text: (entry) => `${entry.amount > 0 ? '+' : ''}${fmt.money(entry.amount)}`,
+      filter: { kind: 'number', value: (entry) => entry.amount },
     },
-    { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (entry) => entry.amount, text: (entry) => `${entry.amount > 0 ? '+' : ''}${fmt.money(entry.amount)}` },
   ];
 }
 
@@ -185,10 +153,9 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   const [importing, setImporting] = useState(false);
   // Every entry: the views choose their period and account.
   const { data: entries, isPending } = useTreasuryEntries({ from: '1900-01-01', to: '2999-12-31', accountId: null });
-  const { data: settings } = useTreasurySettings();
   const { deleteEntry } = useTreasuryMutations();
   const saveEntry = useEntryCellSave();
-  const paths = useMemo(() => categoryPaths(settings?.treasuryCategories ?? []), [settings]);
+  const env = useEntryEnv(accounts);
   const tableRef = useRef<HTMLTableElement>(null);
   const entryComments = useCommentCounts(
     'TREASURY_ENTRY',
@@ -196,14 +163,14 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   );
   const columns = useMemo(
     () => [
-      ...entryColumns(paths, accounts),
+      ...entryColumns(env),
       commentColumn<TreasuryEntry>(
         entryComments,
         (entry) => entry.id,
         (entry) => entry.note,
       ),
     ],
-    [paths, accounts, entryComments],
+    [env, entryComments],
   );
   const loaded = useMemo(() => (entries ?? []).filter((entry) => entry.status === 'ACTUAL'), [entries]);
   const view = useDataView({ tableKey: 'treasury-entries', columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS });
@@ -229,16 +196,6 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
       else next.add(id);
       return next;
     });
-  const nameOf = useMemo(
-    () =>
-      new Map([
-        ...(settings?.treasuryMembers ?? []).map((member) => [`m:${member.id}`, member.isMe ? `${member.name} (moi)` : member.name] as const),
-        ...(settings?.treasuryRelations ?? []).map((relation) => [`r:${relation.id}`, relation.name] as const),
-        ...(settings?.treasuryContexts ?? []).map((context) => [`c:${context.id}`, context.name] as const),
-      ]),
-    [settings],
-  );
-
   return (
     <Stack gap="sm">
       <DataViewBar
@@ -246,7 +203,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         searchLabel="Rechercher (libellé, tiers, documents)"
         displayOptions={
           split.length > 0 && (
-            <Switch label="Répartitions développées" checked={allExpanded} onChange={(event) => setExpanded(event.currentTarget.checked ? new Set(split.map((entry) => entry.id)) : new Set())} />
+            <Switch label="Répartitions dépliées" checked={allExpanded} onChange={(event) => setExpanded(event.currentTarget.checked ? new Set(split.map((entry) => entry.id)) : new Set())} />
           )
         }
         exports={
@@ -320,131 +277,16 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                             <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined}>
                               {
                                 {
-                                  date: (
-                                    <>
-                                      <EditableDate value={date.slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && saveEntry(entry, { date: next })} />
-                                      {entry.valueDate && String(entry.valueDate) !== date && (
-                                        <Text size="xs" c="dimmed">
-                                          Valeur {printedDate(String(entry.valueDate))}
-                                        </Text>
-                                      )}
-                                    </>
-                                  ),
+                                  ...entryFieldCells(entry, env, saveEntry),
+                                  date: <EditableDate value={date.slice(0, 10)} label={`Exécution de ${entry.label}`} onSave={(next) => next && saveEntry(entry, { date: next })} />,
                                   label: (
-                                    <Group gap={4} wrap="nowrap" align="flex-start">
-                                      {entry.lines.length > 0 && (
-                                        <ActionIcon
-                                          variant="subtle"
-                                          color="gray"
-                                          size="sm"
-                                          aria-label={expanded.has(entry.id) ? `Réduire la répartition de ${entry.label}` : `Développer la répartition de ${entry.label}`}
-                                          aria-expanded={expanded.has(entry.id)}
-                                          onClick={() => toggle(entry.id)}
-                                        >
-                                          {expanded.has(entry.id) ? <CaretDownIcon aria-hidden /> : <CaretRightIcon aria-hidden />}
-                                        </ActionIcon>
-                                      )}
-                                      <div>
-                                        <Group gap={4} wrap="nowrap">
-                                          <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && saveEntry(entry, { label })} />
-                                          <EntryUrl url={entry.url} label={entry.label} />
-                                        </Group>
-                                        <Text size="xs" c="dimmed">
-                                          {[
-                                            entry.categoryId ? paths.get(entry.categoryId) : null,
-                                            entry.methodName,
-                                            entry.lines.length ? `réparti en ${entry.lines.length} ligne${entry.lines.length > 1 ? 's' : ''}` : null,
-                                          ]
-                                            .filter(Boolean)
-                                            .join(' · ')}
-                                        </Text>
-                                      </div>
+                                    <Group gap={4} wrap="nowrap">
+                                      <EditableText value={entry.label} label={`Libellé de ${entry.label}`} onSave={(label) => label && saveEntry(entry, { label })} />
+                                      <EntryUrl url={entry.url} label={entry.label} />
+                                      {entry.lines.length > 0 && <DetailsToggle opened={expanded.has(entry.id)} count={entry.lines.length} label={entry.label} onToggle={() => toggle(entry.id)} />}
                                     </Group>
                                   ),
-                                  payer: <Text size="sm">{entry.payerName ?? ''}</Text>,
-                                  account: (
-                                    <EditableSelect
-                                      value={entry.accountId}
-                                      label={`Compte de ${entry.label}`}
-                                      data={accounts.filter((account) => !account.archived || account.id === entry.accountId).map((account) => ({ value: account.id, label: account.name }))}
-                                      onSave={(accountId) => accountId && saveEntry(entry, { accountId })}
-                                    />
-                                  ),
-                                  category:
-                                    entry.lines.length > 0 ? (
-                                      <Text size="xs" c="dimmed">
-                                        Sur les lignes
-                                      </Text>
-                                    ) : (
-                                      <EditableSelect
-                                        value={entry.categoryId ?? null}
-                                        label={`Catégorie de ${entry.label}`}
-                                        nullable
-                                        {...treeSelectProps(categoryOptions(settings?.treasuryCategories ?? [], entry.amount < 0 ? 'OUT' : 'IN'))}
-                                        onSave={(categoryId) => saveEntry(entry, { categoryId })}
-                                      />
-                                    ),
-                                  method: (
-                                    <EditableSelect
-                                      value={entry.methodId ?? null}
-                                      label={`Moyen de paiement de ${entry.label}`}
-                                      nullable
-                                      data={(settings?.treasuryPaymentMethods ?? [])
-                                        .filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId)
-                                        .map((method) => ({ value: method.id, label: method.name }))}
-                                      onSave={(methodId) => saveEntry(entry, { methodId })}
-                                    />
-                                  ),
-                                  documents: (
-                                    <Group gap={4}>
-                                      {entry.allocations.map((allocation) =>
-                                        allocation.documentId ? (
-                                          <Badge
-                                            key={allocation.id}
-                                            size="sm"
-                                            variant="light"
-                                            leftSection={<ReceiptIcon aria-hidden />}
-                                            component={Link}
-                                            to={`/accounting/${allocation.documentId}`}
-                                            style={{ cursor: 'pointer' }}
-                                          >
-                                            {allocation.documentLabel} · {fmt.money(allocation.amount)}
-                                          </Badge>
-                                        ) : (
-                                          <Badge key={allocation.id} size="sm" variant="light" color="cyan" leftSection={<ReceiptIcon aria-hidden />}>
-                                            {allocation.documentLabel} · {fmt.money(allocation.amount)}
-                                          </Badge>
-                                        ),
-                                      )}
-                                      {entry.documents.map((document) => (
-                                        <Tooltip key={`${document.source}-${document.id}`} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
-                                          <Badge
-                                            size="sm"
-                                            variant="light"
-                                            color="gray"
-                                            leftSection={<PaperclipIcon aria-hidden />}
-                                            component="a"
-                                            href={document.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            // A file of the app (PDF, image) opens in its viewer.
-                                            onClick={(event: React.MouseEvent) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, name: document.title })}
-                                            style={{ cursor: 'pointer' }}
-                                            tt="none"
-                                          >
-                                            {document.title.length > 24 ? `${document.title.slice(0, 23)}…` : document.title}
-                                          </Badge>
-                                        </Tooltip>
-                                      ))}
-                                      {entry.linkedEntries.map((linked) => (
-                                        <Tooltip key={linked.id} label={`${printedDate(String(linked.date))} · ${linked.label}`}>
-                                          <Badge size="sm" variant="outline" color={linked.amount < 0 ? 'red' : 'green'} leftSection={<LinkIcon aria-hidden />} tt="none">
-                                            {linked.label.length > 24 ? `${linked.label.slice(0, 23)}…` : linked.label} · {fmt.money(linked.amount)}
-                                          </Badge>
-                                        </Tooltip>
-                                      ))}
-                                    </Group>
-                                  ),
+                                  settled: <SettledCell entry={entry} />,
                                   amount: (
                                     <Text span inherit c={entry.amount < 0 ? 'red' : 'green'}>
                                       <EditableNumber
@@ -458,6 +300,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                                       />
                                     </Text>
                                   ),
+                                  comments: column.text?.(entry),
                                 }[column.id]
                               }
                             </Table.Td>
@@ -489,7 +332,13 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                             />
                           </Table.Td>
                         </Table.Tr>
-                        {expanded.has(entry.id) && <SplitRows entry={entry} paths={paths} nameOf={nameOf} shown={shown} />}
+                        {expanded.has(entry.id) && (
+                          <Table.Tr className={tableClasses.details}>
+                            <Table.Td colSpan={shown.length + 1} className={tableClasses.detailsCell}>
+                              <EntryLinesTable entry={entry} env={env} save={saveEntry} />
+                            </Table.Td>
+                          </Table.Tr>
+                        )}
                       </Fragment>
                     );
                   }),
@@ -509,74 +358,5 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         {exporting && <StatementForm accounts={accounts} accountId={null} onDone={() => setExporting(false)} />}
       </SidePanel>
     </Stack>
-  );
-}
-
-/**
- * Lines of a split entry under it (and what they leave), muted: for whom, category, context, loan, own day,
- * project, documents and links.
- * @param {{ entry: TreasuryEntry, paths: Map<string, string>, nameOf: Map<string, string>, shown: ShownColumn<TreasuryEntry>[] }} props Entry, category paths, names of members ("m:"), relations ("r:") and contexts ("c:"), columns shown.
- * @returns {JSX.Element} Rows.
- */
-function SplitRows({ entry, paths, nameOf, shown }: { entry: TreasuryEntry; paths: Map<string, string>; nameOf: Map<string, string>; shown: ShownColumn<TreasuryEntry>[] }) {
-  const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
-  const rows = [
-    ...entry.lines.map((line, index) => ({
-      key: line.id,
-      label: line.label ?? 'Ligne',
-      details: [
-        line.relationId ? `pour ${nameOf.get(`r:${line.relationId}`) ?? 'une relation'}` : line.memberId ? `pour ${nameOf.get(`m:${line.memberId}`) ?? ''}` : '',
-        line.categoryId ? paths.get(line.categoryId) : '',
-        line.contextId ? nameOf.get(`c:${line.contextId}`) : EVERYDAY_CONTEXT,
-        line.date ? `le ${printedDate(String(line.date))}` : '',
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      loan: line.loan,
-      attachments: (line.projectId ? 1 : 0) + line.documents.length + line.linkedLines.length + line.linkedEntries.length,
-      amount: amounts[index] / 100,
-    })),
-    ...(remainder ? [{ key: 'rest', label: 'Non réparti', details: '', loan: false, attachments: 0, amount: remainder / 100 }] : []),
-  ];
-  return (
-    <>
-      {rows.map((row) => (
-        <Table.Tr key={row.key} bg="var(--mantine-color-default-hover)">
-          {shown.map((column) => (
-            <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined} pl={column.id === 'label' ? 'xl' : undefined}>
-              {column.id === 'label' ? (
-                <>
-                  <Group gap={6} wrap="nowrap">
-                    <Text size="xs">↳ {row.label}</Text>
-                    {row.loan && (
-                      <Badge size="xs" variant="light" color="grape" leftSection={<HandCoinsIcon aria-hidden />}>
-                        Prêt
-                      </Badge>
-                    )}
-                  </Group>
-                  {row.details && (
-                    <Text size="xs" c="dimmed">
-                      {row.details}
-                    </Text>
-                  )}
-                </>
-              ) : column.id === 'documents' ? (
-                row.attachments > 0 && (
-                  <Badge size="xs" variant="light" color="gray" leftSection={<PaperclipIcon aria-hidden />}>
-                    {row.attachments}
-                  </Badge>
-                )
-              ) : column.id === 'amount' ? (
-                <Text span ff="monospace" fz="xs" c={row.amount < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }}>
-                  {row.amount > 0 ? '+' : ''}
-                  {fmt.money(row.amount)}
-                </Text>
-              ) : null}
-            </Table.Td>
-          ))}
-          <Table.Td />
-        </Table.Tr>
-      ))}
-    </>
   );
 }

@@ -111,6 +111,7 @@ export type BulkTaskInput = {
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
   milestoneId?: string | number | null | undefined;
+  minDate?: string | null | undefined;
   priorityId?: string | number | null | undefined;
   removeAssigneeIds?: Array<string | number> | null | undefined;
   removeSprintIds?: Array<string | number> | null | undefined;
@@ -253,6 +254,7 @@ export type CommentTarget =
   | 'RELATION'
   | 'ROUTINE'
   | 'SCHEDULE'
+  | 'SHOPPING_ITEM'
   | 'SHOPPING_LIST'
   | 'SHOPPING_PRODUCT'
   | 'TIME_ENTRY'
@@ -615,14 +617,28 @@ export type RoutinePatch = {
   estimate?: number | null | undefined;
   /** HH:MM; null: no limit. */
   fromTime?: string | null | undefined;
+  /** Null: none (its point too). */
+  location?: string | null | undefined;
+  locationLat?: number | null | undefined;
+  locationLon?: number | null | undefined;
+  /** « À partir du »: "DD" (monthly) or "MM-DD" (yearly); null: none. */
+  opensOn?: string | null | undefined;
   /** Null: top level. */
   parentId?: string | number | null | undefined;
   /** Null: none. */
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
+  /** Minutes before its moment. */
+  reminders?: Array<number> | null | undefined;
   requiredIds?: Array<string | number> | null | undefined;
+  /** Slots it is done on; null: the default of the workspace. */
+  slotRule?: unknown;
   startDate?: string | null | undefined;
   title?: string | null | undefined;
+  /** Minutes to come back. */
+  travelAfter?: number | null | undefined;
+  /** Minutes to get there. */
+  travelBefore?: number | null | undefined;
 };
 
 /** Where a routine is dropped, relative to another one. */
@@ -750,6 +766,7 @@ export type TaskInput = {
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
   milestoneId?: string | number | null | undefined;
+  minDate?: string | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   /** None: a task of no project (no number, sprint, milestone nor GitHub item). */
@@ -807,6 +824,7 @@ export type TaskUpdateInput = {
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
   milestoneId?: string | number | null | undefined;
+  minDate?: string | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   /** Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace. */
@@ -1168,7 +1186,7 @@ export type DeleteCatalogItemMutationVariables = Exact<{
 
 export type DeleteCatalogItemMutation = { deleteCatalogItem: boolean };
 
-export type AccountingDocumentListFieldsFragment = { id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, paymentMethods: string | null, balance: number | null, paid: number | null, overdue: boolean, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, depositType: DiscountType | null, depositValue: number | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
+export type AccountingDocumentListFieldsFragment = { id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, paymentMethods: string | null, balance: number | null, paid: number | null, overdue: boolean, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, depositType: DiscountType | null, depositValue: number | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null, attachments: Array<{ id: string, name: string, url: string }> };
 
 export type AccountingDocumentFieldsFragment = { serviceStart: string | null, serviceEnd: string | null, serviceId: string | null, contactId: string | null, sourceId: string | null, importedSourceId: string | null, importedSourceNumber: string | null, seller: unknown, buyer: unknown, introduction: string | null, referenceLabel: string | null, referenceValue: string | null, conclusion: string | null, paymentTerms: string | null, paymentMethods: string | null, lateInterest: string | null, depositType: DiscountType | null, depositValue: number | null, billingSchedule: string | null, otherMentions: string | null, showBankDetails: boolean, vatApplicable: boolean, vatExemptionText: string | null, globalDiscountType: DiscountType | null, globalDiscountValue: number | null, totalVat: number, finalizedAt: string | null, updatedAt: string, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, signedFileUrl: string | null, signedFileName: string | null, paid: number | null, credited: number | null, id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, balance: number | null, overdue: boolean, derived: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, totalGross: number }>, timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, duration: number | null }>, reminders: Array<{ id: string, date: string, note: string | null }>, payments: Array<{ id: string, amount: number, entry: { id: string, date: string, accountName: string, methodName: string | null } }>, lines: Array<{ id: string, kind: AccountingLineKind, title: string, description: string | null, quantity: number, unit: AccountingUnit, unitPrice: number, vatRate: number, discountType: DiscountType | null, discountValue: number | null, deductedDocumentId: string | null }>, attachments: Array<{ id: string, name: string, size: number, url: string }>, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null };
 
@@ -1178,7 +1196,7 @@ export type AccountingDocumentsQueryVariables = Exact<{
 }>;
 
 
-export type AccountingDocumentsQuery = { accountingDocuments: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, paymentMethods: string | null, balance: number | null, paid: number | null, overdue: boolean, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, depositType: DiscountType | null, depositValue: number | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null }> };
+export type AccountingDocumentsQuery = { accountingDocuments: Array<{ id: string, type: AccountingDocumentType, status: AccountingDocumentStatus, number: string | null, issueDate: string, dueDate: string | null, clientId: string, clientName: string, projectId: string | null, title: string | null, totalNet: number, totalGross: number, currency: string, invoicedNet: number | null, sourceNumber: string | null, recurringId: string | null, paymentMethods: string | null, balance: number | null, paid: number | null, overdue: boolean, sentAt: string | null, sentVia: string | null, acceptedAt: string | null, depositType: DiscountType | null, depositValue: number | null, trackingStatus: { id: string, name: string, color: string, category: DocumentStatusCategory } | null, attachments: Array<{ id: string, name: string, url: string }> }> };
 
 export type AccountingDocumentQueryVariables = Exact<{
   id: string | number;
@@ -1289,6 +1307,22 @@ export type AddAccountingAttachmentsMutationVariables = Exact<{
 
 
 export type AddAccountingAttachmentsMutation = { addAccountingAttachments: boolean };
+
+export type SetAccountingDocumentProjectMutationVariables = Exact<{
+  id: string | number;
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type SetAccountingDocumentProjectMutation = { setAccountingDocumentProject: boolean };
+
+export type SetImportedDocumentProjectMutationVariables = Exact<{
+  id: string | number;
+  projectId?: string | number | null | undefined;
+}>;
+
+
+export type SetImportedDocumentProjectMutation = { setImportedDocumentProject: boolean };
 
 export type RemoveAccountingAttachmentMutationVariables = Exact<{
   attachmentId: string | number;
@@ -3069,14 +3103,14 @@ export type MilestoneFieldsFragment = { id: string, projectId: string, title: st
 
 export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown };
+export type TaskFieldsFragment = { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string, githubAuthor: string | null };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, taskTags: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, taskTags: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   id: string | number;
@@ -3090,7 +3124,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
+export type CreateTaskMutation = { createTask: { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -3098,7 +3132,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
 
 export type SetTaskArchivedMutationVariables = Exact<{
   id: string | number;
@@ -4186,6 +4220,11 @@ export const AccountingDocumentListFieldsFragmentDoc = new TypedDocumentString(`
   acceptedAt
   depositType
   depositValue
+  attachments {
+    id
+    name
+    url
+  }
 }
     `, {"fragmentName":"AccountingDocumentListFields"}) as unknown as TypedDocumentString<AccountingDocumentListFieldsFragment, unknown>;
 export const AccountingDocumentFieldsFragmentDoc = new TypedDocumentString(`
@@ -4307,6 +4346,11 @@ export const AccountingDocumentFieldsFragmentDoc = new TypedDocumentString(`
   acceptedAt
   depositType
   depositValue
+  attachments {
+    id
+    name
+    url
+  }
 }`, {"fragmentName":"AccountingDocumentFields"}) as unknown as TypedDocumentString<AccountingDocumentFieldsFragment, unknown>;
 export const ImportedDocumentFieldsFragmentDoc = new TypedDocumentString(`
     fragment ImportedDocumentFields on ImportedDocument {
@@ -4569,6 +4613,7 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   milestoneId
   sprintIds
   deadline
+  minDate
   position
   archived
   createdAt
@@ -4981,6 +5026,11 @@ export const AccountingDocumentsDocument = new TypedDocumentString(`
   acceptedAt
   depositType
   depositValue
+  attachments {
+    id
+    name
+    url
+  }
 }`) as unknown as TypedDocumentString<AccountingDocumentsQuery, AccountingDocumentsQueryVariables>;
 export const AccountingDocumentDocument = new TypedDocumentString(`
     query AccountingDocument($id: ID!) {
@@ -5020,6 +5070,11 @@ export const AccountingDocumentDocument = new TypedDocumentString(`
   acceptedAt
   depositType
   depositValue
+  attachments {
+    id
+    name
+    url
+  }
 }
 fragment AccountingDocumentFields on AccountingDocument {
   ...AccountingDocumentListFields
@@ -5214,6 +5269,16 @@ export const AddAccountingAttachmentsDocument = new TypedDocumentString(`
   addAccountingAttachments(id: $id, files: $files)
 }
     `) as unknown as TypedDocumentString<AddAccountingAttachmentsMutation, AddAccountingAttachmentsMutationVariables>;
+export const SetAccountingDocumentProjectDocument = new TypedDocumentString(`
+    mutation SetAccountingDocumentProject($id: ID!, $projectId: ID) {
+  setAccountingDocumentProject(id: $id, projectId: $projectId)
+}
+    `) as unknown as TypedDocumentString<SetAccountingDocumentProjectMutation, SetAccountingDocumentProjectMutationVariables>;
+export const SetImportedDocumentProjectDocument = new TypedDocumentString(`
+    mutation SetImportedDocumentProject($id: ID!, $projectId: ID) {
+  setImportedDocumentProject(id: $id, projectId: $projectId)
+}
+    `) as unknown as TypedDocumentString<SetImportedDocumentProjectMutation, SetImportedDocumentProjectMutationVariables>;
 export const RemoveAccountingAttachmentDocument = new TypedDocumentString(`
     mutation RemoveAccountingAttachment($attachmentId: ID!) {
   removeAccountingAttachment(attachmentId: $attachmentId)
@@ -7381,6 +7446,7 @@ fragment TaskFields on Task {
   milestoneId
   sprintIds
   deadline
+  minDate
   position
   archived
   createdAt
@@ -7441,6 +7507,7 @@ export const CreateTaskDocument = new TypedDocumentString(`
   milestoneId
   sprintIds
   deadline
+  minDate
   position
   archived
   createdAt
@@ -7486,6 +7553,7 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   milestoneId
   sprintIds
   deadline
+  minDate
   position
   archived
   createdAt

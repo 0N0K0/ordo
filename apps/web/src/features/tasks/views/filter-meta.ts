@@ -12,7 +12,7 @@ import {
 } from '@ordo/shared';
 
 export const FIELD_LABELS: Record<TaskFilterField, string> = {
-  title: 'Titre',
+  title: 'Label',
   description: 'Description',
   number: 'Numéro',
   effort: 'Effort',
@@ -29,12 +29,22 @@ export const FIELD_LABELS: Record<TaskFilterField, string> = {
   startDate: 'Début',
   endDate: 'Fin',
   deadline: 'Date max',
+  minDate: 'Date min',
   createdAt: 'Créée le',
   updatedAt: 'Modifiée le',
   overdue: 'En retard',
   blocked: 'Bloquée',
   hasSubtasks: 'A des sous-tâches',
   doableNow: 'Faisable maintenant',
+  beneficiaries: 'Bénéficiaires',
+  slots: 'Plages',
+  dependsOn: 'Dépend de',
+  blocks: 'Bloque',
+  relatedTo: 'Relative à',
+  trackedHours: 'Temps passé (heures)',
+  hasShopping: 'A des achats',
+  hasAlarms: 'A des alertes',
+  hasComments: 'A des commentaires',
   closed: 'Fermée',
   archived: 'Archivée',
 };
@@ -44,9 +54,10 @@ export const FIELD_GROUPS: { group: string; fields: TaskFilterField[] }[] = [
   { group: 'Texte', fields: ['title', 'description', 'number'] },
   {
     group: 'Organisation',
-    fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'tags', 'effort'],
+    fields: ['project', 'parent', 'milestone', 'sprint', 'status', 'statusCategory', 'priority', 'type', 'assignees', 'beneficiaries', 'tags', 'effort', 'trackedHours', 'slots'],
   },
-  { group: 'Dates', fields: ['startDate', 'endDate', 'deadline', 'createdAt', 'updatedAt'] },
+  { group: 'Dates', fields: ['startDate', 'endDate', 'minDate', 'deadline', 'createdAt', 'updatedAt'] },
+  { group: 'Liens', fields: ['dependsOn', 'blocks', 'relatedTo', 'hasShopping', 'hasAlarms', 'hasComments'] },
   { group: 'État', fields: ['closed', 'overdue', 'blocked', 'hasSubtasks', 'doableNow', 'archived'] },
 ];
 

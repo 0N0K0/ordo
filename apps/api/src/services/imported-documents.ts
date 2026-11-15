@@ -101,6 +101,18 @@ export async function updateImportedDocument(id: string, input: ImportedDocument
 }
 
 /**
+ * Moves an imported document to a project, or out of any.
+ * @param {string} id Document id.
+ * @param {string | null} projectId Project, null for none.
+ * @returns {Promise<ImportedDocument>} Document.
+ */
+export async function setImportedProject(id: string, projectId: string | null): Promise<ImportedDocument> {
+  if (!(await prisma.importedDocument.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Document importé');
+  if (projectId && !(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) throw notFound('Projet');
+  return prisma.importedDocument.update({ where: { id }, data: { projectId } });
+}
+
+/**
  * Deletes an imported document and its file.
  * @param {string} id Imported document.
  * @returns {Promise<void>}

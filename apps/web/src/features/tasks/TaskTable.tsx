@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Anchor, Box, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Checkbox, ColorSwatch, Group, Table, Text, Tooltip } from '@mantine/core';
 import { formatDuration, TASK_COLUMNS, type TaskColumn, type TaskViewConfig } from '@ordo/shared';
 import { AlarmIcon, ArrowsClockwiseIcon, CaretRightIcon, ChatCircleIcon, DotsSixVerticalIcon, GithubLogoIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useTaskAlarmCounts } from '../alarms/api';
@@ -42,13 +42,13 @@ import {
   type Updater,
 } from '@tanstack/react-table';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { notifyError } from '../../lib/notify';
 import type { EventOccurrence } from '../calendar/api';
 import { useMoveTask, type Task } from './api';
 import classes from './TaskTable.module.css';
-import { TaskRef, TaskStateIcon } from './task-ui';
-import { NO_PROJECT_LABEL, type TaskContext, taskName, taskRef } from './use-task-context';
+import { TaskStateIcon } from './task-ui';
+import { type TaskContext, taskName } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { CellSelectionContext, type CellSelection } from './views/cell-edit';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './views/columns-meta';
@@ -66,6 +66,9 @@ import {
   TagsCell,
   TitleCell,
   TaskBeneficiariesCell,
+  TaskLinksCell,
+  ParentCell,
+  TaskProjectCell,
 } from './views/inline-cells';
 import { groupDefaults, type NewTaskDefaults } from './views/new-task-defaults';
 import { EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell, EventBeneficiariesCell } from './views/event-cells';
@@ -77,6 +80,8 @@ import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
 import { TableFooter } from '../../components/data-table/TableFooter';
 import type { ShownColumn } from '../../components/data-table/data-table';
+import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './views/extra-cells';
+import { useShoppingLists } from '../shopping/api';
 
 // Stable module-level registry. Sorting is applied when building the rows (so it works with groups
 // and sub-tasks), the table only holds the sorting state and header interactions.
@@ -179,35 +184,6 @@ function getProjection(items: DragItem[], activeId: string, overId: string, offs
     if (moved[index].depth === depth - 1) return { depth, parentId: moved[index].id };
   }
   return null;
-}
-
-/**
- * Links to tasks by number ("#12, #13").
- * @param {object} props Component props.
- * @param {string[]} props.ids Task ids.
- * @param {TaskContext} props.context Task context.
- * @returns {JSX.Element} Links.
- */
-function TaskNumbers({ ids, context }: { ids: string[]; context: TaskContext }) {
-  const link = useTaskLink();
-  const tasks = ids.map((id) => context.taskById.get(id)).filter((task) => task !== undefined);
-  return (
-    <Group gap={6} wrap="nowrap" style={{ overflow: 'hidden' }}>
-      {tasks.map((task) => (
-        <Tooltip key={task.id} label={task.title}>
-          <Anchor
-            component={Link}
-            to={link.to(task.id)}
-            size="sm"
-            td={context.isClosed(task) ? 'line-through' : undefined}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {taskRef(task).trim()}
-          </Anchor>
-        </Tooltip>
-      ))}
-    </Group>
-  );
 }
 
 interface TaskTableProps {
@@ -314,6 +290,7 @@ export function TaskTable({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [drag, setDrag] = useState<{ activeId: string; overId: string | null; offsetX: number } | null>(null);
   const alarmCounts = useTaskAlarmCounts();
+  const { data: shoppingLists } = useShoppingLists();
   const taskActions = useTaskActions(context);
   const taskLink = useTaskLink();
 
@@ -345,11 +322,7 @@ export function TaskTable({
           }
         />
       ),
-      project: (task) => (
-        <Text size="sm" truncate title={context.projectLabel(task.projectId)}>
-          {task.projectId ? context.projectById.get(task.projectId)?.title : NO_PROJECT_LABEL}
-        </Text>
-      ),
+      project: (task) => <TaskProjectCell task={task} context={context} />,
       status: (task) => <LabelCell task={task} column="status" labels={context.statuses} />,
       priority: (task) => <LabelCell task={task} column="priority" labels={context.priorities} />,
       type: (task) => <LabelCell task={task} column="type" labels={context.types} />,
@@ -357,30 +330,25 @@ export function TaskTable({
       beneficiaries: (task) => <TaskBeneficiariesCell task={task} />,
       tags: (task) => <TagsCell task={task} context={context} />,
       effort: (task) => <EffortCell task={task} />,
-      trackedTime: (task) =>
-        task.trackedSeconds > 0 ? (
-          <Text size="sm" ta="right">
-            {formatDuration(task.trackedSeconds)}
-          </Text>
-        ) : null,
+      trackedTime: (task) => <TrackedCell task={task} />,
+      minDate: (task) => <DateCell task={task} column="minDate" />,
+      slots: (task) => <SlotsCell task={task} />,
+      timer: (task) => <TimerCell task={task} />,
+      subtasks: (task) => <SubtasksCell task={task} context={context} onAdd={() => taskActions.create({ parentId: task.id, projectId: task.projectId ?? undefined })} />,
+      progress: (task) => <ProgressCell task={task} context={context} />,
+      alarms: (task) => <AlarmsCell task={task} context={context} count={alarmCounts.get(task.id) ?? 0} />,
+      shopping: (task) => <ShoppingCell task={task} lists={shoppingLists ?? []} />,
       startDate: (task) => <DateCell task={task} column="startDate" />,
       endDate: (task) => <DateCell task={task} column="endDate" />,
       deadline: (task) => (
         <DateCell task={task} column="deadline" alert={task.deadline !== null && task.deadline < today && !context.isClosed(task)} />
       ),
-      parent: (task) => {
-        const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
-        return parent ? (
-          <Box onClick={(event) => event.stopPropagation()} style={{ minWidth: 0 }}>
-            <TaskRef task={parent} blocked={context.isBlocked(parent)} />
-          </Box>
-        ) : null;
-      },
+      parent: (task) => <ParentCell task={task} context={context} />,
       milestone: (task) => <MilestoneCell task={task} context={context} />,
       sprint: (task) => <SprintCell task={task} context={context} />,
       blockedBy: (task) => <BlockedByCell task={task} context={context} />,
-      blocking: (task) => <TaskNumbers ids={task.blockingIds} context={context} />,
-      related: (task) => <TaskNumbers ids={task.relatedIds} context={context} />,
+      blocking: (task) => <TaskLinksCell task={task} context={context} kind="blocking" />,
+      related: (task) => <TaskLinksCell task={task} context={context} kind="related" />,
       comments: (task) => <CommentCount count={task.commentCount + (task.description?.trim() ? 1 : 0)} />,
       createdAt: (task) => <Text size="sm">{fmt.day(new Date(task.createdAt))}</Text>,
       updatedAt: (task) => <Text size="sm">{fmt.day(new Date(task.updatedAt))}</Text>,
@@ -453,7 +421,7 @@ export function TaskTable({
         }),
       ),
     ]);
-  }, [context, today, alarmCounts, eventComments]);
+  }, [context, today, alarmCounts, eventComments, shoppingLists, taskActions]);
 
   // Full column order: columns added after a view was saved go at the end.
   const order = useMemo(

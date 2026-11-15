@@ -1,15 +1,12 @@
 import { Menu, Table, Text, TextInput, UnstyledButton } from '@mantine/core';
-import { shoppingItemSchema } from '@ordo/shared';
+import { shoppingItemSchema, type ShoppingItemInput } from '@ordo/shared';
 import { ListPlusIcon, PencilSimpleLineIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifyError } from '../../lib/notify';
 import addClasses from '../tasks/views/table-extras.module.css';
 
-/** Category or store a row is added in (null: none). */
-export interface ShoppingPlace {
-  categoryId: string | null;
-  storeId: string | null;
-}
+/** Fields of a row added in a group (its category, store, way of keeping or person). */
+export type ShoppingPlace = Partial<Omit<ShoppingItemInput, 'name'>>;
 
 export interface ShoppingAdd {
   /** Placeholder of the name field ("Ajouter un produit"). */

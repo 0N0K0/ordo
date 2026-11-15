@@ -443,6 +443,22 @@ builder.mutationFields((t) => ({
       return true;
     },
   }),
+  setAccountingDocumentProject: t.boolean({
+    description: 'Moves a document (draft or final) to a project, or out of any.',
+    args: { id: t.arg.id({ required: true }), projectId: t.arg.id() },
+    resolve: async (_root, { id, projectId }) => {
+      await docs.setDocumentProject(id, projectId ?? null);
+      return true;
+    },
+  }),
+  setImportedDocumentProject: t.boolean({
+    description: 'Moves an imported document to a project, or out of any.',
+    args: { id: t.arg.id({ required: true }), projectId: t.arg.id() },
+    resolve: async (_root, { id, projectId }) => {
+      await imported.setImportedProject(id, projectId ?? null);
+      return true;
+    },
+  }),
   removeAccountingAttachment: t.boolean({
     args: { attachmentId: t.arg.id({ required: true }) },
     resolve: async (_root, { attachmentId }) => {

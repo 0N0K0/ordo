@@ -85,9 +85,10 @@ export const inputOf = (row: ShoppingFields): ShoppingItemInput => ({
  * @param {{ categoryId: string | null, storeId: string | null }} place Category and store.
  * @returns {ShoppingItemInput} Input.
  */
-export const blankInput = (name: string, place: { categoryId: string | null; storeId: string | null }): ShoppingItemInput => ({
+export const blankInput = (name: string, place: Partial<Omit<ShoppingItemInput, 'name'>>): ShoppingItemInput => ({
   name,
-  ...place,
+  categoryId: null,
+  storeId: null,
   url: null,
   note: null,
   quantity: null,
@@ -98,6 +99,7 @@ export const blankInput = (name: string, place: { categoryId: string | null; sto
   perishable: false,
   storageId: null,
   expiresAt: null,
+  ...place,
 });
 
 /**
@@ -131,8 +133,95 @@ export function categoriesForBaseList(categories: readonly ShoppingCategory[], b
   return categories.filter((category) => kept.has(category.id));
 }
 
-/** Way products and items are grouped. */
-export type ShoppingGrouping = 'category' | 'store';
+/** Way products and items are grouped: category, store, way of keeping, or the people they are for. */
+export type ShoppingGrouping = 'category' | 'store' | 'storage' | 'people';
+
+/** Groupings offered, with their name. */
+export const SHOPPING_GROUPINGS: { value: ShoppingGrouping; label: string }[] = [
+  { value: 'category', label: 'Catégorie' },
+  { value: 'store', label: 'Magasin' },
+  { value: 'storage', label: 'Conservation' },
+  { value: 'people', label: 'Bénéficiaire' },
+];
+
+/** Name of the group of the rows without one, by grouping. */
+export const NO_GROUP_NAME: Record<ShoppingGrouping, string> = {
+  category: 'Sans catégorie',
+  store: 'Sans magasin',
+  storage: 'Non périssable ou sans mode',
+  people: 'Personne en particulier',
+};
+
+/** Label of the switch showing the empty groups, by grouping. */
+export const EMPTY_GROUPS_LABEL: Record<ShoppingGrouping, string> = {
+  category: 'Catégories vides',
+  store: 'Magasins vides',
+  storage: 'Modes vides',
+  people: 'Bénéficiaires sans achat',
+};
+
+/**
+ * Keys of the people a row is for ("m:" members, "r:" relations).
+ * @param {{ memberIds: string[], relationIds: string[] }} row Product or item.
+ * @returns {string[]} Keys.
+ */
+export const peopleKeys = (row: { memberIds: string[]; relationIds: string[] }) => [...row.memberIds.map((id) => `m:${id}`), ...row.relationIds.map((id) => `r:${id}`)];
+
+/**
+ * Groups a row is in: its category, store or way of keeping, or each of its people (none: the group without).
+ * @param {ShoppingFields} row Product or item.
+ * @param {ShoppingGrouping} grouping Grouping.
+ * @returns {string[]} Group ids.
+ */
+export function groupsOfRow(row: Pick<ShoppingFields, 'categoryId' | 'storeId' | 'storageId' | 'perishable' | 'memberIds' | 'relationIds'>, grouping: ShoppingGrouping): string[] {
+  if (grouping === 'people') return peopleKeys(row);
+  const id = grouping === 'category' ? row.categoryId : grouping === 'store' ? row.storeId : row.perishable ? row.storageId : null;
+  return id ? [id] : [];
+}
+
+/**
+ * Fields changed when a row is moved from a group to another (a person replaced by another, or all cleared).
+ * @param {ShoppingFields} row Product or item.
+ * @param {ShoppingGrouping} grouping Grouping.
+ * @param {string | null} from Group it leaves (null: the one without).
+ * @param {string | null} to Group it goes to (null: the one without).
+ * @returns {Partial<ShoppingItemInput> | null} Changes, null when there is none.
+ */
+export function moveToGroup(row: ShoppingFields, grouping: ShoppingGrouping, from: string | null, to: string | null): Partial<ShoppingItemInput> | null {
+  if (from === to) return null;
+  if (grouping === 'category') return { categoryId: to };
+  if (grouping === 'store') return { storeId: to };
+  if (grouping === 'storage') return to ? { perishable: true, storageId: to } : { storageId: null };
+  if (!to) return { memberIds: [], relationIds: [] };
+  const keys = peopleKeys(row).filter((key) => key !== from);
+  if (keys.includes(to)) return null;
+  keys.push(to);
+  return { memberIds: keys.filter((key) => key.startsWith('m:')).map((key) => key.slice(2)), relationIds: keys.filter((key) => key.startsWith('r:')).map((key) => key.slice(2)) };
+}
+
+/**
+ * Fields of a row added in a group.
+ * @param {ShoppingGrouping} grouping Grouping.
+ * @param {string | null} groupId Group (null: the one without).
+ * @returns {Partial<ShoppingItemInput>} Fields.
+ */
+export function placeInGroup(grouping: ShoppingGrouping, groupId: string | null): Partial<ShoppingItemInput> {
+  if (!groupId) return {};
+  if (grouping === 'category') return { categoryId: groupId };
+  if (grouping === 'store') return { storeId: groupId };
+  if (grouping === 'storage') return { perishable: true, storageId: groupId };
+  return groupId.startsWith('m:') ? { memberIds: [groupId.slice(2)] } : { relationIds: [groupId.slice(2)] };
+}
+
+/** What the groups of a shopping table are named from. */
+export interface ShoppingGroupLabels {
+  categories: ShoppingCategory[];
+  stores: ShoppingStore[];
+  /** Ways of keeping. Optional (needed to group by them). */
+  storages?: { id: string; name: string; color?: string | null; position?: number }[];
+  /** People by key ("m:id", "r:id"). Optional (needed to group by them). */
+  people?: ReadonlyMap<string, string>;
+}
 
 /** Category placed in its tree. */
 export type PlacedShoppingCategory = PlacedCategory<ShoppingCategory>;
@@ -176,24 +265,30 @@ export const NO_GROUP = 'none';
 
 /**
  * Rows of a shopping table: by category, each heading followed by its products or items then by its sub-categories
- * (a tree, as the treasury categories), or by store; the rows without category or store come last.
+ * (a tree, as the treasury categories), or by store, way of keeping or person (a row for several people is under each
+ * of them); the rows without come last.
  * @param {T[]} items Products or items, in their order.
  * @param {ShoppingGrouping} grouping Grouping.
- * @param {{ categories: ShoppingCategory[], stores: ShoppingStore[] }} labels Categories and stores.
+ * @param {ShoppingGroupLabels} labels Names of the groups.
  * @param {boolean} [showEmpty=false] Also the empty categories or stores (to drop something in them). Optional.
  * @returns {ShoppingRow<T>[]} Rows.
  */
-export function shoppingRows<T extends { categoryId?: string | null; storeId?: string | null }>(
+export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'storeId' | 'storageId' | 'perishable' | 'memberIds' | 'relationIds'>>(
   items: T[],
   grouping: ShoppingGrouping,
-  { categories, stores }: { categories: ShoppingCategory[]; stores: ShoppingStore[] },
+  labels: ShoppingGroupLabels,
   showEmpty = false,
 ): ShoppingRow<T>[] {
-  const key = (item: T) => (grouping === 'category' ? item.categoryId : item.storeId) ?? null;
   const groups =
     grouping === 'category'
-      ? shoppingCategoryTree(categories).map(({ category, depth, color }) => ({ id: category.id, name: category.name, color, depth, parentId: category.parentId ?? null }))
-      : [...stores].sort((a, b) => a.position - b.position).map((store) => ({ id: store.id, name: store.name, color: store.color, depth: 0, parentId: null }));
+      ? shoppingCategoryTree(labels.categories).map(({ category, depth, color }) => ({ id: category.id, name: category.name, color, depth, parentId: category.parentId ?? null }))
+      : grouping === 'store'
+        ? [...labels.stores].sort((a, b) => a.position - b.position).map((store) => ({ id: store.id, name: store.name, color: store.color, depth: 0, parentId: null }))
+        : grouping === 'storage'
+          ? [...(labels.storages ?? [])]
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((storage) => ({ id: storage.id, name: storage.name, color: storage.color ?? null, depth: 0, parentId: null }))
+          : [...(labels.people ?? [])].map(([id, name]) => ({ id, name, color: null, depth: 0, parentId: null }));
   const known = new Set(groups.map((group) => group.id));
   const parentOf = new Map(groups.map((group) => [group.id, group.parentId && known.has(group.parentId) ? group.parentId : null]));
   /**
@@ -206,10 +301,11 @@ export function shoppingRows<T extends { categoryId?: string | null; storeId?: s
     for (let current: string | null | undefined = id; current; current = parentOf.get(current)) ids.unshift(current);
     return ids;
   };
+  const keysOf = new Map(items.map((item) => [item, groupsOfRow(item, grouping).filter((id) => known.has(id))]));
   const inSubtree = new Map<string, T[]>(groups.map((group) => [group.id, []]));
   for (const item of items) {
-    const id = key(item);
-    if (id && known.has(id)) for (const above of chain(id)) inSubtree.get(above)?.push(item);
+    const above = new Set((keysOf.get(item) ?? []).flatMap(chain));
+    for (const id of above) inSubtree.get(id)?.push(item);
   }
   const rows: ShoppingRow<T>[] = [];
   for (const group of groups) {
@@ -217,11 +313,11 @@ export function shoppingRows<T extends { categoryId?: string | null; storeId?: s
     if (!showEmpty && subtree.length === 0) continue;
     const parents = chain(group.id).slice(0, -1);
     rows.push({ kind: 'group', id: group.id, name: group.name, color: group.color, depth: group.depth, parents, items: subtree });
-    for (const item of items) if (key(item) === group.id) rows.push({ kind: 'item', item, depth: group.depth + 1, groupId: group.id, parents: [...parents, group.id] });
+    for (const item of items) if (keysOf.get(item)?.includes(group.id)) rows.push({ kind: 'item', item, depth: group.depth + 1, groupId: group.id, parents: [...parents, group.id] });
   }
-  const others = items.filter((item) => !known.has(key(item) ?? ''));
+  const others = items.filter((item) => !keysOf.get(item)?.length);
   if (others.length || showEmpty) {
-    rows.push({ kind: 'group', id: null, name: grouping === 'category' ? 'Sans catégorie' : 'Sans magasin', color: null, depth: 0, parents: [], items: others });
+    rows.push({ kind: 'group', id: null, name: NO_GROUP_NAME[grouping], color: null, depth: 0, parents: [], items: others });
     for (const item of others) rows.push({ kind: 'item', item, depth: 1, groupId: null, parents: [NO_GROUP] });
   }
   return rows;
@@ -240,7 +336,8 @@ export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<st
  * list of a project, the members offered are the contributors of the project (those chosen stay); relations always.
  * @param {string[]} [projectIds] Projects of the list (through its tasks); none: every member. Optional.
  * @param {string[]} [keep] Members already chosen, offered anyway. Optional.
- * @returns {{ members: Map<string, string>, relations: Map<string, string>, options: object[] }} Names and select options.
+ * @returns {{ members: Map<string, string>, relations: Map<string, string>, byKey: Map<string, string>, options: object[] }} Names (also by
+ *   "m:"/"r:" key) and select options.
  */
 export function usePeople(projectIds: string[] = [], keep: string[] = []) {
   const { data } = useTreasurySettings();
@@ -253,7 +350,8 @@ export function usePeople(projectIds: string[] = [], keep: string[] = []) {
     { group: 'Membres', items: [...members].filter(([id]) => !allowed || allowed.has(id)).map(([id, name]) => ({ value: `m:${id}`, label: name })) },
     { group: 'Relations', items: [...relations].map(([id, name]) => ({ value: `r:${id}`, label: name })) },
   ].filter((group) => group.items.length > 0);
-  return { members, relations, options };
+  const byKey = new Map([...[...members].map(([id, name]) => [`m:${id}`, name] as const), ...[...relations].map(([id, name]) => [`r:${id}`, name] as const)]);
+  return { members, relations, byKey, options };
 }
 
 /**

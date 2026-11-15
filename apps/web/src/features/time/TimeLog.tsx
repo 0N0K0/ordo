@@ -5,7 +5,7 @@ import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icon
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../components/data-table/DataTable';
-import { EditableSelect, EditableText } from '../../components/data-table/EditableCells';
+import { EditableSelect } from '../../components/data-table/EditableCells';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { notifyError } from '../../lib/notify';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -14,10 +14,11 @@ import { useDataView, type FirstTableView } from '../../components/data-table/us
 import { TaskRef } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useTimeMutations, type TimeEntry, type TimeEntryValues } from './api';
-import classes from './TimeLog.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
+import { useRoutinesData } from '../routines/api';
+import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
 
 /**
  * Local day of an instant, YYYY-MM-DD.
@@ -43,6 +44,17 @@ const finishedSeconds = (entries: readonly TimeEntry[]) => entries.filter((entry
  */
 const within = (period: string): TableFilterGroup => ({ type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'day', field: 'day', operator: 'within', value: period }] });
 
+/**
+ * Events the times were spent on, as filter options.
+ * @param {readonly TimeEntry[]} entries Times.
+ * @returns {{ value: string, label: string }[]} Options.
+ */
+function events(entries: readonly TimeEntry[]): { value: string; label: string }[] {
+  const byId = new Map<string, string>();
+  for (const entry of entries) if (entry.calendarEventId) byId.set(entry.calendarEventId, entry.calendarEventTitle ?? 'Évènement');
+  return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+}
+
 /** Views made the first time the times are shown, by day: this week (opened first), this month, every time. */
 const TIME_VIEWS: FirstTableView[] = [
   { name: 'Cette semaine', config: { filter: within('thisWeek'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
@@ -53,27 +65,41 @@ const TIME_VIEWS: FirstTableView[] = [
 /**
  * Columns of the tracked times.
  * @param {TaskContext | null} context Task context (names of the projects and tasks).
+ * @param {Map<string, number>} comments Comments of the times.
+ * @param {{ value: string, label: string }[]} routines Routines offered by the filter.
+ * @param {readonly TimeEntry[]} entries Times (their events offered by the filter).
  * @returns {DataColumn<TimeEntry>[]} Columns.
  */
-function timeColumns(context: TaskContext | null, comments: Map<string, number>): DataColumn<TimeEntry>[] {
+function timeColumns(context: TaskContext | null, comments: Map<string, number>, routines: { value: string; label: string }[], entries: readonly TimeEntry[]): DataColumn<TimeEntry>[] {
   const projectName = (entry: TimeEntry) => (entry.projectId ? (context?.projectLabel(entry.projectId) ?? '') : '');
   return [
     {
       id: 'day',
-      label: 'Jour',
+      label: 'Date',
       size: 200,
-      hiddenByDefault: true,
-      sortValue: (entry) => dayKey(entry.startedAt),
+      locked: true,
+      sortValue: (entry) => entry.startedAt,
       text: (entry) => fmt.capitalize(fmt.dayLong(new Date(entry.startedAt))),
       filter: { kind: 'date', value: (entry) => dayKey(entry.startedAt) },
       groupable: true,
     },
     {
-      id: 'hours',
-      label: 'Horaires',
-      size: 130,
-      sortValue: (entry) => entry.startedAt,
-      text: (entry) => `${fmt.time(new Date(entry.startedAt))}${entry.endedAt ? ` – ${fmt.time(new Date(entry.endedAt))}` : ''}`,
+      id: 'month',
+      label: 'Mois',
+      size: 140,
+      hiddenByDefault: true,
+      sortValue: (entry) => dayKey(entry.startedAt).slice(0, 7),
+      text: (entry) => fmt.capitalize(fmt.month(new Date(entry.startedAt))),
+      filter: false,
+      groupable: true,
+    },
+    { id: 'start', label: 'Heure de début', size: 110, sortValue: (entry) => fmt.time(new Date(entry.startedAt)), text: (entry) => fmt.time(new Date(entry.startedAt)), filter: false },
+    {
+      id: 'end',
+      label: 'Heure de fin',
+      size: 110,
+      sortValue: (entry) => (entry.endedAt ? fmt.time(new Date(entry.endedAt)) : null),
+      text: (entry) => (entry.endedAt ? fmt.time(new Date(entry.endedAt)) : ''),
       filter: false,
     },
     {
@@ -84,7 +110,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>)
       sortValue: (entry) => entrySeconds(entry),
       formatTotal: (seconds) => formatDuration(Math.round(seconds)),
       text: (entry) => (entry.endedAt ? formatDuration(entrySeconds(entry)) : 'En cours'),
-      filter: false,
+      filter: { kind: 'number', value: (entry) => Math.round(entrySeconds(entry) / 36) / 100 },
     },
     {
       id: 'project',
@@ -104,19 +130,36 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>)
       },
       groupable: true,
     },
-    { id: 'routine', label: 'Routine', size: 180, hiddenByDefault: true, sortValue: (entry) => entry.routineTitle ?? null, text: (entry) => entry.routineTitle ?? '', groupable: true },
+    {
+      id: 'routine',
+      label: 'Routine',
+      size: 180,
+      sortValue: (entry) => entry.routineTitle ?? null,
+      text: (entry) => entry.routineTitle ?? '',
+      filter: { kind: 'choice', value: (entry) => entry.routineId ?? null, options: routines },
+      groupable: true,
+    },
     {
       id: 'tasks',
       label: 'Tâches',
-      size: 220,
+      size: 240,
       text: (entry) =>
         entry.taskIds
           .map((id) => context?.taskById.get(id))
           .filter((task) => task !== undefined)
           .map((task) => context?.taskLabel(task) ?? '')
           .join(', '),
+      filter: { kind: 'choices', value: (entry) => entry.taskIds, options: (context?.tasks ?? []).map((task) => ({ value: task.id, label: context?.taskLabel(task) ?? task.title })) },
     },
-    { id: 'description', label: 'Description', size: 300, locked: true, sortValue: (entry) => entry.description ?? null, text: (entry) => entry.description ?? '' },
+    {
+      id: 'event',
+      label: 'Évènement',
+      size: 200,
+      sortValue: (entry) => entry.calendarEventTitle ?? null,
+      text: (entry) => entry.calendarEventTitle ?? '',
+      filter: { kind: 'choice', value: (entry) => entry.calendarEventId ?? null, options: events(entries) },
+      groupable: true,
+    },
     {
       id: 'invoice',
       label: 'Facture',
@@ -179,11 +222,20 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
    * @returns {void}
    */
   const saveEntry = (entry: TimeEntry, change: Partial<TimeEntryValues>) => update.mutate({ id: entry.id, input: change }, { onError: (error) => notifyError(error.message) });
+  const { data: routinesData } = useRoutinesData();
+  const routineOptions = (routinesData?.routines ?? []).map((routine) => ({ value: routine.id, label: routine.title }));
   const entryComments = useCommentCounts(
     'TIME_ENTRY',
     (entries ?? []).map((entry) => entry.id),
   );
-  const view = useDataView({ tableKey: 'time-log', projectId, columns: timeColumns(context, entryComments), rows: entries ?? [], title: 'Temps passé', first: TIME_VIEWS });
+  const view = useDataView({
+    tableKey: 'time-log',
+    projectId,
+    columns: timeColumns(context, entryComments, routineOptions, entries ?? []),
+    rows: entries ?? [],
+    title: 'Temps passé',
+    first: TIME_VIEWS,
+  });
   const total = finishedSeconds(view.rows);
   const unbilled = finishedSeconds(view.rows.filter((entry) => !entry.documentId));
   return (
@@ -191,7 +243,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
       view={view}
       framed
       bar={{
-        searchLabel: 'Rechercher (description, projet, tâche)',
+        searchLabel: 'Rechercher (projet, routine, tâche, évènement)',
         actions,
         tools: (
           <Text size="sm" c="dimmed">
@@ -209,17 +261,16 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
       cells={(entry) => {
         const tasks = context ? entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined) : [];
         return {
-          day: fmt.dayLong(new Date(entry.startedAt)),
-          hours: (
-            <span className={classes.nowrap}>
-              {fmt.time(new Date(entry.startedAt))}
-              {entry.endedAt && ` – ${fmt.time(new Date(entry.endedAt))}`}
-            </span>
-          ),
-          duration: entry.endedAt ? (
-            <Text span size="sm" ff="monospace">
-              {formatDuration(entrySeconds(entry))}
+          day: <TimeDayCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
+          month: fmt.capitalize(fmt.month(new Date(entry.startedAt))),
+          start: <TimeStartCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
+          end: entry.endedAt ? (
+            <Text span size="sm" c="dimmed">
+              {fmt.time(new Date(entry.endedAt))}
             </Text>
+          ) : null,
+          duration: entry.endedAt ? (
+            <TimeDurationCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />
           ) : (
             <Badge size="sm" color="red" variant="light">
               En cours
@@ -227,47 +278,30 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           ),
           project: (
             <>
-              {context && editable(entry) && !entry.routineTitle ? (
+              {context && editable(entry) ? (
                 <EditableSelect
                   value={entry.projectId ?? null}
                   label="Projet de ce temps"
                   {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === entry.projectId)))}
-                  onSave={(next) => next && saveEntry(entry, { projectId: next })}
+                  onSave={(next) => (next || entry.routineId) && saveEntry(entry, { projectId: next || null })}
                 />
               ) : entry.projectId && entry.projectId !== projectId ? (
                 context?.projectById.get(entry.projectId)?.title
               ) : null}
-              {entry.routineTitle && (
-                <Text size="xs" c="dimmed">
-                  Routine : {entry.routineTitle}
-                </Text>
-              )}
             </>
           ),
-          routine: entry.routineTitle,
-          tasks: context && (
-            <Group gap={4}>
-              {tasks.map((task) => (
-                <TaskRef key={task.id} task={task} blocked={context.isBlocked(task)} />
-              ))}
-              {tasks.length > 1 && (
-                <Text size="xs" c="dimmed">
-                  ({formatDuration(entrySeconds(entry) / tasks.length)} par tâche)
-                </Text>
-              )}
-            </Group>
-          ),
-          description: editable(entry) ? (
-            <EditableText value={entry.description ?? null} label="Description de ce temps" nullable onSave={(description) => saveEntry(entry, { description })} />
-          ) : (
-            <span className={classes.description}>
-              {entry.description || (
-                <Text span size="sm" c="dimmed" fs="italic">
-                  Sans description
-                </Text>
-              )}
-            </span>
-          ),
+          routine: <TimeRoutineCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
+          tasks:
+            context && editable(entry) ? (
+              <TimeTasksCell entry={entry} context={context} readOnly={false} save={saveEntry} />
+            ) : (
+              <Group gap={4}>
+                {tasks.map((task) => (
+                  <TaskRef key={task.id} task={task} blocked={context?.isBlocked(task) ?? false} />
+                ))}
+              </Group>
+            ),
+          event: <TimeEventCell entry={entry} readOnly={!editable(entry)} save={saveEntry} />,
           invoice: entry.documentId && (
             <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={`/accounting/${entry.documentId}`} style={{ cursor: 'pointer' }}>
               {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}

@@ -51,6 +51,11 @@ graphql(`
     acceptedAt
     depositType
     depositValue
+    attachments {
+      id
+      name
+      url
+    }
   }
 `);
 
@@ -261,6 +266,16 @@ const AddAttachments = graphql(`
     addAccountingAttachments(id: $id, files: $files)
   }
 `);
+const SetDocumentProject = graphql(`
+  mutation SetAccountingDocumentProject($id: ID!, $projectId: ID) {
+    setAccountingDocumentProject(id: $id, projectId: $projectId)
+  }
+`);
+const SetImportedProject = graphql(`
+  mutation SetImportedDocumentProject($id: ID!, $projectId: ID) {
+    setImportedDocumentProject(id: $id, projectId: $projectId)
+  }
+`);
 const RemoveAttachment = graphql(`
   mutation RemoveAccountingAttachment($attachmentId: ID!) {
     removeAccountingAttachment(attachmentId: $attachmentId)
@@ -431,6 +446,7 @@ export function useDocumentMutations() {
     duplicate: useAccountingMutation(async (variables: { id: string; issueDate: string }) => (await execute(DuplicateDocument, variables)).duplicateAccountingDocument),
     addAttachments: useAccountingMutation(async (variables: { id: string; files: File[] }) => (await execute(AddAttachments, variables)).addAccountingAttachments),
     removeAttachment: useAccountingMutation(async (attachmentId: string) => (await execute(RemoveAttachment, { attachmentId })).removeAccountingAttachment),
+    setProject: useAccountingMutation(async (variables: { id: string; projectId: string | null }) => (await execute(SetDocumentProject, variables)).setAccountingDocumentProject),
   };
 }
 
@@ -590,5 +606,6 @@ export function useImportedDocumentMutations() {
     markSent: useAccountingMutation(
       async (variables: { id: string; date: string; via: string; statusId: string }) => (await execute(MarkImportedSent, variables)).markImportedDocumentSent,
     ),
+    setProject: useAccountingMutation(async (variables: { id: string; projectId: string | null }) => (await execute(SetImportedProject, variables)).setImportedDocumentProject),
   };
 }

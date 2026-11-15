@@ -1,8 +1,9 @@
 import { PageHeader } from '../components/actions/PageHeader';
 import { ActionButton } from '../components/actions/ActionButton';
-import { Group, Stack, Title, Tooltip } from '@mantine/core';
+import { Badge, CloseButton, Group, Stack, Title, Tooltip } from '@mantine/core';
+import { useSearchParams } from 'react-router';
 import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
-import { useTaskContext } from '../features/tasks/use-task-context';
+import { taskRef, useTaskContext } from '../features/tasks/use-task-context';
 import { useRunningTimer, useTimeEntriesSince } from '../features/time/api';
 import { openTimerForm } from '../features/time/open-timer-form';
 import { PlannedTime } from '../features/time/PlannedTime';
@@ -22,6 +23,11 @@ export function TimePage() {
   const entries = useTimeEntriesSince(null);
   const running = useRunningTimer();
   const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context);
+  // From the « Temps passé » of a task: its times only, until dismissed.
+  const [params, setParams] = useSearchParams();
+  const taskId = params.get('task');
+  const task = taskId ? context?.taskById.get(taskId) : undefined;
+  const shown = taskId ? entries.data?.filter((entry) => entry.taskIds.includes(taskId)) : entries.data;
 
   return (
     <Stack gap="lg">
@@ -31,8 +37,30 @@ export function TimePage() {
       <Title order={2} size="h4">
         Temps passé
       </Title>
+      {taskId && (
+        <Group gap="xs">
+          <Badge
+            size="lg"
+            variant="light"
+            tt="none"
+            rightSection={
+              <CloseButton
+                size="xs"
+                aria-label="Voir tous les temps"
+                onClick={() => {
+                  const next = new URLSearchParams(params);
+                  next.delete('task');
+                  setParams(next, { replace: true });
+                }}
+              />
+            }
+          >
+            Tâche : {task ? `${taskRef(task)}${task.title}` : 'introuvable'}
+          </Badge>
+        </Group>
+      )}
       <TimeLog
-        entries={entries.data}
+        entries={shown}
         context={context}
         projectId={null}
         emptyMessage="Aucun temps pour le moment."

@@ -16,7 +16,11 @@ import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { notifyError } from '../../../lib/notify';
-import { useTaskBlock, type Task, type TaskLabel } from '../api';
+import { useTaskBlock, useTaskRelation, useTransferTask, useUpdateTask, type Task, type TaskLabel } from '../api';
+import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+import { notifySuccess } from '../../../lib/notify';
+import { ProjectSelect, TaskSelect } from '../task-ui';
+import { subtreeIds } from '../task-links';
 import { linkableTasks } from '../task-links';
 import { LabelBadge } from '../task-ui';
 import { taskName, taskRef, type TaskContext } from '../use-task-context';
@@ -463,12 +467,12 @@ export function EffortCell({ task }: { task: Task }) {
 
 interface DateCellProps {
   task: Task;
-  column: 'startDate' | 'endDate' | 'deadline';
+  column: 'startDate' | 'endDate' | 'deadline' | 'minDate';
   /** Shown in red (overdue: past its "Date max"). */
   alert?: boolean;
 }
 
-const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max' } as const;
+const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max', minDate: 'Date min' } as const;
 
 /**
  * Start, end or "Date max" cell: date picker.
@@ -506,4 +510,126 @@ export function DateCell({ task, column, alert }: DateCellProps) {
 export function TaskBeneficiariesCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'beneficiaries');
   return <BeneficiariesCell label={fieldLabel('Bénéficiaires', task, count)} value={task} onSave={(beneficiaries) => apply(beneficiaries)} />;
+}
+
+/**
+ * Links of a task with others, edited in place: those it depends on, those it blocks, those it is related to.
+ * @param {{ task: Task, context: TaskContext, kind: 'blocking' | 'related' }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TaskLinksCell({ task, context, kind }: { task: Task; context: TaskContext; kind: 'blocking' | 'related' }) {
+  const taskBlock = useTaskBlock();
+  const taskRelation = useTaskRelation();
+  const ids = kind === 'blocking' ? task.blockingIds : task.relatedIds;
+  const candidates = linkableTasks(context, task.projectId, task.id);
+  const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
+  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const label = kind === 'blocking' ? `Tâches que bloque la tâche ${taskName(task)}` : `Tâches relatives à la tâche ${taskName(task)}`;
+  /**
+   * Adds or removes a link.
+   * @param {string} id Other task.
+   * @param {boolean} add Added or removed.
+   * @returns {void}
+   */
+  const link = (id: string, add: boolean) =>
+    kind === 'blocking' ? taskBlock.mutate({ add, blockerId: task.id, blockedId: id }, onError) : taskRelation.mutate({ add, taskId: task.id, otherId: id }, onError);
+  return (
+    <StackedMultiCell
+      label={label}
+      items={ids.flatMap((id) => {
+        const other = context.taskById.get(id);
+        return other ? [{ id, label: `${taskName(other)} ${other.title}`, title: `${taskName(other)} ${other.title}${other.closed ? ' (fermée)' : ''}` }] : [];
+      })}
+      renderSelect={({ onDropdownClose }) => (
+        <BatchMultiSelect
+          {...cellCombobox}
+          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          aria-label={label}
+          data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${taskName(item)} ${item.title}` }))}
+          value={ids}
+          onChange={(next) => {
+            for (const id of next.filter((item) => !ids.includes(item))) link(id, true);
+            for (const id of ids.filter((item) => !next.includes(item))) link(id, false);
+          }}
+          onDropdownClose={onDropdownClose}
+          placeholder={ids.length ? undefined : '—'}
+          searchable
+          nothingFoundMessage="Aucune tâche"
+        />
+      )}
+    />
+  );
+}
+
+/**
+ * Parent task cell: chosen in place among the tasks of its project tree (not itself nor its sub-tasks).
+ * @param {{ task: Task, context: TaskContext }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function ParentCell({ task, context }: { task: Task; context: TaskContext }) {
+  const updateTask = useUpdateTask();
+  const excluded = subtreeIds(context, task.id);
+  const candidates = linkableTasks(context, task.projectId, task.id, (candidate) => !excluded.has(candidate.id));
+  return (
+    <TaskSelect
+      context={context}
+      tasks={candidates}
+      variant="unstyled"
+      size="xs"
+      aria-label={`Tâche parente de ${taskName(task)}`}
+      placeholder="—"
+      value={task.parentId}
+      onChange={(parentId) => updateTask.mutate({ id: task.id, input: { parentId } }, { onError: (error) => notifyError(error.message) })}
+      onClick={stop}
+      comboboxProps={{ withinPortal: true }}
+    />
+  );
+}
+
+/**
+ * Project cell: the task moved to another project (or out of any) in place; leaving its tree, asked first (its links,
+ * milestone and sprints are lost).
+ * @param {{ task: Task, context: TaskContext }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TaskProjectCell({ task, context }: { task: Task; context: TaskContext }) {
+  const transferTask = useTransferTask();
+  /**
+   * Moves the task.
+   * @param {string | null} projectId Target project; null: none.
+   * @returns {void}
+   */
+  const move = (projectId: string | null) => {
+    if (projectId === task.projectId) return;
+    const transfer = () =>
+      transferTask.mutate(
+        { id: task.id, projectId },
+        {
+          onSuccess: ({ removedLinks }) => notifySuccess(`Tâche déplacée.${removedLinks ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''}`),
+          onError: (error) => notifyError(error.message),
+        },
+      );
+    const linked = task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0;
+    if (!linked || context.rootOf(projectId) === context.rootOf(task.projectId)) return transfer();
+    confirmDestructive({
+      title: 'Changer de projet',
+      risks: 'La tâche (et ses sous-tâches) passe dans une autre arborescence : sa tâche parente, ses blocages et relations avec les tâches restées, son jalon et ses sprints seront retirés.',
+      confirmLabel: 'Changer de projet',
+      onConfirm: transfer,
+    });
+  };
+  return (
+    <ProjectSelect
+      context={context}
+      variant="unstyled"
+      size="xs"
+      aria-label={`Projet de ${taskName(task)}`}
+      placeholder="Sans projet"
+      clearable
+      value={task.projectId}
+      onChange={move}
+      onClick={stop}
+      comboboxProps={{ withinPortal: true }}
+    />
+  );
 }

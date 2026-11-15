@@ -117,7 +117,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
     <Stack gap="lg">
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
-          <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
+          <TextInput label="Label" required data-autofocus {...form.getInputProps('name')} />
           {target.kind === 'product' && (
             <Select
               label="Liste type"
@@ -204,7 +204,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             </SimpleGrid>
           )}
           <BatchMultiSelect
-            label="Pour"
+            label="Bénéficiaire"
             description="Membres et relations concernés : la répartition d’un mouvement de trésorerie qui paie la liste."
             placeholder={values.memberIds.length + values.relationIds.length ? undefined : 'Personne en particulier'}
             data={people.options}
@@ -235,6 +235,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
         </Stack>
       </form>
       {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} />}
+      {target.kind === 'item' && target.item && <Comments target="SHOPPING_ITEM" id={target.item.id} />}
     </Stack>
   );
 }
