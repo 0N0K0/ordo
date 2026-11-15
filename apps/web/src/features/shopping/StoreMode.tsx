@@ -1,7 +1,10 @@
-import { Alert, Badge, Checkbox, CloseButton, ColorSwatch, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
-import { CaretDownIcon, CaretRightIcon, ShoppingCartIcon } from '@phosphor-icons/react';
+import { Alert, Anchor, Badge, Button, Checkbox, CloseButton, ColorSwatch, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon, ShoppingCartIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifyError } from '../../lib/notify';
+import { notifyError, notifySuccess } from '../../lib/notify';
+import { useStockMutations } from '../stock/api';
+import { useStockProposal } from '../stock/use-stock-proposal';
+import { deliveryWindow } from './delivery-format';
 import { useShoppingData, useShoppingMutations, type ShoppingItem, type ShoppingList } from './api';
 import { NO_GROUP, quantityText, shoppingRows, visibleRows } from './shopping-format';
 import classes from './Shopping.module.css';
@@ -46,25 +49,33 @@ function Heading({ name, color, count, depth, collapsed, onToggle }: HeadingProp
 }
 
 /**
- * Store mode: the items to buy as big rows ticked with a thumb, by store then by category (as their tree), each store
- * and category folded or not with the number of items left to buy; the bought ones at the bottom.
+ * Collect mode: the items to get as big rows ticked with a thumb: those of the deliveries of a remote order (each
+ * received in a tap), then by store and by category (as their tree), each folded or not with the number of items left;
+ * the bought ones at the bottom.
  * @param {{ list: ShoppingList, onClose: () => void }} props Component props.
  * @param {ShoppingList} props.list List.
- * @param {() => void} props.onClose Leaves the store mode.
+ * @param {() => void} props.onClose Leaves the collect mode.
  * @returns {JSX.Element} Full screen view.
  */
 export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () => void }) {
   const { data } = useShoppingData();
   const { setPurchased } = useShoppingMutations();
+  const { setDeliveryReceived } = useStockMutations();
+  const propose = useStockProposal();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const stores = [...(data?.shoppingStores ?? [])].sort((a, b) => a.position - b.position);
   const known = new Set(stores.map((store) => store.id));
   const items = [...list.items].sort((a, b) => a.position - b.position);
   const toBuy = items.filter((item) => !item.purchasedAt);
   const bought = items.filter((item) => item.purchasedAt);
+  // A remote order: its deliveries first (to receive), then what is bought in stores.
+  const deliveries = list.remote ? list.deliveries : [];
+  const delivered = new Set(deliveries.map((delivery) => delivery.id));
+  const inStores = toBuy.filter((item) => !item.deliveryId || !delivered.has(item.deliveryId));
+  const deliverySections = deliveries.map((delivery) => ({ delivery, items: toBuy.filter((item) => item.deliveryId === delivery.id) })).filter((section) => section.items.length > 0);
   const sections = [
-    ...stores.map((store) => ({ key: store.id, name: store.name, color: store.color as string | null, items: toBuy.filter((item) => item.storeId === store.id) })),
-    { key: NO_GROUP, name: 'Sans magasin', color: null, items: toBuy.filter((item) => !item.storeId || !known.has(item.storeId)) },
+    ...stores.map((store) => ({ key: store.id, name: store.name, color: store.color as string | null, items: inStores.filter((item) => item.storeId === store.id) })),
+    { key: NO_GROUP, name: 'Sans magasin', color: null, items: inStores.filter((item) => !item.storeId || !known.has(item.storeId)) },
   ].filter((section) => section.items.length > 0);
 
   /**
@@ -91,7 +102,10 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       className={classes.storeRow}
       data-purchased={item.purchasedAt ? true : undefined}
       checked={Boolean(item.purchasedAt)}
-      onClick={() => setPurchased.mutate({ id: item.id, purchased: !item.purchasedAt }, { onError: (error) => notifyError(error.message) })}
+      onClick={() => {
+        const purchased = !item.purchasedAt;
+        setPurchased.mutate({ id: item.id, purchased }, { onSuccess: () => purchased && propose([item]), onError: (error) => notifyError(error.message) });
+      }}
       style={{ marginLeft: `calc(${depth} * var(--mantine-spacing-md))` }}
     >
       <Checkbox.Indicator size="lg" />
@@ -143,13 +157,52 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
               {toBuy.length} à acheter · {bought.length} sur {list.items.length} acheté(s)
             </Text>
           </Stack>
-          <CloseButton size="lg" aria-label="Quitter le mode magasin" onClick={onClose} />
+          <CloseButton size="lg" aria-label="Quitter le mode collecte" onClick={onClose} />
         </Group>
         {toBuy.length === 0 && (
           <Alert color="green" icon={<ShoppingCartIcon aria-hidden />}>
             Tout est acheté.
           </Alert>
         )}
+        {deliverySections.map(({ delivery, items: deliveryItems }) => (
+          <Stack key={`delivery:${delivery.id}`} gap="xs">
+            <Heading
+              name={delivery.label || (delivery.pickup ? 'Retrait' : 'Livraison')}
+              color={null}
+              count={deliveryItems.length}
+              depth={0}
+              collapsed={collapsed.has(`delivery:${delivery.id}`)}
+              onToggle={() => toggle(`delivery:${delivery.id}`)}
+            />
+            <Group gap="sm" justify="space-between" wrap="wrap">
+              <Text size="sm" c="dimmed">
+                {[delivery.pickup ? 'À retirer' : 'À livrer', deliveryWindow(delivery), delivery.address || list.deliveryAddress].filter(Boolean).join(' · ')}
+                {delivery.trackingUrl && /^https?:\/\//i.test(delivery.trackingUrl) && (
+                  <>
+                    {' · '}
+                    <Anchor href={delivery.trackingUrl} target="_blank" rel="noopener noreferrer" size="sm">
+                      Suivi <ArrowSquareOutIcon aria-hidden style={{ verticalAlign: 'middle' }} />
+                    </Anchor>
+                  </>
+                )}
+              </Text>
+              <Button
+                size="sm"
+                variant="light"
+                leftSection={<PackageIcon aria-hidden />}
+                onClick={() =>
+                  setDeliveryReceived.mutate(
+                    { id: delivery.id, received: true },
+                    { onSuccess: (ids) => (notifySuccess('Livraison réceptionnée.'), propose(list.items.filter((item) => ids.includes(item.id)))), onError: (error) => notifyError(error.message) },
+                  )
+                }
+              >
+                Réceptionnée
+              </Button>
+            </Group>
+            {!collapsed.has(`delivery:${delivery.id}`) && deliveryItems.map((item) => row(item))}
+          </Stack>
+        ))}
         {sections.map((section) => (
           <Stack key={section.key} gap="xs">
             <Heading name={section.name} color={section.color} count={section.items.length} depth={0} collapsed={collapsed.has(section.key)} onToggle={() => toggle(section.key)} />

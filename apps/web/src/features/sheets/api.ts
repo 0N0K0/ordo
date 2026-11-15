@@ -1,10 +1,13 @@
-import type { SheetInput, SheetItemInput, SheetLinkInput } from '@ordo/shared';
+import type { SheetCategoryInput, SheetInput, SheetItemInput, SheetLinkInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
-import type { ChecklistQuery, SheetLinksQuery, SheetsQuery } from '../../graphql/graphql';
+import type { ChecklistQuery, SheetCategoriesQuery, SheetLinksQuery, SheetQuery, SheetsQuery } from '../../graphql/graphql';
 import { execute } from '../../lib/graphql-client';
 
 export type Sheet = SheetsQuery['sheets'][number];
+export type SheetDetail = NonNullable<SheetQuery['sheet']>;
+export type SheetDetailItem = SheetDetail['items'][number];
+export type SheetCategory = SheetCategoriesQuery['sheetCategories'][number];
 export type SheetItem = Sheet['items'][number];
 export type SheetLink = SheetLinksQuery['sheetLinks'][number];
 export type Checklist = NonNullable<ChecklistQuery['checklist']>;
@@ -33,6 +36,7 @@ const SheetsDocument = graphql(`
       name
       note
       projectId
+      categoryIds
       position
       createdAt
       updatedAt
@@ -45,8 +49,45 @@ const SheetsDocument = graphql(`
         quantity
         unit
         note
+        consumable
         position
       }
+    }
+  }
+`);
+
+const SheetDocument = graphql(`
+  query Sheet($id: ID!) {
+    sheet(id: $id) {
+      id
+      name
+      note
+      projectId
+      categoryIds
+      usedBy
+      updatedAt
+      items {
+        id
+        productId
+        label
+        categoryId
+        quantity
+        unit
+        note
+        consumable
+        position
+      }
+    }
+  }
+`);
+
+const SheetCategoriesDocument = graphql(`
+  query SheetCategories {
+    sheetCategories {
+      id
+      name
+      color
+      position
     }
   }
 `);
@@ -77,6 +118,7 @@ const ChecklistDocument = graphql(`
         quantity
         unit
         note
+        consumable
         checkedAt
         position
         sources {
@@ -97,6 +139,54 @@ const CreateSheet = graphql(`
 const UpdateSheet = graphql(`
   mutation UpdateSheet($id: ID!, $input: SheetInput!) {
     updateSheet(id: $id, input: $input)
+  }
+`);
+const AddSheetItem = graphql(`
+  mutation AddSheetItem($sheetId: ID!, $input: SheetItemInput!) {
+    addSheetItem(sheetId: $sheetId, input: $input)
+  }
+`);
+const AddSheetProducts = graphql(`
+  mutation AddSheetProducts($sheetId: ID!, $productIds: [ID!]!) {
+    addSheetProducts(sheetId: $sheetId, productIds: $productIds)
+  }
+`);
+const UpdateSheetItem = graphql(`
+  mutation UpdateSheetItem($id: ID!, $input: SheetItemInput!) {
+    updateSheetItem(id: $id, input: $input)
+  }
+`);
+const DeleteSheetItems = graphql(`
+  mutation DeleteSheetItems($ids: [ID!]!) {
+    deleteSheetItems(ids: $ids)
+  }
+`);
+const UseSheet = graphql(`
+  mutation UseSheet($id: ID!, $multiplier: Float!) {
+    useSheet(id: $id, multiplier: $multiplier) {
+      taken
+      short
+    }
+  }
+`);
+const CreateSheetCategory = graphql(`
+  mutation CreateSheetCategory($input: SheetCategoryInput!) {
+    createSheetCategory(input: $input)
+  }
+`);
+const UpdateSheetCategory = graphql(`
+  mutation UpdateSheetCategory($id: ID!, $input: SheetCategoryPatch!) {
+    updateSheetCategory(id: $id, input: $input)
+  }
+`);
+const DeleteSheetCategory = graphql(`
+  mutation DeleteSheetCategory($id: ID!) {
+    deleteSheetCategory(id: $id)
+  }
+`);
+const MoveSheetCategory = graphql(`
+  mutation MoveSheetCategory($id: ID!, $index: Int!) {
+    moveSheetCategory(id: $id, index: $index)
   }
 `);
 const DuplicateSheet = graphql(`
@@ -165,6 +255,23 @@ export function useSheets(projectId: string | null = null) {
 }
 
 /**
+ * One sheet, with its items.
+ * @param {string | undefined} id Sheet.
+ * @returns {object} Query.
+ */
+export function useSheet(id: string | undefined) {
+  return useQuery({ enabled: Boolean(id), queryKey: [...sheetsKey, 'one', id], queryFn: async () => (await execute(SheetDocument, { id: id! })).sheet });
+}
+
+/**
+ * Categories of the sheets, in their order.
+ * @returns {object} Query.
+ */
+export function useSheetCategories() {
+  return useQuery({ queryKey: [...sheetsKey, 'categories'], queryFn: async () => (await execute(SheetCategoriesDocument)).sheetCategories });
+}
+
+/**
  * Sheets of a routine, an event or a task.
  * @param {SheetOwner | null} owner Owner (none: not loaded).
  * @returns {object} Query.
@@ -210,6 +317,15 @@ export function useSheetMutations() {
   return {
     create: useSheetMutation(async (input: SheetInput) => (await execute(CreateSheet, { input })).createSheet),
     update: useSheetMutation(async (variables: { id: string; input: SheetInput }) => (await execute(UpdateSheet, variables)).updateSheet),
+    addItem: useSheetMutation(async (variables: { sheetId: string; input: SheetItemInput }) => (await execute(AddSheetItem, variables)).addSheetItem),
+    addProducts: useSheetMutation(async (variables: { sheetId: string; productIds: string[] }) => (await execute(AddSheetProducts, variables)).addSheetProducts),
+    updateItem: useSheetMutation(async (variables: { id: string; input: SheetItemInput }) => (await execute(UpdateSheetItem, variables)).updateSheetItem),
+    removeItems: useSheetMutation(async (ids: string[]) => (await execute(DeleteSheetItems, { ids })).deleteSheetItems),
+    use: useSheetMutation(async (variables: { id: string; multiplier: number }) => (await execute(UseSheet, variables)).useSheet),
+    createCategory: useSheetMutation(async (input: SheetCategoryInput) => (await execute(CreateSheetCategory, { input })).createSheetCategory),
+    updateCategory: useSheetMutation(async (variables: { id: string; input: Partial<SheetCategoryInput> }) => (await execute(UpdateSheetCategory, variables)).updateSheetCategory),
+    deleteCategory: useSheetMutation(async ({ id }: { id: string }) => (await execute(DeleteSheetCategory, { id })).deleteSheetCategory),
+    moveCategory: useSheetMutation(async (variables: { id: string; index: number }) => (await execute(MoveSheetCategory, variables)).moveSheetCategory),
     duplicate: useSheetMutation(async (id: string) => (await execute(DuplicateSheet, { id })).duplicateSheet),
     remove: useSheetMutation(async (id: string) => (await execute(DeleteSheet, { id })).deleteSheet),
     addToShoppingList: useSheetMutation(async (variables: { listId: string; sheetId: string; multiplier: number }) => (await execute(AddSheetToShoppingList, variables)).addSheetToShoppingList),

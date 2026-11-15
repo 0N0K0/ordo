@@ -1,35 +1,54 @@
-import { Text } from '@mantine/core';
-import { ClipboardTextIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { Anchor, Text } from '@mantine/core';
+import { ClipboardTextIcon, CopyIcon, CookingPotIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { DataTable } from '../../components/data-table/DataTable';
-import { bulkSaver } from '../../components/data-table/bulk-edit';
+import { applyDiff, bulkSaver } from '../../components/data-table/bulk-edit';
 import type { DataColumn } from '../../components/data-table/data-table';
-import { EditableSelect, EditableText } from '../../components/data-table/EditableCells';
+import { EditableMultiSelect, EditableSelect } from '../../components/data-table/EditableCells';
 import { RowActions } from '../../components/data-table/RowActions';
 import { StackedValues } from '../../components/data-table/StackedValues';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { EmptyState } from '../../components/feedback/EmptyState';
+import { openFormPanel } from '../../components/panels/panels';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { localDay } from '../../lib/dates';
 import * as fmt from '../../lib/format';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
-import { useSheetMutations, useSheets, type Sheet } from './api';
-import { openSheetForm } from './open-sheet-form';
+import { useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from './api';
 import { quantityText, sheetInput } from './sheet-format';
+import { SheetUseForm } from './SheetUseForm';
 
 /**
  * Columns of the sheets.
  * @param {TaskContext | null} context Names of the projects.
- * @param {boolean} inProject Shown in the tab of a project (its column left out by default).
+ * @param {SheetCategory[]} categories Categories of the sheets.
+ * @param {boolean} inProject Shown in the tab of a project (its column hidden by default).
  * @returns {DataColumn<Sheet>[]} Columns.
  */
-function sheetColumns(context: TaskContext | null, inProject: boolean): DataColumn<Sheet>[] {
+function sheetColumns(context: TaskContext | null, categories: SheetCategory[], inProject: boolean): DataColumn<Sheet>[] {
   const projectName = (sheet: Sheet) => (sheet.projectId ? (context?.projectLabel(sheet.projectId) ?? '') : '');
+  const categoryName = new Map(categories.map((category) => [category.id, category.name]));
+  const categoryText = (sheet: Sheet) =>
+    sheet.categoryIds
+      .map((id) => categoryName.get(id) ?? '')
+      .filter(Boolean)
+      .join(', ');
   const itemText = (item: Sheet['items'][number]) => `${item.label}${quantityText(item) ? ` · ${quantityText(item)}` : ''}`;
   return [
-    { id: 'name', label: 'Nom', size: 240, locked: true, bulk: true, sortValue: (sheet) => sheet.name, text: (sheet) => sheet.name },
+    { id: 'name', label: 'Nom', size: 240, locked: true, sortValue: (sheet) => sheet.name, text: (sheet) => sheet.name },
+    {
+      id: 'categories',
+      label: 'Catégories',
+      size: 180,
+      bulk: true,
+      sortValue: (sheet) => categoryText(sheet) || null,
+      text: categoryText,
+      filter: { kind: 'choices', value: (sheet) => sheet.categoryIds, options: categories.map((category) => ({ value: category.id, label: category.name })) },
+      groupable: true,
+    },
     {
       id: 'project',
       label: 'Projet',
@@ -46,15 +65,6 @@ function sheetColumns(context: TaskContext | null, inProject: boolean): DataColu
       groupable: true,
     },
     { id: 'items', label: 'Éléments', size: 320, text: (sheet) => sheet.items.map(itemText).join(', ') },
-    {
-      id: 'count',
-      label: 'Nombre d’éléments',
-      size: 140,
-      numeric: true,
-      sortValue: (sheet) => sheet.items.length,
-      text: (sheet) => String(sheet.items.length),
-      filter: { kind: 'number', value: (sheet) => sheet.items.length },
-    },
     {
       id: 'usedBy',
       label: 'Rattachée à',
@@ -78,25 +88,33 @@ function sheetColumns(context: TaskContext | null, inProject: boolean): DataColu
 }
 
 /**
- * Sheets (of the workspace, or of a project) in a table like every other: their items, one under the other, edited in
- * their form (side panel); named and moved to a project in place (and in bulk); copied, deleted.
+ * Sheets (of the workspace, or of a project) in a table like every other: each opens its page (its items there);
+ * categories and project changed in place (and in bulk); used (taken from the stock), copied, deleted.
  * @param {{ projectId?: string | null }} props Project of the tab (none: every sheet). Optional.
  * @returns {JSX.Element} Table.
  */
 export function SheetsTable({ projectId = null }: { projectId?: string | null }) {
+  const navigate = useNavigate();
   const { data: sheets } = useSheets(projectId);
+  const { data: categories } = useSheetCategories();
   const { context } = useTaskContext();
-  const { update, duplicate, remove } = useSheetMutations();
+  const { create, update, duplicate, remove } = useSheetMutations();
   const view = useDataView({
     tableKey: 'sheets',
     projectId,
     getKey: (sheet) => sheet.id,
-    columns: sheetColumns(context, projectId !== null),
+    columns: sheetColumns(context, categories ?? [], projectId !== null),
     rows: sheets ?? [],
     title: 'Fiches',
   });
   const onError = { onError: (error: Error) => notifyError(error.message) };
-  const bulk = bulkSaver<Sheet, { name?: string; projectId?: string | null }>(view, (sheet, change) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, onError));
+  const bulk = bulkSaver<Sheet, { projectId?: string | null; categoryIds?: string[] }>(view, (sheet, change) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, onError));
+
+  /**
+   * Creates a sheet and opens its page.
+   * @returns {void}
+   */
+  const createSheet = () => create.mutate({ name: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(`/sheets/${id}`), ...onError });
 
   return (
     <DataTable
@@ -107,7 +125,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       bar={{
         searchLabel: 'Rechercher (nom, élément)',
         actions: (
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openSheetForm(undefined, projectId)}>
+          <ActionButton icon={<PlusIcon aria-hidden />} onClick={createSheet} loading={create.isPending}>
             Nouvelle fiche
           </ActionButton>
         ),
@@ -119,16 +137,33 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         />
       }
       getKey={(sheet) => sheet.id}
+      rowProps={(sheet) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(`/sheets/${sheet.id}`) })}
       cells={(sheet) => ({
-        name: <EditableText value={sheet.name} label={`Nom de ${sheet.name}`} strong onSave={(name) => name && bulk('name')(sheet, { name })} />,
+        name: (
+          <Anchor component={Link} to={`/sheets/${sheet.id}`} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
+            {sheet.name}
+          </Anchor>
+        ),
+        categories: (
+          <div onClick={(event) => event.stopPropagation()}>
+            <EditableMultiSelect
+              value={sheet.categoryIds}
+              label={`Catégories de ${sheet.name}`}
+              data={(categories ?? []).map((category) => ({ value: category.id, label: category.name }))}
+              onSave={(next) => bulk('categories')(sheet, (target) => ({ categoryIds: applyDiff(target.categoryIds, sheet.categoryIds, next) }))}
+            />
+          </div>
+        ),
         project: context && (
-          <EditableSelect
-            value={sheet.projectId ?? null}
-            label={`Projet de ${sheet.name}`}
-            nullable
-            {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === sheet.projectId)))}
-            onSave={(next) => bulk('project')(sheet, { projectId: next })}
-          />
+          <div onClick={(event) => event.stopPropagation()}>
+            <EditableSelect
+              value={sheet.projectId ?? null}
+              label={`Projet de ${sheet.name}`}
+              nullable
+              {...treeSelectProps(context.projectOptions(context.projects.filter((project) => !project.archived || project.id === sheet.projectId)))}
+              onSave={(next) => bulk('project')(sheet, { projectId: next })}
+            />
+          </div>
         ),
         items: (
           <StackedValues>
@@ -147,24 +182,31 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         ),
       })}
       actions={(sheet) => (
-        <RowActions
-          name={sheet.name}
-          primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openSheetForm(sheet) }}
-          items={[
-            { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche dupliquée.'), ...onError }) },
-            {
-              label: 'Supprimer',
-              icon: <TrashIcon aria-hidden />,
-              danger: true,
-              onClick: () =>
-                confirmDestructive({
-                  title: 'Supprimer la fiche',
-                  risks: `« ${sheet.name} » et ses ${sheet.items.length} élément(s) seront supprimés définitivement${sheet.usedBy ? `, et retirés des ${sheet.usedBy} routine(s), évènement(s) ou tâche(s) qui l’ont` : ''}. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
-                  onConfirm: () => remove.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche supprimée.'), ...onError }),
-                }),
-            },
-          ]}
-        />
+        <div onClick={(event) => event.stopPropagation()}>
+          <RowActions
+            name={sheet.name}
+            primary={{ label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => navigate(`/sheets/${sheet.id}`) }}
+            items={[
+              {
+                label: 'Utiliser cette fiche…',
+                icon: <CookingPotIcon aria-hidden />,
+                onClick: () => openFormPanel(`Utiliser « ${sheet.name} »`, (close) => <SheetUseForm sheetId={sheet.id} name={sheet.name} onDone={close} />),
+              },
+              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche dupliquée.'), ...onError }) },
+              {
+                label: 'Supprimer',
+                icon: <TrashIcon aria-hidden />,
+                danger: true,
+                onClick: () =>
+                  confirmDestructive({
+                    title: 'Supprimer la fiche',
+                    risks: `« ${sheet.name} » et ses ${sheet.items.length} élément(s) seront supprimés définitivement${sheet.usedBy ? `, et retirés des ${sheet.usedBy} routine(s), évènement(s) ou tâche(s) qui l’ont` : ''}. Les listes d’achats et les listes à cocher déjà faites la gardent.`,
+                    onConfirm: () => remove.mutate(sheet.id, { onSuccess: () => notifySuccess('Fiche supprimée.'), ...onError }),
+                  }),
+              },
+            ]}
+          />
+        </div>
       )}
     />
   );

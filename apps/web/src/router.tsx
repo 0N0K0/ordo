@@ -12,6 +12,8 @@ import { MailPage } from './features/mail/MailPage';
 import { ShoppingListPage } from './features/shopping/ShoppingListPage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { SheetsPage } from './features/sheets/SheetsPage';
+import { SheetPage } from './features/sheets/SheetPage';
+import { StockPage } from './features/stock/StockPage';
 import { RoutinesPage } from './features/routines/RoutinesPage';
 import { AuthLayout } from './features/auth/AuthLayout';
 import { RequireAuth, RequireGuest } from './features/auth/guards';
@@ -44,6 +46,8 @@ export const router = createBrowserRouter([
           { path: 'shopping', element: <ShoppingPage /> },
           { path: 'shopping/:id', element: <ShoppingListPage /> },
           { path: 'sheets', element: <SheetsPage /> },
+          { path: 'sheets/:id', element: <SheetPage /> },
+          { path: 'stock', element: <StockPage /> },
           { path: 'routines', element: <RoutinesPage /> },
           { path: 'mail', element: <MailPage /> },
           { path: 'calendar', element: <CalendarPage /> },

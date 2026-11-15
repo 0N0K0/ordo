@@ -123,6 +123,13 @@ model Workspace {
   sheetLinks                SheetLink[]
   checklists                Checklist[]
   checklistItems            ChecklistItem[]
+  stockLocations            StockLocation[]
+  sheetCategories           SheetCategory[]
+  stockItems                StockItem[]
+  stockLots                 StockLot[]
+  stockMovements            StockMovement[]
+  stockCounts               StockCount[]
+  shoppingDeliveries        ShoppingDelivery[]
 }
 
 /// Kind of notification a workspace can give while another one is open.
@@ -417,6 +424,7 @@ model Contributor {
   /// Shopping products and items it is for (member of the team or household).
   shoppingProducts  ShoppingProduct[]   @relation("ShoppingProductMembers")
   shoppingItems     ShoppingItem[]      @relation("ShoppingItemMembers")
+  stockItems        StockItem[]         @relation("StockItemMembers")
   /// Routines it is assigned to.
   routines          Routine[]           @relation("RoutineAssignees")
   /// Tasks, routines and events it is a beneficiary of.
@@ -697,6 +705,8 @@ model Comment {
   shoppingItem       ShoppingItem?         @relation(fields: [shoppingItemId], references: [id], onDelete: Cascade)
   sheetItemId        String?
   sheetItem          SheetItem?            @relation(fields: [sheetItemId], references: [id], onDelete: Cascade)
+  stockItemId        String?
+  stockItem          StockItem?            @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
   documentId         String?
   document           AccountingDocument?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
   importedDocumentId String?
@@ -725,6 +735,7 @@ model Comment {
   @@index([shoppingProductId])
   @@index([shoppingItemId])
   @@index([sheetItemId])
+  @@index([stockItemId])
   @@index([documentId])
   @@index([importedDocumentId])
   @@index([catalogItemId])
@@ -2031,6 +2042,7 @@ model TreasuryRelation {
   /// Shopping products and items it is for.
   shoppingProducts ShoppingProduct[]   @relation("ShoppingProductRelations")
   shoppingItems    ShoppingItem[]      @relation("ShoppingItemRelations")
+  stockItems       StockItem[]         @relation("StockItemRelations")
   /// Comments (markdown).
   comments    Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -2275,6 +2287,7 @@ model ShoppingCategory {
   items          ShoppingItem[]
   sheetItems     SheetItem[]
   checklistItems ChecklistItem[]
+  stockItems     StockItem[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId    String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace      Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2371,7 +2384,7 @@ model ShoppingProduct {
   perishable      Boolean            @default(false)
   storageId       String?
   storage         ShoppingStorage?   @relation(fields: [storageId], references: [id], onDelete: SetNull)
-  /// Expiry of the last purchase (the latest of its items): once past, the product is marked missing.
+  /// Expiry of the last purchase (the latest of its items), for information (the stock keeps the dates of its lots).
   expiresAt       DateTime?          @db.Date
   /// Missing: put on the next generated list.
   missing         Boolean            @default(false)
@@ -2387,8 +2400,17 @@ model ShoppingProduct {
   items           ShoppingItem[]
   sheetItems      SheetItem[]
   checklistItems  ChecklistItem[]
+  /// Followed in the stock (inventory).
+  stockTracked    Boolean            @default(false)
+  /// Used up (food…), unlike what lasts (a casserole): taken from the stock when a sheet or a checklist uses it.
+  consumable      Boolean            @default(true)
+  /// Added to the stock by itself once ticked as bought (else proposed), at its default place.
+  autoStock       Boolean            @default(false)
+  stockLocationId String?
+  stockLocation   StockLocation?     @relation(fields: [stockLocationId], references: [id], onDelete: SetNull)
+  stockItems      StockItem[]
   /// Comments (markdown).
-  comments    Comment[]
+  comments        Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2402,23 +2424,30 @@ model ShoppingProduct {
 
 /// Shopping list, possibly attached to a task (closed when the task is).
 model ShoppingList {
-  id          String         @id @default(cuid())
-  name        String
+  id              String             @id @default(cuid())
+  name            String
+  /// Ordered remotely (delivered, or to pick up): followed by its deliveries.
+  remote          Boolean            @default(false)
+  /// Where it is delivered (text, and its point when chosen from the address search).
+  deliveryAddress String?
+  deliveryLat     Float?
+  deliveryLon     Float?
+  deliveries      ShoppingDelivery[]
   /// Tasks the list is for (a list whose tasks are all closed is closed too).
-  tasks       Task[]         @relation("ShoppingListTasks")
+  tasks           Task[]             @relation("ShoppingListTasks")
   /// Closed by hand.
-  closedAt    DateTime?
+  closedAt        DateTime?
   /// Treasury entry paying the list.
-  entryId     String?
-  entry       TreasuryEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  items       ShoppingItem[]
+  entryId         String?
+  entry           TreasuryEntry?     @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  items           ShoppingItem[]
   /// Comments (markdown).
-  comments    Comment[]
+  comments        Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String         @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId     String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([entryId])
   @@index([workspaceId])
@@ -2426,40 +2455,44 @@ model ShoppingList {
 
 /// Item of a shopping list: a copy of a product of the base list, or an item of this list only.
 model ShoppingItem {
-  id          String             @id @default(cuid())
-  listId      String
-  list        ShoppingList       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  id             String             @id @default(cuid())
+  listId         String
+  list           ShoppingList       @relation(fields: [listId], references: [id], onDelete: Cascade)
   /// Product of the base list it comes from: ticking the item as bought clears its "missing".
-  productId   String?
-  product     ShoppingProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
-  name        String
-  categoryId  String?
-  category    ShoppingCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  storeId     String?
-  store       ShoppingStore?     @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  url         String?
-  note        String?
-  quantity    Decimal?           @db.Decimal(12, 3)
-  unit        String?
-  unitPrice   Decimal?           @db.Decimal(14, 4)
-  perishable  Boolean            @default(false)
-  storageId   String?
-  storage     ShoppingStorage?   @relation(fields: [storageId], references: [id], onDelete: SetNull)
+  productId      String?
+  product        ShoppingProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name           String
+  categoryId     String?
+  category       ShoppingCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  storeId        String?
+  store          ShoppingStore?     @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  url            String?
+  note           String?
+  quantity       Decimal?           @db.Decimal(12, 3)
+  unit           String?
+  unitPrice      Decimal?           @db.Decimal(14, 4)
+  perishable     Boolean            @default(false)
+  storageId      String?
+  storage        ShoppingStorage?   @relation(fields: [storageId], references: [id], onDelete: SetNull)
   /// "Best before" date of what was bought (the same product may be on a list several times, with other dates).
-  expiresAt   DateTime?          @db.Date
+  expiresAt      DateTime?          @db.Date
   /// Ticked as bought.
-  purchasedAt DateTime?
+  purchasedAt    DateTime?
   /// Sheets it comes from, with their share of its quantity: [{ sheetId, name, quantity }] (none: added by hand).
-  sheetSources Json               @default("[]")
+  sheetSources   Json               @default("[]")
+  /// Delivery of a remote order it comes with (none: not ordered, or not assigned yet).
+  deliveryId     String?
+  delivery       ShoppingDelivery?  @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  stockMovements StockMovement[]
   /// Members of the team or household and relations it is for: the split of a treasury entry paying the list.
-  members     Contributor[]      @relation("ShoppingItemMembers")
-  relations   TreasuryRelation[] @relation("ShoppingItemRelations")
-  comments    Comment[]
-  position    Int                @default(0)
-  createdAt   DateTime           @default(now())
+  members        Contributor[]      @relation("ShoppingItemMembers")
+  relations      TreasuryRelation[] @relation("ShoppingItemRelations")
+  comments       Comment[]
+  position       Int                @default(0)
+  createdAt      DateTime           @default(now())
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId    String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([listId])
   @@index([productId])
@@ -2467,23 +2500,208 @@ model ShoppingItem {
   @@index([workspaceId])
 }
 
+/// Place things are kept (Frigo, Congélateur, Cellier, Garage…), in a tree.
+model StockLocation {
+  id          String            @id @default(cuid())
+  name        String
+  color       String?
+  parentId    String?
+  parent      StockLocation?    @relation("StockLocationTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    StockLocation[]   @relation("StockLocationTree")
+  /// Manual order among siblings.
+  position    Int               @default(0)
+  createdAt   DateTime          @default(now())
+  products    ShoppingProduct[]
+  items       StockItem[]
+  counts      StockCount[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
+  @@index([workspaceId])
+}
+
+/// Item of the stock: a reference followed in stock, or an item of its own; its quantity is that of its lots.
+model StockItem {
+  id          String             @id @default(cuid())
+  productId   String?
+  product     ShoppingProduct?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  /// Its own label, or the name of its reference (kept when the reference is deleted).
+  label       String
+  categoryId  String?
+  category    ShoppingCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unit        String?
+  locationId  String?
+  location    StockLocation?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  /// Description (markdown).
+  note        String?
+  /// Kept until a date: lots of their own dates.
+  perishable  Boolean            @default(false)
+  /// Members of the team or household and relations it is for.
+  members     Contributor[]      @relation("StockItemMembers")
+  relations   TreasuryRelation[] @relation("StockItemRelations")
+  position    Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  lots        StockLot[]
+  movements   StockMovement[]
+  /// Comments (markdown).
+  comments    Comment[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([categoryId])
+  @@index([locationId])
+  @@index([workspaceId])
+}
+
+/// Lot of an item of the stock: a quantity, and its "best before" date (perishable items).
+model StockLot {
+  id          String          @id @default(cuid())
+  itemId      String
+  item        StockItem       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity    Decimal         @db.Decimal(12, 3)
+  expiresAt   DateTime?       @db.Date
+  createdAt   DateTime        @default(now())
+  movements   StockMovement[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([workspaceId])
+}
+
+/// Why a quantity of the stock changed.
+enum StockMovementKind {
+  /// Bought (from a shopping list, or by hand).
+  PURCHASE
+  /// Used up (by hand, a sheet used, a checklist ticked).
+  CONSUMPTION
+  /// Counted at an inventory.
+  COUNT
+  /// Thrown away (past its date, broken…).
+  LOSS
+  /// Corrected by hand.
+  CORRECTION
+}
+
+/// Change of a quantity of the stock, signed, with where it comes from.
+model StockMovement {
+  id              String            @id @default(cuid())
+  itemId          String
+  item            StockItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  lotId           String?
+  lot             StockLot?         @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  kind            StockMovementKind
+  /// Signed: positive in, negative out.
+  quantity        Decimal           @db.Decimal(12, 3)
+  date            DateTime          @default(now())
+  note            String?
+  shoppingItemId  String?
+  shoppingItem    ShoppingItem?     @relation(fields: [shoppingItemId], references: [id], onDelete: SetNull)
+  sheetId         String?
+  sheet           Sheet?            @relation(fields: [sheetId], references: [id], onDelete: SetNull)
+  checklistItemId String?
+  checklistItem   ChecklistItem?    @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
+  countId         String?
+  count           StockCount?       @relation(fields: [countId], references: [id], onDelete: SetNull)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId     String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([lotId])
+  @@index([shoppingItemId])
+  @@index([sheetId])
+  @@index([checklistItemId])
+  @@index([countId])
+  @@index([workspaceId])
+}
+
+/// Inventory: the quantities counted on a day (of a place, or of everything).
+model StockCount {
+  id          String          @id @default(cuid())
+  date        DateTime        @default(now())
+  locationId  String?
+  location    StockLocation?  @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  note        String?
+  movements   StockMovement[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([locationId])
+  @@index([workspaceId])
+}
+
+/// Delivery of a remote order: its tracking, where it arrives (to pick up, or delivered), when, received or not.
+model ShoppingDelivery {
+  id          String         @id @default(cuid())
+  listId      String
+  list        ShoppingList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+  label       String?
+  /// Page of the tracking of the parcel.
+  trackingUrl String?
+  /// To pick up (relay point, click and collect) rather than delivered.
+  pickup      Boolean        @default(false)
+  /// Expected between these days (to pick up: from and until when).
+  windowFrom  DateTime?      @db.Date
+  windowTo    DateTime?      @db.Date
+  /// Where, when other than the delivery place of the order (the relay point…).
+  address     String?
+  lat         Float?
+  lon         Float?
+  receivedAt  DateTime?
+  position    Int            @default(0)
+  items       ShoppingItem[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String         @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([listId])
+  @@index([workspaceId])
+}
+
 /// Sheet: products (of the base lists) and other items used together, a recipe, the content of a suitcase…, added to
 /// shopping lists (summed with the other sheets) or made a checklist of for a routine, an event or a task.
-model Sheet {
-  id          String      @id @default(cuid())
+/// Category of the sheets (flat, set in the settings): « Recettes », « Valises »…
+model SheetCategory {
+  id          String    @id @default(cuid())
   name        String
-  note        String?
-  /// Project it belongs to (shown in its tab); none: of the workspace.
-  projectId   String?
-  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  position    Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  items       SheetItem[]
-  links       SheetLink[]
+  color       String
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  sheets      Sheet[]   @relation("SheetCategories")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String      @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
+model Sheet {
+  id             String          @id @default(cuid())
+  name           String
+  note           String?
+  /// Project it belongs to (shown in its tab); none: of the workspace.
+  projectId      String?
+  project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  position       Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  items          SheetItem[]
+  links          SheetLink[]
+  /// Categories it is filed in (flat, set in the settings).
+  categories     SheetCategory[] @relation("SheetCategories")
+  stockMovements StockMovement[]
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId    String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([workspaceId])
@@ -2505,6 +2723,8 @@ model SheetItem {
   unit        String?
   /// Description (markdown).
   note        String?
+  /// Used up when the sheet is used (a recipe), unlike what comes back (a suitcase): taken from the stock.
+  consumable  Boolean           @default(true)
   position    Int               @default(0)
   /// Comments (markdown).
   comments    Comment[]
@@ -2567,25 +2787,28 @@ model Checklist {
 
 /// Item of a checklist: summed from its sheets (or added by hand), ticked when done.
 model ChecklistItem {
-  id          String            @id @default(cuid())
-  listId      String
-  list        Checklist         @relation(fields: [listId], references: [id], onDelete: Cascade)
-  productId   String?
-  product     ShoppingProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
-  label       String
-  categoryId  String?
-  category    ShoppingCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  quantity    Decimal?          @db.Decimal(12, 3)
-  unit        String?
+  id             String            @id @default(cuid())
+  listId         String
+  list           Checklist         @relation(fields: [listId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        ShoppingProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  label          String
+  categoryId     String?
+  category       ShoppingCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  quantity       Decimal?          @db.Decimal(12, 3)
+  unit           String?
   /// Description (markdown).
-  note        String?
+  note           String?
   /// Sheets it comes from, with their share of its quantity: [{ sheetId, name, quantity }].
-  sources     Json              @default("[]")
-  checkedAt   DateTime?
-  position    Int               @default(0)
+  sources        Json              @default("[]")
+  /// Taken from the stock when ticked (given back when unticked).
+  consumable     Boolean           @default(false)
+  checkedAt      DateTime?
+  stockMovements StockMovement[]
+  position       Int               @default(0)
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId    String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([listId])
   @@index([productId])

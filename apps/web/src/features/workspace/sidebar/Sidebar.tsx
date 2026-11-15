@@ -144,6 +144,7 @@ const MENU_GROUPS: MenuGroup[] = [
     links: [
       { to: '/shopping', label: 'Achats', icon: <BasketIcon aria-hidden /> },
       { to: '/sheets', label: 'Fiches', icon: <ClipboardTextIcon aria-hidden /> },
+      { to: '/stock', label: 'Inventaire', icon: <ArchiveIcon aria-hidden /> },
     ],
   },
   {

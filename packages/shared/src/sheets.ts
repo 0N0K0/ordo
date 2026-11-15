@@ -14,18 +14,27 @@ export const sheetItemSchema = z.object({
   unit: z.string().trim().max(40, '40 caractères maximum.').nullable(),
   /** Description (markdown). */
   note: z.string().max(20_000, 'Description trop longue.').nullable(),
+  /** Used up when the sheet is used (taken from the stock); a checklist item: taken when ticked. */
+  consumable: z.boolean().default(true),
 });
 export type SheetItemInput = z.infer<typeof sheetItemSchema>;
 
-/** Sheet: a name, a note, and its items. */
+/** Sheet: a name, a note, its project and categories (its items are changed one by one). */
 export const sheetSchema = z.object({
   name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
   note: z.string().max(20_000, 'Note trop longue.').nullable(),
   /** Project it belongs to; none: of the workspace. */
   projectId: z.string().nullable(),
-  items: z.array(sheetItemSchema).max(300, '300 éléments au plus.'),
+  categoryIds: z.array(z.string()).max(50),
 });
 export type SheetInput = z.infer<typeof sheetSchema>;
+
+/** Category of the sheets: a name and a color. */
+export const sheetCategorySchema = z.object({
+  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Couleur attendue (#RRGGBB).'),
+});
+export type SheetCategoryInput = z.infer<typeof sheetCategorySchema>;
 
 /** How many times a sheet is added (2 × « Crêpes »). */
 export const sheetMultiplierSchema = z.number().positive('Multiplicateur positif attendu.').max(999, '999 au plus.');

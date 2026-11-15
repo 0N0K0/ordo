@@ -67,6 +67,10 @@ builder.prismaObject('ShoppingProduct', {
     id: t.exposeID('id'),
     baseListId: t.exposeID('baseListId'),
     name: t.exposeString('name'),
+    stockTracked: t.exposeBoolean('stockTracked', { description: 'Followed in the stock.' }),
+    consumable: t.exposeBoolean('consumable', { description: 'Used up (taken from the stock by sheets and checklists).' }),
+    autoStock: t.exposeBoolean('autoStock', { description: 'Added to the stock by itself once bought (else proposed).' }),
+    stockLocationId: t.exposeID('stockLocationId', { nullable: true, description: 'Place it goes to in the stock.' }),
     categoryId: t.exposeID('categoryId', { nullable: true }),
     storeId: t.exposeID('storeId', { nullable: true }),
     url: t.exposeString('url', { nullable: true }),
@@ -106,6 +110,7 @@ builder.prismaObject('ShoppingItem', {
     position: t.exposeInt('position'),
     memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (item) => item.members.map((member) => member.id) }),
     relationIds: t.idList({ select: { relations: { select: { id: true } } }, resolve: (item) => item.relations.map((relation) => relation.id) }),
+    deliveryId: t.exposeID('deliveryId', { nullable: true, description: 'Delivery of the remote order it comes with.' }),
     sheetSources: t.field({
       type: [SheetSourceRef],
       description: 'Sheets it comes from, with their share of its quantity; none: added by hand.',
@@ -130,6 +135,11 @@ builder.prismaObject('ShoppingList', {
     }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     items: t.relation('items', { query: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] } }),
+    remote: t.exposeBoolean('remote', { description: 'Ordered remotely: followed by its deliveries.' }),
+    deliveryAddress: t.exposeString('deliveryAddress', { nullable: true }),
+    deliveryLat: t.exposeFloat('deliveryLat', { nullable: true }),
+    deliveryLon: t.exposeFloat('deliveryLon', { nullable: true }),
+    deliveries: t.relation('deliveries', { query: { orderBy: [{ position: 'asc' }, { windowFrom: 'asc' }] } }),
   }),
 });
 
@@ -229,11 +239,8 @@ builder.queryFields((t) => ({
   }),
   shoppingProducts: t.prismaField({
     type: ['ShoppingProduct'],
-    description: 'Products of all the base lists (the perishable ones past their date are marked missing first).',
-    resolve: async (query) => {
-      await shopping.markExpired();
-      return prisma.shoppingProduct.findMany({ ...query, orderBy: { name: 'asc' } });
-    },
+    description: 'Products of all the base lists (references).',
+    resolve: (query) => prisma.shoppingProduct.findMany({ ...query, orderBy: { name: 'asc' } }),
   }),
   shoppingLists: t.prismaField({
     type: ['ShoppingList'],
