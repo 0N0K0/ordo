@@ -13,6 +13,7 @@ import {
   type ShoppingStoreInput,
 } from '@ordo/shared';
 import { prisma } from '../db';
+import { syncPurchaseStock } from './stock';
 import {
   Prisma,
   type ShoppingBaseList,
@@ -408,8 +409,6 @@ export async function updateProduct(id: string, input: ShoppingProductInput): Pr
   const data = await parseShopping(shoppingProductSchema, input);
   await assertBaseList(data.baseListId);
   const row = fields(data);
-  // Not missing although past its date: what was bought is still good, the date no longer holds.
-  if (!data.missing && row.expiresAt && row.expiresAt < today()) row.expiresAt = null;
   return prisma.shoppingProduct.update({ where: { id }, data: { ...row, baseListId: data.baseListId, missing: data.missing, ...people(data, 'set') } });
 }
 
@@ -421,19 +420,7 @@ export async function updateProduct(id: string, input: ShoppingProductInput): Pr
  */
 export async function setProductsMissing(ids: string[], missing: boolean): Promise<void> {
   if ((await prisma.shoppingProduct.count({ where: { id: { in: ids } } })) !== new Set(ids).size) throw notFound('Produit');
-  await prisma.$transaction([
-    prisma.shoppingProduct.updateMany({ where: { id: { in: ids } }, data: { missing } }),
-    // Unticked although past its date: what was bought is still good, the date no longer holds.
-    ...(missing ? [] : [prisma.shoppingProduct.updateMany({ where: { id: { in: ids }, expiresAt: { lt: today() } }, data: { expiresAt: null } })]),
-  ]);
-}
-
-/**
- * Marks missing the perishable products whose last purchase is past its date (done when the base lists are read).
- * @returns {Promise<void>}
- */
-export async function markExpired(): Promise<void> {
-  await prisma.shoppingProduct.updateMany({ where: { perishable: true, missing: false, expiresAt: { lt: today() } }, data: { missing: true } });
+  await prisma.$transaction([prisma.shoppingProduct.updateMany({ where: { id: { in: ids } }, data: { missing } })]);
 }
 
 /**
@@ -627,7 +614,6 @@ export async function createList({ name, taskIds, baseListIds }: { name: string;
   const data = { name: parseInput(shoppingListNameSchema, name), tasks: { connect: tasks } };
   const ids = [...new Set(baseListIds)];
   if ((await prisma.shoppingBaseList.count({ where: { id: { in: ids } } })) !== ids.length) throw notFound('Référence');
-  await markExpired();
   const products = ids.length ? await prisma.shoppingProduct.findMany({ where: { missing: true, baseListId: { in: ids } }, include: withPeople, orderBy: { name: 'asc' } }) : [];
   return prisma.shoppingList.create({ data: { ...data, items: { create: products.map((product, position) => copyOf(product, product.id, position)) } } });
 }
@@ -814,6 +800,8 @@ export async function setItemPurchased(id: string, purchased: boolean): Promise<
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     const updated = await tx.shoppingItem.update({ where: { id }, data: { purchasedAt: purchased ? (item.purchasedAt ?? now) : null } });
+    // A reference followed in stock that goes there by itself is added (taken back when unticked).
+    await syncPurchaseStock(tx, id, purchased);
     if (item.productId) {
       await tx.shoppingProduct.update({
         where: { id: item.productId },

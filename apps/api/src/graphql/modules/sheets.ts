@@ -2,6 +2,7 @@ import type { SheetSource } from '@ordo/shared';
 import { readSheetSources } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as sheets from '../../services/sheets';
+import * as stock from '../../services/stock';
 import { builder } from '../builder';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());
@@ -26,6 +27,17 @@ builder.prismaObject('SheetItem', {
     quantity: t.float({ nullable: true, resolve: (item) => float(item.quantity) }),
     unit: t.exposeString('unit', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
+    consumable: t.exposeBoolean('consumable', { description: 'Used up when the sheet is used (taken from the stock).' }),
+    position: t.exposeInt('position'),
+  }),
+});
+
+builder.prismaObject('SheetCategory', {
+  description: 'Category of the sheets (flat, set in the settings).',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    name: t.exposeString('name'),
+    color: t.exposeString('color'),
     position: t.exposeInt('position'),
   }),
 });
@@ -37,6 +49,7 @@ builder.prismaObject('Sheet', {
     name: t.exposeString('name'),
     note: t.exposeString('note', { nullable: true }),
     projectId: t.exposeID('projectId', { nullable: true }),
+    categoryIds: t.idList({ select: { categories: { select: { id: true } } }, resolve: (sheet) => sheet.categories.map((category) => category.id) }),
     position: t.exposeInt('position'),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
@@ -69,6 +82,7 @@ builder.prismaObject('ChecklistItem', {
     unit: t.exposeString('unit', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
     sources: t.field({ type: [SheetSourceRef], resolve: (item) => readSheetSources(item.sources) }),
+    consumable: t.exposeBoolean('consumable', { description: 'Taken from the stock when ticked.' }),
     checkedAt: t.expose('checkedAt', { type: 'DateTime', nullable: true }),
     position: t.exposeInt('position'),
   }),
@@ -88,11 +102,31 @@ builder.prismaObject('Checklist', {
 });
 
 const SheetItemInputRef = builder.inputType('SheetItemInput', {
-  fields: (t) => ({ id: t.id(), productId: t.id(), label: t.string({ required: true }), categoryId: t.id(), quantity: t.float(), unit: t.string(), note: t.string() }),
+  fields: (t) => ({ id: t.id(), productId: t.id(), label: t.string({ required: true }), categoryId: t.id(), quantity: t.float(), unit: t.string(), note: t.string(), consumable: t.boolean() }),
 });
 
 const SheetInputRef = builder.inputType('SheetInput', {
-  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), projectId: t.id(), items: t.field({ type: [SheetItemInputRef], required: true }) }),
+  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), projectId: t.id(), categoryIds: t.idList({ required: true }) }),
+});
+
+const SheetCategoryInputRef = builder.inputType('SheetCategoryInput', {
+  fields: (t) => ({ name: t.string({ required: true }), color: t.string({ required: true }) }),
+});
+
+const SheetCategoryPatchRef = builder.inputType('SheetCategoryPatch', {
+  fields: (t) => ({ name: t.string(), color: t.string() }),
+});
+
+/**
+ * Sheet input as the service reads it.
+ * @param {typeof SheetInputRef.$inferInput} input Input.
+ * @returns {import('@ordo/shared').SheetInput} Sheet.
+ */
+const sheetInput = (input: typeof SheetInputRef.$inferInput) => ({
+  name: input.name,
+  note: input.note ?? null,
+  projectId: input.projectId ? String(input.projectId) : null,
+  categoryIds: input.categoryIds.map(String),
 });
 
 const SheetLinkInputRef = builder.inputType('SheetLinkInput', {
@@ -112,6 +146,7 @@ const itemInput = (input: typeof SheetItemInputRef.$inferInput) => ({
   quantity: input.quantity ?? null,
   unit: input.unit ?? null,
   note: input.note ?? null,
+  consumable: input.consumable ?? true,
 });
 
 /**
@@ -127,7 +162,26 @@ function ownerOf(args: { routineId?: string | number | null; eventId?: string | 
   throw new Error('Une routine, un évènement ou une tâche.');
 }
 
+/** What using a sheet took from the stock. */
+const SheetUseRef = builder.objectRef<{ taken: number; short: string[] }>('SheetUse').implement({
+  fields: (t) => ({
+    taken: t.exposeInt('taken', { description: 'Items taken from the stock.' }),
+    short: t.exposeStringList('short', { description: 'Items short of stock (what there was was taken).' }),
+  }),
+});
+
 builder.queryFields((t) => ({
+  sheetCategories: t.prismaField({
+    type: ['SheetCategory'],
+    description: 'Categories of the sheets, in their order.',
+    resolve: (query) => prisma.sheetCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
+  }),
+  sheet: t.prismaField({
+    type: 'Sheet',
+    nullable: true,
+    args: { id: t.arg.id({ required: true }) },
+    resolve: (query, _root, { id }) => prisma.sheet.findUnique({ ...query, where: { id: String(id) } }),
+  }),
   sheets: t.prismaField({
     type: ['Sheet'],
     description: 'Sheets, in their order: all, or those of a project.',
@@ -160,13 +214,66 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   createSheet: t.id({
     args: { input: t.arg({ type: SheetInputRef, required: true }) },
-    resolve: async (_root, { input }) =>
-      (await sheets.createSheet({ name: input.name, note: input.note ?? null, projectId: input.projectId ? String(input.projectId) : null, items: input.items.map(itemInput) })).id,
+    resolve: async (_root, { input }) => (await sheets.createSheet(sheetInput(input))).id,
   }),
   updateSheet: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: SheetInputRef, required: true }) },
     resolve: async (_root, { id, input }) => {
-      await sheets.updateSheet(String(id), { name: input.name, note: input.note ?? null, projectId: input.projectId ? String(input.projectId) : null, items: input.items.map(itemInput) });
+      await sheets.updateSheet(String(id), sheetInput(input));
+      return true;
+    },
+  }),
+  addSheetItem: t.id({
+    args: { sheetId: t.arg.id({ required: true }), input: t.arg({ type: SheetItemInputRef, required: true }) },
+    resolve: async (_root, { sheetId, input }) => (await sheets.addSheetItem(String(sheetId), itemInput(input))).id,
+  }),
+  addSheetProducts: t.int({
+    description: 'Adds products of the references to a sheet; returns the number added.',
+    args: { sheetId: t.arg.id({ required: true }), productIds: t.arg.idList({ required: true }) },
+    resolve: (_root, { sheetId, productIds }) => sheets.addSheetProducts(String(sheetId), productIds.map(String)),
+  }),
+  updateSheetItem: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: SheetItemInputRef, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await sheets.updateSheetItem(String(id), itemInput(input));
+      return true;
+    },
+  }),
+  deleteSheetItems: t.boolean({
+    args: { ids: t.arg.idList({ required: true }) },
+    resolve: async (_root, { ids }) => {
+      await sheets.deleteSheetItems(ids.map(String));
+      return true;
+    },
+  }),
+  useSheet: t.field({
+    type: SheetUseRef,
+    description: 'Uses a sheet (times a multiplier): its items used up that are references are taken from the stock.',
+    args: { id: t.arg.id({ required: true }), multiplier: t.arg.float({ required: true }) },
+    resolve: (_root, { id, multiplier }) => stock.useSheet(String(id), multiplier),
+  }),
+  createSheetCategory: t.id({
+    args: { input: t.arg({ type: SheetCategoryInputRef, required: true }) },
+    resolve: async (_root, { input }) => (await sheets.createSheetCategory(input)).id,
+  }),
+  updateSheetCategory: t.boolean({
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: SheetCategoryPatchRef, required: true }) },
+    resolve: async (_root, { id, input }) => {
+      await sheets.updateSheetCategory(String(id), { ...(input.name ? { name: input.name } : {}), ...(input.color ? { color: input.color } : {}) });
+      return true;
+    },
+  }),
+  deleteSheetCategory: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (_root, { id }) => {
+      await sheets.deleteSheetCategory(String(id));
+      return true;
+    },
+  }),
+  moveSheetCategory: t.boolean({
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, index }) => {
+      await sheets.moveSheetCategory(String(id), index);
       return true;
     },
   }),

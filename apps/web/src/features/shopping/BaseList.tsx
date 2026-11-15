@@ -21,6 +21,12 @@ import { ShoppingTable } from './ShoppingTable';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
+import { bulkSaver } from '../../components/data-table/bulk-edit';
+import { EditableCheck, EditableSelect } from '../../components/data-table/EditableCells';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
+import type { ProductStockInput } from '@ordo/shared';
+import { useStockLocations, useStockMutations } from '../stock/api';
+import { locationOptions, locationPaths } from '../stock/stock-format';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -63,6 +69,9 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const [grouping, setGrouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.baseGrouping', defaultValue: 'category' });
   const [showEmpty, setShowEmpty] = useLocalStorage({ key: 'ordo.shopping.showEmptyCategories', defaultValue: false });
   const people = usePeople();
+  const { data: locations } = useStockLocations();
+  const stockMutations = useStockMutations();
+  const places = locationPaths(locations ?? []);
   const products = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.name, b.name));
   const missing = products.filter((product) => product.missing);
   const categories = categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id);
@@ -96,10 +105,64 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         text: (product) => (product.missing ? 'Manque' : ''),
         filter: { kind: 'boolean', value: (product) => product.missing },
       },
+      {
+        id: 'stockTracked',
+        label: 'Suivie en stock',
+        size: 130,
+        bulk: true,
+        hiddenByDefault: true,
+        sortValue: (product) => (product.stockTracked ? 1 : 0),
+        text: (product) => (product.stockTracked ? 'Suivie' : ''),
+        filter: { kind: 'boolean', value: (product) => product.stockTracked },
+        groupable: true,
+      },
+      {
+        id: 'consumable',
+        label: 'Consommable',
+        size: 120,
+        bulk: true,
+        hiddenByDefault: true,
+        sortValue: (product) => (product.consumable ? 1 : 0),
+        text: (product) => (product.consumable ? 'Consommable' : ''),
+        filter: { kind: 'boolean', value: (product) => product.consumable },
+        groupable: true,
+      },
+      {
+        id: 'autoStock',
+        label: 'Ajout auto au stock',
+        size: 150,
+        bulk: true,
+        hiddenByDefault: true,
+        sortValue: (product) => (product.autoStock ? 1 : 0),
+        text: (product) => (product.autoStock ? 'Automatique' : ''),
+        filter: { kind: 'boolean', value: (product) => product.autoStock },
+        groupable: true,
+      },
+      {
+        id: 'stockLocation',
+        label: 'Emplacement en stock',
+        size: 170,
+        bulk: true,
+        hiddenByDefault: true,
+        sortValue: (product) => (product.stockLocationId ? (places.get(product.stockLocationId) ?? '') : null),
+        text: (product) => (product.stockLocationId ? (places.get(product.stockLocationId) ?? '') : ''),
+        filter: { kind: 'choice', value: (product) => product.stockLocationId ?? null, options: [...places].map(([value, label]) => ({ value, label })) },
+        groupable: true,
+      },
     ],
   );
   const view = useDataView({ tableKey: 'shopping-base-list', getKey: (item) => item.id, columns, rows: products, title: baseList.name, first: BASE_LIST_VIEWS });
   const onError = (error: Error) => notifyError(error.message);
+  // Stock settings of the references, changed in place (and in bulk).
+  const stockBulk = bulkSaver<ShoppingProduct, Partial<ProductStockInput>>(view, (product, change) =>
+    stockMutations.setProductStock.mutate(
+      {
+        id: product.id,
+        input: { stockTracked: product.stockTracked, consumable: product.consumable, autoStock: product.autoStock, stockLocationId: product.stockLocationId ?? null, ...change },
+      },
+      { onError },
+    ),
+  );
 
   return (
     <Stack gap="md">
@@ -161,6 +224,27 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             </Tooltip>
           )}
           summary={(items) => `${items.filter((product) => product.missing).length} manquant(s) sur ${items.length}`}
+          extraCells={(product) => ({
+            stockTracked: <EditableCheck value={product.stockTracked} label={`${product.name} suivie en stock`} onSave={(stockTracked) => stockBulk('stockTracked')(product, { stockTracked })} />,
+            consumable: <EditableCheck value={product.consumable} label={`${product.name} consommable`} onSave={(consumable) => stockBulk('consumable')(product, { consumable })} />,
+            autoStock: (
+              <EditableCheck
+                value={product.autoStock}
+                label={`${product.name} ajoutée au stock une fois achetée`}
+                readOnly={!product.stockTracked}
+                onSave={(autoStock) => stockBulk('autoStock')(product, (target) => (target.stockTracked ? { autoStock } : {}))}
+              />
+            ),
+            stockLocation: (
+              <EditableSelect
+                value={product.stockLocationId ?? null}
+                label={`Emplacement en stock de ${product.name}`}
+                nullable
+                {...treeSelectProps(locationOptions(locations ?? []))}
+                onSave={(stockLocationId) => stockBulk('stockLocation')(product, { stockLocationId })}
+              />
+            ),
+          })}
           extra={{
             title: 'Dernier achat',
             render: (product: ShoppingProduct) =>

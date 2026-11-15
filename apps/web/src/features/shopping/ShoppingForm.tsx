@@ -204,13 +204,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                 data={(data?.shoppingStorages ?? []).map((storage) => ({ value: storage.id, label: storage.name }))}
                 {...form.getInputProps('storageId')}
               />
-              <DatePickerInput
-                label="Date de péremption"
-                description={target.kind === 'product' ? 'Passée, le produit est marqué manquant.' : undefined}
-                placeholder="Aucune"
-                clearable
-                {...form.getInputProps('expiresAt')}
-              />
+              <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />
             </SimpleGrid>
           )}
           <BatchMultiSelect
