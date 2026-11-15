@@ -83,7 +83,7 @@ type Documents = {
     "\n  mutation AddDocumentReminder($id: ID!, $note: String) {\n    addDocumentReminder(id: $id, note: $note)\n  }\n": typeof types.AddDocumentReminderDocument,
     "\n  mutation DeleteDocumentReminder($id: ID!) {\n    deleteDocumentReminder(id: $id)\n  }\n": typeof types.DeleteDocumentReminderDocument,
     "\n  mutation RecordDocumentPayment($id: ID!, $input: DocumentPaymentInput!) {\n    recordDocumentPayment(id: $id, input: $input)\n  }\n": typeof types.RecordDocumentPaymentDocument,
-    "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": typeof types.AlarmFieldsFragmentDoc,
+    "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    recurrence\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": typeof types.AlarmFieldsFragmentDoc,
     "\n  query Alarms {\n    alarms {\n      ...AlarmFields\n    }\n  }\n": typeof types.AlarmsDocument,
     "\n  mutation CreateAlarm($input: AlarmInput!) {\n    createAlarm(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateAlarmDocument,
     "\n  mutation UpdateAlarm($id: ID!, $input: AlarmInput!) {\n    updateAlarm(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateAlarmDocument,
@@ -557,7 +557,7 @@ const documents: Documents = {
     "\n  mutation AddDocumentReminder($id: ID!, $note: String) {\n    addDocumentReminder(id: $id, note: $note)\n  }\n": types.AddDocumentReminderDocument,
     "\n  mutation DeleteDocumentReminder($id: ID!) {\n    deleteDocumentReminder(id: $id)\n  }\n": types.DeleteDocumentReminderDocument,
     "\n  mutation RecordDocumentPayment($id: ID!, $input: DocumentPaymentInput!) {\n    recordDocumentPayment(id: $id, input: $input)\n  }\n": types.RecordDocumentPaymentDocument,
-    "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": types.AlarmFieldsFragmentDoc,
+    "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    recurrence\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n": types.AlarmFieldsFragmentDoc,
     "\n  query Alarms {\n    alarms {\n      ...AlarmFields\n    }\n  }\n": types.AlarmsDocument,
     "\n  mutation CreateAlarm($input: AlarmInput!) {\n    createAlarm(input: $input) {\n      id\n    }\n  }\n": types.CreateAlarmDocument,
     "\n  mutation UpdateAlarm($id: ID!, $input: AlarmInput!) {\n    updateAlarm(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateAlarmDocument,
@@ -1238,7 +1238,7 @@ export function graphql(source: "\n  mutation RecordDocumentPayment($id: ID!, $i
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n"): typeof import('./graphql').AlarmFieldsFragmentDoc;
+export function graphql(source: "\n  fragment AlarmFields on Alarm {\n    id\n    title\n    note\n    type\n    startDate\n    time\n    frequency\n    interval\n    weekdays\n    endDate\n    recurrence\n    minutes\n    projectId\n    taskId\n    enabled\n    lastFiredAt\n    createdAt\n  }\n"): typeof import('./graphql').AlarmFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

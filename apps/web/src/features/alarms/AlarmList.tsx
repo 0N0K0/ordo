@@ -18,8 +18,8 @@ import { taskPath } from '../tasks/task-links';
  * @returns {object} Alarm input.
  */
 function toAlarmInput(alarm: Alarm, changes: Partial<Alarm>) {
-  const { title, note, type, startDate, time, frequency, interval, weekdays, endDate, minutes, projectId, taskId, enabled } = { ...alarm, ...changes };
-  return { title, note, type, startDate, time, frequency, interval, weekdays, endDate, minutes, projectId, taskId, enabled };
+  const { title, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence, minutes, projectId, taskId, enabled } = { ...alarm, ...changes };
+  return { title, note, type, startDate, time, frequency, interval, weekdays, endDate, recurrence: recurrence ?? null, minutes, projectId, taskId, enabled };
 }
 
 interface AlarmListProps {

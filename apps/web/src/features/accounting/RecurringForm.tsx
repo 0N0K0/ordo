@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useRecurringMutations, type RecurringInvoice } from './documents-api';
-import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { RuleField } from '../../components/recurrence/RuleField';
 
 interface RecurringFormProps {
   /** Invoice made recurring (new schedule). */
@@ -51,7 +51,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
     <Stack gap="md">
       <TextInput label="Nom" required data-autofocus placeholder="Maintenance mensuelle…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
       <DatePickerInput label="Première facture le" required value={startDate} onChange={(value) => value && setStartDate(value)} />
-      <RecurrenceField required value={rule} onChange={setRule} start={startDate} error={!rule ? 'Choisissez une répétition.' : undefined} />
+      <RuleField required weekly={false} value={rule} onChange={setRule} start={startDate} error={!rule ? 'Choisissez une répétition.' : undefined} />
       <Switch
         label="Valider automatiquement"
         description="Les factures sont numérotées dès leur création ; sinon, elles sont créées en brouillon à vérifier."

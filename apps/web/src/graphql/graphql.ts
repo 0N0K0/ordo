@@ -87,6 +87,8 @@ export type AlarmInput = {
   minutes?: number | null | undefined;
   note?: string | null | undefined;
   projectId?: string | number | null | undefined;
+  /** Repetition in the common form; null: it rings once. */
+  recurrence?: unknown;
   startDate?: string | null | undefined;
   taskId?: string | number | null | undefined;
   /** HH:MM, local time. */
@@ -1686,12 +1688,12 @@ export type RecordDocumentPaymentMutationVariables = Exact<{
 
 export type RecordDocumentPaymentMutation = { recordDocumentPayment: boolean };
 
-export type AlarmFieldsFragment = { id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string };
+export type AlarmFieldsFragment = { id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string };
 
 export type AlarmsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type AlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string }> };
+export type AlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string }> };
 
 export type CreateAlarmMutationVariables = Exact<{
   input: AlarmInput;
@@ -4553,7 +4555,7 @@ export type MoveProjectStatusMutation = { moveProjectStatus: boolean };
 export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, title: string, projectId: string | null } | null, project: { id: string, title: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, title: string, projectId: string | null } | null, project: { id: string, title: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
 
 export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
   id: string | number;
@@ -4880,6 +4882,7 @@ export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
   interval
   weekdays
   endDate
+  recurrence
   minutes
   projectId
   taskId
@@ -6028,6 +6031,7 @@ export const AlarmsDocument = new TypedDocumentString(`
   interval
   weekdays
   endDate
+  recurrence
   minutes
   projectId
   taskId
@@ -9787,6 +9791,7 @@ export const ElsewhereAlarmsDocument = new TypedDocumentString(`
   interval
   weekdays
   endDate
+  recurrence
   minutes
   projectId
   taskId

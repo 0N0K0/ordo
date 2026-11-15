@@ -594,7 +594,7 @@ export function scheduleRules(
     name: schedule.name,
     startDate: String(schedule.startDate),
     endDate: schedule.endDate ? String(schedule.endDate) : null,
-    cases: readScheduleCases(schedule.cases),
+    cases: readScheduleCases(schedule.cases, String(schedule.startDate)),
     exceptions: readScheduleExceptions(schedule.exceptions),
     typeId: schedule.typeId ?? null,
   }));

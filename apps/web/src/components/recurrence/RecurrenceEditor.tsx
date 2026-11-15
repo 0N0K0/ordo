@@ -1,8 +1,10 @@
 import { ActionIcon, Button, Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { DEFAULT_RECURRENCE, isoWeek, weekdayOf, type Recurrence, type RecurrenceFrequency } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency } from '@ordo/shared';
 import { PauseIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
-import { describeRecurrence, formatDayMonth, formatLongDate, monthOf, WEEKDAY_NAMES, weekdayOfMonth } from './describe-recurrence';
+import type { ReactNode } from 'react';
+import { DeletedDates } from './DeletedDates';
+import { describeRecurrence, MONTHS, WEEKDAY_NAMES } from './describe-recurrence';
 
 const FREQUENCIES: { value: RecurrenceFrequency | 'NONE'; label: string }[] = [
   { value: 'NONE', label: 'Ne se répète pas' },
@@ -21,17 +23,35 @@ interface RecurrenceEditorProps {
   start: string;
   /** Dropdowns kept in place (inside a popover). */
   withinPortal?: boolean;
+  /** Weekdays and even / odd weeks offered (weekly rules). Optional. Default = true. */
+  weekly?: boolean;
+  /** « Ne se répète pas » offered. Optional. Default = true. */
+  allowNone?: boolean;
+  /** Exceptions of what repeats (occurrences moved or changed), listed after the deleted dates. Optional. */
+  exceptions?: ReactNode;
 }
 
+const POSITIONS = [
+  { value: '1', label: '1er' },
+  { value: '2', label: '2e' },
+  { value: '3', label: '3e' },
+  { value: '4', label: '4e' },
+  { value: '-1', label: 'dernier' },
+];
+const WEEKDAYS = WEEKDAY_NAMES.map((name, index) => ({ value: String(index + 1), label: name }));
+const MONTH_OPTIONS = MONTHS.map((name, index) => ({ value: String(index + 1), label: name }));
+
 /**
- * Repetition settings: frequency, interval, weekdays, monthly mode, end (date or number), paused periods
- * and excluded dates, with a readable summary.
+ * Rule of a repetition: frequency, interval, weekdays and even / odd weeks, the day of the month or of the year
+ * (chosen, prefilled from the first date), end (date or number), paused periods, deleted dates and the exceptions of
+ * what repeats, with a readable summary.
  * @param {RecurrenceEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function RecurrenceEditor({ value, onChange, start, withinPortal = true }: RecurrenceEditorProps) {
+export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true, exceptions }: RecurrenceEditorProps) {
   const comboboxProps = { withinPortal };
   const rule = value;
+  const values = rule ? ruleValues(rule, start) : null;
   /**
    * Changes some fields of the rule.
    * @param {Partial<Recurrence>} changes Changes.
@@ -45,17 +65,24 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
       <Group gap="sm" align="flex-end" wrap="wrap">
         <Select
           label="Répétition"
-          data={FREQUENCIES}
+          data={allowNone ? FREQUENCIES : FREQUENCIES.filter((frequency) => frequency.value !== 'NONE')}
           value={rule?.frequency ?? 'NONE'}
           allowDeselect={false}
           comboboxProps={comboboxProps}
           onChange={(frequency) =>
-            onChange(frequency === 'NONE' || !frequency ? null : {
-                  ...(rule ?? DEFAULT_RECURRENCE),
-                  frequency: frequency as RecurrenceFrequency,
-                  // The week of the year is a yearly choice.
-                  ...(frequency !== 'YEARLY' && rule?.monthlyMode === 'WEEK' ? { monthlyMode: 'DAY' as const } : {}),
-                })
+            onChange(
+              frequency === 'NONE' || !frequency
+                ? null
+                : withRuleValues(
+                    {
+                      ...(rule ?? DEFAULT_RECURRENCE),
+                      frequency: frequency as RecurrenceFrequency,
+                      // The week of the year is a yearly choice.
+                      ...(frequency !== 'YEARLY' && rule?.monthlyMode === 'WEEK' ? { monthlyMode: 'DAY' as const } : {}),
+                    },
+                    start,
+                  ),
+            )
           }
         />
         {rule && !(rule.frequency === 'WEEKLY' && rule.weekParity) && (
@@ -71,7 +98,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
         )}
       </Group>
 
-      {rule?.frequency === 'WEEKLY' && (
+      {weekly && rule?.frequency === 'WEEKLY' && (
         <SegmentedControl
           size="xs"
           aria-label="Semaines"
@@ -84,7 +111,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
           ]}
         />
       )}
-      {rule?.frequency === 'WEEKLY' && (
+      {weekly && rule?.frequency === 'WEEKLY' && (
         <Chip.Group multiple value={rule.weekdays.map(String)} onChange={(days) => update({ weekdays: days.map(Number).sort() })}>
           <Group gap={6}>
             {WEEKDAY_NAMES.map((name, index) => (
@@ -95,25 +122,94 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
           </Group>
         </Chip.Group>
       )}
-      {(rule?.frequency === 'MONTHLY' || rule?.frequency === 'YEARLY') && (
-        <SegmentedControl
-          size="xs"
-          value={rule.monthlyMode}
-          // A month repeats a day or a weekday: the week of the year is a yearly choice.
-          onChange={(monthlyMode) => update({ monthlyMode: monthlyMode as Recurrence['monthlyMode'] })}
-          data={
-            rule.frequency === 'MONTHLY'
-              ? [
-                  { value: 'DAY', label: `Le ${Number(start.slice(8))} du mois` },
-                  { value: 'WEEKDAY', label: weekdayOfMonth(start).replace(/^le /, 'Le ') },
-                ]
-              : [
-                  { value: 'DAY', label: `Le ${formatDayMonth(start)}` },
-                  { value: 'WEEKDAY', label: `${weekdayOfMonth(start).replace(/^le /, 'Le ')} ${monthOf(start)}` },
-                  { value: 'WEEK', label: `Le ${WEEKDAY_NAMES[weekdayOf(start) - 1]} de la semaine ${isoWeek(start)}` },
-                ]
-          }
-        />
+      {(rule?.frequency === 'MONTHLY' || rule?.frequency === 'YEARLY') && values && (
+        <Stack gap="xs">
+          <SegmentedControl
+            size="xs"
+            value={rule.monthlyMode}
+            // A month repeats a day or a weekday: the week of the year is a yearly choice.
+            onChange={(monthlyMode) => update({ ...values, monthlyMode: monthlyMode as Recurrence['monthlyMode'] })}
+            data={[
+              { value: 'DAY', label: 'Un jour du mois' },
+              { value: 'WEEKDAY', label: 'Un jour de semaine du mois' },
+              ...(rule.frequency === 'YEARLY' ? [{ value: 'WEEK', label: 'Un jour d’une semaine' }] : []),
+            ]}
+          />
+          <Group gap="xs" align="flex-end" wrap="wrap">
+            {rule.monthlyMode === 'DAY' && (
+              <NumberInput
+                size="xs"
+                w={100}
+                min={1}
+                max={31}
+                prefix="le "
+                aria-label="Jour du mois"
+                value={values.monthDay}
+                onChange={(monthDay) => update({ ...values, monthDay: Math.min(31, Math.max(1, Number(monthDay) || 1)) })}
+              />
+            )}
+            {rule.monthlyMode === 'WEEKDAY' && (
+              <>
+                <Select
+                  size="xs"
+                  w={110}
+                  aria-label="Rang"
+                  data={POSITIONS}
+                  value={String(values.position)}
+                  allowDeselect={false}
+                  comboboxProps={comboboxProps}
+                  onChange={(position) => position && update({ ...values, position: Number(position) as Recurrence['position'] })}
+                />
+                <Select
+                  size="xs"
+                  w={130}
+                  aria-label="Jour de la semaine"
+                  data={WEEKDAYS}
+                  value={String(values.weekday)}
+                  allowDeselect={false}
+                  comboboxProps={comboboxProps}
+                  onChange={(weekday) => weekday && update({ ...values, weekday: Number(weekday) })}
+                />
+              </>
+            )}
+            {rule.frequency === 'YEARLY' && rule.monthlyMode !== 'WEEK' && (
+              <Select
+                size="xs"
+                w={130}
+                aria-label="Mois"
+                data={MONTH_OPTIONS}
+                value={String(values.month)}
+                allowDeselect={false}
+                comboboxProps={comboboxProps}
+                onChange={(month) => month && update({ ...values, month: Number(month) })}
+              />
+            )}
+            {rule.monthlyMode === 'WEEK' && (
+              <>
+                <Select
+                  size="xs"
+                  w={130}
+                  aria-label="Jour de la semaine"
+                  data={WEEKDAYS}
+                  value={String(values.weekday)}
+                  allowDeselect={false}
+                  comboboxProps={comboboxProps}
+                  onChange={(weekday) => weekday && update({ ...values, weekday: Number(weekday) })}
+                />
+                <NumberInput
+                  size="xs"
+                  w={130}
+                  min={1}
+                  max={53}
+                  prefix="semaine "
+                  aria-label="Semaine de l’année"
+                  value={values.week}
+                  onChange={(week) => update({ ...values, week: Math.min(53, Math.max(1, Number(week) || 1)) })}
+                />
+              </>
+            )}
+          </Group>
+        </Stack>
       )}
 
       {rule && (
@@ -203,29 +299,12 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true }
             )}
           </Stack>
 
-          {rule.exceptions.length > 0 && (
-            <Stack gap={4}>
-              <Text size="sm" fw={500}>
-                Dates supprimées
-              </Text>
-              <Group gap={6}>
-                {rule.exceptions.map((date) => (
-                  <Chip
-                    key={date}
-                    size="xs"
-                    checked={false}
-                    title="Rétablir cette date"
-                    onClick={() => update({ exceptions: rule.exceptions.filter((item) => item !== date) })}
-                  >
-                    {formatLongDate(date)} ×
-                  </Chip>
-                ))}
-              </Group>
-            </Stack>
-          )}
+          <DeletedDates dates={rule.exceptions} onChange={(dates) => update({ exceptions: dates })} />
+
+          {exceptions}
 
           <Text size="sm" c="dimmed">
-            {describeRecurrence(rule, start)}.
+            {describeRecurrence(rule, start, weekly)}.
           </Text>
         </>
       )}

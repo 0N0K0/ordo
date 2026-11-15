@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from './recurrence';
 import { dateSchema } from './workspace';
 
 /** What was done during a tracked time: plain text, several lines. Empty becomes null. */
@@ -118,6 +119,8 @@ export const alarmInputSchema = z
     interval: z.number().int().min(1, 'Au moins 1.').max(365, '365 maximum.'),
     weekdays: z.array(z.number().int().min(1).max(7)).max(7),
     endDate: dateSchema,
+    /** Repetition in the common form; none: the former fields above (ONCE: rings once). */
+    recurrence: recurrenceSchema.nullable().optional(),
     minutes: z.number().int().min(1, 'Au moins 1 minute.').max(24 * 60, '24 heures maximum.').nullable(),
     projectId: z.string().nullable(),
     taskId: z.string().nullable(),
@@ -144,9 +147,21 @@ export interface AlarmSchedule {
   interval: number;
   weekdays: number[];
   endDate: string | null;
+  /** Repetition in the common form; none: the former fields. */
+  recurrence?: unknown;
 }
 
-const DAY_MS = 86_400_000;
+/**
+ * Rule an alarm rings by: its repetition, else its former fields (once: none).
+ * @param {AlarmSchedule} schedule Schedule.
+ * @returns {Recurrence | null} Rule.
+ */
+export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
+  const stored = recurrenceSchema.safeParse(schedule.recurrence);
+  if (stored.success) return stored.data;
+  if (schedule.frequency === 'ONCE') return null;
+  return { ...DEFAULT_RECURRENCE, frequency: schedule.frequency, interval: Math.max(1, schedule.interval), weekdays: schedule.frequency === 'WEEKLY' ? schedule.weekdays : [], until: schedule.endDate };
+}
 
 /**
  * Local midnight of a YYYY-MM-DD date.
@@ -159,7 +174,7 @@ function localDay(date: string): Date {
 }
 
 /**
- * Whether the schedule rings on a given local day.
+ * Whether the schedule rings on a given local day: a day of its rule (the first day only without one).
  * @param {AlarmSchedule} schedule Schedule.
  * @param {Date} start Local first day.
  * @param {Date} day Local day.
@@ -167,30 +182,10 @@ function localDay(date: string): Date {
  */
 function ringsOn(schedule: AlarmSchedule, start: Date, day: Date): boolean {
   if (day < start) return false;
-  if (schedule.endDate && day > localDay(schedule.endDate)) return false;
-  // Rounded: days around a daylight saving change last 23 or 25 hours.
-  const days = Math.round((day.getTime() - start.getTime()) / DAY_MS);
-  const interval = Math.max(1, schedule.interval);
-  switch (schedule.frequency) {
-    case 'ONCE':
-      return days === 0;
-    case 'DAILY':
-      return days % interval === 0;
-    case 'WEEKLY': {
-      const isoDay = ((day.getDay() + 6) % 7) + 1;
-      const weekdays = schedule.weekdays.length ? schedule.weekdays : [((start.getDay() + 6) % 7) + 1];
-      // Weeks counted from the Monday of the first week.
-      const startMonday = new Date(start.getFullYear(), start.getMonth(), start.getDate() - ((start.getDay() + 6) % 7));
-      const weeks = Math.floor(Math.round((day.getTime() - startMonday.getTime()) / DAY_MS) / 7);
-      return weekdays.includes(isoDay) && weeks % interval === 0;
-    }
-    case 'MONTHLY': {
-      const months = (day.getFullYear() - start.getFullYear()) * 12 + day.getMonth() - start.getMonth();
-      // A day missing from a month (31st…) rings on its last day.
-      const lastDay = new Date(day.getFullYear(), day.getMonth() + 1, 0).getDate();
-      return months % interval === 0 && day.getDate() === Math.min(start.getDate(), lastDay);
-    }
-  }
+  const key = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const rule = alarmRule(schedule);
+  if (!rule) return key(day) === key(start);
+  return occurrenceDates(rule, key(start), key(day), key(day)).length > 0;
 }
 
 /**
@@ -233,9 +228,12 @@ export function nextOccurrence(schedule: AlarmSchedule, moment: Date): Date | nu
   if (!schedule.startDate || !schedule.time) return null;
   const start = localDay(schedule.startDate);
   const first = start > moment ? start : new Date(moment.getFullYear(), moment.getMonth(), moment.getDate());
+  // Last day it may ring: the end of its rule, its first day without one.
+  const rule = alarmRule(schedule);
+  const end = rule ? rule.until : schedule.startDate;
   for (let offset = 0; offset < 800; offset += 1) {
     const day = new Date(first.getFullYear(), first.getMonth(), first.getDate() + offset);
-    if (schedule.endDate && day > localDay(schedule.endDate)) return null;
+    if (end && day > localDay(end)) return null;
     if (!ringsOn(schedule, start, day)) continue;
     const occurrence = at(day, schedule.time);
     if (occurrence > moment) return occurrence;

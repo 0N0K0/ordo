@@ -1,4 +1,4 @@
-import { ALARM_FREQUENCIES, ALARM_TYPES } from '@ordo/shared';
+import { ALARM_FREQUENCIES, ALARM_TYPES, type AlarmInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as alarms from '../../services/alarms';
 import * as timeEntries from '../../services/time-entries';
@@ -48,6 +48,7 @@ builder.prismaObject('Alarm', {
     interval: t.exposeInt('interval'),
     weekdays: t.exposeIntList('weekdays'),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
+    recurrence: t.field({ type: 'JSON', nullable: true, description: 'Repetition in the common form; null: frequency, interval, weekdays and endDate.', resolve: (alarm) => alarm.recurrence ?? null }),
     minutes: t.exposeInt('minutes', { nullable: true }),
     projectId: t.exposeID('projectId', { nullable: true }),
     taskId: t.exposeID('taskId', { nullable: true }),
@@ -120,6 +121,7 @@ const AlarmInput = builder.inputType('AlarmInput', {
     interval: t.int({ required: true }),
     weekdays: t.intList({ required: true, description: '1 (Monday) to 7 (Sunday).' }),
     endDate: t.field({ type: 'Date' }),
+    recurrence: t.field({ type: 'JSON', description: 'Repetition in the common form; null: it rings once.' }),
     minutes: t.int(),
     projectId: t.id(),
     taskId: t.id(),
@@ -138,6 +140,7 @@ const alarmInput = (input: typeof AlarmInput.$inferInput) => ({
   startDate: input.startDate ?? null,
   time: input.time ?? null,
   endDate: input.endDate ?? null,
+  recurrence: (input.recurrence ?? null) as AlarmInput['recurrence'],
   minutes: input.minutes ?? null,
   projectId: input.projectId ?? null,
   taskId: input.taskId ?? null,

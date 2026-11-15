@@ -211,6 +211,11 @@ type Alarm {
   note: String
   project: Project
   projectId: ID
+
+  """
+  Repetition in the common form; null: frequency, interval, weekdays and endDate.
+  """
+  recurrence: JSON
   startDate: Date
   task: Task
   taskId: ID
@@ -235,6 +240,9 @@ input AlarmInput {
   minutes: Int
   note: String
   projectId: ID
+
+  """Repetition in the common form; null: it rings once."""
+  recurrence: JSON
   startDate: Date
   taskId: ID
 

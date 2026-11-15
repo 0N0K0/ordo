@@ -6,6 +6,7 @@ export * from './task-filters';
 export * from './time';
 export * from './mail';
 export * from './recurrence';
+export * from './repetition';
 export * from './calendar';
 export * from './accounting';
 export * from './accounting-documents';
