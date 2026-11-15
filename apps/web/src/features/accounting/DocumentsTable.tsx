@@ -22,6 +22,9 @@ import { openPaymentDialog } from './payment-dialog';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
 import { openSentDialog } from './sent-dialog';
 import * as fmt from '../../lib/format';
+import { useWorkspace } from '../workspace/api';
+import { projectFullPath, projectOptions } from '../workspace/tree';
+import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 
@@ -34,58 +37,157 @@ type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'impo
  */
 const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.name ?? ''));
 
-/** Columns of the documents (type and client only where they vary). */
-const DOCUMENT_COLUMNS: DataColumn<Row>[] = [
-  { id: 'number', label: 'Numéro', size: 150, locked: true, sortValue: (row) => row.document.number ?? null, text: (row) => row.document.number ?? 'Brouillon' },
-  {
-    id: 'type',
-    label: 'Type',
-    size: 130,
-    sortValue: (row) => DOCUMENT_TYPE_LABELS[row.document.type],
-    text: (row) => DOCUMENT_TYPE_LABELS[row.document.type],
-    filter: { kind: 'choice', value: (row) => row.document.type, options: Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => ({ value, label })) },
-    groupable: true,
-  },
-  {
-    id: 'date',
-    label: 'Date',
-    size: 120,
-    sortValue: (row) => row.document.issueDate,
-    text: (row) => fmt.day(row.document.issueDate),
-    filter: { kind: 'date', value: (row) => row.document.issueDate },
-  },
-  { id: 'client', label: 'Client', size: 180, sortValue: (row) => row.document.clientName ?? null, text: (row) => row.document.clientName ?? '', groupable: true },
-  { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.title ?? null, text: (row) => row.document.title ?? '' },
-  { id: 'tracking', label: 'Suivi', size: 200, sortValue: trackingText, text: trackingText, groupable: true },
-  {
-    id: 'origin',
-    label: 'Origine',
-    size: 110,
-    hiddenByDefault: true,
-    sortValue: (row) => row.kind,
-    text: (row) => (row.kind === 'imported' ? 'Importé' : 'Ordo'),
-    filter: {
-      kind: 'choice',
-      value: (row) => row.kind,
-      options: [
-        { value: 'ordo', label: 'Ordo' },
-        { value: 'imported', label: 'Importé' },
-      ],
+/**
+ * Month of a date, in words.
+ * @param {string | null | undefined} date YYYY-MM-DD.
+ * @returns {string} "Août 2026", empty without date.
+ */
+const monthText = (date: string | null | undefined) => (date ? fmt.capitalize(fmt.month(date.slice(0, 7))) : '');
+
+/**
+ * Columns of the documents (type and client only where they vary).
+ * @param {{ rows: Row[], projectNames: Map<string, string> }} env Rows (their clients and statuses offered by the filters), names of the projects.
+ * @returns {DataColumn<Row>[]} Columns.
+ */
+function documentColumns({ rows, projectNames }: { rows: Row[]; projectNames: Map<string, string> }): DataColumn<Row>[] {
+  const clients = new Map(rows.flatMap((row) => (row.document.clientId ? [[row.document.clientId, row.document.clientName ?? ''] as const] : [])));
+  const statuses = new Map(rows.map((row) => [trackingText(row), trackingText(row)] as const).filter(([name]) => name));
+  const projectOf = (row: Row) => (row.document.projectId ? (projectNames.get(row.document.projectId) ?? '') : '');
+  const money = (amount: number) => fmt.money(amount);
+  return [
+    { id: 'number', label: 'Numéro', size: 150, locked: true, sortValue: (row) => row.document.number ?? null, text: (row) => row.document.number ?? 'Brouillon' },
+    {
+      id: 'type',
+      label: 'Type',
+      size: 130,
+      sortValue: (row) => DOCUMENT_TYPE_LABELS[row.document.type],
+      text: (row) => DOCUMENT_TYPE_LABELS[row.document.type],
+      filter: { kind: 'choice', value: (row) => row.document.type, options: Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => ({ value, label })) },
+      groupable: true,
     },
-    groupable: true,
-  },
-  { id: 'net', label: 'Total HT', size: 120, numeric: true, sortValue: (row) => row.document.totalNet, text: (row) => fmt.money(row.document.totalNet, row.document.currency) },
-  { id: 'gross', label: 'Total', size: 140, numeric: true, sortValue: (row) => row.document.totalGross, text: (row) => fmt.money(row.document.totalGross, row.document.currency) },
-  {
-    id: 'balance',
-    label: 'Reste dû',
-    size: 120,
-    numeric: true,
-    hiddenByDefault: true,
-    sortValue: (row) => row.document.balance ?? 0,
-    text: (row) => (row.document.balance ? fmt.money(row.document.balance, row.document.currency) : ''),
-  },
-];
+    {
+      id: 'date',
+      label: 'Date',
+      size: 120,
+      sortValue: (row) => row.document.issueDate,
+      text: (row) => fmt.day(row.document.issueDate),
+      filter: { kind: 'date', value: (row) => row.document.issueDate },
+    },
+    {
+      id: 'month',
+      label: 'Mois',
+      size: 140,
+      hiddenByDefault: true,
+      sortValue: (row) => row.document.issueDate.slice(0, 7),
+      text: (row) => monthText(row.document.issueDate),
+      filter: false,
+      groupable: true,
+    },
+    {
+      id: 'dueDate',
+      label: 'Échéance',
+      size: 120,
+      hiddenByDefault: true,
+      sortValue: (row) => row.document.dueDate ?? null,
+      text: (row) => (row.document.dueDate ? fmt.day(row.document.dueDate) : ''),
+      filter: { kind: 'date', value: (row) => row.document.dueDate ?? null },
+    },
+    {
+      id: 'dueMonth',
+      label: 'Mois d’échéance',
+      size: 150,
+      hiddenByDefault: true,
+      sortValue: (row) => row.document.dueDate?.slice(0, 7) ?? null,
+      text: (row) => monthText(row.document.dueDate),
+      filter: false,
+      groupable: true,
+    },
+    {
+      id: 'client',
+      label: 'Client',
+      size: 180,
+      sortValue: (row) => row.document.clientName ?? null,
+      text: (row) => row.document.clientName ?? '',
+      filter: { kind: 'choice', value: (row) => row.document.clientId ?? null, options: [...clients].map(([value, label]) => ({ value, label })) },
+      groupable: true,
+    },
+    {
+      id: 'project',
+      label: 'Projet',
+      size: 200,
+      sortValue: (row) => projectOf(row) || null,
+      text: projectOf,
+      filter: { kind: 'choice', value: (row) => row.document.projectId ?? null, options: [...projectNames].map(([value, label]) => ({ value, label })) },
+      groupable: true,
+    },
+    { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.title ?? null, text: (row) => row.document.title ?? '' },
+    {
+      id: 'tracking',
+      label: 'Statut',
+      size: 200,
+      sortValue: trackingText,
+      text: trackingText,
+      filter: { kind: 'choice', value: (row) => trackingText(row) || null, options: [...statuses].map(([value, label]) => ({ value, label })) },
+      groupable: true,
+    },
+    {
+      id: 'origin',
+      label: 'Origine',
+      size: 110,
+      hiddenByDefault: true,
+      sortValue: (row) => row.kind,
+      text: (row) => (row.kind === 'imported' ? 'Importé' : 'Ordo'),
+      filter: {
+        kind: 'choice',
+        value: (row) => row.kind,
+        options: [
+          { value: 'ordo', label: 'Ordo' },
+          { value: 'imported', label: 'Importé' },
+        ],
+      },
+      groupable: true,
+    },
+    {
+      id: 'net',
+      label: 'Total HT',
+      size: 120,
+      numeric: true,
+      sortValue: (row) => row.document.totalNet,
+      formatTotal: money,
+      text: (row) => fmt.money(row.document.totalNet, row.document.currency),
+      filter: { kind: 'number', value: (row) => row.document.totalNet },
+    },
+    {
+      id: 'gross',
+      label: 'Total TTC',
+      size: 140,
+      numeric: true,
+      sortValue: (row) => row.document.totalGross,
+      formatTotal: money,
+      text: (row) => fmt.money(row.document.totalGross, row.document.currency),
+      filter: { kind: 'number', value: (row) => row.document.totalGross },
+    },
+    {
+      id: 'balance',
+      label: 'Reste dû',
+      size: 120,
+      numeric: true,
+      hiddenByDefault: true,
+      sortValue: (row) => row.document.balance ?? 0,
+      formatTotal: money,
+      text: (row) => (row.document.balance ? fmt.money(row.document.balance, row.document.currency) : ''),
+      filter: { kind: 'number', value: (row) => row.document.balance ?? 0 },
+    },
+    {
+      id: 'attachments',
+      label: 'Pièces jointes',
+      size: 220,
+      hiddenByDefault: true,
+      text: (row) => (row.kind === 'ordo' ? row.document.attachments.map((attachment) => attachment.name).join(', ') : (row.document.fileName ?? '')),
+      filter: { kind: 'boolean', value: (row) => (row.kind === 'ordo' ? row.document.attachments.length > 0 : Boolean(row.document.fileUrl)) },
+    },
+  ];
+}
 
 /**
  * Filter of the documents issued within a period.
@@ -218,18 +320,24 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     'IMPORTED_DOCUMENT',
     imported.map((document) => document.id),
   );
+  const { data: workspace } = useWorkspace();
+  const projectNames = new Map((workspace?.projects ?? []).map((project) => [project.id, projectFullPath(workspace!, project)]));
+  const projects = projectOptions(
+    workspace,
+    (workspace?.projects ?? []).filter((project) => !project.archived),
+  );
+  // Latest first, before any sort.
+  const rows = [...documents.map((document) => ({ kind: 'ordo' as const, document })), ...imported.map((document) => ({ kind: 'imported' as const, document }))].sort((a, b) =>
+    b.document.issueDate.localeCompare(a.document.issueDate),
+  ) as Row[];
   const columns = [
-    ...DOCUMENT_COLUMNS.filter((column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient)),
+    ...documentColumns({ rows, projectNames }).filter((column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient)),
     commentColumn<Row>(
       new Map([...ordoComments, ...importedComments]),
       (row) => row.document.id,
       (row) => (row.kind === 'imported' ? row.document.note : null),
     ),
   ];
-  // Latest first, before any sort.
-  const rows = [...documents.map((document) => ({ kind: 'ordo' as const, document })), ...imported.map((document) => ({ kind: 'imported' as const, document }))].sort((a, b) =>
-    b.document.issueDate.localeCompare(a.document.issueDate),
-  ) as Row[];
   const view = useDataView({ tableKey, projectId, columns, rows, title, first });
 
   /**
@@ -363,6 +471,9 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       cells={(row) => ({
         type: DOCUMENT_TYPE_LABELS[row.document.type],
         date: fmt.day(row.document.issueDate),
+        dueDate: row.document.dueDate ? fmt.day(row.document.dueDate) : null,
+        project: <DocumentProjectCell kind={row.kind} document={row.document} projects={projects} />,
+        attachments: row.kind === 'ordo' ? <DocumentAttachmentsCell kind="ordo" document={row.document} /> : <DocumentAttachmentsCell kind="imported" document={row.document} />,
         client: row.document.clientName,
         origin: row.kind === 'imported' ? 'Importé' : 'Ordo',
         net: fmt.money(row.document.totalNet, row.document.currency),

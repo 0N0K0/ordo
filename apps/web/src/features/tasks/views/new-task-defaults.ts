@@ -47,5 +47,16 @@ export function groupDefaults(groupBy: TaskGroupBy, key: string, context: TaskCo
       const parent = context.taskById.get(key);
       return parent ? { parentId: key, projectId: parent.projectId ?? undefined } : {};
     }
+    case 'beneficiaries':
+      return key.startsWith('r:') ? { beneficiaryRelationIds: [key.slice(2)] } : { beneficiaryIds: [key.replace(/^c:/, '')] };
+    // Links and months: nothing set (a new task has no link, and no day within the month is chosen).
+    case 'blockedBy':
+    case 'blocking':
+    case 'related':
+    case 'startDate':
+    case 'endDate':
+    case 'minDate':
+    case 'deadline':
+      return {};
   }
 }

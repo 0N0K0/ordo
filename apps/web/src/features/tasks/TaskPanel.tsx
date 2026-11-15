@@ -478,6 +478,14 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               />
             </Group>
             <DatePickerInput
+              label="Date min"
+              description="Avant, la tâche n’est pas à faire."
+              clearable
+              placeholder="—"
+              value={task.minDate}
+              onChange={(minDate) => save({ minDate })}
+            />
+            <DatePickerInput
               label="Date max"
               description="Au-delà, la tâche ouverte est en retard."
               clearable

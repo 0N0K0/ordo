@@ -14,7 +14,7 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
-import { blankInput, categoriesForBaseList, usePeople, type ShoppingGrouping } from './shopping-format';
+import { blankInput, EMPTY_GROUPS_LABEL, categoriesForBaseList, usePeople, type ShoppingGrouping } from './shopping-format';
 import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
@@ -70,30 +70,34 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
     'SHOPPING_PRODUCT',
     products.map((product) => product.id),
   );
-  const columns = itemColumns<ShoppingProduct>(grouping, { categories, stores: data?.shoppingStores ?? [], members: people.members, relations: people.relations }, [
-    commentColumn<ShoppingProduct>(
-      productComments,
-      (product) => product.id,
-      (product) => product.note,
-    ),
-    {
-      id: 'extra',
-      label: 'Dernier achat',
-      size: 120,
-      sortValue: (product) => product.lastPurchasedAt ?? null,
-      text: (product) => (product.lastPurchasedAt ? `${fmt.day(new Date(product.lastPurchasedAt))}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
-      filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(new Date(product.lastPurchasedAt)) : null) },
-    },
-    {
-      id: 'missing',
-      label: 'Manque',
-      size: 90,
-      hiddenByDefault: true,
-      sortValue: (product) => (product.missing ? 1 : 0),
-      text: (product) => (product.missing ? 'Manque' : ''),
-      filter: { kind: 'boolean', value: (product) => product.missing },
-    },
-  ]);
+  const columns = itemColumns<ShoppingProduct>(
+    grouping,
+    { categories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations },
+    [
+      commentColumn<ShoppingProduct>(
+        productComments,
+        (product) => product.id,
+        (product) => product.note,
+      ),
+      {
+        id: 'extra',
+        label: 'Dernier achat',
+        size: 120,
+        sortValue: (product) => product.lastPurchasedAt ?? null,
+        text: (product) => (product.lastPurchasedAt ? `${fmt.day(new Date(product.lastPurchasedAt))}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
+        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(new Date(product.lastPurchasedAt)) : null) },
+      },
+      {
+        id: 'missing',
+        label: 'Manque',
+        size: 90,
+        hiddenByDefault: true,
+        sortValue: (product) => (product.missing ? 1 : 0),
+        text: (product) => (product.missing ? 'Manque' : ''),
+        filter: { kind: 'boolean', value: (product) => product.missing },
+      },
+    ],
+  );
   const view = useDataView({ tableKey: 'shopping-base-list', columns, rows: products, title: baseList.name, first: BASE_LIST_VIEWS });
   const onError = (error: Error) => notifyError(error.message);
 
@@ -124,7 +128,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         displayOptions={
           <>
             <GroupingControl value={grouping} onChange={setGrouping} />
-            <Switch label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
+            <Switch label={EMPTY_GROUPS_LABEL[grouping]} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
           </>
         }
       />

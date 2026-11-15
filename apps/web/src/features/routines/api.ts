@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { Recurrence, RoutineCategoryInput, RoutineInput } from '@ordo/shared';
+import type { Recurrence, RoutineCategoryInput, RoutineInput, SlotRule } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
@@ -354,6 +354,14 @@ export interface RoutinePatchValues {
   beneficiaryRelationIds?: string[];
   requiredIds?: string[];
   projectId?: string | null;
+  location?: string | null;
+  locationLat?: number | null;
+  locationLon?: number | null;
+  travelBefore?: number;
+  travelAfter?: number;
+  reminders?: number[];
+  opensOn?: string | null;
+  slotRule?: SlotRule | null;
   fromTime?: string | null;
   dueTime?: string | null;
   startDate?: string;

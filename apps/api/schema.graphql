@@ -272,6 +272,7 @@ input BulkTaskInput {
   effort: Float
   endDate: Date
   milestoneId: ID
+  minDate: Date
   priorityId: ID
   removeAssigneeIds: [ID!]
   removeSprintIds: [ID!]
@@ -613,6 +614,7 @@ enum CommentTarget {
   RELATION
   ROUTINE
   SCHEDULE
+  SHOPPING_ITEM
   SHOPPING_LIST
   SHOPPING_PRODUCT
   TIME_ENTRY
@@ -1841,6 +1843,9 @@ type Mutation {
   """Sends a scheduled (or failed) mail now."""
   sendScheduledMail(id: ID!): Boolean!
 
+  """Moves a document (draft or final) to a project, or out of any."""
+  setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
+
   """
   Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.
   """
@@ -1861,6 +1866,9 @@ type Mutation {
 
   """Saves the personal access token once checked; returns the login."""
   setGithubToken(token: String!): String!
+
+  """Moves an imported document to a project, or out of any."""
+  setImportedDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
   Sets the tracking status of an imported document by hand (none: clears it).
@@ -2760,15 +2768,35 @@ input RoutinePatch {
   """HH:MM; null: no limit."""
   fromTime: String
 
+  """Null: none (its point too)."""
+  location: String
+  locationLat: Float
+  locationLon: Float
+
+  """« À partir du »: "DD" (monthly) or "MM-DD" (yearly); null: none."""
+  opensOn: String
+
   """Null: top level."""
   parentId: ID
 
   """Null: none."""
   projectId: ID
   recurrence: JSON
+
+  """Minutes before its moment."""
+  reminders: [Int!]
   requiredIds: [ID!]
+
+  """Slots it is done on; null: the default of the workspace."""
+  slotRule: JSON
   startDate: Date
   title: String
+
+  """Minutes to come back."""
+  travelAfter: Int
+
+  """Minutes to get there."""
+  travelBefore: Int
 }
 
 """Where a routine is dropped, relative to another one."""
@@ -3130,6 +3158,9 @@ type Task {
   id: ID!
   milestoneId: ID
 
+  """Earliest acceptable date ("Date min"): not to be done before."""
+  minDate: Date
+
   """
   Number within its project (#12); none without project. Links use the id.
   """
@@ -3193,6 +3224,7 @@ input TaskInput {
   effort: Float
   endDate: Date
   milestoneId: ID
+  minDate: Date
   parentId: ID
   priorityId: ID
 
@@ -3298,6 +3330,7 @@ input TaskUpdateInput {
   effort: Float
   endDate: Date
   milestoneId: ID
+  minDate: Date
   parentId: ID
   priorityId: ID
 

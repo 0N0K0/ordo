@@ -10,7 +10,7 @@ import {
   type WeekSpan,
 } from '@ordo/shared';
 import { prisma } from '../db';
-import type { Prisma } from '../generated/prisma/client';
+import { Prisma } from '../generated/prisma/client';
 import { doableTaskIds } from './slot-rules';
 import { currentWeek } from './workspaces';
 
@@ -62,7 +62,7 @@ function resolvePeriod(token: string, clock: FilterClock): [number, number] {
   return [dayValue(start), dayValue(end)];
 }
 
-type DateField = 'startDate' | 'endDate' | 'deadline' | 'createdAt' | 'updatedAt';
+type DateField = 'startDate' | 'endDate' | 'deadline' | 'minDate' | 'createdAt' | 'updatedAt';
 
 /**
  * Converts a calendar day boundary to the stored value of a field: calendar dates are stored as UTC
@@ -88,6 +88,8 @@ interface Trees {
   sprintsWhere: (operator: RelativeSprintOperator) => string[];
   /** Open tasks allowed now by their slot rule; loaded only when a condition uses it. */
   doableIds: string[];
+  /** Tasks whose tracked time (hours) meets a comparison; loaded only when a condition uses it. */
+  trackedIds: (operator: string, hours: number) => string[];
 }
 
 /**
@@ -102,10 +104,12 @@ async function loadTrees(filter: FilterGroup, clock: FilterClock, user: FilterUs
   const fields = new Set<string>();
   let relativeSprints = false;
   let doable = false;
+  let tracked = false;
   const collect = (group: FilterGroup): void =>
     group.children.forEach((child) => {
       if (child.type === 'group') collect(child);
       else if (child.field === 'doableNow') doable = true;
+      else if (child.field === 'trackedHours') tracked = true;
       else if (child.operator === 'inTree') fields.add(child.field);
       else if (child.field === 'sprint' && !['in', 'notIn', 'allOf', 'isEmpty', 'isNotEmpty'].includes(child.operator)) relativeSprints = true;
     });
@@ -131,13 +135,29 @@ async function loadTrees(filter: FilterGroup, clock: FilterClock, user: FilterUs
     return [...result];
   };
 
-  const [projects, tasks, sprints, doableIds] = await Promise.all([
+  const [projects, tasks, sprints, doableIds, entries] = await Promise.all([
     fields.has('project') || relativeSprints ? prisma.project.findMany({ select: { id: true, parentId: true } }) : [],
     fields.has('parent') ? prisma.task.findMany({ select: { id: true, parentId: true } }) : [],
     relativeSprints ? prisma.sprint.findMany({ select: { id: true, projectId: true, startDate: true, endDate: true } }) : [],
     doable ? doableTaskIds(clock.utcOffset, user.contributorId) : [],
+    tracked
+      ? prisma.timeEntry.findMany({ where: { duration: { not: null }, tasks: { some: {} } }, select: { duration: true, tasks: { select: { id: true } } } })
+      : [],
   ]);
-  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock), doableIds };
+  // Hours of each task: a time entry is shared equally between its tasks.
+  const hours = new Map<string, number>();
+  for (const entry of entries) for (const task of entry.tasks) hours.set(task.id, (hours.get(task.id) ?? 0) + (entry.duration ?? 0) / entry.tasks.length / 3600);
+  const compare: Record<string, (value: number, wanted: number) => boolean> = {
+    eq: (value, wanted) => Math.abs(value - wanted) < 0.005,
+    neq: (value, wanted) => Math.abs(value - wanted) >= 0.005,
+    lt: (value, wanted) => value < wanted,
+    lte: (value, wanted) => value <= wanted,
+    gt: (value, wanted) => value > wanted,
+    gte: (value, wanted) => value >= wanted,
+  };
+  const trackedIds = (operator: string, wanted: number) =>
+    operator === 'isEmpty' ? [] : operator === 'isNotEmpty' ? [...hours.keys()] : [...hours].filter(([, value]) => (compare[operator] ?? compare.gte)(value, wanted)).map(([id]) => id);
+  return { projectDescendants: descendantsOf(projects), taskDescendants: descendantsOf(tasks), sprintsWhere: relativeSprintIds(sprints, projects, clock), doableIds, trackedIds };
 }
 
 /**
@@ -244,6 +264,8 @@ function conditionWhere(
     }
 
     case 'number': {
+      // Time tracked: none, some, or compared (in hours).
+      if (field === 'trackedHours') return operator === 'isEmpty' ? { id: { notIn: trees.trackedIds('isNotEmpty', 0) } } : { id: { in: trees.trackedIds(operator, number) } };
       const key = field as 'number' | 'effort';
       switch (operator) {
         case 'eq':
@@ -265,7 +287,7 @@ function conditionWhere(
 
     case 'date': {
       const key = field as DateField;
-      const nullable = key === 'startDate' || key === 'endDate' || key === 'deadline';
+      const nullable = key === 'startDate' || key === 'endDate' || key === 'deadline' || key === 'minDate';
       if (operator === 'isEmpty') return nullable ? { [key]: null } : NEVER;
       if (operator === 'isNotEmpty') return nullable ? { NOT: { [key]: null } } : {};
       const at = (day: number) => boundary(key, day, clock);
@@ -316,6 +338,39 @@ function conditionWhere(
     }
 
     case 'multiReference': {
+      if (field === 'beneficiaries') {
+        // « c:<contributor> » or « r:<relation> ».
+        const one = (id: string): Prisma.TaskWhereInput =>
+          id.startsWith('r:') ? { beneficiaryRelations: { some: { id: id.slice(2) } } } : { beneficiaries: { some: { id: id.startsWith('c:') ? id.slice(2) : id } } };
+        const none: Prisma.TaskWhereInput = { beneficiaries: { none: {} }, beneficiaryRelations: { none: {} } };
+        if (operator === 'isEmpty') return none;
+        if (operator === 'isNotEmpty') return { NOT: none };
+        if (operator === 'allOf') return { AND: ids.map(one) };
+        if (operator === 'noneOf') return { NOT: { OR: ids.map(one) } };
+        return { OR: ids.map(one) };
+      }
+      if (field === 'slots') {
+        // Kinds named by the rule, during or out of.
+        const one = (kind: string): Prisma.TaskWhereInput => ({ OR: [{ slotRule: { path: ['inside'], array_contains: [kind] } }, { slotRule: { path: ['outside'], array_contains: [kind] } }] });
+        if (operator === 'isEmpty') return { slotRule: { equals: Prisma.DbNull } };
+        if (operator === 'isNotEmpty') return { NOT: { slotRule: { equals: Prisma.DbNull } } };
+        if (operator === 'allOf') return { AND: ids.map(one) };
+        if (operator === 'noneOf') return { NOT: { OR: ids.map(one) } };
+        return { OR: ids.map(one) };
+      }
+      if (field === 'dependsOn' || field === 'blocks' || field === 'relatedTo') {
+        const link = (some: Prisma.TaskWhereInput | null): Prisma.TaskWhereInput => {
+          const other = some ?? {};
+          if (field === 'dependsOn') return { blockedBy: { some: { blocker: other } } };
+          if (field === 'blocks') return { blocking: { some: { blocked: other } } };
+          return { OR: [{ relationsA: { some: { taskB: other } } }, { relationsB: { some: { taskA: other } } }] };
+        };
+        if (operator === 'isEmpty') return { NOT: link(null) };
+        if (operator === 'isNotEmpty') return link(null);
+        if (operator === 'allOf') return { AND: ids.map((id) => link({ id })) };
+        if (operator === 'noneOf') return { NOT: link({ id: { in: ids } }) };
+        return link({ id: { in: ids } });
+      }
       const key = field === 'tags' ? 'tags' : 'assignees';
       switch (operator) {
         case 'anyOf':
@@ -359,6 +414,13 @@ function conditionWhere(
 
     case 'boolean': {
       if (field === 'doableNow') return operator === 'isTrue' ? { id: { in: trees.doableIds } } : { id: { notIn: trees.doableIds } };
+      const extra: Partial<Record<string, Prisma.TaskWhereInput>> = {
+        hasShopping: { shoppingLists: { some: {} } },
+        hasAlarms: { alarms: { some: {} } },
+        // A description counts as a comment.
+        hasComments: { OR: [{ comments: { some: {} } }, { AND: [{ NOT: { description: null } }, { NOT: { description: '' } }] }] },
+      };
+      if (extra[field]) return operator === 'isTrue' ? extra[field]! : { NOT: extra[field]! };
       const today = new Date(dayValue(clock.today));
       const truth: Prisma.TaskWhereInput = {
         // Past its "Date max".

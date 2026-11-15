@@ -3,6 +3,7 @@ import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../use-task-context';
 import { beneficiaryNames } from '../../beneficiaries/use-beneficiaries';
+import * as fmt from '../../../lib/format';
 
 export interface TaskRow {
   kind: 'task';
@@ -57,6 +58,20 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return task.typeId ? (context.typeById.get(task.typeId)?.position ?? null) : null;
     case 'beneficiaries':
       return beneficiaryNames(task, context).sort(collator.compare)[0] ?? null;
+    case 'minDate':
+      return task.minDate ? String(task.minDate) : null;
+    case 'subtasks':
+      return context.childrenOf(task.id).length || null;
+    case 'progress': {
+      // Share of the sub-tasks closed.
+      const children = context.childrenOf(task.id);
+      return children.length ? children.filter((child) => child.closed).length / children.length : null;
+    }
+    case 'slots':
+    case 'timer':
+    case 'alarms':
+    case 'shopping':
+      return null;
     case 'assignees': {
       const names = task.assigneeIds.map((id) => context.contributorById.get(id)?.name ?? '').sort(collator.compare);
       return names[0] ?? null;
@@ -261,6 +276,30 @@ function groupsOf(task: Task, groupBy: TaskGroupBy, context: TaskContext): Group
       const sprints = task.sprintIds.map((id) => context.sprintById.get(id)).filter((sprint) => sprint !== undefined);
       if (sprints.length === 0) return none('Sans sprint');
       return sprints.map((sprint) => ({ key: sprint.id, label: sprint.name, order: `${sprint.startDate} ${sprint.name}` }));
+    }
+    case 'beneficiaries': {
+      // In the group of each of its beneficiaries (contributors, then relations).
+      const names = beneficiaryNames(task, context);
+      const keys = [...task.beneficiaryIds.map((id) => `c:${id}`), ...task.beneficiaryRelationIds.map((id) => `r:${id}`)];
+      if (names.length === 0) return none('Sans bénéficiaire');
+      return names.map((name, index) => ({ key: keys[index] ?? name, label: name, order: name }));
+    }
+    case 'blockedBy':
+    case 'blocking':
+    case 'related': {
+      const ids = { blockedBy: task.blockedByIds, blocking: task.blockingIds, related: task.relatedIds }[groupBy];
+      const linked = ids.map((id) => context.taskById.get(id)).filter((other) => other !== undefined);
+      if (linked.length === 0) return none({ blockedBy: 'Ne dépend de rien', blocking: 'Ne bloque rien', related: 'Sans tâche relative' }[groupBy]);
+      return linked.map((other) => ({ key: other.id, label: context.taskLabel(other, task.projectId), order: other.number ?? other.title }));
+    }
+    case 'startDate':
+    case 'endDate':
+    case 'minDate':
+    case 'deadline': {
+      // By month of the date.
+      const day = task[groupBy] ? String(task[groupBy]).slice(0, 10) : null;
+      if (!day) return none({ startDate: 'Sans début', endDate: 'Sans fin', minDate: 'Sans date min', deadline: 'Sans date max' }[groupBy]);
+      return [{ key: day.slice(0, 7), label: fmt.capitalize(fmt.month(day.slice(0, 7))), order: day.slice(0, 7) }];
     }
   }
 }

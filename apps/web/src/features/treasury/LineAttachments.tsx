@@ -65,7 +65,7 @@ export function LineAttachments({ line, onChange, entryId, projects, documentGro
         description={
           line.relationId
             ? 'Une sortie prête à la relation (ou lui rembourse ce que vous lui devez), une entrée vous fait prêter par elle (ou vous rembourse). Suivi dans l’onglet Prêts.'
-            : 'Choisissez d’abord une relation dans la colonne « Pour ».'
+            : 'Choisissez d’abord une relation dans la colonne « Bénéficiaire ».'
         }
         disabled={!line.relationId}
         checked={line.loan}

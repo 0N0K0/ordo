@@ -8,6 +8,7 @@ import { EVENT_STATES, eventState, eventWhen } from './event-format';
 import type { DisplayRow } from './task-rows';
 import * as fmt from '../../../lib/format';
 import { beneficiaryNames } from '../../beneficiaries/use-beneficiaries';
+import { taskRef } from '../use-task-context';
 
 export interface ExportRow {
   kind: 'group' | 'task' | 'event';
@@ -82,6 +83,24 @@ function taskCell(task: Task, column: TaskColumn, context: TaskContext): string 
       return printedDay(task.endDate);
     case 'deadline':
       return printedDay(task.deadline);
+    case 'minDate':
+      return task.minDate ? fmt.exportDay(String(task.minDate)) : '';
+    case 'slots':
+      return '';
+    case 'timer':
+      return '';
+    case 'subtasks':
+      return context
+        .childrenOf(task.id)
+        .map((child) => `${taskRef(child)}${child.title}`)
+        .join(', ');
+    case 'progress': {
+      const children = context.childrenOf(task.id);
+      return children.length ? `${children.filter((child) => child.closed).length} / ${children.length}` : '';
+    }
+    case 'alarms':
+    case 'shopping':
+      return '';
     case 'parent': {
       const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
       return parent ? context.taskLabel(parent, task.projectId) : '';

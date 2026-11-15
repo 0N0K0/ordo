@@ -48,6 +48,42 @@ const repeatLabel = (every: number | null) => (!every ? 'Ce mois seulement' : ev
  */
 const monthLabel = (month: string) => fmt.month(month);
 
+/**
+ * Month of a budget, picked in place (or cleared, when it may be empty).
+ * @param {{ value: string | null, label: string, nullable?: boolean, minMonth?: string, onSave: (month: string | null) => void }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+function MonthCell({ value, label, nullable = false, minMonth, onSave }: { value: string | null; label: string; nullable?: boolean; minMonth?: string; onSave: (month: string | null) => void }) {
+  return (
+    <MonthPickerInput
+      variant="unstyled"
+      size="xs"
+      aria-label={label}
+      placeholder={nullable ? 'Sans fin' : '—'}
+      clearable={nullable}
+      minDate={minMonth ? `${minMonth}-01` : undefined}
+      value={value ? `${value}-01` : null}
+      valueFormat="MMMM YYYY"
+      popoverProps={{ withinPortal: true }}
+      onChange={(next) => {
+        const month = next ? String(next).slice(0, 7) : null;
+        if ((month || nullable) && month !== value) onSave(month);
+      }}
+      onClick={(event) => event.stopPropagation()}
+    />
+  );
+}
+
+/** Repetitions offered in a cell (months between two of its months; ONCE: that month only). */
+const REPEAT_CHOICES = [
+  { value: 'ONCE', label: 'Ce mois seulement' },
+  { value: '1', label: 'Tous les mois' },
+  { value: '2', label: 'Tous les 2 mois' },
+  { value: '3', label: 'Tous les 3 mois' },
+  { value: '6', label: 'Tous les 6 mois' },
+  { value: '12', label: 'Tous les ans' },
+];
+
 interface BudgetValues extends Record<string, unknown> {
   month: string;
   memberId: string | null;
@@ -130,7 +166,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
         <Stack gap="sm">
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <MonthPickerInput
-              label={values.repeatEvery ? 'Premier mois' : 'Mois'}
+              label={values.repeatEvery ? 'À partir de' : 'Mois'}
               required
               value={`${values.month}-01`}
               onChange={(value) => value && form.setFieldValue('month', String(value).slice(0, 7))}
@@ -171,7 +207,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
           />
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
             <Select
-              label="Pour"
+              label="Bénéficiaire"
               placeholder={me ? `${me.name} (moi)` : 'Moi'}
               clearable
               searchable
@@ -260,10 +296,10 @@ export function BudgetsPanel() {
   /**
    * Saves fields of a budget changed in their cells (its repetitions follow, as from its form).
    * @param {TreasuryBudget} budget Budget.
-   * @param {{ categoryId?: string, amount?: number }} change Change.
+   * @param {Partial<BudgetValues>} change Change.
    * @returns {void}
    */
-  const saveBudget = (budget: TreasuryBudget, change: { categoryId?: string; amount?: number }) =>
+  const saveBudget = (budget: TreasuryBudget, change: Partial<BudgetValues>) =>
     save.mutate(
       {
         id: budget.id,
@@ -277,6 +313,8 @@ export function BudgetsPanel() {
           repeatEvery: budget.repeatEvery ?? null,
           repeatUntil: budget.repeatUntil ?? null,
           ...change,
+          // A budget of a single month ends with it.
+          ...(change.repeatEvery === null ? { repeatUntil: null } : {}),
         },
       },
       { onError: (error) => notifyError(error.message) },
@@ -301,6 +339,14 @@ export function BudgetsPanel() {
    * @returns {number} Amount (positive: used).
    */
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
+  // "Me" (no member nor relation), and the everyday context, in the filters.
+  const ME_KEY = 'none';
+  const whoKey = (row: { memberId?: string | null; relationId?: string | null }) => (row.relationId ? `r:${row.relationId}` : row.memberId && row.memberId !== me?.id ? `m:${row.memberId}` : null);
+  const whoChoices = [
+    { value: ME_KEY, label: `${me?.name ?? 'Moi'} (moi)` },
+    ...(settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: `m:${member.id}`, label: member.name })),
+    ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: `r:${relation.id}`, label: relation.name })),
+  ];
   type KeyRow = { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null };
   /**
    * Cells of the key of a budget (or of a report row): for whom, context, category.
@@ -346,10 +392,11 @@ export function BudgetsPanel() {
   const keyColumns = <R extends KeyRow>(): DataColumn<R>[] => [
     {
       id: 'who',
-      label: 'Pour',
+      label: 'Bénéficiaire',
       size: 180,
       sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : ''),
       text: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : `${me?.name ?? 'Moi'} (moi)`),
+      filter: { kind: 'choice', value: (row) => whoKey(row) ?? ME_KEY, options: whoChoices },
       groupable: true,
     },
     {
@@ -358,6 +405,7 @@ export function BudgetsPanel() {
       size: 160,
       sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : ''),
       text: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT),
+      filter: { kind: 'choice', value: (row) => row.contextId ?? ME_KEY, options: [{ value: ME_KEY, label: EVERYDAY_CONTEXT }, ...[...contextName].map(([value, label]) => ({ value, label }))] },
       groupable: true,
     },
     {
@@ -367,6 +415,7 @@ export function BudgetsPanel() {
       locked: true,
       sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null),
       text: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : 'Sans catégorie'),
+      filter: { kind: 'choice', value: (row) => row.categoryId ?? null, options: [...paths].map(([value, label]) => ({ value, label })) },
       groupable: true,
     },
   ];
@@ -376,16 +425,41 @@ export function BudgetsPanel() {
     rows: budgeted,
     columns: [
       ...keyColumns<BudgetReportRow>(),
-      { id: 'budget', label: 'Budget', size: 120, numeric: true, sortValue: (row) => row.budget, text: (row) => fmt.money(row.budget) },
-      { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => used(row, 'actual'), text: (row) => fmt.money(used(row, 'actual')) },
-      { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => used(row, 'forecast'), text: (row) => fmt.money(used(row, 'forecast')) },
+      {
+        id: 'budget',
+        label: 'Montant du budget',
+        size: 140,
+        numeric: true,
+        sortValue: (row) => row.budget,
+        text: (row) => fmt.money(row.budget),
+        filter: { kind: 'number', value: (row) => row.budget },
+      },
+      {
+        id: 'actual',
+        label: 'Montant réel',
+        size: 130,
+        numeric: true,
+        sortValue: (row) => used(row, 'actual'),
+        text: (row) => fmt.money(used(row, 'actual')),
+        filter: { kind: 'number', value: (row) => used(row, 'actual') },
+      },
+      {
+        id: 'forecast',
+        label: 'Montant prévu',
+        size: 130,
+        numeric: true,
+        sortValue: (row) => used(row, 'forecast'),
+        text: (row) => fmt.money(used(row, 'forecast')),
+        filter: { kind: 'number', value: (row) => used(row, 'forecast') },
+      },
       {
         id: 'left',
-        label: 'Reste',
-        size: 120,
+        label: 'Montant restant',
+        size: 140,
         numeric: true,
         sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast'),
         text: (row) => fmt.money(row.budget - used(row, 'actual') - used(row, 'forecast')),
+        filter: { kind: 'number', value: (row) => row.budget - used(row, 'actual') - used(row, 'forecast') },
       },
       {
         id: 'progress',
@@ -403,8 +477,16 @@ export function BudgetsPanel() {
     rows: outside,
     columns: [
       ...keyColumns<BudgetReportRow>(),
-      { id: 'actual', label: 'Réel', size: 120, numeric: true, sortValue: (row) => row.actual, text: (row) => fmt.money(row.actual) },
-      { id: 'forecast', label: 'Prévu', size: 120, numeric: true, sortValue: (row) => row.forecast, text: (row) => fmt.money(row.forecast) },
+      { id: 'actual', label: 'Montant réel', size: 130, numeric: true, sortValue: (row) => row.actual, text: (row) => fmt.money(row.actual), filter: { kind: 'number', value: (row) => row.actual } },
+      {
+        id: 'forecast',
+        label: 'Montant prévu',
+        size: 130,
+        numeric: true,
+        sortValue: (row) => row.forecast,
+        text: (row) => fmt.money(row.forecast),
+        filter: { kind: 'number', value: (row) => row.forecast },
+      },
     ],
   });
   const budgetComments = useCommentCounts(
@@ -416,17 +498,14 @@ export function BudgetsPanel() {
     title: 'Budgets',
     rows: data?.treasuryBudgets ?? [],
     columns: [
-      commentColumn<TreasuryBudget>(budgetComments, (budget) => budget.id),
       {
-        id: 'period',
-        label: 'Période',
-        size: 220,
+        id: 'month',
+        label: 'À partir de',
+        size: 150,
         sortValue: (budget: TreasuryBudget) => budget.month,
-        text: (budget: TreasuryBudget) =>
-          `${budget.repeatEvery ? `Dès ${monthLabel(budget.month)}` : monthLabel(budget.month)}${budget.repeatUntil ? ` jusqu’à ${monthLabel(budget.repeatUntil)}` : ''}`,
+        text: (budget: TreasuryBudget) => monthLabel(budget.month),
         filter: { kind: 'date', value: (budget: TreasuryBudget) => `${budget.month}-01` },
       },
-      ...keyColumns<TreasuryBudget>(),
       {
         id: 'amount',
         label: 'Montant',
@@ -434,7 +513,19 @@ export function BudgetsPanel() {
         numeric: true,
         sortValue: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount),
         text: (budget) => `${directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}${fmt.money(budget.amount)}`,
+        filter: { kind: 'number', value: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount) },
       },
+      ...keyColumns<TreasuryBudget>(),
+      { id: 'repeat', label: 'Répétition', size: 170, sortValue: (budget) => budget.repeatEvery ?? 0, text: (budget) => repeatLabel(budget.repeatEvery ?? null), groupable: true },
+      {
+        id: 'until',
+        label: 'Jusqu’à',
+        size: 150,
+        sortValue: (budget) => (budget.repeatEvery ? (budget.repeatUntil ?? '9999-12') : budget.month),
+        text: (budget) => (budget.repeatEvery ? (budget.repeatUntil ? monthLabel(budget.repeatUntil) : 'Sans fin') : monthLabel(budget.month)),
+        filter: { kind: 'date', value: (budget) => (budget.repeatEvery ? (budget.repeatUntil ? `${budget.repeatUntil}-01` : null) : `${budget.month}-01`) },
+      },
+      commentColumn<TreasuryBudget>(budgetComments, (budget) => budget.id),
     ],
   });
 
@@ -564,20 +655,46 @@ export function BudgetsPanel() {
             verticalSpacing={4}
             getKey={(budget) => budget.id}
             cells={(budget) => ({
-              period: (
-                <>
-                  <Text size="sm">
-                    {budget.repeatEvery ? `Dès ${monthLabel(budget.month)}` : monthLabel(budget.month)}
-                    {budget.repeatUntil ? ` jusqu’à ${monthLabel(budget.repeatUntil)}` : ''}
-                  </Text>
-                  {budget.repeatEvery && (
-                    <Badge size="xs" variant="light">
-                      {repeatLabel(budget.repeatEvery)}
-                    </Badge>
-                  )}
-                </>
+              month: <MonthCell value={budget.month} label="Premier mois du budget" onSave={(month) => month && saveBudget(budget, { month })} />,
+              repeat: (
+                <EditableSelect
+                  value={budget.repeatEvery ? String(budget.repeatEvery) : 'ONCE'}
+                  label="Répétition du budget"
+                  data={[
+                    ...REPEAT_CHOICES,
+                    ...(budget.repeatEvery && !REPEAT_CHOICES.some((choice) => choice.value === String(budget.repeatEvery))
+                      ? [{ value: String(budget.repeatEvery), label: repeatLabel(budget.repeatEvery) }]
+                      : []),
+                  ]}
+                  onSave={(every) => every && saveBudget(budget, { repeatEvery: every === 'ONCE' ? null : Number(every) })}
+                />
+              ),
+              until: budget.repeatEvery ? (
+                <MonthCell value={budget.repeatUntil ?? null} label="Dernier mois du budget" nullable minMonth={budget.month} onSave={(repeatUntil) => saveBudget(budget, { repeatUntil })} />
+              ) : (
+                <Text size="sm" c="dimmed">
+                  {monthLabel(budget.month)}
+                </Text>
               ),
               ...keyContent(budget),
+              who: (
+                <EditableSelect
+                  value={whoKey(budget)}
+                  label="Bénéficiaire du budget"
+                  nullable
+                  data={whoChoices.filter((choice) => choice.value !== ME_KEY)}
+                  onSave={(key) => saveBudget(budget, { memberId: key?.startsWith('m:') ? key.slice(2) : null, relationId: key?.startsWith('r:') ? key.slice(2) : null })}
+                />
+              ),
+              context: (
+                <EditableSelect
+                  value={budget.contextId ?? null}
+                  label="Contexte du budget"
+                  nullable
+                  data={[...contextName].map(([value, label]) => ({ value, label }))}
+                  onSave={(contextId) => saveBudget(budget, { contextId })}
+                />
+              ),
               category: (
                 <EditableSelect
                   value={budget.categoryId}

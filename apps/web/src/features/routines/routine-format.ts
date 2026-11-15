@@ -268,3 +268,14 @@ export function movableOccurrence(routine: Routine): string | null {
  */
 export const moveTo = (routine: Routine, date: string | null): (RoutineMove & { to: string }) | undefined =>
   date ? (movesOf(routine).find((move) => move.to === date && move.from !== date) as (RoutineMove & { to: string }) | undefined) : undefined;
+
+/** Alert presets, in minutes before the moment of the routine. */
+export const ROUTINE_REMINDERS: { value: number; label: string }[] = [
+  { value: 0, label: 'À l’heure' },
+  { value: 5, label: '5 min avant' },
+  { value: 10, label: '10 min avant' },
+  { value: 15, label: '15 min avant' },
+  { value: 30, label: '30 min avant' },
+  { value: 60, label: '1 h avant' },
+  { value: 120, label: '2 h avant' },
+];

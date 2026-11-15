@@ -32,7 +32,9 @@ import { openShoppingForm } from './open-shopping-form';
 import { ListActionsMenu } from './ListActions';
 import { openFormPanel } from '../../components/panels/panels';
 import { ProductPicker } from './ProductPicker';
-import { blankInput, listClosed, listTasks, usePeople, type ShoppingGrouping } from './shopping-format';
+import { useCommentCounts } from '../comments/api';
+import { commentColumn } from '../comments/comment-column';
+import { blankInput, EMPTY_GROUPS_LABEL, listClosed, listTasks, usePeople, type ShoppingGrouping } from './shopping-format';
 import { ShoppingSettings } from './ShoppingSettings';
 import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
@@ -69,17 +71,30 @@ export function ShoppingListPage() {
   // Projects of the list, through its tasks: their contributors are the members offered.
   const listProjects = list ? [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))] : [];
   const people = usePeople();
-  const columns = itemColumns<ShoppingItem>(grouping, { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [], members: people.members, relations: people.relations }, [
-    {
-      id: 'bought',
-      label: 'Acheté',
-      size: 100,
-      hiddenByDefault: true,
-      sortValue: (item) => (item.purchasedAt ? 1 : 0),
-      text: (item) => (item.purchasedAt ? 'Acheté' : ''),
-      filter: { kind: 'boolean', value: (item) => Boolean(item.purchasedAt) },
-    },
-  ]);
+  const itemComments = useCommentCounts(
+    'SHOPPING_ITEM',
+    (list?.items ?? []).map((item) => item.id),
+  );
+  const columns = itemColumns<ShoppingItem>(
+    grouping,
+    { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations },
+    [
+      {
+        id: 'bought',
+        label: 'Acheté',
+        size: 100,
+        hiddenByDefault: true,
+        sortValue: (item) => (item.purchasedAt ? 1 : 0),
+        text: (item) => (item.purchasedAt ? 'Acheté' : ''),
+        filter: { kind: 'boolean', value: (item) => Boolean(item.purchasedAt) },
+      },
+      commentColumn<ShoppingItem>(
+        itemComments,
+        (item) => item.id,
+        (item) => item.note,
+      ),
+    ],
+  );
   const view = useDataView({ tableKey: 'shopping-list', columns, rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position), title: list?.name ?? 'Liste d’achats', first: LIST_VIEWS });
 
   if (isPending) {
@@ -155,7 +170,7 @@ export function ShoppingListPage() {
         displayOptions={
           <>
             <GroupingControl value={grouping} onChange={setGrouping} />
-            <Switch label={grouping === 'category' ? 'Catégories vides' : 'Magasins vides'} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
+            <Switch label={EMPTY_GROUPS_LABEL[grouping]} checked={showEmpty} onChange={(event) => setShowEmpty(event.currentTarget.checked)} />
           </>
         }
         actions={
