@@ -282,3 +282,33 @@ export const ROUTINE_REMINDERS: { value: number; label: string }[] = [
   { value: 60, label: '1 h avant' },
   { value: 120, label: '2 h avant' },
 ];
+
+/**
+ * Manual order of the routines, as their list shows it: each under its parent routine, siblings by their position.
+ * @param {readonly { id: string, parentId: string | null, position: number }[]} routines Routines.
+ * @returns {Map<string, number>} Rank of each routine.
+ */
+export function manualOrder(routines: readonly { id: string; parentId: string | null; position: number }[]): Map<string, number> {
+  const known = new Set(routines.map((routine) => routine.id));
+  const children = new Map<string | null, { id: string; position: number }[]>();
+  for (const routine of routines) {
+    // A routine whose parent is missing comes at the top level.
+    const parent = routine.parentId && known.has(routine.parentId) ? routine.parentId : null;
+    children.set(parent, [...(children.get(parent) ?? []), routine]);
+  }
+  const rank = new Map<string, number>();
+  /**
+   * Ranks the routines under a parent, depth first.
+   * @param {string | null} parent Parent.
+   * @returns {void}
+   */
+  const visit = (parent: string | null) => {
+    for (const child of [...(children.get(parent) ?? [])].sort((a, b) => a.position - b.position)) {
+      if (rank.has(child.id)) continue;
+      rank.set(child.id, rank.size);
+      visit(child.id);
+    }
+  };
+  visit(null);
+  return rank;
+}
