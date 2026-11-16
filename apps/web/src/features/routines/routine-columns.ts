@@ -12,7 +12,6 @@ export const ROUTINE_COLUMNS: DataColumn<Routine>[] = [
   { id: 'fromTime', label: 'À partir de', size: 110 },
   { id: 'dueTime', label: 'Avant', size: 110 },
   { id: 'opensOn', label: 'À partir du', size: 120, hiddenByDefault: true },
-  { id: 'slots', label: 'Plages', size: 200, hiddenByDefault: true },
   { id: 'location', label: 'Lieu', size: 200, hiddenByDefault: true },
   { id: 'travelBefore', label: 'Trajet aller', size: 110, hiddenByDefault: true },
   { id: 'travelAfter', label: 'Trajet retour', size: 110, hiddenByDefault: true },

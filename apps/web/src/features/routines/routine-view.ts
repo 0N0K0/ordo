@@ -17,7 +17,6 @@ import {
   type RoutineGroupBy,
   type RoutineSortKey,
   type RoutineViewConfig,
-  readSlotRule,
 } from '@ordo/shared';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
@@ -125,7 +124,7 @@ export const ROUTINE_GROUP_BY_LABELS: Record<RoutineGroupBy, string> = {
  * @param {Routine} routine Routine.
  * @returns {(typeof ROUTINE_REPETITIONS)[number]} Repetition.
  */
-export const repetitionOf = (routine: Routine): (typeof ROUTINE_REPETITIONS)[number] => (routine.scheduleId ? 'SCHEDULE' : (ruleOf(routine)?.frequency ?? 'DAILY'));
+export const repetitionOf = (routine: Routine): (typeof ROUTINE_REPETITIONS)[number] => (routine.scheduleIds.length ? 'SCHEDULE' : (ruleOf(routine)?.frequency ?? 'DAILY'));
 
 /**
  * Parses a stored routine view configuration, falling back to the defaults when it is invalid.
@@ -158,6 +157,7 @@ export interface RoutineEnv {
   /** Comments by routine (its description counts as one more). Optional. */
   comments?: Map<string, number>;
   /** Kinds of slots, to filter on. Optional. */
+  /** Calendar schedules (the « Plages » filter). */
   slotKinds?: { value: string; label: string }[];
   /** People routines can be for, to filter on. Optional. */
   beneficiaries?: { value: string; label: string }[];
@@ -242,10 +242,8 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
       return routine.reminders.length > 0;
     case 'opensOn':
       return routine.opensOn ?? null;
-    case 'slots': {
-      const rule = readSlotRule(routine.slotRule);
-      return rule ? [...rule.inside, ...rule.outside] : [];
-    }
+    case 'slots':
+      return [...routine.scheduleIds, ...routine.excludedScheduleIds];
     case 'blocks':
       return [...env.byId.values()].filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
     case 'beneficiaries':
@@ -547,10 +545,10 @@ export function routineFilterFields(env: RoutineEnv): FilterFields<RoutineFilter
         case 'requires':
         case 'blocks':
           return treeSelectProps(routineTree);
-        case 'slots':
-          return { data: env.slotKinds ?? [] };
         case 'beneficiaries':
           return { data: env.beneficiaries ?? [] };
+        case 'slots':
+          return { data: env.slotKinds ?? [] };
         case 'assignees':
           return {
             data: [{ value: ME, label: 'Moi' }, ...env.context.contributors.filter((contributor) => !contributor.isMe).map((contributor) => ({ value: contributor.id, label: contributor.name }))],

@@ -1,7 +1,7 @@
 import { slotRuleSchema } from './slot-rules';
 import { z } from 'zod';
-import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence } from './recurrence';
-import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
+import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence, type Span } from './recurrence';
+import { caseSpans } from './repetition';
 import { optionalColorSchema } from './workspace';
 
 /** Category of routines, in a tree. */
@@ -12,10 +12,9 @@ export const routineCategorySchema = z.object({
 });
 export type RoutineCategoryInput = z.input<typeof routineCategorySchema>;
 
-/** Part of a calendar schedule a routine is tied to: before its start, during it, or after its end. */
+/** Part of a calendar schedule a routine was tied to (former form, read but no longer used). */
 export const ROUTINE_ANCHORS = ['START', 'WHOLE', 'END'] as const;
 export type RoutineAnchor = (typeof ROUTINE_ANCHORS)[number];
-export const ROUTINE_ANCHOR_LABELS: Record<RoutineAnchor, string> = { START: 'Avant le début', WHOLE: 'Pendant', END: 'Après la fin' };
 
 const timeOfDay = z
   .string()
@@ -40,6 +39,8 @@ export const routineCaseSchema = z
   .object({
     /** First day its repetition counts from (none: the first date of the routine). */
     from: z.iso.date({ error: 'Date invalide.' }).nullable().default(null),
+    /** Last day it applies (none: no end). */
+    until: z.iso.date({ error: 'Date invalide.' }).nullable().default(null),
     recurrence: recurrenceSchema,
     slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
   })
@@ -84,6 +85,12 @@ export const routineSchema = z
     /** Calendar schedule it follows instead of its own times and repetition (its days, and the times of its slots). */
     scheduleId: z.string().nullable().default(null),
     scheduleAnchor: z.enum(ROUTINE_ANCHORS).nullable().default(null),
+    /** Calendar schedules it follows (one or another): it occurs on their slots, its moments kept within them. */
+    scheduleIds: z.array(z.string()).max(30).default([]),
+    /** Calendar schedules it is done out of: its moments kept to the free time (its rule or cases). */
+    excludedScheduleIds: z.array(z.string()).max(30).default([]),
+    /** Times of the day following its rule or its schedules (none following schedules: one per slot). */
+    moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
     /** Alerts, in minutes before its moment (when to leave, else its start, else its latest time). */
     reminders: z
       .array(
@@ -138,7 +145,7 @@ export const routineSchema = z
     slotRule: slotRuleSchema.nullable().default(null),
   })
   .refine((routine) => !routine.fromTime || !routine.dueTime || routine.fromTime < routine.dueTime, { path: ['dueTime'], message: 'L’heure maximale doit suivre l’heure de début.' })
-  .refine((routine) => !routine.scheduleId || routine.scheduleAnchor !== null, { path: ['scheduleAnchor'], message: 'Choisissez le moment de la plage.' })
+  .refine((routine) => !routine.moments.length || routine.moments.some((moment) => !moment.optional), { path: ['moments'], message: 'Au moins un moment doit être obligatoire.' })
   .refine((routine) => !routine.opensOn || opensOnFits(routine.opensOn, routine), {
     path: ['opensOn'],
     message: 'Le « à partir du » ne vaut que pour une répétition mensuelle (un jour du mois) ou annuelle (un jour de l’année).',
@@ -149,11 +156,11 @@ export type RoutineInput = z.input<typeof routineSchema>;
  * Whether an « à partir du » fits a routine: a day of the month for a monthly repetition, of the year for a yearly one;
  * never for its cases nor a calendar schedule.
  * @param {string} opensOn "DD" or "MM-DD".
- * @param {{ recurrence: Recurrence, cases?: readonly unknown[], scheduleId?: string | null }} routine Routine.
+ * @param {{ recurrence: Recurrence, cases?: readonly unknown[], scheduleIds?: readonly string[] }} routine Routine.
  * @returns {boolean} It fits.
  */
-export function opensOnFits(opensOn: string, routine: { recurrence: Recurrence; cases?: readonly unknown[]; scheduleId?: string | null }): boolean {
-  if (routine.cases?.length || routine.scheduleId) return false;
+export function opensOnFits(opensOn: string, routine: { recurrence: Recurrence; cases?: readonly unknown[]; scheduleIds?: readonly string[] }): boolean {
+  if (routine.cases?.length || routine.scheduleIds?.length) return false;
   if (routine.recurrence.frequency === 'MONTHLY') return /^\d{2}$/.test(opensOn) && Number(opensOn) >= 1 && Number(opensOn) <= 31;
   if (routine.recurrence.frequency === 'YEARLY') {
     const [month, day] = opensOn.split('-').map(Number);
@@ -277,81 +284,6 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
   return { leaveAt: null, backAt: null };
 }
 
-/** Days scanned to find the occurrences of a routine following a schedule. */
-const SCHEDULE_SPAN = 366;
-
-/** Hours of the day a routine following a schedule keeps its slots within (null: from the start, until the end of the day). */
-export interface ScheduleBounds {
-  fromTime: string | null;
-  dueTime: string | null;
-}
-
-/**
- * Slots of a schedule between two dates (included) a routine following it keeps: those overlapping its own hours (all
- * of them without any; a whole day always does).
- * @param {WorkScheduleRule} schedule Schedule.
- * @param {string} from First date.
- * @param {string} to Last date.
- * @param {ScheduleBounds} [bounds] Hours of the routine. Optional. Default = the whole day.
- * @returns {PlannedSlot[]} Slots, by date and start.
- */
-export function scheduleSlots(schedule: WorkScheduleRule, from: string, to: string, bounds?: ScheduleBounds): PlannedSlot[] {
-  const after = bounds?.fromTime ?? '00:00';
-  const before = bounds?.dueTime ?? '24:00';
-  return plannedSlots([schedule], from, to).filter((slot) => slot.allDay || (slot.start < before && slot.end > after));
-}
-
-/**
- * Current and next occurrences of a routine following a calendar schedule: the days the schedule has slots on (within
- * the hours of the routine), from the first date of the routine.
- * @param {WorkScheduleRule} schedule Schedule.
- * @param {string} start First date of the routine.
- * @param {string} today Today.
- * @param {ScheduleBounds} [bounds] Hours of the routine. Optional. Default = the whole day.
- * @returns {{ current: string | null, next: string | null }} Dates.
- */
-export function scheduleOccurrences(schedule: WorkScheduleRule, start: string, today: string, bounds?: ScheduleBounds): { current: string | null; next: string | null } {
-  let current: string | null = null;
-  if (start <= today) {
-    const from = daysBetween(start, today) > SCHEDULE_SPAN ? addDays(today, -SCHEDULE_SPAN) : start;
-    current = scheduleSlots(schedule, from, today, bounds).at(-1)?.date ?? null;
-  }
-  const after = addDays(today, 1) < start ? start : addDays(today, 1);
-  const next = scheduleSlots(schedule, after, addDays(after, SCHEDULE_SPAN), bounds)[0]?.date ?? null;
-  return { current, next };
-}
-
-/**
- * Time window of a routine on a day of its schedule: before the start of its first slot, during its slots (first start
- * to last end), or after the end of its last slot; the slots within the hours of the routine, the window kept within
- * them (left as the schedule gives it when they do not meet).
- * @param {WorkScheduleRule} schedule Schedule.
- * @param {RoutineAnchor} anchor Part of the schedule.
- * @param {string} date Day.
- * @param {ScheduleBounds} [bounds] Hours of the routine. Optional. Default = the whole day.
- * @returns {{ fromTime: string | null, dueTime: string | null }} Window (none when the schedule has no slot that day).
- */
-export function scheduleWindow(schedule: WorkScheduleRule, anchor: RoutineAnchor, date: string, bounds?: ScheduleBounds): { fromTime: string | null; dueTime: string | null } {
-  const slots = scheduleSlots(schedule, date, date, bounds).filter((slot) => !slot.allDay);
-  if (!slots.length) return { fromTime: null, dueTime: null };
-  const first = slots[0].start;
-  const last = slots.reduce((end, slot) => (slot.end > end ? slot.end : end), slots[0].end);
-  const window =
-    anchor === 'START'
-      ? { fromTime: null, dueTime: first }
-      : anchor === 'END'
-        ? { fromTime: last === '24:00' ? null : last, dueTime: null }
-        : { fromTime: first, dueTime: last === '24:00' ? null : last };
-  // Within the hours of the routine: the later start, the earlier end.
-  const fromTime =
-    [window.fromTime, bounds?.fromTime ?? null]
-      .filter((time): time is string => time !== null)
-      .sort()
-      .at(-1) ?? null;
-  const dueTime = [window.dueTime, bounds?.dueTime ?? null].filter((time): time is string => time !== null).sort()[0] ?? null;
-  return fromTime && dueTime && fromTime >= dueTime ? window : { fromTime, dueTime };
-}
-
 /**
  * Moment the alerts of a routine count from, on a day: when to leave (its way there), else the start of its window,
  * else its latest time.
@@ -363,19 +295,28 @@ export function routineAlertTime(routine: { fromTime: string | null; dueTime: st
 }
 
 /**
- * Case of a routine on a date: the first of its cases whose repetition (from its first day) includes it.
+ * Case of a routine an occurrence comes from: the first of its cases with an occurrence due on that day (its last
+ * day), within its period.
  * @param {readonly RoutineCase[]} cases Cases.
  * @param {string} start First date of the routine.
- * @param {string} date Day.
+ * @param {string} date Due day.
  * @returns {RoutineCase | null} Case.
  */
 export function routineCaseOn(cases: readonly RoutineCase[], start: string, date: string): RoutineCase | null {
-  return (
-    cases.find((item) => {
-      const first = caseStart(item, start);
-      return date >= first && occurrenceDates(item.recurrence, first, date, date).length > 0;
-    }) ?? null
-  );
+  return cases.find((item) => routineCaseSpans(item, start, date, date).some((span) => span.end === date)) ?? null;
+}
+
+/**
+ * Occurrences of a case of a routine overlapping a period, each from its first day to its due (last) day.
+ * @param {RoutineCase} item Case.
+ * @param {string} start First date of the routine.
+ * @param {string} from First day.
+ * @param {string} to Last day.
+ * @returns {Span[]} Occurrences.
+ */
+export function routineCaseSpans(item: RoutineCase, start: string, from: string, to: string): Span[] {
+  const first = caseStart(item, start);
+  return caseSpans({ since: first, until: item.until ?? null, anchor: null, rule: item.recurrence, times: null }, start, from, to);
 }
 
 /**

@@ -1,6 +1,5 @@
 import { Button, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { opensOnFits, readSlotRule, routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase, type SlotRule } from '@ordo/shared';
+import { opensOnFits, routineSchema, type Recurrence, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
@@ -11,8 +10,6 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { DAILY, ruleOf } from './routine-format';
 import { RoutineSchedule } from './RoutineSchedule';
-import { OpensOnInput } from './OpensOnInput';
-import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
@@ -30,8 +27,9 @@ interface RoutineFormValues extends Record<string, unknown> {
   estimate: number | null;
   fromTime: string | null;
   dueTime: string | null;
-  scheduleId: string | null;
-  scheduleAnchor: RoutineAnchor | null;
+  scheduleIds: string[];
+  excludedScheduleIds: string[];
+  moments: RoutineSlot[];
   reminders: number[];
   cases: RoutineCase[];
   location: string;
@@ -43,7 +41,6 @@ interface RoutineFormValues extends Record<string, unknown> {
   assigneeIds: string[];
   requiredIds: string[];
   opensOn: string | null;
-  slotRule: SlotRule | null;
   beneficiaryIds: string[];
   beneficiaryRelationIds: string[];
 }
@@ -106,10 +103,11 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       recurrence: (source && ruleOf(source)) ?? DAILY,
       estimate: routine?.estimate ?? null,
       fromTime: routine?.fromTime ?? null,
-      scheduleId: routine?.scheduleId ?? null,
+      scheduleIds: source?.scheduleIds ?? [],
+      excludedScheduleIds: source?.excludedScheduleIds ?? [],
+      moments: (source?.moments as RoutineSlot[] | undefined) ?? [{ fromTime: null, dueTime: null, optional: false }],
       reminders: routine?.reminders ?? [],
       cases: (source?.cases as RoutineCase[] | undefined) ?? [],
-      scheduleAnchor: (routine?.scheduleAnchor as RoutineAnchor | null | undefined) ?? null,
       dueTime: routine?.dueTime ?? null,
       location: routine?.location ?? '',
       locationLat: routine?.locationLat ?? null,
@@ -122,7 +120,6 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       beneficiaryIds: routine?.beneficiaryIds ?? parent?.beneficiaryIds ?? [],
       beneficiaryRelationIds: routine?.beneficiaryRelationIds ?? parent?.beneficiaryRelationIds ?? [],
       opensOn: routine?.opensOn ?? null,
-      slotRule: readSlotRule(routine?.slotRule ?? parent?.slotRule),
     },
     schema: routineSchema,
   });
@@ -175,16 +172,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
               <Text size="xs" fw={600} c="dimmed" tt="uppercase">
                 Quand
               </Text>
-              <DatePickerInput label="Première fois" required {...form.getInputProps('startDate')} />
               <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
-              {!form.values.cases.length && !form.values.scheduleId && (form.values.recurrence.frequency === 'MONTHLY' || form.values.recurrence.frequency === 'YEARLY') && (
-                <OpensOnInput
-                  frequency={form.values.recurrence.frequency}
-                  value={form.values.opensOn}
-                  onChange={(opensOn) => form.setFieldValue('opensOn', opensOn)}
-                  error={form.errors.opensOn as string | undefined}
-                />
-              )}
               {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? String(routine.currentDate) : null} name={routine.title} />}
               {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} />}
             </Stack>
@@ -244,7 +232,6 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 value={form.values.estimate ?? ''}
                 onChange={(value) => form.setFieldValue('estimate', value === '' ? null : Number(value))}
               />
-              <SlotRuleInput value={form.values.slotRule} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.outside'] as string | undefined} />
               <Divider />
               <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
               <BatchMultiSelect

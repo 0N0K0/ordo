@@ -594,11 +594,15 @@ export type RoutineInput = {
   dueTime?: string | null | undefined;
   /** Minutes. */
   estimate?: number | null | undefined;
+  /** Calendar schedules it is done out of. */
+  excludedScheduleIds?: Array<string | number> | null | undefined;
   /** HH:MM. */
   fromTime?: string | null | undefined;
   location?: string | null | undefined;
   locationLat?: number | null | undefined;
   locationLon?: number | null | undefined;
+  /** Times of the day, [{ fromTime, dueTime, optional }]. */
+  moments?: unknown;
   /** Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly). */
   opensOn?: string | null | undefined;
   parentId?: string | number | null | undefined;
@@ -606,11 +610,8 @@ export type RoutineInput = {
   recurrence: unknown;
   reminders?: Array<number> | null | undefined;
   requiredIds: Array<string | number>;
-  /** START, WHOLE or END. */
-  scheduleAnchor?: string | null | undefined;
-  scheduleId?: string | number | null | undefined;
-  /** Slots it is done on or out of ({ mode, kinds }); null: the workspace default. */
-  slotRule?: unknown;
+  /** Calendar schedules it follows (one or another). */
+  scheduleIds?: Array<string | number> | null | undefined;
   startDate: string;
   title: string;
   travelAfter?: number | null | undefined;
@@ -642,8 +643,6 @@ export type RoutinePatch = {
   /** Minutes before its moment. */
   reminders?: Array<number> | null | undefined;
   requiredIds?: Array<string | number> | null | undefined;
-  /** Slots it is done on; null: the default of the workspace. */
-  slotRule?: unknown;
   startDate?: string | null | undefined;
   title?: string | null | undefined;
   /** Minutes to come back. */
@@ -2734,7 +2733,7 @@ export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, scheduleId: string | null, scheduleAnchor: string | null, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: string | null, slotRule: unknown, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, scheduleIds: Array<string>, excludedScheduleIds: Array<string>, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: string | null, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -2910,7 +2909,7 @@ export type RoutineOccurrencesQueryVariables = Exact<{
 }>;
 
 
-export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, movedFrom: string | null, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean }> }> };
+export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, startDate: string, shownDate: string, movedFrom: string | null, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
 
 export type SheetsQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
@@ -7393,8 +7392,9 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     estimate
     fromTime
     dueTime
-    scheduleId
-    scheduleAnchor
+    scheduleIds
+    excludedScheduleIds
+    moments
     reminders
     cases
     moves
@@ -7405,6 +7405,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
       dueTime
       optional
       done
+      windows
     }
     windowFrom
     windowTo
@@ -7427,7 +7428,6 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     lastDoneAt
     trackedSeconds
     opensOn
-    slotRule
   }
 }
     `) as unknown as TypedDocumentString<RoutinesDataQuery, RoutinesDataQueryVariables>;
@@ -7556,6 +7556,8 @@ export const RoutineOccurrencesDocument = new TypedDocumentString(`
   routineOccurrences(from: $from, to: $to) {
     routineId
     date
+    startDate
+    shownDate
     movedFrom
     slots {
       index
@@ -7563,6 +7565,7 @@ export const RoutineOccurrencesDocument = new TypedDocumentString(`
       dueTime
       optional
       done
+      windows
     }
   }
 }

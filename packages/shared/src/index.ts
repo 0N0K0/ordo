@@ -18,6 +18,7 @@ export * from './shopping';
 export * from './sheets';
 export * from './stock';
 export * from './routines';
+export * from './routine-times';
 export * from './slot-rules';
 export * from './routine-views';
 export * from './shopping-list-views';

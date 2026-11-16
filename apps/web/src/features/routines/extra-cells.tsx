@@ -1,5 +1,4 @@
 import { ActionIcon, Anchor, Badge, Group, NumberInput, Popover, Select, Stack, Text, Tooltip } from '@mantine/core';
-import { readSlotRule, type SlotRule } from '@ordo/shared';
 import { BellIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -7,8 +6,6 @@ import { TimeField } from '../../components/TimeField';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
 import { notifyError } from '../../lib/notify';
 import { AddressInput, type AddressValue } from '../geo/AddressInput';
-import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
-import { useSlotRules } from '../slot-rules/use-slot-rules';
 import { useRoutineMutations, type Routine } from './api';
 import { useRoutineCellEdit } from './routine-cell-edit';
 import { applyDiff } from '../../components/data-table/bulk-edit';
@@ -23,11 +20,11 @@ import { ROUTINE_REMINDERS } from './routine-format';
 const stop = (event: React.SyntheticEvent) => event.stopPropagation();
 
 /**
- * Whether a routine has its own times (not those of cases or of a schedule).
+ * Whether a routine has its own single time of the day (not several moments, nor those of cases or of schedules).
  * @param {Routine} routine Routine.
  * @returns {boolean} Own times.
  */
-const hasOwnTimes = (routine: Routine) => !routine.scheduleId && !(routine.cases as unknown[] | null)?.length;
+const hasOwnTimes = (routine: Routine) => !routine.scheduleIds.length && !(routine.cases as unknown[] | null)?.length && ((routine.moments as unknown[] | null) ?? []).length <= 1;
 
 /**
  * Parent routine cell: chosen in place (not itself nor one of its sub-routines).
@@ -105,7 +102,7 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
   if (!ownTimes) {
     return (
       <Text size="xs" c="dimmed">
-        {routine.scheduleId ? 'Selon la plage' : 'Selon les cas'}
+        {routine.scheduleIds.length ? 'Selon les plages' : (routine.cases as unknown[] | null)?.length ? 'Selon les cas' : 'Plusieurs moments'}
       </Text>
     );
   }
@@ -245,7 +242,7 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
   const { apply } = useRoutineCellEdit(routine, 'opensOn');
   const rule = ruleOf(routine);
   const frequency = rule?.frequency;
-  if (routine.scheduleId || (routine.cases as unknown[] | null)?.length || (frequency !== 'MONTHLY' && frequency !== 'YEARLY')) {
+  if (routine.scheduleIds.length || (routine.cases as unknown[] | null)?.length || (frequency !== 'MONTHLY' && frequency !== 'YEARLY')) {
     return null;
   }
   const text = routine.opensOn ? (routine.opensOn.includes('-') ? `Le ${routine.opensOn.slice(3)}/${routine.opensOn.slice(0, 2)}` : `Le ${Number(routine.opensOn)}`) : '—';
@@ -262,30 +259,6 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
           value={routine.opensOn ?? null} // The day is that of a month, or of a year: only routines of the same frequency take it.
           onChange={(opensOn) => apply((target) => (hasOwnTimes(target) && ruleOf(target)?.frequency === frequency ? { opensOn } : {}))}
         />
-      </Popover.Dropdown>
-    </Popover>
-  );
-}
-
-/**
- * « Plages » cell: the slots of the routine told in words, changed in a popover.
- * @param {{ routine: Routine }} props Component props.
- * @returns {JSX.Element} Cell.
- */
-export function RoutineSlotsCell({ routine }: { routine: Routine }) {
-  const { apply } = useRoutineCellEdit(routine, 'slots');
-  const { describe, ruleOf: ruleOfSlots } = useSlotRules();
-  const own = readSlotRule(routine.slotRule);
-  return (
-    <Popover position="bottom-start" withinPortal shadow="md" width={420}>
-      <Popover.Target>
-        <Anchor component="button" type="button" size="sm" c={own ? undefined : 'dimmed'} onClick={stop} style={{ textAlign: 'left' }}>
-          {describe(ruleOfSlots(routine.slotRule)) ?? 'Partout'}
-          {!own && ' (défaut)'}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stop}>
-        <SlotRuleInput value={own} onChange={(slotRule: SlotRule | null) => apply({ slotRule })} />
       </Popover.Dropdown>
     </Popover>
   );

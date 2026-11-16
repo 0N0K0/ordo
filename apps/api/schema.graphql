@@ -2704,6 +2704,11 @@ type Routine {
   """Minutes."""
   estimate: Int
 
+  """
+  Calendar schedules it is done out of (its moments kept to the free time).
+  """
+  excludedScheduleIds: [ID!]!
+
   """First occurrence of the routine (from its start)."""
   firstDate: Date
 
@@ -2714,6 +2719,11 @@ type Routine {
   location: String
   locationLat: Float
   locationLon: Float
+
+  """
+  Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].
+  """
+  moments: JSON!
 
   """
   Exceptions: occurrences moved to another day, deleted (to null) or with other times, [{ from, to, times }] (YYYY-MM-DD), by day of the rule.
@@ -2740,11 +2750,10 @@ type Routine {
   """Routines to do before this one."""
   requiredIds: [ID!]!
 
-  """START, WHOLE or END of the schedule."""
-  scheduleAnchor: String
-
-  """Calendar schedule it follows (its days and times)."""
-  scheduleId: ID
+  """
+  Calendar schedules it follows (one or another): their slots are its days and times.
+  """
+  scheduleIds: [ID!]!
 
   """
   Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
@@ -2858,11 +2867,17 @@ input RoutineInput {
   """Minutes."""
   estimate: Int
 
+  """Calendar schedules it is done out of."""
+  excludedScheduleIds: [ID!]
+
   """HH:MM."""
   fromTime: String
   location: String
   locationLat: Float
   locationLon: Float
+
+  """Times of the day, [{ fromTime, dueTime, optional }]."""
+  moments: JSON
 
   """
   Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).
@@ -2874,14 +2889,8 @@ input RoutineInput {
   reminders: [Int!]
   requiredIds: [ID!]!
 
-  """START, WHOLE or END."""
-  scheduleAnchor: String
-  scheduleId: ID
-
-  """
-  Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
-  """
-  slotRule: JSON
+  """Calendar schedules it follows (one or another)."""
+  scheduleIds: [ID!]
   startDate: Date!
   title: String!
   travelAfter: Int
@@ -2890,12 +2899,21 @@ input RoutineInput {
 
 """Occurrence of a routine on a day (for the calendar)."""
 type RoutineOccurrence {
+  """Due day (its last day)."""
   date: Date!
 
   """Day of the rule it was moved from (an exception)."""
   movedFrom: Date
   routineId: ID!
+
+  """
+  Day it shows on: its due day once past, today while it runs, its first day before.
+  """
+  shownDate: Date!
   slots: [RoutineSlot!]!
+
+  """First day it can be done."""
+  startDate: Date!
 }
 
 """Changes of a routine (omitted fields unchanged)."""
@@ -2930,9 +2948,6 @@ input RoutinePatch {
   """Minutes before its moment."""
   reminders: [Int!]
   requiredIds: [ID!]
-
-  """Slots it is done on; null: the default of the workspace."""
-  slotRule: JSON
   startDate: Date
   title: String
 
@@ -2957,6 +2972,11 @@ type RoutineSlot {
   fromTime: String
   index: Int!
   optional: Boolean!
+
+  """
+  Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it).
+  """
+  windows: JSON!
 }
 
 input SaveMailDraftInput {

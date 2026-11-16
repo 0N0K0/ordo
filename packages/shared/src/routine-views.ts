@@ -43,7 +43,7 @@ export const ROUTINE_FILTER_FIELDS = {
   hasReminders: 'boolean',
   /** « À partir du » ("DD" or "MM-DD"). */
   opensOn: 'text',
-  /** Kinds of slots its rule names. */
+  /** Calendar schedules it follows or is done out of. */
   slots: 'multiReference',
   /** Routines waiting for it. */
   blocks: 'multiReference',

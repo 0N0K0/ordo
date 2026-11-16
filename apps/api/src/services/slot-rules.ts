@@ -23,37 +23,6 @@ export async function workspaceSlots(from: string, to: string): Promise<{ slots:
   };
 }
 
-/** Slots of the workspace (and those it shows from others) on any day, for the occurrences of routines. */
-export interface SlotContext {
-  /** Slots of a day, with their kind. */
-  slotsOn: (date: string) => KindedSlot[];
-  /** Kinds that have schedules. */
-  known: Set<string>;
-}
-
-/**
- * Slots of the current workspace on any day: its schedules (and those it shows from others) loaded once, the slots of
- * each day computed when first asked.
- * @returns {Promise<SlotContext>} Context.
- */
-export async function loadSlotContext(): Promise<SlotContext> {
-  const [own, foreign] = await Promise.all([prisma.workSchedule.findMany(), subscribedSchedules()]);
-  const rules = own.map(scheduleRule);
-  const shown = foreign.map((item) => ({ workspaceId: item.workspace.id, rule: item.rule }));
-  const byDay = new Map<string, KindedSlot[]>();
-  return {
-    slotsOn: (date) => {
-      let slots = byDay.get(date);
-      if (!slots) byDay.set(date, (slots = kindedSlots(rules, shown, date, date)));
-      return slots;
-    },
-    known: scheduleKinds(
-      rules,
-      shown.map(({ workspaceId, rule }) => ({ workspaceId, typeId: rule.typeId })),
-    ),
-  };
-}
-
 /**
  * Current moment of the user: their day and time.
  * @param {number} utcOffset User's offset from UTC in minutes.

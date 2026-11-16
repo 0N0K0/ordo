@@ -1,74 +1,100 @@
-import { TimeField } from '../../components/TimeField';
-import { ActionIcon, Button, Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
-
-import { ROUTINE_ANCHOR_LABELS, ROUTINE_ANCHORS, routineSchedule, type Recurrence, type RoutineAnchor, type RoutineCase, type RoutineSlot } from '@ordo/shared';
-import { BellIcon, CarIcon, ClockIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { ActionIcon, Button, Checkbox, Group, NumberInput, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useState, type ReactNode } from 'react';
+import { routineSchedule, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { BellIcon, CarIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
+import { type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { TimeField } from '../../components/TimeField';
+import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../components/recurrence/RepetitionEditor';
+import { RepetitionField } from '../../components/recurrence/RepetitionField';
+import { describeCase } from '../../components/recurrence/describe-recurrence';
+import * as fmt from '../../lib/format';
 import { localToday } from '../../lib/dates';
 import { useWorkSchedules } from '../calendar/api';
-import { DAILY, describeRoutineCase, newRoutineCase } from './routine-format';
 import { EventLocation } from '../geo/EventLocation';
 import { TravelCalculator } from '../geo/TravelCalculator';
-import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
-import { CaseCard } from '../../components/recurrence/CaseCard';
-import { useCaseFolds } from '../../components/recurrence/use-case-folds';
-import { ROUTINE_REMINDERS } from './routine-format';
+import { OpensOnInput } from './OpensOnInput';
+import { DAILY, ROUTINE_REMINDERS, windowText } from './routine-format';
 
-/** How a routine repeats: a rule and a window, cases (days and times of the day), or a calendar schedule. */
-type RepetitionMode = 'rule' | 'cases' | 'schedule';
+/** Time and place fields of a routine. */
+export interface RoutineScheduleValues {
+  startDate: string;
+  recurrence: Recurrence;
+  cases: RoutineCase[];
+  /** Calendar schedules it follows (one or another). */
+  scheduleIds: string[];
+  /** Calendar schedules it is done out of. */
+  excludedScheduleIds: string[];
+  /** Times of the day following its rule or its schedules. */
+  moments: RoutineSlot[];
+  opensOn: string | null;
+  reminders: number[];
+  estimate: number | null;
+  location: string;
+  locationLat: number | null;
+  locationLon: number | null;
+  travelBefore: number;
+  travelAfter: number;
+}
+
+/** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « à partir du ». */
+type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'opensOn'> & { mode: RepetitionModeValue };
+
+/** Lengths of an occurrence of a routine: a day, days (the weekend), weeks, months, up to a day, a week or a month. */
+const ROUTINE_DURATIONS: readonly DurationUnit[] = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'];
+
+/** A moment from the start to the end of the day. */
+const ANY_TIME: RoutineSlot = { fromTime: null, dueTime: null, optional: false };
 
 /**
- * Times of the day of a routine case: from when and by when (each optional), optional or not.
- * @param {{ item: RoutineCase, onChange: (changes: Partial<RoutineCase>) => void, index: number }} props Component props.
- * @returns {JSX.Element} Times.
+ * Times of the day of a routine: from when and by when (each optional), optional or not, as many as needed.
+ * @param {{ moments: RoutineSlot[], onChange: (moments: RoutineSlot[]) => void, index: number, allowEmpty?: boolean }} props Moments, their change, case number, none allowed (one per slot of the schedules).
+ * @returns {JSX.Element} Moments.
  */
-function SlotsEditor({ item, onChange, index }: { item: RoutineCase; onChange: (changes: Partial<RoutineCase>) => void; index: number }) {
+function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { moments: RoutineSlot[]; onChange: (moments: RoutineSlot[]) => void; index: number; allowEmpty?: boolean }) {
   /**
-   * Changes a time of the day.
+   * Changes a moment.
    * @param {number} position Its index.
    * @param {Partial<RoutineSlot>} changes Changes.
    * @returns {void}
    */
-  const update = (position: number, changes: Partial<RoutineSlot>) => onChange({ slots: item.slots.map((slot, other) => (other === position ? { ...slot, ...changes } : slot)) });
+  const update = (position: number, changes: Partial<RoutineSlot>) => onChange(moments.map((moment, other) => (other === position ? { ...moment, ...changes } : moment)));
   return (
     <Stack gap={4}>
       <Text size="sm" fw={500}>
         Moments de la journée
       </Text>
-      {item.slots.map((slot, position) => (
+      {moments.map((moment, position) => (
         <Group key={position} gap={6} wrap="nowrap">
           <TimeField
             size="xs"
             aria-label={`À partir de, moment ${position + 1}, cas ${index + 1}`}
             leftSection={<Text size="xs">dès</Text>}
-            value={slot.fromTime ?? ''}
+            value={moment.fromTime ?? ''}
             onChange={(value) => update(position, { fromTime: value || null })}
           />
           <TimeField
             size="xs"
             aria-label={`Avant, moment ${position + 1}, cas ${index + 1}`}
             leftSection={<Text size="xs">avant</Text>}
-            value={slot.dueTime ?? ''}
+            value={moment.dueTime ?? ''}
             onChange={(value) => update(position, { dueTime: value || null })}
           />
-          <Checkbox size="xs" label="Facultatif" checked={slot.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
-          {item.slots.length > 1 && (
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              aria-label={`Retirer le moment ${position + 1}`}
-              onClick={() => onChange({ slots: item.slots.filter((_, other) => other !== position) })}
-            >
+          <Checkbox size="xs" label="Facultatif" checked={moment.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
+          {(allowEmpty || moments.length > 1) && (
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))}>
               <XIcon aria-hidden />
             </ActionIcon>
           )}
         </Group>
       ))}
+      {allowEmpty && !moments.length && (
+        <Text size="xs" c="dimmed">
+          Aucun : chaque horaire des plages choisies est un moment.
+        </Text>
+      )}
       <div>
-        <Button size="compact-xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange({ slots: [...item.slots, { fromTime: null, dueTime: null, optional: false }] })}>
+        <Button size="compact-xs" variant="subtle" leftSection={<PlusIcon aria-hidden />} onClick={() => onChange([...moments, ANY_TIME])}>
           Ajouter un moment
         </Button>
       </div>
@@ -77,82 +103,136 @@ function SlotsEditor({ item, onChange, index }: { item: RoutineCase; onChange: (
 }
 
 /**
- * Cases of a routine: each with its repetition (as the events': yearly on the first Saturday of April, even weeks,
- * pauses…) and its times of the day.
- * @param {{ cases: RoutineCase[], start: string, onChange: (cases: RoutineCase[]) => void }} props Component props.
- * @returns {JSX.Element} Editor.
+ * Moments as text: "avant 08:00, 12:00–14:00 (facultatif)".
+ * @param {readonly RoutineSlot[]} moments Moments.
+ * @returns {string} Text.
  */
-function RoutineCasesEditor({ cases, start, onChange }: { cases: RoutineCase[]; start: string; onChange: (cases: RoutineCase[]) => void }) {
-  /**
-   * Changes a case.
-   * @param {number} index Its index.
-   * @param {Partial<RoutineCase>} changes Changes.
-   * @returns {void}
-   */
-  const update = (index: number, changes: Partial<RoutineCase>) => onChange(cases.map((item, other) => (other === index ? { ...item, ...changes } : item)));
-  const folds = useCaseFolds();
+const describeMoments = (moments: readonly RoutineSlot[]) => moments.map((moment) => `${windowText(moment) || 'dans la journée'}${moment.optional ? ' (facultatif)' : ''}`).join(', ');
+
+/** Moments of the cases of a routine, for the common repetition editor. */
+const MOMENTS: RepetitionTimes<RoutineSlot[]> = {
+  render: (moments, onChange, index) => <MomentsEditor moments={moments} onChange={onChange} index={index} />,
+  describe: describeMoments,
+  empty: () => [ANY_TIME],
+};
+
+/**
+ * Cases of the common editor of a routine as edited: its rule and moments (one rule), or its cases.
+ * @param {RoutineRepetitionValue} value Repetition.
+ * @returns {RepetitionCase<RoutineSlot[]>[]} Cases.
+ */
+function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineSlot[]>[] {
+  if (value.mode === 'CASES') return value.cases.map((item) => ({ since: item.from, until: item.until ?? null, anchor: null, rule: item.recurrence, times: item.slots }));
+  return [{ since: null, until: null, anchor: null, rule: value.recurrence, times: value.moments.length ? value.moments : [ANY_TIME] }];
+}
+
+/**
+ * Repetition with the cases of the common editor.
+ * @param {RoutineRepetitionValue} value Repetition.
+ * @param {RepetitionCase<RoutineSlot[]>[]} cases Cases edited.
+ * @returns {RoutineRepetitionValue} Repetition.
+ */
+function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<RoutineSlot[]>[]): RoutineRepetitionValue {
+  if (value.mode === 'CASES') return { ...value, cases: cases.map((item) => ({ from: item.since, until: item.until, recurrence: item.rule ?? DAILY, slots: item.times })) };
+  return { ...value, recurrence: cases[0]?.rule ?? value.recurrence, moments: cases[0]?.times ?? value.moments };
+}
+
+/**
+ * Every repetition setting of a routine, in the common modal: its first day, then one rule, cases, or calendar
+ * schedules (one or another, its moments kept within their slots); the schedules it is done out of; its « à partir du ».
+ * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void }} props Draft and its change.
+ * @returns {JSX.Element} Settings.
+ */
+function RoutineRepetitionEditor({ draft, setDraft }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void }) {
+  const { data: schedules } = useWorkSchedules();
+  const scheduleOptions = (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name }));
+  const start = draft.startDate || localToday();
+  const frequency = draft.recurrence.frequency;
   return (
-    <Stack gap="xs">
-      {cases.map((item, index) => (
-        <CaseCard
-          key={index}
-          index={index + 1}
-          summary={describeRoutineCase(item, start)}
-          collapsible={cases.length > 1}
-          opened={folds.isOpen(index)}
-          onToggle={() => folds.toggle(index)}
-          onRemove={
-            cases.length > 1
-              ? () => {
-                  folds.removed(index);
-                  onChange(cases.filter((_, other) => other !== index));
-                }
-              : undefined
-          }
-        >
-            <DatePickerInput
-              size="xs"
-              w={220}
-              label="À partir du"
-              placeholder="Début de la routine"
-              clearable
-              minDate={start}
-              value={item.from}
-              onChange={(date) => update(index, { from: date ? String(date) : null })}
-            />
-            <RecurrenceField required value={item.recurrence} onChange={(rule) => update(index, { recurrence: rule ?? DAILY })} start={item.from && item.from > start ? item.from : start} />
-            <SlotsEditor item={item} index={index} onChange={(changes) => update(index, changes)} />
-        </CaseCard>
-      ))}
-      <div>
-        <Button size="compact-xs" variant="default" leftSection={<PlusIcon aria-hidden />} onClick={() => {
-            folds.open(cases.length);
-            onChange([...cases, newRoutineCase(null, null)]);
-          }}>
-          Ajouter un cas
-        </Button>
-      </div>
+    <Stack gap="md">
+      <DatePickerInput label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: String(date) })} />
+      <RepetitionEditor<RoutineSlot[]>
+        mode={draft.mode}
+        onModeChange={(mode) =>
+          setDraft({
+            ...draft,
+            mode,
+            // Each mode keeps only its own settings.
+            cases: mode === 'CASES' ? (draft.cases.length ? draft.cases : [{ from: null, until: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME] }]) : [],
+            scheduleIds: mode === 'SCHEDULES' ? draft.scheduleIds : [],
+            excludedScheduleIds: mode === 'SCHEDULES' ? [] : draft.excludedScheduleIds,
+            moments: mode === 'SCHEDULES' ? [] : draft.moments.length ? draft.moments : [ANY_TIME],
+          })
+        }
+        cases={editedCases(draft)}
+        onChange={(cases) => setDraft(withEditedCases(draft, cases))}
+        start={start}
+        multiple
+        allowNone={false}
+        durations={ROUTINE_DURATIONS}
+        times={MOMENTS}
+        modes={[
+          {
+            value: 'SCHEDULES',
+            label: 'Plages de l’agenda',
+            render: () => (
+              <Stack gap="sm">
+                <BatchMultiSelect
+                  label="Plages"
+                  description="L’une ou l’autre : la routine a lieu sur leurs horaires (pauses et exceptions comprises)."
+                  placeholder={draft.scheduleIds.length ? undefined : 'Choisir des plages'}
+                  searchable
+                  data={scheduleOptions}
+                  nothingFoundMessage="Aucune plage (créez-en dans l’agenda)"
+                  value={draft.scheduleIds}
+                  onChange={(scheduleIds) => setDraft({ ...draft, scheduleIds })}
+                />
+                <MomentsEditor moments={draft.moments} onChange={(moments) => setDraft({ ...draft, moments })} index={0} allowEmpty />
+                <Text size="xs" c="dimmed">
+                  Facultatif : chaque moment n’est gardé que les jours où il croise un horaire de ces plages (manger entre 7 h et 7 h 30, 12 h et 12 h 30…).
+                </Text>
+              </Stack>
+            ),
+          },
+        ]}
+        footer={
+          draft.mode === 'SCHEDULES' ? undefined : (
+            <Stack gap="sm">
+              {draft.mode === 'RULE' && (frequency === 'MONTHLY' || frequency === 'YEARLY') && (
+                <OpensOnInput frequency={frequency} value={draft.opensOn} onChange={(opensOn) => setDraft({ ...draft, opensOn })} />
+              )}
+              <BatchMultiSelect
+                label="Hors des plages"
+                description="Facultatif : la routine ne se fait que sur le temps libre en dehors de ces plages (une plage sur toute la journée la bloque)."
+                placeholder={draft.excludedScheduleIds.length ? undefined : 'Aucune'}
+                searchable
+                clearable
+                data={scheduleOptions}
+                value={draft.excludedScheduleIds}
+                onChange={(excludedScheduleIds) => setDraft({ ...draft, excludedScheduleIds })}
+              />
+            </Stack>
+          )
+        }
+      />
     </Stack>
   );
 }
 
-
-/** Time and place fields of a routine. */
-export interface RoutineScheduleValues {
-  startDate: string;
-  recurrence: Recurrence;
-  cases: RoutineCase[];
-  scheduleId: string | null;
-  scheduleAnchor: RoutineAnchor | null;
-  reminders: number[];
-  fromTime: string | null;
-  dueTime: string | null;
-  estimate: number | null;
-  location: string;
-  locationLat: number | null;
-  locationLon: number | null;
-  travelBefore: number;
-  travelAfter: number;
+/**
+ * Repetition of a routine as text, a line each: its first day, its rule or cases or schedules, its exclusions.
+ * @param {RoutineRepetitionValue} value Repetition.
+ * @param {Map<string, string>} names Names of the schedules.
+ * @returns {string[]} Lines.
+ */
+function describeRepetition(value: RoutineRepetitionValue, names: Map<string, string>): string[] {
+  const start = value.startDate || localToday();
+  const listed = (ids: readonly string[]) => ids.map((id) => names.get(id) ?? 'plage supprimée').join(', ');
+  const lines = [`À partir du ${fmt.day(start)}`];
+  if (value.mode === 'SCHEDULES') lines.push(`Sur les plages ${listed(value.scheduleIds) || '—'}${value.moments.length ? ` · ${describeMoments(value.moments)}` : ''}`);
+  else lines.push(...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times: MOMENTS }))}`));
+  if (value.excludedScheduleIds.length) lines.push(`Hors des plages ${listed(value.excludedScheduleIds)}`);
+  return lines;
 }
 
 interface RoutineScheduleProps {
@@ -162,103 +242,42 @@ interface RoutineScheduleProps {
 }
 
 /**
- * Time and place of a routine (dropping the children at school…): its own time window, or a calendar schedule it
- * follows (before its start, during it or after its end), where, and the travel times there and back (computed from the
- * place), with when to leave and when back (own times only: a schedule's change from day to day).
+ * Time and place of a routine: its repetition (summary, every setting in the common modal), where, the travel times
+ * there and back (computed from the place) with when to leave and when back (one moment of its own only), and its
+ * alerts.
  * @param {RoutineScheduleProps} props Component props.
  * @returns {JSX.Element} Fields.
  */
 export function RoutineSchedule({ values, errors, onChange }: RoutineScheduleProps) {
   const { data: schedules } = useWorkSchedules();
-  const [mode, setMode] = useState<RepetitionMode>(values.cases.length ? 'cases' : values.scheduleId ? 'schedule' : 'rule');
-  // Own times only: following a schedule, they only keep its slots (its times change from day to day).
-  const { leaveAt, backAt } = routineSchedule(mode === 'schedule' ? { ...values, fromTime: null, dueTime: null } : values);
+  const names = new Map((schedules ?? []).map((schedule) => [schedule.id, schedule.name]));
+  const mode: RepetitionModeValue = values.scheduleIds.length ? 'SCHEDULES' : values.cases.length ? 'CASES' : 'RULE';
+  const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
+  const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
   const point = values.locationLat !== null && values.locationLon !== null ? { lat: values.locationLat, lon: values.locationLon } : null;
-  // Its own hours: when to do it (a rule), or the slots of the schedule kept (breakfast before 9:00 on the meal slots).
-  const hours = (
-    <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-      <TimeField label="À partir de" leftSection={<ClockIcon aria-hidden />} value={values.fromTime ?? ''} onChange={(value) => onChange({ fromTime: value || null })} error={errors.fromTime} />
-      <TimeField label="Avant" leftSection={<ClockIcon aria-hidden />} value={values.dueTime ?? ''} onChange={(value) => onChange({ dueTime: value || null })} error={errors.dueTime} />
-    </SimpleGrid>
-  );
+  const timed = mode !== 'RULE' || values.moments.some((moment) => moment.fromTime || moment.dueTime);
   return (
     <Stack gap="sm">
-      <SegmentedControl
-        aria-label="Répétition"
-        value={mode}
-        onChange={(value) => {
-          setMode(value as RepetitionMode);
-          if (value === 'rule') onChange({ cases: [], scheduleId: null, scheduleAnchor: null });
-          if (value === 'cases')
-            onChange({ cases: values.cases.length ? values.cases : [newRoutineCase(values.fromTime, values.dueTime)], scheduleId: null, scheduleAnchor: null, fromTime: null, dueTime: null });
-          if (value === 'schedule') onChange({ cases: [], fromTime: null, dueTime: null, scheduleAnchor: values.scheduleAnchor ?? 'START' });
-        }}
-        data={[
-          { value: 'rule', label: 'Une règle' },
-          { value: 'cases', label: 'Plusieurs cas' },
-          { value: 'schedule', label: 'Plage de l’agenda' },
-        ]}
+      <RepetitionField<RoutineRepetitionValue>
+        label="Répétition et moments"
+        required
+        error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.scheduleIds ?? errors.startDate ?? errors.opensOn) as ReactNode}
+        value={{ ...values, mode }}
+        onChange={(value) =>
+          onChange({
+            startDate: value.startDate,
+            recurrence: value.recurrence,
+            cases: value.cases,
+            scheduleIds: value.scheduleIds,
+            excludedScheduleIds: value.excludedScheduleIds,
+            moments: value.moments,
+            opensOn: value.opensOn,
+          })
+        }
+        valid={(draft) => Boolean(draft.startDate) && (draft.mode !== 'SCHEDULES' || draft.scheduleIds.length > 0) && (draft.mode !== 'CASES' || draft.cases.length > 0)}
+        describe={(value) => describeRepetition(value, names)}
+        editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} />}
       />
-      {mode === 'rule' && (
-        <>
-          <RecurrenceField required value={values.recurrence} onChange={(rule) => onChange({ recurrence: rule ?? DAILY })} start={values.startDate || localToday()} />
-          <Stack gap={4}>
-            {hours}
-            <Text size="xs" c="dimmed">
-              Plage horaire où la faire (déposer les enfants à l’école entre 8 h 20 et 8 h 30…) ; chaque heure est facultative, vide : n’importe quand dans la journée.
-            </Text>
-          </Stack>
-        </>
-      )}
-      {mode === 'cases' && (
-        <Stack gap={4}>
-          <RoutineCasesEditor cases={values.cases} start={values.startDate || localToday()} onChange={(cases) => onChange({ cases })} />
-          <Text size="xs" c="dimmed">
-            Chaque cas a ses jours et ses moments de la journée (se brosser les dents le matin, le midi et le soir), cochés chacun ; un moment facultatif n’est pas nécessaire pour que la journée soit
-            faite (2 à 3 fois par jour). Un jour pris par plusieurs cas suit le premier.
-          </Text>
-          {typeof errors.cases === 'string' || errors.cases ? (
-            <Text size="xs" c="red">
-              {errors.cases}
-            </Text>
-          ) : null}
-        </Stack>
-      )}
-      {mode === 'schedule' && (
-        <Stack gap={4}>
-          <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-            <Select
-              label="Plage"
-              placeholder="Choisir une plage"
-              searchable
-              data={(schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name }))}
-              nothingFoundMessage="Aucune plage (créez-en dans l’agenda)"
-              value={values.scheduleId}
-              onChange={(scheduleId) => onChange({ scheduleId, scheduleAnchor: values.scheduleAnchor ?? 'START' })}
-              error={errors.scheduleId}
-            />
-            <Stack gap={4}>
-              <Text size="sm" fw={500}>
-                Moment
-              </Text>
-              <SegmentedControl
-                size="xs"
-                value={values.scheduleAnchor ?? 'START'}
-                onChange={(anchor) => onChange({ scheduleAnchor: anchor as RoutineAnchor })}
-                data={ROUTINE_ANCHORS.map((anchor) => ({ value: anchor, label: ROUTINE_ANCHOR_LABELS[anchor] }))}
-              />
-            </Stack>
-          </SimpleGrid>
-          <Text size="xs" c="dimmed">
-            La routine a lieu les jours de la plage (ses pauses et exceptions comprises), avant son début (déposer les enfants à l’école), pendant (le ménage du samedi matin) ou après sa fin (les
-            récupérer).
-          </Text>
-          {hours}
-          <Text size="xs" c="dimmed">
-            Facultatif : seuls les horaires de la plage dans ces heures comptent (le petit déjeuner avant 9 h sur la plage des repas : les jours où elle a un horaire le matin, pendant celui-ci).
-          </Text>
-        </Stack>
-      )}
       <EventLocation
         value={{ text: values.location, point }}
         error={errors.location}
@@ -298,13 +317,11 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
       <BatchMultiSelect
         label="Alertes"
         description={
-          values.scheduleId || values.fromTime || values.dueTime
-            ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.'
-            : 'Donnez-lui un horaire ou une plage pour pouvoir l’alerter.'
+          timed ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.' : 'Donnez-lui un horaire ou une plage pour pouvoir l’alerter.'
         }
         leftSection={<BellIcon aria-hidden />}
         placeholder={values.reminders.length ? undefined : 'Aucune'}
-        disabled={!values.scheduleId && !values.fromTime && !values.dueTime}
+        disabled={!timed}
         data={ROUTINE_REMINDERS.map((preset) => ({ value: String(preset.value), label: preset.label }))}
         value={values.reminders.map(String)}
         onChange={(reminders) => onChange({ reminders: reminders.map(Number).sort((a, b) => a - b) })}
@@ -313,7 +330,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
       />
       {(leaveAt || backAt) && (
         <Text size="sm" c="dimmed">
-          {leaveAt && `Partir à ${leaveAt.replace(':', ' h ')}${values.estimate && values.dueTime ? ` (trajet et ${values.estimate} min sur place)` : ''}`}
+          {leaveAt && `Partir à ${leaveAt.replace(':', ' h ')}${values.estimate && single?.dueTime ? ` (trajet et ${values.estimate} min sur place)` : ''}`}
           {leaveAt && backAt && ' · '}
           {backAt && `retour vers ${backAt.replace(':', ' h ')}`}
         </Text>
