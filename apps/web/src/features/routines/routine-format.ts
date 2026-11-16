@@ -232,7 +232,7 @@ export function windowText({ fromTime, dueTime, windows }: { fromTime: string | 
  * @returns {RoutineCase} Case.
  */
 export function newRoutineCase(fromTime: string | null, dueTime: string | null): RoutineCase {
-  return { from: null, until: null, recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
+  return { from: null, until: null, condition: null, recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
 }
 
 /**

@@ -2,6 +2,7 @@ import { slotRuleSchema } from './slot-rules';
 import { z } from 'zod';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence, type Span } from './recurrence';
 import { caseSpans } from './repetition';
+import { slotConditionSchema } from './routine-times';
 import { optionalColorSchema } from './workspace';
 
 /** Category of routines, in a tree. */
@@ -41,6 +42,8 @@ export const routineCaseSchema = z
     from: z.iso.date({ error: 'Date invalide.' }).nullable().default(null),
     /** Last day it applies (none: no end). */
     until: z.iso.date({ error: 'Date invalide.' }).nullable().default(null),
+    /** On or out of calendar schedules, combined in groups (none: any time). */
+    condition: slotConditionSchema.nullable().default(null),
     recurrence: recurrenceSchema,
     slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
   })
@@ -85,11 +88,12 @@ export const routineSchema = z
     /** Calendar schedule it follows instead of its own times and repetition (its days, and the times of its slots). */
     scheduleId: z.string().nullable().default(null),
     scheduleAnchor: z.enum(ROUTINE_ANCHORS).nullable().default(null),
-    /** Calendar schedules it follows (one or another): it occurs on their slots, its moments kept within them. */
+    /** Former form: calendar schedules it followed, and those it was done out of (read into its condition). */
     scheduleIds: z.array(z.string()).max(30).default([]),
-    /** Calendar schedules it is done out of: its moments kept to the free time (its rule or cases). */
     excludedScheduleIds: z.array(z.string()).max(30).default([]),
-    /** Times of the day following its rule or its schedules (none following schedules: one per slot). */
+    /** Following its rule: on or out of calendar schedules, combined in groups (none: any time). */
+    slotCondition: slotConditionSchema.nullable().default(null),
+    /** Times of the day following its rule. */
     moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
     /** Alerts, in minutes before its moment (when to leave, else its start, else its latest time). */
     reminders: z

@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { Recurrence, RoutineCategoryInput, RoutineInput } from '@ordo/shared';
+import { readSlotCondition, type Recurrence, type RoutineCategoryInput, type RoutineInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
@@ -31,8 +31,7 @@ const RoutinesDataDocument = graphql(`
       estimate
       fromTime
       dueTime
-      scheduleIds
-      excludedScheduleIds
+      slotCondition
       moments
       reminders
       cases
@@ -403,8 +402,7 @@ export function routineInputOf(routine: Routine): RoutineInput {
     estimate: routine.estimate,
     fromTime: routine.fromTime,
     dueTime: routine.dueTime,
-    scheduleIds: routine.scheduleIds,
-    excludedScheduleIds: routine.excludedScheduleIds,
+    slotCondition: readSlotCondition(routine.slotCondition),
     moments: routine.moments as RoutineInput['moments'],
     reminders: routine.reminders,
     cases: routine.cases as RoutineInput['cases'],

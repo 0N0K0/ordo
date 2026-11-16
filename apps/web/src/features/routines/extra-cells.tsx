@@ -24,7 +24,7 @@ const stop = (event: React.SyntheticEvent) => event.stopPropagation();
  * @param {Routine} routine Routine.
  * @returns {boolean} Own times.
  */
-const hasOwnTimes = (routine: Routine) => !routine.scheduleIds.length && !(routine.cases as unknown[] | null)?.length && ((routine.moments as unknown[] | null) ?? []).length <= 1;
+const hasOwnTimes = (routine: Routine) => !routine.slotCondition && !(routine.cases as unknown[] | null)?.length && ((routine.moments as unknown[] | null) ?? []).length <= 1;
 
 /**
  * Parent routine cell: chosen in place (not itself nor one of its sub-routines).
@@ -102,7 +102,7 @@ export function TimeOfDayCell({ routine, field }: { routine: Routine; field: 'fr
   if (!ownTimes) {
     return (
       <Text size="xs" c="dimmed">
-        {routine.scheduleIds.length ? 'Selon les plages' : (routine.cases as unknown[] | null)?.length ? 'Selon les cas' : 'Plusieurs moments'}
+        {routine.slotCondition ? 'Selon les plages' : (routine.cases as unknown[] | null)?.length ? 'Selon les cas' : 'Plusieurs moments'}
       </Text>
     );
   }
@@ -242,7 +242,7 @@ export function OpensOnCell({ routine }: { routine: Routine }) {
   const { apply } = useRoutineCellEdit(routine, 'opensOn');
   const rule = ruleOf(routine);
   const frequency = rule?.frequency;
-  if (routine.scheduleIds.length || (routine.cases as unknown[] | null)?.length || (frequency !== 'MONTHLY' && frequency !== 'YEARLY')) {
+  if ((routine.cases as unknown[] | null)?.length || (frequency !== 'MONTHLY' && frequency !== 'YEARLY')) {
     return null;
   }
   const text = routine.opensOn ? (routine.opensOn.includes('-') ? `Le ${routine.opensOn.slice(3)}/${routine.opensOn.slice(0, 2)}` : `Le ${Number(routine.opensOn)}`) : '—';

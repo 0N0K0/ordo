@@ -1,7 +1,8 @@
 import { TimeField } from '../../components/TimeField';
 import { Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { routineSchema, type Recurrence, type RoutineCase } from '@ordo/shared';
+import { readSlotCondition, routineSchema, type Recurrence, type RoutineCase } from '@ordo/shared';
+import { describeSlotCondition } from './slot-condition-text';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -166,7 +167,7 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
   const { data: schedules } = useWorkSchedules();
   const { leaveAt, backAt } = scheduleOf(routine);
   // Names of the schedules it follows.
-  const followed = routine.scheduleIds.map((id) => schedules?.find((item) => item.id === id)?.name ?? 'plage supprimée').join(', ');
+  const followed = describeSlotCondition(readSlotCondition(routine.slotCondition), new Map((schedules ?? []).map((item) => [item.id, item.name])));
   const severalMoments = ((routine.moments as unknown[] | null) ?? []).length > 1;
 
   /**
@@ -219,14 +220,14 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
 
   return (
     <Stack gap={0}>
-      {(routine.cases as RoutineCase[]).length || (severalMoments && !routine.scheduleIds.length) ? (
+      {(routine.cases as RoutineCase[]).length || (severalMoments && !routine.slotCondition) ? (
         <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : selon ses moments`}>
           <Text size="xs">{(routine.cases as RoutineCase[]).length ? 'Selon le cas' : 'Plusieurs moments'}</Text>
           <Text size="xs" c="dimmed">
             {routine.slots.map((slot) => windowText(slot) || 'dans la journée').join(' · ') || 'pas ce jour-là'}
           </Text>
         </UnstyledButton>
-      ) : routine.scheduleIds.length ? (
+      ) : routine.slotCondition ? (
         <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : plages ${followed}`}>
           <Text size="xs" truncate>
             {followed || 'Plages'}
@@ -437,11 +438,11 @@ export function RepetitionText({ routine }: { routine: Routine }) {
   const rule = ruleOf(routine);
   const text = cases.length
     ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
-    : routine.scheduleIds.length
-      ? `Sur les plages ${routine.scheduleIds.map((id) => `« ${schedules?.find((item) => item.id === id)?.name ?? 'plage supprimée'} »`).join(' ou ')}`
-      : rule
-        ? describeRecurrence(rule, routine.startDate)
-        : '';
+    : rule
+      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), new Map((schedules ?? []).map((item) => [item.id, item.name])))]
+          .filter(Boolean)
+          .join(' · ')
+      : '';
   return (
     <Text size="xs" c="dimmed" lineClamp={1} title={text} px={6}>
       {text}
@@ -473,7 +474,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
     setOpened(true);
   };
 
-  if (routine.scheduleIds.length || (routine.cases as RoutineCase[]).length) {
+  if ((routine.cases as RoutineCase[]).length) {
     return (
       <UnstyledButton onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}`}>
         {children}

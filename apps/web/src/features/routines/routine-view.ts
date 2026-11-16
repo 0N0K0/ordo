@@ -17,6 +17,9 @@ import {
   type RoutineGroupBy,
   type RoutineSortKey,
   type RoutineViewConfig,
+  conditionScheduleIds,
+  readSlotCondition,
+  type RoutineCase,
 } from '@ordo/shared';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
@@ -120,11 +123,11 @@ export const ROUTINE_GROUP_BY_LABELS: Record<RoutineGroupBy, string> = {
 };
 
 /**
- * Repetition of a routine: the frequency of its rule, or the slots of a calendar schedule.
+ * Repetition of a routine: the frequency of its rule.
  * @param {Routine} routine Routine.
  * @returns {(typeof ROUTINE_REPETITIONS)[number]} Repetition.
  */
-export const repetitionOf = (routine: Routine): (typeof ROUTINE_REPETITIONS)[number] => (routine.scheduleIds.length ? 'SCHEDULE' : (ruleOf(routine)?.frequency ?? 'DAILY'));
+export const repetitionOf = (routine: Routine): (typeof ROUTINE_REPETITIONS)[number] => ruleOf(routine)?.frequency ?? 'DAILY';
 
 /**
  * Parses a stored routine view configuration, falling back to the defaults when it is invalid.
@@ -243,7 +246,7 @@ function fieldValue(routine: Routine, field: RoutineFilterField, env: RoutineEnv
     case 'opensOn':
       return routine.opensOn ?? null;
     case 'slots':
-      return [...routine.scheduleIds, ...routine.excludedScheduleIds];
+      return [...conditionScheduleIds(readSlotCondition(routine.slotCondition)), ...(routine.cases as RoutineCase[]).flatMap((item) => conditionScheduleIds(item.condition ?? null))];
     case 'blocks':
       return [...env.byId.values()].filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
     case 'beneficiaries':
