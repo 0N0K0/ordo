@@ -285,6 +285,58 @@ function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (dat
   });
 }
 
+let draftCount = 0;
+
+/**
+ * Routine being created, as typed (shown until the saved one replaces it): last of its siblings, nothing computed yet.
+ * @param {RoutineInput} input Routine.
+ * @param {readonly Routine[]} routines Routines in the cache.
+ * @returns {Routine} Draft.
+ */
+function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routine {
+  const siblings = routines.filter((routine) => (routine.parentId ?? null) === (input.parentId ?? null));
+  return {
+    id: `draft-${(draftCount += 1)}`,
+    title: input.title,
+    description: input.description ?? null,
+    categoryIds: input.categoryIds ?? [],
+    parentId: input.parentId ?? null,
+    startDate: input.startDate,
+    recurrence: input.recurrence,
+    estimate: input.estimate ?? null,
+    fromTime: input.fromTime ?? null,
+    dueTime: input.dueTime ?? null,
+    slotCondition: input.slotCondition ?? null,
+    moments: input.moments ?? [],
+    reminders: input.reminders ?? [],
+    cases: input.cases ?? [],
+    moves: [],
+    done: false,
+    windowFrom: input.fromTime ?? null,
+    windowTo: input.dueTime ?? null,
+    location: input.location ?? null,
+    locationLat: input.locationLat ?? null,
+    locationLon: input.locationLon ?? null,
+    travelBefore: input.travelBefore ?? 0,
+    travelAfter: input.travelAfter ?? 0,
+    projectId: input.projectId ?? null,
+    position: Math.max(-1, ...siblings.map((routine) => routine.position)) + 1,
+    archived: false,
+    assigneeIds: input.assigneeIds ?? [],
+    beneficiaryIds: input.beneficiaryIds ?? [],
+    beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
+    requiredIds: input.requiredIds ?? [],
+    currentDate: null,
+    firstDate: null,
+    nextDate: null,
+    doneDates: [],
+    lastDoneAt: null,
+    trackedSeconds: 0,
+    opensOn: input.opensOn ?? null,
+    slots: [],
+  };
+}
+
 /**
  * A routine with times of the day of its current occurrence ticked or not (for the cache).
  * @param {Routine} routine Routine.
@@ -460,7 +512,11 @@ export function useRoutineMutations() {
       (data, { id, parentId, index }) => ({ ...data, routineCategories: moveInTree(data.routineCategories, id, parentId, index) }),
     ),
     deleteCategory: useRoutineMutation(async (id: string) => (await execute(DeleteCategoryDocument, { id })).deleteRoutineCategory),
-    create: useRoutineMutation(async (input: RoutineInput) => (await execute(CreateRoutineDocument, { input })).createRoutine),
+    // Shown at once, as typed, until the saved routine (its occurrences computed) replaces it.
+    create: useRoutineMutation(
+      async (input: RoutineInput) => (await execute(CreateRoutineDocument, { input })).createRoutine,
+      (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
+    ),
     update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => (await execute(UpdateRoutineDocument, variables)).updateRoutine),
     patch: useRoutineMutation(
       async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,

@@ -38,7 +38,7 @@ import {
   TreeViewIcon,
 } from '@phosphor-icons/react';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
-import { useEffect, useRef, useState, type ComponentProps, type ReactElement, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import type { ColumnMenuExtras } from '../../components/data-table/ColumnHeaderMenu';
 import { shownColumns, tableWidth, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
@@ -308,8 +308,8 @@ interface RoutineRowProps {
   byId: Map<string, Routine>;
   context: TaskContext;
   today: string;
-  /** Whether the slot rule of a routine allows now. */
-  doable: (routine: Routine) => boolean;
+  /** The slot rule of the routine allows now. */
+  doable: boolean;
   running: TimeEntry | null | undefined;
   collapsed: boolean;
   /** Where the dragged routine would go on it (before, after or under it), null when not over it. */
@@ -318,13 +318,16 @@ interface RoutineRowProps {
   movable: boolean;
   /** Columns shown. */
   shown: ShownColumn<Routine>[];
-  onToggle: () => void;
+  /** Folds or unfolds a row (stable: rows are only drawn again when their data change). */
+  onToggle: (key: string) => void;
   categories: RoutineCategory[];
   /** Checked in the row selection (bulk actions). */
   selected: boolean;
-  onSelect: (selected: boolean) => void;
-  /** Props of a bulk-editable cell: its selected state and the Ctrl / Shift + click selecting it. */
-  cell: (column: RoutineColumn) => ComponentProps<'td'>;
+  onSelect: (ids: string[], checked: boolean) => void;
+  /** Column of the cell selection holding this row ('*': the rows checked), null when none. */
+  cellSelection: RoutineColumn | '*' | null;
+  /** Click on a bulk-editable cell (Ctrl / Shift + click selecting it). */
+  onCellClick: (event: MouseEvent, rowKey: string, column: RoutineColumn) => void;
 }
 
 /**
@@ -333,7 +336,39 @@ interface RoutineRowProps {
  * @param {RoutineRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function RoutineRowView({ row, comments, routines, byId, context, today, doable, running, collapsed, drop, movable, shown, onToggle, categories, selected, onSelect, cell }: RoutineRowProps) {
+const RoutineRowView = memo(function RoutineRowView({
+  row,
+  comments,
+  routines,
+  byId,
+  context,
+  today,
+  doable,
+  running,
+  collapsed,
+  drop,
+  movable,
+  shown,
+  onToggle,
+  categories,
+  selected,
+  onSelect,
+  cellSelection,
+  onCellClick,
+}: RoutineRowProps) {
+  /**
+   * Props of a bulk-editable cell: its selected state and the Ctrl / Shift + click selecting it.
+   * @param {RoutineColumn} column Column.
+   * @returns {ComponentProps<'td'>} Props.
+   */
+  const cell = (column: RoutineColumn): ComponentProps<'td'> => {
+    const cellSelected = cellSelection === '*' || cellSelection === column;
+    return {
+      'data-cell-selected': cellSelected || undefined,
+      'aria-selected': cellSelected || undefined,
+      onClickCapture: (event) => onCellClick(event.nativeEvent, row.key, column),
+    } as ComponentProps<'td'>;
+  };
   const postpone = usePostponeRoutine();
   const { routine, depth, children } = row;
   const { setArchived, remove } = useRoutineMutations();
@@ -350,74 +385,85 @@ function RoutineRowView({ row, comments, routines, byId, context, today, doable,
   });
   const { setNodeRef: setDropRef } = useDroppable({ id: `routine:${row.key}`, data: { kind: 'routine', routine, groupId: row.groupId } satisfies DropData });
   const done = isDone(routine);
-  const waiting = waitingFor(routine, byId);
   const readOnly = routine.archived;
-  const cells: Record<string, ReactNode> = {
-    title: (
-      <Group gap={4} wrap="nowrap">
-        {children > 0 ? (
-          <ActionIcon variant="subtle" color="gray" size="xs" aria-label={collapsed ? `Déplier ${routine.title}` : `Plier ${routine.title}`} aria-expanded={!collapsed} onClick={onToggle}>
-            {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
-          </ActionIcon>
-        ) : (
-          depth > 0 && <span style={{ width: 'var(--ai-size-xs, 18px)', flexShrink: 0 }} />
-        )}
-        <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? dayText(routine.currentDate) : undefined} disabled={readOnly} />
-        <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-          <TitleCell routine={routine} readOnly={readOnly} />
-          <RepetitionText routine={routine} />
-        </Stack>
-        {waiting.length > 0 && !done && (
-          <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
-            <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
-          </Tooltip>
-        )}
-      </Group>
-    ),
-    currentDate: (
-      <RepetitionCell routine={routine} readOnly={readOnly}>
-        <StateCell routine={routine} today={today} doable={doable(routine)} />
-      </RepetitionCell>
-    ),
-    firstDate: routine.firstDate ? (
-      <Text size="sm" className={classes.nowrap}>
-        {dayText(String(routine.firstDate))}
-      </Text>
-    ) : null,
-    nextDate: routine.nextDate ? (
-      <Text size="sm" className={classes.nowrap}>
-        {dayText(String(routine.nextDate))}
-      </Text>
-    ) : null,
-    lastDoneAt: routine.lastDoneAt ? (
-      <Text size="sm" className={classes.nowrap}>
-        {fmt.dateTime(new Date(String(routine.lastDoneAt)))}
-      </Text>
-    ) : null,
-    repetition: <RepetitionText routine={routine} />,
-    estimate: <EstimateCell routine={routine} readOnly={readOnly} />,
-    fromTime: <TimeOfDayCell routine={routine} field="fromTime" />,
-    dueTime: <TimeOfDayCell routine={routine} field="dueTime" />,
-    opensOn: <OpensOnCell routine={routine} />,
-    location: <LocationCell routine={routine} />,
-    travelBefore: <TravelCell routine={routine} field="travelBefore" />,
-    travelAfter: <TravelCell routine={routine} field="travelAfter" />,
-    alarms: <RemindersCell routine={routine} />,
-    blocks: <BlocksCell routine={routine} routines={routines} />,
-    parent: <ParentRoutineCell routine={routine} routines={routines} />,
-    subRoutines: <SubRoutinesCell routine={routine} routines={routines} />,
-    trackedTime: <ChronoCell routine={routine} running={running} />,
-    assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
-    beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
-    categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
-    requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
-    project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
-    comments: (
-      <Text size="sm" c="dimmed" ta="right">
-        {commentTotal(comments, routine.id, routine.description) || ''}
-      </Text>
-    ),
-  };
+  // The content of the cells, kept while the row's data do not change: a drag draws the row again (its handle, its
+  // place), not its cells.
+  const cells = useMemo((): Record<string, ReactNode> => {
+    const waiting = waitingFor(routine, byId);
+    return {
+      title: (
+        <Group gap={4} wrap="nowrap">
+          {children > 0 ? (
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="xs"
+              aria-label={collapsed ? `Déplier ${routine.title}` : `Plier ${routine.title}`}
+              aria-expanded={!collapsed}
+              onClick={() => onToggle(row.key)}
+            >
+              {collapsed ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
+            </ActionIcon>
+          ) : (
+            depth > 0 && <span style={{ width: 'var(--ai-size-xs, 18px)', flexShrink: 0 }} />
+          )}
+          <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? dayText(routine.currentDate) : undefined} disabled={readOnly} />
+          <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+            <TitleCell routine={routine} readOnly={readOnly} />
+            <RepetitionText routine={routine} />
+          </Stack>
+          {waiting.length > 0 && !done && (
+            <Tooltip label={`En attente de : ${waiting.map((item) => item.title).join(', ')}`}>
+              <HourglassMediumIcon aria-label="En attente" color="var(--mantine-color-orange-6)" />
+            </Tooltip>
+          )}
+        </Group>
+      ),
+      currentDate: (
+        <RepetitionCell routine={routine} readOnly={readOnly}>
+          <StateCell routine={routine} today={today} doable={doable} />
+        </RepetitionCell>
+      ),
+      firstDate: routine.firstDate ? (
+        <Text size="sm" className={classes.nowrap}>
+          {dayText(String(routine.firstDate))}
+        </Text>
+      ) : null,
+      nextDate: routine.nextDate ? (
+        <Text size="sm" className={classes.nowrap}>
+          {dayText(String(routine.nextDate))}
+        </Text>
+      ) : null,
+      lastDoneAt: routine.lastDoneAt ? (
+        <Text size="sm" className={classes.nowrap}>
+          {fmt.dateTime(new Date(String(routine.lastDoneAt)))}
+        </Text>
+      ) : null,
+      repetition: <RepetitionText routine={routine} />,
+      estimate: <EstimateCell routine={routine} readOnly={readOnly} />,
+      fromTime: <TimeOfDayCell routine={routine} field="fromTime" />,
+      dueTime: <TimeOfDayCell routine={routine} field="dueTime" />,
+      opensOn: <OpensOnCell routine={routine} />,
+      location: <LocationCell routine={routine} />,
+      travelBefore: <TravelCell routine={routine} field="travelBefore" />,
+      travelAfter: <TravelCell routine={routine} field="travelAfter" />,
+      alarms: <RemindersCell routine={routine} />,
+      blocks: <BlocksCell routine={routine} routines={routines} />,
+      parent: <ParentRoutineCell routine={routine} routines={routines} />,
+      subRoutines: <SubRoutinesCell routine={routine} routines={routines} />,
+      trackedTime: <ChronoCell routine={routine} running={running} />,
+      assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
+      beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
+      categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
+      requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
+      project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
+      comments: (
+        <Text size="sm" c="dimmed" ta="right">
+          {commentTotal(comments, routine.id, routine.description) || ''}
+        </Text>
+      ),
+    };
+  }, [routine, byId, done, readOnly, children, depth, collapsed, onToggle, row.key, today, doable, routines, running, context, categories, comments]);
 
   return (
     <Table.Tr
@@ -440,7 +486,7 @@ function RoutineRowView({ row, comments, routines, byId, context, today, doable,
           ) : (
             <span style={{ width: 'var(--ai-size-sm, 22px)', flexShrink: 0 }} />
           )}
-          <Checkbox size="xs" className={classes.select} aria-label={`Sélectionner ${routine.title}`} checked={selected} onChange={(event) => onSelect(event.currentTarget.checked)} />
+          <Checkbox size="xs" className={classes.select} aria-label={`Sélectionner ${routine.title}`} checked={selected} onChange={(event) => onSelect([routine.id], event.currentTarget.checked)} />
         </Group>
       </Table.Td>
       {shown.map((column, index) => {
@@ -489,7 +535,7 @@ function RoutineRowView({ row, comments, routines, byId, context, today, doable,
       </Table.Td>
     </Table.Tr>
   );
-}
+});
 
 /**
  * Row at the end of a category (or of the table): a title typed then Enter adds a routine in it, every day from today.
@@ -609,7 +655,7 @@ export function RoutineTable({
   onSortingChange,
   footer,
 }: RoutineTableProps) {
-  const shownCols = shownColumns(ROUTINE_COLUMNS, columns);
+  const shownCols = useMemo(() => shownColumns(ROUTINE_COLUMNS, columns), [columns]);
   const span = shownCols.length + 2;
   const tableRef = useRef<HTMLTableElement>(null);
   const { patch, move } = useRoutineMutations();
@@ -623,9 +669,10 @@ export function RoutineTable({
   const slotRules = useSlotRules();
   const doable = (routine: Routine) => slotRules.allowed(routineDoable(routine));
   const comments = useCommentCounts('ROUTINE', routines.map((routine) => routine.id));
-  const byId = new Map(routines.map((routine) => [routine.id, routine]));
-  const rows = routineRows(layout, grouping, keep);
-  const shown = visibleRoutineRows(rows, collapsed);
+  // Kept while their data do not change (a drag over the table draws only the rows it changes).
+  const byId = useMemo(() => new Map(routines.map((routine) => [routine.id, routine])), [routines]);
+  const rows = useMemo(() => routineRows(layout, grouping, keep), [layout, grouping, keep]);
+  const shown = useMemo(() => visibleRoutineRows(rows, collapsed), [rows, collapsed]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [cellSelection, setCellSelection] = useState<{ column: RoutineColumn; rowKeys: string[] } | null>(null);
   const anchorRow = useRef<string | null>(null);
@@ -683,22 +730,6 @@ export function RoutineTable({
   };
 
   /**
-   * Props of a bulk-editable cell of a row.
-   * @param {string} rowKey Row key.
-   * @returns {(column: RoutineColumn) => ComponentProps<'td'>} Props by column.
-   */
-  const cellOf =
-    (rowKey: string) =>
-    (column: RoutineColumn): ComponentProps<'td'> => {
-      const cellSelected = (effectiveCellSelection?.column === column || effectiveCellSelection?.column === '*') && Boolean(effectiveCellSelection?.rowKeys.includes(rowKey));
-      return {
-        'data-cell-selected': cellSelected || undefined,
-        'aria-selected': cellSelected || undefined,
-        onClickCapture: (event) => handleCellClick(event.nativeEvent, rowKey, column),
-      } as ComponentProps<'td'>;
-    };
-
-  /**
    * Checks or unchecks routines in the row selection.
    * @param {string[]} ids Routine ids.
    * @param {boolean} checked Target state.
@@ -726,6 +757,16 @@ export function RoutineTable({
       if (!next.delete(key)) next.add(key);
       return next;
     });
+
+  // Handlers kept the same from a render to the next (rows drawn again only when their data change), reading the
+  // latest state.
+  const latest = useRef<{ toggle: typeof toggle; select: typeof select; handleCellClick: typeof handleCellClick } | null>(null);
+  useLayoutEffect(() => {
+    latest.current = { toggle, select, handleCellClick };
+  });
+  const onToggle = useCallback((key: string) => latest.current?.toggle(key), []);
+  const onSelect = useCallback((ids: string[], checked: boolean) => latest.current?.select(ids, checked), []);
+  const onCellClick = useCallback((event: MouseEvent, rowKey: string, column: RoutineColumn) => latest.current?.handleCellClick(event, rowKey, column), []);
 
   /**
    * Whether the dragged routine can go before, after or under a routine: never next to or under itself or one of its
@@ -846,17 +887,18 @@ export function RoutineTable({
             byId={byId}
             context={context}
             today={today}
-            doable={doable}
+            doable={doable(row.routine)}
             running={running}
             collapsed={collapsed.has(row.key)}
             drop={dropOn(row)}
             movable={reorderable}
             shown={shownCols}
-            onToggle={() => toggle(row.key)}
+            onToggle={onToggle}
             categories={categories}
             selected={selected.has(row.routine.id)}
-            onSelect={(checked) => select([row.routine.id], checked)}
-            cell={cellOf(row.key)}
+            onSelect={onSelect}
+            cellSelection={effectiveCellSelection?.rowKeys.includes(row.key) ? effectiveCellSelection.column : null}
+            onCellClick={onCellClick}
           />,
         );
       }
