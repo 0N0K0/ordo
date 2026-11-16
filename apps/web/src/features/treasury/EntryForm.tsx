@@ -21,7 +21,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
-import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { RuleField } from '../../components/recurrence/RuleField';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
 
@@ -423,7 +423,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
 
           {forecast && (
             <>
-              <RecurrenceField value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} />
+              <RuleField weekly={false} value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} />
             </>
           )}
 

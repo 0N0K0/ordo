@@ -3,7 +3,6 @@ import { daysBetween, formatDay, parseDay, type RoutineInput } from '@ordo/share
 import { prisma } from '../../db';
 import { clientError } from '../errors';
 import * as routines from '../../services/routines';
-import { loadSlotContext, type SlotContext } from '../../services/slot-rules';
 import type { Context } from '../context';
 import { builder } from '../builder';
 import { EventScope } from './calendar';
@@ -20,18 +19,18 @@ builder.prismaObject('RoutineCategory', {
 });
 
 /** Selection computing the occurrences and times of the day of a routine. */
-const TIMING = { startDate: true, recurrence: true, scheduleAnchor: true, schedule: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, slotRule: true } as const;
+const TIMING = { startDate: true, recurrence: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, scheduleIds: true, excludedScheduleIds: true, moments: true } as const;
 
-const slotContexts = new WeakMap<Context, Promise<SlotContext>>();
+const slotContexts = new WeakMap<Context, Promise<routines.ScheduleContext>>();
 
 /**
  * Slots of the workspace for the slot rules of the routines, loaded once per request.
  * @param {Context} ctx GraphQL context.
- * @returns {Promise<SlotContext>} Slots.
+ * @returns {Promise<routines.ScheduleContext>} Schedules.
  */
-function slotsOf(ctx: Context): Promise<SlotContext> {
+function slotsOf(ctx: Context): Promise<routines.ScheduleContext> {
   let slots = slotContexts.get(ctx);
-  if (!slots) slotContexts.set(ctx, (slots = loadSlotContext()));
+  if (!slots) slotContexts.set(ctx, (slots = routines.loadScheduleContext()));
   return slots;
 }
 
@@ -49,15 +48,17 @@ interface SlotState {
   dueTime: string | null;
   optional: boolean;
   done: boolean;
+  /** Windows it can be done in that day (several where slots cut it). */
+  windows: { fromTime: string | null; dueTime: string | null }[];
 }
 
 /**
  * Times of the day of the current occurrence of a routine (its next one before it starts), with those ticked.
  * @param {routines.RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
- * @param {SlotContext} context Slots of the workspace.
+ * @param {routines.ScheduleContext} context Schedules of the workspace.
  * @returns {{ date: string | null, slots: SlotState[] }} Day and its times.
  */
-const slotStates = (routine: routines.RoutineTiming & { checks: { date: Date; slot: number }[] }, context: SlotContext) => {
+const slotStates = (routine: routines.RoutineTiming & { checks: { date: Date; slot: number }[] }, context: routines.ScheduleContext) => {
   const { current, next } = routines.occurrencesOf(routine, undefined, context);
   const date = current ?? next;
   const ticked = new Set(routine.checks.filter((check) => current && formatDay(check.date) === current).map((check) => check.slot));
@@ -79,6 +80,7 @@ const RoutineSlotRef = builder.objectRef<SlotState>('RoutineSlot').implement({
     dueTime: t.exposeString('dueTime', { nullable: true }),
     optional: t.exposeBoolean('optional'),
     done: t.exposeBoolean('done'),
+    windows: t.field({ type: 'JSON', description: 'Windows it can be done in that day, [{ fromTime, dueTime }] (several where slots cut it).', resolve: (slot) => slot.windows }),
   }),
 });
 
@@ -105,8 +107,9 @@ builder.prismaObject('Routine', {
     estimate: t.exposeInt('estimate', { nullable: true, description: 'Minutes.' }),
     projectId: t.exposeID('projectId', { nullable: true }),
     fromTime: t.exposeString('fromTime', { nullable: true, description: 'Time to do it from (HH:MM), its own (see windowFrom).' }),
-    scheduleId: t.exposeID('scheduleId', { nullable: true, description: 'Calendar schedule it follows (its days and times).' }),
-    scheduleAnchor: t.exposeString('scheduleAnchor', { nullable: true, description: 'START, WHOLE or END of the schedule.' }),
+    scheduleIds: t.exposeIDList('scheduleIds', { description: 'Calendar schedules it follows (one or another): their slots are its days and times.' }),
+    excludedScheduleIds: t.exposeIDList('excludedScheduleIds', { description: 'Calendar schedules it is done out of (its moments kept to the free time).' }),
+    moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
     reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
     opensOn: t.exposeString('opensOn', { nullable: true, description: 'Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).' }),
     slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.', resolve: (routine) => readSlotRule(routine.slotRule) }),
@@ -218,12 +221,12 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     recurrence: t.field({ type: 'JSON', required: true }),
     estimate: t.int({ description: 'Minutes.' }),
     fromTime: t.string({ description: 'HH:MM.' }),
-    scheduleId: t.id(),
-    scheduleAnchor: t.string({ description: 'START, WHOLE or END.' }),
+    scheduleIds: t.idList({ description: 'Calendar schedules it follows (one or another).' }),
+    excludedScheduleIds: t.idList({ description: 'Calendar schedules it is done out of.' }),
+    moments: t.field({ type: 'JSON', description: 'Times of the day, [{ fromTime, dueTime, optional }].' }),
     cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day); empty: the repetition.' }),
     reminders: t.intList(),
     opensOn: t.string({ description: 'Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).' }),
-    slotRule: t.field({ type: 'JSON', description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.' }),
     dueTime: t.string({ description: 'HH:MM.' }),
     location: t.string(),
     locationLat: t.float(),
@@ -257,7 +260,6 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     travelAfter: t.int({ description: 'Minutes to come back.' }),
     reminders: t.intList({ description: 'Minutes before its moment.' }),
     opensOn: t.string({ description: '« À partir du »: "DD" (monthly) or "MM-DD" (yearly); null: none.' }),
-    slotRule: t.field({ type: 'JSON', description: 'Slots it is done on; null: the default of the workspace.' }),
     fromTime: t.string({ description: 'HH:MM; null: no limit.' }),
     dueTime: t.string({ description: 'HH:MM; null: no limit.' }),
     startDate: t.field({ type: 'Date' }),
@@ -304,11 +306,14 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   recurrence: input.recurrence as RoutineInput['recurrence'],
   estimate: input.estimate ?? null,
   fromTime: input.fromTime ?? null,
-  scheduleId: idOrNull(input.scheduleId),
-  scheduleAnchor: (input.scheduleAnchor ?? null) as RoutineInput['scheduleAnchor'],
+  scheduleId: null,
+  scheduleAnchor: null,
+  scheduleIds: (input.scheduleIds ?? []).map(String),
+  excludedScheduleIds: (input.excludedScheduleIds ?? []).map(String),
+  moments: (input.moments ?? []) as RoutineInput['moments'],
   reminders: input.reminders ?? [],
   opensOn: input.opensOn ?? null,
-  slotRule: (input.slotRule ?? null) as RoutineInput['slotRule'],
+  slotRule: null,
   cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
   location: input.location ?? null,
@@ -327,6 +332,10 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
 interface OccurrenceState {
   routineId: string;
   date: string;
+  /** First day it can be done (its due day for a single day). */
+  startDate: string;
+  /** Day it shows on: its due day once past, today while it runs, its first day before. */
+  shownDate: string;
   movedFrom: string | null;
   slots: SlotState[];
 }
@@ -335,7 +344,9 @@ const RoutineOccurrenceRef = builder.objectRef<OccurrenceState>('RoutineOccurren
   description: 'Occurrence of a routine on a day (for the calendar).',
   fields: (t) => ({
     routineId: t.exposeID('routineId'),
-    date: t.field({ type: 'Date', resolve: (occurrence) => parseDay(occurrence.date) }),
+    date: t.field({ type: 'Date', description: 'Due day (its last day).', resolve: (occurrence) => parseDay(occurrence.date) }),
+    startDate: t.field({ type: 'Date', description: 'First day it can be done.', resolve: (occurrence) => parseDay(occurrence.startDate) }),
+    shownDate: t.field({ type: 'Date', description: 'Day it shows on: its due day once past, today while it runs, its first day before.', resolve: (occurrence) => parseDay(occurrence.shownDate) }),
     movedFrom: t.field({ type: 'Date', nullable: true, description: 'Day of the rule it was moved from (an exception).', resolve: (occurrence) => asDate(occurrence.movedFrom) }),
     slots: t.field({ type: [RoutineSlotRef], resolve: (occurrence) => occurrence.slots }),
   }),
@@ -387,12 +398,15 @@ builder.queryFields((t) => ({
         select: { id: true, ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
       });
       const context = await slotsOf(ctx);
+      const today = routines.routineToday();
       return list.flatMap((routine) => {
         const moves = routines.storedMoves(routine.moves);
         const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
-        return routines.occurrencesBetween(routine, from, to, context).map((date) => ({
+        return routines.occurrenceSpansBetween(routine, from, to, context).map(({ start, end: date }) => ({
           routineId: routine.id,
           date,
+          startDate: start,
+          shownDate: routines.shownDay({ start, end: date }, today),
           movedFrom: moves.find((move) => move.to === date && move.from !== date)?.from ?? null,
           slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(`${date}/${index}`) })),
         }));
@@ -470,12 +484,13 @@ builder.mutationFields((t) => ({
       if (input.travelAfter !== undefined && input.travelAfter !== null) changes.travelAfter = input.travelAfter;
       if (input.reminders) changes.reminders = input.reminders;
       if (input.opensOn !== undefined) changes.opensOn = input.opensOn ?? null;
-      if (input.slotRule !== undefined) changes.slotRule = (input.slotRule ?? null) as RoutineInput['slotRule'];
-      // A repetition of its own: it no longer follows its schedule (its times then keep the slots within them).
-      if (input.recurrence !== undefined && input.recurrence !== null)
-        Object.assign(changes, { scheduleId: null, scheduleAnchor: null, cases: [] });
-      if (input.fromTime !== undefined) changes.fromTime = input.fromTime;
-      if (input.dueTime !== undefined) changes.dueTime = input.dueTime;
+      // A repetition of its own: it no longer follows its schedules nor its cases.
+      if (input.recurrence !== undefined && input.recurrence !== null) Object.assign(changes, { scheduleIds: [], cases: [] });
+      // Times of its own: a single moment.
+      if (input.fromTime !== undefined || input.dueTime !== undefined) {
+        const current = await routines.momentOf(String(id));
+        changes.moments = [{ fromTime: input.fromTime !== undefined ? (input.fromTime ?? null) : current.fromTime, dueTime: input.dueTime !== undefined ? (input.dueTime ?? null) : current.dueTime, optional: false }];
+      }
       if (input.startDate) changes.startDate = input.startDate;
       if (input.recurrence !== undefined && input.recurrence !== null) changes.recurrence = input.recurrence as RoutineInput['recurrence'];
       await routines.patchRoutine(String(id), changes);

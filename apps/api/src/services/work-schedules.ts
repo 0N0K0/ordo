@@ -5,8 +5,8 @@ import {
   fromLegacySchedule,
   parseDay,
   readScheduleDisplay,
-  scheduleCaseSchema,
-  scheduleExceptionSchema,
+  readScheduleCases,
+  readScheduleExceptions,
   scheduleSubscriptionLookSchema,
   scheduleTypeSchema,
   workScheduleSchema,
@@ -35,17 +35,9 @@ import { currentWorkspaceId } from "../workspace-context";
  */
 export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
   const startDate = formatDay(schedule.startDate);
-  const cases = z.array(scheduleCaseSchema).safeParse(schedule.cases);
-  const exceptions = z
-    .array(scheduleExceptionSchema)
-    .safeParse(schedule.exceptions);
-  const current =
-    cases.success && cases.data.length
-      ? {
-          cases: cases.data,
-          exceptions: exceptions.success ? exceptions.data : [],
-        }
-      : null;
+  // Cases of the former form converted (their rhythms count from the start of the period).
+  const cases = readScheduleCases(schedule.cases, startDate);
+  const current = cases.length ? { cases, exceptions: readScheduleExceptions(schedule.exceptions) } : null;
   return {
     id: schedule.id,
     name: schedule.name,

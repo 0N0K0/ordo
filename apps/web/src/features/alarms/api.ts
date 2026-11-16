@@ -19,6 +19,7 @@ graphql(`
     interval
     weekdays
     endDate
+    recurrence
     minutes
     projectId
     taskId

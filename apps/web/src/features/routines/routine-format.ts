@@ -212,11 +212,14 @@ export const windowOf = (routine: Routine) => ({ fromTime: routine.windowFrom, d
 export const scheduleOf = (routine: Routine) => routineSchedule({ ...routine, ...windowOf(routine) });
 
 /**
- * Window as words: "8:20–8:30", "avant 8:30", "dès 16:30", or empty.
- * @param {{ fromTime: string | null, dueTime: string | null }} window Window.
+ * Window as words: "8:20–8:30", "avant 8:30", "dès 16:30", "7:00–9:00 ou 17:00–20:00", or empty.
+ * @param {{ fromTime: string | null, dueTime: string | null, windows?: unknown }} window Window, and the windows it can be done in.
  * @returns {string} Text.
  */
-export function windowText({ fromTime, dueTime }: { fromTime: string | null; dueTime: string | null }): string {
+export function windowText({ fromTime, dueTime, windows }: { fromTime: string | null; dueTime: string | null; windows?: unknown }): string {
+  // Several windows (free time cut by slots): each one, « or ».
+  const parts = Array.isArray(windows) ? (windows as { fromTime: string | null; dueTime: string | null }[]) : [];
+  if (parts.length > 1) return parts.map((part) => windowText(part)).join(' ou ');
   if (fromTime && dueTime) return `${fromTime}–${dueTime}`;
   if (dueTime) return `avant ${dueTime}`;
   return fromTime ? `dès ${fromTime}` : '';
@@ -229,7 +232,7 @@ export function windowText({ fromTime, dueTime }: { fromTime: string | null; due
  * @returns {RoutineCase} Case.
  */
 export function newRoutineCase(fromTime: string | null, dueTime: string | null): RoutineCase {
-  return { from: null, recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
+  return { from: null, until: null, recurrence: DAILY, slots: [{ fromTime, dueTime, optional: false }] };
 }
 
 /**

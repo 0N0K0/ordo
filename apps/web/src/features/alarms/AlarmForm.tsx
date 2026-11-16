@@ -1,14 +1,18 @@
 import { TimeField } from '../../components/TimeField';
-import { Button, Chip, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
+import { Button, Group, NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { alarmInputSchema, type AlarmFrequency, type AlarmType } from '@ordo/shared';
+import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { ProjectSelect, TaskSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { timeTasks } from '../time/time-tasks';
-import { WEEKDAY_LABELS } from './alarm-labels';
+import { legacyFields } from './alarm-labels';
+import * as fmt from '../../lib/format';
+import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
+import { RepetitionEditor } from '../../components/recurrence/RepetitionEditor';
+import { RepetitionField } from '../../components/recurrence/RepetitionField';
 import { useAlarmMutations, type Alarm, type AlarmInput } from './api';
 
 const TYPES: { value: AlarmType; label: string }[] = [
@@ -23,14 +27,23 @@ const TYPE_HELP: Record<AlarmType, string> = {
   TRACKING_DURATION: 'Sonne après chaque durée de chrono (ex. une pause toutes les 50 minutes).',
 };
 
-const FREQUENCIES: { value: AlarmFrequency; label: string }[] = [
-  { value: 'ONCE', label: 'Une seule fois' },
-  { value: 'DAILY', label: 'Tous les jours' },
-  { value: 'WEEKLY', label: 'Chaque semaine' },
-  { value: 'MONTHLY', label: 'Chaque mois' },
-];
+/** Date, time and repetition of an alarm. */
+interface AlarmTiming {
+  startDate: string | null;
+  time: string | null;
+  recurrence: Recurrence | null;
+}
 
-const UNITS: Record<AlarmFrequency, string> = { ONCE: '', DAILY: 'jour(s)', WEEKLY: 'semaine(s)', MONTHLY: 'mois' };
+/**
+ * Date, time and repetition of an alarm as text: "Le 3 novembre 2026 à 09:00", "Tous les jours à 07:30".
+ * @param {AlarmTiming} timing Timing.
+ * @returns {string} Text.
+ */
+function describeTiming(timing: AlarmTiming): string {
+  const at = timing.time ? ` à ${timing.time}` : '';
+  if (!timing.recurrence || !timing.startDate) return `Le ${timing.startDate ? fmt.day(timing.startDate) : '—'}${at}`;
+  return `${fmt.capitalize(describeRecurrence(timing.recurrence, timing.startDate))}${at}`;
+}
 
 interface AlarmFormValues extends Record<string, unknown> {
   title: string;
@@ -38,10 +51,7 @@ interface AlarmFormValues extends Record<string, unknown> {
   type: AlarmType;
   startDate: string | null;
   time: string | null;
-  frequency: AlarmFrequency;
-  interval: number;
-  weekdays: number[];
-  endDate: string | null;
+  recurrence: Recurrence | null;
   minutes: number | null;
   projectId: string | null;
   taskId: string | null;
@@ -80,10 +90,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),
       time: alarm?.time ?? '09:00',
-      frequency: alarm?.frequency ?? 'ONCE',
-      interval: alarm?.interval ?? 1,
-      weekdays: alarm?.weekdays ?? [],
-      endDate: alarm?.endDate ?? null,
+      recurrence: alarm ? alarmRule(alarm) : null,
       minutes: alarm?.minutes ?? 50,
       projectId: alarm ? alarm.projectId : (defaults?.projectId ?? null),
       taskId: alarm ? alarm.taskId : (defaults?.taskId ?? null),
@@ -91,11 +98,11 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
     },
     schema: alarmInputSchema,
   });
-  const { type, frequency } = form.values;
+  const { type } = form.values;
   const tracking = type === 'TRACKING_DURATION';
 
   const handleSubmit = form.onSubmit((values) => {
-    const input: AlarmInput = { ...values, note: values.note || null, minutes: tracking ? values.minutes : null };
+    const input: AlarmInput = { ...values, ...legacyFields(values.recurrence), note: values.note || null, minutes: tracking ? values.minutes : null };
     const callbacks = {
       onSuccess: () => {
         notifySuccess(copy ? 'Alarme dupliquée.' : alarm ? 'Alarme modifiée.' : 'Alarme créée.');
@@ -135,63 +142,30 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
             onChange={(value) => form.setFieldValue('minutes', typeof value === 'number' ? value : null)}
           />
         ) : (
-          <>
-            <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
-              <DatePickerInput
-                label={frequency === 'ONCE' ? 'Date' : 'À partir du'}
-                required
-                {...form.getInputProps('startDate')}
+          <RepetitionField<AlarmTiming>
+            label="Date, heure et répétition"
+            required
+            error={(form.errors.startDate ?? form.errors.time ?? form.errors.recurrence) as string | undefined}
+            value={{ startDate: form.values.startDate, time: form.values.time, recurrence: form.values.recurrence }}
+            onChange={(timing) => form.setValues({ ...timing })}
+            valid={(draft) => Boolean(draft.startDate && draft.time)}
+            describe={(timing) => (timing.startDate ? [describeTiming(timing)] : [])}
+            editor={(draft, setDraft) => (
+              <RepetitionEditor<null>
+                mode="RULE"
+                onModeChange={() => undefined}
+                cases={[{ since: null, until: null, anchor: null, rule: draft.recurrence, times: null }]}
+                onChange={(cases) => setDraft({ ...draft, recurrence: cases[0]?.rule ?? null })}
+                start={draft.startDate ?? localToday()}
+                footer={
+                  <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
+                    <DatePickerInput label={draft.recurrence ? 'À partir du' : 'Date'} required value={draft.startDate} onChange={(startDate) => startDate && setDraft({ ...draft, startDate })} />
+                    <TimeField label="Heure" required value={draft.time ?? ''} onChange={(time) => setDraft({ ...draft, time: time || null })} />
+                  </SimpleGrid>
+                }
               />
-              <TimeField label="Heure" required {...form.getInputProps('time')} />
-              <Select
-                label="Répétition"
-                data={FREQUENCIES}
-                allowDeselect={false}
-                {...form.getInputProps('frequency')}
-              />
-            </SimpleGrid>
-            {frequency !== 'ONCE' && (
-              <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-                <NumberInput
-                  label="Tous les"
-                  suffix={` ${UNITS[frequency]}`}
-                  min={1}
-                  max={365}
-                  {...form.getInputProps('interval')}
-                  onChange={(value) => form.setFieldValue('interval', typeof value === 'number' ? value : 1)}
-                />
-                <DatePickerInput label="Jusqu’au" clearable placeholder="Sans fin" {...form.getInputProps('endDate')} />
-              </SimpleGrid>
             )}
-            {frequency === 'WEEKLY' && (
-              <Stack gap={4}>
-                <Group justify="space-between">
-                  <Text size="sm" fw={500}>
-                    Jours
-                  </Text>
-                  <Button variant="subtle" size="compact-xs" onClick={() => form.setFieldValue('weekdays', [1, 2, 3, 4, 5])}>
-                    Jours ouvrés
-                  </Button>
-                </Group>
-                <Chip.Group
-                  multiple
-                  value={form.values.weekdays.map(String)}
-                  onChange={(values) => form.setFieldValue('weekdays', values.map(Number).sort())}
-                >
-                  <Group gap={6}>
-                    {WEEKDAY_LABELS.map((label, index) => (
-                      <Chip key={label} value={String(index + 1)} size="xs">
-                        {label.slice(0, 3)}.
-                      </Chip>
-                    ))}
-                  </Group>
-                </Chip.Group>
-                <Text size="xs" c="dimmed">
-                  Aucun jour choisi : le jour de la date de début.
-                </Text>
-              </Stack>
-            )}
-          </>
+          />
         )}
 
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">

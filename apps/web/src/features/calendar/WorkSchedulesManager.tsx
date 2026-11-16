@@ -1,10 +1,8 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { ActionIcon, Badge, Button, Checkbox, ColorSwatch, Divider, Group, Paper, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { Badge, Button, ColorSwatch, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import {
   DEFAULT_SCHEDULE_KIND_NAME,
-  periodRhythm,
   readScheduleCases,
   readScheduleExceptions,
   workScheduleSchema,
@@ -27,8 +25,8 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
-import { ScheduleCasesEditor } from './ScheduleCasesEditor';
-import { describeCase, fitCases, newCase, printedDate } from './schedule-text';
+import { ScheduleRepetition } from './ScheduleRepetition';
+import { describeScheduleCase, exceptionPeriod, newScheduleCase, printedDate } from './schedule-text';
 import { Comments } from '../comments/Comments';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
@@ -43,13 +41,6 @@ interface ScheduleValues extends Record<string, unknown> {
   exceptions: ScheduleException[];
   typeId: string | null;
 }
-
-/**
- * Period of an exception in words.
- * @param {ScheduleException} exception Exception.
- * @returns {string} "le 12 nov. 2026" or "du 1 août 2026 au 15 août 2026".
- */
-const exceptionPeriod = (exception: ScheduleException) => (exception.from === exception.to ? `le ${printedDate(exception.from)}` : `du ${printedDate(exception.from)} au ${printedDate(exception.to)}`);
 
 /**
  * Schedule form: name, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
@@ -69,43 +60,13 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
       // A copy has no dates: to choose.
       startDate: schedule ? String(schedule.startDate) : copyOf ? '' : localToday(),
       endDate: schedule?.endDate ? String(schedule.endDate) : null,
-      cases: schedule ? readScheduleCases(schedule.cases) : copyOf ? readScheduleCases(copyOf.cases) : [newCase(false)],
+      cases: schedule ? readScheduleCases(schedule.cases, String(schedule.startDate)) : copyOf ? readScheduleCases(copyOf.cases, String(copyOf.startDate)) : [newScheduleCase(localToday())],
       exceptions: schedule ? readScheduleExceptions(schedule.exceptions) : [],
       typeId: schedule?.typeId ?? copyOf?.typeId ?? null,
     },
     schema: workScheduleSchema,
   });
   const values = form.values;
-  // Every rhythm until the start is chosen (a copy has none); rhythms count from today meanwhile.
-  const rhythm = values.startDate ? periodRhythm(values.startDate, values.endDate) : 'ANY';
-  const periodStart = values.startDate || localToday();
-
-  /**
-   * Changes the period of the schedule, its cases fitted to the rhythms it allows.
-   * @param {Partial<{ startDate: string, endDate: string | null }>} period New dates.
-   * @returns {void}
-   */
-  const setPeriod = (period: Partial<{ startDate: string; endDate: string | null }>) => {
-    const next = { startDate: values.startDate, endDate: values.endDate, ...period };
-    form.setValues({ ...next, cases: next.startDate ? fitCases(values.cases, periodRhythm(next.startDate, next.endDate)) : values.cases });
-  };
-
-  /**
-   * Changes an exception; new dates fit its cases to the rhythms its period allows.
-   * @param {number} index Exception.
-   * @param {Partial<ScheduleException>} changes Changes.
-   * @returns {void}
-   */
-  const setException = (index: number, changes: Partial<ScheduleException>) => {
-    const next = { ...values.exceptions[index], ...changes };
-    if (next.to < next.from) next.to = next.from;
-    next.cases = fitCases(next.cases, periodRhythm(next.from, next.to));
-    form.setFieldValue(
-      'exceptions',
-      values.exceptions.map((other, otherIndex) => (otherIndex === index ? next : other)),
-    );
-  };
-
   return (
     <Stack gap="lg">
       <form
@@ -147,79 +108,11 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               {...form.getInputProps('typeId')}
             />
           </Group>
-          <Group grow align="flex-start">
-            <DatePickerInput
-              label="À partir du"
-              required
-              placeholder="À choisir"
-              value={values.startDate || null}
-              error={form.errors.startDate}
-              onChange={(date) => date && setPeriod({ startDate: String(date) })}
-            />
-            <DatePickerInput
-              label="Jusqu’au"
-              clearable
-              placeholder="Sans fin"
-              minDate={values.startDate || undefined}
-              value={values.endDate}
-              error={form.errors.endDate}
-              onChange={(date) => setPeriod({ endDate: date ? String(date) : null })}
-            />
-          </Group>
-
-          <Divider label="Cas" labelPosition="left" />
-          <ScheduleCasesEditor cases={values.cases} rhythm={rhythm} periodStart={periodStart} onChange={(cases) => form.setFieldValue('cases', cases)} />
-
-          <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
-          <Text size="xs" c="dimmed">
-            Pendant une exception, ses propres cas remplacent ceux de la plage ; sans cas, c’est une pause.
-          </Text>
-          <Stack gap="sm">
-            {values.exceptions.map((exception, index) => {
-              const exceptionRhythm = periodRhythm(exception.from, exception.to);
-              const pause = exception.cases.length === 0;
-              return (
-                <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
-                  <Stack gap="xs">
-                    <Group gap={6} wrap="nowrap" align="flex-end">
-                      <DatePickerInput label="Du" size="xs" w={140} value={exception.from} onChange={(date) => date && setException(index, { from: String(date) })} />
-                      <DatePickerInput label="Au" size="xs" w={140} minDate={exception.from} value={exception.to} onChange={(date) => date && setException(index, { to: String(date) })} />
-                      <TextInput
-                        label="Motif"
-                        size="xs"
-                        placeholder="Congés, formation…"
-                        style={{ flex: 1 }}
-                        value={exception.label}
-                        onChange={(event) => setException(index, { label: event.currentTarget.value })}
-                      />
-                      <Tooltip label="Retirer l’exception">
-                        <ActionIcon variant="subtle" color="gray" mb={4} aria-label={`Retirer l’exception ${index + 1}`} onClick={() => form.removeListItem('exceptions', index)}>
-                          <TrashIcon aria-hidden />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                    <Checkbox
-                      size="xs"
-                      label="Pause (aucune plage pendant cette période)"
-                      checked={pause}
-                      onChange={(event) => setException(index, { cases: event.currentTarget.checked ? [] : [newCase(exceptionRhythm === 'DAY')] })}
-                    />
-                    {!pause && <ScheduleCasesEditor cases={exception.cases} rhythm={exceptionRhythm} periodStart={exception.from} onChange={(cases) => setException(index, { cases })} />}
-                  </Stack>
-                </Paper>
-              );
-            })}
-            <div>
-              <Button
-                size="compact-xs"
-                variant="subtle"
-                leftSection={<PlusIcon aria-hidden />}
-                onClick={() => form.insertListItem('exceptions', { from: localToday(), to: localToday(), label: 'Congés', cases: [] } satisfies ScheduleException)}
-              >
-                Ajouter une exception
-              </Button>
-            </div>
-          </Stack>
+          <ScheduleRepetition
+            error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.cases ?? form.errors.exceptions) as string | undefined}
+            value={{ startDate: values.startDate, endDate: values.endDate, cases: values.cases, exceptions: values.exceptions }}
+            onChange={(repetition) => form.setValues({ ...repetition })}
+          />
 
           <Group justify="flex-end">
             <Button variant="default" onClick={onDone}>
@@ -282,7 +175,7 @@ export function WorkSchedulesManager() {
       name: schedule.name,
       startDate: String(schedule.startDate).slice(0, 10),
       endDate: schedule.endDate ? String(schedule.endDate).slice(0, 10) : null,
-      cases: readScheduleCases(schedule.cases),
+      cases: readScheduleCases(schedule.cases, String(schedule.startDate).slice(0, 10)),
       exceptions: readScheduleExceptions(schedule.exceptions),
       typeId: schedule.typeId ?? null,
       ...change,
@@ -343,7 +236,10 @@ export function WorkSchedulesManager() {
       id: 'hours',
       label: 'Horaires',
       size: 320,
-      text: ({ schedule, exceptions }) => [...readScheduleCases(schedule.cases).map(describeCase), ...exceptions.map((exception) => exception.label)].filter(Boolean).join(' ; '),
+      text: ({ schedule, exceptions }) =>
+        [...readScheduleCases(schedule.cases, String(schedule.startDate)).map((item) => describeScheduleCase(item, String(schedule.startDate))), ...exceptions.map((exception) => exception.label)]
+          .filter(Boolean)
+          .join(' ; '),
     },
     {
       id: 'state',
@@ -458,9 +354,9 @@ export function WorkSchedulesManager() {
               hours: (
                 <>
                   <Stack gap={0}>
-                    {readScheduleCases(schedule.cases).map((item, index) => (
+                    {readScheduleCases(schedule.cases, String(schedule.startDate)).map((item, index) => (
                       <Text key={index} size="xs">
-                        {describeCase(item)}
+                        {describeScheduleCase(item, String(schedule.startDate))}
                       </Text>
                     ))}
                     {exceptions.length > 0 && (
@@ -469,7 +365,8 @@ export function WorkSchedulesManager() {
                         w={360}
                         label={exceptions.map((exception, index) => (
                           <Text key={index} size="xs">
-                            {exception.label || 'Exception'} {exceptionPeriod(exception)} : {exception.cases.length ? exception.cases.map(describeCase).join(' ; ') : 'pause'}
+                            {exception.label || 'Exception'} {exceptionPeriod(exception)} :{' '}
+                            {exception.cases.length ? exception.cases.map((item) => describeScheduleCase(item, exception.from)).join(' ; ') : 'pause'}
                           </Text>
                         ))}
                       >

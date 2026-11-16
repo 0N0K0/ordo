@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { addDays, daysBetween, parseDay } from './recurrence';
+import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, parseDay, type Duration, type Recurrence } from './recurrence';
+import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from './repetition';
 import { colorSchema } from './workspace';
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
@@ -65,17 +66,37 @@ export const scheduleCaseSchema = z
       if (index && sorted[index - 1].end > range.start) context.addIssue({ code: 'custom', path: ['ranges'], message: 'Des horaires se chevauchent.' });
     });
   });
-export type ScheduleCase = z.infer<typeof scheduleCaseSchema>;
-export type ScheduleCaseInput = z.input<typeof scheduleCaseSchema>;
+/** Case of a schedule in its former form (pattern, every…), read and converted (see `scheduleCaseRepetition`). */
+export type LegacyScheduleCase = z.infer<typeof scheduleCaseSchema>;
+
+/** Hours of the days of a schedule case: time ranges, or the whole day. */
+export const scheduleTimesSchema = z.object({
+  allDay: z.boolean().default(false),
+  ranges: z.array(timeRangeSchema).max(12, '12 tranches au plus.').default([]),
+});
+export type ScheduleTimes = z.infer<typeof scheduleTimesSchema>;
+
+/** A case of a schedule: its period, its rule (with how long each occurrence lasts) and its hours. */
+export const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).superRefine((item, context) => {
+  if (item.rule?.frequency === 'WEEKLY' && !item.rule.weekdays.length) context.addIssue({ code: 'custom', path: ['rule', 'weekdays'], message: 'Choisissez au moins un jour.' });
+  if (!item.times.allDay && !item.times.ranges.length) context.addIssue({ code: 'custom', path: ['times', 'ranges'], message: 'Ajoutez des horaires, ou « toute la journée ».' });
+  // Ranges of a case must not overlap.
+  const sorted = [...item.times.ranges].sort((a, b) => a.start.localeCompare(b.start));
+  sorted.forEach((range, index) => {
+    if (index && sorted[index - 1].end > range.start) context.addIssue({ code: 'custom', path: ['times', 'ranges'], message: 'Des horaires se chevauchent.' });
+  });
+});
+export type ScheduleCase = RepetitionCase<ScheduleTimes>;
+
+const exceptionFields = {
+  from: isoDate,
+  to: isoDate,
+  label: z.string().trim().max(100, '100 caractères maximum.').default(''),
+};
 
 /** Period with its own cases instead of the general ones (none: a pause, holidays…), dates included. */
 export const scheduleExceptionSchema = z
-  .object({
-    from: isoDate,
-    to: isoDate,
-    label: z.string().trim().max(100, '100 caractères maximum.').default(''),
-    cases: z.array(scheduleCaseSchema).max(20, '20 cas au plus.').default([]),
-  })
+  .object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) })
   .refine((exception) => exception.to >= exception.from, { path: ['to'], message: 'La fin doit suivre le début.' });
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 
@@ -85,7 +106,7 @@ export const workScheduleSchema = z
     name: z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.'),
     startDate: isoDate,
     endDate: isoDate.nullable(),
-    cases: z.array(scheduleCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
+    cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
     exceptions: z.array(scheduleExceptionSchema).max(200, '200 exceptions au plus.'),
     /** Kind of time it plans; none: working hours. */
     typeId: z.string().nullish(),
@@ -168,21 +189,6 @@ export function periodRhythm(from: string, to: string | null): 'DAY' | 'WEEK' | 
 }
 
 /**
- * Whether a date is the day a monthly or yearly case asks for in its month: a day number (the last day when the
- * month is shorter), or the nth (or last) weekday.
- * @param {ScheduleCase} item Case.
- * @param {string} date YYYY-MM-DD.
- * @returns {boolean} That day.
- */
-function dayOfMonthMatches(item: ScheduleCase, date: string): boolean {
-  const day = Number(date.slice(8, 10));
-  const lastDay = new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)), 0)).getUTCDate();
-  if (item.monthlyMode === 'DAY') return day === Math.min(item.monthDay, lastDay);
-  if (weekdayOf(date) !== item.weekday) return false;
-  return item.position === -1 ? day + 7 > lastDay : Math.ceil(day / 7) === item.position;
-}
-
-/**
  * Year an ISO week belongs to (that of its Thursday).
  * @param {string} date YYYY-MM-DD.
  * @returns {number} Year.
@@ -192,116 +198,82 @@ export function isoWeekYear(date: string): number {
 }
 
 /**
- * Day of a month, kept within it (the 31st of a 30-day month is its 30th).
- * @param {number} year Year.
- * @param {number} month 1 to 12.
- * @param {number} day Day number.
- * @returns {string} YYYY-MM-DD.
+ * Rhythm start of a case as the common repetition counts it: early enough for every occurrence the case had (those
+ * counted from the start of its month, year or ISO year, or a week of its rhythm before the period), on its rhythm.
+ * @param {LegacyScheduleCase} item Case.
+ * @param {string} periodStart First day of its period.
+ * @returns {string} Anchor.
  */
-function dayIn(year: number, month: number, day: number): string {
-  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
+function caseAnchor(item: LegacyScheduleCase, periodStart: string): string {
+  const anchor = item.from ?? periodStart;
+  if (item.pattern === 'EVERY_N_DAYS') return anchor;
+  if (item.pattern === 'MONTHLY') return `${anchor.slice(0, 7)}-01`;
+  if (item.pattern === 'YEARLY' && item.monthlyMode === 'WEEK') {
+    // Monday of the first ISO week of its ISO year.
+    const year = isoWeekYear(anchor);
+    return mondayOf(`${year}-01-04`);
+  }
+  if (item.pattern === 'YEARLY') return `${anchor.slice(0, 4)}-01-01`;
+  // Every day, weeks: the Monday of a week of its rhythm early enough for an occurrence started before the period to
+  // cover its first days.
+  const monday = mondayOf(anchor);
+  const earliest = mondayOf(addDays(periodStart, 1 - item.days));
+  const back = Math.max(0, Math.ceil(daysBetween(earliest, monday) / 7 / item.every));
+  return addDays(monday, -7 * item.every * back);
 }
 
 /**
- * Whether an occurrence of a case starts on a date (its first day), before its days are counted.
- * @param {ScheduleCase} item Case.
- * @param {string} anchor First day of its rhythm.
- * @param {string} date YYYY-MM-DD.
- * @returns {boolean} Starts that day.
+ * Schedule case of the former form as a case of the common repetition (its rule, how long each occurrence lasts, its
+ * period and hours).
+ * @param {LegacyScheduleCase} item Case.
+ * @param {string} periodStart First day of its period (rhythm start without `from`).
+ * @returns {ScheduleCase} Case.
  */
-function startsOn(item: ScheduleCase, anchor: string, date: string): boolean {
-  if (item.pattern === 'DAILY') return true;
-  if (item.pattern === 'EVERY_N_DAYS') {
-    const days = daysBetween(anchor, date);
-    return days >= 0 && days % item.every === 0;
+export function scheduleCaseRepetition(item: LegacyScheduleCase, periodStart: string): ScheduleCase {
+  const base = { ...DEFAULT_RECURRENCE, interval: item.every };
+  const days: Duration = { ...ONE_DAY, count: item.days };
+  const toDay = (month: number | null): Duration => ({ ...ONE_DAY, unit: 'TO_DAY', day: item.toDay, month });
+  let rule: Recurrence;
+  let duration = days;
+  switch (item.pattern) {
+    case 'DAILY':
+      rule = { ...base, frequency: 'DAILY', interval: 1 };
+      break;
+    case 'EVERY_N_DAYS':
+      rule = { ...base, frequency: 'DAILY' };
+      break;
+    case 'WEEKLY':
+      rule = { ...base, frequency: 'WEEKLY', weekdays: item.weekdays };
+      break;
+    case 'MONTHLY':
+      rule = { ...base, frequency: 'MONTHLY', monthlyMode: item.monthlyMode === 'WEEKDAY' ? 'WEEKDAY' : 'DAY', monthDay: item.monthDay, position: item.position, weekday: item.weekday };
+      if (item.monthlyMode === 'DAY' && item.toDay !== null) duration = toDay(null);
+      break;
+    case 'YEARLY':
+      if (item.monthlyMode === 'WEEK') {
+        rule = { ...base, frequency: 'YEARLY', monthlyMode: 'WEEK', week: item.week, weekday: 1 };
+        duration = { ...ONE_DAY, unit: 'TO_WEEK', week: item.toWeek ?? item.week };
+      } else if (item.monthlyMode === 'MONTH') {
+        rule = { ...base, frequency: 'YEARLY', monthlyMode: 'DAY', month: item.month, monthDay: 1 };
+        duration = { ...ONE_DAY, unit: 'TO_MONTH', month: item.toMonth ?? item.month };
+      } else {
+        rule = { ...base, frequency: 'YEARLY', monthlyMode: item.monthlyMode, month: item.month, monthDay: item.monthDay, position: item.position, weekday: item.weekday };
+        if (item.monthlyMode === 'DAY' && item.toDay !== null) duration = toDay(item.toMonth ?? item.month);
+      }
+      break;
   }
-  if (item.pattern === 'MONTHLY') {
-    const months = monthIndex(date) - monthIndex(anchor);
-    return months >= 0 && months % item.every === 0 && dayOfMonthMatches(item, date);
-  }
-  if (item.pattern === 'YEARLY') {
-    const years = Number(date.slice(0, 4)) - Number(anchor.slice(0, 4));
-    return years >= 0 && years % item.every === 0 && Number(date.slice(5, 7)) === item.month && dayOfMonthMatches(item, date);
-  }
-  if (!item.weekdays.includes(weekdayOf(date))) return false;
-  const weeks = daysBetween(mondayOf(anchor), mondayOf(date)) / 7;
-  return ((weeks % item.every) + item.every) % item.every === 0;
+  return { since: item.since, until: item.until, anchor: caseAnchor(item, periodStart), rule: { ...rule, duration }, times: { allDay: item.allDay, ranges: item.ranges } };
 }
 
 /**
- * Last day of an occurrence started on a date: the day (and month) it ends on in DAY mode, else after its days.
- * @param {ScheduleCase} item Case.
- * @param {string} start First day.
- * @returns {string} Last day, included.
- */
-function lastDayOf(item: ScheduleCase, start: string): string {
-  const year = Number(start.slice(0, 4));
-  const month = Number(start.slice(5, 7));
-  if (item.monthlyMode === 'DAY' && item.toDay !== null && item.pattern === 'YEARLY') {
-    const end = dayIn(year, item.toMonth ?? item.month, item.toDay);
-    return end >= start ? end : dayIn(year + 1, item.toMonth ?? item.month, item.toDay);
-  }
-  if (item.monthlyMode === 'DAY' && item.toDay !== null && item.pattern === 'MONTHLY') {
-    const end = dayIn(year, month, item.toDay);
-    return end >= start ? end : dayIn(month === 12 ? year + 1 : year, (month % 12) + 1, item.toDay);
-  }
-  return addDays(start, item.days - 1);
-}
-
-/**
- * Whether a position is within a span of positions that may wrap (December to January, week 50 to week 2).
- * @param {number} value Position.
- * @param {number} from First one.
- * @param {number} to Last one (before the first: wraps).
- * @returns {boolean} Within.
- */
-const withinWrap = (value: number, from: number, to: number) => (from <= to ? value >= from && value <= to : value >= from || value <= to);
-
-/**
- * Whether a case is on a date (its period checked apart): a day of one of its occurrences, which last a day, several
- * days, from a day to another, a week or weeks of the year, a month or months of the year.
+ * Whether a case is on a date (its period checked apart).
  * @param {ScheduleCase} item Case.
  * @param {string} periodStart First day of its period (rhythm start without `from`).
  * @param {string} date YYYY-MM-DD.
  * @returns {boolean} On that day.
  */
 function caseOn(item: ScheduleCase, periodStart: string, date: string): boolean {
-  if ((item.since && date < item.since) || (item.until && date > item.until)) return false;
-  const anchor = item.from ?? periodStart;
-  if (item.pattern === 'YEARLY' && item.monthlyMode === 'MONTH') {
-    const month = Number(date.slice(5, 7));
-    const to = item.toMonth ?? item.month;
-    if (!withinWrap(month, item.month, to)) return false;
-    // The months after a wrap belong to the occurrence started the year before.
-    const startYear = Number(date.slice(0, 4)) - (item.month > to && month < item.month ? 1 : 0);
-    const years = startYear - Number(anchor.slice(0, 4));
-    return years >= 0 && years % item.every === 0;
-  }
-  if (item.pattern === 'YEARLY' && item.monthlyMode === 'WEEK') {
-    const week = isoWeek(date);
-    const to = item.toWeek ?? item.week;
-    if (!withinWrap(week, item.week, to)) return false;
-    const startYear = isoWeekYear(date) - (item.week > to && week < item.week ? 1 : 0);
-    const years = startYear - isoWeekYear(anchor);
-    return years >= 0 && years % item.every === 0;
-  }
-  // From a day to another: the occurrence started this month (year), or the one before.
-  if (item.monthlyMode === 'DAY' && item.toDay !== null && (item.pattern === 'YEARLY' || item.pattern === 'MONTHLY')) {
-    const year = Number(date.slice(0, 4));
-    const month = Number(date.slice(5, 7));
-    const starts =
-      item.pattern === 'YEARLY'
-        ? [dayIn(year - 1, item.month, item.monthDay), dayIn(year, item.month, item.monthDay)]
-        : [dayIn(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1, item.monthDay), dayIn(year, month, item.monthDay)];
-    return starts.some((start) => start <= date && startsOn(item, anchor, start) && lastDayOf(item, start) >= date);
-  }
-  // Occurrences started up to their length before.
-  for (let offset = 0; offset < item.days; offset += 1) {
-    const start = addDays(date, -offset);
-    if (startsOn(item, anchor, start) && lastDayOf(item, start) >= date) return true;
-  }
-  return false;
+  return caseSpanOn(item, periodStart, date) !== null;
 }
 
 /**
@@ -326,14 +298,28 @@ export function casesOn(schedule: WorkScheduleRule, date: string): { cases: read
  */
 export function plannedSlots(schedules: readonly WorkScheduleRule[], from: string, to: string): PlannedSlot[] {
   const result: PlannedSlot[] = [];
-  for (let date = from; date <= to; date = addDays(date, 1)) {
-    for (const schedule of schedules) {
-      if (date < schedule.startDate || (schedule.endDate && date > schedule.endDate)) continue;
-      const { cases, from: periodStart } = casesOn(schedule, date);
-      for (const item of cases) {
-        if (!caseOn(item, periodStart, date)) continue;
-        if (item.allDay) result.push({ date, start: '00:00', end: '24:00', allDay: true, scheduleId: schedule.id });
-        else for (const range of item.ranges) result.push({ date, start: range.start, end: range.end, allDay: false, scheduleId: schedule.id });
+  for (const schedule of schedules) {
+    /**
+     * Days each case of a period covers between the two dates, with its hours.
+     * @param {readonly ScheduleCase[]} cases Cases.
+     * @param {string} periodStart First day of their period.
+     * @returns {{ days: Set<string>, times: ScheduleTimes }[]} Cases.
+     */
+    const covered = (cases: readonly ScheduleCase[], periodStart: string) =>
+      cases.map((item) => {
+        const days = new Set<string>();
+        for (const span of caseSpans(item, periodStart, from, to)) for (let day = span.start; day <= span.end; day = addDays(day, 1)) days.add(day);
+        return { days, times: item.times };
+      });
+    const general = covered(schedule.cases, schedule.startDate);
+    const exceptions = new Map(schedule.exceptions.map((exception) => [exception, covered(exception.cases, exception.from)]));
+    for (let date = from < schedule.startDate ? schedule.startDate : from; date <= to; date = addDays(date, 1)) {
+      if (schedule.endDate && date > schedule.endDate) break;
+      const { exception } = casesOn(schedule, date);
+      for (const { days, times } of exception ? (exceptions.get(exception) ?? []) : general) {
+        if (!days.has(date)) continue;
+        if (times.allDay) result.push({ date, start: '00:00', end: '24:00', allDay: true, scheduleId: schedule.id });
+        else for (const range of times.ranges) result.push({ date, start: range.start, end: range.end, allDay: false, scheduleId: schedule.id });
       }
     }
   }
@@ -378,23 +364,35 @@ export function withinSlots(slots: readonly PlannedSlot[], date: string, start: 
 }
 
 /**
- * Cases stored or received (JSON), validated: none when invalid.
+ * Cases stored or received (JSON), validated (invalid ones left out); those of the former form converted.
  * @param {unknown} value Cases.
+ * @param {string} periodStart First day of their period (the rhythms of the former form count from it).
  * @returns {ScheduleCase[]} Cases.
  */
-export function readScheduleCases(value: unknown): ScheduleCase[] {
-  const parsed = z.array(scheduleCaseSchema).safeParse(value);
-  return parsed.success ? parsed.data : [];
+export function readScheduleCases(value: unknown, periodStart: string): ScheduleCase[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item: unknown) => {
+    if (item && typeof item === 'object' && 'pattern' in item) {
+      const legacy = scheduleCaseSchema.safeParse(item);
+      return legacy.success ? [scheduleCaseRepetition(legacy.data, periodStart)] : [];
+    }
+    const parsed = scheduleRepetitionCaseSchema.safeParse(item);
+    return parsed.success ? [parsed.data as ScheduleCase] : [];
+  });
 }
 
 /**
- * Exceptions stored or received (JSON), validated: none when invalid.
+ * Exceptions stored or received (JSON), validated (invalid ones left out); their cases of the former form converted.
  * @param {unknown} value Exceptions.
  * @returns {ScheduleException[]} Exceptions.
  */
 export function readScheduleExceptions(value: unknown): ScheduleException[] {
-  const parsed = z.array(scheduleExceptionSchema).safeParse(value);
-  return parsed.success ? parsed.data : [];
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item: unknown) => {
+    const parsed = z.object({ ...exceptionFields, cases: z.unknown() }).safeParse(item);
+    if (!parsed.success || parsed.data.to < parsed.data.from) return [];
+    return [{ from: parsed.data.from, to: parsed.data.to, label: parsed.data.label, cases: readScheduleCases(parsed.data.cases ?? [], parsed.data.from) }];
+  });
 }
 
 /** Former format of a schedule (slots per weekday every n weeks, pauses), read to convert it. */
@@ -423,26 +421,31 @@ export function fromLegacySchedule(legacy: { startDate: string; intervalWeeks: n
     byHours.set(key, group);
   }
   return {
-    cases: [...byHours.values()].map((group) => ({
-      pattern: 'WEEKLY' as const,
-      weekdays: group.weekdays,
-      every: Math.max(1, legacy.intervalWeeks),
-      from: null,
-      monthlyMode: 'DAY' as const,
-      monthDay: 1,
-      position: 1,
-      weekday: 1,
-      month: 1,
-      week: 1,
-      toDay: null,
-      toMonth: null,
-      toWeek: null,
-      days: 1,
-      allDay: group.allDay,
-      ranges: group.ranges,
-      since: null,
-      until: null,
-    })),
+    cases: [...byHours.values()].map((group): ScheduleCase =>
+      scheduleCaseRepetition(
+        {
+          pattern: 'WEEKLY' as const,
+          weekdays: group.weekdays,
+          every: Math.max(1, legacy.intervalWeeks),
+          from: null,
+          monthlyMode: 'DAY' as const,
+          monthDay: 1,
+          position: 1,
+          weekday: 1,
+          month: 1,
+          week: 1,
+          toDay: null,
+          toMonth: null,
+          toWeek: null,
+          days: 1,
+          allDay: group.allDay,
+          ranges: group.ranges,
+          since: null,
+          until: null,
+        },
+        legacy.startDate,
+      ),
+    ),
     exceptions: (pauses.success ? pauses.data : []).map((pause) => ({ from: pause.from, to: pause.to, label: pause.label, cases: [] })),
   };
 }
@@ -529,7 +532,13 @@ export type ScheduleSlotScope = 'THIS' | 'FOLLOWING' | 'ALL';
  * @param {ScheduleSlotTime} slot Slot.
  * @returns {ScheduleCase} Case.
  */
-const singleSlotCase = (slot: ScheduleSlotTime): ScheduleCase => scheduleCaseSchema.parse({ pattern: 'DAILY', allDay: slot.allDay, ranges: slot.allDay ? [] : [{ start: slot.start, end: slot.end }] });
+const singleSlotCase = (slot: ScheduleSlotTime): ScheduleCase => ({
+  since: null,
+  until: null,
+  anchor: null,
+  rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' },
+  times: { allDay: slot.allDay, ranges: slot.allDay ? [] : [{ start: slot.start, end: slot.end }] },
+});
 
 /**
  * Exceptions with one day given its own slots (each slot its own case: they may overlap); an exception of that day
@@ -581,7 +590,7 @@ function shiftMonth(date: string, months: number): string {
 
 /**
  * Case of a slot moved from a day to another (or its hours changed), keeping the rhythm of its case: weekly on the
- * new weekday, monthly and yearly on the new day of the month, every n days counted from the new day.
+ * new weekday, monthly and yearly on the new day of the month, every n days and weeks counted from the new day.
  * @param {ScheduleCase} item Case of the slot.
  * @param {string} periodStart Start of the period of the case.
  * @param {string} date Day of the slot.
@@ -591,18 +600,20 @@ function shiftMonth(date: string, months: number): string {
  */
 function movedCase(item: ScheduleCase, periodStart: string, date: string, change: ScheduleSlotTime, since: string | null): ScheduleCase {
   const to = change.date;
-  const anchor = item.from ?? periodStart;
-  const result: ScheduleCase = { ...item, allDay: change.allDay, ranges: change.allDay ? [] : [{ start: change.start, end: change.end }], since };
-  if (to === date) return result;
+  const result: ScheduleCase = { ...item, times: { allDay: change.allDay, ranges: change.allDay ? [] : [{ start: change.start, end: change.end }] }, since };
+  if (to === date || !item.rule) return result;
+  const rule = item.rule;
+  // The rhythm moves with the slot: by as many days (days, weeks), or months (months, years).
+  const base = item.anchor ?? item.since ?? periodStart;
+  const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
+  const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
   const day = Number(to.slice(8, 10));
   const lastDay = new Date(Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5, 7)), 0)).getUTCDate();
-  const position = day + 7 > lastDay && (item.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
-  const monthDay = { monthDay: day, weekday: weekdayOf(to), position };
-  if (item.pattern === 'WEEKLY') return { ...result, weekdays: [weekdayOf(to)], from: item.every > 1 ? to : item.from };
-  if (item.pattern === 'EVERY_N_DAYS') return { ...result, from: addDays(anchor, daysBetween(date, to)) };
-  if (item.pattern === 'MONTHLY') return { ...result, ...monthDay, from: shiftMonth(anchor, monthIndex(to) - monthIndex(date)) };
-  if (item.pattern === 'YEARLY') return { ...result, ...monthDay, month: Number(to.slice(5, 7)), from: shiftMonth(anchor, (Number(to.slice(0, 4)) - Number(date.slice(0, 4))) * 12) };
-  return result;
+  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
+  const values = { monthDay: day, weekday: weekdayOf(to), position, month: Number(to.slice(5, 7)), week: isoWeek(to) };
+  if (rule.frequency === 'WEEKLY') return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)] } };
+  if (rule.frequency === 'DAILY') return { ...result, anchor };
+  return { ...result, anchor, rule: { ...rule, ...values } };
 }
 
 /**
@@ -635,11 +646,11 @@ export function changedScheduleSlot(
 
   const { cases, from: periodStart, exception } = casesOn(schedule, slot.date);
   const caseIndex = cases.findIndex(
-    (item) => caseOn(item, periodStart, slot.date) && (slot.allDay ? item.allDay : !item.allDay && item.ranges.some((range) => range.start === slot.start && range.end === slot.end)),
+    (item) => caseOn(item, periodStart, slot.date) && (slot.allDay ? item.times.allDay : !item.times.allDay && item.times.ranges.some((range) => range.start === slot.start && range.end === slot.end)),
   );
   if (caseIndex < 0) throw new Error('Horaires introuvables ce jour-là.');
   const item = cases[caseIndex];
-  const range = item.ranges.findIndex((other) => other.start === slot.start && other.end === slot.end);
+  const range = item.times.ranges.findIndex((other) => other.start === slot.start && other.end === slot.end);
   // Split only when the case had days before this one.
   let earlier = false;
   const scanStart = [item.since, periodStart, schedule.startDate].reduce<string>((latest, day) => (day && day > latest ? day : latest), periodStart);
@@ -649,9 +660,14 @@ export function changedScheduleSlot(
   const pieces: ScheduleCase[] = [];
   if (split) pieces.push({ ...item, until: addDays(slot.date, -1) });
   // Its other hours, and this slot on its other weekdays, stay.
-  if (!item.allDay && item.ranges.length > 1) pieces.push({ ...item, ranges: item.ranges.filter((_, index) => index !== range), since });
-  if (item.pattern === 'WEEKLY' && item.weekdays.length > 1) {
-    pieces.push({ ...item, weekdays: item.weekdays.filter((weekday) => weekday !== weekdayOf(slot.date)), ranges: item.allDay ? [] : [item.ranges[range]], since });
+  if (!item.times.allDay && item.times.ranges.length > 1) pieces.push({ ...item, times: { ...item.times, ranges: item.times.ranges.filter((_, index) => index !== range) }, since });
+  if (item.rule?.frequency === 'WEEKLY' && item.rule.weekdays.length > 1) {
+    pieces.push({
+      ...item,
+      rule: { ...item.rule, weekdays: item.rule.weekdays.filter((weekday) => weekday !== weekdayOf(slot.date)) },
+      times: { ...item.times, ranges: item.times.allDay ? [] : [item.times.ranges[range]] },
+      since,
+    });
   }
   if (change) pieces.push(movedCase(item, periodStart, slot.date, change, split && change.date < slot.date ? change.date : since));
   const nextCases = [...cases.slice(0, caseIndex), ...pieces, ...cases.slice(caseIndex + 1)];

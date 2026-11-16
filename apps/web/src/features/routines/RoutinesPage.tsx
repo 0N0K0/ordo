@@ -18,6 +18,7 @@ import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
+import { useWorkSchedules } from '../calendar/api';
 import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { keptByView, routineFilterFields, routineGrouping, routineTexts, sortRoutines, useRoutineView } from './routine-view';
 import { RoutineViewToolbar } from './RoutineViewToolbar';
@@ -74,6 +75,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
+  const { data: schedules } = useWorkSchedules();
   const comments = useCommentCounts(
     'ROUTINE',
     routines.map((routine) => routine.id),
@@ -89,11 +91,11 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             context,
             doable: (routine: Routine) => slotRules.allowed(routineDoable(routine)),
             comments,
-            slotKinds: slotRules.kinds.map((kind) => ({ value: kind.value, label: kind.label })),
+            slotKinds: (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name })),
             beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
           }
         : null,
-    [today, routines, categories, context, slotRules, comments, beneficiaryGroups],
+    [today, routines, categories, context, slotRules, comments, beneficiaryGroups, schedules],
   );
 
   /**

@@ -1,7 +1,7 @@
 import { TimeField } from '../../components/TimeField';
 import { Avatar, Button, ColorSwatch, Group, NumberInput, Popover, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { ROUTINE_ANCHOR_LABELS, routineSchema, type Recurrence, type RoutineAnchor, type RoutineCase } from '@ordo/shared';
+import { routineSchema, type Recurrence, type RoutineCase } from '@ordo/shared';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -165,7 +165,9 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
   const [drafts, setDrafts] = useState<{ fromTime?: string; dueTime?: string }>({});
   const { data: schedules } = useWorkSchedules();
   const { leaveAt, backAt } = scheduleOf(routine);
-  const schedule = routine.scheduleId ? schedules?.find((item) => item.id === routine.scheduleId) : undefined;
+  // Names of the schedules it follows.
+  const followed = routine.scheduleIds.map((id) => schedules?.find((item) => item.id === id)?.name ?? 'plage supprimée').join(', ');
+  const severalMoments = ((routine.moments as unknown[] | null) ?? []).length > 1;
 
   /**
    * Saves one of the times when valid and changed.
@@ -217,22 +219,17 @@ export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
 
   return (
     <Stack gap={0}>
-      {(routine.cases as RoutineCase[]).length ? (
-        <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : selon ses cas`}>
-          <Text size="xs">Selon le cas</Text>
+      {(routine.cases as RoutineCase[]).length || (severalMoments && !routine.scheduleIds.length) ? (
+        <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : selon ses moments`}>
+          <Text size="xs">{(routine.cases as RoutineCase[]).length ? 'Selon le cas' : 'Plusieurs moments'}</Text>
           <Text size="xs" c="dimmed">
             {routine.slots.map((slot) => windowText(slot) || 'dans la journée').join(' · ') || 'pas ce jour-là'}
           </Text>
         </UnstyledButton>
-      ) : routine.scheduleId ? (
-        <UnstyledButton
-          className={classes.root}
-          onClick={() => openRoutineForm({ routine })}
-          disabled={readOnly}
-          aria-label={`Horaire de ${routine.title} : plage ${schedule?.name ?? ''}, ${ROUTINE_ANCHOR_LABELS[routine.scheduleAnchor as RoutineAnchor]?.toLowerCase() ?? ''}`}
-        >
+      ) : routine.scheduleIds.length ? (
+        <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : plages ${followed}`}>
           <Text size="xs" truncate>
-            {schedule?.name ?? 'Plage'} · {ROUTINE_ANCHOR_LABELS[routine.scheduleAnchor as RoutineAnchor]?.toLowerCase()}
+            {followed || 'Plages'}
           </Text>
           <Text size="xs" c="dimmed">
             {windowText(windowOf(routine)) || 'pas de créneau'}
@@ -440,8 +437,8 @@ export function RepetitionText({ routine }: { routine: Routine }) {
   const rule = ruleOf(routine);
   const text = cases.length
     ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
-    : routine.scheduleId
-      ? `Les jours de « ${schedules?.find((item) => item.id === routine.scheduleId)?.name ?? 'sa plage'} »`
+    : routine.scheduleIds.length
+      ? `Sur les plages ${routine.scheduleIds.map((id) => `« ${schedules?.find((item) => item.id === id)?.name ?? 'plage supprimée'} »`).join(' ou ')}`
       : rule
         ? describeRecurrence(rule, routine.startDate)
         : '';
@@ -476,7 +473,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
     setOpened(true);
   };
 
-  if (routine.scheduleId || (routine.cases as RoutineCase[]).length) {
+  if (routine.scheduleIds.length || (routine.cases as RoutineCase[]).length) {
     return (
       <UnstyledButton onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Modifier la répétition de ${routine.title}`}>
         {children}
