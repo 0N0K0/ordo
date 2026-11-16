@@ -561,6 +561,9 @@ export function CalendarPage() {
                   dueTime: window.dueTime,
                   minutes: routine.estimate ?? 30,
                   position: order.get(routine.id) ?? routine.position,
+                  requiredIds: routine.requiredIds,
+                  travelBefore: routine.travelBefore,
+                  travelAfter: routine.travelAfter,
                 }
               : null,
             event: {
@@ -586,11 +589,36 @@ export function CalendarPage() {
           });
         }
       }
-      // As long as the time they take, within their window; those of the same people in the same window one after the other.
+      // As long as the time they take, within their window: each person one thing at a time (their ways included), those waited for first, then the manual order.
       const places = placeRoutineBlocks(events.flatMap(({ block }) => (block ? [block] : [])));
       for (const { block, event } of events) {
         const place = block ? places.get(block.key) : undefined;
-        result.push(place && block ? { ...event, start: `${block.day}T${place.start}:00`, end: `${block.day}T${place.end}:00` } : event);
+        if (!place || !block) {
+          result.push(event);
+          continue;
+        }
+        result.push({ ...event, start: `${block.day}T${place.start}:00`, end: `${block.day}T${place.end}:00` });
+        // Travel there and back, in the week and the day: hatched blocks against it, as those of the events, opening it.
+        if (view === 'dayGridMonth') continue;
+        const legs = [
+          { key: 'before', minutes: block.travelBefore, from: place.leave, to: place.start, title: 'Trajet aller' },
+          { key: 'after', minutes: block.travelAfter, from: place.end, to: place.back, title: 'Trajet retour' },
+        ];
+        for (const leg of legs) {
+          if (leg.minutes <= 0) continue;
+          result.push({
+            id: `${block.key}:travel-${leg.key}`,
+            title: `${leg.title} · ${formatDuration(leg.minutes * 60)}`,
+            start: `${block.day}T${leg.from}:00`,
+            end: `${block.day}T${leg.to}:00`,
+            editable: false,
+            backgroundColor: 'transparent',
+            borderColor: event.borderColor,
+            textColor: 'var(--mantine-color-dimmed)',
+            extendedProps: { kind: 'routineTravel', occurrence: event.extendedProps?.occurrence, movedFrom: event.extendedProps?.movedFrom },
+            classNames: [classes.travel],
+          });
+        }
       }
     }
     return result;
@@ -1052,7 +1080,8 @@ export function CalendarPage() {
             if (info.event.extendedProps.kind === 'slot') return;
             if (info.event.extendedProps.kind === 'editSlot') edits.openSlot(info.event.extendedProps.schedule, info.event.extendedProps.name, info.event.extendedProps.slot);
             else if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
-            else if (info.event.extendedProps.kind === 'routine') edits.openRoutine(info.event.extendedProps.occurrence, info.event.extendedProps.movedFrom);
+            else if (info.event.extendedProps.kind === 'routine' || info.event.extendedProps.kind === 'routineTravel')
+              edits.openRoutine(info.event.extendedProps.occurrence, info.event.extendedProps.movedFrom);
             else if (info.event.extendedProps.kind === 'time') openTimeEntry(info.event.extendedProps.entry);
             else if (info.event.extendedProps.kind === 'subscribed')
               setOpenedSubscribed({
