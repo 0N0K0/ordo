@@ -536,11 +536,13 @@ export function CalendarPage() {
       const routineCategory = new Map((routinesData?.routineCategories ?? []).map((category) => [category.id, category]));
       // Manual order of the routines: those of a same window follow it.
       const order = manualOrder(routinesData?.routines ?? []);
+      // A parent routine is done through its sub-routines: only they show.
+      const parents = new Set((routinesData?.routines ?? []).flatMap((routine) => (routine.parentId && !routine.archived ? [routine.parentId] : [])));
       type RoutineEvent = { block: RoutineBlock | null; event: EventInput };
       const events: RoutineEvent[] = [];
       for (const occurrence of routineOccurrences.data ?? []) {
         const routine = routineById.get(occurrence.routineId);
-        if (!routine || routine.archived) continue;
+        if (!routine || routine.archived || parents.has(routine.id)) continue;
         const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
         const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
         const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false, windows: [] }];
