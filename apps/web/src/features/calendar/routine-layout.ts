@@ -93,6 +93,7 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
   const places = new Map<string, BlockPlace>();
   for (const dayBlocks of byDay.values()) {
     const busy = new Map<string, Interval[]>();
+    // Each routine placed: from the way there to the way back.
     const placed = new Map<string, Interval>();
     const people = (block: RoutineBlock) => (block.assigneeIds.length ? block.assigneeIds : [`${NOBODY}${block.key}`]);
     /**
@@ -118,7 +119,7 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
     const put = (block: RoutineBlock, start: number, length: number) => {
       const own = { start: start - block.travelBefore, end: start + length + block.travelAfter };
       for (const person of people(block)) busy.set(person, [...(busy.get(person) ?? []), own]);
-      placed.set(block.routineId, { start, end: start + length });
+      placed.set(block.routineId, own);
       places.set(block.key, { start: toTime(start), end: toTime(start + length), leave: toTime(own.start), back: toTime(own.end) });
     };
     const order = inOrder(dayBlocks);
@@ -128,8 +129,8 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
       const from = toMinutes(block.fromTime!) + (block.travelWithin ? block.travelBefore : 0);
       const due = (block.dueTime ? toMinutes(block.dueTime) : 1440) - (block.travelWithin ? block.travelAfter : 0);
       const length = Math.max(5, Math.min(block.minutes, due - from));
-      // Once those it waits for (placed that day) are done.
-      let start = Math.max(from, ...block.requiredIds.map((id) => placed.get(id)?.end ?? 0));
+      // It leaves once those it waits for (placed that day) are done, their way back included.
+      let start = Math.max(from, ...block.requiredIds.map((id) => (placed.get(id)?.end ?? 0) + block.travelBefore));
       for (let tries = 0; tries < 200; tries += 1) {
         const other = clash(block, start, length);
         if (!other) break;
@@ -141,8 +142,8 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
     for (const block of [...order].reverse().filter((item) => !item.fromTime)) {
       const due = toMinutes(block.dueTime!) - (block.travelWithin ? block.travelAfter : 0);
       const length = Math.max(5, Math.min(block.minutes, due));
-      // Before those waiting for it (placed that day) start.
-      const waiting = dayBlocks.filter((other) => other.requiredIds.includes(block.routineId)).map((other) => placed.get(other.routineId)?.start ?? 1440);
+      // Back before those waiting for it (placed that day) leave.
+      const waiting = dayBlocks.filter((other) => other.requiredIds.includes(block.routineId)).map((other) => (placed.get(other.routineId)?.start ?? 1440) - block.travelAfter);
       let end = Math.min(due, ...waiting);
       for (let tries = 0; tries < 200; tries += 1) {
         const other = clash(block, end - length, length);
