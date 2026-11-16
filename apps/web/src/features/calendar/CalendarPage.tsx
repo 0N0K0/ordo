@@ -79,6 +79,8 @@ interface Filters {
   hiddenCalendarIds?: string[];
   /** Slots (schedules) hidden (of the workspace, or of other workspaces it subscribes to). */
   hiddenScheduleIds?: string[];
+  /** Hours of the week and the day by 5 minutes (instead of 30). */
+  fineSlots?: boolean;
 }
 
 /** Tabs of the settings sidebar. */
@@ -563,6 +565,8 @@ export function CalendarPage() {
                   position: order.get(routine.id) ?? routine.position,
                   requiredIds: routine.requiredIds,
                   travelBefore: routine.travelBefore,
+                  // On or out of calendar schedules: its travel stays within the hours they allow.
+                  travelWithin: Boolean(routine.slotCondition) || ((routine.cases as { condition?: unknown }[] | null) ?? []).some((item) => Boolean(item.condition)),
                   travelAfter: routine.travelAfter,
                 }
               : null,
@@ -956,6 +960,22 @@ export function CalendarPage() {
                     }
                   />
                 </Stack>
+                <Stack gap="xs">
+                  <Text size="sm" fw={500}>
+                    Heures (semaine, jour)
+                  </Text>
+                  <Switch
+                    label="Par 5 minutes"
+                    description="Sinon par 30 minutes : les routines courtes se lisent mieux par 5 minutes."
+                    checked={filters.fineSlots === true}
+                    onChange={(event) =>
+                      setFilters({
+                        ...filters,
+                        fineSlots: event.currentTarget.checked,
+                      })
+                    }
+                  />
+                </Stack>
               </SettingsSection>
               <SettingsSection title="Exporter">
                 <Group gap="sm" wrap="wrap">
@@ -1001,6 +1021,9 @@ export function CalendarPage() {
             }
           }}
           initialView={view}
+          // Hours by 30 minutes, or by 5 (labelled each hour either way); a drag moves by as much.
+          slotDuration={filters.fineSlots ? '00:05:00' : '00:30:00'}
+          slotLabelInterval="01:00:00"
           initialDate={requestedDate ?? undefined}
           locale={frLocale}
           headerToolbar={false}
