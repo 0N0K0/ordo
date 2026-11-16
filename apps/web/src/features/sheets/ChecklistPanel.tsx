@@ -20,6 +20,8 @@ import { useShoppingData } from '../shopping/api';
 import { shoppingCategoryOptions } from '../shopping/shopping-format';
 import { useChecklist, useSheetMutations, type ChecklistItem, type SheetOwner } from './api';
 import { SheetLinksField } from './SheetLinksField';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { SheetPicker } from './SheetPicker';
 
 type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
@@ -174,6 +176,17 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       <DataTable
         view={view}
         verticalSpacing={4}
+        selectionLabel={(count) => selectedLabel(count, ['élément', 'éléments'], false)}
+        selectionActions={(rows, clear) => [
+          deleteRowsAction(rows, {
+            label: 'Retirer',
+            title: 'Retirer les éléments',
+            risks: `${rows.length} élément(s) seront retirés de la liste à cocher.`,
+            remove: (item) => mutations.removeChecklistItem.mutateAsync(item.id),
+            done: `${rows.length} élément(s) retiré(s).`,
+            clear,
+          }),
+        ]}
         bar={{ searchLabel: 'Rechercher (élément, description)' }}
         getKey={(item) => item.id}
         rowProps={(item) => ({ style: item.checkedAt ? { opacity: 0.6 } : undefined })}

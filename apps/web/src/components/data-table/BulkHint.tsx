@@ -1,6 +1,6 @@
 import { Badge, CloseButton, Group, Text } from '@mantine/core';
 import { SelectionAllIcon } from '@phosphor-icons/react';
-import type { BulkSelection } from './bulk-selection';
+import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
 
 interface BulkHintProps {
   selection: BulkSelection | null;
@@ -17,6 +17,18 @@ interface BulkHintProps {
 export function BulkHint({ selection, labelOf, onClear }: BulkHintProps) {
   if (!selection) return null;
   const count = selection.keys.length;
+  if (selection.column === ALL_COLUMNS)
+    return (
+      <Group gap="xs" role="status" aria-live="polite">
+        <Badge variant="light" tt="none" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>
+          {count} ligne{count > 1 ? 's' : ''} cochée{count > 1 ? 's' : ''}
+        </Badge>
+        <Text size="xs" c="dimmed">
+          Modifiez un champ de l’une d’elles : le changement s’applique à toutes (autant de champs que voulu).
+        </Text>
+        <CloseButton size="sm" aria-label="Tout décocher" onClick={onClear} />
+      </Group>
+    );
   return (
     <Group gap="xs" role="status" aria-live="polite">
       <Badge variant="light" tt="none" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>

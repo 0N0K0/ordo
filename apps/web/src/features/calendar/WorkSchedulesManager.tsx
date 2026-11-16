@@ -31,6 +31,8 @@ import { Comments } from '../comments/Comments';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 import { CreatableSelect } from '../../components/CreatableSelect';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { useDefaultColor } from '../workspace/use-default-color';
 
 interface ScheduleValues extends Record<string, unknown> {
@@ -317,6 +319,16 @@ export function WorkSchedulesManager() {
         <DataTable
           view={view}
           bar={{ searchLabel: 'Rechercher (nom, type, exception)…' }}
+          selectionLabel={(count) => selectedLabel(count, ['plage', 'plages'])}
+          selectionActions={(rows, clear) => [
+            deleteRowsAction(rows, {
+              title: 'Supprimer les plages',
+              risks: `${rows.length} plage(s) et leurs exceptions seront supprimées définitivement${perso ? '' : ' : elles ne compteront plus dans le temps prévu'}. Les autres espaces abonnés ne les verront plus. Les évènements ne sont pas touchés.`,
+              remove: ({ schedule }) => remove.mutateAsync(schedule.id),
+              done: `${rows.length} plage(s) supprimée(s).`,
+              clear,
+            }),
+          ]}
           highlightOnHover
           verticalSpacing="xs"
           getKey={({ schedule }) => schedule.id}

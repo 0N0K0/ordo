@@ -2,7 +2,7 @@ import { ActionIcon, ColorSwatch, Group, NumberInput, Select, TextInput, Tooltip
 import { DatePickerInput } from '@mantine/dates';
 import { shoppingItemSchema } from '@ordo/shared';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
-import { useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifyError } from '../../lib/notify';
 import classes from '../../components/data-table/EditableCells.module.css';
@@ -428,5 +428,34 @@ export function TasksCell({
         />
       )}
     />
+  );
+}
+
+interface ToggleCellProps {
+  on: boolean;
+  /** Accessible name: what it tells (« Lait manque »). */
+  label: string;
+  /** Tooltip: what it is and what a click does. */
+  hint: string;
+  icon: ReactNode;
+  /** Color when on. */
+  color: string;
+  readOnly?: boolean;
+  onSave: (on: boolean) => void;
+}
+
+/**
+ * State of a row that a click switches (missing, bought): an icon button, coloured when on, grey when off, unlike the
+ * check boxes selecting rows; part of the bulk selection of its column like any cell.
+ * @param {ToggleCellProps} props Component props.
+ * @returns {JSX.Element} Toggle.
+ */
+export function ToggleCell({ on, label, hint, icon, color, readOnly = false, onSave }: ToggleCellProps) {
+  return (
+    <Tooltip label={hint} withinPortal>
+      <ActionIcon variant={on ? 'filled' : 'subtle'} color={on ? color : 'gray'} radius="xl" aria-label={label} aria-pressed={on} disabled={readOnly} onClick={() => onSave(!on)}>
+        {icon}
+      </ActionIcon>
+    </Tooltip>
   );
 }

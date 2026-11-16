@@ -29,6 +29,8 @@ import { useTaskContext } from '../tasks/use-task-context';
 import { useSheet, useSheetCategories, useSheetMutations, type SheetDetail, type SheetDetailItem } from './api';
 import { sheetInput, sheetItemInput } from './sheet-format';
 import { SheetsSettings } from './SheetsSettings';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { SheetUseForm } from './SheetUseForm';
 
 type ItemChange = { productId?: string | null; label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean };
@@ -269,6 +271,17 @@ export function SheetPage() {
       <DataTable
         framed
         view={view}
+        selectionLabel={(count) => selectedLabel(count, ['élément', 'éléments'], false)}
+        selectionActions={(rows, clear) => [
+          deleteRowsAction([rows], {
+            label: 'Retirer',
+            title: 'Retirer les éléments',
+            risks: `${rows.length} élément(s) seront retirés de la fiche.`,
+            remove: (items) => mutations.removeItems.mutateAsync(items.map((item) => item.id)),
+            done: `${rows.length} élément(s) retiré(s).`,
+            clear,
+          }),
+        ]}
         verticalSpacing="xs"
         bar={{
           searchLabel: 'Rechercher (élément, description)',

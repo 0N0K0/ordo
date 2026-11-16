@@ -26,7 +26,8 @@ export type RoutineColumn =
 
 /** Cells selected in one column, by row key (a routine can show on several rows, one per category). */
 export interface RoutineCellSelection {
-  column: RoutineColumn;
+  /** Column, or '*' for routines checked (every column edited in bulk). */
+  column: RoutineColumn | '*';
   rowKeys: string[];
   /** Routines of the selected rows. */
   routineIds: string[];
@@ -74,7 +75,7 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
   const { patch } = useRoutineMutations();
   const { data } = useRoutinesData();
   const applyBulk = useBulkRoutineChanges();
-  const targets = selection && selection.column === column && selection.routineIds.includes(routine.id) ? selection.routineIds : [routine.id];
+  const targets = selection && (selection.column === column || selection.column === '*') && selection.routineIds.includes(routine.id) ? selection.routineIds : [routine.id];
   return {
     count: targets.length,
     /** Routines the edit applies to. */

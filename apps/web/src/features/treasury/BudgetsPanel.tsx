@@ -26,6 +26,8 @@ import { Comments } from '../comments/Comments';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 import { CreatableSelect } from '../../components/CreatableSelect';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { useDefaultColor } from '../workspace/use-default-color';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
@@ -686,6 +688,16 @@ export function BudgetsPanel() {
         ) : (
           <DataTable
             view={definedView}
+            selectionLabel={(count) => selectedLabel(count, ['budget', 'budgets'], false)}
+            selectionActions={(rows, clear) => [
+              deleteRowsAction(rows, {
+                title: 'Supprimer les budgets',
+                risks: `${rows.length} budget(s) et leurs répétitions seront supprimés définitivement. Leurs mouvements seront hors budget s’il n’y en a pas d’autre.`,
+                remove: (budget) => remove.mutateAsync(budget.id),
+                done: `${rows.length} budget(s) supprimé(s).`,
+                clear,
+              }),
+            ]}
             verticalSpacing={4}
             getKey={(budget) => budget.id}
             cells={(budget) => ({

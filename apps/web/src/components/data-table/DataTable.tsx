@@ -11,6 +11,9 @@ import { ROW_ACTIONS_WIDTH } from './RowActions';
 import { DRAG_HANDLE_WIDTH, SortableRow } from './SortableRow';
 import { GroupFooter, TableFooter } from './TableFooter';
 import classes from './DataTable.module.css';
+import { AllRowsCheck, ROW_CHECK_WIDTH, RowCheck } from './RowCheck';
+import { SelectionBar, type SelectionAction } from './SelectionBar';
+import { selectedLabel } from './selection-label';
 import type { DataView } from './use-data-view';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
@@ -44,6 +47,10 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   empty?: ReactNode;
   /** Content unfolded under a row, across the table (its details); nothing for none. Optional. */
   details?: (row: R) => ReactNode;
+  /** Actions on the rows checked that the columns cannot do (archive, delete…), in a bar under the table. Optional. */
+  selectionActions?: (rows: R[], clear: () => void) => SelectionAction[];
+  /** Rows checked, told ("3 fiches sélectionnées"). Optional. Default = lignes. */
+  selectionLabel?: (count: number) => string;
 }
 
 /**
@@ -66,6 +73,8 @@ export function DataTable<R>({
   framed = false,
   empty,
   details,
+  selectionActions,
+  selectionLabel = (count) => selectedLabel(count),
   className,
   style,
   ...tableProps
@@ -85,7 +94,10 @@ export function DataTable<R>({
           .map((item) => item.row)
       : rows;
   const rows = inOrder(view.rows);
-  const span = shown.length + 1 + (leading ? 1 : 0) + (draggable ? 1 : 0);
+  // Check boxes of the rows, to edit all their fields at once (a table without its own leading cell).
+  const checks = leading ? null : view.rowSelection;
+  const before = (draggable ? 1 : 0) + (leading ? 1 : 0) + (checks ? 1 : 0);
+  const span = shown.length + 1 + before;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   /**
@@ -111,6 +123,11 @@ export function DataTable<R>({
     const inside = (
       <>
         {leading && <Table.Td>{leading.cell(row)}</Table.Td>}
+        {checks && (
+          <Table.Td px={4}>
+            <RowCheck selection={checks} rowKey={getKey(row)} label={shown[0]?.text?.(row) || 'la ligne'} />
+          </Table.Td>
+        )}
         {shown.map((column) => (
           <Table.Td key={column.id} className={classes.cell} data-numeric={column.numeric || undefined} ff={column.numeric ? 'monospace' : undefined} {...view.cellProps(column.id, getKey(row))}>
             {content[column.id]}
@@ -161,7 +178,12 @@ export function DataTable<R>({
             ref={tableRef}
             {...tableProps}
             className={[classes.table, className].filter(Boolean).join(' ')}
-            style={{ width: tableWidth(shown, actionsWidth + (leading?.width ?? 0) + (draggable ? DRAG_HANDLE_WIDTH : 0)), minWidth: '100%', ...(typeof style === 'object' ? style : {}) }}
+            data-checking={(checks && checks.keys.some((key) => checks.isChecked(key))) || undefined}
+            style={{
+              width: tableWidth(shown, actionsWidth + (leading?.width ?? 0) + (draggable ? DRAG_HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0)),
+              minWidth: '100%',
+              ...(typeof style === 'object' ? style : {}),
+            }}
           >
             <DataTableHeader
               columns={view.columns}
@@ -172,14 +194,19 @@ export function DataTable<R>({
               onSortingChange={view.setSorting}
               tableRef={tableRef}
               leading={
-                (draggable || leading) && (
+                (draggable || leading || checks) && (
                   <>
                     {draggable && <Table.Th w={DRAG_HANDLE_WIDTH} />}
                     {leading && <Table.Th w={leading.width}>{leading.header}</Table.Th>}
+                    {checks && (
+                      <Table.Th w={ROW_CHECK_WIDTH} px={4}>
+                        <AllRowsCheck selection={checks} />
+                      </Table.Th>
+                    )}
                   </>
                 )
               }
-              leadingCount={(draggable ? 1 : 0) + (leading ? 1 : 0)}
+              leadingCount={before}
               trailing={<Table.Th w={actionsWidth} />}
               columnExtras={view.columnExtras}
             />
@@ -197,30 +224,13 @@ export function DataTable<R>({
                     />,
                     ...(collapsed.has(group.key) ? [] : inOrder(group.rows).map(renderRow)),
                     ...(view.config?.footer && !collapsed.has(group.key)
-                      ? [
-                          <GroupFooter
-                            key={`footer:${group.key}`}
-                            shown={shown}
-                            rows={group.rows}
-                            totals={view.config.footer}
-                            label={group.label}
-                            before={(draggable ? 1 : 0) + (leading ? 1 : 0)}
-                            after={1}
-                          />,
-                        ]
+                      ? [<GroupFooter key={`footer:${group.key}`} shown={shown} rows={group.rows} totals={view.config.footer} label={group.label} before={before} after={1} />]
                       : []),
                   ])
                 : rows.map(renderRow)}
             </Table.Tbody>
             {view.config?.footer && (
-              <TableFooter
-                shown={shown}
-                rows={rows}
-                totals={view.config.footer}
-                onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))}
-                before={(draggable ? 1 : 0) + (leading ? 1 : 0)}
-                after={1}
-              />
+              <TableFooter shown={shown} rows={rows} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={before} after={1} />
             )}
           </Table>
         </SortableContext>
@@ -245,10 +255,18 @@ export function DataTable<R>({
     );
   };
 
+  // Rows checked, for the actions of the bar.
+  const checked = checks ? view.rows.filter((row) => checks.isChecked(getKey(row))) : [];
+  /**
+   * Unchecks every row.
+   * @returns {void}
+   */
+  const clear = () => checks?.check(checks.keys, false);
   return (
     <Stack gap="sm">
       <DataViewBar view={view} {...bar} />
       {content()}
+      {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} />}
     </Stack>
   );
 }

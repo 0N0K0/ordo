@@ -38,6 +38,8 @@ import { PageTabs } from '../../components/PageTabs';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
 import * as fmt from '../../lib/format';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { AmountInput } from '../../components/AmountInput';
 
 /**
@@ -482,6 +484,30 @@ export function TreasuryPage() {
           <DataTable
             framed
             view={forecastView}
+            selectionLabel={(count) => selectedLabel(count, ['prévision', 'prévisions'])}
+            selectionActions={(rows, clear) => {
+              // The forecasts entered (the invoices and recurring invoices to come are not deleted here).
+              const entries = [
+                ...new Map(
+                  rows.flatMap((row) => {
+                    const entry = forecastOf(row);
+                    return entry ? [[entry.id, entry] as const] : [];
+                  }),
+                ).values(),
+              ];
+              return [
+                {
+                  ...deleteRowsAction(entries, {
+                    title: 'Supprimer les prévisions',
+                    risks: `${entries.length} prévision(s) et toutes leurs répétitions seront supprimées${entries.length < rows.length ? ' (les factures à venir sélectionnées ne le sont pas)' : ''}.`,
+                    remove: (entry) => deleteEntry.mutateAsync(entry.id),
+                    done: `${entries.length} prévision(s) supprimée(s).`,
+                    clear,
+                  }),
+                  disabled: entries.length === 0,
+                },
+              ];
+            }}
             bar={{ searchLabel: 'Rechercher (libellé, tiers)' }}
             empty={
               <EmptyState
