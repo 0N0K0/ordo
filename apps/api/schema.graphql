@@ -2704,11 +2704,6 @@ type Routine {
   """Minutes."""
   estimate: Int
 
-  """
-  Calendar schedules it is done out of (its moments kept to the free time).
-  """
-  excludedScheduleIds: [ID!]!
-
   """First occurrence of the routine (from its start)."""
   firstDate: Date
 
@@ -2740,6 +2735,10 @@ type Routine {
   parentId: ID
   position: Int!
   projectId: ID
+
+  """
+  Rule of its repetition (every day for one saved following calendar schedules).
+  """
   recurrence: JSON!
 
   """
@@ -2751,9 +2750,9 @@ type Routine {
   requiredIds: [ID!]!
 
   """
-  Calendar schedules it follows (one or another): their slots are its days and times.
+  Following its rule: on or out of calendar schedules, in groups combined with and / or (the filters of the tables); null: any time.
   """
-  scheduleIds: [ID!]!
+  slotCondition: JSON
 
   """
   Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
@@ -2867,9 +2866,6 @@ input RoutineInput {
   """Minutes."""
   estimate: Int
 
-  """Calendar schedules it is done out of."""
-  excludedScheduleIds: [ID!]
-
   """HH:MM."""
   fromTime: String
   location: String
@@ -2889,8 +2885,10 @@ input RoutineInput {
   reminders: [Int!]
   requiredIds: [ID!]!
 
-  """Calendar schedules it follows (one or another)."""
-  scheduleIds: [ID!]
+  """
+  Following its rule: on or out of calendar schedules, in groups (and / or); null: any time.
+  """
+  slotCondition: JSON
   startDate: Date!
   title: String!
   travelAfter: Int

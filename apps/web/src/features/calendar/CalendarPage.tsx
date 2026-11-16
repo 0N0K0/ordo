@@ -47,6 +47,8 @@ import { slotColumns } from './slot-columns';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from './calendar-pdf';
 import { localParts, occurrenceInput } from './event-input';
+import { placeRoutineBlocks, type RoutineBlock } from './routine-layout';
+import { manualOrder } from '../routines/routine-format';
 import { SubscribedEventModal } from './SubscribedEventModal';
 import { useEventForm } from './use-event-form';
 import { CalendarCategoriesManager } from './CalendarCategoriesManager';
@@ -530,43 +532,65 @@ export function CalendarPage() {
     if (showRoutines) {
       const routineById = new Map((routinesData?.routines ?? []).map((routine) => [routine.id, routine]));
       const routineCategory = new Map((routinesData?.routineCategories ?? []).map((category) => [category.id, category]));
+      // Manual order of the routines: those of a same window follow it.
+      const order = manualOrder(routinesData?.routines ?? []);
+      type RoutineEvent = { block: RoutineBlock | null; event: EventInput };
+      const events: RoutineEvent[] = [];
       for (const occurrence of routineOccurrences.data ?? []) {
         const routine = routineById.get(occurrence.routineId);
         if (!routine || routine.archived) continue;
         const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
         const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
-        const minutes = routine.estimate ?? 30;
         const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false, windows: [] }];
         // Shown on its due day once past, today while it runs, its first day before.
         const day = String(occurrence.shownDate);
         for (const slot of slots) {
-          // Between its two times, else up to its latest time or from its start time for the time to spend on it.
-          // Within its day (shifted across midnight: from its start of day, or up to its end).
-          const before = slot.dueTime ? shiftTime(slot.dueTime, -minutes) : null;
-          const after = slot.fromTime ? shiftTime(slot.fromTime, minutes) : null;
-          const start = slot.fromTime ?? (before && slot.dueTime && before < slot.dueTime ? before : '00:00');
-          const end = slot.dueTime ?? (after && slot.fromTime && after > slot.fromTime ? after : '23:59');
-          const timed = (slot.fromTime !== null || slot.dueTime !== null) && start < end;
-          result.push({
-            id: `routine:${routine.id}:${occurrence.date}:${slot.index}`,
-            title: `${routine.title}${slot.optional ? ' (facultatif)' : ''}`,
-            allDay: !timed,
-            start: timed ? `${day}T${start}:00` : day,
-            end: timed ? `${day}T${end}:00` : addDays(day, 1),
-            backgroundColor: 'transparent',
-            borderColor: color,
-            textColor: 'var(--mantine-color-text)',
-            classNames: [classes.task, classes.routine, ...(slot.done ? [classes.closed] : []), ...(occurrence.movedFrom ? [classes.moved] : [])],
-            // Dragged to another day or hour, or stretched (between two times): asks which occurrences change.
-            startEditable: !occurrence.slots.some((item) => item.done),
-            durationEditable: !occurrence.slots.some((item) => item.done) && slot.fromTime !== null && slot.dueTime !== null,
-            extendedProps: {
-              kind: 'routine',
-              occurrence: { routine, date: occurrence.date, slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime } } satisfies RoutineOccurrenceRef,
-              movedFrom: occurrence.movedFrom ? String(occurrence.movedFrom) : null,
+          // Its first window (free time cut by slots: the first part).
+          const windows = Array.isArray(slot.windows) ? (slot.windows as { fromTime: string | null; dueTime: string | null }[]) : [];
+          const window = windows[0] ?? { fromTime: slot.fromTime, dueTime: slot.dueTime };
+          const timed = window.fromTime !== null || window.dueTime !== null;
+          const key = `routine:${routine.id}:${occurrence.date}:${slot.index}`;
+          events.push({
+            block: timed
+              ? {
+                  key,
+                  routineId: routine.id,
+                  day,
+                  assigneeIds: routine.assigneeIds,
+                  fromTime: window.fromTime,
+                  dueTime: window.dueTime,
+                  minutes: routine.estimate ?? 30,
+                  position: order.get(routine.id) ?? routine.position,
+                }
+              : null,
+            event: {
+              id: key,
+              title: `${routine.title}${slot.optional ? ' (facultatif)' : ''}`,
+              allDay: !timed,
+              start: day,
+              end: addDays(day, 1),
+              backgroundColor: 'transparent',
+              borderColor: color,
+              textColor: 'var(--mantine-color-text)',
+              classNames: [classes.task, classes.routine, ...(slot.done ? [classes.closed] : []), ...(occurrence.movedFrom ? [classes.moved] : [])],
+              // Dragged to another day or hour: asks which occurrences change (its window moves by as much). Its
+              // length is the time it takes, not its window: not stretched.
+              startEditable: !occurrence.slots.some((item) => item.done),
+              durationEditable: false,
+              extendedProps: {
+                kind: 'routine',
+                occurrence: { routine, date: occurrence.date, slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime } } satisfies RoutineOccurrenceRef,
+                movedFrom: occurrence.movedFrom ? String(occurrence.movedFrom) : null,
+              },
             },
           });
         }
+      }
+      // As long as the time they take, within their window; those of the same people in the same window one after the other.
+      const places = placeRoutineBlocks(events.flatMap(({ block }) => (block ? [block] : [])));
+      for (const { block, event } of events) {
+        const place = block ? places.get(block.key) : undefined;
+        result.push(place && block ? { ...event, start: `${block.day}T${place.start}:00`, end: `${block.day}T${place.end}:00` } : event);
       }
     }
     return result;

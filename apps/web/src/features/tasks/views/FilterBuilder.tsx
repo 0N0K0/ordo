@@ -208,6 +208,8 @@ export interface FilterFields<F extends string> {
   isComplete: (condition: FilterConditionOf<F>) => boolean;
   /** Label of an operator of a field, instead of the one of its kind. Optional. */
   operatorLabel?: (field: F, operator: FilterOperator) => string | undefined;
+  /** Operators of a field, instead of all those of its kind. Optional. */
+  operators?: (field: F) => readonly FilterOperator[];
   /** What an empty filter shows. */
   emptyText: string;
 }
@@ -296,7 +298,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         comboboxProps={INLINE}
         size="xs"
         aria-label="Opérateur"
-        data={operatorsFor(fields.kinds, condition.field).map((item) => ({ value: item, label: fields.operatorLabel?.(condition.field, item) ?? OPERATOR_LABELS[kind][item] ?? item }))}
+        data={(fields.operators?.(condition.field) ?? operatorsFor(fields.kinds, condition.field)).map((item) => ({ value: item, label: fields.operatorLabel?.(condition.field, item) ?? OPERATOR_LABELS[kind][item] ?? item }))}
         value={operator}
         allowDeselect={false}
         onChange={(next) => {

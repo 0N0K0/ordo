@@ -1,6 +1,6 @@
 import { ActionIcon, Button, Checkbox, Group, NumberInput, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { routineSchedule, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { routineSchedule, type SlotCondition, type DurationUnit, type Recurrence, type RepetitionCase, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BellIcon, CarIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -14,6 +14,8 @@ import { useWorkSchedules } from '../calendar/api';
 import { EventLocation } from '../geo/EventLocation';
 import { TravelCalculator } from '../geo/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
+import { SlotConditionBuilder } from './SlotConditionBuilder';
+import { describeSlotCondition } from './slot-condition-text';
 import { DAILY, ROUTINE_REMINDERS, windowText } from './routine-format';
 
 /** Time and place fields of a routine. */
@@ -21,11 +23,9 @@ export interface RoutineScheduleValues {
   startDate: string;
   recurrence: Recurrence;
   cases: RoutineCase[];
-  /** Calendar schedules it follows (one or another). */
-  scheduleIds: string[];
-  /** Calendar schedules it is done out of. */
-  excludedScheduleIds: string[];
-  /** Times of the day following its rule or its schedules. */
+  /** Following its rule: on or out of calendar schedules, in groups (none: any time). */
+  slotCondition: SlotCondition | null;
+  /** Times of the day following its rule. */
   moments: RoutineSlot[];
   opensOn: string | null;
   reminders: number[];
@@ -38,7 +38,13 @@ export interface RoutineScheduleValues {
 }
 
 /** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « à partir du ». */
-type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'opensOn'> & { mode: RepetitionModeValue };
+type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'> & { mode: RepetitionModeValue };
+
+/** Times of a rule or a case of a routine: its moments, and its condition on calendar schedules. */
+interface RoutineTimes {
+  moments: RoutineSlot[];
+  condition: SlotCondition | null;
+}
 
 /** Lengths of an occurrence of a routine: a day, days (the weekend), weeks, months, up to a day, a week or a month. */
 const ROUTINE_DURATIONS: readonly DurationUnit[] = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'];
@@ -109,59 +115,66 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
  */
 const describeMoments = (moments: readonly RoutineSlot[]) => moments.map((moment) => `${windowText(moment) || 'dans la journée'}${moment.optional ? ' (facultatif)' : ''}`).join(', ');
 
-/** Moments of the cases of a routine, for the common repetition editor. */
-const MOMENTS: RepetitionTimes<RoutineSlot[]> = {
-  render: (moments, onChange, index) => <MomentsEditor moments={moments} onChange={onChange} index={index} />,
-  describe: describeMoments,
-  empty: () => [ANY_TIME],
-};
+/**
+ * Moments and condition of the rule or cases of a routine, for the common repetition editor.
+ * @param {Map<string, string>} names Names of the calendar schedules.
+ * @returns {RepetitionTimes<RoutineTimes>} Times.
+ */
+const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes> => ({
+  render: (times, onChange, index) => (
+    <Stack gap="sm">
+      <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} />
+      <SlotConditionBuilder value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
+    </Stack>
+  ),
+  describe: (times) => [describeMoments(times.moments), describeSlotCondition(times.condition, names)].filter(Boolean).join(' · '),
+  empty: () => ({ moments: [ANY_TIME], condition: null }),
+});
 
 /**
  * Cases of the common editor of a routine as edited: its rule and moments (one rule), or its cases.
  * @param {RoutineRepetitionValue} value Repetition.
- * @returns {RepetitionCase<RoutineSlot[]>[]} Cases.
+ * @returns {RepetitionCase<RoutineTimes>[]} Cases.
  */
-function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineSlot[]>[] {
-  if (value.mode === 'CASES') return value.cases.map((item) => ({ since: item.from, until: item.until ?? null, anchor: null, rule: item.recurrence, times: item.slots }));
-  return [{ since: null, until: null, anchor: null, rule: value.recurrence, times: value.moments.length ? value.moments : [ANY_TIME] }];
+function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes>[] {
+  if (value.mode === 'CASES')
+    return value.cases.map((item) => ({ since: item.from, until: item.until ?? null, anchor: null, rule: item.recurrence, times: { moments: item.slots, condition: item.condition ?? null } }));
+  return [{ since: null, until: null, anchor: null, rule: value.recurrence, times: { moments: value.moments.length ? value.moments : [ANY_TIME], condition: value.slotCondition } }];
 }
 
 /**
  * Repetition with the cases of the common editor.
  * @param {RoutineRepetitionValue} value Repetition.
- * @param {RepetitionCase<RoutineSlot[]>[]} cases Cases edited.
+ * @param {RepetitionCase<RoutineTimes>[]} cases Cases edited.
  * @returns {RoutineRepetitionValue} Repetition.
  */
-function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<RoutineSlot[]>[]): RoutineRepetitionValue {
-  if (value.mode === 'CASES') return { ...value, cases: cases.map((item) => ({ from: item.since, until: item.until, recurrence: item.rule ?? DAILY, slots: item.times })) };
-  return { ...value, recurrence: cases[0]?.rule ?? value.recurrence, moments: cases[0]?.times ?? value.moments };
+function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<RoutineTimes>[]): RoutineRepetitionValue {
+  if (value.mode === 'CASES') return { ...value, cases: cases.map((item) => ({ from: item.since, until: item.until, recurrence: item.rule ?? DAILY, slots: item.times.moments, condition: item.times.condition })) };
+  return { ...value, recurrence: cases[0]?.rule ?? value.recurrence, moments: cases[0]?.times.moments ?? value.moments, slotCondition: cases[0]?.times.condition ?? null };
 }
 
 /**
- * Every repetition setting of a routine, in the common modal: its first day, then one rule, cases, or calendar
- * schedules (one or another, its moments kept within their slots); the schedules it is done out of; its « à partir du ».
- * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void }} props Draft and its change.
+ * Every repetition setting of a routine, in the common modal: its first day, then one rule or cases, each with its
+ * moments and its condition on calendar schedules; its « à partir du ».
+ * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string> }} props Draft, its change, names of the schedules.
  * @returns {JSX.Element} Settings.
  */
-function RoutineRepetitionEditor({ draft, setDraft }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void }) {
-  const { data: schedules } = useWorkSchedules();
-  const scheduleOptions = (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name }));
+function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void; names: Map<string, string> }) {
   const start = draft.startDate || localToday();
   const frequency = draft.recurrence.frequency;
   return (
     <Stack gap="md">
       <DatePickerInput label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: String(date) })} />
-      <RepetitionEditor<RoutineSlot[]>
+      <RepetitionEditor<RoutineTimes>
         mode={draft.mode}
         onModeChange={(mode) =>
           setDraft({
             ...draft,
             mode,
-            // Each mode keeps only its own settings.
-            cases: mode === 'CASES' ? (draft.cases.length ? draft.cases : [{ from: null, until: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME] }]) : [],
-            scheduleIds: mode === 'SCHEDULES' ? draft.scheduleIds : [],
-            excludedScheduleIds: mode === 'SCHEDULES' ? [] : draft.excludedScheduleIds,
-            moments: mode === 'SCHEDULES' ? [] : draft.moments.length ? draft.moments : [ANY_TIME],
+            // Cases start from the rule; back to one rule keeps the first case.
+            cases: mode === 'CASES' ? (draft.cases.length ? draft.cases : [{ from: null, until: null, recurrence: draft.recurrence, slots: draft.moments.length ? draft.moments : [ANY_TIME], condition: draft.slotCondition }]) : [],
+            moments: mode === 'CASES' ? [] : draft.cases[0]?.slots ?? (draft.moments.length ? draft.moments : [ANY_TIME]),
+            slotCondition: mode === 'CASES' ? null : (draft.cases[0]?.condition ?? draft.slotCondition),
           })
         }
         cases={editedCases(draft)}
@@ -170,49 +183,11 @@ function RoutineRepetitionEditor({ draft, setDraft }: { draft: RoutineRepetition
         multiple
         allowNone={false}
         durations={ROUTINE_DURATIONS}
-        times={MOMENTS}
-        modes={[
-          {
-            value: 'SCHEDULES',
-            label: 'Plages de l’agenda',
-            render: () => (
-              <Stack gap="sm">
-                <BatchMultiSelect
-                  label="Plages"
-                  description="L’une ou l’autre : la routine a lieu sur leurs horaires (pauses et exceptions comprises)."
-                  placeholder={draft.scheduleIds.length ? undefined : 'Choisir des plages'}
-                  searchable
-                  data={scheduleOptions}
-                  nothingFoundMessage="Aucune plage (créez-en dans l’agenda)"
-                  value={draft.scheduleIds}
-                  onChange={(scheduleIds) => setDraft({ ...draft, scheduleIds })}
-                />
-                <MomentsEditor moments={draft.moments} onChange={(moments) => setDraft({ ...draft, moments })} index={0} allowEmpty />
-                <Text size="xs" c="dimmed">
-                  Facultatif : chaque moment n’est gardé que les jours où il croise un horaire de ces plages (manger entre 7 h et 7 h 30, 12 h et 12 h 30…).
-                </Text>
-              </Stack>
-            ),
-          },
-        ]}
+        times={routineTimes(names)}
         footer={
-          draft.mode === 'SCHEDULES' ? undefined : (
-            <Stack gap="sm">
-              {draft.mode === 'RULE' && (frequency === 'MONTHLY' || frequency === 'YEARLY') && (
-                <OpensOnInput frequency={frequency} value={draft.opensOn} onChange={(opensOn) => setDraft({ ...draft, opensOn })} />
-              )}
-              <BatchMultiSelect
-                label="Hors des plages"
-                description="Facultatif : la routine ne se fait que sur le temps libre en dehors de ces plages (une plage sur toute la journée la bloque)."
-                placeholder={draft.excludedScheduleIds.length ? undefined : 'Aucune'}
-                searchable
-                clearable
-                data={scheduleOptions}
-                value={draft.excludedScheduleIds}
-                onChange={(excludedScheduleIds) => setDraft({ ...draft, excludedScheduleIds })}
-              />
-            </Stack>
-          )
+          draft.mode === 'RULE' && (frequency === 'MONTHLY' || frequency === 'YEARLY') ? (
+            <OpensOnInput frequency={frequency} value={draft.opensOn} onChange={(opensOn) => setDraft({ ...draft, opensOn })} />
+          ) : undefined
         }
       />
     </Stack>
@@ -220,19 +195,19 @@ function RoutineRepetitionEditor({ draft, setDraft }: { draft: RoutineRepetition
 }
 
 /**
- * Repetition of a routine as text, a line each: its first day, its rule or cases or schedules, its exclusions.
+ * Repetition of a routine as text, a line each: its first day, then its rule or cases with their moments and
+ * conditions.
  * @param {RoutineRepetitionValue} value Repetition.
  * @param {Map<string, string>} names Names of the schedules.
  * @returns {string[]} Lines.
  */
 function describeRepetition(value: RoutineRepetitionValue, names: Map<string, string>): string[] {
   const start = value.startDate || localToday();
-  const listed = (ids: readonly string[]) => ids.map((id) => names.get(id) ?? 'plage supprimée').join(', ');
-  const lines = [`À partir du ${fmt.day(start)}`];
-  if (value.mode === 'SCHEDULES') lines.push(`Sur les plages ${listed(value.scheduleIds) || '—'}${value.moments.length ? ` · ${describeMoments(value.moments)}` : ''}`);
-  else lines.push(...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times: MOMENTS }))}`));
-  if (value.excludedScheduleIds.length) lines.push(`Hors des plages ${listed(value.excludedScheduleIds)}`);
-  return lines;
+  const times = routineTimes(names);
+  return [
+    `À partir du ${fmt.day(start)}`,
+    ...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times }))}`),
+  ];
 }
 
 interface RoutineScheduleProps {
@@ -251,32 +226,31 @@ interface RoutineScheduleProps {
 export function RoutineSchedule({ values, errors, onChange }: RoutineScheduleProps) {
   const { data: schedules } = useWorkSchedules();
   const names = new Map((schedules ?? []).map((schedule) => [schedule.id, schedule.name]));
-  const mode: RepetitionModeValue = values.scheduleIds.length ? 'SCHEDULES' : values.cases.length ? 'CASES' : 'RULE';
+  const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
   const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
   const point = values.locationLat !== null && values.locationLon !== null ? { lat: values.locationLat, lon: values.locationLon } : null;
-  const timed = mode !== 'RULE' || values.moments.some((moment) => moment.fromTime || moment.dueTime);
+  const timed = mode !== 'RULE' || Boolean(values.slotCondition) || values.moments.some((moment) => moment.fromTime || moment.dueTime);
   return (
     <Stack gap="sm">
       <RepetitionField<RoutineRepetitionValue>
         label="Répétition et moments"
         required
-        error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.scheduleIds ?? errors.startDate ?? errors.opensOn) as ReactNode}
+        error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.startDate ?? errors.opensOn) as ReactNode}
         value={{ ...values, mode }}
         onChange={(value) =>
           onChange({
             startDate: value.startDate,
             recurrence: value.recurrence,
             cases: value.cases,
-            scheduleIds: value.scheduleIds,
-            excludedScheduleIds: value.excludedScheduleIds,
+            slotCondition: value.slotCondition,
             moments: value.moments,
             opensOn: value.opensOn,
           })
         }
-        valid={(draft) => Boolean(draft.startDate) && (draft.mode !== 'SCHEDULES' || draft.scheduleIds.length > 0) && (draft.mode !== 'CASES' || draft.cases.length > 0)}
+        valid={(draft) => Boolean(draft.startDate) && (draft.mode !== 'CASES' || draft.cases.length > 0)}
         describe={(value) => describeRepetition(value, names)}
-        editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} />}
+        editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
       />
       <EventLocation
         value={{ text: values.location, point }}

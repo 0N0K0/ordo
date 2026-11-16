@@ -9,9 +9,11 @@ import {
   routineOpenDate,
   caseSpans,
   plannedSlots,
-  slotWindows,
-  windowsOutside,
-  windowsWithin,
+  conditionScheduleIds,
+  conditionWindows,
+  readSlotCondition,
+  windowsAllowed,
+  type SlotCondition,
   movedFrom,
   movedOccurrences,
   routineMoveSchema,
@@ -74,7 +76,7 @@ function reaches(parentOf: Map<string, string | null>, start: string, id: string
 }
 
 /** Routine with what its occurrences are computed from. */
-export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments'> &
+export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
   Partial<Pick<Routine, 'opensOn'>>;
 
 /** Calendar schedules of the workspace, for the routines following them or done out of them. */
@@ -103,18 +105,52 @@ export async function loadScheduleContext(): Promise<ScheduleContext> {
   };
 }
 
-/** How a routine repeats: its rule, its cases, or calendar schedules. */
-export type RoutineMode = 'RULE' | 'CASES' | 'SCHEDULES';
+/** How a routine repeats: its rule, or its cases. */
+export type RoutineMode = 'RULE' | 'CASES';
 
 /**
  * How a routine repeats.
  * @param {RoutineTiming} routine Routine.
  * @returns {RoutineMode} Mode.
  */
-export function modeOf(routine: Pick<RoutineTiming, 'scheduleIds' | 'cases'>): RoutineMode {
-  if (routine.scheduleIds.length) return 'SCHEDULES';
+export function modeOf(routine: Pick<RoutineTiming, 'cases'>): RoutineMode {
   return storedCases(routine.cases).length ? 'CASES' : 'RULE';
 }
+
+/**
+ * Condition on calendar schedules of a routine following its rule: its own, else the one of its former form (on one
+ * of the schedules it followed, and out of those it was done out of); null: any time.
+ * @param {Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds'>} routine Routine.
+ * @returns {SlotCondition | null} Condition.
+ */
+export function storedCondition(routine: Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds'>): SlotCondition | null {
+  const own = readSlotCondition(routine.slotCondition);
+  if (own) return own;
+  const children: SlotCondition['children'] = [
+    ...(routine.scheduleIds.length ? [{ type: 'condition' as const, id: 'on', field: 'schedules' as const, operator: 'in', value: routine.scheduleIds }] : []),
+    ...(routine.excludedScheduleIds.length ? [{ type: 'condition' as const, id: 'out', field: 'schedules' as const, operator: 'notIn', value: routine.excludedScheduleIds }] : []),
+  ];
+  return children.length ? { type: 'group', id: 'root', combinator: 'and', children } : null;
+}
+
+/**
+ * Rule of a routine: its own; every day for one following schedules saved before conditions (their slots were its
+ * days).
+ * @param {Pick<RoutineTiming, 'recurrence' | 'scheduleIds' | 'slotCondition'>} routine Routine.
+ * @returns {Recurrence | null} Rule.
+ */
+export function storedRule(routine: Pick<RoutineTiming, 'recurrence' | 'scheduleIds' | 'slotCondition'>): Recurrence | null {
+  const rule = storedRecurrence(routine.recurrence);
+  if (routine.scheduleIds.length && routine.slotCondition === null && rule) return { ...rule, frequency: 'DAILY', interval: 1, weekdays: [], duration: null };
+  return rule;
+}
+
+/**
+ * Whether a condition constrains the hours.
+ * @param {SlotCondition | null | undefined} condition Condition.
+ * @returns {boolean} Some.
+ */
+const constrains = (condition: SlotCondition | null | undefined) => conditionScheduleIds(condition).length > 0;
 
 /** Days looked at before and after a day to find the occurrences around it (a year and a little more). */
 const LOOK_DAYS = 400;
@@ -141,15 +177,14 @@ export function storedCases(value: unknown): RoutineCase[] {
 }
 
 /**
- * Times of the day of a routine following its rule or its schedules: its moments, else its former window (none
- * following schedules: one per slot).
+ * Times of the day of a routine following its rule: its moments, else its former window.
  * @param {RoutineTiming} routine Routine.
  * @returns {RoutineSlot[]} Moments.
  */
 export function storedMoments(routine: RoutineTiming): RoutineSlot[] {
   const parsed = z.array(routineSlotSchema).safeParse(routine.moments);
   if (parsed.success && parsed.data.length) return parsed.data;
-  return routine.scheduleIds.length ? [] : [{ fromTime: routine.fromTime, dueTime: routine.dueTime, optional: false }];
+  return [{ fromTime: routine.fromTime, dueTime: routine.dueTime, optional: false }];
 }
 
 /**
@@ -164,7 +199,7 @@ export function storedMoves(value: unknown): RoutineMove[] {
 
 /**
  * Times of the day of an occurrence of a routine on one of its days: those of its rule (or of its case), kept to the
- * free time out of its excluded schedules; following schedules, the slots of the day (its moments kept within them).
+ * hours its condition on calendar schedules allows that day (several windows where slots cut them).
  * @param {RoutineTiming} routine Routine.
  * @param {string} due Due day of the occurrence (its case).
  * @param {string} day Day.
@@ -172,25 +207,15 @@ export function storedMoves(value: unknown): RoutineMove[] {
  * @returns {RoutineDaySlot[]} Times (none: not doable that day).
  */
 function dayMoments(routine: RoutineTiming, due: string, day: string, schedules: ScheduleContext): RoutineDaySlot[] {
-  /**
-   * Time with its windows (none: dropped).
-   * @param {RoutineSlot} moment Time.
-   * @param {TimeWindow[]} windows Windows.
-   * @returns {RoutineDaySlot[]} Time, or none.
-   */
-  const fitted = (moment: RoutineSlot, windows: TimeWindow[]): RoutineDaySlot[] => (windows.length ? [{ ...moment, fromTime: windows[0].fromTime, dueTime: windows.at(-1)!.dueTime, windows }] : []);
-  if (routine.scheduleIds.length) {
-    const slots = schedules.slotsOn(routine.scheduleIds, day);
-    if (!slots.length) return [];
-    const moments = storedMoments(routine);
-    if (!moments.length) return slotWindows(slots).map((window) => ({ ...window, optional: false, windows: [window] }));
-    return moments.flatMap((moment) => fitted(moment, windowsWithin(moment, slots)));
-  }
   const cases = storedCases(routine.cases);
-  const base = cases.length ? (routineCaseOn(cases, formatDay(routine.startDate), due)?.slots ?? []) : storedMoments(routine);
-  const blocked = schedules.slotsOn(routine.excludedScheduleIds, day);
-  if (!blocked.length) return base.map((moment) => ({ ...moment, windows: [{ fromTime: moment.fromTime, dueTime: moment.dueTime }] }));
-  return base.flatMap((moment) => fitted(moment, windowsOutside(moment, blocked)));
+  const item = cases.length ? routineCaseOn(cases, formatDay(routine.startDate), due) : null;
+  const base = cases.length ? (item?.slots ?? []) : storedMoments(routine);
+  const condition = cases.length ? (item?.condition ?? null) : storedCondition(routine);
+  const allowed = constrains(condition) ? conditionWindows(condition, (ids) => schedules.slotsOn(ids, day)) : null;
+  return base.flatMap((moment) => {
+    const windows = windowsAllowed(moment, allowed);
+    return windows.length ? [{ ...moment, fromTime: windows[0].fromTime, dueTime: windows.at(-1)!.dueTime, windows }] : [];
+  });
 }
 
 /**
@@ -201,7 +226,8 @@ function dayMoments(routine: RoutineTiming, due: string, day: string, schedules:
  * @returns {boolean} Doable.
  */
 function doable(routine: RoutineTiming, span: RoutineSpan, schedules: ScheduleContext): boolean {
-  if (!routine.scheduleIds.length && !routine.excludedScheduleIds.length) return true;
+  const cases = storedCases(routine.cases);
+  if (cases.length ? !cases.some((item) => constrains(item.condition)) : !constrains(storedCondition(routine))) return true;
   for (let day = span.start; day <= span.end; day = addDays(day, 1)) if (dayMoments(routine, span.end, day, schedules).length) return true;
   return false;
 }
@@ -220,15 +246,13 @@ function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: 
   const first = from < start ? start : from;
   if (first > to) return [];
   const spans = new Map<string, RoutineSpan>();
-  if (routine.scheduleIds.length) {
-    for (let day = first; day <= to; day = addDays(day, 1)) spans.set(day, { start: day, end: day });
-  } else {
+  {
     const cases = storedCases(routine.cases);
     if (cases.length) {
       // A day due in several cases follows the first one.
       for (const item of cases) for (const span of routineCaseSpans(item, start, first, to)) if (!spans.has(span.end)) spans.set(span.end, span);
     } else {
-      const rule = storedRecurrence(routine.recurrence);
+      const rule = storedRule(routine);
       const opensOn = routine.opensOn ?? null;
       if (rule) {
         // An occurrence opening (« à partir du ») within the period may be due after it.
@@ -469,17 +493,23 @@ async function parseRoutine(input: RoutineInput, id?: string) {
   data.requiredIds = [...new Set(data.requiredIds)];
   if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
   if ((await prisma.routineCategory.count({ where: { id: { in: data.categoryIds } } })) !== data.categoryIds.length) throw fieldError('categoryIds', 'Catégorie introuvable.');
-  data.scheduleIds = [...new Set(data.scheduleIds)];
-  data.excludedScheduleIds = [...new Set(data.excludedScheduleIds)];
-  const scheduleIds = [...new Set([...data.scheduleIds, ...data.excludedScheduleIds])];
-  if ((await prisma.workSchedule.count({ where: { id: { in: scheduleIds } } })) !== scheduleIds.length) throw fieldError('scheduleIds', 'Plage introuvable.');
-  // Following schedules: their days, its moments kept within their slots; with cases, the days and times of these;
-  // else its rule and moments, out of its excluded schedules. The former schedule, anchor and slot rule are dropped.
+  // The former schedules (sent by former clients) become its condition; its cases have theirs.
+  if (!data.slotCondition) data.slotCondition = storedCondition({ slotCondition: null, scheduleIds: data.scheduleIds, excludedScheduleIds: data.excludedScheduleIds });
+  const scheduleIds = [...new Set([...conditionScheduleIds(data.slotCondition), ...data.cases.flatMap((item) => conditionScheduleIds(item.condition))])];
+  if ((await prisma.workSchedule.count({ where: { id: { in: scheduleIds } } })) !== scheduleIds.length) throw fieldError('slotCondition', 'Plage introuvable.');
   // A window alone (former clients, imports): its single moment.
-  if (!data.moments.length && !data.scheduleIds.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
-  if (data.scheduleIds.length) Object.assign(data, { cases: [], excludedScheduleIds: [] });
-  else if (data.cases.length) data.moments = [];
-  Object.assign(data, { scheduleId: null, scheduleAnchor: null, slotRule: null, fromTime: data.moments[0]?.fromTime ?? null, dueTime: data.moments[0]?.dueTime ?? null });
+  if (!data.moments.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
+  // With cases, their days, times and conditions; else its rule, moments and condition. The former fields are dropped.
+  if (data.cases.length) Object.assign(data, { moments: [], slotCondition: null });
+  Object.assign(data, {
+    scheduleIds: [],
+    excludedScheduleIds: [],
+    scheduleId: null,
+    scheduleAnchor: null,
+    slotRule: null,
+    fromTime: data.moments[0]?.fromTime ?? null,
+    dueTime: data.moments[0]?.dueTime ?? null,
+  });
   if (data.projectId && !(await prisma.project.findUnique({ where: { id: data.projectId }, select: { id: true } }))) throw fieldError('projectId', 'Projet introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.assigneeIds } } })) !== data.assigneeIds.length) throw fieldError('assigneeIds', 'Assigné introuvable.');
   if ((await prisma.contributor.count({ where: { id: { in: data.beneficiaryIds } } })) !== data.beneficiaryIds.length) throw fieldError('beneficiaryIds', 'Bénéficiaire introuvable.');
@@ -534,10 +564,11 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   scheduleIds: data.scheduleIds,
   excludedScheduleIds: data.excludedScheduleIds,
   moments: data.moments,
+  slotCondition: data.slotCondition ? (data.slotCondition as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
   reminders: [...new Set(data.reminders)].sort((a, b) => a - b),
   opensOn: data.opensOn,
   slotRule: data.slotRule ?? Prisma.DbNull,
-  cases: data.cases,
+  cases: data.cases as Prisma.InputJsonValue,
   location: data.location,
   locationLat: data.location ? data.locationLat : null,
   locationLon: data.location ? data.locationLon : null,
@@ -629,14 +660,15 @@ async function inputOf(id: string): Promise<RoutineInput> {
     categoryIds: routine.categories.map((category) => category.id),
     parentId: routine.parentId,
     startDate: formatDay(routine.startDate),
-    recurrence: storedRecurrence(routine.recurrence) ?? (routine.recurrence as RoutineInput['recurrence']),
+    recurrence: storedRule(routine) ?? (routine.recurrence as RoutineInput['recurrence']),
     estimate: routine.estimate,
     fromTime: routine.fromTime,
     dueTime: routine.dueTime,
     scheduleId: null,
     scheduleAnchor: null,
-    scheduleIds: routine.scheduleIds,
-    excludedScheduleIds: routine.excludedScheduleIds,
+    scheduleIds: [],
+    excludedScheduleIds: [],
+    slotCondition: storedCondition(routine),
     moments: storedMoments(routine),
     reminders: routine.reminders,
     opensOn: routine.opensOn,
@@ -722,8 +754,8 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
         ...(changes.estimate !== undefined && { estimate: changes.estimate }),
         ...(changes.projectId !== undefined && { projectId: changes.projectId }),
-        // A repetition of its own: it no longer follows its schedules nor its cases.
-        ...(changes.recurrence !== undefined && { scheduleIds: [], cases: [] }),
+        // A repetition of its own: it no longer follows its cases.
+        ...(changes.recurrence !== undefined && { cases: [] }),
         // Times of its own: a single moment.
         ...((changes.fromTime !== undefined || changes.dueTime !== undefined) && {
           moments: [
@@ -975,7 +1007,7 @@ export async function changeRoutineOccurrence(id: string, date: string, scope: R
   const base = ruleSlotsOn(routine, origin, await loadScheduleContext());
   if (slot < 0 || slot >= Math.max(1, base.length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
   const cases = storedCases(routine.cases);
-  const rule = storedRecurrence(routine.recurrence);
+  const rule = storedRule(routine);
 
   if (scope === 'THIS') {
     const current = moves.find((move) => move.from === origin)?.times ?? null;
@@ -988,9 +1020,6 @@ export async function changeRoutineOccurrence(id: string, date: string, scope: R
     if (next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
     await prisma.routine.update({ where: { id }, data: { moves: next } });
     return;
-  }
-  if (modeOf(routine) === 'SCHEDULES') {
-    throw clientError('BAD_USER_INPUT', 'Cette routine suit une plage : changez la plage, ou cette occurrence seulement.');
   }
   const delta = daysBetween(origin, parsedTo);
   // The exceptions of the occurrences changed no longer match.
@@ -1061,8 +1090,7 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
   const start = formatDay(routine.startDate);
   const origin = movedFrom(moves, date);
   const cases = storedCases(routine.cases);
-  const rule = storedRecurrence(routine.recurrence);
-  if (modeOf(routine) === 'SCHEDULES') throw clientError('BAD_USER_INPUT', 'Cette routine suit une plage : supprimez cette occurrence seulement, ou archivez la routine.');
+  const rule = storedRule(routine);
   const kept = cases
     .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))
     .map((item) => ({ ...item, recurrence: endedBefore(item.recurrence, caseStart(item, start), origin) }));

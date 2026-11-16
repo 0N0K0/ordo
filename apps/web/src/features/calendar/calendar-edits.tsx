@@ -24,13 +24,6 @@ export interface RoutineOccurrenceRef {
 }
 
 /**
- * Whether a routine follows a calendar schedule (its days and times come from it: changed one occurrence at a time).
- * @param {Routine} routine Routine.
- * @returns {boolean} Follows a schedule.
- */
-const followsSchedule = (routine: Routine) => routine.scheduleIds.length > 0;
-
-/**
  * Changes of the slots of the schedules and of the occurrences of the routines from the calendar, as those of the
  * recurring events: each asks whether it is an exception (this occurrence), applies to it and the following ones, or
  * to all of them.
@@ -80,7 +73,7 @@ export function useCalendarEdits() {
    */
   const changeRoutine = async (occurrence: RoutineOccurrenceRef, to: string, times: { fromTime: string | null; dueTime: string | null }, revert?: () => void) => {
     const { routine, date, slot } = occurrence;
-    const scope = await askScope({ action: 'update', title: 'Modifier une routine', allowFollowing: !followsSchedule(routine), allowAll: !followsSchedule(routine) });
+    const scope = await askScope({ action: 'update', title: 'Modifier une routine', allowFollowing: true, allowAll: true });
     if (!scope) return revert?.();
     changeOccurrence.mutate(
       { id: routine.id, date, scope, to, slot: slot.index, ...times },
@@ -102,7 +95,7 @@ export function useCalendarEdits() {
    */
   const removeRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
     const { routine, date } = occurrence;
-    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: !followsSchedule(routine), allowAll: false });
+    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: true, allowAll: false });
     if (!scope) return;
     const onError = (error: Error) => notifyError(error.message);
     deleteOccurrence.mutate(
