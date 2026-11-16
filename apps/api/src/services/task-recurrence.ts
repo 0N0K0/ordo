@@ -1,8 +1,17 @@
-import { addDays, daysBetween, formatDay, occurrenceDates, parseDay, recurrenceSchema, type Recurrence } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, isTaskCases, parseDay, taskRepetitionDates, taskRepetitionSchema, withDeletedDates, type TaskRepetition } from '@ordo/shared';
 import { prisma } from '../db';
 import { Prisma, type Task } from '../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../graphql/errors';
-import { storedRecurrence } from './calendar-events';
+
+/**
+ * Stored repetition of a task series (a rule, or cases), or null.
+ * @param {unknown} value JSON value.
+ * @returns {TaskRepetition | null} Repetition.
+ */
+export function storedTaskRepetition(value: unknown): TaskRepetition | null {
+  const parsed = taskRepetitionSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 
 /**
  * Date a task repeats from: its start, or else its end.
@@ -18,7 +27,7 @@ function anchorOf(task: Pick<Task, 'startDate' | 'endDate'>): string | null {
  * Makes a task recurring (it becomes the first occurrence of its series), changes its repetition, or
  * stops it (null; the occurrences already created stay, as plain tasks).
  * @param {string} id Task id (an occurrence: its series is changed).
- * @param {unknown} recurrence Rule, or null.
+ * @param {unknown} recurrence Rule or cases, or null.
  * @returns {Promise<Task>} First task of the series.
  */
 export async function setTaskRecurrence(id: string, recurrence: unknown): Promise<Task> {
@@ -32,10 +41,10 @@ export async function setTaskRecurrence(id: string, recurrence: unknown): Promis
       return tx.task.update({ where: { id: task.id }, data: { recurrence: Prisma.DbNull, occurrenceDate: null } });
     });
   }
-  const rule = parseInput(recurrenceSchema, recurrence);
+  const rule = parseInput(taskRepetitionSchema, recurrence);
   const anchor = anchorOf(task);
   if (!anchor) throw clientError('BAD_USER_INPUT', 'Donnez d’abord une date de début ou de fin à la tâche : elle se répète à partir de cette date.');
-  if (rule.until && rule.until < anchor) throw clientError('BAD_USER_INPUT', 'La fin de la répétition doit suivre la date de la tâche.');
+  if (!isTaskCases(rule) && rule.until && rule.until < anchor) throw clientError('BAD_USER_INPUT', 'La fin de la répétition doit suivre la date de la tâche.');
   return prisma.task.update({ where: { id: task.id }, data: { recurrence: rule, occurrenceDate: parseDay(anchor), seriesId: null } });
 }
 
@@ -60,11 +69,11 @@ export async function materializeTaskOccurrences(from: string, to: string): Prom
   let created = 0;
 
   for (const task of series) {
-    const rule: Recurrence | null = storedRecurrence(task.recurrence);
+    const rule = storedTaskRepetition(task.recurrence);
     const anchor = anchorOf(task);
     if (!rule || !anchor) continue;
     const existing = new Set([anchor, ...task.occurrences.flatMap((item) => (item.occurrenceDate ? [formatDay(item.occurrenceDate)] : []))]);
-    for (const date of occurrenceDates(rule, anchor, from, to)) {
+    for (const date of taskRepetitionDates(rule, anchor, from, to)) {
       if (existing.has(date)) continue;
       const shift = daysBetween(anchor, date);
       const moved = (value: Date | null) => (value ? parseDay(addDays(formatDay(value), shift)) : null);
@@ -109,11 +118,8 @@ export async function forgetDeletedOccurrences(ids: string[]): Promise<void> {
   for (const item of occurrences) bySeries.set(item.seriesId!, [...(bySeries.get(item.seriesId!) ?? []), formatDay(item.occurrenceDate!)]);
   for (const [seriesId, dates] of bySeries) {
     const series = await prisma.task.findUnique({ where: { id: seriesId }, select: { recurrence: true } });
-    const rule = series ? storedRecurrence(series.recurrence) : null;
+    const rule = series ? storedTaskRepetition(series.recurrence) : null;
     if (!rule) continue;
-    await prisma.task.update({
-      where: { id: seriesId },
-      data: { recurrence: { ...rule, exceptions: [...new Set([...rule.exceptions, ...dates])].sort() } },
-    });
+    await prisma.task.update({ where: { id: seriesId }, data: { recurrence: withDeletedDates(rule, dates) } });
   }
 }

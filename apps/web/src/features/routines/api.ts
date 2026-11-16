@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { Recurrence, RoutineCategoryInput, RoutineInput, SlotRule } from '@ordo/shared';
+import type { Recurrence, RoutineCategoryInput, RoutineInput } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveInTree } from '../../components/category-tree/category-tree';
 import { graphql } from '../../graphql';
@@ -31,8 +31,9 @@ const RoutinesDataDocument = graphql(`
       estimate
       fromTime
       dueTime
-      scheduleId
-      scheduleAnchor
+      scheduleIds
+      excludedScheduleIds
+      moments
       reminders
       cases
       moves
@@ -43,6 +44,7 @@ const RoutinesDataDocument = graphql(`
         dueTime
         optional
         done
+        windows
       }
       windowFrom
       windowTo
@@ -65,7 +67,6 @@ const RoutinesDataDocument = graphql(`
       lastDoneAt
       trackedSeconds
       opensOn
-      slotRule
     }
   }
 `);
@@ -222,6 +223,8 @@ const RoutineOccurrencesDocument = graphql(`
     routineOccurrences(from: $from, to: $to) {
       routineId
       date
+      startDate
+      shownDate
       movedFrom
       slots {
         index
@@ -229,6 +232,7 @@ const RoutineOccurrencesDocument = graphql(`
         dueTime
         optional
         done
+        windows
       }
     }
   }
@@ -361,7 +365,6 @@ export interface RoutinePatchValues {
   travelAfter?: number;
   reminders?: number[];
   opensOn?: string | null;
-  slotRule?: SlotRule | null;
   fromTime?: string | null;
   dueTime?: string | null;
   startDate?: string;
@@ -400,8 +403,9 @@ export function routineInputOf(routine: Routine): RoutineInput {
     estimate: routine.estimate,
     fromTime: routine.fromTime,
     dueTime: routine.dueTime,
-    scheduleId: routine.scheduleId,
-    scheduleAnchor: routine.scheduleAnchor as RoutineInput['scheduleAnchor'],
+    scheduleIds: routine.scheduleIds,
+    excludedScheduleIds: routine.excludedScheduleIds,
+    moments: routine.moments as RoutineInput['moments'],
     reminders: routine.reminders,
     cases: routine.cases as RoutineInput['cases'],
     location: routine.location,

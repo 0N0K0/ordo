@@ -464,8 +464,7 @@ export async function seedPersonal({
   });
   await routine('Aller chercher les enfants à l’école', rule({}), {
     categoryIds: [kidsCategory],
-    scheduleId: childcareSchedule.id,
-    scheduleAnchor: 'START',
+    scheduleIds: [childcareSchedule.id],
     location: school.name,
     locationLat: school.lat,
     locationLon: school.lon,

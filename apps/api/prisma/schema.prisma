@@ -1080,6 +1080,8 @@ model Alarm {
   weekdays    Int[]
   /// Last day of the schedule, included.
   endDate     DateTime?      @db.Date
+  /// Repetition in the common form (rule, end, pauses, deleted dates); none: frequency, interval, weekdays, endDate.
+  recurrence  Json?
   /// Tracking time between two rings (TRACKING_DURATION).
   minutes     Int?
   projectId   String?
@@ -2868,6 +2870,12 @@ model Routine {
   scheduleId     String?
   schedule       WorkSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   scheduleAnchor String?
+  /// Calendar schedules it follows (one or another): it occurs on their slots, its moments kept within them.
+  scheduleIds    String[]            @default([])
+  /// Calendar schedules it is done out of (its moments kept to the free time).
+  excludedScheduleIds String[]       @default([])
+  /// Times of the day, following its rule or its schedules: [{ fromTime, dueTime, optional }]; none: fromTime / dueTime.
+  moments        Json                @default("[]")
   /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
   reminders      Int[]               @default([])
   /// Day each occurrence can be done from, before its due date: "DD" (monthly repetition), "MM-DD" (yearly); null: on

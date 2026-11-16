@@ -6,6 +6,126 @@ export const RECURRENCE_FREQUENCIES = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] a
 export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
 
 /**
+ * How long each occurrence of a repetition lasts, from its first day: days, weeks (to the end of the last one), months
+ * (to the end of the last one), or up to a day of the month (and of a month of the year), a week of the year or a month
+ * of the year (the next one when it comes before).
+ */
+export const DURATION_UNITS = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'] as const;
+export type DurationUnit = (typeof DURATION_UNITS)[number];
+
+export const occurrenceDurationSchema = z.object({
+  unit: z.enum(DURATION_UNITS).default('DAYS'),
+  /** DAYS, WEEKS, MONTHS: how many. */
+  count: z.number().int().min(1, 'Au moins 1.').max(366, '366 au plus.').default(1),
+  /** TO_DAY: last day number (the last day of a shorter month). */
+  day: z.number().int().min(1).max(31).nullable().default(null),
+  /** TO_DAY: its month (none: the same month, or the next one); TO_MONTH: last month. */
+  month: z.number().int().min(1).max(12).nullable().default(null),
+  /** TO_WEEK: last ISO week. */
+  week: z.number().int().min(1).max(53).nullable().default(null),
+});
+export type Duration = z.infer<typeof occurrenceDurationSchema>;
+
+/** A single day. */
+export const ONE_DAY: Duration = { unit: 'DAYS', count: 1, day: null, month: null, week: null };
+
+/** Days of an occurrence, both included. */
+export interface Span {
+  start: string;
+  end: string;
+}
+
+/**
+ * Day of a month, kept within it (the 31st of a 30-day month is its 30th).
+ * @param {number} year Year.
+ * @param {number} month 1 to 12.
+ * @param {number} day Day number.
+ * @returns {string} YYYY-MM-DD.
+ */
+export function dayInMonth(year: number, month: number, day: number): string {
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
+}
+
+/**
+ * ISO weekday of a date.
+ * @param {string} date YYYY-MM-DD.
+ * @returns {number} 1 (Monday) to 7 (Sunday).
+ */
+const weekdayOfDate = (date: string) => isoWeekday(parseDay(date));
+
+/**
+ * Sunday ending the ISO week of a given number in the ISO year of a date, or of the next ISO year when that week
+ * comes before the date's.
+ * @param {string} date YYYY-MM-DD.
+ * @param {number} week ISO week number.
+ * @returns {string} Sunday.
+ */
+function endOfIsoWeek(date: string, week: number): string {
+  const sunday = addDays(date, 7 - weekdayOfDate(date));
+  for (let candidate = sunday, scanned = 0; scanned < 60; candidate = addDays(candidate, 7), scanned += 1) {
+    const thursday = addDays(candidate, -3);
+    const number = Math.floor(daysBetween(`${thursday.slice(0, 4)}-01-01`, thursday) / 7) + 1;
+    if (number === week) return candidate;
+  }
+  return sunday;
+}
+
+/**
+ * Last day of an occurrence started on a date.
+ * @param {Duration} duration Duration.
+ * @param {string} start First day.
+ * @returns {string} Last day, included.
+ */
+export function spanEnd(duration: Duration, start: string): string {
+  const year = Number(start.slice(0, 4));
+  const month = Number(start.slice(5, 7));
+  switch (duration.unit) {
+    case 'DAYS':
+      return addDays(start, duration.count - 1);
+    case 'WEEKS':
+      return addDays(start, 7 - weekdayOfDate(start) + 7 * (duration.count - 1));
+    case 'MONTHS': {
+      const last = month - 1 + duration.count;
+      return dayInMonth(year + Math.floor(last / 12), (last % 12) + 1, 31);
+    }
+    case 'TO_DAY': {
+      const day = duration.day ?? Number(start.slice(8, 10));
+      if (duration.month !== null) {
+        const end = dayInMonth(year, duration.month, day);
+        return end >= start ? end : dayInMonth(year + 1, duration.month, day);
+      }
+      const end = dayInMonth(year, month, day);
+      return end >= start ? end : dayInMonth(month === 12 ? year + 1 : year, (month % 12) + 1, day);
+    }
+    case 'TO_WEEK':
+      return endOfIsoWeek(start, duration.week ?? 1);
+    case 'TO_MONTH': {
+      const to = duration.month ?? month;
+      return dayInMonth(to >= month ? year : year + 1, to, 31);
+    }
+  }
+}
+
+/**
+ * Longest an occurrence can last, in days (how far back an occurrence covering a day may have started).
+ * @param {Duration} duration Duration.
+ * @returns {number} Days.
+ */
+export function maxSpanDays(duration: Duration): number {
+  switch (duration.unit) {
+    case 'DAYS':
+      return duration.count;
+    case 'WEEKS':
+      return 7 * duration.count;
+    case 'MONTHS':
+      return 31 * duration.count;
+    default:
+      return 372;
+  }
+}
+
+/**
  * Repetition of an event or a task, computed on calendar dates (from its first date).
  * Paused periods and excluded dates do not occur, and do not count in `count`.
  */
@@ -23,12 +143,24 @@ export const recurrenceSchema = z
      * of April); yearly only: same weekday of the same ISO week (the Monday of week 51).
      */
     monthlyMode: z.enum(['DAY', 'WEEKDAY', 'WEEK']),
+    /**
+     * Values of the monthly and yearly modes, chosen (prefilled from the first date); none: those of the first date
+     * (rules saved before they could be chosen). DAY: the day number (the last day of a shorter month), and the month
+     * (yearly); WEEKDAY: the nth (1 to 4, -1 the last) weekday, and the month (yearly); WEEK: the weekday of the ISO week.
+     */
+    monthDay: z.number().int().min(1).max(31).nullish(),
+    position: z.union([z.literal(-1), z.number().int().min(1).max(4)]).nullish(),
+    weekday: z.number().int().min(1).max(7).nullish(),
+    month: z.number().int().min(1).max(12).nullish(),
+    week: z.number().int().min(1).max(53).nullish(),
     /** Last date, included. */
     until: isoDate.nullable(),
     /** Number of occurrences. */
     count: z.number().int().min(1, 'Au moins 1.').max(9999, '9 999 maximum.').nullable(),
     /** Dates that do not occur (occurrences deleted one by one). */
     exceptions: z.array(isoDate).max(5000),
+    /** How long each occurrence lasts from its first day (none: a day, or the length of the event). */
+    duration: occurrenceDurationSchema.nullish(),
     /** Paused periods, dates included. */
     pauses: z
       .array(z.object({ from: isoDate, to: isoDate }).refine((pause) => pause.to >= pause.from, 'La fin de la pause doit suivre son début.'))
@@ -123,6 +255,26 @@ function weekdayPosition(date: Date): number {
 }
 
 /**
+ * Whether a date is the day of its month a monthly or yearly rule asks for: its day number (the last day of a shorter
+ * month), or its nth (or last) weekday; chosen, or else those of the first date.
+ * @param {Recurrence} rule Rule.
+ * @param {Date} start First date.
+ * @param {Date} day Candidate date.
+ * @returns {boolean} That day.
+ */
+function dayOfMonthMatches(rule: Recurrence, start: Date, day: Date): boolean {
+  const lastDay = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
+  if (rule.monthlyMode === 'WEEKDAY') {
+    if (isoWeekday(day) !== (rule.weekday ?? isoWeekday(start))) return false;
+    // Not chosen: the position of the first date (-1 when it was the last one of its month).
+    if (rule.position === null || rule.position === undefined) return weekdayPosition(day) === weekdayPosition(start);
+    return rule.position === -1 ? day.getUTCDate() + 7 > lastDay : Math.ceil(day.getUTCDate() / 7) === rule.position;
+  }
+  // A day missing from a month (the 31st…) occurs on its last day.
+  return day.getUTCDate() === Math.min(rule.monthDay ?? start.getUTCDate(), lastDay);
+}
+
+/**
  * Whether the rule would occur on a date, before the end conditions, exceptions and pauses.
  * @param {Recurrence} rule Rule.
  * @param {Date} start First date.
@@ -147,27 +299,18 @@ function matches(rule: Recurrence, start: Date, day: Date): boolean {
     case 'MONTHLY': {
       const months = (day.getUTCFullYear() - start.getUTCFullYear()) * 12 + day.getUTCMonth() - start.getUTCMonth();
       if (months % rule.interval !== 0) return false;
-      if (rule.monthlyMode === 'WEEKDAY') {
-        return isoWeekday(day) === isoWeekday(start) && weekdayPosition(day) === weekdayPosition(start);
-      }
-      // A day missing from a month (the 31st…) occurs on its last day.
-      const lastDay = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
-      return day.getUTCDate() === Math.min(start.getUTCDate(), lastDay);
+      return dayOfMonthMatches(rule, start, day);
     }
     case 'YEARLY': {
       if (rule.monthlyMode === 'WEEK') {
-        // Same weekday of the same ISO week, counted in ISO years (those of their Thursday).
+        // A weekday of an ISO week, counted in ISO years (those of their Thursday).
         const isoYear = (date: Date) => new Date(date.getTime() + (4 - isoWeekday(date)) * DAY_MS).getUTCFullYear();
         const years = isoYear(day) - isoYear(start);
-        return years >= 0 && years % rule.interval === 0 && isoWeekday(day) === isoWeekday(start) && weekOfYear(day) === weekOfYear(start);
+        return years >= 0 && years % rule.interval === 0 && isoWeekday(day) === (rule.weekday ?? isoWeekday(start)) && weekOfYear(day) === (rule.week ?? weekOfYear(start));
       }
       const years = day.getUTCFullYear() - start.getUTCFullYear();
-      if (years % rule.interval !== 0 || day.getUTCMonth() !== start.getUTCMonth()) return false;
-      if (rule.monthlyMode === 'WEEKDAY') {
-        return isoWeekday(day) === isoWeekday(start) && weekdayPosition(day) === weekdayPosition(start);
-      }
-      const lastDay = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth() + 1, 0)).getUTCDate();
-      return day.getUTCDate() === Math.min(start.getUTCDate(), lastDay);
+      if (years % rule.interval !== 0 || day.getUTCMonth() + 1 !== (rule.month ?? start.getUTCMonth() + 1)) return false;
+      return dayOfMonthMatches(rule, start, day);
     }
   }
 }
@@ -258,4 +401,41 @@ export function zonedInstant(date: string, time: string, timeZone: string): Date
  */
 export function zonedDate(instant: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(instant);
+}
+
+/** Values of the monthly and yearly modes of a rule, chosen or those of its first date. */
+export interface RuleValues {
+  monthDay: number;
+  position: -1 | 1 | 2 | 3 | 4;
+  weekday: number;
+  month: number;
+  week: number;
+}
+
+/**
+ * Values of the monthly and yearly modes a rule uses: those chosen, else those of its first date.
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date.
+ * @returns {RuleValues} Values.
+ */
+export function ruleValues(rule: Recurrence, start: string): RuleValues {
+  const day = parseDay(start);
+  const position = weekdayPosition(day) as RuleValues['position'];
+  return {
+    monthDay: rule.monthDay ?? day.getUTCDate(),
+    position: (rule.position ?? position) as RuleValues['position'],
+    weekday: rule.weekday ?? isoWeekday(day),
+    month: rule.month ?? day.getUTCMonth() + 1,
+    week: rule.week ?? weekOfYear(day),
+  };
+}
+
+/**
+ * Rule with its monthly and yearly values chosen (those of its first date when not yet).
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First date.
+ * @returns {Recurrence} Rule.
+ */
+export function withRuleValues(rule: Recurrence, start: string): Recurrence {
+  return { ...rule, ...ruleValues(rule, start) };
 }

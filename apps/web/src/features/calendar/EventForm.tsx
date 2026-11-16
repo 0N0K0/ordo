@@ -1,9 +1,9 @@
 import { PICKER_FORMATS } from '../../lib/format';
 import { SidePanel } from '../../components/panels/SidePanel';
 import { TimeField } from '../../components/TimeField';
-import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, ColorSwatch, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput, sharePeople } from '@ordo/shared';
+import { addDays, calendarEventInputSchema, daysBetween, formatDuration, type CalendarEventInput, type Recurrence, sharePeople } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
@@ -28,7 +28,7 @@ import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
 import { useRoutineOccurrences, useRoutinesData } from '../routines/api';
-import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { EventRepetition } from './EventRepetition';
 import { Comments } from '../comments/Comments';
 import { SheetsSection } from '../sheets/SheetsSection';
 import { useDefaultColor } from '../workspace/use-default-color';
@@ -362,31 +362,19 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           </Text>
         )}
         <TextInput label="Titre" required data-autofocus {...form.getInputProps('title')} />
-        <Switch
-          label="Journée entière"
-          checked={values.allDay}
-          onChange={(event) => {
-            const allDay = event.currentTarget.checked;
-            form.setValues({ allDay, startTime: allDay ? null : '09:00', endTime: allDay ? null : '10:00' });
+        <EventRepetition
+          ruleStart={ruleStart}
+          error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.startTime ?? form.errors.endTime ?? form.errors.recurrence) as string | undefined}
+          value={{
+            allDay: values.allDay,
+            startDate: values.startDate,
+            startTime: values.startTime ?? null,
+            endDate: values.endDate,
+            endTime: values.endTime ?? null,
+            recurrence: (values.recurrence as Recurrence | null | undefined) ?? null,
           }}
+          onChange={(timing) => form.setValues({ ...timing })}
         />
-        <SimpleGrid cols={{ base: 1, xs: values.allDay ? 2 : 4 }} spacing="sm">
-          <DatePickerInput
-            label="Début"
-            required
-            valueFormat={PICKER_FORMATS.weekday}
-            {...form.getInputProps('startDate')}
-            onChange={(startDate) => {
-              if (!startDate) return;
-              // The end follows, keeping the duration.
-              const span = daysBetween(values.startDate, values.endDate);
-              form.setValues({ startDate, endDate: addDays(startDate, Math.max(0, span)) });
-            }}
-          />
-          {!values.allDay && <TimeField label="Heure de début" required {...form.getInputProps('startTime')} />}
-          <DatePickerInput label="Fin" required valueFormat={PICKER_FORMATS.weekday} minDate={values.startDate} {...form.getInputProps('endDate')} />
-          {!values.allDay && <TimeField label="Heure de fin" required {...form.getInputProps('endTime')} />}
-        </SimpleGrid>
         {!values.allDay && (
           <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
             <NumberInput
@@ -421,11 +409,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         )}
         <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
-        <RecurrenceField
-          value={values.recurrence ? { ...values.recurrence, weekParity: values.recurrence.weekParity ?? null } : null}
-          onChange={(recurrence) => form.setFieldValue('recurrence', recurrence)}
-          start={ruleStart}
-        />
 
         <EventLocation
           value={{ text: values.location ?? '', point: values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null }}

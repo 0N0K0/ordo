@@ -5,7 +5,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Stack, Text } from '@mantine/core';
-import { TimeInput } from '@mantine/dates';
+import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay } from '../../lib/dates';
@@ -84,8 +84,10 @@ interface TickFormProps {
 function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const { setDone } = useRoutineMutations();
   const [time, setTime] = useState(() => proposedTime(item, today));
+  // Day it was done: when it was if ticked, else its own (today for one to come); later for a late one.
+  const [day, setDay] = useState(() => (item.check ? localDay(new Date(item.check.doneAt)) : item.date > today ? today : item.date));
   const state = stateOf(item, today);
-  const at = new Date(`${item.date}T${time || '00:00'}:00`);
+  const at = new Date(`${day}T${time || '00:00'}:00`);
   // Now when the form opened: a later hour is refused.
   const now = useNow(false);
   const future = at.getTime() > now;
@@ -120,6 +122,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
           {state === 'done' ? `faite à ${clock(new Date(item.check!.doneAt))}` : STATES[state].text}
         </Text>
       </Text>
+      <DatePickerInput label="Faite le" maxDate={today} value={day} onChange={(value) => value && setDay(String(value))} />
       <TimeInput
         label={item.check ? 'Faite à' : 'Faite à (heure prévue par défaut)'}
         value={time}

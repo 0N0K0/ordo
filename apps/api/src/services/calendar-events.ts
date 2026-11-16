@@ -5,6 +5,8 @@ import {
   entrySeconds,
   formatDay,
   occurrenceDates,
+  maxSpanDays,
+  spanEnd,
   occurrencesBefore,
   parseDay,
   recurrenceSchema,
@@ -458,7 +460,9 @@ function toOccurrence(event: EventWithRelations, date: string | null, change: Ca
   const span = daysBetween(seriesStart, formatDay(event.endDate));
   const allDay = change?.allDay ?? event.allDay;
   const startDate = change?.startDate ? formatDay(change.startDate) : (date ?? seriesStart);
-  const endDate = change?.endDate ? formatDay(change.endDate) : addDays(startDate, span);
+  // Its length: that of the rule (weeks, months, up to a week or a month of the year), else that of the event.
+  const duration = date ? storedRecurrence(event.recurrence)?.duration : null;
+  const endDate = change?.endDate ? formatDay(change.endDate) : duration && duration.unit !== 'DAYS' ? spanEnd(duration, startDate) : addDays(startDate, span);
   const startTime = allDay ? null : (change ? change.startTime : event.startTime);
   const endTime = allDay ? null : (change ? change.endTime : event.endTime);
   const instant = (day: string, time: string | null) => (time ? zonedInstant(day, time, event.timeZone) : parseDay(day));
@@ -542,7 +546,8 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
     const changes = new Map(event.exceptions.map((change) => [formatDay(change.date), change]));
     const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));
     // Moved occurrences may come from a little outside the period.
-    const dates = rule ? occurrenceDates(rule, formatDay(event.startDate), addDays(from, -span - 62), addDays(to, 62)) : [null];
+    const longest = Math.max(span, rule?.duration ? maxSpanDays(rule.duration) : 0);
+    const dates = rule ? occurrenceDates(rule, formatDay(event.startDate), addDays(from, -longest - 62), addDays(to, 62)) : [null];
     for (const date of dates) {
       const change = date ? changes.get(date) : undefined;
       if (change?.cancelled) continue;

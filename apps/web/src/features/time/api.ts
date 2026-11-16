@@ -180,7 +180,7 @@ function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: {
   const routine = input.routineId ? queryClient.getQueryData<RoutinesDataQuery>(routinesKey)?.routines.find((item) => item.id === input.routineId) : undefined;
   const tasks = queryClient.getQueryData<TasksDataQuery>(tasksQueryKey)?.tasks.filter((task) => input.taskIds.includes(task.id)) ?? [];
   const items = [
-    ...(routine ? [{ title: routine.title, slotRule: routine.slotRule, assigneeIds: routine.assigneeIds, routineId: routine.id }] : []),
+    ...(routine ? [{ title: routine.title, slotRule: null, assigneeIds: routine.assigneeIds, routineId: routine.id }] : []),
     ...tasks.map((task) => ({ title: task.title, slotRule: task.slotRule, assigneeIds: task.assigneeIds, taskId: task.id })),
   ];
   const lines = items.flatMap((item) => {

@@ -28,7 +28,7 @@ export interface RoutineOccurrenceRef {
  * @param {Routine} routine Routine.
  * @returns {boolean} Follows a schedule.
  */
-const followsSchedule = (routine: Routine) => Boolean(routine.scheduleId) && !((routine.cases as unknown[] | null) ?? []).length;
+const followsSchedule = (routine: Routine) => routine.scheduleIds.length > 0;
 
 /**
  * Changes of the slots of the schedules and of the occurrences of the routines from the calendar, as those of the

@@ -30,7 +30,7 @@ const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRE
  * @returns {Promise<{ routineId: string, date: Date, slot: number, doneAt: Date }[]>} Ticks made.
  */
 export async function tickRoutines(today: string): Promise<{ routineId: string; date: Date; slot: number; doneAt: Date }[]> {
-  const routines = await prisma.routine.findMany({ where: { archivedAt: null }, include: { schedule: true } });
+  const routines = await prisma.routine.findMany({ where: { archivedAt: null } });
   const checks: { routineId: string; date: Date; slot: number; doneAt: Date }[] = [];
   for (const routine of routines) {
     for (const date of occurrencesBetween(routine, addDays(today, -28), today)) {
@@ -124,7 +124,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
     }),
   );
   await createRoutine(
-    base('Sauvegarde des postes', -42, rule({}), { categoryIds: [tidying], estimate: 10, scheduleId, scheduleAnchor: 'END', description: 'Avant de partir, à la fin des horaires de travail.' }),
+    base('Sauvegarde des postes', -42, rule({}), { categoryIds: [tidying], estimate: 10, scheduleIds: [scheduleId], description: 'Pendant les horaires de travail, avant de partir.' }),
   );
   await createRoutine(
     base('Pauses actives', -30, rule({}), {
@@ -171,7 +171,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
 
   // --- Ticks of the last four weeks (most of them, some late, some forgotten) ----------------------------
   const checks = await tickRoutines(today);
-  const routines = await prisma.routine.findMany({ include: { schedule: true } });
+  const routines = await prisma.routine.findMany();
 
   // --- Time spent on some ticked routines (with the project of the routine, if any) -----------------------------
   const timed = routines.filter((routine) => routine.estimate && routine.estimate >= 15 && !routine.parentId);
@@ -184,7 +184,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
 
   // --- Exceptions to the rules ---------------------------------------------------------------------------
   const next = async (id: string, after = 0) => {
-    const routine = await prisma.routine.findUniqueOrThrow({ where: { id }, include: { schedule: true } });
+    const routine = await prisma.routine.findUniqueOrThrow({ where: { id } });
     return occurrencesBetween(routine, addDays(today, 1), addDays(today, 30))[after] ?? null;
   };
   // Watering postponed to the next day.

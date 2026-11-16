@@ -536,7 +536,9 @@ export function CalendarPage() {
         const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
         const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
         const minutes = routine.estimate ?? 30;
-        const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false }];
+        const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false, windows: [] }];
+        // Shown on its due day once past, today while it runs, its first day before.
+        const day = String(occurrence.shownDate);
         for (const slot of slots) {
           // Between its two times, else up to its latest time or from its start time for the time to spend on it.
           // Within its day (shifted across midnight: from its start of day, or up to its end).
@@ -549,8 +551,8 @@ export function CalendarPage() {
             id: `routine:${routine.id}:${occurrence.date}:${slot.index}`,
             title: `${routine.title}${slot.optional ? ' (facultatif)' : ''}`,
             allDay: !timed,
-            start: timed ? `${occurrence.date}T${start}:00` : occurrence.date,
-            end: timed ? `${occurrence.date}T${end}:00` : addDays(occurrence.date, 1),
+            start: timed ? `${day}T${start}:00` : day,
+            end: timed ? `${day}T${end}:00` : addDays(day, 1),
             backgroundColor: 'transparent',
             borderColor: color,
             textColor: 'var(--mantine-color-text)',

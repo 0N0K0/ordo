@@ -82,7 +82,7 @@ import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentTotal } from '../comments/comment-column';
 import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
-import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, RoutineSlotsCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from './extra-cells';
+import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from './extra-cells';
 
 /** Width of the cells around the columns: handle and selection before, actions after. */
 const LEAD_WIDTH = 64;
@@ -96,7 +96,6 @@ const CELL_COLUMNS: Record<string, RoutineColumn> = {
   fromTime: 'fromTime',
   dueTime: 'dueTime',
   opensOn: 'opensOn',
-  slots: 'slots',
   location: 'location',
   travelBefore: 'travelBefore',
   travelAfter: 'travelAfter',
@@ -400,7 +399,6 @@ function RoutineRowView({ row, comments, routines, byId, context, today, doable,
     fromTime: <TimeOfDayCell routine={routine} field="fromTime" />,
     dueTime: <TimeOfDayCell routine={routine} field="dueTime" />,
     opensOn: <OpensOnCell routine={routine} />,
-    slots: <RoutineSlotsCell routine={routine} />,
     location: <LocationCell routine={routine} />,
     travelBefore: <TravelCell routine={routine} field="travelBefore" />,
     travelAfter: <TravelCell routine={routine} field="travelAfter" />,

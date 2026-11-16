@@ -6,7 +6,7 @@ import { Link } from 'react-router';
 import { EditableSelect } from '../../components/data-table/EditableCells';
 import { StackedValues } from '../../components/data-table/StackedValues';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { RecurrenceField } from '../../components/recurrence/RecurrenceField';
+import { RuleField } from '../../components/recurrence/RuleField';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { handleFileClick } from '../files/open-file';
@@ -230,7 +230,7 @@ export function SettledCell({ entry }: { entry: AnyEntry }) {
  * @returns {JSX.Element} Cell.
  */
 export function RecurrenceCell({ entry, save }: { entry: AnyEntry; save: EntrySave }) {
-  return <RecurrenceField label="" value={(entry.recurrence as Recurrence | null) ?? null} start={String(entry.date)} onChange={(recurrence) => save(entry, { recurrence })} />;
+  return <RuleField label="" weekly={false} value={(entry.recurrence as Recurrence | null) ?? null} start={String(entry.date)} onChange={(recurrence) => save(entry, { recurrence })} />;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { addDays, formatDay, isoWeek, occurrenceDates, zonedInstant, type Recurrence } from '@ordo/shared';
+import { addDays, formatDay, occurrenceDates, ruleValues, zonedInstant, type Recurrence } from '@ordo/shared';
 import { prisma } from '../db';
 import type { CalendarEvent, CalendarEventException } from '../generated/prisma/client';
 import { notFound } from '../graphql/errors';
@@ -80,7 +80,7 @@ function moment(name: string, day: string, time: string | null, timeZone: string
  * @returns {string[]} Dates.
  */
 function clampedDates(rule: Recurrence, start: string, until: string | null): string[] {
-  const day = Number(start.slice(8, 10));
+  const day = ruleValues(rule, start).monthDay;
   if (day <= 28 || rule.monthlyMode !== 'DAY' || (rule.frequency !== 'YEARLY' && rule.frequency !== 'MONTHLY')) return [];
   const horizon = addDays(start, 366 * HORIZON_YEARS);
   const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
@@ -99,24 +99,20 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
 function rrule(rule: Recurrence, start: string, time: string | null, timeZone: string): string[] {
   const first = new Date(`${start}T00:00:00Z`);
   const isoWeekday = ((first.getUTCDay() + 6) % 7) + 1;
+  // Values of the monthly and yearly modes: chosen, else those of the first date.
+  const values = ruleValues(rule, start);
   const parts = [`FREQ=${rule.frequency}`, `INTERVAL=${rule.interval}`];
   if (rule.frequency === 'WEEKLY') {
     parts.push(`BYDAY=${(rule.weekdays.length ? rule.weekdays : [isoWeekday]).map((day) => WEEKDAYS[day - 1]).join(',')}`, 'WKST=MO');
   }
   if (rule.frequency === 'MONTHLY') {
-    if (rule.monthlyMode === 'WEEKDAY') {
-      const daysInMonth = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-      const position = first.getUTCDate() + 7 > daysInMonth ? -1 : Math.ceil(first.getUTCDate() / 7);
-      parts.push(`BYDAY=${position}${WEEKDAYS[isoWeekday - 1]}`);
-    } else parts.push(`BYMONTHDAY=${first.getUTCDate()}`);
+    if (rule.monthlyMode === 'WEEKDAY') parts.push(`BYDAY=${values.position}${WEEKDAYS[values.weekday - 1]}`);
+    else parts.push(`BYMONTHDAY=${values.monthDay}`);
   }
   if (rule.frequency === 'YEARLY') {
-    if (rule.monthlyMode === 'WEEK') parts.push(`BYWEEKNO=${isoWeek(start)}`, `BYDAY=${WEEKDAYS[isoWeekday - 1]}`, 'WKST=MO');
-    else if (rule.monthlyMode === 'WEEKDAY') {
-      const daysInMonth = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
-      const position = first.getUTCDate() + 7 > daysInMonth ? -1 : Math.ceil(first.getUTCDate() / 7);
-      parts.push(`BYMONTH=${first.getUTCMonth() + 1}`, `BYDAY=${position}${WEEKDAYS[isoWeekday - 1]}`);
-    } else parts.push(`BYMONTH=${first.getUTCMonth() + 1}`, `BYMONTHDAY=${first.getUTCDate()}`);
+    if (rule.monthlyMode === 'WEEK') parts.push(`BYWEEKNO=${values.week}`, `BYDAY=${WEEKDAYS[values.weekday - 1]}`, 'WKST=MO');
+    else if (rule.monthlyMode === 'WEEKDAY') parts.push(`BYMONTH=${values.month}`, `BYDAY=${values.position}${WEEKDAYS[values.weekday - 1]}`);
+    else parts.push(`BYMONTH=${values.month}`, `BYMONTHDAY=${values.monthDay}`);
   }
   let until = rule.until;
   if (rule.count !== null) {

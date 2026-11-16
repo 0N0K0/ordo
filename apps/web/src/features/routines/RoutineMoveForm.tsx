@@ -4,7 +4,9 @@ import { DatePickerInput } from '@mantine/dates';
 import { addDays } from '@ordo/shared';
 import { ArrowRightIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError } from '../../lib/notify';
+import { notifyError, notifySuccess } from '../../lib/notify';
+import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
+import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { useRoutineMutations, useRoutinesData } from './api';
 import { movableOccurrence, moveTo, movesOf } from './routine-format';
 import { longDay, useRoutineMove } from './use-routine-move';
@@ -18,8 +20,8 @@ import * as fmt from '../../lib/format';
 const shortText = (date: string) => fmt.weekday(date);
 
 /**
- * Moves an occurrence of a routine to another day (the next day by default): an exception to its rule. Lists the
- * exceptions of the routine, each one removable (the occurrence goes back to its own day).
+ * Moves an occurrence of a routine to another day (the next day by default), or cancels it: an exception to its
+ * rule. Lists the exceptions of the routine, each one removable (the occurrence goes back to its own day).
  * @param {{ routineId: string, onDone: () => void }} props Component props.
  * @param {string} props.routineId Routine.
  * @param {() => void} props.onDone Closes the form.
@@ -31,7 +33,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
   const date = routine ? movableOccurrence(routine) : null;
   const [to, setTo] = useState<string | null>(date ? addDays(date, 1) : null);
   const move = useRoutineMove();
-  const { removeMove, moveOccurrence } = useRoutineMutations();
+  const { removeMove, moveOccurrence, deleteOccurrence } = useRoutineMutations();
   if (!routine) return <Text size="sm">Cette routine n’existe plus.</Text>;
   const moved = moveTo(routine, date);
   const moves = movesOf(routine);
@@ -104,6 +106,31 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
           <Button variant="default" onClick={onDone}>
             Annuler
           </Button>
+          {date && (
+            <DestructiveButton
+              loading={deleteOccurrence.isPending}
+              onClick={() =>
+                confirmDestructive({
+                  title: 'Annuler cette occurrence ?',
+                  risks: `L’occurrence du ${longDay(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
+                  confirmLabel: 'Annuler l’occurrence',
+                  onConfirm: () =>
+                    deleteOccurrence.mutate(
+                      { id: routine.id, date, scope: 'THIS' },
+                      {
+                        onSuccess: () => {
+                          notifySuccess(`Occurrence du ${longDay(date)} annulée.`);
+                          onDone();
+                        },
+                        onError: (error) => notifyError(error.message),
+                      },
+                    ),
+                })
+              }
+            >
+              Annuler l’occurrence
+            </DestructiveButton>
+          )}
           {date && (
             <Button type="submit" disabled={!to || to === date} loading={moveOccurrence.isPending}>
               {to && to < date ? 'Avancer' : 'Reporter'}
