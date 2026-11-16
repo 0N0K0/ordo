@@ -28,6 +28,8 @@ import { useWorkspace } from '../workspace/api';
 import { projectFullPath, projectOptions } from '../workspace/tree';
 import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../comments/api';
+import { deleteRowsAction, duplicateRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { commentColumn } from '../comments/comment-column';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
@@ -518,6 +520,31 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       view={view}
       framed
       bar={{ searchLabel: 'Rechercher (numéro, client, objet)' }}
+      selectionLabel={(count) => selectedLabel(count, ['document', 'documents'], false)}
+      selectionActions={(rows, clear) => {
+        const ordo = rows.flatMap((row) => (row.kind === 'ordo' ? [row.document] : []));
+        const importedRows = rows.flatMap((row) => (row.kind === 'ordo' ? [] : [row.document]));
+        return [
+          {
+            ...duplicateRowsAction(ordo, {
+              label: 'Dupliquer en brouillon',
+              duplicate: (document) => documentMutations.duplicate.mutateAsync({ id: document.id, issueDate: localToday() }),
+              done: `${ordo.length} document(s) dupliqué(s) en brouillon.`,
+            }),
+            disabled: ordo.length === 0,
+          },
+          {
+            ...deleteRowsAction(importedRows, {
+              title: 'Supprimer les documents importés',
+              risks: `${importedRows.length} document(s) importé(s) et leur fichier seront supprimés définitivement d’Ordo (les documents d’Ordo sélectionnés ne le sont pas). Cette action est irréversible.`,
+              remove: (document) => remove.mutateAsync(document.id),
+              done: `${importedRows.length} document(s) importé(s) supprimé(s).`,
+              clear,
+            }),
+            disabled: importedRows.length === 0,
+          },
+        ];
+      }}
       empty={<EmptyState icon={<ReceiptIcon aria-hidden />} message={empty} />}
       highlightOnHover
       verticalSpacing="xs"

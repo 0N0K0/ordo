@@ -16,6 +16,10 @@ import { useDataView, type FirstTableView } from '../../components/data-table/us
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
 import { tableWidth, type DataColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import { AllRowsCheck, ROW_CHECK_WIDTH, RowCheck } from '../../components/data-table/RowCheck';
+import { SelectionBar } from '../../components/data-table/SelectionBar';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTreasuryEntries, useTreasuryMutations, type TreasuryAccount, type TreasuryEntry } from './api';
@@ -177,6 +181,14 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
   );
   const loaded = useMemo(() => (entries ?? []).filter((entry) => entry.status === 'ACTUAL'), [entries]);
   const view = useDataView({ tableKey: 'treasury-entries', getKey: (entry) => entry.id, columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS });
+  // Movements checked: every field edited at once, and the actions of the bar.
+  const checks = view.rowSelection;
+  const checked = checks ? view.rows.filter((entry) => checks.isChecked(entry.id)) : [];
+  /**
+   * Unchecks every movement.
+   * @returns {void}
+   */
+  const clearChecks = () => checks?.check(checks.keys, false);
   const { shown } = view;
   // A change made on the bulk selection of a column saves each entry it fits (none: left as it is).
   const bulk = bulkSaver<TreasuryEntry, Partial<EntryValues>>(view, (entry, change) => Object.keys(change).length > 0 && saveEntry(entry, change));
@@ -244,7 +256,14 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
         <NoMatch view={view} />
       ) : (
         <Paper withBorder radius="md" style={{ overflowX: 'auto' }}>
-          <Table ref={tableRef} verticalSpacing="xs" highlightOnHover className={tableClasses.table} style={{ width: tableWidth(shown, ACTIONS_WIDTH), minWidth: '100%' }}>
+          <Table
+            ref={tableRef}
+            verticalSpacing="xs"
+            highlightOnHover
+            className={tableClasses.table}
+            style={{ width: tableWidth(shown, ROW_CHECK_WIDTH + ACTIONS_WIDTH), minWidth: '100%' }}
+            data-checking={(checks && checks.keys.some((key) => checks.isChecked(key))) || undefined}
+          >
             <DataTableHeader
               columns={columns}
               shown={shown}
@@ -253,6 +272,12 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
               sorting={view.sorting}
               onSortingChange={view.setSorting}
               tableRef={tableRef}
+              leadingCount={1}
+              leading={
+                <Table.Th w={ROW_CHECK_WIDTH} px={4}>
+                  {checks && <AllRowsCheck selection={checks} />}
+                </Table.Th>
+              }
               trailing={<Table.Th w={ACTIONS_WIDTH} />}
               columnExtras={view.columnExtras}
             />
@@ -267,7 +292,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                           label={group.label}
                           count={group.rows.length}
                           summary={`+${fmt.money(groupTotals.incoming)} · −${fmt.money(groupTotals.outgoing)}`}
-                          span={shown.length + 1}
+                          span={shown.length + 2}
                           collapsed={collapsedGroups.has(group.key)}
                           onToggle={() => toggleGroup(group.key)}
                         />,
@@ -278,6 +303,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                     return (
                       <Fragment key={entry.id}>
                         <Table.Tr>
+                          <Table.Td px={4}>{checks && <RowCheck selection={checks} rowKey={entry.id} label={entry.label ?? 'le mouvement'} />}</Table.Td>
                           {shown.map((column) => (
                             <Table.Td key={column.id} className={tableClasses.cell} data-numeric={column.numeric || undefined} {...view.cellProps(column.id, entry.id)}>
                               {
@@ -339,7 +365,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                         </Table.Tr>
                         {expanded.has(entry.id) && (
                           <Table.Tr className={tableClasses.details}>
-                            <Table.Td colSpan={shown.length + 1} className={tableClasses.detailsCell}>
+                            <Table.Td colSpan={shown.length + 2} className={tableClasses.detailsCell}>
                               <EntryLinesTable entry={entry} env={env} save={saveEntry} />
                             </Table.Td>
                           </Table.Tr>
@@ -348,16 +374,31 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                     );
                   }),
                   ...(view.groupColumn && view.config?.footer && !collapsedGroups.has(group.key)
-                    ? [<GroupFooter key={`footer:${group.key}`} shown={shown} rows={group.rows} totals={view.config.footer} label={group.label} before={0} after={1} />]
+                    ? [<GroupFooter key={`footer:${group.key}`} shown={shown} rows={group.rows} totals={view.config.footer} label={group.label} before={1} after={1} />]
                     : []),
                 ];
               })}
             </Table.Tbody>
             {view.config?.footer && (
-              <TableFooter shown={view.shown} rows={actual} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={0} after={1} />
+              <TableFooter shown={view.shown} rows={actual} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={1} after={1} />
             )}
           </Table>
         </Paper>
+      )}
+      {checked.length > 0 && (
+        <SelectionBar
+          label={selectedLabel(checked.length, ['mouvement', 'mouvements'], false)}
+          onClear={clearChecks}
+          actions={[
+            deleteRowsAction(checked, {
+              title: 'Supprimer les mouvements',
+              risks: `${checked.length} mouvement(s) seront supprimés définitivement ; les documents qu’ils règlent redeviendront dus.`,
+              remove: (entry) => deleteEntry.mutateAsync(entry.id),
+              done: `${checked.length} mouvement(s) supprimé(s).`,
+              clear: clearChecks,
+            }),
+          ]}
+        />
       )}
       <SidePanel opened={importing} onClose={() => setImporting(false)} title="Importer un relevé bancaire" size="lg">
         {importing && <StatementImport accounts={accounts} onDone={() => setImporting(false)} />}

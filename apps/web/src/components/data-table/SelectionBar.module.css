@@ -1,4 +1,5 @@
 @layer app {
+  /* Bar of the actions on the rows selected: at the bottom of the window while the table scrolls. */
   .bar {
     /* Position */
     position: sticky;

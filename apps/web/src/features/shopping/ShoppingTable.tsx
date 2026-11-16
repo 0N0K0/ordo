@@ -19,7 +19,7 @@ import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-ic
 import { useRef, useState, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
-import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
+import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, ToggleCell, UnitCell } from './shopping-cells';
 import * as fmt from '../../lib/format';
 import { applyDiff, bulkSaver, type BulkChange } from '../../components/data-table/bulk-edit';
 import { StackedValues } from '../../components/data-table/StackedValues';
@@ -28,6 +28,9 @@ import classes from './Shopping.module.css';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { tableWidth, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import { AllRowsCheck, ROW_CHECK_WIDTH, RowCheck } from '../../components/data-table/RowCheck';
+import { SelectionBar, type SelectionAction } from '../../components/data-table/SelectionBar';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import type { DataView } from '../../components/data-table/use-data-view';
 import { NoMatch } from '../../components/data-table/GroupHeaderRow';
@@ -51,6 +54,24 @@ const collision: CollisionDetection = (args) => {
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
+/** State of the rows a click switches (missing, bought): its own cell before the fields, edited in bulk too. */
+export interface ShoppingToggle<T> {
+  /** Id of its cell in the bulk selection. */
+  id: string;
+  /** Name of its cell (« Manque », « Acheté »). */
+  name: string;
+  value: (row: T) => boolean;
+  /** Accessible name of a row's toggle. */
+  label: (row: T) => string;
+  /** Tooltip of a row's toggle. */
+  hint: (row: T) => string;
+  icon: ReactNode;
+  /** Color when on. */
+  color: string;
+  /** Switches some rows (one, or those of the bulk selection) on or off. */
+  onChange: (rows: T[], on: boolean) => void;
+}
+
 export interface ShoppingTableProps<T extends ShoppingFields> {
   /** Every product or item, in their order (to move them). */
   items: T[];
@@ -63,8 +84,8 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   projectIds?: string[];
   /** Saves a row changed in place or moved to another category (or store). */
   onSave: (row: T, input: ShoppingItemInput) => void;
-  /** Checkbox of a row (missing, or bought). */
-  check: (row: T) => ReactNode;
+  /** State a click switches on a row (missing, or bought), before its fields; changed in bulk too. */
+  toggle: ShoppingToggle<T>;
   /** Badge after the name. */
   badge?: (row: T) => ReactNode;
   /** Column after the link (last purchase…). */
@@ -85,6 +106,10 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   showEmpty?: boolean;
   /** Saved views of the table: the rows it keeps, sorted, its columns (as on every table). */
   view: DataView<T>;
+  /** Actions on the rows checked that the columns cannot do, in a bar under the table. Optional. */
+  selectionActions?: (rows: T[], clear: () => void) => SelectionAction[];
+  /** Rows checked, told. Optional. */
+  selectionLabel?: (count: number) => string;
 }
 
 interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty' | 'view'> {
@@ -98,8 +123,12 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
   categories: ShoppingCategory[];
   /** Saving of a column (and of its bulk selection). */
   saveCell: (column: string) => (row: T, change: BulkChange<T, Partial<ShoppingItemInput>>) => void;
+  /** Saving of the toggle (and of its bulk selection). */
+  saveToggle: (row: T, on: boolean) => void;
   /** Props of a cell in the bulk selection. */
   cellProps: DataView<T>['cellProps'];
+  /** Rows checked (every field edited at once). */
+  rowSelection: DataView<T>['rowSelection'];
 }
 
 /**
@@ -107,7 +136,24 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
  * @param {ItemRowProps<T>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, saveCell, cellProps, check, badge, extra, extraCells, actions, done }: ItemRowProps<T>) {
+function ItemRow<T extends ShoppingFields>({
+  row,
+  shown,
+  over,
+  categories,
+  readOnly = false,
+  projectIds,
+  saveCell,
+  saveToggle,
+  cellProps,
+  rowSelection,
+  toggle,
+  badge,
+  extra,
+  extraCells,
+  actions,
+  done,
+}: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
   const {
@@ -214,8 +260,11 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
           </ActionIcon>
         )}
       </Table.Td>
-      <Table.Td w={36} px={4}>
-        {check(item)}
+      <Table.Td w={ROW_CHECK_WIDTH} px={4}>
+        {rowSelection && !readOnly && <RowCheck selection={rowSelection} rowKey={item.id} label={name} />}
+      </Table.Td>
+      <Table.Td w={36} px={4} {...cellProps(toggle.id, item.id)}>
+        <ToggleCell on={toggle.value(item)} label={toggle.label(item)} hint={toggle.hint(item)} icon={toggle.icon} color={toggle.color} readOnly={readOnly} onSave={(on) => saveToggle(item, on)} />
       </Table.Td>
       {shown.map((column, index) => (
         <Table.Td
@@ -281,7 +330,19 @@ function GroupRow<T>({ row, columns, over, collapsed, onToggle, summary }: Group
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, view, ...rowProps }: ShoppingTableProps<T>) {
+export function ShoppingTable<T extends ShoppingFields>({
+  items,
+  grouping,
+  label,
+  summary,
+  categories,
+  add,
+  showEmpty = false,
+  view,
+  selectionActions,
+  selectionLabel,
+  ...rowProps
+}: ShoppingTableProps<T>) {
   const { layout, setLayout, sorting, setSorting } = view;
   const tableRef = useRef<HTMLTableElement>(null);
   const { columns: allColumns, shown } = view;
@@ -300,9 +361,23 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   };
   // Kept by the view, sorted within their groups (the groups keep their tree).
   const rows = visibleRows(shoppingRows(view.rows, grouping, labels, showEmpty || active !== null), collapsed);
-  const columns = shown.length + 3;
+  const columns = shown.length + 4;
   // A change in a cell saves its row, or every row of the bulk selection of its column.
+  // Rows checked, for the actions of the bar.
+  const checked = view.rowSelection ? view.rows.filter((row) => view.rowSelection?.isChecked(row.id)) : [];
+  /**
+   * Unchecks every row.
+   * @returns {void}
+   */
+  const clearChecks = () => view.rowSelection?.setChecked([]);
   const saveCell = bulkSaver<T, Partial<ShoppingItemInput>>(view, (row, patch) => Object.keys(patch).length > 0 && rowProps.onSave(row, { ...inputOf(row), ...patch }));
+  // The toggle of a row, or of every row of its bulk selection (all at once).
+  const saveToggle = (row: T, on: boolean) =>
+    bulkSaver<T, boolean>(
+      view,
+      (target, value) => rowProps.toggle.onChange([target], value),
+      (targets, change) => rowProps.toggle.onChange(targets, change(targets[0])),
+    )(rowProps.toggle.id)(row, on);
 
   /**
    * Folds or unfolds a group.
@@ -350,7 +425,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
       if (view.config?.footer && open && !collapsed.has(open.id ?? NO_GROUP)) {
         const groupId = open.id;
         const own = rows.flatMap((row) => (row.kind === 'item' && row.groupId === groupId ? [row.item] : []));
-        out.push(<GroupFooter key={`footer:${groupId ?? NO_GROUP}`} shown={shown} rows={own} totals={view.config.footer} label={open.name} before={2} after={1} />);
+        out.push(<GroupFooter key={`footer:${groupId ?? NO_GROUP}`} shown={shown} rows={own} totals={view.config.footer} label={open.name} before={3} after={1} />);
       }
       open = null;
     };
@@ -380,6 +455,8 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
             categories={labels.categories}
             saveCell={saveCell}
             cellProps={view.cellProps}
+            rowSelection={view.rowSelection}
+            saveToggle={saveToggle}
             {...rowProps}
           />,
         );
@@ -423,7 +500,14 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
     >
       <Paper withBorder radius="md" className={classes.group}>
         <div className={classes.scroller}>
-          <Table ref={tableRef} verticalSpacing={2} aria-label={label} className={`${classes.table} ${tableClasses.table}`} style={{ width: tableWidth(shown, 68 + ACTIONS_WIDTH), minWidth: '100%' }}>
+          <Table
+            ref={tableRef}
+            verticalSpacing={2}
+            aria-label={label}
+            className={`${classes.table} ${tableClasses.table}`}
+            style={{ width: tableWidth(shown, 68 + ROW_CHECK_WIDTH + ACTIONS_WIDTH), minWidth: '100%' }}
+            data-checking={(view.rowSelection && view.rowSelection.keys.some((key) => view.rowSelection?.isChecked(key))) || undefined}
+          >
             <DataTableHeader
               columns={allColumns}
               shown={shown}
@@ -433,10 +517,13 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
               onSortingChange={setSorting}
               tableRef={tableRef}
               columnExtras={view.columnExtras}
-              leadingCount={2}
+              leadingCount={3}
               leading={
                 <>
                   <Table.Th w={32} px={4} />
+                  <Table.Th w={ROW_CHECK_WIDTH} px={4}>
+                    {view.rowSelection && !rowProps.readOnly && <AllRowsCheck selection={view.rowSelection} />}
+                  </Table.Th>
                   <Table.Th w={36} px={4} />
                 </>
               }
@@ -444,11 +531,14 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
             />
             <Table.Tbody>{body()}</Table.Tbody>
             {view.config?.footer && (
-              <TableFooter shown={shown} rows={view.rows} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={2} after={1} />
+              <TableFooter shown={shown} rows={view.rows} totals={view.config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={3} after={1} />
             )}
           </Table>
         </div>
       </Paper>
+      {selectionActions && checked.length > 0 && (
+        <SelectionBar label={(selectionLabel ?? ((count) => selectedLabel(count)))(checked.length)} actions={selectionActions(checked, clearChecks)} onClear={clearChecks} />
+      )}
       <DragOverlay dropAnimation={null}>
         {active && (
           <Paper shadow="md" radius="sm" px="sm" py={4} withBorder className={classes.overlay}>

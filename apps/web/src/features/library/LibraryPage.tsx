@@ -63,6 +63,8 @@ import tableClasses from '../../components/data-table/DataTable.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
+import { SelectionBar } from '../../components/data-table/SelectionBar';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -241,7 +243,6 @@ export function LibraryPage() {
     );
   const [params, setParams] = useSearchParams();
   const tableRef = useRef<HTMLTableElement>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
   /** Folders folded or unfolded by hand in the tree. */
   const [folded, setFolded] = useState<ReadonlyMap<string, boolean>>(new Map());
@@ -252,6 +253,15 @@ export function LibraryPage() {
   const documentComments = useCommentCounts('LIBRARY_DOCUMENT', documents.map((document) => document.id));
   const columns = [...libraryColumns(paths), commentColumn<LibraryDocument>(documentComments, (document) => document.id, (document) => document.note)];
   const view = useDataView({ tableKey: 'library', getKey: (document) => document.id, columns, rows: documents, title: 'Bibliothèque' });
+  // Documents checked: their fields edited at once in their cells, and the actions of the bar.
+  const checks = view.rowSelection;
+  const selected = new Set(checks ? checks.keys.filter((key) => checks.isChecked(key)) : []);
+  /**
+   * Checks exactly some documents.
+   * @param {Set<string> | ((current: Set<string>) => Set<string>)} next Documents, or their change.
+   * @returns {void}
+   */
+  const setSelected = (next: Set<string> | ((current: Set<string>) => Set<string>)) => checks?.setChecked([...(typeof next === 'function' ? next(selected) : next)]);
   const bulk = bulkSaver(view, saveDocument);
   const { sorting, shown: shownCols } = view;
 
@@ -561,58 +571,6 @@ export function LibraryPage() {
                 }
               />
 
-              {chosen.length > 0 && (
-                <Paper withBorder radius="md" px="sm" py={6} bg="var(--mantine-color-default-hover)">
-                  <Group justify="space-between" wrap="wrap" gap="xs">
-                    <Text size="sm" fw={600}>
-                      {chosen.length} document{chosen.length > 1 ? 's' : ''} sélectionné{chosen.length > 1 ? 's' : ''}
-                    </Text>
-                    <Group gap="xs">
-                      <Button size="xs" variant="default" leftSection={<FileZipIcon aria-hidden />} component="a" href={zipUrl({ ids: chosen.map((document) => document.id) })}>
-                        Télécharger (.zip)
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={<FolderSimpleIcon aria-hidden />}
-                        onClick={() =>
-                          openFormPanel('Déplacer les documents', (close) => (
-                            <MoveForm
-                              folders={folders}
-                              initial={current}
-                              onDone={close}
-                              onSubmit={(folderId) => mutations.move.mutateAsync({ ids: chosen.map((document) => document.id), folderId }).then(() => setSelected(new Set()))}
-                            />
-                          ))
-                        }
-                      >
-                        Déplacer
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="subtle"
-                        color="red"
-                        leftSection={<TrashIcon aria-hidden />}
-                        onClick={() =>
-                          confirmDestructive({ title: 'Supprimer les documents', risks: `${chosen.length} document${chosen.length > 1 ? 's seront supprimés' : ' sera supprimé'} définitivement avec leurs fichiers. Cette action est irréversible.`, onConfirm: () =>
-                            mutations.remove.mutate(
-                              chosen.map((document) => document.id),
-                              {
-                                onSuccess: () => {
-                                  setSelected(new Set());
-                                  notifySuccess('Documents supprimés.');
-                                },
-                                onError: (deleteError) => notifyError(deleteError.message),
-                              },
-                            ) })
-                        }
-                      >
-                        Supprimer
-                      </Button>
-                    </Group>
-                  </Group>
-                </Paper>
-              )}
 
               <Paper
                 withBorder
@@ -799,6 +757,47 @@ export function LibraryPage() {
                   </Table>
                 )}
               </Paper>
+              {chosen.length > 0 && (
+                <SelectionBar
+                  label={selectedLabel(chosen.length, ['document', 'documents'], false)}
+                  onClear={() => setSelected(new Set())}
+                  actions={[
+                    { label: 'Télécharger (.zip)', icon: <FileZipIcon aria-hidden />, onClick: () => window.location.assign(zipUrl({ ids: chosen.map((document) => document.id) })) },
+                    {
+                      label: 'Déplacer',
+                      icon: <FolderSimpleIcon aria-hidden />,
+                      onClick: () =>
+                        openFormPanel('Déplacer les documents', (close) => (
+                          <MoveForm
+                            folders={folders}
+                            initial={current}
+                            onDone={close}
+                            onSubmit={(folderId) => mutations.move.mutateAsync({ ids: chosen.map((document) => document.id), folderId }).then(() => setSelected(new Set()))}
+                          />
+                        )),
+                    },
+                    {
+                      label: 'Supprimer',
+                      icon: <TrashIcon aria-hidden />,
+                      destructive: {
+                        title: 'Supprimer les documents',
+                        risks: `${chosen.length} document${chosen.length > 1 ? 's seront supprimés' : ' sera supprimé'} définitivement avec leurs fichiers. Cette action est irréversible.`,
+                      },
+                      onClick: () =>
+                        mutations.remove.mutate(
+                          chosen.map((document) => document.id),
+                          {
+                            onSuccess: () => {
+                              setSelected(new Set());
+                              notifySuccess('Documents supprimés.');
+                            },
+                            onError: (deleteError) => notifyError(deleteError.message),
+                          },
+                        ),
+                    },
+                  ]}
+                />
+              )}
               <Text size="xs" c="dimmed">
                 Fichiers de 25 Mo au plus. Glissez-déposez des fichiers sur la liste pour les ajouter au dossier ouvert. Réordonnez dossiers et documents par leur poignée ;
                 déposez un document sur un dossier, ou un dossier dans l’arborescence, pour l’y ranger.

@@ -2,9 +2,12 @@ import { Avatar, Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@manti
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useContext, useEffect, useState, type MouseEvent } from 'react';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
-import { notifyError } from '../../../lib/notify';
+import { notifyError, notifySuccess } from '../../../lib/notify';
+import { applyDiff } from '../../../components/data-table/bulk-edit';
+import { CellSelectionContext, EventRowsContext } from './cell-edit';
+import type { TaskColumn } from '@ordo/shared';
 import { askScope } from '../../calendar/ask-scope';
 import { useCalendarEventMutations, type CalendarEventInput, type CalendarEventScope, type EventOccurrence } from '../../calendar/api';
 import { occurrenceInput } from '../../calendar/event-input';
@@ -68,21 +71,34 @@ const stop = (event: MouseEvent) => event.stopPropagation();
 const cellField = { variant: 'unstyled', size: 'xs', classNames: { root: cellClasses.root, input: cellClasses.input, section: cellClasses.section }, onClick: stop } as const;
 
 /**
- * Saving of changes to an event from the table: for an occurrence of a recurring event, asks first which ones change
- * (this one, the following ones, all), like the calendar.
- * @param {EventOccurrence} event Occurrence.
- * @returns {(changes: Partial<CalendarEventInput>) => Promise<void>} Save.
+ * Saving of an event cell: the event (its series for a recurring one, the occurrences asked once), or every event
+ * of the bulk selection of its column, each with its own change (its people kept, its own length…).
+ * @param {EventOccurrence} event Occurrence edited.
+ * @param {TaskColumn} column Column edited.
+ * @returns {(changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => Promise<void>} Saver.
  */
-function useEventSave(event: EventOccurrence) {
+function useEventSave(event: EventOccurrence, column: TaskColumn) {
   const { update } = useCalendarEventMutations();
-  return async (changes: Partial<CalendarEventInput>) => {
+  const selection = useContext(CellSelectionContext);
+  const events = useContext(EventRowsContext);
+  return async (changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => {
+    const keys = selection?.column === column && selection.eventKeys?.includes(event.key) ? selection.eventKeys : [event.key];
+    const targets = keys.length > 1 ? events.filter((item) => keys.includes(item.key)) : [event];
     let scope: CalendarEventScope = 'ALL';
-    if (event.occurrenceDate) {
+    if (targets.some((target) => target.occurrenceDate)) {
       const chosen = await askScope({ action: 'update' });
       if (!chosen) return;
       scope = chosen;
     }
-    update.mutate({ id: event.eventId, scope, occurrenceDate: event.occurrenceDate, input: { ...occurrenceInput(event), ...changes } }, { onError: (error) => notifyError(error.message) });
+    for (const target of targets) {
+      const change = typeof changes === 'function' ? changes(target) : changes;
+      if (!Object.keys(change).length) continue;
+      update.mutate(
+        { id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } },
+        { onError: (error) => notifyError(error.message) },
+      );
+    }
+    if (targets.length > 1) notifySuccess(`Modification appliquée à ${targets.length} évènements.`);
   };
 }
 
@@ -92,7 +108,7 @@ function useEventSave(event: EventOccurrence) {
  * @returns {JSX.Element} Cell.
  */
 export function EventPeopleCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
-  const save = useEventSave(event);
+  const save = useEventSave(event, 'assignees');
   const label = `Personnes de l’évènement ${event.title}`;
   return (
     <StackedMultiCell
@@ -120,7 +136,7 @@ export function EventPeopleCell({ event, context }: { event: EventOccurrence; co
             );
           }}
           value={event.contributorIds}
-          onChange={(contributorIds) => void save({ contributorIds })}
+          onChange={(contributorIds) => void save((target) => ({ contributorIds: applyDiff(target.contributorIds, event.contributorIds, contributorIds) }))}
           onDropdownClose={onDropdownClose}
           placeholder={event.contributorIds.length ? undefined : '—'}
           searchable
@@ -184,19 +200,32 @@ const fromWall = (ms: number) => {
 };
 
 /**
+ * Length of a timed event, in ms.
+ * @param {EventOccurrence} event Occurrence.
+ * @returns {number} Ms.
+ */
+const lengthOf = (event: EventOccurrence) => wall(String(event.endDate), event.endTime ?? null) - wall(String(event.startDate), event.startTime ?? null);
+
+/**
+ * Days an all-day event spans after its first one.
+ * @param {EventOccurrence} event Occurrence.
+ * @returns {number} Days.
+ */
+const spanOf = (event: EventOccurrence) => Math.round((wall(String(event.endDate), null) - wall(String(event.startDate), null)) / 86_400_000);
+
+/**
  * Start or end of an event, edited in place (its day for an all-day event, else its date and time, in its own time
  * zone). Moving the start moves the end too (same duration); the end never goes before the start.
  * @param {{ event: EventOccurrence, side: 'start' | 'end' }} props Occurrence and side.
  * @returns {JSX.Element} Cell.
  */
 export function EventWhenCell({ event, side }: { event: EventOccurrence; side: 'start' | 'end' }) {
-  const save = useEventSave(event);
+  const save = useEventSave(event, side === 'start' ? 'startDate' : 'endDate');
   const label = `${side === 'start' ? 'Début' : 'Fin'} de l’évènement ${event.title}`;
   const startDate = String(event.startDate);
   const endDate = String(event.endDate);
 
   if (event.allDay) {
-    const days = Math.round((wall(endDate, null) - wall(startDate, null)) / 86_400_000);
     return (
       <DatePickerInput
         {...cellField}
@@ -205,8 +234,9 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
         minDate={side === 'end' ? startDate : undefined}
         onChange={(date) => {
           if (!date) return;
-          if (side === 'end') void save({ endDate: date });
-          else void save({ startDate: date, endDate: fromWall(wall(date, null) + days * 86_400_000).date });
+          // Each event keeps its own length; an end never comes before its start.
+          if (side === 'end') void save((target) => (date >= String(target.startDate) ? { endDate: date } : {}));
+          else void save((target) => ({ startDate: date, endDate: fromWall(wall(date, null) + spanOf(target) * 86_400_000).date }));
         }}
         popoverProps={{ withinPortal: true }}
       />
@@ -214,7 +244,6 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
   }
 
   const start = wall(startDate, event.startTime ?? null);
-  const end = wall(endDate, event.endTime ?? null);
   const value = side === 'start' ? `${startDate} ${event.startTime}:00` : `${endDate} ${event.endTime}:00`;
   return (
     <DateTimePicker
@@ -227,10 +256,13 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
         const [date, clock] = next.split(' ');
         const moved = wall(date, clock.slice(0, 5));
         if (side === 'start') {
-          const newEnd = fromWall(moved + (end - start));
-          void save({ startDate: date, startTime: clock.slice(0, 5), endDate: newEnd.date, endTime: newEnd.time });
+          // Each event keeps its own length.
+          void save((target) => {
+            const newEnd = fromWall(moved + lengthOf(target));
+            return { startDate: date, startTime: clock.slice(0, 5), endDate: newEnd.date, endTime: newEnd.time };
+          });
         } else if (moved < start) notifyError('La fin ne peut pas être avant le début.');
-        else void save({ endDate: date, endTime: clock.slice(0, 5) });
+        else void save((target) => (moved >= wall(String(target.startDate), target.startTime ?? null) ? { endDate: date, endTime: clock.slice(0, 5) } : {}));
       }}
       popoverProps={{ withinPortal: true }}
     />
@@ -244,6 +276,17 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
  * @returns {JSX.Element} Cell.
  */
 export function EventBeneficiariesCell({ event }: { event: EventOccurrence }) {
-  const save = useEventSave(event);
-  return <BeneficiariesCell label={`Bénéficiaires de ${event.title}`} value={event} onSave={(beneficiaries) => void save(beneficiaries)} />;
+  const save = useEventSave(event, 'beneficiaries');
+  return (
+    <BeneficiariesCell
+      label={`Bénéficiaires de ${event.title}`}
+      value={event}
+      onSave={(beneficiaries) =>
+        void save((target) => ({
+          beneficiaryIds: applyDiff(target.beneficiaryIds, event.beneficiaryIds, beneficiaries.beneficiaryIds),
+          beneficiaryRelationIds: applyDiff(target.beneficiaryRelationIds, event.beneficiaryRelationIds, beneficiaries.beneficiaryRelationIds),
+        }))
+      }
+    />
+  );
 }

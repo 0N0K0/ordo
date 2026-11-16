@@ -155,7 +155,7 @@ export function DataViewBar<R>({
           {tools}
         </TableToolbar>
       )}
-      <BulkHint selection={view.selection} labelOf={(id) => view.columns.find((column) => column.id === id)?.label ?? ''} onClear={() => view.setSelection(null)} />
+      <BulkHint selection={view.selection} labelOf={view.bulkLabel} onClear={() => view.setSelection(null)} />
     </>
   );
 }

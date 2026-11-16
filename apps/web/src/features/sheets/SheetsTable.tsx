@@ -19,6 +19,8 @@ import { notifyError, notifySuccess } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from './api';
 import { quantityText, sheetInput } from './sheet-format';
+import { deleteRowsAction, duplicateRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { SheetUseForm } from './SheetUseForm';
 
 /**
@@ -120,6 +122,17 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
     <DataTable
       framed
       view={view}
+      selectionLabel={(count) => selectedLabel(count, ['fiche', 'fiches'])}
+      selectionActions={(rows, clear) => [
+        duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${rows.length} fiche(s) dupliquée(s).` }),
+        deleteRowsAction(rows, {
+          title: 'Supprimer les fiches',
+          risks: `${rows.length} fiche(s) et leurs éléments seront supprimées définitivement ; les listes et routines qui les utilisent ne les verront plus. Cette action est irréversible.`,
+          remove: (sheet) => remove.mutateAsync(sheet.id),
+          done: `${rows.length} fiche(s) supprimée(s).`,
+          clear,
+        }),
+      ]}
       verticalSpacing="xs"
       highlightOnHover
       bar={{

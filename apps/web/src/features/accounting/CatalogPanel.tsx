@@ -20,6 +20,8 @@ import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
 import { Comments } from '../comments/Comments';
 import { useCommentCounts } from '../comments/api';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { commentColumn } from '../comments/comment-column';
 
 let modalCount = 0;
@@ -247,6 +249,16 @@ export function CatalogPanel() {
     <DataTable
       framed
       view={view}
+      selectionLabel={(count) => selectedLabel(count, ['article', 'articles'], false)}
+      selectionActions={(rows, clear) => [
+        deleteRowsAction(rows, {
+          title: 'Supprimer les articles',
+          risks: `${rows.length} article(s) seront supprimés du catalogue ; les documents qui les utilisent gardent leurs lignes.`,
+          remove: (item) => remove.mutateAsync(item.id),
+          done: `${rows.length} article(s) supprimé(s).`,
+          clear,
+        }),
+      ]}
       bar={{
         searchLabel: 'Rechercher un article',
         actions: (

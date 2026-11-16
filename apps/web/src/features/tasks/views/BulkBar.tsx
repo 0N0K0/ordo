@@ -1,27 +1,16 @@
 import { closePanel, openPanel } from '../../../components/panels/panels';
-import { Avatar, Button, CloseButton, ColorSwatch, Group, Menu, Paper, Radio, Stack, Text } from '@mantine/core';
+import { Button, Checkbox, Group, Radio, Stack, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import {
-  ArchiveIcon,
-  CheckCircleIcon,
-  ArrowCounterClockwiseIcon,
-  ArrowsLeftRightIcon,
-  CaretDownIcon,
-  FlagIcon,
-  TimerIcon,
-  TagIcon,
-  TrashIcon,
-  UserPlusIcon,
-} from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
-import { DestructiveActions, DestructiveButton } from '../../../components/dialogs/DestructiveActions';
-import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task, type TaskLabel } from '../api';
+import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
+import { SelectionBar } from '../../../components/data-table/SelectionBar';
+import { useBulkTaskMutations, useCloneTask, useSetTasksClosed, type Task } from '../api';
 import { ProjectSelect } from '../task-ui';
 import type { TaskContext } from '../use-task-context';
-import classes from './BulkBar.module.css';
 import { useBulkUndo } from './bulk-undo';
-import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
+
 
 /**
  * "3 tâches" / "1 tâche".
@@ -103,6 +92,49 @@ function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
 }
 
 /**
+ * Bulk clone confirmation, optionally with the sub-tasks: each task cloned in turn.
+ * @param {DialogProps} props Component props.
+ * @returns {JSX.Element} Dialog content.
+ */
+function BulkCloneDialog({ tasks, context, onDone }: DialogProps) {
+  const cloneTask = useCloneTask();
+  const [includeSubtasks, setIncludeSubtasks] = useState(false);
+  const [pending, setPending] = useState(false);
+  const withSubtasks = tasks.some((task) => context.childrenOf(task.id).length > 0);
+  return (
+    <Stack gap="md">
+      <Text size="sm">
+        {tasksLabel(tasks.length)} seront clonées : tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.
+      </Text>
+      {withSubtasks && <Checkbox label="Inclure leurs sous-tâches" checked={includeSubtasks} onChange={(event) => setIncludeSubtasks(event.currentTarget.checked)} />}
+      <Group justify="flex-end" gap="sm">
+        <Button variant="default" onClick={() => onDone(false)}>
+          Annuler
+        </Button>
+        <Button
+          loading={pending}
+          data-autofocus
+          onClick={async () => {
+            setPending(true);
+            try {
+              for (const task of tasks) await cloneTask.mutateAsync({ id: task.id, includeSubtasks });
+              notifySuccess(`${tasksLabel(tasks.length)} clonée${tasks.length > 1 ? 's' : ''}.`);
+              onDone(true);
+            } catch (error) {
+              notifyError((error as Error).message);
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          Cloner
+        </Button>
+      </Group>
+    </Stack>
+  );
+}
+
+/**
  * Bulk deletion confirmation.
  * @param {DialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
@@ -155,44 +187,28 @@ interface BulkBarProps {
 }
 
 /**
- * Actions on the selected tasks: status, priority, type, assignees, transfer, archive, delete.
+ * Actions on the selected tasks that their columns cannot do: close (or reopen), clone, transfer, archive, delete.
+ * Their fields are changed in their cells (a change in one applies to all the tasks checked).
  * @param {BulkBarProps} props Component props.
  * @returns {JSX.Element} Bar.
  */
 export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
-  const { update, archive } = useBulkTaskMutations();
+  const { archive } = useBulkTaskMutations();
   const setClosed = useSetTasksClosed();
   const undo = useBulkUndo();
   const allClosed = tasks.every((task) => task.closed);
-  const ids = tasks.map((task) => task.id);
   const allArchived = tasks.every((task) => task.archived);
-  // Milestones usable by every selected task (same project tree).
-  const roots = new Set(tasks.map((task) => context.rootOf(task.projectId)));
-  const commonMilestones = roots.size === 1 ? context.milestonesFor(tasks[0].projectId) : [];
-  const commonSprints = roots.size === 1 ? context.sprintsFor(tasks[0].projectId) : [];
-  // Sprints at least one selected task is in.
-  const usedSprints = context.sprints.filter((sprint) => tasks.some((task) => task.sprintIds.includes(sprint.id)));
+  const ids = tasks.map((task) => task.id);
 
   /**
-   * Applies field changes to the selection.
-   * @param {BulkChanges} changes Changes.
-   * @param {string} message Success message.
+   * Opens a dialog on the selected tasks (a form in the side panel, a confirmation in a modal); a success clears the
+   * selection.
+   * @param {string} title Title.
+   * @param {(props: DialogProps) => ReactNode} Dialog Dialog.
+   * @param {boolean} [asForm] In the side panel. Optional. Default = false.
    * @returns {void}
    */
-  const apply = (changes: BulkChanges, message: string) =>
-    update.mutate(
-      { ids, changes },
-      { onSuccess: () => notifyWithUndo(message, undo.changes(tasks, changes)), onError: (error) => notifyError(error.message) },
-    );
-
-  /**
-   * Opens a dialog on the selection; clears the selection when the action succeeds.
-   * @param {string} title Modal title.
-   * @param {typeof BulkTransferDialog} Dialog Dialog component.
-   * @param {boolean} [asForm] A form (in the side panel), not a confirmation. Optional. Default = false.
-   * @returns {void}
-   */
-  const openDialog = (title: string, Dialog: typeof BulkTransferDialog, asForm = false) => {
+  const openDialog = (title: string, Dialog: (props: DialogProps) => ReactNode, asForm = false) => {
     const modalId = `bulk-${++modalCount}`;
     const close = () => (asForm ? closePanel(modalId) : modals.close(modalId));
     const children = (
@@ -205,236 +221,48 @@ export function BulkBar({ tasks, context, onClear }: BulkBarProps) {
         }}
       />
     );
-    // A form in the side panel, a confirmation in a dialog.
     if (asForm) openPanel({ panelId: modalId, title, children });
     else modals.open({ modalId, title, children });
   };
 
-  /**
-   * Menu setting a status, priority or type.
-   * @param {string} label Button label.
-   * @param {TaskLabel[]} labels Options.
-   * @param {'statusId' | 'priorityId' | 'typeId'} field Field.
-   * @returns {JSX.Element} Menu.
-   */
-  const labelMenu = (label: string, labels: TaskLabel[], field: 'statusId' | 'priorityId' | 'typeId') => (
-    <Menu position="top-start" withinPortal shadow="md">
-      <Menu.Target>
-        <Button size="xs" variant="default" rightSection={<CaretDownIcon aria-hidden />}>
-          {label}
-        </Button>
-      </Menu.Target>
-      <Menu.Dropdown>
-        {labels.map((item) => (
-          <Menu.Item
-            key={item.id}
-            leftSection={<ColorSwatch color={item.color} size={10} />}
-            onClick={() => apply({ [field]: item.id }, `${label} « ${item.name} » appliqué à ${tasksLabel(ids.length)}.`)}
-          >
-            {item.name}
-          </Menu.Item>
-        ))}
-        {labels.length > 0 && <Menu.Divider />}
-        <Menu.Item onClick={() => apply({ [field]: null }, `${label} retiré de ${tasksLabel(ids.length)}.`)}>Aucun</Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
-  );
-
-  /**
-   * Multi-select of the selection: what at least one selected task has (« (2/5) » when not all of them), checked
-   * or unchecked in one go; saved once its list closes: an option checked is added to every selected task, one
-   * unchecked removed from all of them, the others left as they are.
-   * @param {object} options Options.
-   * @param {string} options.label Name of the field.
-   * @param {ReactNode} options.icon Icon.
-   * @param {(task: Task) => string[]} options.of Values of a task.
-   * @param {{ value: string, label: string }[]} options.choices Options that may be added.
-   * @param {(id: string) => ReactNode} options.renderIcon Icon of an option.
-   * @param {(added: string[], removed: string[]) => BulkChanges} options.changes Changes of the selection.
-   * @returns {JSX.Element} Multi-select.
-   */
-  const selectionSelect = ({
-    label,
-    icon,
-    of,
-    choices,
-    renderIcon,
-    changes,
-  }: {
-    label: string;
-    icon: ReactNode;
-    of: (task: Task) => string[];
-    choices: { value: string; label: string }[];
-    renderIcon: (id: string) => ReactNode;
-    changes: (added: string[], removed: string[]) => BulkChanges;
-  }) => {
-    const counts = new Map<string, number>();
-    for (const task of tasks) for (const id of of(task)) counts.set(id, (counts.get(id) ?? 0) + 1);
-    const present = [...counts.keys()];
-    const data = choices.map((choice) => {
-      const count = counts.get(choice.value) ?? 0;
-      return { value: choice.value, label: count > 0 && count < tasks.length ? `${choice.label} (${count}/${tasks.length})` : choice.label };
-    });
-    return (
-      <BatchMultiSelect
-        size="xs"
-        w={240}
-        aria-label={`${label} des tâches sélectionnées`}
-        placeholder={present.length ? undefined : label}
-        leftSection={icon}
-        data={data}
-        value={present}
-        renderOption={({ option }) => (
-          <Group gap="xs" wrap="nowrap">
-            {renderIcon(option.value)}
-            {option.label}
-          </Group>
-        )}
-        onChange={(next) => {
-          const added = next.filter((id) => !present.includes(id));
-          const removed = present.filter((id) => !next.includes(id));
-          if (added.length || removed.length) apply(changes(added, removed), `${label} modifiés sur ${tasksLabel(ids.length)}.`);
-        }}
-        comboboxProps={{ position: 'top-start', withinPortal: true }}
-        searchable
-      />
-    );
-  };
-
   return (
-    <Paper shadow="md" withBorder radius="md" className={classes.bar} role="region" aria-label="Actions sur la sélection">
-      <Group gap="xs" wrap="wrap">
-        <Text size="sm" fw={600}>
-          {tasksLabel(ids.length)} sélectionnée{ids.length > 1 ? 's' : ''}
-        </Text>
-        {labelMenu('Statut', context.statuses, 'statusId')}
-        {labelMenu('Priorité', context.priorities, 'priorityId')}
-        {labelMenu('Type', context.types, 'typeId')}
-        <Menu position="top-start" withinPortal shadow="md">
-          <Menu.Target>
-            <Button size="xs" variant="default" leftSection={<FlagIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
-              Jalon
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {commonMilestones.length === 0 && <Menu.Label>Aucun jalon commun aux tâches sélectionnées</Menu.Label>}
-            {commonMilestones.map((milestone) => (
-              <Menu.Item
-                key={milestone.id}
-                onClick={() => apply({ milestoneId: milestone.id }, `Jalon « ${milestone.title} » appliqué à ${tasksLabel(ids.length)}.`)}
-              >
-                {milestone.title}
-              </Menu.Item>
-            ))}
-            <Menu.Divider />
-            <Menu.Item onClick={() => apply({ milestoneId: null }, `Jalon retiré de ${tasksLabel(ids.length)}.`)}>Aucun</Menu.Item>
-          </Menu.Dropdown>
-        </Menu>
-        <Menu position="top-start" withinPortal shadow="md">
-          <Menu.Target>
-            <Button size="xs" variant="default" leftSection={<TimerIcon aria-hidden />} rightSection={<CaretDownIcon aria-hidden />}>
-              Sprint
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {commonSprints.length === 0 && <Menu.Label>Aucun sprint commun aux tâches sélectionnées</Menu.Label>}
-            {commonSprints.length > 0 && <Menu.Label>Ajouter au sprint</Menu.Label>}
-            {commonSprints.map((sprint) => (
-              <Menu.Item key={sprint.id} onClick={() => apply({ addSprintIds: [sprint.id] }, `Sprint « ${sprint.name} » ajouté à ${tasksLabel(ids.length)}.`)}>
-                {sprint.name}
-              </Menu.Item>
-            ))}
-            {usedSprints.length > 0 && (
-              <>
-                <Menu.Divider />
-                <Menu.Label>Retirer du sprint</Menu.Label>
-                {usedSprints.map((sprint) => (
-                  <Menu.Item key={sprint.id} onClick={() => apply({ removeSprintIds: [sprint.id] }, `Sprint « ${sprint.name} » retiré de ${tasksLabel(ids.length)}.`)}>
-                    {sprint.name}
-                  </Menu.Item>
-                ))}
-                <Menu.Item onClick={() => apply({ removeSprintIds: usedSprints.map((sprint) => sprint.id) }, `Sprints retirés de ${tasksLabel(ids.length)}.`)}>Tous</Menu.Item>
-              </>
-            )}
-          </Menu.Dropdown>
-        </Menu>
-        {selectionSelect({
-          label: 'Assignés',
-          icon: <UserPlusIcon aria-hidden />,
-          of: (task) => task.assigneeIds,
-          // Contributors of the selected tasks' projects, and those already assigned.
-          choices: context
-            .assignableFor(
-              tasks.map((task) => task.projectId),
-              tasks.flatMap((task) => task.assigneeIds),
-            )
-            .map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) })),
-          renderIcon: (id) => {
-            const contributor = context.contributorById.get(id);
-            return <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />;
-          },
-          changes: (added, removed) => ({ addAssigneeIds: added, removeAssigneeIds: removed }),
-        })}
-        {selectionSelect({
-          label: 'Étiquettes',
-          icon: <TagIcon aria-hidden />,
-          of: (task) => task.tagIds,
-          choices: context.tags.map((tag) => ({ value: tag.id, label: tag.name })),
-          renderIcon: (id) => <ColorSwatch color={context.tagById.get(id)?.color ?? 'gray'} size={10} />,
-          changes: (added, removed) => ({ addTagIds: added, removeTagIds: removed }),
-        })}
-        <Button size="xs" variant="default" leftSection={<ArrowsLeftRightIcon aria-hidden />} onClick={() => openDialog('Transférer les tâches', BulkTransferDialog, true)}>
-          Transférer
-        </Button>
-        <Button
-          size="xs"
-          variant="default"
-          leftSection={allClosed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-          loading={setClosed.isPending}
-          onClick={() =>
+    <SelectionBar
+      label={`${tasksLabel(ids.length)} sélectionnée${ids.length > 1 ? 's' : ''}`}
+      onClear={onClear}
+      actions={[
+        {
+          label: allClosed ? 'Rouvrir' : 'Fermer',
+          icon: allClosed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />,
+          loading: setClosed.isPending,
+          onClick: () =>
             setClosed.mutate(
               { ids, closed: !allClosed },
               {
-                onSuccess: () =>
-                  notifyWithUndo(
-                    `${tasksLabel(ids.length)} ${allClosed ? 'rouverte' : 'fermée'}${ids.length > 1 ? 's' : ''}.`,
-                    undo.closed(tasks, !allClosed),
-                  ),
+                onSuccess: () => notifyWithUndo(`${tasksLabel(ids.length)} ${allClosed ? 'rouverte' : 'fermée'}${ids.length > 1 ? 's' : ''}.`, undo.closed(tasks, !allClosed)),
                 onError: (error) => notifyError(error.message),
               },
-            )
-          }
-        >
-          {allClosed ? 'Rouvrir' : 'Fermer'}
-        </Button>
-        <Button
-          size="xs"
-          variant="default"
-          leftSection={allArchived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />}
-          loading={archive.isPending}
-          onClick={() =>
+            ),
+        },
+        { label: 'Cloner', icon: <CopyIcon aria-hidden />, onClick: () => openDialog('Cloner les tâches', BulkCloneDialog) },
+        { label: 'Transférer', icon: <ArrowsLeftRightIcon aria-hidden />, onClick: () => openDialog('Transférer les tâches', BulkTransferDialog, true) },
+        {
+          label: allArchived ? 'Désarchiver' : 'Archiver',
+          icon: allArchived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
+          loading: archive.isPending,
+          onClick: () =>
             archive.mutate(
               { ids, archived: !allArchived },
               {
                 onSuccess: () => {
-                  notifyWithUndo(
-                    `${tasksLabel(ids.length)} ${allArchived ? 'désarchivée' : 'archivée'}${ids.length > 1 ? 's' : ''}.`,
-                    undo.archived(tasks, !allArchived),
-                  );
+                  notifyWithUndo(`${tasksLabel(ids.length)} ${allArchived ? 'désarchivée' : 'archivée'}${ids.length > 1 ? 's' : ''}.`, undo.archived(tasks, !allArchived));
                   onClear();
                 },
                 onError: (error) => notifyError(error.message),
               },
-            )
-          }
-        >
-          {allArchived ? 'Désarchiver' : 'Archiver'}
-        </Button>
-        <DestructiveButton size="xs" leftSection={<TrashIcon aria-hidden />} onClick={() => openDialog('Supprimer les tâches', BulkDeleteDialog)}>
-          Supprimer
-        </DestructiveButton>
-        <CloseButton aria-label="Désélectionner" onClick={onClear} />
-      </Group>
-    </Paper>
+            ),
+        },
+        { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => openDialog('Supprimer les tâches', BulkDeleteDialog) },
+      ]}
+    />
   );
 }

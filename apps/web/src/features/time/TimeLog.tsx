@@ -20,6 +20,8 @@ import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 import { useRoutinesData } from '../routines/api';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
 
 /**
@@ -213,7 +215,7 @@ interface TimeLogProps {
  * @returns {JSX.Element} Table.
  */
 export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete, actions }: TimeLogProps) {
-  const { update } = useTimeMutations();
+  const { update, remove } = useTimeMutations();
 
   /**
    * Whether a time is changed in its cells: finished (the running timer is changed from the timer), and not on a final
@@ -253,6 +255,23 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
     <DataTable
       view={view}
       framed
+      selectionLabel={(count) => selectedLabel(count, ['temps', 'temps'], false)}
+      selectionActions={(rows, clear) => {
+        // A billed time stays: its invoice counts it.
+        const deletable = rows.filter((entry) => !entry.documentNumber);
+        return [
+          {
+            ...deleteRowsAction(deletable, {
+              title: 'Supprimer les temps',
+              risks: `${deletable.length} temps seront supprimés définitivement et retirés du temps passé de leurs tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}. Cette action est irréversible.`,
+              remove: (entry) => remove.mutateAsync(entry.id),
+              done: `${deletable.length} temps supprimé(s).`,
+              clear,
+            }),
+            disabled: deletable.length === 0,
+          },
+        ];
+      }}
       bar={{
         searchLabel: 'Rechercher (projet, routine, tâche, évènement)',
         actions,
