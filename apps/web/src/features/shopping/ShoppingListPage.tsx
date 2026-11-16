@@ -40,10 +40,10 @@ import { openFormPanel } from '../../components/panels/panels';
 import { ProductPicker } from './ProductPicker';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
-import { blankInput, EMPTY_GROUPS_LABEL, listClosed, listTasks, usePeople, type ShoppingGrouping } from './shopping-format';
+import { blankInput, EMPTY_GROUPS_LABEL, listClosed, listTasks, usePeople, type ShoppingGrouping, shoppingProgress } from './shopping-format';
 import { ShoppingSettings } from './ShoppingSettings';
 import { GroupingControl } from './GroupingControl';
-import { itemColumns } from './shopping-columns';
+import { itemColumns, optionalColumn } from './shopping-columns';
 import { ShoppingTable } from './ShoppingTable';
 import { StoreMode } from './StoreMode';
 import { OrderPanel } from './OrderPanel';
@@ -112,6 +112,7 @@ export function ShoppingListPage() {
     grouping,
     { categories: data?.shoppingCategories ?? [], stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations },
     [
+      optionalColumn<ShoppingItem>(),
       {
         id: 'bought',
         label: 'Acheté',
@@ -212,7 +213,8 @@ export function ShoppingListPage() {
   const baseLists = data?.shoppingBaseLists ?? [];
   const total = shoppingTotal(list.items);
   const spent = shoppingTotal(list.items.filter((item) => item.purchasedAt));
-  const bought = list.items.filter((item) => item.purchasedAt).length;
+  // Its required items (the optional ones apart).
+  const { bought, total: required } = shoppingProgress(list.items);
   const onError = (error: Error) => notifyError(error.message);
 
   return (
@@ -249,7 +251,7 @@ export function ShoppingListPage() {
               </Group>
             )}
             <Text size="sm" c="dimmed">
-              {bought} sur {list.items.length} acheté(s)
+              {bought} sur {required} acheté(s)
               {total > 0 && ` · ${fmt.money(spent)} sur ${fmt.money(total)} estimés`}
             </Text>
           </Group>

@@ -59,7 +59,8 @@ const shoppingFields = {
 export const shoppingProductSchema = z.object({ ...shoppingFields, baseListId: z.string().min(1, 'La liste type est requise.'), missing: z.boolean() });
 export type ShoppingProductInput = z.input<typeof shoppingProductSchema>;
 
-export const shoppingItemSchema = z.object(shoppingFields);
+/** Item of a list: its fields, and whether it is optional (bought if possible, the list done without it). */
+export const shoppingItemSchema = z.object({ ...shoppingFields, optional: z.boolean().default(false) });
 export type ShoppingItemInput = z.input<typeof shoppingItemSchema>;
 
 /** Base list ("liste type"): its name. */

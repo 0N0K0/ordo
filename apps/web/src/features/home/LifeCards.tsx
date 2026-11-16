@@ -9,6 +9,7 @@ import { usePostponeRoutine } from '../routines/use-routine-move';
 import { useShoppingData, useShoppingLists } from '../shopping/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
+import { leftToBuy } from '../shopping/shopping-format';
 import { daysBetween } from './home-data';
 
 const MAX_ROWS = 7;
@@ -102,7 +103,7 @@ export function ShoppingCard() {
   const missing = (data?.shoppingProducts ?? []).filter((product) => product.missing).length;
   const open = (lists ?? [])
     .filter((list) => !list.closed)
-    .map((list) => ({ list, left: list.items.filter((item) => !item.purchasedAt).length }))
+    .map((list) => ({ list, left: leftToBuy(list.items).length }))
     .sort((a, b) => b.list.createdAt.localeCompare(a.list.createdAt));
 
   return (

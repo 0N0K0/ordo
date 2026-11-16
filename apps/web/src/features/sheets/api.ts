@@ -50,6 +50,13 @@ const SheetsDocument = graphql(`
         unit
         note
         consumable
+        storeId
+        url
+        perishable
+        storageId
+        memberIds
+        relationIds
+        optional
         position
       }
     }
@@ -75,6 +82,13 @@ const SheetDocument = graphql(`
         unit
         note
         consumable
+        storeId
+        url
+        perishable
+        storageId
+        memberIds
+        relationIds
+        optional
         position
       }
     }

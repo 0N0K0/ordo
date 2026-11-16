@@ -77,7 +77,26 @@ export const inputOf = (row: ShoppingFields): ShoppingItemInput => ({
   perishable: row.perishable,
   storageId: row.storageId ?? null,
   expiresAt: row.expiresAt ?? null,
+  // An item of a list keeps whether it is optional (a product has none).
+  ...('optional' in row ? { optional: Boolean(row.optional) } : {}),
 });
+
+/**
+ * Items of a list still to buy: not bought, and not optional (bought if possible).
+ * @param {readonly T[]} items Items.
+ * @returns {T[]} Items.
+ */
+export const leftToBuy = <T extends { purchasedAt?: unknown; optional?: boolean | null }>(items: readonly T[]): T[] => items.filter((item) => !item.purchasedAt && !item.optional);
+
+/**
+ * Progress of a list: its required items bought, out of all of them (the optional ones apart).
+ * @param {readonly { purchasedAt?: unknown, optional?: boolean | null }[]} items Items.
+ * @returns {{ bought: number, total: number }} Counts.
+ */
+export function shoppingProgress(items: readonly { purchasedAt?: unknown; optional?: boolean | null }[]): { bought: number; total: number } {
+  const required = items.filter((item) => !item.optional);
+  return { bought: required.filter((item) => item.purchasedAt).length, total: required.length };
+}
 
 /**
  * Input of a new product or item with only a name, in a category (or store).

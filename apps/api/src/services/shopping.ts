@@ -70,7 +70,7 @@ async function assertStorage(storageId: string | null): Promise<void> {
   if (storageId && !(await prisma.shoppingStorage.findUnique({ where: { id: storageId }, select: { id: true } }))) throw notFound('Mode de conservation');
 }
 
-type Parsed = ReturnType<typeof shoppingItemSchema.parse>;
+type Parsed = Omit<ReturnType<typeof shoppingItemSchema.parse>, 'optional'>;
 
 /**
  * Row fields of a product or an item (people apart).
@@ -750,7 +750,7 @@ export async function nextPosition(listId: string): Promise<number> {
 export async function addItem(listId: string, input: ShoppingItemInput): Promise<ShoppingItem> {
   await findList(listId);
   const data = await parseShopping(shoppingItemSchema, input);
-  return prisma.shoppingItem.create({ data: { ...fields(data), listId, position: await nextPosition(listId), ...people(data, 'connect') } });
+  return prisma.shoppingItem.create({ data: { ...fields(data), optional: data.optional, listId, position: await nextPosition(listId), ...people(data, 'connect') } });
 }
 
 /**
@@ -782,7 +782,7 @@ export async function updateItem(id: string, input: ShoppingItemInput): Promise<
   await findItem(id);
   const data = await parseShopping(shoppingItemSchema, input);
   return prisma.$transaction(async (tx) => {
-    const item = await tx.shoppingItem.update({ where: { id }, data: { ...fields(data), ...people(data, 'set') } });
+    const item = await tx.shoppingItem.update({ where: { id }, data: { ...fields(data), optional: data.optional, ...people(data, 'set') } });
     if (item.productId && item.purchasedAt) await syncExpiry(tx, item.productId);
     return item;
   });

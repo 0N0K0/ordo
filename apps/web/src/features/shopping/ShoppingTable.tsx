@@ -23,6 +23,7 @@ import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, Sto
 import * as fmt from '../../lib/format';
 import { applyDiff, bulkSaver, type BulkChange } from '../../components/data-table/bulk-edit';
 import { StackedValues } from '../../components/data-table/StackedValues';
+import { EditableCheck } from '../../components/data-table/EditableCells';
 import { inputOf, moveToGroup, NO_GROUP, NO_GROUP_NAME, placeInGroup, shoppingRows, usePeople, visibleRows, type ShoppingFields, type ShoppingGrouping, type ShoppingRow } from './shopping-format';
 import classes from './Shopping.module.css';
 import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
@@ -222,6 +223,8 @@ function ItemRow<T extends ShoppingFields>({
       />
     ),
     url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save('url', { url })} />,
+    // An item of a list (a product has none): not needed, bought if possible.
+    optional: 'optional' in item && <EditableCheck value={Boolean(item.optional)} label={`${name} facultatif`} readOnly={readOnly} onSave={(optional) => save('optional', { optional })} />,
     // Sheets an item of a list comes from, with their share (products of the references have none).
     sheets: 'sheetSources' in item && Array.isArray(item.sheetSources) && (
       <StackedValues>

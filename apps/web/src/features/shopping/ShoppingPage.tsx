@@ -34,7 +34,7 @@ import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
 import { ListActionsMenu } from './ListActions';
 import { TasksCell } from './shopping-cells';
-import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGrouping } from './shopping-format';
+import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGrouping, leftToBuy, shoppingProgress } from './shopping-format';
 import classes from './Shopping.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
@@ -154,7 +154,8 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         </Table.Tr>
       );
     const { list } = row;
-    const bought = list.items.filter((item) => item.purchasedAt).length;
+    // Its required items (the optional ones apart).
+    const { bought, total: required } = shoppingProgress(list.items);
     const total = shoppingTotal(list.items);
     const cells: Record<string, ReactNode> = {
       name: (
@@ -183,11 +184,11 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         />
       ),
       progress: (
-        <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
-          {bought} / {list.items.length}
+        <Badge size="sm" variant="light" color={required && bought === required ? 'green' : 'gray'}>
+          {bought} / {required}
         </Badge>
       ),
-      remaining: list.items.length - bought || '',
+      remaining: required - bought || '',
       itemCount: list.items.length,
       total: total > 0 ? fmt.money(total) : null,
       createdAt: fmt.day(new Date(list.createdAt)),
@@ -226,7 +227,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
     // Numbers of the counted columns, a text for the others (counted).
     sortValue:
       column.id === 'remaining'
-        ? (list: ShoppingList) => list.items.filter((item) => !item.purchasedAt).length
+        ? (list: ShoppingList) => leftToBuy(list.items).length
         : column.id === 'itemCount'
           ? (list: ShoppingList) => list.items.length
           : column.id === 'total'
@@ -275,8 +276,8 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                     listTasks(list, context)
                       .map((task) => context?.taskLabel(task) ?? `#${task.number} ${task.title}`)
                       .join(', '),
-                  progress: (list) => `${list.items.filter((item) => item.purchasedAt).length} / ${list.items.length}`,
-                  remaining: (list) => String(list.items.filter((item) => !item.purchasedAt).length),
+                  progress: (list) => `${shoppingProgress(list.items).bought} / ${shoppingProgress(list.items).total}`,
+                  remaining: (list) => String(leftToBuy(list.items).length),
                   itemCount: (list) => String(list.items.length),
                   total: (list) => (shoppingTotal(list.items) > 0 ? fmt.money(shoppingTotal(list.items)) : ''),
                   createdAt: (list) => fmt.day(new Date(list.createdAt)),
