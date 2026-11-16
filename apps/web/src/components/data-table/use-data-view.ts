@@ -28,6 +28,8 @@ interface DataViewOptions<R> {
   first?: readonly FirstTableView[];
   /** Key of a row (that of the table): needed to edit cells in bulk. Optional. */
   getKey?: (row: R) => string;
+  /** Cells of their own (out of the columns: a toggle before them…) also edited in bulk, with their name. Optional. */
+  bulkColumns?: readonly { id: string; label: string }[];
 }
 
 /** Saved views of a table, the current one applied to its rows. */
@@ -64,6 +66,8 @@ export interface DataView<R> {
   setSelection: (selection: BulkSelection | null) => void;
   /** Props of a cell: its place in the selection, and the clicks selecting it. */
   cellProps: (columnId: string, key: string) => BulkCellProps;
+  /** Name of a column edited in bulk (its own cells included). */
+  bulkLabel: (columnId: string) => string;
 }
 
 /**
@@ -82,7 +86,7 @@ function parseConfig(config: unknown): TableViewConfig {
  * @param {DataViewOptions<R>} options Table.
  * @returns {DataView<R>} View.
  */
-export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey }: DataViewOptions<R>): DataView<R> {
+export function useDataView<R>({ tableKey, projectId = null, columns, rows, title, first, getKey, bulkColumns = [] }: DataViewOptions<R>): DataView<R> {
   const firstKey = JSON.stringify(first ?? null);
   // Stable while the first views do not change: the hook makes them once.
   const firstViews = useCallback(
@@ -98,7 +102,7 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
   const fields = tableFilterFields(columns);
   const groupColumn = (config?.groupBy && columns.find((column) => column.id === config.groupBy && column.groupable && column.text)) || null;
   const keys = getKey ? kept.map(getKey) : [];
-  const bulk = useBulkSelection({ keys, isBulk: (id) => Boolean(getKey && columns.find((column) => column.id === id)?.bulk) });
+  const bulk = useBulkSelection({ keys, isBulk: (id) => Boolean(getKey && (bulkColumns.some((column) => column.id === id) || columns.find((column) => column.id === id)?.bulk)) });
   return {
     tableKey,
     title,
@@ -121,6 +125,7 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
     selection: bulk.selection,
     setSelection: bulk.setSelection,
     cellProps: bulk.cellProps,
+    bulkLabel: (id) => bulkColumns.find((column) => column.id === id)?.label ?? columns.find((column) => column.id === id)?.label ?? '',
     columnExtras: (id) => {
       const column = columns.find((item) => item.id === id);
       return {

@@ -50,7 +50,7 @@ import classes from './TaskTable.module.css';
 import { TaskStateIcon } from './task-ui';
 import { type TaskContext, taskName } from './use-task-context';
 import { TASK_PARAM, useTaskLink } from './use-task-link';
-import { CellSelectionContext, type CellSelection } from './views/cell-edit';
+import { CellSelectionContext, EVENT_BULK_COLUMNS, EventRowsContext, type CellSelection } from './views/cell-edit';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './views/columns-meta';
 import { HeaderMenu } from './views/HeaderMenu';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowActions';
@@ -501,13 +501,22 @@ export function TaskTable({
   const draggedAlong = new Set(drag ? allDragItems.filter((item) => !dragItems.includes(item)).map((item) => item.id) : []);
   const projection = drag?.overId ? getProjection(dragItems, drag.activeId, drag.overId, drag.offsetX) : null;
 
-  // Only shown cells stay selected (filtered-out or collapsed tasks are never edited).
+  // Only shown cells stay selected (filtered-out or collapsed tasks are never edited); event rows too, in their columns.
   const shownTasks = new Map(taskRows.map((row) => [row.id, (row.original as TaskRow).task.id]));
-  const shownRowIds = cellSelection?.rowIds.filter((id) => shownTasks.has(id)) ?? [];
+  const eventRows = visibleRows.filter((row) => row.original.kind === 'event');
+  const shownEvents = new Map(eventRows.map((row) => [row.id, (row.original as Extract<typeof row.original, { kind: 'event' }>).event]));
+  const shownRowIds = cellSelection?.rowIds.filter((id) => shownTasks.has(id) || shownEvents.has(id)) ?? [];
   const effectiveCellSelection: CellSelection | null =
     cellSelection && shownRowIds.length > 0
-      ? { ...cellSelection, rowIds: shownRowIds, taskIds: [...new Set(shownRowIds.map((id) => shownTasks.get(id)!))] }
+      ? {
+          ...cellSelection,
+          rowIds: shownRowIds,
+          taskIds: [...new Set(shownRowIds.flatMap((id) => (shownTasks.has(id) ? [shownTasks.get(id)!] : [])))],
+          eventKeys: [...new Set(shownRowIds.flatMap((id) => (shownEvents.has(id) ? [shownEvents.get(id)!.key] : [])))],
+        }
       : null;
+  // Rows a range of the selection runs over: those of the kind of the clicked one (tasks and events never mix).
+  const selectableIds = (rowId: string) => (shownEvents.has(rowId) ? eventRows.map((row) => row.id) : taskRowIds);
 
   // Escape clears the cell selection.
   useEffect(() => {
@@ -543,14 +552,17 @@ export function TaskTable({
       }
       return;
     }
-    if (!BULK_EDITABLE_COLUMNS.includes(id)) return;
+    const isEvent = shownEvents.has(rowId);
+    if (!(isEvent ? EVENT_BULK_COLUMNS : BULK_EDITABLE_COLUMNS).includes(id)) return;
     event.preventDefault();
     event.stopPropagation();
-    const sameColumn = effectiveCellSelection?.column === id ? effectiveCellSelection.rowIds : [];
+    const ids = selectableIds(rowId);
+    // A selection holds tasks or events, never both: a change applies to all of them.
+    const sameColumn = effectiveCellSelection?.column === id ? effectiveCellSelection.rowIds.filter((item) => ids.includes(item)) : [];
     let rowIds: string[];
-    if (event.shiftKey && anchorRow.current && taskRowIds.includes(anchorRow.current)) {
-      const [from, to] = [taskRowIds.indexOf(anchorRow.current), taskRowIds.indexOf(rowId)].sort((a, b) => a - b);
-      rowIds = [...new Set([...sameColumn, ...taskRowIds.slice(from, to + 1)])];
+    if (event.shiftKey && anchorRow.current && ids.includes(anchorRow.current)) {
+      const [from, to] = [ids.indexOf(anchorRow.current), ids.indexOf(rowId)].sort((a, b) => a - b);
+      rowIds = [...new Set([...sameColumn, ...ids.slice(from, to + 1)])];
     } else {
       rowIds = sameColumn.includes(rowId) ? sameColumn.filter((item) => item !== rowId) : [...sameColumn, rowId];
       anchorRow.current = rowId;
@@ -670,11 +682,15 @@ export function TaskTable({
               );
             }
             if (id === ACTIONS_COLUMN) return <Table.Td key={cell.id} />;
+            const eventSelected = effectiveCellSelection?.column === id && effectiveCellSelection.rowIds.includes(row.id);
             return (
               <Table.Td
                 key={cell.id}
                 style={id === 'title' ? ({ '--row-depth': row.depth - (grouped ? 1 : 0) } as CSSProperties) : undefined}
                 className={id === 'title' ? classes.titleCell : undefined}
+                data-cell-selected={eventSelected || undefined}
+                aria-selected={eventSelected || undefined}
+                onClickCapture={(event) => handleCellClick(event, row.id, id as TaskColumn)}
               >
                 {id === 'title' ? (
                   <Group gap={4} wrap="nowrap" style={{ minWidth: 0, width: '100%' }}>
@@ -811,6 +827,7 @@ export function TaskTable({
       }}
     >
       <CellSelectionContext.Provider value={effectiveCellSelection}>
+      <EventRowsContext.Provider value={[...shownEvents.values()]}>
         {/* Scrolling both ways inside the height left by the page, its scrollbars counted in: the header stays on top. */}
         <div ref={fillRef} className={classes.scroller} style={{ maxHeight: fillHeight }}>
           <Table
@@ -903,6 +920,7 @@ export function TaskTable({
             </SortableContext>
           </Table>
         </div>
+      </EventRowsContext.Provider>
       </CellSelectionContext.Provider>
     </DndContext>
   );

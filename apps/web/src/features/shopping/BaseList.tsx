@@ -2,9 +2,9 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { Anchor, Button, Checkbox, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { Anchor, Button, Group, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { openMoveProducts } from './open-move-products';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
@@ -17,7 +17,7 @@ import { openShoppingForm } from './open-shopping-form';
 import { blankInput, EMPTY_GROUPS_LABEL, categoriesForBaseList, usePeople, type ShoppingGrouping } from './shopping-format';
 import { GroupingControl } from './GroupingControl';
 import { itemColumns } from './shopping-columns';
-import { ShoppingTable } from './ShoppingTable';
+import { ShoppingTable, type ShoppingToggle } from './ShoppingTable';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
@@ -56,6 +56,26 @@ function confirmDelete(product: ShoppingProduct, onConfirm: () => void): void {
     },
   });
 }
+
+/**
+ * « Manque » toggle of the references: a cart, orange when the product is missing (on the next list made).
+ * @param {(ids: string[], missing: boolean) => void} save Marks products missing or not.
+ * @returns {ShoppingToggle<ShoppingProduct>} Toggle.
+ */
+const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): ShoppingToggle<ShoppingProduct> => ({
+  id: 'missing',
+  name: 'Manque',
+  value: (product) => product.missing,
+  label: (product) => `${product.name} manque`,
+  hint: (product) => (product.missing ? 'Manque : sera sur la prochaine liste générée (cliquer : ne manque plus)' : 'Ne manque pas (cliquer : manque)'),
+  icon: <ShoppingCartSimpleIcon aria-hidden />,
+  color: 'orange',
+  onChange: (products, missing) =>
+    save(
+      products.map((product) => product.id),
+      missing,
+    ),
+});
 
 /**
  * A base list: its products as the tree of their categories (or by store), each marked missing or not and changed
@@ -151,7 +171,15 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       },
     ],
   );
-  const view = useDataView({ tableKey: 'shopping-base-list', getKey: (item) => item.id, columns, rows: products, title: baseList.name, first: BASE_LIST_VIEWS });
+  const view = useDataView({
+    tableKey: 'shopping-base-list',
+    getKey: (item) => item.id,
+    columns,
+    rows: products,
+    title: baseList.name,
+    first: BASE_LIST_VIEWS,
+    bulkColumns: [{ id: 'missing', label: 'Manque' }],
+  });
   const onError = (error: Error) => notifyError(error.message);
   // Stock settings of the references, changed in place (and in bulk).
   const stockBulk = bulkSaver<ShoppingProduct, Partial<ProductStockInput>>(view, (product, change) =>
@@ -214,15 +242,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           }}
           label={`Produits de ${baseList.name}`}
           onSave={(product, input) => mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, { onError })}
-          check={(product) => (
-            <Tooltip label="Manque : sera sur la prochaine liste générée">
-              <Checkbox
-                aria-label={`${product.name} manque`}
-                checked={product.missing}
-                onChange={(event) => mutations.setMissing.mutate({ ids: [product.id], missing: event.currentTarget.checked }, { onError })}
-              />
-            </Tooltip>
-          )}
+          toggle={MISSING_TOGGLE((ids, missing) => mutations.setMissing.mutate({ ids, missing }, { onError }))}
           summary={(items) => `${items.filter((product) => product.missing).length} manquant(s) sur ${items.length}`}
           extraCells={(product) => ({
             stockTracked: <EditableCheck value={product.stockTracked} label={`${product.name} suivie en stock`} onSave={(stockTracked) => stockBulk('stockTracked')(product, { stockTracked })} />,

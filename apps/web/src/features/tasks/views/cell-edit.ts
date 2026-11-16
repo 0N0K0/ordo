@@ -1,5 +1,6 @@
 import type { TaskColumn } from '@ordo/shared';
 import { createContext, useContext } from 'react';
+import type { EventOccurrence } from '../../calendar/api';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
 import { useBulkTaskMutations, useTasksData, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
 import { useBulkUndo } from './bulk-undo';
@@ -10,9 +11,17 @@ export interface CellSelection {
   rowIds: string[];
   /** Tasks of the selected rows (a task can appear on several rows when grouped by assignee). */
   taskIds: string[];
+  /** Events of the selected rows (event rows of the views), by occurrence key. Optional. */
+  eventKeys?: string[];
 }
 
 export const CellSelectionContext = createContext<CellSelection | null>(null);
+
+/** Events shown in the rows of the table (for a change applied to the selected ones). */
+export const EventRowsContext = createContext<EventOccurrence[]>([]);
+
+/** Columns of the event rows edited in bulk (several selected events at once). */
+export const EVENT_BULK_COLUMNS: readonly TaskColumn[] = ['assignees', 'beneficiaries', 'startDate', 'endDate'];
 
 /**
  * Saves a cell edit: on a cell of the column selection, the change applies to every selected task of the

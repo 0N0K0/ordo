@@ -3,7 +3,7 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Badge, Checkbox, Group, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Stack, Switch, Text, Title, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
   ArchiveIcon,
@@ -20,6 +20,7 @@ import {
   ShoppingCartIcon,
   TrashIcon,
   TruckIcon,
+  CheckIcon,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -164,6 +165,7 @@ export function ShoppingListPage() {
     rows: [...(list?.items ?? [])].sort((a, b) => a.position - b.position),
     title: list?.name ?? 'Liste d’achats',
     first: LIST_VIEWS,
+    bulkColumns: [{ id: 'bought', label: 'Acheté' }],
   });
 
   /**
@@ -352,17 +354,22 @@ export function ShoppingListPage() {
             ),
           })}
           done={(item) => Boolean(item.purchasedAt)}
-          check={(item) => (
-            <Checkbox
-              aria-label={`${item.name} acheté`}
-              checked={Boolean(item.purchasedAt)}
-              onChange={(event) => {
-                const purchased = event.currentTarget.checked;
-                // Bought: a reference followed in stock is proposed for the stock (unless it goes there by itself).
-                mutations.setPurchased.mutate({ id: item.id, purchased }, { onSuccess: () => purchased && propose([item]), onError });
-              }}
-            />
-          )}
+          toggle={{
+            id: 'bought',
+            name: 'Acheté',
+            value: (item) => Boolean(item.purchasedAt),
+            label: (item) => `${item.name} acheté`,
+            hint: (item) => (item.purchasedAt ? 'Acheté (cliquer : pas encore acheté)' : 'À acheter (cliquer : acheté)'),
+            icon: <CheckIcon aria-hidden />,
+            color: 'green',
+            // Bought: the references followed in stock are proposed for the stock (unless they go there by themselves).
+            onChange: (items, purchased) => {
+              const changed = items.filter((item) => Boolean(item.purchasedAt) !== purchased);
+              Promise.all(changed.map((item) => mutations.setPurchased.mutateAsync({ id: item.id, purchased })))
+                .then(() => purchased && changed.length > 0 && propose(changed))
+                .catch(onError);
+            },
+          }}
           badge={(item) =>
             !item.productId && (
               <Badge size="xs" variant="outline" color="gray" tt="none" style={{ flex: 'none' }}>

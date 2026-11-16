@@ -84,6 +84,7 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     id: 'state',
     label: 'État',
     size: 120,
+    bulk: true,
     hiddenByDefault: true,
     sortValue: (item) => (item.active ? 0 : 1),
     text: (item) => (item.active ? 'Active' : 'En pause'),

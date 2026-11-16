@@ -19,7 +19,7 @@ import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-ic
 import { useRef, useState, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
-import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, UnitCell } from './shopping-cells';
+import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, ToggleCell, UnitCell } from './shopping-cells';
 import * as fmt from '../../lib/format';
 import { applyDiff, bulkSaver, type BulkChange } from '../../components/data-table/bulk-edit';
 import { StackedValues } from '../../components/data-table/StackedValues';
@@ -51,6 +51,24 @@ const collision: CollisionDetection = (args) => {
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
+/** State of the rows a click switches (missing, bought): its own cell before the fields, edited in bulk too. */
+export interface ShoppingToggle<T> {
+  /** Id of its cell in the bulk selection. */
+  id: string;
+  /** Name of its cell (« Manque », « Acheté »). */
+  name: string;
+  value: (row: T) => boolean;
+  /** Accessible name of a row's toggle. */
+  label: (row: T) => string;
+  /** Tooltip of a row's toggle. */
+  hint: (row: T) => string;
+  icon: ReactNode;
+  /** Color when on. */
+  color: string;
+  /** Switches some rows (one, or those of the bulk selection) on or off. */
+  onChange: (rows: T[], on: boolean) => void;
+}
+
 export interface ShoppingTableProps<T extends ShoppingFields> {
   /** Every product or item, in their order (to move them). */
   items: T[];
@@ -63,8 +81,8 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   projectIds?: string[];
   /** Saves a row changed in place or moved to another category (or store). */
   onSave: (row: T, input: ShoppingItemInput) => void;
-  /** Checkbox of a row (missing, or bought). */
-  check: (row: T) => ReactNode;
+  /** State a click switches on a row (missing, or bought), before its fields; changed in bulk too. */
+  toggle: ShoppingToggle<T>;
   /** Badge after the name. */
   badge?: (row: T) => ReactNode;
   /** Column after the link (last purchase…). */
@@ -98,6 +116,8 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
   categories: ShoppingCategory[];
   /** Saving of a column (and of its bulk selection). */
   saveCell: (column: string) => (row: T, change: BulkChange<T, Partial<ShoppingItemInput>>) => void;
+  /** Saving of the toggle (and of its bulk selection). */
+  saveToggle: (row: T, on: boolean) => void;
   /** Props of a cell in the bulk selection. */
   cellProps: DataView<T>['cellProps'];
 }
@@ -107,7 +127,23 @@ interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps
  * @param {ItemRowProps<T>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readOnly = false, projectIds, saveCell, cellProps, check, badge, extra, extraCells, actions, done }: ItemRowProps<T>) {
+function ItemRow<T extends ShoppingFields>({
+  row,
+  shown,
+  over,
+  categories,
+  readOnly = false,
+  projectIds,
+  saveCell,
+  saveToggle,
+  cellProps,
+  toggle,
+  badge,
+  extra,
+  extraCells,
+  actions,
+  done,
+}: ItemRowProps<T>) {
   const { item, depth, groupId } = row;
   const { data } = useShoppingData();
   const {
@@ -214,8 +250,8 @@ function ItemRow<T extends ShoppingFields>({ row, shown, over, categories, readO
           </ActionIcon>
         )}
       </Table.Td>
-      <Table.Td w={36} px={4}>
-        {check(item)}
+      <Table.Td w={36} px={4} {...cellProps(toggle.id, item.id)}>
+        <ToggleCell on={toggle.value(item)} label={toggle.label(item)} hint={toggle.hint(item)} icon={toggle.icon} color={toggle.color} readOnly={readOnly} onSave={(on) => saveToggle(item, on)} />
       </Table.Td>
       {shown.map((column, index) => (
         <Table.Td
@@ -303,6 +339,13 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   const columns = shown.length + 3;
   // A change in a cell saves its row, or every row of the bulk selection of its column.
   const saveCell = bulkSaver<T, Partial<ShoppingItemInput>>(view, (row, patch) => Object.keys(patch).length > 0 && rowProps.onSave(row, { ...inputOf(row), ...patch }));
+  // The toggle of a row, or of every row of its bulk selection (all at once).
+  const saveToggle = (row: T, on: boolean) =>
+    bulkSaver<T, boolean>(
+      view,
+      (target, value) => rowProps.toggle.onChange([target], value),
+      (targets, change) => rowProps.toggle.onChange(targets, change(targets[0])),
+    )(rowProps.toggle.id)(row, on);
 
   /**
    * Folds or unfolds a group.
@@ -380,6 +423,7 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
             categories={labels.categories}
             saveCell={saveCell}
             cellProps={view.cellProps}
+            saveToggle={saveToggle}
             {...rowProps}
           />,
         );
