@@ -19,6 +19,8 @@ export interface RowSelection {
   isChecked: (key: string) => boolean;
   /** Checks or unchecks rows. */
   check: (keys: readonly string[], on: boolean) => void;
+  /** Checks exactly these rows (none: unchecks all). */
+  setChecked: (keys: readonly string[]) => void;
   /** Keys of the rows shown. */
   keys: readonly string[];
 }
@@ -136,7 +138,7 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
     selection: bulk.selection,
     setSelection: bulk.setSelection,
     cellProps: bulk.cellProps,
-    rowSelection: getKey && (bulkColumns.length > 0 || columns.some((column) => column.bulk)) ? { isChecked: bulk.isChecked, check: bulk.check, keys: bulk.keys } : null,
+    rowSelection: getKey && (bulkColumns.length > 0 || columns.some((column) => column.bulk)) ? { isChecked: bulk.isChecked, check: bulk.check, setChecked: bulk.setChecked, keys: bulk.keys } : null,
     bulkLabel: (id) => bulkColumns.find((column) => column.id === id)?.label ?? columns.find((column) => column.id === id)?.label ?? '',
     columnExtras: (id) => {
       const column = columns.find((item) => item.id === id);

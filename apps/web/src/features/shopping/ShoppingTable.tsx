@@ -29,6 +29,8 @@ import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { tableWidth, type ShownColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
 import { AllRowsCheck, ROW_CHECK_WIDTH, RowCheck } from '../../components/data-table/RowCheck';
+import { SelectionBar, type SelectionAction } from '../../components/data-table/SelectionBar';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import type { DataView } from '../../components/data-table/use-data-view';
 import { NoMatch } from '../../components/data-table/GroupHeaderRow';
@@ -104,6 +106,10 @@ export interface ShoppingTableProps<T extends ShoppingFields> {
   showEmpty?: boolean;
   /** Saved views of the table: the rows it keeps, sorted, its columns (as on every table). */
   view: DataView<T>;
+  /** Actions on the rows checked that the columns cannot do, in a bar under the table. Optional. */
+  selectionActions?: (rows: T[], clear: () => void) => SelectionAction[];
+  /** Rows checked, told. Optional. */
+  selectionLabel?: (count: number) => string;
 }
 
 interface ItemRowProps<T extends ShoppingFields> extends Omit<ShoppingTableProps<T>, 'items' | 'grouping' | 'label' | 'summary' | 'categories' | 'add' | 'showEmpty' | 'view'> {
@@ -324,7 +330,19 @@ function GroupRow<T>({ row, columns, over, collapsed, onToggle, summary }: Group
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
-export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label, summary, categories, add, showEmpty = false, view, ...rowProps }: ShoppingTableProps<T>) {
+export function ShoppingTable<T extends ShoppingFields>({
+  items,
+  grouping,
+  label,
+  summary,
+  categories,
+  add,
+  showEmpty = false,
+  view,
+  selectionActions,
+  selectionLabel,
+  ...rowProps
+}: ShoppingTableProps<T>) {
   const { layout, setLayout, sorting, setSorting } = view;
   const tableRef = useRef<HTMLTableElement>(null);
   const { columns: allColumns, shown } = view;
@@ -345,6 +363,13 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
   const rows = visibleRows(shoppingRows(view.rows, grouping, labels, showEmpty || active !== null), collapsed);
   const columns = shown.length + 4;
   // A change in a cell saves its row, or every row of the bulk selection of its column.
+  // Rows checked, for the actions of the bar.
+  const checked = view.rowSelection ? view.rows.filter((row) => view.rowSelection?.isChecked(row.id)) : [];
+  /**
+   * Unchecks every row.
+   * @returns {void}
+   */
+  const clearChecks = () => view.rowSelection?.setChecked([]);
   const saveCell = bulkSaver<T, Partial<ShoppingItemInput>>(view, (row, patch) => Object.keys(patch).length > 0 && rowProps.onSave(row, { ...inputOf(row), ...patch }));
   // The toggle of a row, or of every row of its bulk selection (all at once).
   const saveToggle = (row: T, on: boolean) =>
@@ -511,6 +536,9 @@ export function ShoppingTable<T extends ShoppingFields>({ items, grouping, label
           </Table>
         </div>
       </Paper>
+      {selectionActions && checked.length > 0 && (
+        <SelectionBar label={(selectionLabel ?? ((count) => selectedLabel(count)))(checked.length)} actions={selectionActions(checked, clearChecks)} onClear={clearChecks} />
+      )}
       <DragOverlay dropAnimation={null}>
         {active && (
           <Paper shadow="md" radius="sm" px="sm" py={4} withBorder className={classes.overlay}>

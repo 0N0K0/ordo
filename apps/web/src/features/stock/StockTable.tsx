@@ -28,6 +28,8 @@ import { MovementsTable } from './MovementsTable';
 import { StockCountForm } from './StockCountForm';
 import { StockItemForm } from './StockItemForm';
 import { StockMoveForm } from './StockMoveForm';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { locationOptions, locationPaths, nextExpiry, stockItemInput } from './stock-format';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
@@ -194,6 +196,16 @@ export function StockTable() {
     <DataTable
       framed
       view={view}
+      selectionLabel={(count) => selectedLabel(count, ['article', 'articles'], false)}
+      selectionActions={(rows, clear) => [
+        deleteRowsAction(rows, {
+          title: 'Supprimer les articles',
+          risks: `${rows.length} article(s) seront supprimés du stock avec leurs lots et leur historique. Cette action est irréversible.`,
+          remove: (item) => mutations.deleteItem.mutateAsync(item.id),
+          done: `${rows.length} article(s) supprimé(s).`,
+          clear,
+        }),
+      ]}
       verticalSpacing="xs"
       bar={{
         searchLabel: 'Rechercher (article, description)',

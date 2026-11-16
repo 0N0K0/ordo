@@ -54,6 +54,8 @@ import { useProductStock, useStockMutations } from '../stock/api';
 import { bulkSaver } from '../../components/data-table/bulk-edit';
 import { EditableSelect } from '../../components/data-table/EditableCells';
 import * as fmt from '../../lib/format';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { Comments } from '../comments/Comments';
 
 type ShoppingItem = ShoppingList['items'][number];
@@ -322,6 +324,21 @@ export function ShoppingListPage() {
         <ShoppingTable
           view={view}
           projectIds={listProjects}
+          selectionLabel={(count) => selectedLabel(count, ['élément', 'éléments'], false)}
+          selectionActions={(rows, clear) => [
+            { label: 'Ajouter au stock…', icon: <ArchiveIcon aria-hidden />, onClick: () => openFormPanel('Ajouter au stock', (close) => <StockPurchaseForm items={rows} onDone={close} />) },
+            {
+              ...deleteRowsAction(rows, {
+                label: 'Retirer de la liste',
+                title: 'Retirer les éléments',
+                risks: `${rows.length} élément(s) seront retirés de la liste ; ceux qui ne sont dans aucune référence seront supprimés définitivement.`,
+                remove: (item) => mutations.deleteItem.mutateAsync({ id: item.id }),
+                done: `${rows.length} élément(s) retiré(s).`,
+                clear,
+              }),
+              disabled: closed,
+            },
+          ]}
           items={[...list.items].sort((a, b) => a.position - b.position)}
           grouping={grouping}
           label={`Éléments de ${list.name}`}

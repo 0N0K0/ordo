@@ -45,6 +45,8 @@ import { PageTabs } from '../../components/PageTabs';
 import { PageSettings } from '../../layouts/PageSettings';
 import { SETTINGS_PARAM } from '../../layouts/page-settings';
 import { useEffect } from 'react';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import * as fmt from '../../lib/format';
 
 /** Tabs of the settings sidebar. */
@@ -155,6 +157,16 @@ function RecurringList() {
     <DataTable
       framed
       view={view}
+      selectionLabel={(count) => selectedLabel(count, ['facture récurrente', 'factures récurrentes'])}
+      selectionActions={(rows, clear) => [
+        deleteRowsAction(rows, {
+          title: 'Supprimer les factures récurrentes',
+          risks: `${rows.length} facture(s) récurrente(s) et leur modèle seront supprimés définitivement ; les factures déjà émises sont conservées.`,
+          remove: (item) => remove.mutateAsync(item.id),
+          done: `${rows.length} facture(s) récurrente(s) supprimée(s).`,
+          clear,
+        }),
+      ]}
       verticalSpacing="xs"
       empty={<EmptyState compact message="Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente »." />}
       getKey={(item) => item.id}

@@ -5,7 +5,7 @@ import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { ActionIcon, Badge, Group, Paper, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { SHOPPING_LIST_FILTER_FIELDS, SHOPPING_LIST_GROUP_BY, SHOPPING_LIST_SORT_KEYS, type ShoppingListFilterField, type ShoppingListGroupBy } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
-import { ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowSquareInIcon, BasketIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
@@ -38,6 +38,9 @@ import { listClosed, listsOfProjects, listTasks, taskOptions, type ShoppingGroup
 import classes from './Shopping.module.css';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
+import { SelectionBar } from '../../components/data-table/SelectionBar';
+import { deleteRowsAction, duplicateRowsAction, forEachRow } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
 
 /** Width of the actions column. */
@@ -80,7 +83,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   );
   const { data: shopping } = useShoppingData();
   const { context } = useTaskContext();
-  const { updateList } = useShoppingMutations();
+  const { updateList, duplicateList, setClosed, deleteList } = useShoppingMutations();
   const [grouping] = useLocalStorage<ShoppingGrouping>({ key: 'ordo.shopping.listGrouping', defaultValue: 'category' });
   const view = useShoppingListView(projectId ?? null);
   const { config } = view;
@@ -119,8 +122,10 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       updateList.mutate({ id: row.list.id, name: change.name ?? row.list.name, taskIds: change.taskIds ?? row.list.taskIds }, { onError: (error) => notifyError(error.message) });
     }
   };
-  // Lists checked: every field of each edited at once.
-  const rowSelection = { isChecked: bulkSelection.isChecked, check: bulkSelection.check, keys: bulkSelection.keys };
+  // Lists checked: every field of each edited at once, and the actions of the bar.
+  const rowSelection = { isChecked: bulkSelection.isChecked, check: bulkSelection.check, setChecked: bulkSelection.setChecked, keys: bulkSelection.keys };
+  const checkedLists = listRowsShown.flatMap((row) => (rowSelection.isChecked(row.key) ? [row.list] : []));
+  const allClosed = checkedLists.length > 0 && checkedLists.every((list) => list.closedAt);
   const bulk = bulkSaver<Extract<ListRow, { kind: 'list' }>, { name?: string; taskIds?: string[] }>(
     { selection: bulkSelection.selection, keyOf: (row) => row.key, rows: listRowsShown },
     (row, change) => saveLists([row], () => change),
@@ -367,6 +372,36 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
             </Table>
           </div>
         </Paper>
+      )}
+      {checkedLists.length > 0 && (
+        <SelectionBar
+          label={selectedLabel(checkedLists.length, ['liste', 'listes'])}
+          onClear={() => rowSelection.setChecked([])}
+          actions={[
+            duplicateRowsAction(checkedLists, { duplicate: (list) => duplicateList.mutateAsync({ id: list.id }), done: `${checkedLists.length} liste(s) dupliquée(s).` }),
+            allClosed
+              ? {
+                  label: 'Rouvrir',
+                  icon: <ArrowCounterClockwiseIcon aria-hidden />,
+                  onClick: () => void forEachRow(checkedLists, (list) => setClosed.mutateAsync({ id: list.id, closed: false }), `${checkedLists.length} liste(s) rouverte(s).`),
+                }
+              : {
+                  label: 'Archiver',
+                  icon: <ArchiveIcon aria-hidden />,
+                  onClick: () =>
+                    void forEachRow(checkedLists, (list) => setClosed.mutateAsync({ id: list.id, closed: true }), `${checkedLists.length} liste(s) archivée(s).`).then(
+                      (all) => all && rowSelection.setChecked([]),
+                    ),
+                },
+            deleteRowsAction(checkedLists, {
+              title: 'Supprimer les listes',
+              risks: `${checkedLists.length} liste(s) et leurs éléments seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas. Cette action est irréversible.`,
+              remove: (list) => deleteList.mutateAsync({ id: list.id }),
+              done: `${checkedLists.length} liste(s) supprimée(s).`,
+              clear: () => rowSelection.setChecked([]),
+            }),
+          ]}
+        />
       )}
     </Stack>
   );

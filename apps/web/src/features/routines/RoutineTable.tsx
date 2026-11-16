@@ -940,7 +940,7 @@ export function RoutineTable({
           </RoutineCellSelectionContext.Provider>
         </Table>
       </div>
-      {selectedRoutines.length > 0 && <RoutineBulkBar routines={selectedRoutines} all={routines} categories={categories} context={context} onClear={() => setSelected(new Set())} />}
+      {selectedRoutines.length > 0 && <RoutineBulkBar routines={selectedRoutines} onClear={() => setSelected(new Set())} />}
       <DragOverlay dropAnimation={null}>
         {dragged && (
           <Paper shadow="md" radius="sm" px="sm" py={4} withBorder className={classes.overlay}>

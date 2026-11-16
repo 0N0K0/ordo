@@ -12,6 +12,8 @@ import { DRAG_HANDLE_WIDTH, SortableRow } from './SortableRow';
 import { GroupFooter, TableFooter } from './TableFooter';
 import classes from './DataTable.module.css';
 import { AllRowsCheck, ROW_CHECK_WIDTH, RowCheck } from './RowCheck';
+import { SelectionBar, type SelectionAction } from './SelectionBar';
+import { selectedLabel } from './selection-label';
 import type { DataView } from './use-data-view';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
@@ -45,6 +47,10 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   empty?: ReactNode;
   /** Content unfolded under a row, across the table (its details); nothing for none. Optional. */
   details?: (row: R) => ReactNode;
+  /** Actions on the rows checked that the columns cannot do (archive, delete…), in a bar under the table. Optional. */
+  selectionActions?: (rows: R[], clear: () => void) => SelectionAction[];
+  /** Rows checked, told ("3 fiches sélectionnées"). Optional. Default = lignes. */
+  selectionLabel?: (count: number) => string;
 }
 
 /**
@@ -67,6 +73,8 @@ export function DataTable<R>({
   framed = false,
   empty,
   details,
+  selectionActions,
+  selectionLabel = (count) => selectedLabel(count),
   className,
   style,
   ...tableProps
@@ -247,10 +255,18 @@ export function DataTable<R>({
     );
   };
 
+  // Rows checked, for the actions of the bar.
+  const checked = checks ? view.rows.filter((row) => checks.isChecked(getKey(row))) : [];
+  /**
+   * Unchecks every row.
+   * @returns {void}
+   */
+  const clear = () => checks?.check(checks.keys, false);
   return (
     <Stack gap="sm">
       <DataViewBar view={view} {...bar} />
       {content()}
+      {selectionActions && checked.length > 0 && <SelectionBar label={selectionLabel(checked.length)} actions={selectionActions(checked, clear)} onClear={clear} />}
     </Stack>
   );
 }

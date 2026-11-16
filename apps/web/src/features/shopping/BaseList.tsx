@@ -26,6 +26,8 @@ import { EditableCheck, EditableSelect } from '../../components/data-table/Edita
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import type { ProductStockInput } from '@ordo/shared';
 import { useStockLocations, useStockMutations } from '../stock/api';
+import { deleteRowsAction } from '../../components/data-table/selection-actions';
+import { selectedLabel } from '../../components/data-table/selection-label';
 import { locationOptions, locationPaths } from '../stock/stock-format';
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
@@ -232,6 +234,26 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         <ShoppingTable
           view={view}
           items={products}
+          selectionLabel={(count) => selectedLabel(count, ['produit', 'produits'], false)}
+          selectionActions={(rows, clear) => [
+            {
+              label: 'Déplacer vers une autre référence…',
+              icon: <ArrowsLeftRightIcon aria-hidden />,
+              onClick: () =>
+                openMoveProducts(
+                  baseList,
+                  rows.map((product) => product.id),
+                ),
+            },
+            deleteRowsAction(rows, {
+              label: 'Retirer',
+              title: 'Retirer les produits',
+              risks: `${rows.length} produit(s) seront retirés de « ${baseList.name} » ; les listes déjà faites les gardent.`,
+              remove: (product) => mutations.deleteProduct.mutateAsync({ id: product.id }),
+              done: `${rows.length} produit(s) retiré(s).`,
+              clear,
+            }),
+          ]}
           grouping={grouping}
           showEmpty={showEmpty}
           categories={categories}

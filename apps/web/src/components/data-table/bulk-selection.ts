@@ -30,6 +30,8 @@ export interface BulkSelectionState {
   isChecked: (key: string) => boolean;
   /** Checks or unchecks rows (a selection of one column gives way). */
   check: (keys: readonly string[], on: boolean) => void;
+  /** Checks exactly these rows (none: unchecks all). */
+  setChecked: (keys: readonly string[]) => void;
   /** Keys of the rows shown (those the check box of the header checks). */
   keys: readonly string[];
 }
@@ -73,6 +75,7 @@ export function useBulkSelection({ keys, isBulk }: { keys: readonly string[]; is
       const next = on ? [...new Set([...current, ...changed])] : current.filter((key) => !changed.includes(key));
       setSelection(next.length ? { column: ALL_COLUMNS, keys: keys.filter((key) => next.includes(key)) } : null);
     },
+    setChecked: (next) => setSelection(next.length ? { column: ALL_COLUMNS, keys: keys.filter((key) => next.includes(key)) } : null),
     keys,
     cellProps: (column, key) => {
       const rows = selection?.column === ALL_COLUMNS;

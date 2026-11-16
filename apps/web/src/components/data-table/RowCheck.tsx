@@ -14,6 +14,8 @@ export function RowCheck({ selection, rowKey, label }: { selection: RowSelection
       className={classes.rowCheck}
       aria-label={`Sélectionner ${label}`}
       checked={selection.isChecked(rowKey)}
+      // A click checks the row, it does not open it.
+      onClick={(event) => event.stopPropagation()}
       onChange={(event) => selection.check([rowKey], event.currentTarget.checked)}
     />
   );
