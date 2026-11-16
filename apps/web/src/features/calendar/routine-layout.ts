@@ -18,6 +18,8 @@ export interface RoutineBlock {
   /** Minutes to go there and to come back. */
   travelBefore: number;
   travelAfter: number;
+  /** Its window comes from calendar schedules: its travel stays within it too (it leaves at its start, is back by its end). */
+  travelWithin: boolean;
 }
 
 /** Place of a block: when it is done, and its travel there and back (HH:MM). */
@@ -77,7 +79,8 @@ function inOrder(blocks: readonly RoutineBlock[]): RoutineBlock[] {
 
 /**
  * Places of the timed routine occurrences in the calendar, day by day: each as long as the time it takes, within its
- * window, its travel there and back around it. Each person does one thing at a time (their routines, ways included,
+ * window, its travel there and back around it (within the window too when it comes from calendar schedules: one picking
+ * up the children on a slot from 16:30 leaves at 16:30). Each person does one thing at a time (their routines, ways included,
  * follow one another); a routine starts once those it waits for are done; they come in the order of their
  * dependencies, then the manual order. Placed as early as its window allows (from its start), or as late as it allows
  * when it only has a latest time; one that cannot fit keeps the start of its window (or ends at its latest time).
@@ -121,8 +124,9 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
     const order = inOrder(dayBlocks);
     // From the start of their window, in order.
     for (const block of order.filter((item) => item.fromTime)) {
-      const from = toMinutes(block.fromTime!);
-      const due = block.dueTime ? toMinutes(block.dueTime) : 1440;
+      // Within schedules, the way there starts with the window and the way back ends with it.
+      const from = toMinutes(block.fromTime!) + (block.travelWithin ? block.travelBefore : 0);
+      const due = (block.dueTime ? toMinutes(block.dueTime) : 1440) - (block.travelWithin ? block.travelAfter : 0);
       const length = Math.max(5, Math.min(block.minutes, due - from));
       // Once those it waits for (placed that day) are done.
       let start = Math.max(from, ...block.requiredIds.map((id) => placed.get(id)?.end ?? 0));
@@ -135,7 +139,7 @@ export function placeRoutineBlocks(blocks: readonly RoutineBlock[]): Map<string,
     }
     // Up to their latest time, the last ones first.
     for (const block of [...order].reverse().filter((item) => !item.fromTime)) {
-      const due = toMinutes(block.dueTime!);
+      const due = toMinutes(block.dueTime!) - (block.travelWithin ? block.travelAfter : 0);
       const length = Math.max(5, Math.min(block.minutes, due));
       // Before those waiting for it (placed that day) start.
       const waiting = dayBlocks.filter((other) => other.requiredIds.includes(block.routineId)).map((other) => placed.get(other.routineId)?.start ?? 1440);

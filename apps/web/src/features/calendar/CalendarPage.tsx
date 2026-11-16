@@ -565,6 +565,8 @@ export function CalendarPage() {
                   position: order.get(routine.id) ?? routine.position,
                   requiredIds: routine.requiredIds,
                   travelBefore: routine.travelBefore,
+                  // On or out of calendar schedules: its travel stays within the hours they allow.
+                  travelWithin: Boolean(routine.slotCondition) || ((routine.cases as { condition?: unknown }[] | null) ?? []).some((item) => Boolean(item.condition)),
                   travelAfter: routine.travelAfter,
                 }
               : null,
