@@ -1,12 +1,14 @@
 import { ActionIcon, Button, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import type { GeoPoint } from '@ordo/shared';
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
 import { PlaceMap } from './PlaceMap';
+import { useFillHeight } from '../tasks/column-fit';
+import classes from './PlacesManager.module.css';
 
 const EMPTY: AddressValue = { text: '', point: null };
 
@@ -45,6 +47,8 @@ export function PlacesManager() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState<AddressValue>(EMPTY);
   const [deleting, setDeleting] = useState<Place | null>(null);
+  // As tall as the window leaves, no more.
+  const [fillRef, fillHeight] = useFillHeight(400);
   const onError = (error: Error) => notifyError(error.message);
 
   /**
@@ -70,76 +74,95 @@ export function PlacesManager() {
   ];
 
   return (
-    <Paper withBorder radius="md" p="md">
-      <Stack gap="xs">
-        <Text fw={600}>Lieux</Text>
-        <Text size="xs" c="dimmed">
-          Vos adresses habituelles (maison, bureau…) : proposées pour le lieu des évènements et pour calculer les temps de trajet. Cliquez sur la carte pour placer un nouveau lieu.
-        </Text>
-        <PlaceMap points={points} onPick={(point) => void pick(point)} />
-        {(places ?? []).map((place) =>
-          deleting?.id === place.id ? (
-            <Paper key={place.id} withBorder p="xs" radius="sm">
-              <Stack gap="xs">
-                <Text size="sm">Supprimer le lieu « {place.name} » ? Les évènements gardent leur adresse ; il ne sera plus proposé.</Text>
-                <DestructiveActions
-                  loading={remove.isPending}
-                  onCancel={() => setDeleting(null)}
-                  onConfirm={() => remove.mutate(place.id, { onSuccess: () => (notifySuccess('Lieu supprimé.'), setDeleting(null)), onError })}
-                />
-              </Stack>
-            </Paper>
-          ) : (
-            <Group key={place.id} gap="xs" wrap="nowrap" align="flex-start">
-              <TextInput
-                size="xs"
-                w={160}
-                aria-label="Nom du lieu"
-                defaultValue={place.name}
-                onBlur={(event) =>
-                  event.currentTarget.value.trim() &&
-                  event.currentTarget.value !== place.name &&
-                  save.mutate({ id: place.id, input: { name: event.currentTarget.value, address: place.address, lat: place.lat, lon: place.lon } }, { onError })
-                }
-              />
-              <PlaceAddress
-                key={`${place.lat},${place.lon},${place.address}`}
-                place={place}
-                onSave={(value) => save.mutate({ id: place.id, input: { name: place.name, address: value.text, ...value.point } }, { onError })}
-              />
-              <Tooltip label="Supprimer">
-                <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${place.name}`} onClick={() => setDeleting(place)}>
-                  <TrashIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          ),
-        )}
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!name.trim() || !address.point) return;
-            save.mutate(
-              { id: null, input: { name: name.trim(), address: address.text, ...address.point } },
-              {
-                onSuccess: () => {
-                  setName('');
-                  setAddress(EMPTY);
+    <Paper ref={fillRef} withBorder radius="md" p="md" className={classes.root} style={{ '--fill-height': fillHeight ? `${fillHeight}px` : undefined } as CSSProperties}>
+      <Text fw={600}>Lieux</Text>
+      <Text size="xs" c="dimmed">
+        Vos adresses habituelles (maison, bureau…) : proposées pour le lieu des évènements et pour calculer les temps de trajet. Cliquez sur la carte pour placer un nouveau lieu.
+      </Text>
+      <div className={classes.body}>
+        <div className={classes.map}>
+          <PlaceMap points={points} onPick={(point) => void pick(point)} height="100%" />
+        </div>
+        <div className={classes.side}>
+          <div className={classes.list}>
+            {(places ?? []).map((place) =>
+              deleting?.id === place.id ? (
+                <Paper key={place.id} withBorder p="xs" radius="sm">
+                  <Stack gap="xs">
+                    <Text size="sm">Supprimer le lieu « {place.name} » ? Les évènements gardent leur adresse ; il ne sera plus proposé.</Text>
+                    <DestructiveActions
+                      loading={remove.isPending}
+                      onCancel={() => setDeleting(null)}
+                      onConfirm={() => remove.mutate(place.id, { onSuccess: () => (notifySuccess('Lieu supprimé.'), setDeleting(null)), onError })}
+                    />
+                  </Stack>
+                </Paper>
+              ) : (
+                <Group key={place.id} gap="xs" wrap="nowrap" align="flex-start">
+                  <TextInput
+                    size="xs"
+                    w={160}
+                    aria-label="Nom du lieu"
+                    defaultValue={place.name}
+                    onBlur={(event) =>
+                      event.currentTarget.value.trim() &&
+                      event.currentTarget.value !== place.name &&
+                      save.mutate({ id: place.id, input: { name: event.currentTarget.value, address: place.address, lat: place.lat, lon: place.lon } }, { onError })
+                    }
+                  />
+                  <PlaceAddress
+                    key={`${place.lat},${place.lon},${place.address}`}
+                    place={place}
+                    onSave={(value) => save.mutate({ id: place.id, input: { name: place.name, address: value.text, ...value.point } }, { onError })}
+                  />
+                  <Tooltip label="Supprimer">
+                    <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${place.name}`} onClick={() => setDeleting(place)}>
+                      <TrashIcon aria-hidden />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              ),
+            )}
+            {!(places ?? []).length && (
+              <Text size="sm" c="dimmed">
+                Aucun lieu enregistré : ajoutez-en un ci-dessous, ou d’un clic sur la carte.
+              </Text>
+            )}
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!name.trim() || !address.point) return;
+              save.mutate(
+                { id: null, input: { name: name.trim(), address: address.text, ...address.point } },
+                {
+                  onSuccess: () => {
+                    setName('');
+                    setAddress(EMPTY);
+                  },
+                  onError,
                 },
-                onError,
-              },
-            );
-          }}
-        >
-          <Group gap="xs" wrap="nowrap" align="flex-start">
-            <TextInput size="xs" w={160} aria-label="Nom du nouveau lieu" placeholder="Maison, bureau…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-            <AddressInput size="xs" style={{ flex: 1 }} aria-label="Adresse du nouveau lieu" placeholder="Adresse, ou un clic sur la carte" withPlaces={false} value={address} onChange={setAddress} />
-            <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim() || !address.point} loading={save.isPending}>
-              Ajouter
-            </Button>
-          </Group>
-        </form>
-      </Stack>
+              );
+            }}
+          >
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+              <TextInput size="xs" w={160} aria-label="Nom du nouveau lieu" placeholder="Maison, bureau…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
+              <AddressInput
+                size="xs"
+                style={{ flex: 1 }}
+                aria-label="Adresse du nouveau lieu"
+                placeholder="Adresse, ou un clic sur la carte"
+                withPlaces={false}
+                value={address}
+                onChange={setAddress}
+              />
+              <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim() || !address.point} loading={save.isPending}>
+                Ajouter
+              </Button>
+            </Group>
+          </form>
+        </div>
+      </div>
     </Paper>
   );
 }
