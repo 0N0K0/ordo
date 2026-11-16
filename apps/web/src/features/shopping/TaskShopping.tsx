@@ -8,6 +8,7 @@ import type { Task } from '../tasks/api';
 import { useShoppingLists, useShoppingMutations } from './api';
 import { shoppingTotal } from './export';
 import { openNewList } from './open-new-list';
+import { shoppingProgress } from './shopping-format';
 import * as fmt from '../../lib/format';
 
 /**
@@ -38,15 +39,16 @@ export function TaskShopping({ task }: { task: Task }) {
         <EmptyState compact message="Aucune liste d’achats." />
       ) : (
         own.map((list) => {
-          const bought = list.items.filter((item) => item.purchasedAt).length;
+          // Its required items (the optional ones apart).
+          const { bought, total: required } = shoppingProgress(list.items);
           const total = shoppingTotal(list.items);
           return (
             <Group key={list.id} gap="xs" wrap="nowrap">
               <Anchor component={Link} to={`/shopping/${list.id}`} size="sm" truncate style={{ flex: 1 }}>
                 {list.name}
               </Anchor>
-              <Badge size="sm" variant="light" color={list.items.length && bought === list.items.length ? 'green' : 'gray'}>
-                {bought} / {list.items.length}
+              <Badge size="sm" variant="light" color={required && bought === required ? 'green' : 'gray'}>
+                {bought} / {required}
               </Badge>
               {total > 0 && (
                 <Text size="xs" c="dimmed" ff="monospace">

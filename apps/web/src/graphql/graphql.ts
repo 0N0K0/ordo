@@ -727,10 +727,17 @@ export type SheetItemInput = {
   consumable?: boolean | null | undefined;
   id?: string | number | null | undefined;
   label: string;
+  memberIds?: Array<string | number> | null | undefined;
   note?: string | null | undefined;
+  optional?: boolean | null | undefined;
+  perishable?: boolean | null | undefined;
   productId?: string | number | null | undefined;
   quantity?: number | null | undefined;
+  relationIds?: Array<string | number> | null | undefined;
+  storageId?: string | number | null | undefined;
+  storeId?: string | number | null | undefined;
   unit?: string | null | undefined;
+  url?: string | null | undefined;
 };
 
 export type SheetLinkInput = {
@@ -763,6 +770,8 @@ export type ShoppingItemInput = {
   memberIds: Array<string | number>;
   name: string;
   note?: string | null | undefined;
+  /** Not needed: bought if possible. */
+  optional?: boolean | null | undefined;
   perishable?: boolean | null | undefined;
   quantity?: number | null | undefined;
   relationIds: Array<string | number>;
@@ -2914,14 +2923,14 @@ export type SheetsQueryVariables = Exact<{
 }>;
 
 
-export type SheetsQuery = { sheets: Array<{ id: string, name: string, note: string | null, projectId: string | null, categoryIds: Array<string>, position: number, createdAt: string, updatedAt: string, usedBy: number, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, consumable: boolean, position: number }> }> };
+export type SheetsQuery = { sheets: Array<{ id: string, name: string, note: string | null, projectId: string | null, categoryIds: Array<string>, position: number, createdAt: string, updatedAt: string, usedBy: number, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, consumable: boolean, storeId: string | null, url: string | null, perishable: boolean, storageId: string | null, memberIds: Array<string>, relationIds: Array<string>, optional: boolean, position: number }> }> };
 
 export type SheetQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type SheetQuery = { sheet: { id: string, name: string, note: string | null, projectId: string | null, categoryIds: Array<string>, usedBy: number, updatedAt: string, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, consumable: boolean, position: number }> } | null };
+export type SheetQuery = { sheet: { id: string, name: string, note: string | null, projectId: string | null, categoryIds: Array<string>, usedBy: number, updatedAt: string, items: Array<{ id: string, productId: string | null, label: string, categoryId: string | null, quantity: number | null, unit: string | null, note: string | null, consumable: boolean, storeId: string | null, url: string | null, perishable: boolean, storageId: string | null, memberIds: Array<string>, relationIds: Array<string>, optional: boolean, position: number }> } | null };
 
 export type SheetCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -3129,7 +3138,7 @@ export type ShoppingListsQueryVariables = Exact<{
 }>;
 
 
-export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskIds: Array<string>, entryId: string | null, closed: boolean, closedAt: string | null, remote: boolean, deliveryAddress: string | null, deliveryLat: number | null, deliveryLon: number | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, deliveries: Array<{ id: string, label: string | null, trackingUrl: string | null, pickup: boolean, windowFrom: string | null, windowTo: string | null, address: string | null, lat: number | null, lon: number | null, receivedAt: string | null, position: number }>, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, deliveryId: string | null, position: number, memberIds: Array<string>, relationIds: Array<string>, sheetSources: Array<{ sheetId: string, name: string, quantity: number | null }> }> }> };
+export type ShoppingListsQuery = { shoppingLists: Array<{ id: string, name: string, taskIds: Array<string>, entryId: string | null, closed: boolean, closedAt: string | null, remote: boolean, deliveryAddress: string | null, deliveryLat: number | null, deliveryLon: number | null, createdAt: string, entry: { id: string, date: string, label: string, amount: number } | null, deliveries: Array<{ id: string, label: string | null, trackingUrl: string | null, pickup: boolean, windowFrom: string | null, windowTo: string | null, address: string | null, lat: number | null, lon: number | null, receivedAt: string | null, position: number }>, items: Array<{ id: string, listId: string, productId: string | null, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, purchasedAt: string | null, optional: boolean, deliveryId: string | null, position: number, memberIds: Array<string>, relationIds: Array<string>, sheetSources: Array<{ sheetId: string, name: string, quantity: number | null }> }> }> };
 
 export type CreateShoppingCategoryMutationVariables = Exact<{
   input: ShoppingCategoryInput;
@@ -7588,6 +7597,13 @@ export const SheetsDocument = new TypedDocumentString(`
       unit
       note
       consumable
+      storeId
+      url
+      perishable
+      storageId
+      memberIds
+      relationIds
+      optional
       position
     }
   }
@@ -7612,6 +7628,13 @@ export const SheetDocument = new TypedDocumentString(`
       unit
       note
       consumable
+      storeId
+      url
+      perishable
+      storageId
+      memberIds
+      relationIds
+      optional
       position
     }
   }
@@ -7899,6 +7922,7 @@ export const ShoppingListsDocument = new TypedDocumentString(`
       storageId
       expiresAt
       purchasedAt
+      optional
       deliveryId
       sheetSources {
         sheetId

@@ -424,6 +424,7 @@ model Contributor {
   /// Shopping products and items it is for (member of the team or household).
   shoppingProducts  ShoppingProduct[]   @relation("ShoppingProductMembers")
   shoppingItems     ShoppingItem[]      @relation("ShoppingItemMembers")
+  sheetItems        SheetItem[]         @relation("SheetItemMembers")
   stockItems        StockItem[]         @relation("StockItemMembers")
   /// Routines it is assigned to.
   routines          Routine[]           @relation("RoutineAssignees")
@@ -2044,6 +2045,7 @@ model TreasuryRelation {
   /// Shopping products and items it is for.
   shoppingProducts ShoppingProduct[]   @relation("ShoppingProductRelations")
   shoppingItems    ShoppingItem[]      @relation("ShoppingItemRelations")
+  sheetItems       SheetItem[]         @relation("SheetItemRelations")
   stockItems       StockItem[]         @relation("StockItemRelations")
   /// Comments (markdown).
   comments    Comment[]
@@ -2307,6 +2309,7 @@ model ShoppingStore {
   createdAt   DateTime          @default(now())
   products    ShoppingProduct[]
   items       ShoppingItem[]
+  sheetItems  SheetItem[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2324,6 +2327,7 @@ model ShoppingStorage {
   createdAt   DateTime          @default(now())
   products    ShoppingProduct[]
   items       ShoppingItem[]
+  sheetItems  SheetItem[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String            @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2480,6 +2484,8 @@ model ShoppingItem {
   expiresAt      DateTime?          @db.Date
   /// Ticked as bought.
   purchasedAt    DateTime?
+  /// Not needed: bought if possible (the list is done without it).
+  optional       Boolean            @default(false)
   /// Sheets it comes from, with their share of its quantity: [{ sheetId, name, quantity }] (none: added by hand).
   sheetSources   Json               @default("[]")
   /// Delivery of a remote order it comes with (none: not ordered, or not assigned yet).
@@ -2723,6 +2729,18 @@ model SheetItem {
   category    ShoppingCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   quantity    Decimal?          @db.Decimal(12, 3)
   unit        String?
+  /// As the items of the shopping lists: store, link, conservation, whom it is for (the item of a shopping list made of
+  /// it takes them).
+  storeId     String?
+  store       ShoppingStore?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  url         String?
+  perishable  Boolean           @default(false)
+  storageId   String?
+  storage     ShoppingStorage?  @relation(fields: [storageId], references: [id], onDelete: SetNull)
+  members     Contributor[]     @relation("SheetItemMembers")
+  relations   TreasuryRelation[] @relation("SheetItemRelations")
+  /// Not needed (bought if possible): the item of a shopping list made of it is optional too.
+  optional    Boolean           @default(false)
   /// Description (markdown).
   note        String?
   /// Used up when the sheet is used (a recipe), unlike what comes back (a suitcase): taken from the stock.

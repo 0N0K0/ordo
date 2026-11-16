@@ -37,6 +37,14 @@ interface SheetPart {
   unit: string | null;
   note: string | null;
   consumable: boolean;
+  /** As the items of the shopping lists. */
+  storeId: string | null;
+  url: string | null;
+  perishable: boolean;
+  storageId: string | null;
+  optional: boolean;
+  memberIds: string[];
+  relationIds: string[];
 }
 
 /**
@@ -92,6 +100,24 @@ const itemFields = (item: SheetItemInput) => ({
   note: item.note?.trim() || null,
   consumable: item.consumable,
 });
+/**
+ * Fields of an item of a sheet: those of a checklist item, and those of the shopping items (store, link, conservation,
+ * whom it is for, optional).
+ * @param {SheetItemInput} item Item.
+ * @param {'connect' | 'set'} mode People connected on creation, or replacing the previous ones.
+ * @returns {object} Fields.
+ */
+const sheetItemFields = (item: SheetItemInput, mode: 'connect' | 'set') => ({
+  ...itemFields(item),
+  storeId: item.storeId ?? null,
+  url: item.url ?? null,
+  perishable: item.perishable ?? false,
+  // A storage mode only for what is perishable.
+  storageId: item.perishable ? (item.storageId ?? null) : null,
+  optional: item.optional ?? false,
+  members: { [mode]: [...new Set(item.memberIds ?? [])].map((id) => ({ id })) },
+  relations: { [mode]: [...new Set(item.relationIds ?? [])].map((id) => ({ id })) },
+});
 
 /**
  * Checks the categories of a sheet.
@@ -139,22 +165,33 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
  * @returns {Promise<Sheet>} Copy.
  */
 export async function duplicateSheet(id: string): Promise<Sheet> {
-  const sheet = await prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: { position: 'asc' } }, categories: { select: { id: true } } } });
+  const sheet = await prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: { position: 'asc' }, include: withPeople }, categories: { select: { id: true } } } });
   if (!sheet) throw notFound('Fiche');
   const copy = await createSheet({ name: `${sheet.name} (copie)`.slice(0, 100), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
-  await prisma.sheetItem.createMany({
-    data: sheet.items.map((item) => ({
-      sheetId: copy.id,
-      productId: item.productId,
-      label: item.label,
-      categoryId: item.categoryId,
-      quantity: item.quantity,
-      unit: item.unit,
-      note: item.note,
-      consumable: item.consumable,
-      position: item.position,
-    })),
-  });
+  await prisma.$transaction(
+    sheet.items.map((item) =>
+      prisma.sheetItem.create({
+        data: {
+          sheetId: copy.id,
+          productId: item.productId,
+          label: item.label,
+          categoryId: item.categoryId,
+          quantity: item.quantity,
+          unit: item.unit,
+          note: item.note,
+          consumable: item.consumable,
+          storeId: item.storeId,
+          url: item.url,
+          perishable: item.perishable,
+          storageId: item.storageId,
+          optional: item.optional,
+          position: item.position,
+          members: { connect: item.members },
+          relations: { connect: item.relations },
+        },
+      }),
+    ),
+  );
   return copy;
 }
 
@@ -179,7 +216,7 @@ export async function addSheetItem(sheetId: string, input: SheetItemInput): Prom
   const data = parseInput(sheetItemSchema, input);
   await assertProducts([data]);
   const { _max } = await prisma.sheetItem.aggregate({ where: { sheetId }, _max: { position: true } });
-  return prisma.sheetItem.create({ data: { ...itemFields(data), sheetId, position: (_max.position ?? -1) + 1 } });
+  return prisma.sheetItem.create({ data: { ...sheetItemFields(data, 'connect'), sheetId, position: (_max.position ?? -1) + 1 } });
 }
 
 /**
@@ -190,21 +227,32 @@ export async function addSheetItem(sheetId: string, input: SheetItemInput): Prom
  */
 export async function addSheetProducts(sheetId: string, productIds: string[]): Promise<number> {
   await findSheet(sheetId);
-  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: [...new Set(productIds)] } }, orderBy: { name: 'asc' } });
+  const products = await prisma.shoppingProduct.findMany({ where: { id: { in: [...new Set(productIds)] } }, orderBy: { name: 'asc' }, include: withPeople });
   const { _max } = await prisma.sheetItem.aggregate({ where: { sheetId }, _max: { position: true } });
   const start = (_max.position ?? -1) + 1;
-  await prisma.sheetItem.createMany({
-    data: products.map((product, index) => ({
-      sheetId,
-      productId: product.id,
-      label: product.name,
-      categoryId: product.categoryId,
-      quantity: product.quantity,
-      unit: product.unit,
-      consumable: product.consumable,
-      position: start + index,
-    })),
-  });
+  // Each with its people (many-to-many: created one by one).
+  await prisma.$transaction(
+    products.map((product, index) =>
+      prisma.sheetItem.create({
+        data: {
+          sheetId,
+          productId: product.id,
+          label: product.name,
+          categoryId: product.categoryId,
+          quantity: product.quantity,
+          unit: product.unit,
+          consumable: product.consumable,
+          storeId: product.storeId,
+          url: product.url,
+          perishable: product.perishable,
+          storageId: product.storageId,
+          position: start + index,
+          members: { connect: product.members },
+          relations: { connect: product.relations },
+        },
+      }),
+    ),
+  );
   return products.length;
 }
 
@@ -218,7 +266,7 @@ export async function updateSheetItem(id: string, input: SheetItemInput): Promis
   if (!(await prisma.sheetItem.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Élément');
   const data = parseInput(sheetItemSchema, input);
   await assertProducts([data]);
-  return prisma.sheetItem.update({ where: { id }, data: itemFields(data) });
+  return prisma.sheetItem.update({ where: { id }, data: sheetItemFields(data, 'set') });
 }
 
 /**
@@ -299,7 +347,7 @@ export async function moveSheetCategory(id: string, index: number): Promise<void
  * @returns {Promise<SheetPart[]>} Parts.
  */
 async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
-  const sheets = await prisma.sheet.findMany({ where: { id: { in: [...new Set(links.map((link) => link.sheetId))] } }, include: { items: { orderBy: { position: 'asc' } } } });
+  const sheets = await prisma.sheet.findMany({ where: { id: { in: [...new Set(links.map((link) => link.sheetId))] } }, include: { items: { orderBy: { position: 'asc' }, include: withPeople } } });
   const byId = new Map(sheets.map((sheet) => [sheet.id, sheet]));
   return links.flatMap((link) => {
     const sheet = byId.get(link.sheetId);
@@ -314,6 +362,13 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
       unit: item.unit,
       note: item.note,
       consumable: item.consumable,
+      storeId: item.storeId,
+      url: item.url,
+      perishable: item.perishable,
+      storageId: item.storageId,
+      optional: item.optional,
+      memberIds: item.members.map((member) => member.id),
+      relationIds: item.relations.map((relation) => relation.id),
     }));
   });
 }
@@ -358,7 +413,12 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
       if (item) {
         const updated = await tx.shoppingItem.update({
           where: { id: item.id },
-          data: { quantity: toDecimal(addQuantities(num(item.quantity), part.quantity)), sheetSources: withSource(readSheetSources(item.sheetSources), part) as unknown as Prisma.InputJsonValue },
+          data: {
+            quantity: toDecimal(addQuantities(num(item.quantity), part.quantity)),
+            sheetSources: withSource(readSheetSources(item.sheetSources), part) as unknown as Prisma.InputJsonValue,
+            // Optional only while every sheet it comes from says so.
+            optional: item.optional && part.optional,
+          },
         });
         byKey.set(key, updated);
         continue;
@@ -374,11 +434,36 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
               note: part.note ?? product.note,
               quantity: toDecimal(part.quantity),
               unit: part.unit ?? product.unit,
+              // The fields of the sheet item, those of the product without them.
+              storeId: part.storeId ?? product.storeId,
+              url: part.url ?? product.url,
+              perishable: part.perishable || product.perishable,
+              storageId: part.storageId ?? product.storageId,
+              optional: part.optional,
+              ...(part.memberIds.length || part.relationIds.length
+                ? { members: { connect: part.memberIds.map((memberId) => ({ id: memberId })) }, relations: { connect: part.relationIds.map((relationId) => ({ id: relationId })) } }
+                : {}),
               sheetSources: sources,
             },
           })
         : await tx.shoppingItem.create({
-            data: { listId, name: part.label, categoryId: part.categoryId, note: part.note, quantity: toDecimal(part.quantity), unit: part.unit, position, sheetSources: sources },
+            data: {
+              listId,
+              name: part.label,
+              categoryId: part.categoryId,
+              note: part.note,
+              quantity: toDecimal(part.quantity),
+              unit: part.unit,
+              storeId: part.storeId,
+              url: part.url,
+              perishable: part.perishable,
+              storageId: part.storageId,
+              optional: part.optional,
+              members: { connect: part.memberIds.map((memberId) => ({ id: memberId })) },
+              relations: { connect: part.relationIds.map((relationId) => ({ id: relationId })) },
+              position,
+              sheetSources: sources,
+            },
           });
       position += 1;
       byKey.set(key, created);

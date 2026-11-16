@@ -124,3 +124,33 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     ...extra,
   ];
 }
+
+/**
+ * « Facultatif » column of the items of the shopping lists and of the sheets: not needed, bought if possible.
+ * @returns {DataColumn<T>} Column.
+ */
+export function optionalColumn<T extends { optional?: boolean | null }>(): DataColumn<T> {
+  return {
+    id: 'optional',
+    bulk: true,
+    label: 'Facultatif',
+    size: 110,
+    sortValue: (item) => (item.optional ? 1 : 0),
+    text: (item) => (item.optional ? 'Facultatif' : ''),
+    filter: { kind: 'boolean', value: (item) => Boolean(item.optional) },
+    groupable: true,
+  };
+}
+
+/** Columns of the shopping items a sheet item has too (store, conservation, whom it is for, link). */
+export const SHEET_SHOPPING_COLUMNS = ['store', 'conservation', 'people', 'url'];
+
+/**
+ * Columns of the shopping items a sheet item has too, as those of the shopping lists (same labels, filters, sorts).
+ * @param {ItemNames} names Names of the categories, stores, ways of keeping and people.
+ * @returns {DataColumn<T>[]} Columns.
+ */
+export function sheetShoppingColumns<T extends Pick<ShoppingFields, 'storeId' | 'perishable' | 'storageId' | 'memberIds' | 'relationIds' | 'url'>>(names: ItemNames): DataColumn<T>[] {
+  // Those columns only read the fields a sheet item has.
+  return itemColumns<ShoppingFields>('category', names).filter((column) => SHEET_SHOPPING_COLUMNS.includes(column.id)) as unknown as DataColumn<T>[];
+}

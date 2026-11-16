@@ -30,7 +30,22 @@ export const sheetInput = (sheet: { name: string; note?: string | null; projectI
  * @returns {SheetItemInput} Input.
  */
 export const sheetItemInput = (
-  item: { productId?: string | null; label: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable: boolean },
+  item: {
+    productId?: string | null;
+    label: string;
+    categoryId?: string | null;
+    quantity?: number | null;
+    unit?: string | null;
+    note?: string | null;
+    consumable: boolean;
+    storeId?: string | null;
+    url?: string | null;
+    perishable?: boolean;
+    storageId?: string | null;
+    memberIds?: string[];
+    relationIds?: string[];
+    optional?: boolean;
+  },
   change: Partial<SheetItemInput>,
 ): SheetItemInput => ({
   productId: item.productId ?? null,
@@ -40,6 +55,13 @@ export const sheetItemInput = (
   unit: item.unit ?? null,
   note: item.note ?? null,
   consumable: item.consumable,
+  storeId: item.storeId ?? null,
+  url: item.url ?? null,
+  perishable: item.perishable ?? false,
+  storageId: item.storageId ?? null,
+  memberIds: item.memberIds ?? [],
+  relationIds: item.relationIds ?? [],
+  optional: item.optional ?? false,
   ...change,
 });
 
