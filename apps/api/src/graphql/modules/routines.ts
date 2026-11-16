@@ -19,7 +19,7 @@ builder.prismaObject('RoutineCategory', {
 });
 
 /** Selection computing the occurrences and times of the day of a routine. */
-const TIMING = { startDate: true, recurrence: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, scheduleIds: true, excludedScheduleIds: true, moments: true, slotCondition: true } as const;
+const TIMING = { id: true, archivedAt: true, startDate: true, recurrence: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, scheduleIds: true, excludedScheduleIds: true, moments: true, slotCondition: true } as const;
 
 const slotContexts = new WeakMap<Context, Promise<routines.ScheduleContext>>();
 
@@ -404,7 +404,7 @@ builder.queryFields((t) => ({
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
       const list = await prisma.routine.findMany({
         where: { archivedAt: null },
-        select: { id: true, ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
+        select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
       });
       const context = await slotsOf(ctx);
       const today = routines.routineToday();
