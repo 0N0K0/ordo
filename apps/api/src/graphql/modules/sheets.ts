@@ -28,6 +28,13 @@ builder.prismaObject('SheetItem', {
     unit: t.exposeString('unit', { nullable: true }),
     note: t.exposeString('note', { nullable: true }),
     consumable: t.exposeBoolean('consumable', { description: 'Used up when the sheet is used (taken from the stock).' }),
+    storeId: t.exposeID('storeId', { nullable: true }),
+    url: t.exposeString('url', { nullable: true }),
+    perishable: t.exposeBoolean('perishable'),
+    storageId: t.exposeID('storageId', { nullable: true }),
+    optional: t.exposeBoolean('optional', { description: 'Not needed: bought if possible.' }),
+    memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (item) => item.members.map((member) => member.id) }),
+    relationIds: t.idList({ select: { relations: { select: { id: true } } }, resolve: (item) => item.relations.map((relation) => relation.id) }),
     position: t.exposeInt('position'),
   }),
 });
@@ -102,7 +109,23 @@ builder.prismaObject('Checklist', {
 });
 
 const SheetItemInputRef = builder.inputType('SheetItemInput', {
-  fields: (t) => ({ id: t.id(), productId: t.id(), label: t.string({ required: true }), categoryId: t.id(), quantity: t.float(), unit: t.string(), note: t.string(), consumable: t.boolean() }),
+  fields: (t) => ({
+    id: t.id(),
+    productId: t.id(),
+    label: t.string({ required: true }),
+    categoryId: t.id(),
+    quantity: t.float(),
+    unit: t.string(),
+    note: t.string(),
+    consumable: t.boolean(),
+    storeId: t.id(),
+    url: t.string(),
+    perishable: t.boolean(),
+    storageId: t.id(),
+    optional: t.boolean(),
+    memberIds: t.idList(),
+    relationIds: t.idList(),
+  }),
 });
 
 const SheetInputRef = builder.inputType('SheetInput', {
@@ -147,6 +170,13 @@ const itemInput = (input: typeof SheetItemInputRef.$inferInput) => ({
   unit: input.unit ?? null,
   note: input.note ?? null,
   consumable: input.consumable ?? true,
+  storeId: input.storeId ? String(input.storeId) : null,
+  url: input.url ?? null,
+  perishable: input.perishable ?? false,
+  storageId: input.storageId ? String(input.storageId) : null,
+  optional: input.optional ?? false,
+  memberIds: (input.memberIds ?? []).map(String),
+  relationIds: (input.relationIds ?? []).map(String),
 });
 
 /**

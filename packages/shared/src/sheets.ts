@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { shoppingItemSchema } from './shopping';
+
+const shopping = shoppingItemSchema.shape;
 
 const quantity = z.number().min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.').nullable();
 
@@ -16,8 +19,16 @@ export const sheetItemSchema = z.object({
   note: z.string().max(20_000, 'Description trop longue.').nullable(),
   /** Used up when the sheet is used (taken from the stock); a checklist item: taken when ticked. */
   consumable: z.boolean().default(true),
+  /** As the items of the shopping lists: store, link, conservation, whom it is for, optional. */
+  storeId: shopping.storeId.default(null),
+  url: shopping.url.default(null),
+  perishable: shopping.perishable,
+  storageId: shopping.storageId,
+  memberIds: shopping.memberIds,
+  relationIds: shopping.relationIds,
+  optional: shopping.optional,
 });
-export type SheetItemInput = z.infer<typeof sheetItemSchema>;
+export type SheetItemInput = z.input<typeof sheetItemSchema>;
 
 /** Sheet: a name, a note, its project and categories (its items are changed one by one). */
 export const sheetSchema = z.object({

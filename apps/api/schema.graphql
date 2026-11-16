@@ -3125,11 +3125,20 @@ type SheetItem {
   consumable: Boolean!
   id: ID!
   label: String!
+  memberIds: [ID!]!
   note: String
+
+  """Not needed: bought if possible."""
+  optional: Boolean!
+  perishable: Boolean!
   position: Int!
   productId: ID
   quantity: Float
+  relationIds: [ID!]!
+  storageId: ID
+  storeId: ID
   unit: String
+  url: String
 }
 
 input SheetItemInput {
@@ -3137,10 +3146,17 @@ input SheetItemInput {
   consumable: Boolean
   id: ID
   label: String!
+  memberIds: [ID!]
   note: String
+  optional: Boolean
+  perishable: Boolean
   productId: ID
   quantity: Float
+  relationIds: [ID!]
+  storageId: ID
+  storeId: ID
   unit: String
+  url: String
 }
 
 """Sheet of a routine, an event or a task, times a multiplier."""
@@ -3247,6 +3263,9 @@ type ShoppingItem {
   memberIds: [ID!]!
   name: String!
   note: String
+
+  """Not needed: bought if possible (the list is done without it)."""
+  optional: Boolean!
   perishable: Boolean!
   position: Int!
   productId: ID
@@ -3271,6 +3290,9 @@ input ShoppingItemInput {
   memberIds: [ID!]!
   name: String!
   note: String
+
+  """Not needed: bought if possible."""
+  optional: Boolean
   perishable: Boolean
   quantity: Float
   relationIds: [ID!]!

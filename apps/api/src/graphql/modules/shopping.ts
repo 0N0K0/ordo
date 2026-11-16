@@ -107,6 +107,7 @@ builder.prismaObject('ShoppingItem', {
     storageId: t.exposeID('storageId', { nullable: true }),
     expiresAt: t.expose('expiresAt', { type: 'Date', nullable: true }),
     purchasedAt: t.expose('purchasedAt', { type: 'DateTime', nullable: true }),
+    optional: t.exposeBoolean('optional', { description: 'Not needed: bought if possible (the list is done without it).' }),
     position: t.exposeInt('position'),
     memberIds: t.idList({ select: { members: { select: { id: true } } }, resolve: (item) => item.members.map((member) => member.id) }),
     relationIds: t.idList({ select: { relations: { select: { id: true } } }, resolve: (item) => item.relations.map((relation) => relation.id) }),
@@ -177,7 +178,7 @@ const ProductInput = builder.inputType('ShoppingProductInput', {
   fields: (t) => ({ ...shoppingFields(t), baseListId: t.id({ required: true }), missing: t.boolean({ required: true }) }),
 });
 
-const ItemInput = builder.inputType('ShoppingItemInput', { fields: (t) => shoppingFields(t) });
+const ItemInput = builder.inputType('ShoppingItemInput', { fields: (t) => ({ ...shoppingFields(t), optional: t.boolean({ description: 'Not needed: bought if possible.' }) }) });
 
 /**
  * Item input with omitted optional fields as null.
@@ -198,6 +199,7 @@ const itemInput = (input: typeof ItemInput.$inferInput) => ({
   perishable: input.perishable ?? false,
   storageId: input.storageId ? String(input.storageId) : null,
   expiresAt: input.expiresAt ?? null,
+  optional: input.optional ?? false,
 });
 
 /**

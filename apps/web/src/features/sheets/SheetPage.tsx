@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { PageHeader } from '../../components/actions/PageHeader';
 import { DataTable } from '../../components/data-table/DataTable';
-import { bulkSaver } from '../../components/data-table/bulk-edit';
+import { applyDiff, bulkSaver } from '../../components/data-table/bulk-edit';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../components/data-table/EditableCells';
 import { RowActions } from '../../components/data-table/RowActions';
@@ -31,9 +31,13 @@ import { sheetInput, sheetItemInput } from './sheet-format';
 import { SheetsSettings } from './SheetsSettings';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
+import { optionalColumn, sheetShoppingColumns } from '../shopping/shopping-columns';
+import { ConservationCell, PeopleCell, StoreCell, TextCell } from '../shopping/shopping-cells';
+import { usePeople } from '../shopping/shopping-format';
+import type { SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from './SheetUseForm';
 
-type ItemChange = { productId?: string | null; label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean };
+type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
 
 /**
  * Products of the references added to a sheet at once.
@@ -153,6 +157,7 @@ export function SheetPage() {
   const products = shopping?.shoppingProducts ?? [];
   const productName = new Map(products.map((product) => [product.id, product.name]));
   const shoppingCategories = shopping?.shoppingCategories ?? [];
+  const people = usePeople();
   const paths = new Map(categoryTree(shoppingCategories).map((item) => [item.category.id, item.path]));
   const comments = useCommentCounts(
     'SHEET_ITEM',
@@ -202,6 +207,15 @@ export function SheetPage() {
       filter: { kind: 'boolean', value: (item) => item.consumable },
       groupable: true,
     },
+    // As the items of the shopping lists.
+    ...sheetShoppingColumns<SheetDetailItem>({
+      categories: shoppingCategories,
+      stores: shopping?.shoppingStores ?? [],
+      storages: shopping?.shoppingStorages ?? [],
+      members: people.members,
+      relations: people.relations,
+    }),
+    optionalColumn<SheetDetailItem>(),
     { id: 'note', label: 'Description', size: 240, bulk: true, sortValue: (item) => item.note ?? null, text: (item) => item.note ?? '' },
     commentColumn<SheetDetailItem>(
       comments,
@@ -320,6 +334,32 @@ export function SheetPage() {
           quantity: <EditableNumber value={item.quantity ?? null} label={`Quantité de ${item.label}`} decimals={3} nullable onSave={(quantity) => bulk('quantity')(item, { quantity })} />,
           unit: <EditableText value={item.unit ?? null} label={`Unité de ${item.label}`} nullable onSave={(unit) => bulk('unit')(item, { unit })} />,
           consumable: <EditableCheck value={item.consumable} label={`${item.label} consommable`} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
+          store: <StoreCell value={item.storeId ?? null} stores={shopping?.shoppingStores ?? []} label={`Magasin de ${item.label}`} onSave={(storeId) => bulk('store')(item, { storeId })} />,
+          conservation: (
+            <ConservationCell
+              perishable={item.perishable}
+              storageId={item.storageId ?? null}
+              storages={shopping?.shoppingStorages ?? []}
+              label={`Conservation de ${item.label}`}
+              onSave={(conservation) => bulk('conservation')(item, conservation)}
+            />
+          ),
+          people: (
+            <PeopleCell
+              memberIds={item.memberIds}
+              relationIds={item.relationIds}
+              label={`Bénéficiaires de ${item.label}`}
+              projectIds={sheet.projectId ? [sheet.projectId] : undefined}
+              onSave={(chosen) =>
+                bulk('people')(item, (target) => ({
+                  memberIds: applyDiff(target.memberIds, item.memberIds, chosen.memberIds),
+                  relationIds: applyDiff(target.relationIds, item.relationIds, chosen.relationIds),
+                }))
+              }
+            />
+          ),
+          url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${item.label}`} placeholder="https://…" onSave={(url) => bulk('url')(item, { url })} />,
+          optional: <EditableCheck value={item.optional} label={`${item.label} facultatif`} onSave={(optional) => bulk('optional')(item, { optional })} />,
           note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
         })}
         actions={(item) => (

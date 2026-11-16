@@ -23,7 +23,7 @@ import { useSavedViews } from '../tasks/views/use-saved-views';
 import type { TaskContext } from '../tasks/use-task-context';
 import type { ShoppingCategory, ShoppingList, ShoppingStore } from './api';
 import { shoppingTotal } from './export';
-import { listClosed, listTasks } from './shopping-format';
+import { listClosed, listTasks, leftToBuy, shoppingProgress } from './shopping-format';
 import * as fmt from '../../lib/format';
 import { currentWeek } from '../../lib/week';
 
@@ -133,7 +133,7 @@ function fieldValue(list: ShoppingList, field: ShoppingListFilterField, env: Sho
     case 'itemCount':
       return list.items.length;
     case 'remaining':
-      return list.items.filter((item) => !item.purchasedAt).length;
+      return leftToBuy(list.items).length;
     case 'total':
       return shoppingTotal(list.items);
     case 'createdAt':
@@ -143,7 +143,7 @@ function fieldValue(list: ShoppingList, field: ShoppingListFilterField, env: Sho
     case 'paid':
       return list.entryId !== null;
     case 'complete':
-      return list.items.length > 0 && list.items.every((item) => item.purchasedAt);
+      return list.items.length > 0 && leftToBuy(list.items).length === 0;
     case 'perishable':
       return list.items.some((item) => item.perishable);
   }
@@ -294,9 +294,9 @@ export function sortLists(lists: ShoppingList[], sorting: ShoppingListViewConfig
       case 'itemCount':
         return list.items.length;
       case 'remaining':
-        return list.items.filter((item) => !item.purchasedAt).length;
+        return leftToBuy(list.items).length;
       case 'progress':
-        return list.items.length ? list.items.filter((item) => item.purchasedAt).length / list.items.length : null;
+        return shoppingProgress(list.items).total ? shoppingProgress(list.items).bought / shoppingProgress(list.items).total : null;
       case 'total':
         return shoppingTotal(list.items) || null;
       case 'project': {
