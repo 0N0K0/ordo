@@ -77,12 +77,14 @@ function reaches(parentOf: Map<string, string | null>, start: string, id: string
 
 /** Routine with what its occurrences are computed from. */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
-  Partial<Pick<Routine, 'opensOn'>>;
+  Partial<Pick<Routine, 'opensOn' | 'archivedAt'>>;
 
 /** Calendar schedules of the workspace, for the routines following them or done out of them. */
 export interface ScheduleContext {
   /** Slots of some schedules on a day. */
   slotsOn: (ids: readonly string[], date: string) => PlannedSlot[];
+  /** What was computed for the routines of the request, by routine and computation. Optional. */
+  memo?: Map<string, unknown>;
 }
 
 /** Without schedules: no slot anywhere. */
@@ -96,6 +98,7 @@ export async function loadScheduleContext(): Promise<ScheduleContext> {
   const rules = (await prisma.workSchedule.findMany()).map(scheduleRule);
   const byDay = new Map<string, PlannedSlot[]>();
   return {
+    memo: new Map(),
     slotsOn: (ids, date) => {
       if (!ids.length) return [];
       let slots = byDay.get(date);
@@ -154,6 +157,36 @@ const constrains = (condition: SlotCondition | null | undefined) => conditionSch
 
 /** Days looked at before and after a day to find the occurrences around it (a year and a little more). */
 const LOOK_DAYS = 400;
+/** Days looked at first (enough for the daily and weekly rules): the longer look only when they hold none. */
+const NEAR_DAYS = 35;
+
+/** What was computed for a routine, by its schedules (a request loads them once): its occurrences, times… */
+const memo = new WeakMap<object, WeakMap<ScheduleContext, Map<string, unknown>>>();
+
+/**
+ * Result computed once for a routine row and its schedules (the fields of a routine in a request ask the same).
+ * @template T
+ * @param {object} routine Routine row.
+ * @param {ScheduleContext} schedules Schedules.
+ * @param {string} key What is computed, with its arguments.
+ * @param {() => T} run Computation.
+ * @returns {T} Result.
+ */
+function remember<T>(routine: object, schedules: ScheduleContext, key: string, run: () => T): T {
+  // In a request: by routine id (its fields may get rows of their own).
+  const id = (routine as { id?: unknown }).id;
+  if (schedules.memo && typeof id === 'string') {
+    const own = `${id}|${key}`;
+    if (!schedules.memo.has(own)) schedules.memo.set(own, run());
+    return schedules.memo.get(own) as T;
+  }
+  let bySchedules = memo.get(routine);
+  if (!bySchedules) memo.set(routine, (bySchedules = new WeakMap()));
+  let results = bySchedules.get(schedules);
+  if (!results) bySchedules.set(schedules, (results = new Map()));
+  if (!results.has(key)) results.set(key, run());
+  return results.get(key) as T;
+}
 
 /** Time of the day of an occurrence, with the windows it can be done in (one, or several where slots cut it). */
 export interface RoutineDaySlot extends RoutineSlot {
@@ -276,20 +309,29 @@ function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: 
  * @returns {{ current: string | null, next: string | null }} Due days.
  */
 export function occurrencesOf(routine: RoutineTiming, today = routineToday(), schedules: ScheduleContext = NO_SCHEDULES): { current: string | null; next: string | null } {
-  /**
-   * Occurrences of the rule alone around a day.
-   * @param {string} day Day.
-   * @returns {{ current: string | null, next: string | null }} Due days.
-   */
-  const compute = (day: string) => {
-    const spans = ruleSpans(routine, addDays(day, -LOOK_DAYS), addDays(day, LOOK_DAYS), schedules);
-    let current = spans.filter((span) => span.start <= day).at(-1)?.end ?? null;
-    const next = spans.find((span) => span.start > day)?.end ?? null;
-    // Once the rule has ended, a past last occurrence is no longer due.
-    if (next === null && current !== null && current < day) current = null;
-    return { current, next };
-  };
-  return movedOccurrences(compute, storedMoves(routine.moves), today);
+  // An archived routine has nothing due: nothing computed.
+  if (routine.archivedAt) return { current: null, next: null };
+  return remember(routine, schedules, `occurrences|${today}`, () => {
+    const start = formatDay(routine.startDate);
+    /**
+     * Occurrences of the rule alone around a day: looked for close to it first, further when none is there.
+     * @param {string} day Day.
+     * @returns {{ current: string | null, next: string | null }} Due days.
+     */
+    const compute = (day: string) => {
+      const around = (days: number) => {
+        const spans = ruleSpans(routine, addDays(day, -days), addDays(day, days), schedules);
+        return { current: spans.filter((span) => span.start <= day).at(-1)?.end ?? null, next: spans.find((span) => span.start > day)?.end ?? null };
+      };
+      let found = around(NEAR_DAYS);
+      // None close (a monthly or yearly rule, a pause…), unless the routine starts within those days: further.
+      if (found.next === null || (found.current === null && start < addDays(day, -NEAR_DAYS))) found = around(LOOK_DAYS);
+      // Once the rule has ended, a past last occurrence is no longer due.
+      if (found.next === null && found.current !== null && found.current < day) found = { ...found, current: null };
+      return found;
+    };
+    return movedOccurrences(compute, storedMoves(routine.moves), today);
+  });
 }
 
 /**
@@ -337,7 +379,19 @@ export const shownDay = (span: RoutineSpan, today: string) => (span.end < today 
  * @returns {string | null} Day, null without any.
  */
 export function firstOccurrence(routine: RoutineTiming, schedules: ScheduleContext = NO_SCHEDULES): string | null {
+  return remember(routine, schedules, 'first', () => firstOccurrenceOf(routine, schedules));
+}
+
+/**
+ * First occurrence of a routine: within its first days, else year by year (over ten years).
+ * @param {RoutineTiming} routine Routine with its schedule.
+ * @param {ScheduleContext} schedules Schedules.
+ * @returns {string | null} Day, null without any.
+ */
+function firstOccurrenceOf(routine: RoutineTiming, schedules: ScheduleContext): string | null {
   let from = formatDay(routine.startDate);
+  const [soon] = occurrencesBetween(routine, from, addDays(from, NEAR_DAYS), schedules);
+  if (soon) return soon;
   for (let year = 0; year < 10; year += 1) {
     const to = addDays(from, 365);
     const [first] = occurrencesBetween(routine, from, to, schedules);
@@ -378,6 +432,17 @@ function ruleSlotsOn(routine: RoutineTiming, due: string, schedules: ScheduleCon
  */
 export function slotsOf(routine: RoutineTiming, occurrence: string | null, schedules: ScheduleContext = NO_SCHEDULES): RoutineDaySlot[] {
   if (!occurrence) return [];
+  return remember(routine, schedules, `slots|${occurrence}`, () => slotsOn(routine, occurrence, schedules));
+}
+
+/**
+ * Times of the day of a routine on an occurrence, computed.
+ * @param {RoutineTiming} routine Routine.
+ * @param {string} occurrence Due day of the occurrence.
+ * @param {ScheduleContext} schedules Schedules.
+ * @returns {RoutineDaySlot[]} Times.
+ */
+function slotsOn(routine: RoutineTiming, occurrence: string, schedules: ScheduleContext): RoutineDaySlot[] {
   const moves = storedMoves(routine.moves);
   const date = movedFrom(moves, occurrence);
   const move = moves.find((item) => item.from === date && item.to === occurrence);
