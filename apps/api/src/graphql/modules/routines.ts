@@ -19,7 +19,7 @@ builder.prismaObject('RoutineCategory', {
 });
 
 /** Selection computing the occurrences and times of the day of a routine. */
-const TIMING = { startDate: true, recurrence: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, scheduleIds: true, excludedScheduleIds: true, moments: true } as const;
+const TIMING = { startDate: true, recurrence: true, cases: true, moves: true, fromTime: true, dueTime: true, opensOn: true, scheduleIds: true, excludedScheduleIds: true, moments: true, slotCondition: true } as const;
 
 const slotContexts = new WeakMap<Context, Promise<routines.ScheduleContext>>();
 
@@ -103,12 +103,21 @@ builder.prismaObject('Routine', {
     }),
     parentId: t.exposeID('parentId', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date' }),
-    recurrence: t.expose('recurrence', { type: 'JSON' }),
+    recurrence: t.field({
+      type: 'JSON',
+      description: 'Rule of its repetition (every day for one saved following calendar schedules).',
+      select: { recurrence: true, scheduleIds: true, slotCondition: true },
+      resolve: (routine) => routines.storedRule(routine) ?? routine.recurrence,
+    }),
     estimate: t.exposeInt('estimate', { nullable: true, description: 'Minutes.' }),
     projectId: t.exposeID('projectId', { nullable: true }),
     fromTime: t.exposeString('fromTime', { nullable: true, description: 'Time to do it from (HH:MM), its own (see windowFrom).' }),
-    scheduleIds: t.exposeIDList('scheduleIds', { description: 'Calendar schedules it follows (one or another): their slots are its days and times.' }),
-    excludedScheduleIds: t.exposeIDList('excludedScheduleIds', { description: 'Calendar schedules it is done out of (its moments kept to the free time).' }),
+    slotCondition: t.field({
+      type: 'JSON',
+      nullable: true,
+      description: 'Following its rule: on or out of calendar schedules, in groups combined with and / or (the filters of the tables); null: any time.',
+      resolve: (routine) => routines.storedCondition(routine),
+    }),
     moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
     reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
     opensOn: t.exposeString('opensOn', { nullable: true, description: 'Day each occurrence can be done from: "DD" (monthly), "MM-DD" (yearly).' }),
@@ -221,8 +230,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     recurrence: t.field({ type: 'JSON', required: true }),
     estimate: t.int({ description: 'Minutes.' }),
     fromTime: t.string({ description: 'HH:MM.' }),
-    scheduleIds: t.idList({ description: 'Calendar schedules it follows (one or another).' }),
-    excludedScheduleIds: t.idList({ description: 'Calendar schedules it is done out of.' }),
+    slotCondition: t.field({ type: 'JSON', description: 'Following its rule: on or out of calendar schedules, in groups (and / or); null: any time.' }),
     moments: t.field({ type: 'JSON', description: 'Times of the day, [{ fromTime, dueTime, optional }].' }),
     cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day); empty: the repetition.' }),
     reminders: t.intList(),
@@ -308,8 +316,9 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   fromTime: input.fromTime ?? null,
   scheduleId: null,
   scheduleAnchor: null,
-  scheduleIds: (input.scheduleIds ?? []).map(String),
-  excludedScheduleIds: (input.excludedScheduleIds ?? []).map(String),
+  scheduleIds: [],
+  excludedScheduleIds: [],
+  slotCondition: (input.slotCondition ?? null) as RoutineInput['slotCondition'],
   moments: (input.moments ?? []) as RoutineInput['moments'],
   reminders: input.reminders ?? [],
   opensOn: input.opensOn ?? null,
@@ -484,8 +493,8 @@ builder.mutationFields((t) => ({
       if (input.travelAfter !== undefined && input.travelAfter !== null) changes.travelAfter = input.travelAfter;
       if (input.reminders) changes.reminders = input.reminders;
       if (input.opensOn !== undefined) changes.opensOn = input.opensOn ?? null;
-      // A repetition of its own: it no longer follows its schedules nor its cases.
-      if (input.recurrence !== undefined && input.recurrence !== null) Object.assign(changes, { scheduleIds: [], cases: [] });
+      // A repetition of its own: it no longer follows its cases.
+      if (input.recurrence !== undefined && input.recurrence !== null) Object.assign(changes, { cases: [] });
       // Times of its own: a single moment.
       if (input.fromTime !== undefined || input.dueTime !== undefined) {
         const current = await routines.momentOf(String(id));

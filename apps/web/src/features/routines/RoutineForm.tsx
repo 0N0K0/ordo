@@ -1,5 +1,5 @@
 import { Button, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
-import { opensOnFits, routineSchema, type Recurrence, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { opensOnFits, readSlotCondition, routineSchema, type SlotCondition, type Recurrence, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
@@ -27,8 +27,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   estimate: number | null;
   fromTime: string | null;
   dueTime: string | null;
-  scheduleIds: string[];
-  excludedScheduleIds: string[];
+  slotCondition: SlotCondition | null;
   moments: RoutineSlot[];
   reminders: number[];
   cases: RoutineCase[];
@@ -103,8 +102,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       recurrence: (source && ruleOf(source)) ?? DAILY,
       estimate: routine?.estimate ?? null,
       fromTime: routine?.fromTime ?? null,
-      scheduleIds: source?.scheduleIds ?? [],
-      excludedScheduleIds: source?.excludedScheduleIds ?? [],
+      slotCondition: readSlotCondition(source?.slotCondition),
       moments: (source?.moments as RoutineSlot[] | undefined) ?? [{ fromTime: null, dueTime: null, optional: false }],
       reminders: routine?.reminders ?? [],
       cases: (source?.cases as RoutineCase[] | undefined) ?? [],
