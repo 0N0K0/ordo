@@ -34,6 +34,21 @@ function Framing({ points }: { points: readonly GeoPoint[] }) {
 }
 
 /**
+ * Follows the size of the map's container: Leaflet only measures it once, a container growing later (a height
+ * fitted to the window, a panel opening) would leave grey bands without tiles.
+ * @returns {null} Nothing rendered.
+ */
+function Resizing() {
+  const map = useMap();
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
+/**
  * Picks a point with a click on the map.
  * @param {{ onPick: (point: GeoPoint) => void }} props Handler.
  * @returns {null} Nothing rendered.
@@ -76,6 +91,7 @@ export function PlaceMap({ points, onPick, onSelect, height = 240 }: PlaceMapPro
             </Tooltip>
           </CircleMarker>
         ))}
+        <Resizing />
         <Framing points={points} />
         {onPick && <Picking onPick={onPick} />}
       </MapContainer>
