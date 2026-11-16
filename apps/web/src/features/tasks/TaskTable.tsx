@@ -506,8 +506,12 @@ export function TaskTable({
   const eventRows = visibleRows.filter((row) => row.original.kind === 'event');
   const shownEvents = new Map(eventRows.map((row) => [row.id, (row.original as Extract<typeof row.original, { kind: 'event' }>).event]));
   const shownRowIds = cellSelection?.rowIds.filter((id) => shownTasks.has(id) || shownEvents.has(id)) ?? [];
+  // Tasks checked (two at least): a change in any of their cells applies to all of them.
+  const checkedRowIds = Object.keys(selection).filter((id) => selection[id] && shownTasks.has(id));
   const effectiveCellSelection: CellSelection | null =
-    cellSelection && shownRowIds.length > 0
+    !(cellSelection && shownRowIds.length > 0) && checkedRowIds.length > 1
+      ? { column: '*', rowIds: checkedRowIds, taskIds: [...new Set(checkedRowIds.map((id) => shownTasks.get(id)!))] }
+      : cellSelection && shownRowIds.length > 0
       ? {
           ...cellSelection,
           rowIds: shownRowIds,
@@ -748,7 +752,8 @@ export function TaskTable({
             }
             const columnId = id as TaskColumn;
             const cellSelected =
-              effectiveCellSelection?.column === columnId && effectiveCellSelection.rowIds.includes(row.id);
+              (effectiveCellSelection?.column === columnId || (effectiveCellSelection?.column === '*' && BULK_EDITABLE_COLUMNS.includes(columnId))) &&
+              effectiveCellSelection.rowIds.includes(row.id);
             const depth = row.id === drag?.activeId && projection ? projection.depth : row.depth - (grouped ? 1 : 0);
             return (
               <Table.Td

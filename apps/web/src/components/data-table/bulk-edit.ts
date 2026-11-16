@@ -1,5 +1,5 @@
 import { notifySuccess } from '../../lib/notify';
-import type { BulkSelection } from './bulk-selection';
+import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
 
 /** What saving in bulk needs of a table: its selection, the key and the order of its rows. */
 export interface BulkTable<R> {
@@ -22,7 +22,7 @@ export const changeOf = <R, C>(change: BulkChange<R, C>, row: R): C => (typeof c
 
 /**
  * Saving of the cells of a table: a change made in a cell of the bulk selection applies to every selected cell of its
- * column (each row saved, or all of them at once), any other one to its row only.
+ * column, or of every row checked (each row saved, or all of them at once), any other one to its row only.
  * @param {BulkTable<R>} view Table (its selection, a data view…).
  * @param {(row: R, change: C) => void} save Saves a change of one row.
  * @param {(rows: R[], change: (row: R) => C) => void} [saveMany] Saves the change of several rows at once (lines of a
@@ -34,7 +34,7 @@ export function bulkSaver<R, C>(view: BulkTable<R>, save: (row: R, change: C) =>
     (row: R, change: BulkChange<R, C>): void => {
       const { selection, keyOf } = view;
       const key = keyOf?.(row);
-      if (!keyOf || !selection || selection.column !== column || key === undefined || !selection.keys.includes(key) || selection.keys.length < 2) {
+      if (!keyOf || !selection || (selection.column !== column && selection.column !== ALL_COLUMNS) || key === undefined || !selection.keys.includes(key) || selection.keys.length < 2) {
         save(row, changeOf(change, row));
         return;
       }
@@ -54,7 +54,7 @@ export function bulkSaver<R, C>(view: BulkTable<R>, save: (row: R, change: C) =>
  */
 export function bulkCount<R>(view: BulkTable<R>, column: string, row: R): number {
   const key = view.keyOf?.(row);
-  return view.selection?.column === column && key !== undefined && view.selection.keys.includes(key) ? view.selection.keys.length : 1;
+  return (view.selection?.column === column || view.selection?.column === ALL_COLUMNS) && key !== undefined && view.selection.keys.includes(key) ? view.selection.keys.length : 1;
 }
 
 /**

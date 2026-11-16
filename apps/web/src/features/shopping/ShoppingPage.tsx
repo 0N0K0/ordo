@@ -21,6 +21,7 @@ import { ROW_ACTIONS_WIDTH } from '../../components/data-table/RowActions';
 import { newConditionFor } from '../tasks/views/filter-meta';
 import { shownColumns, tableWidth, type DataColumn } from '../../components/data-table/data-table';
 import { DataTableHeader } from '../../components/data-table/DataTableHeader';
+import { AllRowsCheck, ROW_CHECK_WIDTH, RowCheck } from '../../components/data-table/RowCheck';
 import tableClasses from '../../components/data-table/DataTable.module.css';
 import { localToday } from '../../lib/dates';
 import { SavedViewToolbar } from '../tasks/views/SavedViewToolbar';
@@ -118,6 +119,8 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       updateList.mutate({ id: row.list.id, name: change.name ?? row.list.name, taskIds: change.taskIds ?? row.list.taskIds }, { onError: (error) => notifyError(error.message) });
     }
   };
+  // Lists checked: every field of each edited at once.
+  const rowSelection = { isChecked: bulkSelection.isChecked, check: bulkSelection.check, keys: bulkSelection.keys };
   const bulk = bulkSaver<Extract<ListRow, { kind: 'list' }>, { name?: string; taskIds?: string[] }>(
     { selection: bulkSelection.selection, keyOf: (row) => row.key, rows: listRowsShown },
     (row, change) => saveLists([row], () => change),
@@ -133,7 +136,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
     if (row.kind === 'group')
       return (
         <Table.Tr key={`group:${row.key}`} className={classes.groupRow}>
-          <Table.Td colSpan={shownList.length + 1} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
+          <Table.Td colSpan={shownList.length + 2} style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${row.depth} * var(--mantine-spacing-lg))` }}>
             <Group gap="xs" wrap="nowrap">
               <Text size="sm" fw={row.depth === 0 ? 700 : 600}>
                 {row.name}
@@ -188,6 +191,9 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
     };
     return (
       <Table.Tr key={row.key}>
+        <Table.Td w={ROW_CHECK_WIDTH} px={4}>
+          <RowCheck selection={rowSelection} rowKey={row.key} label={list.name} />
+        </Table.Td>
         {shownList.map((column, index) => (
           <Table.Td
             key={column.id}
@@ -295,7 +301,14 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       ) : (
         <Paper withBorder radius="md" className={classes.group}>
           <div className={classes.scroller}>
-            <Table verticalSpacing="xs" highlightOnHover ref={tableRef} className={tableClasses.table} style={{ width: tableWidth(shownList, ACTIONS_WIDTH), minWidth: '100%' }}>
+            <Table
+              verticalSpacing="xs"
+              highlightOnHover
+              ref={tableRef}
+              className={tableClasses.table}
+              style={{ width: tableWidth(shownList, ROW_CHECK_WIDTH + ACTIONS_WIDTH), minWidth: '100%' }}
+              data-checking={rowSelection.keys.some((key) => rowSelection.isChecked(key)) || undefined}
+            >
               <DataTableHeader
                 columns={LIST_COLUMNS}
                 shown={shownList}
@@ -304,6 +317,12 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                 sorting={config.sorting}
                 onSortingChange={(sorting) => view.change((current) => ({ ...current, sorting: sorting as typeof current.sorting }))}
                 tableRef={tableRef}
+                leadingCount={1}
+                leading={
+                  <Table.Th w={ROW_CHECK_WIDTH} px={4}>
+                    <AllRowsCheck selection={rowSelection} />
+                  </Table.Th>
+                }
                 trailing={<Table.Th w={ACTIONS_WIDTH} />}
                 columnExtras={(id) => {
                   const field = id in SHOPPING_LIST_FILTER_FIELDS ? (id as ShoppingListFilterField) : null;
@@ -335,7 +354,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                       rows={[...new Set(rows.slice(groupIndex + 1, index + 1).flatMap((item) => (item.kind === 'list' ? [item.list] : [])))]}
                       totals={config.footer!}
                       label={(rows[groupIndex] as Extract<ListRow, { kind: 'group' }>).name}
-                      before={0}
+                      before={1}
                       after={1}
                     />
                   ) : null;
@@ -343,7 +362,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
                 })}
               </Table.Tbody>
               {config?.footer && (
-                <TableFooter shown={footerCols} rows={shown} totals={config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={0} after={1} />
+                <TableFooter shown={footerCols} rows={shown} totals={config.footer} onChange={(totals) => view.change((current) => ({ ...current, footer: totals }))} before={1} after={1} />
               )}
             </Table>
           </div>

@@ -637,8 +637,14 @@ export function RoutineTable({
   const shownIds = new Set(routineOfRow.values());
   const selectedRoutines = routines.filter((routine) => selected.has(routine.id) && shownIds.has(routine.id));
   const shownKeys = cellSelection?.rowKeys.filter((key) => routineOfRow.has(key)) ?? [];
+  // Routines checked (two at least): a change in any of their cells applies to all of them.
+  const checkedKeys = rowKeys.filter((key) => selected.has(routineOfRow.get(key)!));
   const effectiveCellSelection: RoutineCellSelection | null =
-    cellSelection && shownKeys.length > 0 ? { ...cellSelection, rowKeys: shownKeys, routineIds: [...new Set(shownKeys.map((key) => routineOfRow.get(key)!))] } : null;
+    cellSelection && shownKeys.length > 0
+      ? { ...cellSelection, rowKeys: shownKeys, routineIds: [...new Set(shownKeys.map((key) => routineOfRow.get(key)!))] }
+      : selectedRoutines.length > 1
+        ? { column: '*', rowKeys: checkedKeys, routineIds: selectedRoutines.map((routine) => routine.id) }
+        : null;
 
   // Escape clears the cell selection.
   useEffect(() => {
@@ -659,7 +665,7 @@ export function RoutineTable({
   const handleCellClick = (event: MouseEvent, rowKey: string, column: RoutineColumn) => {
     const modifier = event.ctrlKey || event.metaKey || event.shiftKey;
     if (!modifier) {
-      if (effectiveCellSelection && !(effectiveCellSelection.column === column && effectiveCellSelection.rowKeys.includes(rowKey))) setCellSelection(null);
+      if (cellSelection && !(effectiveCellSelection?.column === column && effectiveCellSelection.rowKeys.includes(rowKey))) setCellSelection(null);
       return;
     }
     event.preventDefault();
@@ -684,7 +690,7 @@ export function RoutineTable({
   const cellOf =
     (rowKey: string) =>
     (column: RoutineColumn): ComponentProps<'td'> => {
-      const cellSelected = effectiveCellSelection?.column === column && effectiveCellSelection.rowKeys.includes(rowKey);
+      const cellSelected = (effectiveCellSelection?.column === column || effectiveCellSelection?.column === '*') && Boolean(effectiveCellSelection?.rowKeys.includes(rowKey));
       return {
         'data-cell-selected': cellSelected || undefined,
         'aria-selected': cellSelected || undefined,

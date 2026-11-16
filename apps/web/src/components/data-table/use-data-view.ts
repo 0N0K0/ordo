@@ -14,6 +14,15 @@ export interface FirstTableView {
   config?: Partial<TableViewConfig>;
 }
 
+/** Rows checked of a table (their check boxes): every field of each edited at once. */
+export interface RowSelection {
+  isChecked: (key: string) => boolean;
+  /** Checks or unchecks rows. */
+  check: (keys: readonly string[], on: boolean) => void;
+  /** Keys of the rows shown. */
+  keys: readonly string[];
+}
+
 interface DataViewOptions<R> {
   /** Name of the table (its views are its own). */
   tableKey: string;
@@ -68,6 +77,8 @@ export interface DataView<R> {
   cellProps: (columnId: string, key: string) => BulkCellProps;
   /** Name of a column edited in bulk (its own cells included). */
   bulkLabel: (columnId: string) => string;
+  /** Rows checked (their check boxes) to edit all their fields at once; null when nothing is edited in bulk. */
+  rowSelection: RowSelection | null;
 }
 
 /**
@@ -125,6 +136,7 @@ export function useDataView<R>({ tableKey, projectId = null, columns, rows, titl
     selection: bulk.selection,
     setSelection: bulk.setSelection,
     cellProps: bulk.cellProps,
+    rowSelection: getKey && (bulkColumns.length > 0 || columns.some((column) => column.bulk)) ? { isChecked: bulk.isChecked, check: bulk.check, keys: bulk.keys } : null,
     bulkLabel: (id) => bulkColumns.find((column) => column.id === id)?.label ?? columns.find((column) => column.id === id)?.label ?? '',
     columnExtras: (id) => {
       const column = columns.find((item) => item.id === id);

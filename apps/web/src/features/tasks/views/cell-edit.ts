@@ -7,7 +7,8 @@ import { useBulkUndo } from './bulk-undo';
 
 /** Cells selected in one column, by row id (only rows shown by the view can be selected). */
 export interface CellSelection {
-  column: TaskColumn;
+  /** Column, or '*' for tasks checked (every column edited in bulk). */
+  column: TaskColumn | '*';
   rowIds: string[];
   /** Tasks of the selected rows (a task can appear on several rows when grouped by assignee). */
   taskIds: string[];
@@ -38,7 +39,7 @@ export function useCellEdit(task: Task, column: TaskColumn) {
   const undo = useBulkUndo();
   const { data } = useTasksData();
   const targets =
-    selection && selection.column === column && selection.taskIds.includes(task.id) ? selection.taskIds : [task.id];
+    selection && (selection.column === column || selection.column === '*') && selection.taskIds.includes(task.id) ? selection.taskIds : [task.id];
 
   return {
     count: targets.length,
