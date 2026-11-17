@@ -13,11 +13,17 @@ export type TravelMode = (typeof TRAVEL_MODES)[number];
 export const TRAVEL_MODE_LABELS: Record<TravelMode, string> = { CAR: 'Voiture', BIKE: 'Vélo', FOOT: 'À pied' };
 
 /** Saved place ("Maison", "Bureau"…): a name, an address and its point. */
-export const placeSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
-  address: z.string().trim().max(300, '300 caractères maximum.'),
-  ...geoPointSchema.shape,
-});
+export const placeSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Le nom est requis.').max(60, '60 caractères maximum.'),
+    address: z.string().trim().max(300, '300 caractères maximum.').default(''),
+    /** Its point; none for a zone (that of the place it is in). */
+    lat: geoPointSchema.shape.lat.nullable().default(null),
+    lon: geoPointSchema.shape.lon.nullable().default(null),
+    /** Place a zone is in (a room of the house…); null: a place with its own address. */
+    parentId: z.string().nullable().default(null),
+  })
+  .refine((place) => place.parentId !== null || (place.lat !== null && place.lon !== null), { path: ['address'], message: 'Choisissez une adresse proposée.' });
 export type PlaceInput = z.input<typeof placeSchema>;
 
 /**

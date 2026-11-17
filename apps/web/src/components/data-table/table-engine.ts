@@ -13,6 +13,7 @@ import type { FilterFields } from '../../features/tasks/views/FilterBuilder';
 import type { ColumnFilter, DataColumn } from './data-table';
 import { currentWeek } from '../../lib/week';
 import * as fmt from '../../lib/format';
+import { treeSelectProps } from '../tree-select/tree-select';
 
 /** Kind of filter field of each kind of column filter. */
 const FIELD_KINDS: Record<ColumnFilter<unknown>['kind'], FilterFieldKind> = {
@@ -69,7 +70,11 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
     first: fields[0]?.column.id ?? '',
     options: (field) => {
       const filter = fields.find(({ column }) => column.id === field)?.filter;
-      return { data: filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [] };
+      const options = filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [];
+      // Choices of a tree (categories, projects, tasks…) offered as their tree.
+      return options.some((option) => option.depth !== undefined)
+        ? treeSelectProps(options.map((option) => ({ ...option, depth: option.depth ?? 0, parent: option.parent ?? null })))
+        : { data: options };
     },
     isComplete: (condition) => Boolean(schema?.safeParse(condition).success),
     emptyText: 'Aucun filtre : toutes les lignes sont affichées.',

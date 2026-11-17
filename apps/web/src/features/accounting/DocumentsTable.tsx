@@ -31,6 +31,7 @@ import { useCommentCounts } from '../comments/api';
 import { deleteRowsAction, duplicateRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { commentColumn } from '../comments/comment-column';
+import type { TreeOption } from '../../components/tree-select/tree-select';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -57,10 +58,10 @@ const monthText = (date: string | null | undefined) => (date ? fmt.capitalize(fm
 
 /**
  * Columns of the documents (type and client only where they vary).
- * @param {{ rows: Row[], projectNames: Map<string, string> }} env Rows (their clients and statuses offered by the filters), names of the projects.
+ * @param {{ rows: Row[], projectNames: Map<string, string>, projects: TreeOption[] }} env Rows (their clients and statuses offered by the filters), names of the projects, projects as their tree.
  * @returns {DataColumn<Row>[]} Columns.
  */
-function documentColumns({ rows, projectNames }: { rows: Row[]; projectNames: Map<string, string> }): DataColumn<Row>[] {
+function documentColumns({ rows, projectNames, projects }: { rows: Row[]; projectNames: Map<string, string>; projects: TreeOption[] }): DataColumn<Row>[] {
   const clients = new Map(rows.flatMap((row) => (row.document.clientId ? [[row.document.clientId, row.document.clientName ?? ''] as const] : [])));
   const statuses = new Map(rows.map((row) => [trackingText(row), trackingText(row)] as const).filter(([name]) => name));
   const projectOf = (row: Row) => (row.document.projectId ? (projectNames.get(row.document.projectId) ?? '') : '');
@@ -129,7 +130,7 @@ function documentColumns({ rows, projectNames }: { rows: Row[]; projectNames: Ma
       size: 200,
       sortValue: (row) => projectOf(row) || null,
       text: projectOf,
-      filter: { kind: 'choice', value: (row) => row.document.projectId ?? null, options: [...projectNames].map(([value, label]) => ({ value, label })) },
+      filter: { kind: 'choice', value: (row) => row.document.projectId ?? null, options: projects },
       groupable: true,
     },
     { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.title ?? null, text: (row) => row.document.title ?? '' },
@@ -347,7 +348,9 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     b.document.issueDate.localeCompare(a.document.issueDate),
   ) as Row[];
   const columns = [
-    ...documentColumns({ rows, projectNames }).filter((column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient)),
+    ...documentColumns({ rows, projectNames, projects: projectOptions(workspace, workspace?.projects ?? []) }).filter(
+      (column) => (column.id !== 'type' || showType) && (column.id !== 'client' || showClient),
+    ),
     commentColumn<Row>(
       new Map([...ordoComments, ...importedComments]),
       (row) => row.document.id,

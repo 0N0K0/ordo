@@ -1,5 +1,5 @@
 import type { DataColumn } from '../../components/data-table/data-table';
-import { categoryTree } from '../../components/category-tree/category-tree';
+import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import type { ShoppingCategory, ShoppingStore } from './api';
 import { peopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import * as fmt from '../../lib/format';
@@ -44,7 +44,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       hiddenByDefault: grouping === 'category',
       sortValue: (item) => categoryOf(item) || null,
       text: categoryOf,
-      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: names.categories.map((category) => ({ value: category.id, label: paths.get(category.id) ?? category.name })) },
+      filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: categoryOptions(names.categories) },
     },
     {
       id: 'store',

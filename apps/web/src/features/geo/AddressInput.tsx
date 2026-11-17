@@ -1,7 +1,7 @@
 import { ActionIcon, Combobox, Group, InputBase, Loader, Menu, Text, Tooltip, useCombobox, type InputBaseProps } from '@mantine/core';
 import type { GeoPoint } from '@ordo/shared';
 import { HouseIcon, MapPinIcon, MapPinLineIcon } from '@phosphor-icons/react';
-import { useAddressSearch, usePlaces } from './api';
+import { placesInTree, useAddressSearch, usePlaces } from './api';
 
 /** Address typed or chosen: its text, and its point when chosen from a place or a search. */
 export interface AddressValue {
@@ -33,7 +33,9 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
   const search = useAddressSearch(value.point ? '' : value.text, near);
   const needle = value.text.trim().toLocaleLowerCase('fr');
   // Typed text filters the places; a chosen address shows them all, to change it.
-  const placeOptions = withPlaces ? (places ?? []).filter((place) => value.point || !needle || `${place.name} ${place.address}`.toLocaleLowerCase('fr').includes(needle)).slice(0, 8) : [];
+  // As their tree: each place followed by its zones (a room of the house…).
+  const tree = placesInTree(places ?? []);
+  const placeOptions = withPlaces ? tree.filter((place) => value.point || !needle || `${place.path} ${place.address}`.toLocaleLowerCase('fr').includes(needle)).slice(0, 12) : [];
   const suggestions = value.point ? [] : (search.data ?? []);
 
   /**
@@ -43,7 +45,8 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
    */
   const choosePlace = (id: string) => {
     const place = places?.find((item) => item.id === id);
-    if (place) onChange({ text: place.address ? `${place.name}, ${place.address}` : place.name, point: { lat: place.lat, lon: place.lon } });
+    // A zone: its full name, with the point of the place it is in.
+    if (place) onChange({ text: place.parentId ? place.path : place.address ? `${place.name}, ${place.address}` : place.name, point: { lat: place.lat, lon: place.lon } });
   };
 
   /**
@@ -84,10 +87,15 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Label>Lieux enregistrés</Menu.Label>
-                  {places.map((place) => (
-                    <Menu.Item key={place.id} leftSection={<HouseIcon aria-hidden />} onClick={() => choosePlace(place.id)}>
+                  {tree.map((place) => (
+                    <Menu.Item
+                      key={place.id}
+                      leftSection={<HouseIcon aria-hidden />}
+                      onClick={() => choosePlace(place.id)}
+                      style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${place.depth} * var(--mantine-spacing-md))` }}
+                    >
                       <Text size="sm">{place.name}</Text>
-                      {place.address && (
+                      {place.address && !place.parentId && (
                         <Text size="xs" c="dimmed">
                           {place.address}
                         </Text>
@@ -113,12 +121,17 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
           {placeOptions.length > 0 && (
             <Combobox.Group label="Lieux enregistrés">
               {placeOptions.map((place) => (
-                <Combobox.Option key={place.id} value={`place:${place.id}`}>
+                <Combobox.Option
+                  key={place.id}
+                  value={`place:${place.id}`}
+                  style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${needle && !value.point ? 0 : place.depth} * var(--mantine-spacing-md))` }}
+                >
                   <Group gap="xs" wrap="nowrap">
                     <HouseIcon aria-hidden />
                     <div>
-                      <Text size="sm">{place.name}</Text>
-                      {place.address && (
+                      {/* Searched: the full name of a zone; listed: its name under its place. */}
+                      <Text size="sm">{needle && !value.point ? place.path : place.name}</Text>
+                      {place.address && !place.parentId && (
                         <Text size="xs" c="dimmed">
                           {place.address}
                         </Text>

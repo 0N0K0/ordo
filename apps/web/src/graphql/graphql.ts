@@ -479,10 +479,14 @@ export type NotificationSource =
   | 'MAILS';
 
 export type PlaceInput = {
-  address: string;
-  lat: number;
-  lon: number;
+  address?: string | null | undefined;
+  /** None for a zone. */
+  lat?: number | null | undefined;
+  /** None for a zone. */
+  lon?: number | null | undefined;
   name: string;
+  /** Place a zone is in. */
+  parentId?: string | number | null | undefined;
 };
 
 export type ProductStockInput = {
@@ -2196,7 +2200,7 @@ export type MoveDashboardChartMutation = { moveDashboardChart: boolean };
 export type PlacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, lat: number, lon: number }> };
+export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, parentId: string | null, lat: number, lon: number, path: string }> };
 
 export type SearchAddressesQueryVariables = Exact<{
   text: string;
@@ -2786,6 +2790,14 @@ export type DeleteRoutineCategoryMutationVariables = Exact<{
 
 
 export type DeleteRoutineCategoryMutation = { deleteRoutineCategory: boolean };
+
+export type CopySubRoutinesMutationVariables = Exact<{
+  fromId: string | number;
+  toId: string | number;
+}>;
+
+
+export type CopySubRoutinesMutation = { copySubRoutines: number };
 
 export type CreateRoutineMutationVariables = Exact<{
   input: RoutineInput;
@@ -6675,8 +6687,10 @@ export const PlacesDocument = new TypedDocumentString(`
     id
     name
     address
+    parentId
     lat
     lon
+    path
   }
 }
     `) as unknown as TypedDocumentString<PlacesQuery, PlacesQueryVariables>;
@@ -7472,6 +7486,11 @@ export const DeleteRoutineCategoryDocument = new TypedDocumentString(`
   deleteRoutineCategory(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteRoutineCategoryMutation, DeleteRoutineCategoryMutationVariables>;
+export const CopySubRoutinesDocument = new TypedDocumentString(`
+    mutation CopySubRoutines($fromId: ID!, $toId: ID!) {
+  copySubRoutines(fromId: $fromId, toId: $toId)
+}
+    `) as unknown as TypedDocumentString<CopySubRoutinesMutation, CopySubRoutinesMutationVariables>;
 export const CreateRoutineDocument = new TypedDocumentString(`
     mutation CreateRoutine($input: RoutineInput!) {
   createRoutine(input: $input)

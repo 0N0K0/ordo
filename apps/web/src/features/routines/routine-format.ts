@@ -1,6 +1,7 @@
 import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineMove, type RoutineState } from '@ordo/shared';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { categoryTree } from '../../components/category-tree/category-tree';
+import { treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
 import type { Routine, RoutineCategory } from './api';
 import * as fmt from '../../lib/format';
 
@@ -35,6 +36,25 @@ export const stateOf = (routine: Routine, today: string, doable = true): Routine
   const state = routineState(routine.currentDate, isDone(routine), today);
   return state === 'due' && !doable ? 'upcoming' : state;
 };
+
+/**
+ * Options of a select of routines, as their tree (sub-routines under their parent, in manual order): those offered, and
+ * their parents greyed out when not offered.
+ * @param {readonly Routine[]} routines Routines.
+ * @param {(routine: Routine) => boolean} [offered] Routines that can be chosen. Optional. Default = all.
+ * @param {(routine: Routine) => string} [label] Name of a routine. Optional. Default = its title.
+ * @returns {TreeOption[]} Options.
+ */
+export function routineTreeOptions(routines: readonly Routine[], offered: (routine: Routine) => boolean = () => true, label: (routine: Routine) => string = (routine) => routine.title): TreeOption[] {
+  const byId = new Map(routines.map((routine) => [routine.id, routine]));
+  return treeOptions(
+    [...routines].sort((a, b) => a.position - b.position).map((routine) => ({ id: routine.id, parentId: routine.parentId ?? null, label: label(routine) })),
+    (id) => {
+      const routine = byId.get(id);
+      return routine !== undefined && offered(routine);
+    },
+  );
+}
 
 /**
  * Required routines of a routine still to do for their current occurrence ("étendre le linge" waits for "laver le linge").

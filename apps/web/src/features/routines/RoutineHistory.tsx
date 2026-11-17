@@ -12,6 +12,8 @@ import { useRoutineChecks, useRoutineOccurrences, useRoutinesData, type Routine,
 import { RoutineDayAgenda, type AgendaLayers, type HistoryItem } from './RoutineDayAgenda';
 import { useAgendaLayerOptions } from './use-agenda-layers';
 import * as fmt from '../../lib/format';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { routineTreeOptions } from './routine-format';
 
 /**
  * What a day held: each time of the day planned for the routines that day (done or not, with its tick); nothing
@@ -96,7 +98,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
         <Select
           aria-label="Routine"
           placeholder="Toutes les routines"
-          data={[...routines].sort((a, b) => a.title.localeCompare(b.title, 'fr')).map((routine) => ({ value: routine.id, label: routine.archived ? `${routine.title} (archivée)` : routine.title }))}
+          {...treeSelectProps(routineTreeOptions(routines, undefined, (routine) => (routine.archived ? `${routine.title} (archivée)` : routine.title)))}
           value={routineId}
           onChange={onRoutine}
           searchable

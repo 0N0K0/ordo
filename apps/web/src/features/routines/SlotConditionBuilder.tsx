@@ -1,10 +1,13 @@
 import { Stack, Text } from '@mantine/core';
-import { SLOT_CONDITION_FIELDS, SLOT_CONDITION_OPERATORS, slotConditionSchema, type SlotCondition, type SlotConditionField } from '@ordo/shared';
+import { SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
 import { useWorkSchedules } from '../calendar/api';
 import { FieldsFilterBuilder, type FilterFields } from '../tasks/views/FilterBuilder';
 import { emptySlotCondition } from './slot-condition-text';
 
-const OPERATOR_LABELS: Record<string, string> = { in: 'sur l’une des plages', notIn: 'hors des plages' };
+const OPERATOR_LABELS: Record<SlotConditionField, Record<string, string>> = {
+  schedules: { in: 'sur l’une des plages', notIn: 'hors des plages' },
+  freeTime: { isEmpty: 'hors de toutes les plages', notIn: 'hors de toutes les plages sauf' },
+};
 
 /**
  * When a routine (or one of its cases) is done relative to the calendar schedules: on or out of some of them,
@@ -17,13 +20,13 @@ export function SlotConditionBuilder({ value, onChange }: { value: SlotCondition
   const { data: schedules } = useWorkSchedules();
   const fields: FilterFields<SlotConditionField> = {
     kinds: SLOT_CONDITION_FIELDS,
-    labels: { schedules: 'Plages' },
-    groups: [{ group: 'Agenda', fields: ['schedules'] }],
+    labels: { schedules: 'Plages', freeTime: 'Temps libre' },
+    groups: [{ group: 'Agenda', fields: ['schedules', 'freeTime'] }],
     first: 'schedules',
     options: () => ({ data: (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name })) }),
     isComplete: (condition) => slotConditionSchema.safeParse({ type: 'group', id: 'root', combinator: 'and', children: [condition] }).success,
-    operatorLabel: (_field, operator) => OPERATOR_LABELS[operator],
-    operators: () => SLOT_CONDITION_OPERATORS,
+    operatorLabel: (field, operator) => OPERATOR_LABELS[field][operator],
+    operators: (field) => SLOT_CONDITION_FIELD_OPERATORS[field] as readonly FilterOperator[],
     emptyText: 'Aucune condition : à n’importe quelle heure.',
   };
   return (
@@ -32,8 +35,8 @@ export function SlotConditionBuilder({ value, onChange }: { value: SlotCondition
         Plages de l’agenda
       </Text>
       <Text size="xs" c="dimmed">
-        Facultatif : sur ou hors de certaines plages, combinées en groupes (ET, OU). Les moments ne sont gardés que sur les heures que la condition permet ; un jour sans aucune heure n’est pas une
-        occurrence.
+        Facultatif : sur ou hors de certaines plages, ou sur le temps libre (hors de toutes les plages, sauf certaines), combinées en groupes (ET, OU). Les moments ne sont gardés que sur les heures
+        que la condition permet ; un jour sans aucune heure n’est pas une occurrence.
       </Text>
       <FieldsFilterBuilder filter={value ?? emptySlotCondition()} fields={fields} onChange={(next) => onChange(next.children.length ? next : null)} />
     </Stack>

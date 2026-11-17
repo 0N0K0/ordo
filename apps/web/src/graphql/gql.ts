@@ -151,7 +151,7 @@ type Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": typeof types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": typeof types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": typeof types.MoveDashboardChartDocument,
-    "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n": typeof types.PlacesDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n    }\n  }\n": typeof types.PlacesDocument,
     "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.SearchAddressesDocument,
     "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.ReverseAddressDocument,
     "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": typeof types.TravelTimeDocument,
@@ -231,6 +231,7 @@ type Documents = {
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": typeof types.DeleteRoutineCategoryDocument,
+    "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": typeof types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": typeof types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": typeof types.PatchRoutineDocument,
@@ -625,7 +626,7 @@ const documents: Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": types.MoveDashboardChartDocument,
-    "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n": types.PlacesDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n    }\n  }\n": types.PlacesDocument,
     "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.SearchAddressesDocument,
     "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.ReverseAddressDocument,
     "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": types.TravelTimeDocument,
@@ -705,6 +706,7 @@ const documents: Documents = {
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": types.DeleteRoutineCategoryDocument,
+    "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!) {\n    updateRoutine(id: $id, input: $input)\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": types.PatchRoutineDocument,
@@ -1510,7 +1512,7 @@ export function graphql(source: "\n  mutation MoveDashboardChart($id: ID!, $inde
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Places {\n    places {\n      id\n      name\n      address\n      lat\n      lon\n    }\n  }\n"): typeof import('./graphql').PlacesDocument;
+export function graphql(source: "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n    }\n  }\n"): typeof import('./graphql').PlacesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1827,6 +1829,10 @@ export function graphql(source: "\n  mutation MoveRoutineCategory($id: ID!, $par
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n"): typeof import('./graphql').DeleteRoutineCategoryDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n"): typeof import('./graphql').CopySubRoutinesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

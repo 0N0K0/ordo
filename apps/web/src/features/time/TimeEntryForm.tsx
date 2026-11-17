@@ -14,6 +14,8 @@ import { TimeTasksSelect } from './TimeTasksSelect';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
 import { useRoutinesData } from '../routines/api';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { routineTreeOptions } from '../routines/routine-format';
 
 /**
  * Local "YYYY-MM-DD" and "HH:MM" of an instant.
@@ -116,7 +118,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
             placeholder="Aucune"
             clearable
             searchable
-            data={(routinesData?.routines ?? []).filter((routine) => !routine.archived || routine.id === form.values.routineId).map((routine) => ({ value: routine.id, label: routine.title }))}
+            {...treeSelectProps(routineTreeOptions(routinesData?.routines ?? [], (routine) => !routine.archived || routine.id === form.values.routineId))}
             {...form.getInputProps('routineId')}
           />
           <TimeTasksSelect

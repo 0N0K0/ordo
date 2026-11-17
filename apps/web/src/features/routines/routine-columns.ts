@@ -4,7 +4,7 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import * as fmt from '../../lib/format';
 import { commentTotal } from '../comments/comment-column';
 import type { Routine } from './api';
-import { isDone, stateOf, waitingFor } from './routine-format';
+import { isDone, routineTreeOptions, stateOf, waitingFor } from './routine-format';
 import { opensWords, REPETITION_LABELS, repetitionOf, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 
 /**
@@ -33,7 +33,7 @@ const dayText = (date: string | null) => (date ? fmt.weekday(date) : '');
 export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const { context, byId, categories } = env;
   const routines = [...byId.values()];
-  const routineOptions = routines.map((routine) => ({ value: routine.id, label: routine.title }));
+  const routineOptions = routineTreeOptions(routines);
   const contributorName = new Map(context.contributors.map((contributor) => [contributor.id, contributor.isMe ? 'Moi' : contributor.name]));
   const categoryName = new Map(categories.map((category) => [category.id, category.name]));
   const categoryRank = new Map(categoryTree(categories).map((item, index) => [item.category.id, index]));
@@ -210,7 +210,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       bulk: true,
       sortValue: (routine) => (routine.categoryIds.length ? Math.min(...routine.categoryIds.map((id) => categoryRank.get(id) ?? Infinity)) : null),
       text: (routine) => routine.categoryIds.map((id) => categoryName.get(id) ?? '').join(', '),
-      filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: categoryOptions(categories).map((option) => ({ value: option.value, label: option.label })) },
+      filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: categoryOptions(categories) },
       groupTree: categories.map((category) => ({ key: category.id, label: category.name, color: category.color, parentKey: category.parentId })),
     },
     {
@@ -254,7 +254,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       bulk: true,
       sortValue: (routine) => (routine.projectId ? context.projectLabel(routine.projectId) : null),
       text: (routine) => (routine.projectId ? context.projectLabel(routine.projectId) : ''),
-      filter: { kind: 'choice', value: (routine) => routine.projectId ?? null, options: context.projects.map((project) => ({ value: project.id, label: context.projectLabel(project.id) })) },
+      filter: { kind: 'choice', value: (routine) => routine.projectId ?? null, options: context.projectOptions(context.projects) },
     },
     { id: 'description', label: 'Description', size: 240, hiddenByDefault: true, groupable: false, text: (routine) => routine.description ?? '' },
     { id: 'done', label: 'Faite', size: 90, hiddenByDefault: true, text: (routine) => (isDone(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: (routine) => routine.done } },

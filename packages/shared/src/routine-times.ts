@@ -1,18 +1,25 @@
 import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from './task-filters';
 import type { PlannedSlot } from './work-schedules';
 
-/** Field of the conditions on calendar schedules: the schedules, on or out of them. */
-export const SLOT_CONDITION_FIELDS = { schedules: 'reference' } as const;
+/**
+ * Fields of the conditions on calendar schedules: some schedules (on or out of them), or the free time (out of every
+ * schedule, those created later too, but some of them).
+ */
+export const SLOT_CONDITION_FIELDS = { schedules: 'reference', freeTime: 'reference' } as const;
 export type SlotConditionField = keyof typeof SLOT_CONDITION_FIELDS;
-/** On the slots of one of the schedules, or out of all of them. */
-export const SLOT_CONDITION_OPERATORS = ['in', 'notIn'] as const;
+/** Schedules: on the slots of one of them, or out of all of them. Free time: out of every schedule (but some of them). */
+export const SLOT_CONDITION_FIELD_OPERATORS: Record<SlotConditionField, readonly string[]> = { schedules: ['in', 'notIn'], freeTime: ['isEmpty', 'notIn'] };
+/** Operators of the conditions on calendar schedules. */
+export const SLOT_CONDITION_OPERATORS = ['in', 'notIn', 'isEmpty'] as const;
+/** Every schedule, in the schedules asked for the slots of a day. */
+export const ALL_SCHEDULES = '*';
 
 /** Condition on some calendar schedules. */
 export type SlotConditionItem = FilterConditionOf<SlotConditionField>;
 /** Conditions on calendar schedules, in groups combined with « et » / « ou » (the filters of the tables). */
 export type SlotCondition = FilterGroupOf<SlotConditionField>;
 
-const slotConditionItemSchema = filterConditionSchemaFor(SLOT_CONDITION_FIELDS, {}).refine((condition) => (SLOT_CONDITION_OPERATORS as readonly string[]).includes(condition.operator), {
+const slotConditionItemSchema = filterConditionSchemaFor(SLOT_CONDITION_FIELDS, {}).refine((condition) => (SLOT_CONDITION_FIELD_OPERATORS[condition.field] ?? []).includes(condition.operator), {
   path: ['operator'],
   message: 'Sur ou hors des plages.',
 });
@@ -38,6 +45,17 @@ export function conditionScheduleIds(node: SlotCondition | SlotConditionItem | n
   if (!node) return [];
   if (node.type === 'condition') return Array.isArray(node.value) ? node.value : [];
   return [...new Set(node.children.flatMap(conditionScheduleIds))];
+}
+
+/**
+ * Whether a condition limits the hours (it has a condition on some schedules or on the free time).
+ * @param {SlotCondition | SlotConditionItem | null | undefined} node Condition.
+ * @returns {boolean} It limits them.
+ */
+export function conditionConstrains(node: SlotCondition | SlotConditionItem | null | undefined): boolean {
+  if (!node) return false;
+  if (node.type === 'condition') return node.field === 'freeTime' || conditionScheduleIds(node).length > 0;
+  return node.children.some(conditionConstrains);
 }
 
 /** A window of the day: from a time (null: the start of the day) to a time (null: its end). */
@@ -176,6 +194,11 @@ function conditionIntervals(node: SlotCondition | SlotConditionItem | null | und
   if (!node) return null;
   if (node.type === 'condition') {
     const ids = Array.isArray(node.value) ? node.value : [];
+    // Free time: out of every schedule, but those named.
+    if (node.field === 'freeTime') {
+      const others = slotsOf([ALL_SCHEDULES]).filter((slot) => node.operator !== 'notIn' || !ids.includes(slot.scheduleId));
+      return windowsOutside({ fromTime: null, dueTime: null }, others).map(intervalOf);
+    }
     const on = merged(slotsOf(ids));
     if (node.operator === 'notIn') return windowsOutside({ fromTime: null, dueTime: null }, slotsOf(ids)).map(intervalOf);
     return on;
