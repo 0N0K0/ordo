@@ -1,5 +1,7 @@
+import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
+import { TaskProgress } from './TaskProgress';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { ActionIcon, Anchor, Badge, Group, Menu, Popover, Progress, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Menu, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotRule } from '@ordo/shared';
 import { AlarmIcon, BasketIcon, PlayIcon, PlusIcon, StopIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -26,17 +28,18 @@ export function SlotsCell({ task }: { task: Task }) {
   const { describe, ruleOf } = useSlotRules();
   const own = readSlotRule(task.slotRule);
   return (
-    <Popover position="bottom-start" withinPortal shadow="md" width={420}>
-      <Popover.Target>
-        <Anchor component="button" type="button" size="sm" c={own ? undefined : 'dimmed'} onClick={stopClick} style={{ textAlign: 'left' }}>
+    <EditablePopoverCell
+      width={420}
+      empty={!own}
+      target={
+        <>
           {describe(ruleOf(task.slotRule)) ?? 'Partout'}
           {!own && ' (défaut)'}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stopClick}>
-        <SlotRuleInput value={own} onChange={(slotRule) => apply({ slotRule })} />
-      </Popover.Dropdown>
-    </Popover>
+        </>
+      }
+    >
+      <SlotRuleInput value={own} onChange={(slotRule) => apply({ slotRule })} />
+    </EditablePopoverCell>
   );
 }
 
@@ -117,12 +120,9 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
   const done = children.filter((child) => child.closed).length;
   return (
     <Tooltip label={`${done} sur ${children.length} sous-tâches fermées`}>
-      <Group gap={6} wrap="nowrap">
-        <Progress value={(done / children.length) * 100} size="sm" style={{ flex: 1 }} aria-label="Avancement des sous-tâches" />
-        <Text size="xs" c="dimmed">
-          {done}/{children.length}
-        </Text>
-      </Group>
+      <div>
+        <TaskProgress done={done} total={children.length} size="sm" unit={false} label="Avancement des sous-tâches" />
+      </div>
     </Tooltip>
   );
 }

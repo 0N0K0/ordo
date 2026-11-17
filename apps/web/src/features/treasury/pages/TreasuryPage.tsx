@@ -1,3 +1,5 @@
+import { PeriodNav } from '../../../components/page/PeriodNav';
+import { StatTile } from '../../../components/page/StatTile';
 import { openFormPanel } from '../../../components/panels/panels';
 import { useSetParams } from '../../../lib/search-params';
 import { plural, countOf } from '../../../lib/text';
@@ -8,11 +10,11 @@ import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skel
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useEntryCellSave } from '../lib/entry-values';
 
-import { ActionIcon, Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+import { Anchor, Badge, Button, Group, Paper, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar } from '@ordo/shared';
-import { BankIcon, CalendarPlusIcon, CaretLeftIcon, CaretRightIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -171,26 +173,12 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
 }
 
 /**
- * Key figure of the treasury.
+ * Key figure of the treasury: an amount (red below zero).
  * @param {{ label: string, value: number, hint?: string, color?: string }} props Component props.
- * @returns {JSX.Element} Card.
+ * @returns {JSX.Element} Tile.
  */
 function Figure({ label, value, hint, color }: { label: string; value: number; hint?: string; color?: string }) {
-  return (
-    <Paper withBorder radius="md" p="md">
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-        {label}
-      </Text>
-      <Text size="xl" fw={700} ff="monospace" c={color ?? (value < 0 ? 'red' : undefined)}>
-        {fmt.money(value)}
-      </Text>
-      {hint && (
-        <Text size="xs" c="dimmed">
-          {hint}
-        </Text>
-      )}
-    </Paper>
-  );
+  return <StatTile label={label} value={fmt.money(value)} hint={hint} valueColor={color ?? (value < 0 ? 'red' : undefined)} />;
 }
 
 type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean } | { kind: 'realize'; item: ProjectionItem } | null;
@@ -371,15 +359,12 @@ export function TreasuryPage() {
         <Group justify="space-between" mb="sm">
           <Text fw={600}>Évolution du solde</Text>
           <Group gap="xs">
-            <Button size="xs" variant="default" disabled={periodFirst === calendarStart(scale, today)} onClick={() => setPeriodFirst(calendarStart(scale, today))}>
-              Aujourd’hui
-            </Button>
-            <Group gap={2} wrap="nowrap">
-              <Tooltip label="Période précédente">
-                <ActionIcon variant="subtle" color="gray" aria-label="Période précédente" onClick={() => setPeriodFirst(shiftCalendar(scale, periodFirst, -1))}>
-                  <CaretLeftIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
+            <PeriodNav
+              current={periodFirst === calendarStart(scale, today)}
+              onToday={() => setPeriodFirst(calendarStart(scale, today))}
+              onPrevious={() => setPeriodFirst(shiftCalendar(scale, periodFirst, -1))}
+              onNext={() => setPeriodFirst(shiftCalendar(scale, periodFirst, 1))}
+            >
               <Popover opened={picking} onChange={setPicking} position="bottom" shadow="md" withArrow>
                 <Popover.Target>
                   <Button size="xs" variant="subtle" color="gray" miw={150} onClick={() => setPicking((open) => !open)} aria-label={`Choisir la période (${periodLabel(scale, periodFirst)})`}>
@@ -407,12 +392,7 @@ export function TreasuryPage() {
                   )}
                 </Popover.Dropdown>
               </Popover>
-              <Tooltip label="Période suivante">
-                <ActionIcon variant="subtle" color="gray" aria-label="Période suivante" onClick={() => setPeriodFirst(shiftCalendar(scale, periodFirst, 1))}>
-                  <CaretRightIcon aria-hidden />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
+            </PeriodNav>
             <SegmentedControl
               size="xs"
               aria-label="Durée de la période"

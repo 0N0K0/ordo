@@ -1,10 +1,10 @@
+import { PeriodNav } from '../../../components/page/PeriodNav';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
-import { ActionIcon, Button, Group, Paper, Select, Stack, Text } from '@mantine/core';
+import { Group, Paper, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, collator, mapById } from '@ordo/shared';
-import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { localToday } from '../../../lib/dates';
@@ -74,10 +74,14 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
   return (
     <Stack gap="lg">
       <Group justify="space-between" gap="sm">
-        <Group gap={4} wrap="nowrap">
-          <ActionIcon variant="subtle" color="gray" aria-label="Jour précédent" onClick={() => setDay(addDays(day, -1))}>
-            <CaretLeftIcon aria-hidden />
-          </ActionIcon>
+        <PeriodNav
+          current={day === today}
+          last={day >= today}
+          labels={{ previous: 'Jour précédent', next: 'Jour suivant' }}
+          onToday={() => setDay(today)}
+          onPrevious={() => setDay(addDays(day, -1))}
+          onNext={() => setDay(addDays(day, 1))}
+        >
           <DatePickerInput
             aria-label="Jour"
             value={day}
@@ -87,15 +91,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
             w={240}
             styles={{ input: { textAlign: 'center', textTransform: 'capitalize' } }}
           />
-          <ActionIcon variant="subtle" color="gray" aria-label="Jour suivant" disabled={day >= today} onClick={() => setDay(addDays(day, 1))}>
-            <CaretRightIcon aria-hidden />
-          </ActionIcon>
-          {day !== today && (
-            <Button variant="subtle" size="compact-sm" onClick={() => setDay(today)}>
-              Aujourd’hui
-            </Button>
-          )}
-        </Group>
+        </PeriodNav>
         <Select
           aria-label="Routine"
           placeholder="Toutes les routines"

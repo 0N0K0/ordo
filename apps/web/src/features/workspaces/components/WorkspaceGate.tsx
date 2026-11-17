@@ -1,6 +1,7 @@
-import { Alert, Center, Loader } from '@mantine/core';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { Center, Loader } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { useWorkspaces } from '../api';
 
 /**
@@ -12,11 +13,7 @@ import { useWorkspaces } from '../api';
 export function WorkspaceGate({ children }: { children: ReactNode }) {
   const { data, error } = useWorkspaces();
   if (error) {
-    return (
-      <Alert color="red" icon={<ErrorIcon />} m="md">
-        {error.message}
-      </Alert>
-    );
+    return <ErrorAlert m="md">{error.message}</ErrorAlert>;
   }
   if (!data) {
     return (

@@ -1,3 +1,4 @@
+import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams } from '../../../lib/search-params';
 import { mapById, byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/actions/PageHeader';
@@ -112,7 +113,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             context,
             doable,
             comments,
-            slotKinds: (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name })),
+            slotKinds: scheduleChoices(schedules).options,
             beneficiaries: beneficiaryGroups.flatMap((group) => group.items),
           })
         : [],

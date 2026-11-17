@@ -1,23 +1,14 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { ActionIcon, Alert, Badge, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
-import {
-  ArrowBendDoubleUpLeftIcon,
-  ArrowBendUpLeftIcon,
-  ArrowBendUpRightIcon,
-  CheckCircleIcon,
-  FlagIcon,
-  EnvelopeSimpleIcon,
-  LinkBreakIcon,
-  PencilSimpleLineIcon,
-  TrashIcon,
-} from '@phosphor-icons/react';
+import { ActionIcon, Badge, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { ArrowBendDoubleUpLeftIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, CheckCircleIcon, FlagIcon, EnvelopeSimpleIcon, LinkBreakIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
@@ -100,9 +91,9 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
   if (isPending) return <DetailSkeleton fields={0} />;
   if (error || !mail) {
     return (
-      <Alert color="red" icon={<ErrorIcon />}>
+      <ErrorAlert>
         {error?.message ?? 'Mail introuvable.'}
-      </Alert>
+      </ErrorAlert>
     );
   }
 

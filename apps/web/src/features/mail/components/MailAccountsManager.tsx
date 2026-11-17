@@ -64,12 +64,7 @@ export function MailAccountsManager() {
       {isPending ? (
         <ListSkeleton items={2} />
       ) : !accounts?.length ? (
-        <Group gap="sm">
-          <ThemeIcon variant="light" color="gray" radius="xl">
-            <EnvelopeSimpleIcon aria-hidden />
-          </ThemeIcon>
-          <EmptyState compact message="Aucune boîte mail configurée." />
-        </Group>
+        <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Aucune boîte mail configurée." />
       ) : (
         <Stack gap="xs">
           {accounts.map((account) => (

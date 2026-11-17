@@ -1,7 +1,8 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { Alert, Anchor, Center, Loader } from '@mantine/core';
 import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ErrorIcon, SuccessIcon } from '../../../components/feedback/feedback-icons';
+import { SuccessIcon } from '../../../components/feedback/feedback-icons';
 import { useConfirmEmailChange } from '../api';
 import { AuthHeader } from './AuthLayout';
 
@@ -26,10 +27,10 @@ export function ConfirmEmailPage() {
     <>
       <AuthHeader title="Confirmation de l’adresse email" />
       {!token || confirm.isError ? (
-        <Alert color="red" title="Lien invalide" icon={<ErrorIcon />}>
+        <ErrorAlert title="Lien invalide">
           {confirm.error?.message ?? 'Ce lien de confirmation est incomplet.'} Relancez le changement d’adresse depuis
           votre compte.
-        </Alert>
+        </ErrorAlert>
       ) : confirm.isSuccess ? (
         <Alert color="green" title="Adresse confirmée" icon={<SuccessIcon />}>
           Votre nouvelle adresse email est enregistrée.

@@ -31,3 +31,18 @@ export function groupBy<T, K>(items: readonly T[], keyOf: (item: T) => K): Map<K
  * @returns {number} Comparison.
  */
 export const byPosition = (a: { position: number }, b: { position: number }): number => a.position - b.position;
+
+/**
+ * How many items have each key (how many tasks use each status, each tag…).
+ * @param {readonly T[]} items Items.
+ * @param {(item: T) => string | readonly string[] | null | undefined} keysOf Key or keys of an item (none: not counted).
+ * @returns {Map<string, number>} Count by key.
+ */
+export function countBy<T>(items: readonly T[], keysOf: (item: T) => string | readonly string[] | null | undefined): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const keys = keysOf(item);
+    for (const key of typeof keys === 'string' ? [keys] : (keys ?? [])) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}

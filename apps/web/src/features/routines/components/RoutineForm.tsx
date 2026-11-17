@@ -1,17 +1,5 @@
 import { Divider, Grid, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
-import {
-  byPosition,
-  opensFits,
-  readOpens,
-  readSlotCondition,
-  type Recurrence,
-  type RoutineCase,
-  type RoutineOpens,
-  routineSchema,
-  type RoutineSlot,
-  type SlotCondition,
-  subtreeOf,
-} from '@ordo/shared';
+import { opensFits, readOpens, readSlotCondition, type Recurrence, type RoutineCase, type RoutineOpens, routineSchema, type RoutineSlot, type SlotCondition, subtreeOf } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { localToday } from '../../../lib/dates';
@@ -20,9 +8,9 @@ import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
-import { DAILY, ruleOf } from '../lib/routine-format';
+import { DAILY, routineTreeOptions, ruleOf } from '../lib/routine-format';
 import { RoutineSchedule } from './RoutineSchedule';
-import { treeOptions, treeSelectProps } from '../../../components/tree/tree-select';
+import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
@@ -121,14 +109,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
    * @param {(item: Routine) => boolean} filter Routines offered (active ones only).
    * @returns {TreeOption[]} Options.
    */
-  const routineOptions = (filter: (item: Routine) => boolean) =>
-    treeOptions(
-      [...routines].sort(byPosition).map((item) => ({ id: item.id, parentId: item.parentId, label: item.title })),
-      (id) => {
-        const item = routines.find((candidate) => candidate.id === id);
-        return item !== undefined && !item.archived && filter(item);
-      },
-    );
+  const routineOptions = (filter: (item: Routine) => boolean) => routineTreeOptions(routines, (item) => !item.archived && filter(item));
 
   const handleSubmit = form.onSubmit((values) => {
     // « À partir du » of its rule (its cases have theirs): dropped when it no longer fits the repetition.

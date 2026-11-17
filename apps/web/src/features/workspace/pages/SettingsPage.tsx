@@ -1,3 +1,4 @@
+import { countBy } from '@ordo/shared';
 import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/actions/PageHeader';
 import { Stack } from "@mantine/core";
@@ -47,24 +48,11 @@ export function SettingsPage() {
   const { perso } = useActiveWorkspace();
   const asked = params.get("tab") ?? "projects";
   const tab = asked;
-  const assigneeUsage = new Map<string, number>();
-  for (const task of taskData?.tasks ?? []) {
-    for (const id of task.assigneeIds)
-      assigneeUsage.set(id, (assigneeUsage.get(id) ?? 0) + 1);
-  }
+  const assigneeUsage = countBy(taskData?.tasks ?? [], (task) => task.assigneeIds);
 
   const projects = data?.projects ?? [];
-  const categoryUsage = new Map<string, number>();
-  const statusUsage = new Map<string, number>();
-  for (const project of projects) {
-    for (const category of project.categories)
-      categoryUsage.set(category.id, (categoryUsage.get(category.id) ?? 0) + 1);
-    if (project.statusId)
-      statusUsage.set(
-        project.statusId,
-        (statusUsage.get(project.statusId) ?? 0) + 1,
-      );
-  }
+  const categoryUsage = countBy(projects, (project) => project.categories.map((category) => category.id));
+  const statusUsage = countBy(projects, (project) => project.statusId);
 
   // Settings moved to their views.
   const moved: Record<string, string> = {

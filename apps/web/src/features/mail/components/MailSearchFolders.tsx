@@ -1,12 +1,13 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { plural } from '../../../lib/text';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Alert, Badge, Box, Checkbox, Group, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
+import { Badge, Box, Checkbox, Group, NavLink, Pagination, Text, Tooltip } from '@mantine/core';
 import type { MailSearchCriteria } from '@ordo/shared';
 import { CheckCircleIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from '../api';
 import { correspondent, listDate } from '../lib/mail-format';
@@ -128,11 +129,7 @@ export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpe
   // Mails sent from one of these show their recipients.
   const ownAddresses = new Set((accounts ?? []).map((account) => account.email.toLowerCase()));
   if (results.error) {
-    return (
-      <Alert color="red" icon={<ErrorIcon />} m="xs">
-        {results.error.message}
-      </Alert>
-    );
+    return <ErrorAlert m="xs">{results.error.message}</ErrorAlert>;
   }
   if (results.isPending) {
     return <ListSkeleton items={5} dense />;

@@ -1,3 +1,4 @@
+import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { Stack, Text } from '@mantine/core';
 import { SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
 import { useWorkSchedules } from '../../calendar/api';
@@ -23,7 +24,7 @@ export function SlotConditionBuilder({ value, onChange }: { value: SlotCondition
     labels: { schedules: 'Plages', freeTime: 'Temps libre' },
     groups: [{ group: 'Agenda', fields: ['schedules', 'freeTime'] }],
     first: 'schedules',
-    options: () => ({ data: (schedules ?? []).map((schedule) => ({ value: schedule.id, label: schedule.name })) }),
+    options: () => ({ data: scheduleChoices(schedules).options }),
     isComplete: (condition) => slotConditionSchema.safeParse({ type: 'group', id: 'root', combinator: 'and', children: [condition] }).success,
     operatorLabel: (field, operator) => OPERATOR_LABELS[field][operator],
     operators: (field) => SLOT_CONDITION_FIELD_OPERATORS[field] as readonly FilterOperator[],

@@ -1,6 +1,6 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
-import { ItemBadge } from '../../../components/settings/ItemBadge';
-import { ActionIcon, Badge, Group, Paper, Text, UnstyledButton } from '@mantine/core';
+import { ArchivedBadge, ItemBadge } from '../../../components/settings/ItemBadge';
+import { ActionIcon, Group, Paper, Text, UnstyledButton } from '@mantine/core';
 import { mapById, lineageOf, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -88,11 +88,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
             {project.title}
           </Text>
           <ItemBadge item={status} />
-          {project.archived && (
-            <Badge variant="light" color="gray">
-              Archivé
-            </Badge>
-          )}
+          {project.archived && <ArchivedBadge />}
         </Group>
       </UnstyledButton>
     </Group>

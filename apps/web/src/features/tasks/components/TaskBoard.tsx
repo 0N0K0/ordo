@@ -1,11 +1,12 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Alert, Group, Select, Switch, Text, Tooltip } from '@mantine/core';
+import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
 import { addDays, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
 import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView, useTableViews, type FirstTableView } from '../../../components/data-table/views/use-data-view';
@@ -295,11 +296,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
 
   return (
     <>
-      {(error ?? view.views.error) && (
-        <Alert color="red" icon={<ErrorIcon />} mb="sm">
-          {(error ?? view.views.error)?.message}
-        </Alert>
-      )}
+      {(error ?? view.views.error) && <ErrorAlert mb="sm">{(error ?? view.views.error)?.message}</ErrorAlert>}
       <DataTable
         view={view}
         getKey={(row) => row.key}

@@ -1,8 +1,8 @@
 import { stopClick } from '../../../components/data-table/cells/cell-field';
-import { Anchor, Popover, Select, Text } from '@mantine/core';
+import { Select, Text } from '@mantine/core';
 import { formatDuration, parseDuration } from '@ordo/shared';
 import { useState } from 'react';
-import { EditableDate, EditableMultiSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableDate, EditableMultiSelect, EditablePopoverCell, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { TimeField } from '../../../components/inputs/TimeField';
 import { localDay, localParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
@@ -141,26 +141,19 @@ export function TimeEventCell({ entry, readOnly, save }: { entry: TimeEntry; rea
   if (current && !options.some((option) => option.value === current)) options.unshift({ value: current, label: entry.calendarEventTitle ?? 'Évènement' });
   if (readOnly) return <>{entry.calendarEventTitle}</>;
   return (
-    <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={320}>
-      <Popover.Target>
-        <Anchor component="button" type="button" size="sm" c={entry.calendarEventTitle ? undefined : 'dimmed'} onClick={(event) => (stopClick(event), setOpened((value) => !value))} truncate>
-          {entry.calendarEventTitle ?? '—'}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stopClick}>
-        <Select
-          label="Évènement du jour"
-          placeholder="Aucun"
-          clearable
-          data={options}
-          value={current}
-          onChange={(key) => {
-            save(entry, { event: key ? { eventId: key.split('|')[0], occurrenceDate: key.split('|')[1] || null } : null });
-            setOpened(false);
-          }}
-          comboboxProps={{ withinPortal: false }}
-        />
-      </Popover.Dropdown>
-    </Popover>
+    <EditablePopoverCell width={320} empty={!entry.calendarEventTitle} truncate opened={opened} onOpenedChange={setOpened} target={entry.calendarEventTitle ?? '—'}>
+      <Select
+        label="Évènement du jour"
+        placeholder="Aucun"
+        clearable
+        data={options}
+        value={current}
+        onChange={(key) => {
+          save(entry, { event: key ? { eventId: key.split('|')[0], occurrenceDate: key.split('|')[1] || null } : null });
+          setOpened(false);
+        }}
+        comboboxProps={{ withinPortal: false }}
+      />
+    </EditablePopoverCell>
   );
 }

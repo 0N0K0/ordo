@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { plural } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { Group, Stack, Text } from '@mantine/core';
@@ -5,7 +6,7 @@ import { CheckCircleIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useMailAccounts, useUnreadMails } from '../../mail/api';
 import classes from './Home.module.css';
-import { HomeCard, HomeEmpty } from './HomeCard';
+import { HomeCard } from './HomeCard';
 import { dayLabel } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 
@@ -25,9 +26,9 @@ export function MailCard({ today }: { today: string }) {
 
   return (
     <HomeCard title="Mails non lus" icon={<EnvelopeSimpleIcon aria-hidden />} to="/mail" linkLabel="Boîte de réception" loading={loading}>
-      {!loading && accountIds.length === 0 && <HomeEmpty icon={<EnvelopeSimpleIcon aria-hidden />}>Aucune boîte mail configurée.</HomeEmpty>}
-      {!loading && unread.error && unread.data?.length === 0 && <HomeEmpty icon={<EnvelopeSimpleIcon aria-hidden />}>Boîte mail injoignable.</HomeEmpty>}
-      {!loading && accountIds.length > 0 && !unread.error && unread.data?.length === 0 && <HomeEmpty icon={<CheckCircleIcon aria-hidden />}>Aucun mail non lu.</HomeEmpty>}
+      {!loading && accountIds.length === 0 && <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Aucune boîte mail configurée." />}
+      {!loading && unread.error && unread.data?.length === 0 && <EmptyState compact icon={<EnvelopeSimpleIcon aria-hidden />} message="Boîte mail injoignable." />}
+      {!loading && accountIds.length > 0 && !unread.error && unread.data?.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Aucun mail non lu." />}
       {!loading && unread.data && unread.data.length > 0 && (
         <Stack gap={0}>
           {unread.data.slice(0, MAX_ROWS).map(({ accountId, message }) => {

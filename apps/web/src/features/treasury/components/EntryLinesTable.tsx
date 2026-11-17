@@ -1,4 +1,4 @@
-import { personKey, memberOrRelation, memberOrRelationKey, parsePersonKey } from '../../../components/people/people-keys';
+import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey } from '../../../components/people/people-keys';
 import { Checkbox, Text } from '@mantine/core';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { EVERYDAY_CONTEXT, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
@@ -222,10 +222,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               value={whomKey(line) === ME ? null : whomKey(line)}
               label={`Bénéficiaire de ${name}`}
               nullable
-              data={[
-                { group: 'Membres', items: (env.settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })) },
-                { group: 'Relations', items: (env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
-              ].filter((group) => group.items.length)}
+              data={memberRelationOptions(env.settings?.treasuryMembers ?? [], env.settings?.treasuryRelations ?? [], { withMe: false })}
               // A loan is with a relation only.
               onSave={(key) =>
                 saveLine('whom', row, (target) => ({

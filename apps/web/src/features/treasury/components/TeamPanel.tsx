@@ -1,3 +1,4 @@
+import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PersonOption } from '../../../components/people/PersonOption';
@@ -8,7 +9,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
-import { ActionIcon, Avatar, Badge, Button, ColorInput, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Avatar, Badge, Button, Group, Select, SimpleGrid, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
 import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
@@ -16,7 +17,7 @@ import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useColorSwatches } from '../../workspace/hooks/use-color-swatches';
+import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../api';
 import * as fmt from '../../../lib/format';
@@ -155,7 +156,7 @@ export function ContextForm({ context, onDone }: { context?: TreasuryContext; on
     >
       <Stack gap="sm">
         <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('name')} />
-        <ColorInput label="Couleur" required format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
+        <ColorField required {...form.getInputProps('color')} />
         <FormActions onCancel={() => onDone()} loading={saveContext.isPending} />
       </Stack>
     </form>

@@ -1,8 +1,8 @@
 import { Select, Stack } from '@mantine/core';
-import { labelFormSchema, type TaskStatusCategory } from '@ordo/shared';
+import { countBy, labelFormSchema, type TaskStatusCategory } from '@ordo/shared';
 import { listMutations } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
-import { useTaskLabelMutations, useTasksData, type Task } from '../api';
+import { useTaskLabelMutations, useTasksData } from '../api';
 import { ColumnDefaults } from './ColumnDefaults';
 
 const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
@@ -11,18 +11,6 @@ const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
   { value: 'DONE', label: 'Terminé' },
   { value: 'CANCELLED', label: 'Annulé' },
 ];
-
-/**
- * Counts the tasks using each value of a field.
- * @param {Task[]} tasks Tasks.
- * @param {(task: Task) => string[]} pick Ids used by a task.
- * @returns {Map<string, number>} Count per id.
- */
-function usageOf(tasks: Task[], pick: (task: Task) => string[]): Map<string, number> {
-  const usage = new Map<string, number>();
-  for (const task of tasks) for (const id of pick(task)) usage.set(id, (usage.get(id) ?? 0) + 1);
-  return usage;
-}
 
 /**
  * Settings of tasks: statuses (with their category), priorities, types and tags.
@@ -47,7 +35,7 @@ export function TaskSettings() {
         noun="le statut"
         usageNoun="tâches"
         items={data?.taskStatuses ?? []}
-        usage={usageOf(tasks, (task) => (task.statusId ? [task.statusId] : []))}
+        usage={countBy(tasks, (task) => (task.statusId ? [task.statusId] : []))}
         schema={labelFormSchema}
         extra={{
           initial: (status) => ({ category: status?.category ?? 'TODO' }),
@@ -63,7 +51,7 @@ export function TaskSettings() {
         noun="la priorité"
         usageNoun="tâches"
         items={data?.taskPriorities ?? []}
-        usage={usageOf(tasks, (task) => (task.priorityId ? [task.priorityId] : []))}
+        usage={countBy(tasks, (task) => (task.priorityId ? [task.priorityId] : []))}
         schema={labelFormSchema}
         {...listMutations(priorities)}
       />
@@ -74,7 +62,7 @@ export function TaskSettings() {
         noun="le type"
         usageNoun="tâches"
         items={data?.taskTypes ?? []}
-        usage={usageOf(tasks, (task) => (task.typeId ? [task.typeId] : []))}
+        usage={countBy(tasks, (task) => (task.typeId ? [task.typeId] : []))}
         schema={labelFormSchema}
         {...listMutations(types)}
       />
@@ -85,7 +73,7 @@ export function TaskSettings() {
         noun="l’étiquette"
         usageNoun="tâches"
         items={data?.taskTags ?? []}
-        usage={usageOf(tasks, (task) => task.tagIds)}
+        usage={countBy(tasks, (task) => task.tagIds)}
         schema={labelFormSchema}
         {...listMutations(tags)}
       />

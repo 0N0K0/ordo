@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { plural } from '../../../lib/text';
 import { collator, daysBetween, mapById } from '@ordo/shared';
 import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
@@ -10,7 +11,7 @@ import { scheduleOf, stateOf, waitingFor, windowOf, windowText } from '../../rou
 import { usePostponeRoutine } from '../../routines/hooks/use-routine-move';
 import { useShoppingData, useShoppingLists } from '../../shopping/api';
 import classes from './Home.module.css';
-import { Figure, HomeCard, HomeEmpty } from './HomeCard';
+import { Figure, HomeCard } from './HomeCard';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
 
 const MAX_ROWS = 7;
@@ -39,7 +40,7 @@ export function RoutinesCard({ today }: { today: string }) {
 
   return (
     <HomeCard title="Routines du jour" icon={<ArrowsClockwiseIcon aria-hidden />} to="/routines" loading={!data}>
-      {todo.length === 0 && <HomeEmpty icon={<CheckCircleIcon aria-hidden />}>Toutes les routines du jour sont faites.</HomeEmpty>}
+      {todo.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Toutes les routines du jour sont faites." />}
       {todo.length > 0 && (
         <Stack gap={0}>
           {todo.slice(0, MAX_ROWS).map((routine) => {
@@ -114,7 +115,7 @@ export function ShoppingCard() {
         <Figure label="Listes en cours" value={open.length} />
       </Group>
       {open.length === 0 ? (
-        <HomeEmpty icon={<BasketIcon aria-hidden />}>Aucune liste en cours.</HomeEmpty>
+        <EmptyState compact icon={<BasketIcon aria-hidden />} message="Aucune liste en cours." />
       ) : (
         <Stack gap={0}>
           {open.slice(0, MAX_ROWS).map(({ list, left }) => (

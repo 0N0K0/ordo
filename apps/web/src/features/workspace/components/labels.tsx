@@ -1,4 +1,5 @@
-import { ActionIcon, Button, ColorInput, Group, Popover, Select, Stack, TextInput, Tooltip } from '@mantine/core';
+import { ColorField } from '../../../components/inputs/ColorField';
+import { ActionIcon, Button, Group, Popover, Select, Stack, TextInput, Tooltip } from '@mantine/core';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { byPosition, labelFormSchema, type LabelFormValues } from '@ordo/shared';
@@ -6,7 +7,7 @@ import { PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { useCreateProjectCategory, useCreateProjectStatus, type ProjectCategory, type ProjectStatus } from '../api';
-import { useColorSwatches } from '../hooks/use-color-swatches';
+import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 
 interface CreateLabelPopoverProps {
@@ -57,7 +58,7 @@ function CreateLabelPopover({ kind, onCreated }: CreateLabelPopoverProps) {
         {/* Not a nested <form>: the popover renders inside the project form. */}
         <Stack gap="sm" w={240}>
           <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-          <ColorInput label="Couleur" required swatches={swatches} swatchesPerRow={7} {...form.getInputProps('color')} />
+          <ColorField required {...form.getInputProps('color')} />
           <Group justify="flex-end">
             <Button size="xs" loading={mutation.isPending} onClick={() => handleSubmit()}>
               Créer

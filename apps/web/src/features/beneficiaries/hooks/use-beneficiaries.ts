@@ -24,6 +24,18 @@ export const beneficiaryKeys = (value: Beneficiaries) => peopleKeys({ contributo
 export const beneficiariesOf = (keys: string[]): Beneficiaries => ({ beneficiaryIds: idsOfKind(keys, 'contributor'), beneficiaryRelationIds: idsOfKind(keys, 'relation') });
 
 /**
+ * Names of beneficiaries, contributors first (those unknown left out).
+ * @param {Beneficiaries} value Beneficiaries.
+ * @param {ReadonlyMap<string, string>} contributorName Names of the contributors.
+ * @param {ReadonlyMap<string, string>} relationName Names of the relations.
+ * @returns {string[]} Names.
+ */
+function namesOf(value: Beneficiaries, contributorName: ReadonlyMap<string, string>, relationName: ReadonlyMap<string, string>): string[] {
+  const known = (names: ReadonlyMap<string, string>) => (id: string) => (names.has(id) ? [names.get(id)!] : []);
+  return [...value.beneficiaryIds.flatMap(known(contributorName)), ...value.beneficiaryRelationIds.flatMap(known(relationName))];
+}
+
+/**
  * People a task, a routine or an event can be for: the contributors, and the relations without contributor (one with
  * a contributor is that contributor; one already chosen stays offered). Names and grouped options.
  * @param {Beneficiaries} [chosen] Beneficiaries already chosen. Optional.
@@ -50,10 +62,7 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
    * @param {Beneficiaries} value Beneficiaries.
    * @returns {string[]} Names.
    */
-  const names = (value: Beneficiaries) => [
-    ...value.beneficiaryIds.flatMap((id) => (contributorName.has(id) ? [contributorName.get(id)!] : [])),
-    ...value.beneficiaryRelationIds.flatMap((id) => (relationName.has(id) ? [relationName.get(id)!] : [])),
-  ];
+  const names = (value: Beneficiaries) => namesOf(value, contributorName, relationName);
   return { options, names };
 }
 
@@ -66,9 +75,6 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
  */
 export function beneficiaryNames(value: Beneficiaries, context: { contributorById: Map<string, { name: string }> } | null): string[] {
   const relations = queryClient.getQueryData<TreasurySettings>(treasurySettingsKey)?.treasuryRelations ?? [];
-  const relationName = new Map(relations.map((relation) => [relation.id, relation.name]));
-  return [
-    ...value.beneficiaryIds.flatMap((id) => (context?.contributorById.get(id) ? [context.contributorById.get(id)!.name] : [])),
-    ...value.beneficiaryRelationIds.flatMap((id) => (relationName.has(id) ? [relationName.get(id)!] : [])),
-  ];
+  const contributorName = new Map([...(context?.contributorById ?? new Map<string, { name: string }>())].map(([id, contributor]) => [id, contributor.name]));
+  return namesOf(value, contributorName, new Map(relations.map((relation) => [relation.id, relation.name])));
 }

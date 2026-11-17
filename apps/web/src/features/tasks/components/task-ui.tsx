@@ -1,5 +1,5 @@
 import { mapById } from '@ordo/shared';
-import { Anchor, Box, Avatar, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
+import { Anchor, Box, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
 import { PersonOption } from '../../../components/people/PersonOption';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
@@ -13,28 +13,6 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useDefaultColor } from '../../workspace/hooks/use-default-color';
-
-/**
- * Stacked avatars of the assignees.
- * @param {object} props Component props.
- * @param {Contributor[]} props.contributors Assignees.
- * @param {number} [props.max=3] Avatars shown before "+N". Optional. Default = 3.
- * @returns {JSX.Element | null} Avatars.
- */
-export function Assignees({ contributors, max = 3 }: { contributors: Contributor[]; max?: number }) {
-  if (contributors.length === 0) return null;
-  const shown = contributors.slice(0, max);
-  return (
-    <Tooltip label={contributors.map((contributor) => (contributor.isMe ? `${contributor.name} (moi)` : contributor.name)).join(', ')} withArrow>
-      <Avatar.Group spacing="xs">
-        {shown.map((contributor) => (
-          <Avatar key={contributor.id} src={contributor.avatarUrl} name={contributor.name} color="initials" size="sm" />
-        ))}
-        {contributors.length > max && <Avatar size="sm">+{contributors.length - max}</Avatar>}
-      </Avatar.Group>
-    </Tooltip>
-  );
-}
 
 /**
  * Link to a task, "#12 Title".

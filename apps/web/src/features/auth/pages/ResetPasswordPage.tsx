@@ -1,7 +1,8 @@
-import { Alert, Anchor, Button, PasswordInput, Stack } from '@mantine/core';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { Anchor, Button, PasswordInput, Stack } from '@mantine/core';
 import { resetPasswordFormSchema, type ResetPasswordFormValues } from '@ordo/shared';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
 import { useResetPassword } from '../api';
@@ -63,9 +64,9 @@ export function ResetPasswordPage() {
           </Stack>
         </form>
       ) : (
-        <Alert color="red" title="Lien invalide" icon={<ErrorIcon />}>
+        <ErrorAlert title="Lien invalide">
           Ce lien de réinitialisation est incomplet. Demandez-en un nouveau.
-        </Alert>
+        </ErrorAlert>
       )}
       <Anchor component={Link} to="/forgot-password" size="sm">
         Demander un nouveau lien

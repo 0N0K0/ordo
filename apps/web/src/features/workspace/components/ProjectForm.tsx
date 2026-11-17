@@ -1,4 +1,5 @@
-import { ColorInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { ColorField } from '../../../components/inputs/ColorField';
+import { Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { byPosition, projectFormSchema, type ProjectFormValues } from '@ordo/shared';
 import { useState } from 'react';
@@ -10,7 +11,7 @@ import { IconField, type IconValue } from './IconField';
 import { CategoriesInput, StatusInput } from './labels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { projectDepth, projectHeight, projectOptions } from '../lib/tree';
-import { useColorSwatches } from '../hooks/use-color-swatches';
+
 import { useActiveWorkspace } from '../../workspaces/api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -37,7 +38,6 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
   const { perso } = useActiveWorkspace();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
-  const swatches = useColorSwatches();
   const [icon, setIcon] = useState<IconValue>({ file: null, remove: false });
   const form = useAppForm<ProjectFormValues>({
     initialValues: {
@@ -134,13 +134,9 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
             onChange={(value) => form.setFieldValue('statusId', value)}
             error={form.errors.statusId as string | undefined}
           />
-          <ColorInput
-            label="Couleur"
+          <ColorField
             placeholder="Aucune"
-            swatches={swatches}
-            swatchesPerRow={7}
-            {...form.getInputProps('color')}
-          />
+            {...form.getInputProps('color')} />
         </SimpleGrid>
         <CategoriesInput
           categories={workspace?.projectCategories ?? []}

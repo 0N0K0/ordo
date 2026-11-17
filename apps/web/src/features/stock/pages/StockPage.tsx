@@ -1,3 +1,4 @@
+import { countBy } from '@ordo/shared';
 import { useSetParams } from '../../../lib/search-params';
 import { Stack } from '@mantine/core';
 import { ArchiveIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
@@ -72,8 +73,7 @@ function CountsTable() {
  */
 function StockSettings() {
   const { data: items } = useStockItems();
-  const usage = new Map<string, number>();
-  for (const item of items ?? []) if (item.locationId) usage.set(item.locationId, (usage.get(item.locationId) ?? 0) + 1);
+  const usage = countBy(items ?? [], (item) => item.locationId);
   return (
     <PageSettings title="Paramètres de l’inventaire">
       <Stack gap="md">

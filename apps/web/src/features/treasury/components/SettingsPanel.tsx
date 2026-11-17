@@ -1,8 +1,9 @@
+import { ColorField } from '../../../components/inputs/ColorField';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
-import { Badge, Checkbox, ColorInput, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Badge, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -10,7 +11,7 @@ import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings
 import { categoryOptions } from '../lib/categories';
 import { TeamPanel } from './TeamPanel';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { useColorSwatches } from '../../workspace/hooks/use-color-swatches';
+import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { AccountsSettings } from './AccountsSettings';
 import { countOf } from '../../../lib/text';
@@ -80,7 +81,7 @@ export function CategoryForm({ category, direction = 'OUT', parentId = null, cat
     >
       <Stack gap="sm">
         <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-        <ColorInput label="Couleur" format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
+        <ColorField {...form.getInputProps('color')} />
         <Stack gap={4}>
           <Text size="sm" fw={500}>
             Sens

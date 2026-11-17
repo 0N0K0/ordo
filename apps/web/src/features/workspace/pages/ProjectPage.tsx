@@ -1,3 +1,7 @@
+import { SubSection } from '../../../components/page/SubSection';
+import { NO_TARGETS } from '../../../components/markdown/remark-references';
+import { useTaskContext } from '../../tasks/hooks/use-task-context';
+import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { useSetParams } from '../../../lib/search-params';
 import { ancestorsOf, mapById } from '@ordo/shared';
 import { ItemBadge } from '../../../components/settings/ItemBadge';
@@ -7,7 +11,7 @@ import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title
 import { SheetsTable } from '../../sheets/components/SheetsTable';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/components/DashboardBoard';
 import { ProjectGithubPanel } from '../../github/components/ProjectGithubPanel';
@@ -40,24 +44,6 @@ import * as fmt from '../../../lib/format';
  */
 function formatDate(date: string | null): string {
   return date ? fmt.day(date) : '—';
-}
-
-/**
- * Label / value pair of the project details.
- * @param {object} props Component props.
- * @param {string} props.label Label.
- * @param {ReactNode} props.children Value.
- * @returns {JSX.Element} Detail.
- */
-function Detail({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack gap={2}>
-      <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-        {label}
-      </Text>
-      <div>{children}</div>
-    </Stack>
-  );
 }
 
 /** Sections of the settings tab of a project. */
@@ -123,6 +109,7 @@ function ProjectSettings({ project, section, onSection }: { project: Project; se
  * @returns {JSX.Element} Page.
  */
 export function ProjectPage() {
+  const { context: taskContext } = useTaskContext();
   const { id } = useParams();
   const { data, isPending } = useWorkspace();
   const actions = useEntityActions();
@@ -236,10 +223,10 @@ export function ProjectPage() {
           <Stack gap="xl">
               <Paper withBorder p="lg" radius="md">
                 <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
-                  <Detail label="Statut">
+                  <SubSection title="Statut">
                     <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
-                  </Detail>
-                  <Detail label="Catégories">
+                  </SubSection>
+                  <SubSection title="Catégories">
                     {project.categories.length > 0 ? (
                       <Group gap={4}>
                         {project.categories.map((category) => (
@@ -249,13 +236,13 @@ export function ProjectPage() {
                     ) : (
                       <Text size="sm">—</Text>
                     )}
-                  </Detail>
-                  <Detail label="Début">
+                  </SubSection>
+                  <SubSection title="Début">
                     <Text size="sm">{formatDate(project.startDate)}</Text>
-                  </Detail>
-                  <Detail label="Fin">
+                  </SubSection>
+                  <SubSection title="Fin">
                     <Text size="sm">{formatDate(project.endDate)}</Text>
-                  </Detail>
+                  </SubSection>
                 </SimpleGrid>
               </Paper>
 
@@ -272,9 +259,9 @@ export function ProjectPage() {
                 <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                   Description
                 </Text>
-                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }} c={project.description ? undefined : 'dimmed'}>
-                  {project.description ?? 'Aucune description.'}
-                </Text>
+                <MarkdownView targets={taskContext?.targetsFor(project.id) ?? NO_TARGETS} emptyText="Aucune description.">
+                  {project.description}
+                </MarkdownView>
               </Stack>
 
               <DashboardBoard key={project.id} projectId={project.id} title={project.title} />

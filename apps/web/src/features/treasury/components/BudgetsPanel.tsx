@@ -1,6 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { plural, countOf } from '../../../lib/text';
-import { personKey, memberOrRelation, memberOrRelationKey } from '../../../components/people/people-keys';
+import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { listSelectProps } from '../../../components/settings/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -219,10 +219,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               placeholder={me ? `${me.name} (moi)` : 'Moi'}
               clearable
               searchable
-              data={[
-                { group: 'Membres', items: members.filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })) },
-                { group: 'Relations', items: (settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name })) },
-              ].filter((group) => group.items.length)}
+              data={memberRelationOptions(members, settings?.treasuryRelations ?? [], { withMe: false })}
               value={memberOrRelationKey(values)}
               onChange={(key) => form.setValues(memberOrRelation(key))}
               error={form.errors.memberId}

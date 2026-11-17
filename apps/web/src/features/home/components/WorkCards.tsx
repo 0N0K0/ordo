@@ -1,3 +1,4 @@
+import { EmptyState } from '../../../components/feedback/EmptyState';
 import { plural } from '../../../lib/text';
 import { localDay } from '../../../lib/dates';
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
@@ -12,7 +13,7 @@ import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import classes from './Home.module.css';
-import { Figure, HomeCard, HomeEmpty } from './HomeCard';
+import { Figure, HomeCard } from './HomeCard';
 import { dayLabel, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 
@@ -34,7 +35,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
   const link = useTaskLink();
   return (
     <HomeCard title="Mes tâches du jour" icon={<CheckSquareOffsetIcon aria-hidden />} to="/tasks" loading={!tasks || !context}>
-      {tasks && context && tasks.length === 0 && <HomeEmpty icon={<CheckCircleIcon aria-hidden />}>Rien à faire aujourd’hui.</HomeEmpty>}
+      {tasks && context && tasks.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Rien à faire aujourd’hui." />}
       {tasks && context && tasks.length > 0 && (
         <Stack gap={0}>
           {tasks.slice(0, MAX_ROWS).map((task) => {
@@ -117,7 +118,7 @@ export function AgendaCard({ today }: { today: string }) {
 
   return (
     <HomeCard title="Agenda" icon={<CalendarBlankIcon aria-hidden />} to="/calendar" linkLabel="Ouvrir l’agenda" loading={!items}>
-      {items && items.length === 0 && <HomeEmpty icon={<CalendarBlankIcon aria-hidden />}>Rien de prévu cette semaine.</HomeEmpty>}
+      {items && items.length === 0 && <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message="Rien de prévu cette semaine." />}
       {days.map(([day, list]) => (
         <Stack key={day} gap={2}>
           <Text size="xs" c="dimmed" fw={600} tt="uppercase">
@@ -161,7 +162,7 @@ export function TimeCard({ context, time }: TimeCardProps) {
             <Figure label="Cette semaine" value={formatDuration(time.week)} />
           </SimpleGrid>
           {time.byProject.length === 0 ? (
-            <HomeEmpty icon={<ClockIcon aria-hidden />}>Aucun temps saisi cette semaine.</HomeEmpty>
+            <EmptyState compact icon={<ClockIcon aria-hidden />} message="Aucun temps saisi cette semaine." />
           ) : (
             time.byProject.slice(0, 4).map((item) => (
               <Link key={item.projectId} to={`/projects/${item.projectId}?tab=time`} className={classes.row}>

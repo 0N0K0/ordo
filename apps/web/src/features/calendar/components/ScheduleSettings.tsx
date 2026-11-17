@@ -1,5 +1,6 @@
+import { ColorField } from '../../../components/inputs/ColorField';
 import { plural } from '../../../lib/text';
-import { ActionIcon, Badge, Button, Collapse, ColorInput, Group, Paper, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Collapse, Group, Paper, Stack, Switch, Text, TextInput, Tooltip } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ByWorkspace } from '../../../components/settings/ByWorkspace';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
@@ -9,7 +10,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { ArrowCounterClockwiseIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { onMutationError } from '../../../lib/notify';
-import { useColorSwatches } from '../../workspace/hooks/use-color-swatches';
+
 import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations } from '../api';
 import { ScheduleLookEditor } from './ScheduleLookEditor';
 
@@ -21,7 +22,6 @@ import { ScheduleLookEditor } from './ScheduleLookEditor';
 function DefaultScheduleKind() {
   const { saveDefaultKind } = useWorkScheduleMutations();
   const { data: defaultKind } = useDefaultScheduleKind();
-  const swatches = useColorSwatches();
   const [opened, setOpened] = useState(false);
   if (!defaultKind) return null;
   const onError = onMutationError;
@@ -30,12 +30,10 @@ function DefaultScheduleKind() {
       <Stack gap="xs">
         <Text fw={600}>Plages sans type</Text>
         <Group gap="xs" wrap="nowrap">
-          <ColorInput
+          <ColorField
             key={defaultKind.color ?? 'none'}
             size="xs"
             w={120}
-            format="hex"
-            swatches={swatches}
             placeholder="Vert"
             aria-label="Couleur des plages sans type"
             defaultValue={defaultKind.color ?? ''}
@@ -117,7 +115,6 @@ function ScheduleTypes() {
 function ForeignSchedules() {
   const { data: kinds } = useForeignScheduleKinds();
   const { subscribe, unsubscribe, setLook } = useWorkScheduleMutations();
-  const swatches = useColorSwatches();
   const [opened, setOpened] = useState<string | null>(null);
   if (!kinds?.length) return null;
   const onError = onMutationError;
@@ -170,12 +167,10 @@ function ForeignSchedules() {
                       <Text size="xs" w={120}>
                         Couleur
                       </Text>
-                      <ColorInput
+                      <ColorField
                         key={kind.color ?? 'none'}
                         size="xs"
                         w={140}
-                        format="hex"
-                        swatches={swatches}
                         placeholder="Vert"
                         aria-label={`Couleur de ${kind.name} dans cet agenda`}
                         defaultValue={kind.color ?? ''}

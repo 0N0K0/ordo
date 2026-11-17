@@ -245,6 +245,18 @@ Restent : la généralisation de `createLabelService` à toutes les listes nom +
 - **Section d'éditeur :** `EditorSection` (facturation) double `SettingsSection`, avec un titre plus petit.
 - **Cible :** `PeriodNav`, `DetailHeader`, `SubSection`, `StatTile` dans `components/`, et une taille de titre pour `SettingsSection`.
 
+**Fait** :
+
+- `SubSection` (`components/page`) : propriétés d'une tâche, détails d'un projet, alertes et achats d'une tâche ;
+- `StatTile` sorti de l'accueil vers `components/page`, repris par les chiffres de la trésorerie (`valueColor`) ;
+- `PeriodNav` : agenda, trésorerie et historique des routines, dans un seul ordre (« Aujourd'hui », précédent, la période, suivant).
+
+Restent à part :
+
+- l'en-tête des pages de détail : ses quatre copies n'ont pas le même lien retour, c'est un choix d'interface à faire d'abord ;
+- les autres petites sections à titre écrites en ligne ;
+- `EditorSection`.
+
 ### 14. Tâches : cartes et cellules
 
 - **Jalon et sprint :** la même carte (titre, badges, dates, menu, progression, description modifiable) est recopiée dans `MilestonesPanel` et `SprintsPanel`. Environ 45 lignes chacune.
@@ -252,11 +264,19 @@ Restent : la généralisation de `createLabelService` à toutes les listes nom +
 - **Cellules en popover** (un tiret grisé, puis un éditeur dans un popover) : 5 copies (lieu, rappels, ouverture, créneaux, temps).
 - **Cible :** `PlanCard`, `TaskProgress` avec une unité, `EditablePopoverCell`.
 
+**Fait** :
+
+- `PlanCard` pour les jalons et les sprints ;
+- `TaskProgress`, avec une taille et une unité, sert aussi aux sous-tâches (cellule et panneau) ;
+- `EditablePopoverCell` (`EditableCells`) pour le lieu, les alertes et l'ouverture des routines, les créneaux des tâches et l'évènement d'un temps.
+
 ### 15. Mail : barre de la liste
 
 - La recherche, la recherche avancée, le tri, le filtre « Tous / À traiter / Traités » et les messages vides sont recopiés entre `MailPage` et `ProjectMailsPanel`, environ 60 lignes chacun.
 - La liste `SORTS` est en double.
 - **Cible :** `MailListToolbar`, `MAIL_SORTS`.
+
+**Fait** : `MAIL_SORTS`, `MAIL_SORTS_ACROSS` et `DONE_FILTERS` (`lib/mail-list.ts`), et `MailListControls` (tri et état traité) pour la page Mails et les mails d'un projet. Reste à part la recherche et la recherche avancée : leur état diffère entre les deux (dans l'URL pour l'une, dans le composant pour l'autre).
 
 ### 16. Personnes : restes
 
@@ -266,12 +286,23 @@ Restent : la généralisation de `createLabelService` à toutes les listes nom +
 - **Code mort :** `Assignees` (`task-ui.tsx`) n'est plus utilisé.
 - **Cible :** `memberRelationOptions` dans `components/people`, et `PersonRow`.
 
+**Fait** :
+
+- `memberRelationOptions` (`people-keys`) pour les lignes, le tableau des lignes et les budgets ;
+- un seul calcul des noms des bénéficiaires ;
+- `PersonRow` pour les contributeurs d'un projet et de l'espace ;
+- `Assignees` supprimé.
+
+Restent les options des achats (« Moi », contributeurs du projet), et l'équipe de la trésorerie et l'éditeur markdown, aux lignes plus simples.
+
 ### 17. Listes paramétrables : restes
 
 - **Compteurs d'usage** (combien d'éléments utilisent un item) : 9 copies, dont deux `usageOf` locaux.
 - **Options des plages de travail** : construites 3 fois, leurs noms 2 fois.
 - **Options d'arbre des routines** : `routineTreeOptions` est contourné par le formulaire et une cellule des routines, et le temps en fait une liste plate.
 - **Cible :** `countBy` à côté de `SettingsList`, et `useScheduleChoices()`.
+
+**Fait** : `countBy` (`collections.ts`, partagé) pour les 9 compteurs d'usage ; `scheduleChoices` pour les options et les noms des plages ; `routineTreeOptions` dans le formulaire et la cellule de la routine parente.
 
 ### 18. Requêtes : clés et invalidations hors des `api.ts`
 
@@ -317,6 +348,22 @@ Restent les deux invalidations « tout sauf une sous-clé » (document supprimé
 - **Badge « Archivé(e) » :** 6 styles différents. Cible : `ArchivedBadge`.
 - **États vides :** `EmptyState` est contourné à l'accueil (`HomeEmpty`), dans la barre latérale, les graphiques, l'équipe, le mail et GitHub ; deux gestionnaires l'entourent d'un `ThemeIcon` au lieu de lui passer `icon`.
 - **Erreur de chargement :** `<Alert color="red" icon={<ErrorIcon />}>{error.message}</Alert>` est écrit une douzaine de fois. Cible : `ErrorAlert`.
+
+**Fait** :
+
+- **Composants :**
+  - `ColorField` (8 champs) ;
+  - `TravelField` ;
+  - `ArchivedBadge` ;
+  - `ErrorAlert` (12 alertes) ;
+  - `FormActions` avec une taille, pour l'édition d'un commentaire et de la description d'une tâche.
+- **États vides :** la variante `plain` d'`EmptyState` remplace `HomeEmpty` et les copies des graphiques et des gestionnaires.
+- **Description du projet :** elle est maintenant affichée en markdown.
+
+Restent à part :
+
+- le logo de l'entreprise : il s'enregistre tout de suite et n'accepte que PNG ou JPEG, pour les PDF ;
+- le petit vide de la barre latérale, plus dense.
 
 ## Petites redondances
 

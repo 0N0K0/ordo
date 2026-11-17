@@ -1,3 +1,5 @@
+import { PeriodNav } from '../../../components/page/PeriodNav';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { openFormPanel } from '../../../components/panels/panels';
 import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/actions/PageHeader';
@@ -11,13 +13,13 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { ActionIcon, Alert, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Checkbox, Group, Paper, SegmentedControl, Stack, Switch, Tabs, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, readScheduleDisplay, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
-import { CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretUpIcon, CheckIcon, ClockIcon, DownloadSimpleIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
+
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
 import { notifyError, notifySuccess } from '../../../lib/notify';
@@ -789,22 +791,11 @@ export function CalendarPage() {
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
           <SegmentedControl data={VIEWS} value={view} onChange={(value) => setView(value as View)} aria-label="Vue" />
-          <Button variant="default" size="sm" onClick={() => api()?.today()}>
-            Aujourd’hui
-          </Button>
-          <Tooltip label="Précédent">
-            <ActionIcon variant="default" size="lg" aria-label="Période précédente" onClick={() => api()?.prev()}>
-              <CaretLeftIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Suivant">
-            <ActionIcon variant="default" size="lg" aria-label="Période suivante" onClick={() => api()?.next()}>
-              <CaretRightIcon aria-hidden />
-            </ActionIcon>
-          </Tooltip>
-          <Text fw={600} miw={180} tt="capitalize" aria-live="polite">
-            {title}
-          </Text>
+          <PeriodNav onToday={() => api()?.today()} onPrevious={() => api()?.prev()} onNext={() => api()?.next()}>
+            <Text fw={600} miw={180} ta="center" tt="capitalize" aria-live="polite">
+              {title}
+            </Text>
+          </PeriodNav>
         </Group>
         <Group gap="xs" wrap="wrap">
           <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openFormPanel(perso ? 'Plages' : 'Plages de travail', () => <WorkSchedulesManager />, 'lg')}>
@@ -826,11 +817,7 @@ export function CalendarPage() {
         </Group>
       </Group>
 
-      {(events.error ?? materialize.error ?? subscribedEvents.error) && (
-        <Alert color="red" icon={<ErrorIcon />} title="Agenda incomplet">
-          {(events.error ?? materialize.error ?? subscribedEvents.error)?.message}
-        </Alert>
-      )}
+      {(events.error ?? materialize.error ?? subscribedEvents.error) && <ErrorAlert title="Agenda incomplet">{(events.error ?? materialize.error ?? subscribedEvents.error)?.message}</ErrorAlert>}
       {/*
        * In the settings sidebar (?settings=1): first what the agenda shows and its export; then
        * the calendars, subscriptions, categories, kinds of slots and places.

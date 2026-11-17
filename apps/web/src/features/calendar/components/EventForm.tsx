@@ -1,3 +1,4 @@
+import { TravelField } from '../../geo/components/TravelField';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { PICKER_FORMATS } from '../../../lib/format';
@@ -5,10 +6,10 @@ import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../../components/settings/item-look';
 
 import { TimeField } from '../../../components/inputs/TimeField';
-import { ActionIcon, Alert, Anchor, Button, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Button, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CarIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, TimerIcon, LinkIcon, PlusIcon, TrashIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -371,28 +372,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         />
         {!values.allDay && (
           <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-            <NumberInput
-              label="Trajet aller"
-              description="Avant le début"
-              leftSection={<CarIcon aria-hidden />}
-              suffix=" min"
-              min={0}
-              max={24 * 60}
-              step={5}
-              allowDecimal={false}
-              {...form.getInputProps('travelBefore')}
-            />
-            <NumberInput
-              label="Trajet retour"
-              description="Après la fin"
-              leftSection={<CarIcon aria-hidden />}
-              suffix=" min"
-              min={0}
-              max={24 * 60}
-              step={5}
-              allowDecimal={false}
-              {...form.getInputProps('travelAfter')}
-            />
+            <TravelField way="before" description="Avant le début" {...form.getInputProps('travelBefore')} />
+            <TravelField way="after" description="Après la fin" {...form.getInputProps('travelAfter')} />
             <div>
               <TravelCalculator
                 eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}

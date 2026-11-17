@@ -1,5 +1,6 @@
-import { ActionIcon, Badge, Group, Stack, Title, Tooltip } from '@mantine/core';
-import { ArchiveIcon, StarIcon } from '@phosphor-icons/react';
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
+import { ActionIcon, Group, Stack, Title, Tooltip } from '@mantine/core';
+import { StarIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { EntityAvatar } from './EntityAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
@@ -36,9 +37,7 @@ export function EntityHeader({
               {label}
             </Title>
             {item.archived && (
-              <Badge color="gray" variant="light" leftSection={<ArchiveIcon aria-hidden />}>
-                Archivé
-              </Badge>
+              <ArchivedBadge />
             )}
           </Group>
           {subtitle}

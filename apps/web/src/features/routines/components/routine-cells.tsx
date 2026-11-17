@@ -1,3 +1,4 @@
+import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { ItemAvatar } from '../../../components/settings/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
 import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
@@ -229,9 +230,7 @@ export function RepetitionText({ routine }: { routine: Routine }) {
   const text = cases.length
     ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
     : rule
-      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), new Map((schedules ?? []).map((item) => [item.id, item.name])))]
-          .filter(Boolean)
-          .join(' · ')
+      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), scheduleChoices(schedules).names)].filter(Boolean).join(' · ')
       : '';
   return (
     <Text size="xs" c="dimmed" lineClamp={1} title={text} px={6}>

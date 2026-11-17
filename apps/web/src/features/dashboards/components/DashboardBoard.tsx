@@ -1,3 +1,4 @@
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DragHandle } from '../../../components/actions/DragHandle';
 import { ActionsMenu } from '../../../components/data-table/cells/RowActions';
 import { useTabParam } from '../../../components/tabs/use-tab-param';
@@ -8,7 +9,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Alert, Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Group, Menu, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
@@ -34,7 +35,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 
-import { ErrorIcon } from '../../../components/feedback/feedback-icons';
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
@@ -286,15 +286,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardName, capture
             ]}
           />
         </Group>
-        {error ? (
-          <Alert color="red" icon={<ErrorIcon />}>
-            {error.message}
-          </Alert>
-        ) : isPending || !data ? (
-          <BlockSkeleton height={12} />
-        ) : (
-          <ChartView ref={view} config={config} data={data} height={288} />
-        )}
+        {error ? <ErrorAlert>{error.message}</ErrorAlert> : isPending || !data ? <BlockSkeleton height={12} /> : <ChartView ref={view} config={config} data={data} height={288} />}
         {printSize &&
           data &&
           createPortal(
@@ -472,11 +464,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   };
 
   if (error) {
-    return (
-      <Alert color="red" icon={<ErrorIcon />}>
-        {error.message}
-      </Alert>
-    );
+    return <ErrorAlert>{error.message}</ErrorAlert>;
   }
   if (isPending || contextPending || !context) return <BlockSkeleton height={14} />;
 

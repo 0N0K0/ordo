@@ -1,3 +1,4 @@
+import { ArchivedBadge } from '../../../components/settings/ItemBadge';
 import { plural, countOf } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/actions/PageHeader';
@@ -234,11 +235,7 @@ export function ShoppingListPage() {
             <Title order={2} size="h3" style={{ wordBreak: 'break-word' }}>
               {list.name}
             </Title>
-            {closed && (
-              <Badge variant="light" color="gray">
-                Archivée
-              </Badge>
-            )}
+            {closed && <ArchivedBadge feminine />}
           </Group>
           <Group gap="md">
             {tasks.map((task) => (

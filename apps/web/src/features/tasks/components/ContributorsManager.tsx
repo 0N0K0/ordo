@@ -1,8 +1,9 @@
+import { PersonRow } from '../../../components/people/PersonOption';
 import { InlineActions } from '../../../components/data-table/cells/RowActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Avatar, Badge, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
@@ -91,23 +92,22 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
       }
     >
       {contributors.length === 0 ? (
-        <Group gap="sm">
-          <ThemeIcon variant="light" color="gray" radius="xl">
-            <UsersIcon aria-hidden />
-          </ThemeIcon>
-          <EmptyState compact message="Aucun contributeur pour le moment." />
-        </Group>
+        <EmptyState compact icon={<UsersIcon aria-hidden />} message="Aucun contributeur pour le moment." />
       ) : (
         <Stack gap="xs">
           {contributors.map((contributor) => (
             <Group key={contributor.id} gap="sm" wrap="nowrap">
-              <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" />
-              <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                <Group gap={6} wrap="nowrap">
-                  <Text size="sm" fw={500} truncate>
-                    {contributor.name}
-                  </Text>
-                  {contributor.isMe && (
+              <PersonRow
+
+                name={contributor.name}
+
+                avatarUrl={contributor.avatarUrl}
+
+                badges={
+
+                  <>
+
+                    {contributor.isMe && (
                     <Badge size="xs" variant="light">
                       Moi
                     </Badge>
@@ -125,15 +125,28 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                       </Badge>
                     </Tooltip>
                   )}
-                </Group>
-                <Text size="xs" c="dimmed">
+
+                  </>
+
+                }
+
+                details={
+
+                  <>
+
+                    <Text size="xs" c="dimmed">
                   @{contributor.handle}
                   {(usage.get(contributor.id) ?? 0) > 0 && ` · ${usage.get(contributor.id)} tâche(s)`}
                 </Text>
                 <Text size="xs" c="dimmed" truncate>
                   {contributor.isMe ? 'Tous les projets' : projectsLabel(contributor)}
                 </Text>
-              </Stack>
+
+                  </>
+
+                }
+
+              />
               <InlineActions
                 name={contributor.name}
                 items={[
