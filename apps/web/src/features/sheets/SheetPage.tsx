@@ -32,9 +32,9 @@ import { SheetsSettings } from './SheetsSettings';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { optionalColumn, sheetShoppingColumns } from '../shopping/shopping-columns';
-import { ConservationCell, PeopleCell, StoreCell, TextCell } from '../shopping/shopping-cells';
+import { ConservationCell, PeopleCell, StoreCell } from '../shopping/shopping-cells';
 import { usePeople } from '../shopping/shopping-format';
-import type { SheetItemInput } from '@ordo/shared';
+import { shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from './SheetUseForm';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
@@ -358,7 +358,9 @@ export function SheetPage() {
               }
             />
           ),
-          url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${item.label}`} placeholder="https://…" onSave={(url) => bulk('url')(item, { url })} />,
+          url: (
+            <EditableText link value={item.url ?? null} label={`Lien vers ${item.label}`} placeholder="https://…" schema={shoppingItemSchema.shape.url} onSave={(url) => bulk('url')(item, { url })} />
+          ),
           optional: <EditableCheck value={item.optional} label={`${item.label} facultatif`} onSave={(optional) => bulk('optional')(item, { optional })} />,
           note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable onSave={(note) => bulk('note')(item, { note })} />,
         })}

@@ -1,13 +1,13 @@
 import { Group, Text } from '@mantine/core';
-import type { ShoppingItemInput } from '@ordo/shared';
+import { shoppingItemSchema, type ShoppingItemInput } from '@ordo/shared';
 import { useMemo, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from './api';
-import { CategoryCell, ConservationCell, ExpiryCell, NumberCell, PeopleCell, StoreCell, TextCell, ToggleCell, UnitCell } from './shopping-cells';
+import { CategoryCell, ConservationCell, ExpiryCell, PeopleCell, StoreCell, ToggleCell, UnitCell } from './shopping-cells';
 import * as fmt from '../../lib/format';
 import { applyDiff, bulkSaver, type BulkChange } from '../../components/data-table/bulk-edit';
 import { StackedValues } from '../../components/data-table/StackedValues';
-import { EditableCheck } from '../../components/data-table/EditableCells';
+import { EditableCheck, EditableNumber, EditableText } from '../../components/data-table/EditableCells';
 import { DataTable, type GroupTree, type RowMove } from '../../components/data-table/DataTable';
 import { groupsOfRow, inputOf, moveToGroup, NO_GROUP_NAME, placeInGroup, shoppingRows, usePeople, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
@@ -153,7 +153,7 @@ export function ShoppingTable<T extends ShoppingFields>({
       name: (
         <>
           <Group gap={4} wrap="nowrap">
-            <TextCell field="name" value={name} label={`Label de ${name}`} readOnly={readOnly} onSave={(value) => value && save('name', { name: value })} />
+            <EditableText value={name} label={`Label de ${name}`} schema={shoppingItemSchema.shape.name} strong readOnly={readOnly} onSave={(value) => value && save('name', { name: value })} />
             {badge?.(item)}
           </Group>
           {item.note && (
@@ -167,9 +167,30 @@ export function ShoppingTable<T extends ShoppingFields>({
         <CategoryCell value={item.categoryId ?? null} categories={allCategories} label={`Catégorie de ${name}`} readOnly={readOnly} onSave={(categoryId) => save('category', { categoryId })} />
       ),
       store: <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save('store', { storeId })} />,
-      quantity: <NumberCell kind="quantity" value={item.quantity ?? null} label={`Quantité de ${name}`} readOnly={readOnly} onSave={(quantity) => save('quantity', { quantity })} />,
+      quantity: (
+        <EditableNumber
+          value={item.quantity ?? null}
+          label={`Quantité de ${name}`}
+          decimals={3}
+          min={0}
+          schema={shoppingItemSchema.shape.quantity}
+          readOnly={readOnly}
+          onSave={(quantity) => save('quantity', { quantity })}
+        />
+      ),
       unit: <UnitCell value={item.unit ?? null} label={`Unité de ${name}`} readOnly={readOnly} onSave={(unit) => save('unit', { unit })} />,
-      unitPrice: <NumberCell kind="price" value={item.unitPrice ?? null} label={`Prix unitaire estimé de ${name}`} readOnly={readOnly} onSave={(unitPrice) => save('unitPrice', { unitPrice })} />,
+      unitPrice: (
+        <EditableNumber
+          amount
+          suffix="€"
+          value={item.unitPrice ?? null}
+          label={`Prix unitaire estimé de ${name}`}
+          min={0}
+          schema={shoppingItemSchema.shape.unitPrice}
+          readOnly={readOnly}
+          onSave={(unitPrice) => save('unitPrice', { unitPrice })}
+        />
+      ),
       conservation: (
         <ConservationCell
           perishable={item.perishable}
@@ -201,7 +222,17 @@ export function ShoppingTable<T extends ShoppingFields>({
           }
         />
       ),
-      url: <TextCell field="url" value={item.url ?? null} label={`Lien vers ${name}`} placeholder="https://…" readOnly={readOnly} onSave={(url) => save('url', { url })} />,
+      url: (
+        <EditableText
+          link
+          value={item.url ?? null}
+          label={`Lien vers ${name}`}
+          placeholder="https://…"
+          schema={shoppingItemSchema.shape.url}
+          readOnly={readOnly}
+          onSave={(url) => save('url', { url })}
+        />
+      ),
       // An item of a list (a product has none): not needed, bought if possible.
       optional: 'optional' in item && <EditableCheck value={Boolean(item.optional)} label={`${name} facultatif`} readOnly={readOnly} onSave={(optional) => save('optional', { optional })} />,
       // Sheets an item of a list comes from, with their share (products of the references have none).

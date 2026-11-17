@@ -1,46 +1,11 @@
-import { Checkbox, NumberInput, Select, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { ActionIcon, Checkbox, Group, NumberInput, Select, TextInput, Tooltip, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
-import { notifyError } from '../../lib/notify';
+import { ArrowSquareOutIcon } from '@phosphor-icons/react';
+import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../BatchMultiSelect';
-import classes from './EditableCells.module.css';
-import { StackedMultiCell } from './StackedMultiCell';
+import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { AmountInput } from '../AmountInput';
-
-/** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
-const cellField = {
-  variant: 'unstyled',
-  size: 'xs',
-  classNames: { root: classes.root, input: classes.input, section: classes.section },
-} as const;
-
-/** Select fields: dropdown as wide as its options. */
-const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true, width: 'max-content', position: 'bottom-start' } } as const;
-
-/**
- * Keys of a typed cell: Enter saves (by leaving the field), Escape gives up the draft.
- * @param {KeyboardEvent<HTMLInputElement>} event Key event.
- * @param {() => void} cancel Gives up the draft.
- * @returns {void}
- */
-function cellKeys(event: KeyboardEvent<HTMLInputElement>, cancel: () => void): void {
-  if (event.key === 'Enter') event.currentTarget.blur();
-  if (event.key === 'Escape') {
-    cancel();
-    event.currentTarget.blur();
-  }
-}
-
-/**
- * Checks a value before it is saved: an error message stops the save (and is told), nothing lets it through.
- * @param {string | null | undefined} error Error, if any.
- * @returns {boolean} The value can be saved.
- */
-function accepted(error: string | null | undefined): boolean {
-  if (!error) return true;
-  notifyError(`${error} Rien n’a été modifié.`);
-  return false;
-}
+import { accepted, cellCombobox, cellField, cellKeys, cellMulti, checked, stopClick, type CellSchema } from './cell-field';
 
 interface EditableTextProps {
   value: string | null;
@@ -50,6 +15,12 @@ interface EditableTextProps {
   nullable?: boolean;
   /** Error of a value, if any (stops the save). Optional. */
   validate?: (value: string) => string | null;
+  /** Rule of the field (checks and normalizes the value typed, instead of `nullable` and `validate`). Optional. */
+  schema?: CellSchema<string | null>;
+  /** Shown when empty. Optional. Default = « — ». */
+  placeholder?: string;
+  /** A web link: typed as one, opened by a button beside it. Optional. Default = false. */
+  link?: boolean;
   readOnly?: boolean;
   /** Text in bold (the name of the row). Optional. */
   strong?: boolean;
@@ -57,11 +28,12 @@ interface EditableTextProps {
 }
 
 /**
- * Text cell: typed in place, saved when leaving the field (or Enter) if valid and changed; Escape gives it up.
+ * Text cell: typed in place, saved when leaving the field (or Enter) if valid and changed; Escape gives it up. A link
+ * can be opened.
  * @param {EditableTextProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableText({ value, label, nullable = false, validate, readOnly = false, strong = false, onSave }: EditableTextProps) {
+export function EditableText({ value, label, nullable = false, validate, schema, placeholder = '—', link = false, readOnly = false, strong = false, onSave }: EditableTextProps) {
   const [draft, setDraft] = useState<string | null>(null);
 
   /**
@@ -71,41 +43,68 @@ export function EditableText({ value, label, nullable = false, validate, readOnl
   const save = () => {
     if (draft === null) return;
     setDraft(null);
-    const typed = draft.trim();
-    if (!accepted(!typed && !nullable ? 'Une valeur est requise.' : validate?.(typed))) return;
-    const next = typed || null;
+    let next: string | null;
+    if (schema) {
+      const result = checked(schema, draft, 'Valeur invalide.');
+      if (!result) return;
+      next = result.value;
+    } else {
+      const typed = draft.trim();
+      if (!accepted(!typed && !nullable ? 'Une valeur est requise.' : validate?.(typed))) return;
+      next = typed || null;
+    }
     if (next !== (value ?? null)) onSave(next);
   };
 
-  return (
+  const input = (
     <TextInput
       {...cellField}
+      type={link ? 'url' : 'text'}
       aria-label={label}
-      placeholder={readOnly ? undefined : '—'}
+      placeholder={readOnly ? undefined : placeholder}
       readOnly={readOnly}
       value={draft ?? value ?? ''}
       onChange={(event) => setDraft(event.currentTarget.value)}
       onBlur={save}
       onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
-      fw={strong ? 600 : undefined}
-      onClick={(event) => event.stopPropagation()}
+      fw={strong ? 500 : undefined}
+      onClick={stopClick}
+      style={{ flex: 1, minWidth: 0 }}
     />
+  );
+  if (!link || !value) return input;
+  return (
+    <Group gap={2} wrap="nowrap">
+      {input}
+      <Tooltip label={value}>
+        <ActionIcon component="a" href={value} target="_blank" rel="noopener noreferrer" size="sm" variant="subtle" color="gray" aria-label={`Ouvrir ${value}`} onClick={stopClick}>
+          <ArrowSquareOutIcon aria-hidden />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
   );
 }
 
 interface EditableNumberProps {
   value: number | null;
   label: string;
-  /** Decimals. Optional. Default = 2. */
+  /** Decimals (0: whole numbers). Optional. Default = 2. */
   decimals?: number;
   /** An amount: typed with up to 4 decimals, shown rounded to 2 (AmountInput). Optional. Default = false. */
   amount?: boolean;
-  /** After the number (« € », « % »…). Optional. */
+  /** After the number (« € », « % », « min »…). Optional. */
   suffix?: string;
   /** Negative numbers accepted. Optional. Default = false. */
   signed?: boolean;
+  /** Bounds. Optional. */
+  min?: number;
+  max?: number;
   nullable?: boolean;
   validate?: (value: number) => string | null;
+  /** Rule of the field (checks and normalizes the value typed, instead of `nullable` and `validate`). Optional. */
+  schema?: CellSchema<number | null>;
+  /** Saved even when unchanged (a cell of a selection gives its value to the others). Optional. Default = false. */
+  saveUnchanged?: boolean;
   readOnly?: boolean;
   onSave: (value: number | null) => void;
 }
@@ -115,7 +114,22 @@ interface EditableNumberProps {
  * @param {EditableNumberProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableNumber({ value, label, decimals = 2, amount = false, suffix, signed = false, nullable = false, validate, readOnly = false, onSave }: EditableNumberProps) {
+export function EditableNumber({
+  value,
+  label,
+  decimals = 2,
+  amount = false,
+  suffix,
+  signed = false,
+  min,
+  max,
+  nullable = false,
+  validate,
+  schema,
+  saveUnchanged = false,
+  readOnly = false,
+  onSave,
+}: EditableNumberProps) {
   const [draft, setDraft] = useState<string | number | null>(null);
 
   /**
@@ -125,9 +139,17 @@ export function EditableNumber({ value, label, decimals = 2, amount = false, suf
   const save = () => {
     if (draft === null) return;
     setDraft(null);
-    const next = draft === '' ? null : Number(draft);
-    if (next === null ? !accepted(nullable ? null : 'Une valeur est requise.') : !accepted(Number.isFinite(next) ? validate?.(next) : 'Nombre invalide.')) return;
-    if (next !== value) onSave(next);
+    const typed = draft === '' ? null : Number(draft);
+    let next: number | null;
+    if (schema) {
+      const result = checked(schema, typed, 'Nombre invalide.');
+      if (!result) return;
+      next = result.value;
+    } else {
+      if (typed === null ? !accepted(nullable ? null : 'Une valeur est requise.') : !accepted(Number.isFinite(typed) ? validate?.(typed) : 'Nombre invalide.')) return;
+      next = typed;
+    }
+    if (next !== value || saveUnchanged) onSave(next);
   };
 
   const Field = amount ? AmountInput : NumberInput;
@@ -138,16 +160,19 @@ export function EditableNumber({ value, label, decimals = 2, amount = false, suf
       placeholder={readOnly ? undefined : '—'}
       readOnly={readOnly}
       decimalScale={decimals}
+      allowDecimal={decimals > 0}
       decimalSeparator=","
       thousandSeparator=" "
       suffix={suffix ? ` ${suffix}` : undefined}
       allowNegative={signed}
+      min={min}
+      max={max}
       hideControls
       value={draft ?? value ?? ''}
       onChange={setDraft}
       onBlur={save}
       onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
-      onClick={(event) => event.stopPropagation()}
+      onClick={stopClick}
       styles={{ input: { textAlign: 'right' } }}
     />
   );
@@ -181,7 +206,7 @@ export function EditableDate({ value, label, nullable = false, minDate, readOnly
       popoverProps={{ withinPortal: true }}
       value={value}
       onChange={(next) => (next || nullable) && (next ?? null) !== value && onSave(next ?? null)}
-      onClick={(event) => event.stopPropagation()}
+      onClick={stopClick}
     />
   );
 }
@@ -197,6 +222,10 @@ interface EditableSelectProps {
   filter?: OptionsFilter;
   /** Before the value (its color…). Optional. */
   leftSection?: ReactNode;
+  /** Shown when empty. Optional. Default = « — ». */
+  placeholder?: string;
+  /** Shown when the search finds nothing. Optional. */
+  nothingFoundMessage?: string;
   readOnly?: boolean;
   onSave: (value: string | null) => void;
 }
@@ -206,12 +235,12 @@ interface EditableSelectProps {
  * @param {EditableSelectProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableSelect({ value, label, data, nullable = false, renderOption, filter, leftSection, readOnly = false, onSave }: EditableSelectProps) {
+export function EditableSelect({ value, label, data, nullable = false, renderOption, filter, leftSection, placeholder = '—', nothingFoundMessage, readOnly = false, onSave }: EditableSelectProps) {
   return (
     <Select
       {...cellCombobox}
       aria-label={label}
-      placeholder={readOnly ? undefined : '—'}
+      placeholder={readOnly ? undefined : placeholder}
       readOnly={readOnly}
       clearable={nullable && !readOnly}
       allowDeselect={nullable}
@@ -220,9 +249,10 @@ export function EditableSelect({ value, label, data, nullable = false, renderOpt
       renderOption={renderOption}
       filter={filter}
       leftSection={leftSection}
+      nothingFoundMessage={nothingFoundMessage}
       value={value}
       onChange={(next) => (next || nullable) && next !== value && onSave(next)}
-      onClick={(event) => event.stopPropagation()}
+      onClick={stopClick}
     />
   );
 }
@@ -231,8 +261,12 @@ interface EditableMultiSelectProps {
   value: string[];
   label: string;
   data: (ComboboxItem | { group: string; items: ComboboxItem[] })[];
+  /** Values as listed in the cell (an avatar, a state…). Optional. Default = their labels. */
+  items?: StackedItem[];
   renderOption?: (item: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode;
   filter?: OptionsFilter;
+  /** Shown when the search finds nothing. Optional. */
+  nothingFoundMessage?: string;
   readOnly?: boolean;
   onSave: (value: string[]) => void;
 }
@@ -243,27 +277,27 @@ interface EditableMultiSelectProps {
  * @param {EditableMultiSelectProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableMultiSelect({ value, label, data, renderOption, filter, readOnly = false, onSave }: EditableMultiSelectProps) {
+export function EditableMultiSelect({ value, label, data, items, renderOption, filter, nothingFoundMessage, readOnly = false, onSave }: EditableMultiSelectProps) {
   const labels = new Map(data.flatMap((item) => ('group' in item ? item.items : [item])).map((item) => [item.value, item.label]));
   return (
     <StackedMultiCell
       label={label}
       readOnly={readOnly}
-      items={value.map((id) => ({ id, label: labels.get(id) ?? id }))}
+      items={items ?? value.map((id) => ({ id, label: labels.get(id) ?? id }))}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
-          {...cellCombobox}
-          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          {...cellMulti}
           aria-label={label}
           placeholder={value.length ? undefined : '—'}
           searchable
           data={data}
           renderOption={renderOption}
           filter={filter}
+          nothingFoundMessage={nothingFoundMessage}
           value={value}
           onChange={(next) => onSave(next)}
           onDropdownClose={onDropdownClose}
-          onClick={(event) => event.stopPropagation()}
+          onClick={stopClick}
         />
       )}
     />
@@ -276,5 +310,5 @@ export function EditableMultiSelect({ value, label, data, renderOption, filter, 
  * @returns {JSX.Element} Cell.
  */
 export function EditableCheck({ value, label, readOnly = false, onSave }: { value: boolean; label: string; readOnly?: boolean; onSave: (value: boolean) => void }) {
-  return <Checkbox size="xs" aria-label={label} checked={value} disabled={readOnly} onChange={(event) => onSave(event.currentTarget.checked)} onClick={(event) => event.stopPropagation()} />;
+  return <Checkbox size="xs" aria-label={label} checked={value} disabled={readOnly} onChange={(event) => onSave(event.currentTarget.checked)} onClick={stopClick} />;
 }

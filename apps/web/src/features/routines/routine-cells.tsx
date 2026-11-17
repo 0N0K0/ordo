@@ -1,9 +1,9 @@
 import { TimeField } from '../../components/TimeField';
-import { Avatar, ColorSwatch, Group, NumberInput, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { ColorSwatch, Group, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { readSlotCondition, routineSchema, type RoutineCase } from '@ordo/shared';
 import { describeSlotCondition } from './slot-condition-text';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
@@ -21,33 +21,10 @@ import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { BeneficiariesCell } from '../beneficiaries/BeneficiariesSelect';
 import { routineTreeOptions } from './routine-format';
-
-/** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
-const cellField = {
-  variant: 'unstyled',
-  size: 'xs',
-  classNames: { root: classes.root, input: classes.input, section: classes.section },
-} as const;
-
-/** Select fields: dropdown as wide as its options. */
-const cellCombobox = { ...cellField, comboboxProps: { withinPortal: true, width: 'max-content', position: 'bottom-start' } } as const;
-
-/** Multi-select fields: their values as pills. */
-const cellMulti = { ...cellCombobox, classNames: { ...cellField.classNames, pillsList: classes.pills } } as const;
-
-/**
- * Keys of a typed cell: Enter saves (by leaving the field), Escape gives up the draft.
- * @param {KeyboardEvent<HTMLInputElement>} event Key event.
- * @param {() => void} cancel Gives up the draft.
- * @returns {void}
- */
-function cellKeys(event: KeyboardEvent<HTMLInputElement>, cancel: () => void): void {
-  if (event.key === 'Enter') event.currentTarget.blur();
-  if (event.key === 'Escape') {
-    cancel();
-    event.currentTarget.blur();
-  }
-}
+import { cellField, cellMulti } from '../../components/data-table/cell-field';
+import { EditableNumber } from '../../components/data-table/EditableCells';
+import { EditableTitle } from '../../components/data-table/EditableTitle';
+import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from '../tasks/views/context-cells';
 
 /**
  * Accessible label of a cell, with the number of routines it changes on a selection.
@@ -72,84 +49,45 @@ interface CellProps {
 }
 
 /**
- * Title cell: typed in place, saved when leaving the field if valid and changed (one routine at a time).
+ * Title cell: a click opens the routine form; a double-click elsewhere in the cell renames it in place (one routine at
+ * a time).
  * @param {CellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function TitleCell({ routine, readOnly = false }: CellProps) {
   const { apply } = useRoutineCellEdit(routine, 'title');
-  const [draft, setDraft] = useState<string | null>(null);
-
-  /**
-   * Saves the draft when valid and changed.
-   * @returns {void}
-   */
-  const save = () => {
-    if (draft === null) return;
-    setDraft(null);
-    const result = routineSchema.shape.title.safeParse(draft);
-    if (!result.success) {
-      notifyError(`${result.error.issues[0]?.message ?? 'Titre invalide.'} Rien n’a été modifié.`);
-      return;
-    }
-    if (result.data !== routine.title) apply({ title: result.data });
-  };
-
   return (
-    <TextInput
-      {...cellField}
-      aria-label={`Titre de ${routine.title}`}
+    <EditableTitle
+      value={routine.title}
+      label={`Titre de ${routine.title}`}
+      schema={routineSchema.shape.title}
+      onOpen={() => openRoutineForm({ routine })}
       readOnly={readOnly}
-      value={draft ?? routine.title}
-      onChange={(event) => setDraft(event.currentTarget.value)}
-      onBlur={save}
-      onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
-      fw={500}
-      style={{ flex: 1, minWidth: 0 }}
+      onSave={(title) => apply({ title })}
     />
   );
 }
 
 /**
- * Time to spend on it, in minutes: typed in place, saved when leaving the field if valid and changed.
+ * Time to spend on it, in minutes: typed in place, saved when leaving the field if valid and changed (on a selection,
+ * given to every routine of it).
  * @param {CellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function EstimateCell({ routine, readOnly = false }: CellProps) {
   const { apply, count } = useRoutineCellEdit(routine, 'estimate');
-  const [draft, setDraft] = useState<string | number | null>(null);
-
-  /**
-   * Saves the draft when valid and changed.
-   * @returns {void}
-   */
-  const save = () => {
-    if (draft === null) return;
-    setDraft(null);
-    const result = routineSchema.shape.estimate.safeParse(draft === '' ? null : Number(draft));
-    if (!result.success) {
-      notifyError(`${result.error.issues[0]?.message ?? 'Durée invalide.'} Rien n’a été modifié.`);
-      return;
-    }
-    if (result.data !== routine.estimate || count > 1) apply({ estimate: result.data }, { estimate: result.data });
-  };
-
   return (
-    <NumberInput
-      {...cellField}
-      aria-label={fieldLabel('Temps à consacrer', routine, count)}
-      placeholder={readOnly ? undefined : '—'}
-      readOnly={readOnly}
+    <EditableNumber
+      value={routine.estimate}
+      label={fieldLabel('Temps à consacrer', routine, count)}
+      decimals={0}
       min={1}
       max={24 * 60}
-      allowDecimal={false}
-      allowNegative={false}
-      suffix=" min"
-      hideControls
-      value={draft ?? routine.estimate ?? ''}
-      onChange={setDraft}
-      onBlur={save}
-      onKeyDown={(event) => cellKeys(event, () => setDraft(null))}
+      suffix="min"
+      schema={routineSchema.shape.estimate}
+      saveUnchanged={count > 1}
+      readOnly={readOnly}
+      onSave={(estimate) => apply({ estimate }, { estimate })}
     />
   );
 }
@@ -311,40 +249,14 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
 export function AssigneesCell({ routine, readOnly = false, context }: CellProps & { context: TaskContext }) {
   const { apply, count } = useRoutineCellEdit(routine, 'assignees');
   return (
-    <StackedMultiCell
+    <SharedAssigneesCell
+      value={routine.assigneeIds}
+      // Of a routine of a project: its contributors only (its current assignees stay).
+      projectId={routine.projectId ?? null}
+      context={context}
       label={fieldLabel('Assignés', routine, count)}
       readOnly={readOnly}
-      items={routine.assigneeIds.flatMap((id) => {
-        const contributor = context.contributorById.get(id);
-        return contributor
-          ? [{ id, label: context.contributorName(contributor), icon: <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={16} style={{ flexShrink: 0 }} /> }]
-          : [];
-      })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellMulti}
-          aria-label={fieldLabel('Assignés', routine, count)}
-          // Of a routine of a project: its contributors only (its current assignees stay).
-          data={context.assignableFor([routine.projectId ?? null], routine.assigneeIds).map((contributor) => ({ value: contributor.id, label: context.contributorName(contributor) }))}
-          renderOption={({ option }) => {
-            const contributor = context.contributorById.get(option.value);
-            return (
-              <Group gap="xs" wrap="nowrap">
-                <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
-                {option.label}
-              </Group>
-            );
-          }}
-          value={routine.assigneeIds}
-          onChange={(assigneeIds) => {
-            const { added, removed } = diff(routine.assigneeIds, assigneeIds);
-            apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed });
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={routine.assigneeIds.length ? undefined : '—'}
-          searchable
-        />
-      )}
+      onSave={(assigneeIds, { added, removed }) => apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed })}
     />
   );
 }
@@ -407,19 +319,13 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
  */
 export function ProjectCell({ routine, readOnly = false, context }: CellProps & { context: TaskContext }) {
   const { apply, count } = useRoutineCellEdit(routine, 'project');
-  const options = context.projectOptions(context.projects.filter((project) => !project.archived || project.id === routine.projectId));
   return (
-    <Select
-      {...cellCombobox}
-      {...treeSelectProps(options)}
-      aria-label={fieldLabel('Projet', routine, count)}
+    <SharedProjectCell
+      value={routine.projectId ?? null}
+      context={context}
+      label={fieldLabel('Projet', routine, count)}
       readOnly={readOnly}
-      placeholder={readOnly ? undefined : '—'}
-      clearable={!readOnly}
-      searchable
-      nothingFoundMessage="Aucun projet"
-      value={routine.projectId}
-      onChange={(projectId) => (projectId !== routine.projectId || count > 1) && apply({ projectId }, { projectId })}
+      onSave={(projectId) => apply({ projectId }, { projectId })}
     />
   );
 }

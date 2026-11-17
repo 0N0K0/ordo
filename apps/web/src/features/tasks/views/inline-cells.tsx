@@ -1,25 +1,22 @@
 import {
-  Avatar,
   ColorSwatch,
   Combobox,
   Group,
-  NumberInput,
   Select,
   Text,
-  TextInput,
   UnstyledButton,
   useCombobox,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
-import { useState, type MouseEvent, type ReactNode } from 'react';
+import { type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { notifyError } from '../../../lib/notify';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useTransferTask, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess } from '../../../lib/notify';
-import { ProjectSelect, TaskSelect } from '../task-ui';
+import { TaskSelect } from '../task-ui';
 import { subtreeIds } from '../task-links';
 import { linkableTasks } from '../task-links';
 import { LabelBadge } from '../task-ui';
@@ -31,6 +28,10 @@ import classes from '../../../components/data-table/EditableCells.module.css';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
 import { StackedMultiCell } from '../../../components/data-table/StackedMultiCell';
 import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
+import { cellCombobox as sharedCombobox, cellMulti as sharedMulti } from '../../../components/data-table/cell-field';
+import { EditableNumber } from '../../../components/data-table/EditableCells';
+import { EditableTitle } from '../../../components/data-table/EditableTitle';
+import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 
 /**
  * Stops the click from reaching the row.
@@ -39,19 +40,11 @@ import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
  */
 const stop = (event: MouseEvent) => event.stopPropagation();
 
-/** Borderless field filling the cell; a border shows on hover and focus. */
-const cellField = {
-  variant: 'unstyled',
-  size: 'xs',
-  classNames: { root: classes.root, input: classes.input, section: classes.section },
-  onClick: stop,
-} as const;
+/** Select fields of the cells, a click kept from the row. */
+const cellCombobox = { ...sharedCombobox, onClick: stop } as const;
 
-/** Select and multi-select fields: dropdown as wide as its options. */
-const cellCombobox = {
-  ...cellField,
-  comboboxProps: { withinPortal: true, width: 'max-content', position: 'bottom-start' },
-} as const;
+/** Multi-select fields of the cells, a click kept from the row. */
+const cellMulti = { ...sharedMulti, onClick: stop } as const;
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -72,78 +65,30 @@ function fieldLabel(name: string, task: Task, count: number): string {
 export function TitleCell({ task, context, prefix }: { task: Task; context: TaskContext; prefix?: ReactNode }) {
   const link = useTaskLink();
   const { apply } = useCellEdit(task, 'title');
-  const [draft, setDraft] = useState<string | null>(null);
   const children = context.childrenOf(task.id);
-
-  /**
-   * Saves the new title when valid.
-   * @returns {void}
-   */
-  const save = () => {
-    const result = taskTitleSchema.safeParse(draft ?? '');
-    if (!result.success) {
-      notifyError(`${result.error.issues[0]?.message ?? 'Titre invalide.'} Le titre n’a pas été modifié.`);
-    } else if (result.data !== task.title) {
-      apply({ title: result.data });
-    }
-    setDraft(null);
-  };
-
-  if (draft !== null) {
-    return (
-      <TextInput
-        size="xs"
-        value={draft}
-        autoFocus
-        aria-label={`Titre de la tâche ${taskName(task)}`}
-        onClick={stop}
-        onFocus={(event) => event.currentTarget.select()}
-        onChange={(event) => setDraft(event.currentTarget.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') save();
-          if (event.key === 'Escape') setDraft(null);
-        }}
-        onBlur={save}
-        style={{ flex: 1 }}
-      />
-    );
-  }
-
   return (
-    // The group fills the cell so a double-click on its empty part starts renaming.
-    <Group
-      gap={6}
-      wrap="nowrap"
-      className={classes.titleArea}
-      title="Double-cliquez pour renommer"
-      onDoubleClick={(event) => {
-        // A double-click on the links already opened the task.
-        if ((event.target as HTMLElement).closest('a')) return;
-        setDraft(task.title);
-      }}
-    >
-      {prefix}
-      <Text component={Link} to={link.to(task.id)} size="sm" c="dimmed" onClick={stop} style={{ flex: 'none' }}>
-        {taskRef(task).trim()}
-      </Text>
-      <Text
-        component={Link}
-        to={link.to(task.id)}
-        size="sm"
-        fw={500}
-        c="inherit"
-        onClick={stop}
-        truncate
-        className={classes.titleLink}
-      >
-        {task.title}
-      </Text>
-      {children.length > 0 && (
-        <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
-          {children.filter((child) => context.isClosed(child)).length}/{children.length}
-        </Text>
-      )}
-    </Group>
+    <EditableTitle
+      value={task.title}
+      label={`Titre de la tâche ${taskName(task)}`}
+      schema={taskTitleSchema}
+      to={link.to(task.id)}
+      before={
+        <>
+          {prefix}
+          <Text component={Link} to={link.to(task.id)} size="sm" c="dimmed" onClick={stop} style={{ flex: 'none' }}>
+            {taskRef(task).trim()}
+          </Text>
+        </>
+      }
+      after={
+        children.length > 0 && (
+          <Text size="xs" c="dimmed" style={{ flex: 'none' }}>
+            {children.filter((child) => context.isClosed(child)).length}/{children.length}
+          </Text>
+        )
+      }
+      onSave={(title) => apply({ title })}
+    />
   );
 }
 
@@ -247,8 +192,7 @@ export function TagsCell({ task, context }: { task: Task; context: TaskContext }
       })}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
-          {...cellCombobox}
-          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          {...cellMulti}
           aria-label={fieldLabel('Étiquettes', task, count)}
           data={context.tags.map((tag) => ({ value: tag.id, label: tag.name }))}
           renderOption={({ option }) => (
@@ -291,8 +235,7 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
       })}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
-          {...cellCombobox}
-          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          {...cellMulti}
           aria-label={fieldLabel('Sprints', task, count)}
           data={sprints.map((sprint) => ({ value: sprint.id, label: sprint.name }))}
           value={task.sprintIds}
@@ -320,43 +263,12 @@ export function SprintCell({ task, context }: { task: Task; context: TaskContext
 export function AssigneesCell({ task, context }: { task: Task; context: TaskContext }) {
   const { apply, count } = useCellEdit(task, 'assignees');
   return (
-    <StackedMultiCell
+    <SharedAssigneesCell
+      value={task.assigneeIds}
+      projectId={task.projectId}
+      context={context}
       label={fieldLabel('Assignés', task, count)}
-      items={task.assigneeIds.flatMap((id) => {
-        const contributor = context.contributorById.get(id);
-        return contributor
-          ? [{ id, label: context.contributorName(contributor), icon: <Avatar src={contributor.avatarUrl} name={contributor.name} color="initials" size={16} style={{ flexShrink: 0 }} /> }]
-          : [];
-      })}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...cellCombobox}
-          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
-          aria-label={fieldLabel('Assignés', task, count)}
-          data={context.assignableFor([task.projectId], task.assigneeIds).map((contributor) => ({
-            value: contributor.id,
-            label: context.contributorName(contributor),
-          }))}
-          renderOption={({ option }) => {
-            const contributor = context.contributorById.get(option.value);
-            return (
-              <Group gap="xs" wrap="nowrap">
-                <Avatar src={contributor?.avatarUrl} name={contributor?.name} color="initials" size={20} />
-                {option.label}
-              </Group>
-            );
-          }}
-          value={task.assigneeIds}
-          onChange={(assigneeIds) => {
-            const added = assigneeIds.filter((id) => !task.assigneeIds.includes(id));
-            const removed = task.assigneeIds.filter((id) => !assigneeIds.includes(id));
-            apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed });
-          }}
-          onDropdownClose={onDropdownClose}
-          placeholder={task.assigneeIds.length ? undefined : '—'}
-          searchable
-        />
-      )}
+      onSave={(assigneeIds, { added, removed }) => apply({ assigneeIds }, { addAssigneeIds: added, removeAssigneeIds: removed })}
     />
   );
 }
@@ -400,8 +312,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
       })}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
-          {...cellCombobox}
-          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          {...cellMulti}
           aria-label={label}
           data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${taskName(item)} ${item.title}` }))}
           value={task.blockedByIds}
@@ -427,47 +338,13 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
 }
 
 /**
- * Effort cell: number field, saved on blur or Enter.
+ * Effort cell: number field, saved on blur or Enter (on a selection, given to every task of it).
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function EffortCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'effort');
-  const [draft, setDraft] = useState<number | string | null>(null);
-
-  /**
-   * Saves the typed effort when it changed and is valid.
-   * @returns {void}
-   */
-  const save = () => {
-    if (draft === null) return;
-    const effort = draft === '' ? null : Number(draft);
-    setDraft(null);
-    if (effort === task.effort || (effort !== null && (!Number.isFinite(effort) || effort < 0))) return;
-    apply({ effort }, { effort });
-  };
-
-  return (
-    <NumberInput
-      {...cellField}
-      aria-label={fieldLabel('Effort', task, count)}
-      min={0}
-      decimalScale={2}
-      decimalSeparator=","
-      hideControls
-      value={draft ?? task.effort ?? ''}
-      onChange={setDraft}
-      onBlur={save}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur();
-        if (event.key === 'Escape') {
-          setDraft(null);
-          event.currentTarget.blur();
-        }
-      }}
-      placeholder="—"
-    />
-  );
+  return <EditableNumber value={task.effort} label={fieldLabel('Effort', task, count)} min={0} nullable saveUnchanged={count > 1} onSave={(effort) => apply({ effort }, { effort })} />;
 }
 
 interface DateCellProps {
@@ -569,8 +446,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
       })}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
-          {...cellCombobox}
-          classNames={{ ...cellField.classNames, pillsList: classes.pills }}
+          {...cellMulti}
           aria-label={label}
           data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${taskName(item)} ${item.title}` }))}
           value={ids}
@@ -659,17 +535,6 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     });
   };
   return (
-    <ProjectSelect
-      context={context}
-      variant="unstyled"
-      size="xs"
-      aria-label={fieldLabel('Projet', task, count)}
-      placeholder="Sans projet"
-      clearable
-      value={task.projectId}
-      onChange={move}
-      onClick={stop}
-      comboboxProps={{ withinPortal: true }}
-    />
+    <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" onSave={move} />
   );
 }

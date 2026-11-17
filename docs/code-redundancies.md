@@ -39,6 +39,15 @@ Même constructeur de filtres à l'écran, mais deux langages et deux moteurs.
 
 `features/tasks/views/inline-cells.tsx` (675 lignes) et `features/routines/routine-cells.tsx` (506 lignes) n'utilisent pas les cellules génériques de `components/data-table/EditableCells.tsx` ; les achats, la trésorerie et les temps ne s'en servent qu'en partie.
 
+**Fait** :
+
+- Titre : un `EditableTitle` générique. Un clic ouvre la ligne (page de la tâche, formulaire de la routine), un double-clic renomme.
+- Assignés et projet : `AssigneesCell` et `ProjectCell` partagés par les tâches et les routines (`features/tasks/views/context-cells.tsx`).
+- Texte et nombres : `EditableText` et `EditableNumber`, qui acceptent désormais la règle zod du champ, un lien ouvrable, des bornes et l'enregistrement d'une valeur inchangée sur une sélection. `TextCell`, `NumberCell`, `EffortCell` et `EstimateCell` ne sont plus que des appels de ces cellules, ou ont disparu.
+- Styles des champs et touches Entrée / Échap : un seul `cell-field.ts`, au lieu de cinq copies.
+
+Restent propres à leur domaine les cellules sans équivalent générique : statut, jalon, sprint, dépendances, horaires, conservation…
+
 ### 4. Deux en-têtes de tableau
 
 `DataTable` a son en-tête TanStack ; l'ancien `DataTableHeader` ne sert plus qu'à la bibliothèque, exclue de la migration. C'est la même logique en double : déplacer, redimensionner, ajuster au contenu, menu de colonne.

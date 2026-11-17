@@ -18,6 +18,7 @@ import type { TaskContext } from '../use-task-context';
 import { EVENT_STATES, eventState } from './event-format';
 import cellClasses from '../../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from '../../../components/data-table/StackedMultiCell';
+import { cellField as sharedField } from '../../../components/data-table/cell-field';
 import * as fmt from '../../../lib/format';
 import { BeneficiariesCell } from '../../beneficiaries/BeneficiariesSelect';
 
@@ -69,7 +70,8 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
 const stop = (event: MouseEvent) => event.stopPropagation();
 
 /** Look of the cell fields, like those of the tasks. */
-const cellField = { variant: 'unstyled', size: 'xs', classNames: { root: cellClasses.root, input: cellClasses.input, section: cellClasses.section }, onClick: stop } as const;
+/** Fields of the cells, a click kept from the row. */
+const cellField = { ...sharedField, onClick: stop } as const;
 
 /**
  * Saving of an event cell: the event (its series for a recurring one, the occurrences asked once), or every event
