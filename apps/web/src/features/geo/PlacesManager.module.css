@@ -34,6 +34,9 @@
 
   /* Map: the room the list leaves, all the height of the content. */
   .map {
+    /* Effets */
+    overflow: hidden;
+
     /* Dimension */
     height: 18rem;
 
@@ -47,7 +50,7 @@
     }
   }
 
-  /* Saved places, then the new one. */
+  /* Saved places: their list, scrolling within the content. */
   .side {
     /* Agencement */
     display: flex;
@@ -57,22 +60,6 @@
     @media (min-width: 62em) {
       /* Dimension */
       width: min(36rem, 45%);
-      min-height: 0;
-    }
-  }
-
-  /* List of the saved places: scrolls within the content. */
-  .list {
-    /* Agencement */
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-
-    @media (min-width: 62em) {
-      /* Agencement */
-      flex: 1;
-
-      /* Dimension */
       min-height: 0;
       overflow-y: auto;
     }

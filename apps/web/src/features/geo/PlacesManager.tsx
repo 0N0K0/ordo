@@ -1,245 +1,134 @@
-import { ActionIcon, Button, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import type { GeoPoint } from '@ordo/shared';
-import { PlusIcon, SquaresFourIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState, type CSSProperties } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
-import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
-import { AddressInput, type AddressValue } from './AddressInput';
-import { placesInTree, reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
-import { PlaceMap } from './PlaceMap';
+import { Paper, Stack, Text } from '@mantine/core';
+import { placeSchema, type GeoPoint } from '@ordo/shared';
+import { useRef, type CSSProperties } from 'react';
+import { createdId } from '../../components/settings/settings-api';
+import { SettingsList } from '../../components/settings/SettingsList';
+import type { SettingsItemValues } from '../../components/settings/SettingsItemForm';
+import { notifyError } from '../../lib/notify';
 import { useFillHeight } from '../tasks/column-fit';
+import { AddressInput } from './AddressInput';
+import { reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
+import { PlaceMap } from './PlaceMap';
 import classes from './PlacesManager.module.css';
 
-const EMPTY: AddressValue = { text: '', point: null };
-
-/**
- * Address of a saved place, to change: saved once a new address is chosen (typed text alone is not).
- * @param {{ place: Place, onSave: (value: { text: string, point: GeoPoint }) => void }} props Place and handler.
- * @returns {JSX.Element} Field.
- */
-function PlaceAddress({ place, onSave }: { place: Place; onSave: (value: { text: string; point: GeoPoint }) => void }) {
-  const [value, setValue] = useState<AddressValue>({ text: place.address, point: { lat: place.lat, lon: place.lon } });
-  return (
-    <AddressInput
-      size="xs"
-      style={{ flex: 1 }}
-      aria-label={`Adresse de ${place.name}`}
-      withPlaces={false}
-      value={value}
-      error={!value.point ? 'Choisissez une adresse proposée.' : undefined}
-      onChange={(next) => {
-        setValue(next);
-        if (next.point) onSave({ text: next.text, point: next.point });
-      }}
-    />
-  );
+/** Address of a place in its form: its text and its point (none for a zone, which has the point of its place). */
+interface PlaceAddressValues {
+  address: string;
+  lat: number | null;
+  lon: number | null;
 }
 
 /**
- * Saved places ("Maison", "Bureau"…): on a map and in a list. A new one is found by its address, or picked with a
- * click on the map (its address then looked up); a saved one is renamed in place, or moved likewise. They locate
- * events and are the starts and ends of their travel times.
+ * Saved places ("Maison", "Bureau"…), as every settings list: on a map and in a tree. A place has one address (found
+ * by its search, or picked with a click on the map, its address then looked up) and possibly several zones without
+ * an address of their own (kitchen, bathroom… for the cleaning): they take the point of their place. Each one has a
+ * name, a color and an image; places are reordered, zones put under another place or zone, by drag and drop (a place
+ * never becomes a zone, nor a zone a place). They locate events and routines and are the starts and ends of their
+ * travel times.
  * @returns {JSX.Element} Section.
  */
 export function PlacesManager() {
-  const { data: places } = usePlaces();
-  const { save, remove } = usePlaceMutations();
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState<AddressValue>(EMPTY);
-  const [deleting, setDeleting] = useState<Place | null>(null);
-  // Place a zone is being added in, and its name.
-  const [zoneOf, setZoneOf] = useState<string | null>(null);
-  const [zoneName, setZoneName] = useState('');
-  const tree = placesInTree(places ?? []);
+  const { data: places, isPending } = usePlaces();
+  const { save, remove, move } = usePlaceMutations();
   // As tall as the window leaves, no more.
   const [fillRef, fillHeight] = useFillHeight(400);
-  const onError = (error: Error) => notifyError(error.message);
+  const adderRef = useRef<((values: Partial<SettingsItemValues<PlaceAddressValues>>) => void) | null>(null);
 
   /**
-   * Picks the point of the new place on the map, its address looked up.
+   * Opens the form of a new place at the point clicked on the map, its address looked up.
    * @param {GeoPoint} point Point clicked.
    * @returns {Promise<void>}
    */
   const pick = async (point: GeoPoint) => {
-    setAddress({ text: 'Recherche de l’adresse…', point });
+    const fallback = `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`;
     try {
       const found = await reverseAddress(point);
-      setAddress({ text: found?.label ?? `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`, point });
-      if (!name.trim() && found?.name) setName(found.name);
+      adderRef.current?.({ name: found?.name ?? '', address: found?.label ?? fallback, lat: point.lat, lon: point.lon, parentId: null });
     } catch (error) {
-      setAddress({ text: `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`, point });
-      onError(error as Error);
+      notifyError((error as Error).message);
+      adderRef.current?.({ address: fallback, lat: point.lat, lon: point.lon, parentId: null });
     }
   };
 
-  const points = [
-    // The zones share the point of their place.
-    ...(places ?? []).filter((place) => !place.parentId).map((place) => ({ id: place.id, label: place.name, lat: place.lat, lon: place.lon })),
-    ...(address.point ? [{ id: 'new', label: name || 'Nouveau lieu', ...address.point, active: true }] : []),
-  ];
+  /**
+   * Input of a place (its address and point) or of a zone (its place) from the form values.
+   * @param {SettingsItemValues<PlaceAddressValues>} values Values.
+   * @returns {object} Input.
+   */
+  const input = (values: SettingsItemValues<PlaceAddressValues>) =>
+    values.parentId ? { name: values.name, parentId: values.parentId } : { name: values.name, address: values.address, lat: values.lat, lon: values.lon };
+
+  // The zones share the point of their place.
+  const points = (places ?? []).filter((place) => !place.parentId).map((place) => ({ id: place.id, label: place.name, lat: place.lat, lon: place.lon }));
 
   return (
-    <Paper ref={fillRef} withBorder radius="md" p="md" className={classes.root} style={{ '--fill-height': fillHeight ? `${fillHeight}px` : undefined } as CSSProperties}>
-      <Text fw={600}>Lieux</Text>
-      <Text size="xs" c="dimmed">
-        Vos adresses habituelles (maison, bureau…) : proposées pour le lieu des évènements et des routines, et pour calculer les temps de trajet. Cliquez sur la carte pour placer un nouveau lieu. Un
-        lieu peut avoir des zones, sans adresse (cuisine, salle de bain… pour le ménage) : elles prennent le point de leur lieu.
-      </Text>
+    <div ref={fillRef} className={classes.root} style={{ '--fill-height': fillHeight ? `${fillHeight}px` : undefined } as CSSProperties}>
       <div className={classes.body}>
-        <div className={classes.map}>
+        <Paper withBorder radius="md" className={classes.map}>
           <PlaceMap points={points} onPick={(point) => void pick(point)} height="100%" />
-        </div>
+        </Paper>
         <div className={classes.side}>
-          <div className={classes.list}>
-            {tree.map((place) =>
-              deleting?.id === place.id ? (
-                <Paper key={place.id} withBorder p="xs" radius="sm" ml={`calc(${place.depth} * var(--mantine-spacing-lg))`}>
-                  <Stack gap="xs">
-                    <Text size="sm">
-                      Supprimer {place.parentId ? 'la zone' : 'le lieu'} « {place.name} » ? Ses zones sont supprimées avec lui ; les évènements et routines gardent leur lieu en texte ; il ne sera plus
-                      proposé.
-                    </Text>
-                    <DestructiveActions
-                      loading={remove.isPending}
-                      onCancel={() => setDeleting(null)}
-                      onConfirm={() => remove.mutate(place.id, { onSuccess: () => (notifySuccess(place.parentId ? 'Zone supprimée.' : 'Lieu supprimé.'), setDeleting(null)), onError })}
-                    />
-                  </Stack>
-                </Paper>
-              ) : (
-                <Stack key={place.id} gap={4} pl={`calc(${place.depth} * var(--mantine-spacing-lg))`}>
-                  <Group gap="xs" wrap="nowrap" align="flex-start">
-                    <TextInput
-                      size="xs"
-                      w={160}
-                      aria-label={place.parentId ? 'Nom de la zone' : 'Nom du lieu'}
-                      leftSection={place.parentId ? <SquaresFourIcon aria-hidden /> : undefined}
-                      defaultValue={place.name}
-                      onBlur={(event) =>
-                        event.currentTarget.value.trim() &&
-                        event.currentTarget.value !== place.name &&
-                        save.mutate(
-                          {
-                            id: place.id,
-                            input: place.parentId
-                              ? { name: event.currentTarget.value, parentId: place.parentId }
-                              : { name: event.currentTarget.value, address: place.address, lat: place.lat, lon: place.lon },
-                          },
-                          { onError },
-                        )
-                      }
-                    />
-                    {place.parentId ? (
-                      <Text size="xs" c="dimmed" style={{ flex: 1 }} pt={6}>
-                        Zone de {place.path.split(' › ').slice(0, -1).join(' › ')}
-                      </Text>
-                    ) : (
-                      <PlaceAddress
-                        key={`${place.lat},${place.lon},${place.address}`}
-                        place={place}
-                        onSave={(value) => save.mutate({ id: place.id, input: { name: place.name, address: value.text, ...value.point } }, { onError })}
-                      />
-                    )}
-                    <Tooltip label="Ajouter une zone">
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label={`Ajouter une zone à ${place.name}`}
-                        onClick={() => {
-                          setZoneOf(place.id);
-                          setZoneName('');
-                        }}
-                      >
-                        <SquaresFourIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Supprimer">
-                      <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${place.name}`} onClick={() => setDeleting(place)}>
-                        <TrashIcon aria-hidden />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                  {zoneOf === place.id && (
-                    <form
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        if (!zoneName.trim()) return;
-                        save.mutate(
-                          { id: null, input: { name: zoneName.trim(), parentId: place.id } },
-                          {
-                            onSuccess: () => {
-                              notifySuccess('Zone ajoutée.');
-                              setZoneOf(null);
-                            },
-                            onError,
-                          },
-                        );
-                      }}
-                    >
-                      <Group gap="xs" wrap="nowrap" pl="var(--mantine-spacing-lg)">
-                        <TextInput
-                          size="xs"
-                          w={200}
-                          aria-label={`Nom de la nouvelle zone de ${place.name}`}
-                          placeholder="Cuisine, salle de bain…"
-                          leftSection={<SquaresFourIcon aria-hidden />}
-                          value={zoneName}
-                          onChange={(event) => setZoneName(event.currentTarget.value)}
-                          onKeyDown={(event) => event.key === 'Escape' && setZoneOf(null)}
-                          autoFocus
-                        />
-                        <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!zoneName.trim()} loading={save.isPending}>
-                          Ajouter
-                        </Button>
-                        <Button size="xs" variant="subtle" color="gray" onClick={() => setZoneOf(null)}>
-                          Annuler
-                        </Button>
-                      </Group>
-                    </form>
-                  )}
-                </Stack>
-              ),
-            )}
-            {!(places ?? []).length && (
-              <Text size="sm" c="dimmed">
-                Aucun lieu enregistré : ajoutez-en un ci-dessous, ou d’un clic sur la carte.
-              </Text>
-            )}
-          </div>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!name.trim() || !address.point) return;
-              save.mutate(
-                { id: null, input: { name: name.trim(), address: address.text, ...address.point } },
-                {
-                  onSuccess: () => {
-                    setName('');
-                    setAddress(EMPTY);
-                  },
-                  onError,
-                },
-              );
+          <SettingsList<Place, PlaceAddressValues>
+            kind="PLACE"
+            nested
+            withParent={false}
+            colorRequired={false}
+            title="Lieux"
+            description={
+              <Stack gap={4} component="span">
+                <span>Vos adresses habituelles (maison, bureau…) : proposées pour le lieu des évènements et des routines, et pour calculer les temps de trajet.</span>
+                <Text span size="sm" c="dimmed">
+                  Un lieu a une adresse (cherchée, ou d’un clic sur la carte) et peut avoir des zones, sans adresse (cuisine, salle de bain… pour le ménage), qui prennent son point.
+                </Text>
+              </Stack>
+            }
+            noun="le lieu"
+            items={places ?? []}
+            loading={isPending}
+            storageKey="places"
+            schema={placeSchema}
+            adderRef={adderRef}
+            extra={{
+              initial: (place) => ({ address: place && !place.parentId ? place.address : '', lat: place && !place.parentId ? place.lat : null, lon: place && !place.parentId ? place.lon : null }),
+              render: (form) => {
+                const values = form.getValues();
+                // A zone has no address: the one of its place.
+                if (values.parentId) return null;
+                return (
+                  <AddressInput
+                    label="Adresse"
+                    required
+                    placeholder="Adresse, ou un clic sur la carte"
+                    withPlaces={false}
+                    error={form.errors.address}
+                    value={{ text: values.address, point: values.lat !== null && values.lon !== null ? { lat: values.lat, lon: values.lon } : null }}
+                    onChange={(next) => form.setValues({ address: next.text, lat: next.point?.lat ?? null, lon: next.point?.lon ?? null })}
+                  />
+                );
+              },
             }}
-          >
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-              <TextInput size="xs" w={160} aria-label="Nom du nouveau lieu" placeholder="Maison, bureau…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-              <AddressInput
-                size="xs"
-                style={{ flex: 1 }}
-                aria-label="Adresse du nouveau lieu"
-                placeholder="Adresse, ou un clic sur la carte"
-                withPlaces={false}
-                value={address}
-                onChange={setAddress}
-              />
-              <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!name.trim() || !address.point} loading={save.isPending}>
-                Ajouter
-              </Button>
-            </Group>
-          </form>
+            create={async (values) => createdId(await save.mutateAsync({ id: null, input: input(values) }))}
+            update={(id, values) => save.mutateAsync({ id, input: input(values) })}
+            remove={(id) => remove.mutateAsync(id)}
+            move={(id, parentId, index) => move.mutateAsync({ id, parentId, index })}
+            // A place keeps its address, a zone has none: a place stays at the top, a zone under a place.
+            canMove={(place, parentId) => (place.parentId === null) === (parentId === null)}
+            renderBadges={(place) =>
+              !place.parentId && (
+                <Text size="xs" c="dimmed" truncate>
+                  {place.address}
+                </Text>
+              )
+            }
+            deleteMessage={(place, path) => (
+              <>
+                {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera supprimé{place.parentId ? 'e' : ''} définitivement avec ses zones ; les évènements et routines gardent leur lieu en texte ; il
+                ne sera plus proposé. Cette action est irréversible.
+              </>
+            )}
+          />
         </div>
       </div>
-    </Paper>
+    </div>
   );
 }

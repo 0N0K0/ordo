@@ -140,21 +140,41 @@ export interface PlaceView {
   lon: number;
   /** « Maison › Cuisine ». */
   path: string;
+  /** Color of its avatar (none: gray). */
+  color: string | null;
+  /** Image shown as its avatar. */
+  iconId: string | null;
+  /** Manual order among its siblings. */
+  position: number;
 }
 
 /**
- * Saved places of the workspace, by name: each zone with the point and the address of the place it is in.
+ * Saved places of the workspace, in their manual order (then by name): each zone with the point and the address of the
+ * place it is in.
  * @returns {Promise<PlaceView[]>} Places.
  */
 export async function places(): Promise<PlaceView[]> {
-  const rows = await prisma.place.findMany({ orderBy: { name: 'asc' } });
+  const rows = await prisma.place.findMany({ orderBy: [{ position: 'asc' }, { name: 'asc' }] });
   const byId = new Map(rows.map((row) => [row.id, row]));
   return rows.flatMap((row) => {
     const chain: Place[] = [row];
     for (let parent = row.parentId ? byId.get(row.parentId) : undefined; parent && !chain.includes(parent); parent = parent.parentId ? byId.get(parent.parentId) : undefined) chain.unshift(parent);
     const located = [...chain].reverse().find((item) => item.lat !== null && item.lon !== null);
     if (!located) return [];
-    return [{ id: row.id, name: row.name, address: row.address || located.address, parentId: row.parentId, lat: located.lat!, lon: located.lon!, path: chain.map((item) => item.name).join(' › ') }];
+    return [
+      {
+        id: row.id,
+        name: row.name,
+        address: row.address || located.address,
+        parentId: row.parentId,
+        lat: located.lat!,
+        lon: located.lon!,
+        path: chain.map((item) => item.name).join(' › '),
+        color: row.color,
+        iconId: row.iconId,
+        position: row.position,
+      },
+    ];
   });
 }
 
@@ -184,7 +204,10 @@ export async function savePlace(id: string | null, input: PlaceInput): Promise<P
     throw clientError('BAD_USER_INPUT', taken, { fields: { name: taken } });
   }
   try {
-    return id ? await prisma.place.update({ where: { id }, data }) : await prisma.place.create({ data });
+    if (id) return await prisma.place.update({ where: { id }, data });
+    // Added last among its siblings.
+    const { _max } = await prisma.place.aggregate({ where: { parentId: data.parentId }, _max: { position: true } });
+    return await prisma.place.create({ data: { ...data, position: (_max.position ?? -1) + 1 } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw clientError('BAD_USER_INPUT', taken, { fields: { name: taken } });
@@ -201,4 +224,35 @@ export async function savePlace(id: string | null, input: PlaceInput): Promise<P
 export async function deletePlace(id: string): Promise<void> {
   const { count } = await prisma.place.deleteMany({ where: { id } });
   if (!count) throw notFound('Lieu');
+}
+
+/**
+ * Moves a place among its siblings, or a zone under another place or zone: a place keeps its address (it never becomes
+ * a zone), a zone never becomes a place (it has no address); never into itself nor one of its zones.
+ * @param {string} id Place or zone moved.
+ * @param {string | null} parentId New parent: null for a place, a place or a zone for a zone.
+ * @param {number} index Index among its new siblings.
+ * @returns {Promise<void>}
+ */
+export async function movePlace(id: string, parentId: string | null, index: number): Promise<void> {
+  const all = await prisma.place.findMany({ select: { id: true, parentId: true, name: true, position: true }, orderBy: [{ position: 'asc' }, { name: 'asc' }] });
+  const place = all.find((item) => item.id === id);
+  if (!place) throw notFound('Lieu');
+  if ((place.parentId === null) !== (parentId === null)) {
+    throw clientError('BAD_USER_INPUT', place.parentId === null ? 'Un lieu garde son adresse : il ne peut pas devenir une zone.' : 'Une zone n’a pas d’adresse : elle ne peut pas devenir un lieu.');
+  }
+  const parentOf = new Map(all.map((item) => [item.id, item.parentId]));
+  if (parentId) {
+    if (!parentOf.has(parentId)) throw clientError('BAD_USER_INPUT', 'Lieu introuvable.');
+    for (let current: string | null | undefined = parentId; current; current = parentOf.get(current)) {
+      if (current === id) throw clientError('BAD_USER_INPUT', 'Une zone ne peut pas être dans elle-même.');
+    }
+  }
+  const siblings = all.filter((item) => item.parentId === parentId && item.id !== id);
+  if (siblings.some((item) => item.name === place.name)) throw clientError('BAD_USER_INPUT', parentId ? 'Une zone de ce lieu porte déjà ce nom.' : 'Un lieu porte déjà ce nom.');
+  siblings.splice(Math.max(0, Math.min(index, siblings.length)), 0, place);
+  for (const [position, item] of siblings.entries()) {
+    if (item.id === id) await prisma.place.update({ where: { id }, data: { parentId, position } });
+    else if (item.position !== position) await prisma.place.update({ where: { id: item.id }, data: { position } });
+  }
 }

@@ -1,6 +1,6 @@
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { CategoryTree } from '../category-tree/CategoryTree';
 import { categoryTree } from '../category-tree/category-tree';
@@ -56,6 +56,12 @@ export interface SettingsListProps<C extends SettingsItem, E extends object> {
   undeletable?: (item: C) => string | null;
   /** Rows while the list loads. Optional. */
   loading?: boolean;
+  /** The parent is chosen in the form (else only by drag and drop). Optional. Default = true. */
+  withParent?: boolean;
+  /** Whether an item may go under a parent (null: the top level); refused drops are not shown. Optional. */
+  canMove?: (item: C, parentId: string | null) => boolean;
+  /** Given a function opening the form of a new item with starting values (a map click…). Optional. */
+  adderRef?: { current: ((values: Partial<SettingsItemValues<E>>) => void) | null };
 }
 
 /**
@@ -89,15 +95,18 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   headerActions,
   undeletable,
   loading = false,
+  withParent = true,
+  canMove,
+  adderRef,
 }: SettingsListProps<C, E>) {
   const reorder = useReorderSettingsItems();
 
   /**
    * Opens the form of an item in the side panel.
-   * @param {{ item?: C, parentId?: string | null }} [options] Item edited, or parent of a new one. Optional.
+   * @param {{ item?: C, parentId?: string | null, initial?: object }} [options] Item edited, or parent and starting values of a new one. Optional.
    * @returns {void}
    */
-  const openForm = ({ item, parentId }: { item?: C; parentId?: string | null } = {}) => {
+  const openForm = ({ item, parentId, initial }: { item?: C; parentId?: string | null; initial?: Partial<SettingsItemValues<E>> } = {}) => {
     const panelId = `settings-list-${++panelCount}`;
     openPanel({
       panelId,
@@ -108,6 +117,8 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
           item={item}
           parentId={parentId}
           tree={nested ? items : undefined}
+          withParent={withParent}
+          initial={initial}
           withColor={withColor}
           colorRequired={colorRequired}
           schema={schema}
@@ -119,6 +130,15 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
       ),
     });
   };
+
+  // The opening of a new item with starting values, for the page (a click on its map…).
+  useEffect(() => {
+    if (!adderRef) return;
+    adderRef.current = (initial) => openForm({ initial });
+    return () => {
+      adderRef.current = null;
+    };
+  });
 
   /**
    * Moves an item: with the move of its list, else by saving the new order of the flat list.
@@ -235,6 +255,14 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
               </>
             )}
             onMove={handleMove}
+            canMove={
+              canMove
+                ? (id, parentId) => {
+                    const item = items.find((other) => other.id === id);
+                    return !item || canMove(item, parentId);
+                  }
+                : undefined
+            }
           />
         )}
       </Stack>

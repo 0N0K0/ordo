@@ -2241,7 +2241,7 @@ export type MoveDashboardChartMutation = { moveDashboardChart: boolean };
 export type PlacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, parentId: string | null, lat: number, lon: number, path: string }> };
+export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, parentId: string | null, lat: number, lon: number, path: string, color: string | null, iconUrl: string | null, position: number }> };
 
 export type SearchAddressesQueryVariables = Exact<{
   text: string;
@@ -2274,6 +2274,15 @@ export type SavePlaceMutationVariables = Exact<{
 
 
 export type SavePlaceMutation = { savePlace: string };
+
+export type MovePlaceMutationVariables = Exact<{
+  id: string | number;
+  parentId?: string | number | null | undefined;
+  index: number;
+}>;
+
+
+export type MovePlaceMutation = { movePlace: boolean };
 
 export type DeletePlaceMutationVariables = Exact<{
   id: string | number;
@@ -6745,6 +6754,9 @@ export const PlacesDocument = new TypedDocumentString(`
     lat
     lon
     path
+    color
+    iconUrl
+    position
   }
 }
     `) as unknown as TypedDocumentString<PlacesQuery, PlacesQueryVariables>;
@@ -6781,6 +6793,11 @@ export const SavePlaceDocument = new TypedDocumentString(`
   savePlace(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<SavePlaceMutation, SavePlaceMutationVariables>;
+export const MovePlaceDocument = new TypedDocumentString(`
+    mutation MovePlace($id: ID!, $parentId: ID, $index: Int!) {
+  movePlace(id: $id, parentId: $parentId, index: $index)
+}
+    `) as unknown as TypedDocumentString<MovePlaceMutation, MovePlaceMutationVariables>;
 export const DeletePlaceDocument = new TypedDocumentString(`
     mutation DeletePlace($id: ID!) {
   deletePlace(id: $id)

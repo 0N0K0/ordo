@@ -38,6 +38,10 @@ export interface SettingsItemFormProps<C extends SettingsItem, E extends object>
   parentId?: string | null;
   /** Items of the tree, for the choice of the parent; none: a flat list. Optional. */
   tree?: readonly C[];
+  /** The parent is chosen in the form (else only by drag and drop). Optional. Default = true. */
+  withParent?: boolean;
+  /** Starting values of a new item (an address picked on a map…). Optional. */
+  initial?: Partial<SettingsItemValues<E>>;
   /** Items have a color (none: their image or initials alone). Optional. Default = true. */
   withColor?: boolean;
   /** A color is required (else, in a tree, the one of its parent). Optional. Default = true for a flat list. */
@@ -63,6 +67,8 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   item,
   parentId = null,
   tree,
+  withParent = true,
+  initial,
   withColor = true,
   colorRequired = !tree,
   schema,
@@ -82,6 +88,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
       color: item ? (item.color ?? '') : withColor && (colorRequired || !parentColor) ? (parentColor ?? swatches[0]) : '',
       parentId: item ? (item.parentId ?? null) : parentId,
       ...(extra?.initial(item) ?? ({} as E)),
+      ...(!item && initial),
     } as SettingsItemValues<E>,
     schema,
   });
@@ -120,7 +127,9 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
           />
         )}
         <IconField value={icon} onChange={setIcon} currentUrl={item?.iconUrl ?? null} name={values.name} color={withColor ? values.color || parentColor : null} />
-        {tree && <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />}
+        {tree && withParent && (
+          <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />
+        )}
         {extra?.render(form)}
         <Group justify="flex-end" gap="sm">
           <Button variant="default" onClick={onDone}>

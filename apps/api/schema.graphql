@@ -1773,6 +1773,11 @@ type Mutation {
   moveMails(accountId: ID!, folder: String!, target: String!, uids: [Int!]!): Boolean!
   moveMilestone(id: ID!, index: Int!): Boolean!
 
+  """
+  Moves a place among the places, or a zone under another place or zone, at an index among its siblings.
+  """
+  movePlace(id: ID!, index: Int!, parentId: ID): Boolean!
+
   """Moves a project with its sub-projects."""
   moveProject(
     """
@@ -2191,6 +2196,10 @@ Saved place ("Maison", "Bureau"…): an address and its point; or a zone of one 
 type Place {
   """Its address, or that of the place a zone is in."""
   address: String!
+  color: String
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
   id: ID!
   lat: Float!
   lon: Float!
@@ -2201,6 +2210,7 @@ type Place {
 
   """Full name (« Maison › Cuisine »)."""
   path: String!
+  position: Int!
 }
 
 input PlaceInput {

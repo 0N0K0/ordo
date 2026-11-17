@@ -1,5 +1,6 @@
 import { TRAVEL_MODES } from '@ordo/shared';
 import * as geo from '../../services/geo';
+import { iconUrl } from '../../services/icons';
 import { builder } from '../builder';
 
 const PlaceRef = builder.objectRef<geo.PlaceView>('Place').implement({
@@ -12,6 +13,9 @@ const PlaceRef = builder.objectRef<geo.PlaceView>('Place').implement({
     lat: t.exposeFloat('lat'),
     lon: t.exposeFloat('lon'),
     path: t.exposeString('path', { description: 'Full name (« Maison › Cuisine »).' }),
+    color: t.exposeString('color', { nullable: true }),
+    iconUrl: t.string({ nullable: true, description: 'Image shown as its avatar (none: its initials on its color).', resolve: (place) => iconUrl(place.iconId) }),
+    position: t.exposeInt('position'),
   }),
 });
 
@@ -74,6 +78,14 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { id, input }) =>
       (await geo.savePlace(id ?? null, { name: input.name, address: input.address ?? '', lat: input.lat ?? null, lon: input.lon ?? null, parentId: input.parentId ? String(input.parentId) : null }))
         .id,
+  }),
+  movePlace: t.boolean({
+    description: 'Moves a place among the places, or a zone under another place or zone, at an index among its siblings.',
+    args: { id: t.arg.id({ required: true }), parentId: t.arg.id(), index: t.arg.int({ required: true }) },
+    resolve: async (_root, { id, parentId, index }) => {
+      await geo.movePlace(String(id), parentId ? String(parentId) : null, index);
+      return true;
+    },
   }),
   deletePlace: t.boolean({
     description: 'Deletes a saved place (events keep their address).',

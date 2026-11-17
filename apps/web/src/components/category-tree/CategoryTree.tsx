@@ -86,6 +86,8 @@ export interface CategoryTreeProps<C extends TreeCategory> {
   onMove: (id: string, parentId: string | null, index: number) => void;
   /** Rows can be put under another (else a flat list, reordered only). Optional. Default = true. */
   nested?: boolean;
+  /** Whether a row may go under a parent (null: the top level); refused drops are not shown. Optional. */
+  canMove?: (id: string, parentId: string | null) => boolean;
 }
 
 /**
@@ -95,7 +97,7 @@ export interface CategoryTreeProps<C extends TreeCategory> {
  * @param {CategoryTreeProps<C>} props Component props.
  * @returns {JSX.Element} Tree.
  */
-export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove, nested = true }: CategoryTreeProps<C>) {
+export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove, nested = true, canMove }: CategoryTreeProps<C>) {
   const tree = categoryTree(categories);
   const [folded, toggle] = useFolded(storageKey);
   const [dragged, setDragged] = useState<string | null>(null);
@@ -109,6 +111,18 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
     if (category.parentId && (hidden.has(category.parentId) || folded.has(category.parentId))) hidden.add(category.id);
   }
   const shown = tree.filter(({ category }) => !hidden.has(category.id));
+
+  /**
+   * Destination of a drop, when the move is allowed.
+   * @param {string} id Row dragged.
+   * @param {string} targetId Row dropped on.
+   * @param {TreePlace} place Where.
+   * @returns {{ parentId: string | null, index: number } | null} Destination, null when refused.
+   */
+  const allowed = (id: string, targetId: string, place: TreePlace) => {
+    const destination = treeDestination(categories, id, targetId, place);
+    return destination && (!canMove || canMove(id, destination.parentId)) ? destination : null;
+  };
 
   /**
    * Updates where the dragged category would go.
@@ -130,7 +144,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
     setDragged(null);
     setDrop(null);
     if (!over) return;
-    const destination = treeDestination(categories, String(active.id), String(over.id), place);
+    const destination = allowed(String(active.id), String(over.id), place);
     if (destination) onMove(String(active.id), destination.parentId, destination.index);
   };
 
@@ -162,7 +176,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
         <Table.Tbody>
           {shown.map((placed) => {
             const { id } = placed.category;
-            const dropHere = dragged !== null && drop?.id === id && treeDestination(categories, dragged, id, drop.place) ? drop.place : null;
+            const dropHere = dragged !== null && drop?.id === id && allowed(dragged, id, drop.place) ? drop.place : null;
             return (
               <CategoryRow
                 key={id}

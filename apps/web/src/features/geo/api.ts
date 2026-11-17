@@ -19,6 +19,9 @@ const PlacesDocument = graphql(`
       lat
       lon
       path
+      color
+      iconUrl
+      position
     }
   }
 `);
@@ -57,6 +60,12 @@ const TravelTimeDocument = graphql(`
 const SavePlaceDocument = graphql(`
   mutation SavePlace($id: ID, $input: PlaceInput!) {
     savePlace(id: $id, input: $input)
+  }
+`);
+
+const MovePlaceDocument = graphql(`
+  mutation MovePlace($id: ID!, $parentId: ID, $index: Int!) {
+    movePlace(id: $id, parentId: $parentId, index: $index)
   }
 `);
 
@@ -203,5 +212,9 @@ export function usePlaceMutations() {
   return {
     save: useMutation({ mutationFn: async (variables: { id: string | null; input: PlaceInput }) => (await execute(SavePlaceDocument, variables)).savePlace, onSettled }),
     remove: useMutation({ mutationFn: async (id: string) => (await execute(DeletePlaceDocument, { id })).deletePlace, onSettled }),
+    move: useMutation({
+      mutationFn: async (variables: { id: string; parentId: string | null; index: number }) => (await execute(MovePlaceDocument, variables)).movePlace,
+      onSettled,
+    }),
   };
 }

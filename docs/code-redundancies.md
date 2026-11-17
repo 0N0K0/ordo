@@ -74,7 +74,7 @@ Restent propres à leur domaine les cellules sans équivalent générique : stat
 
 La trésorerie et le calendrier pourraient reposer sur le générique avec un filtre.
 
-**En cours** (étape 1 sur 4, l'affichage) :
+**Fait**, en quatre étapes. Étape 1, l'affichage :
 
 - La trésorerie et le calendrier reposent sur l'arbre générique. Les chemins et les sous-arbres sont dans `category-tree.ts`, et la copie du calendrier est supprimée.
 - Toute option d'arbre porte son chemin complet (« Client › Projet », « Maison › Cuisine »), qui s'affiche une fois choisie ; la liste déroulante garde le nom seul, indenté.
@@ -84,7 +84,7 @@ La trésorerie et le calendrier pourraient reposer sur le générique avec un fi
 
 Étape 3 faite : un seul composant de liste paramétrable, `SettingsList`, plate ou en arbre. Chaque item a un avatar (son image, sinon ses initiales sur sa couleur) et se modifie dans le panneau latéral (nom, couleur, image, parent, champs propres à la liste). Il se réordonne par glisser-déposer et, dans un arbre, se range sous un autre. `LabelManager` et `CategoryTreeManager` sont supprimés. Côté API, `setSettingsItemLook` (couleur, image) et `reorderSettingsItems` (ordre) servent toutes les listes. Toutes les listes y passent : tâches, projets, documents, fiches, achats, routines, stock, drapeaux, calendriers, types de plages, catégories d'agenda et trésorerie (comptes, contextes, catégories, moyens de paiement, tiers). Les listes de base gardent leurs onglets, avec le même formulaire et leur avatar. Dans les selects, les filtres, les items choisis et les cellules, chaque item montre son avatar (`ItemAvatar`, `listSelectProps`, `treeSelectProps`).
 
-Restent : un modèle unique de liste paramétrable (couleur, image, nom, glisser-déposer), et les lieux sur ce modèle.
+Étape 4 faite : les lieux sont sur `SettingsList`. Un lieu a une seule adresse et peut avoir plusieurs zones, qui n'en ont pas. Un lieu se réordonne parmi les lieux, une zone se range sous un autre lieu ou une autre zone, sans que l'un devienne l'autre. Un clic sur la carte ouvre l'ajout d'un lieu à cette adresse. Dans le champ d'adresse, les zones cochées s'empilent avec leur chemin complet.
 
 ### 7. Actions de sélection et dialogues dupliqués
 

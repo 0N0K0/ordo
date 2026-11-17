@@ -1,6 +1,8 @@
 import { ActionIcon, Checkbox, Combobox, Group, InputBase, Loader, Menu, ScrollArea, Stack, Text, Tooltip, useCombobox, type InputBaseProps } from '@mantine/core';
+import { ItemAvatar } from '../../components/settings/ItemAvatar';
+import { StackedValues } from '../../components/data-table/StackedValues';
 import type { GeoPoint } from '@ordo/shared';
-import { CheckIcon, HouseIcon, MapPinIcon, MapPinLineIcon, SquaresFourIcon } from '@phosphor-icons/react';
+import { CheckIcon, HouseIcon, MapPinIcon, MapPinLineIcon } from '@phosphor-icons/react';
 import { placesInTree, rootPlace, useAddressSearch, usePlaces, zonesOfText, zonesText } from './api';
 
 /** Height of the lists of places and addresses at most (they scroll beyond). */
@@ -143,7 +145,8 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                       {tree.map((place) => (
                         <Menu.Item
                           key={place.id}
-                          leftSection={place.parentId ? ticked(place.id) ? <CheckIcon aria-hidden /> : <SquaresFourIcon aria-hidden /> : <HouseIcon aria-hidden />}
+                          leftSection={<ItemAvatar name={place.name} iconUrl={place.iconUrl} color={place.color} />}
+                          rightSection={place.parentId && ticked(place.id) ? <CheckIcon aria-label="Zone choisie" /> : undefined}
                           // A zone ticked: the menu stays open to tick others.
                           closeMenuOnClick={!place.parentId}
                           aria-checked={place.parentId ? ticked(place.id) : undefined}
@@ -188,7 +191,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                       style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${needle && !value.point ? 0 : place.depth} * var(--mantine-spacing-md))` }}
                     >
                       <Group gap="xs" wrap="nowrap">
-                        {place.parentId ? ticked(place.id) ? <CheckIcon aria-label="Zone choisie" /> : <SquaresFourIcon aria-hidden /> : <HouseIcon aria-hidden />}
+                        <ItemAvatar name={place.name} iconUrl={place.iconUrl} color={place.color} />
                         <div>
                           {/* Searched: the full name of a zone; listed: its name under its place. */}
                           <Text size="sm">{needle && !value.point ? place.path : place.name}</Text>
@@ -198,6 +201,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                             </Text>
                           )}
                         </div>
+                        {place.parentId && ticked(place.id) && <CheckIcon aria-label="Zone choisie" style={{ marginInlineStart: 'auto', flexShrink: 0 }} />}
                       </Group>
                     </Combobox.Option>
                   ))}
@@ -222,11 +226,24 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
       {/* A place with zones: its zones ticked here, several at once (« Maison › Cuisine, Salle de bain »). */}
       {withPlaces && placeZones.length > 0 && chosenPlace && (
         <Checkbox.Group label={`Zones de ${chosenPlace.name}`} description="Facultatif : une ou plusieurs ; aucune, le lieu entier." value={chosen?.zoneIds ?? []} onChange={setZones}>
-          <Group gap="sm" mt={4}>
-            {placeZones.map((zone) => (
-              <Checkbox key={zone.id} size="xs" value={zone.id} label={zone.path.split(' › ').slice(1).join(' › ')} />
-            ))}
-          </Group>
+          {/* One under the other, 5 at most (else 4 and « X de plus »), each by its full path. */}
+          <Stack mt={4} gap={0}>
+            <StackedValues gap={4}>
+              {placeZones.map((zone) => (
+                <Checkbox
+                  key={zone.id}
+                  size="xs"
+                  value={zone.id}
+                  label={
+                    <Group gap={6} wrap="nowrap" component="span">
+                      <ItemAvatar name={zone.name} iconUrl={zone.iconUrl} color={zone.color} size={14} />
+                      {zone.path}
+                    </Group>
+                  }
+                />
+              ))}
+            </StackedValues>
+          </Stack>
         </Checkbox.Group>
       )}
     </Stack>
