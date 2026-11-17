@@ -1,4 +1,4 @@
-import { Button, Checkbox, Group, Radio, Stack, Text } from '@mantine/core';
+import { Button, Group, Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
 import { useBulkUndo } from './bulk-undo';
@@ -79,19 +79,18 @@ export function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
 }
 
 /**
- * Bulk clone confirmation, optionally with the sub-tasks: each task cloned in turn.
+ * Bulk clone confirmation: each task cloned in turn with its sub-tasks (one under another checked task comes with it).
  * @param {DialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
 export function BulkCloneDialog({ tasks, context, onDone }: DialogProps) {
   const cloneTask = useCloneTask();
-  const [includeSubtasks, setIncludeSubtasks] = useState(false);
   const [pending, setPending] = useState(false);
   const withSubtasks = tasks.some((task) => context.childrenOf(task.id).length > 0);
   return (
     <Stack gap="md">
       <Text size="sm">{tasksLabel(tasks.length)} seront clonées : tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.</Text>
-      {withSubtasks && <Checkbox label="Inclure leurs sous-tâches" checked={includeSubtasks} onChange={(event) => setIncludeSubtasks(event.currentTarget.checked)} />}
+      {withSubtasks && <Text size="sm">Leurs sous-tâches sont clonées avec elles, sous leur clone.</Text>}
       <Group justify="flex-end" gap="sm">
         <Button variant="default" onClick={() => onDone(false)}>
           Annuler
@@ -102,7 +101,15 @@ export function BulkCloneDialog({ tasks, context, onDone }: DialogProps) {
           onClick={async () => {
             setPending(true);
             try {
-              for (const task of tasks) await cloneTask.mutateAsync({ id: task.id, includeSubtasks });
+              // A task already cloned with its parent is not cloned again.
+              const ids = new Set(tasks.map((task) => task.id));
+              const under = (task: Task) => {
+                for (let parent = task.parentId ? context.taskById.get(task.parentId) : undefined; parent; parent = parent.parentId ? context.taskById.get(parent.parentId) : undefined)
+                  if (ids.has(parent.id)) return true;
+                return false;
+              };
+              const roots = tasks.filter((task) => !under(task));
+              for (const task of roots) await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
               notifySuccess(`${tasksLabel(tasks.length)} clonée${tasks.length > 1 ? 's' : ''}.`);
               onDone(true);
             } catch (error) {

@@ -104,6 +104,12 @@ const DeleteCategoryDocument = graphql(`
   }
 `);
 
+const CopySubRoutinesDocument = graphql(`
+  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {
+    copySubRoutines(fromId: $fromId, toId: $toId)
+  }
+`);
+
 const CreateRoutineDocument = graphql(`
   mutation CreateRoutine($input: RoutineInput!) {
     createRoutine(input: $input)
@@ -550,6 +556,8 @@ export function useRoutineMutations() {
       (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
     ),
     update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => (await execute(UpdateRoutineDocument, variables)).updateRoutine),
+    /** Copies the sub-routines of a routine under its copy (theirs too). */
+    copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
     patch: useRoutineMutation(
       async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),

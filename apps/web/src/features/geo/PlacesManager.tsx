@@ -1,11 +1,11 @@
 import { ActionIcon, Button, Group, Paper, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import type { GeoPoint } from '@ordo/shared';
-import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { PlusIcon, SquaresFourIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type CSSProperties } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { AddressInput, type AddressValue } from './AddressInput';
-import { reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
+import { placesInTree, reverseAddress, usePlaceMutations, usePlaces, type Place } from './api';
 import { PlaceMap } from './PlaceMap';
 import { useFillHeight } from '../tasks/column-fit';
 import classes from './PlacesManager.module.css';
@@ -47,6 +47,10 @@ export function PlacesManager() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState<AddressValue>(EMPTY);
   const [deleting, setDeleting] = useState<Place | null>(null);
+  // Place a zone is being added in, and its name.
+  const [zoneOf, setZoneOf] = useState<string | null>(null);
+  const [zoneName, setZoneName] = useState('');
+  const tree = placesInTree(places ?? []);
   // As tall as the window leaves, no more.
   const [fillRef, fillHeight] = useFillHeight(400);
   const onError = (error: Error) => notifyError(error.message);
@@ -69,7 +73,8 @@ export function PlacesManager() {
   };
 
   const points = [
-    ...(places ?? []).map((place) => ({ id: place.id, label: place.name, lat: place.lat, lon: place.lon })),
+    // The zones share the point of their place.
+    ...(places ?? []).filter((place) => !place.parentId).map((place) => ({ id: place.id, label: place.name, lat: place.lat, lon: place.lon })),
     ...(address.point ? [{ id: 'new', label: name || 'Nouveau lieu', ...address.point, active: true }] : []),
   ];
 
@@ -77,7 +82,8 @@ export function PlacesManager() {
     <Paper ref={fillRef} withBorder radius="md" p="md" className={classes.root} style={{ '--fill-height': fillHeight ? `${fillHeight}px` : undefined } as CSSProperties}>
       <Text fw={600}>Lieux</Text>
       <Text size="xs" c="dimmed">
-        Vos adresses habituelles (maison, bureau…) : proposées pour le lieu des évènements et pour calculer les temps de trajet. Cliquez sur la carte pour placer un nouveau lieu.
+        Vos adresses habituelles (maison, bureau…) : proposées pour le lieu des évènements et des routines, et pour calculer les temps de trajet. Cliquez sur la carte pour placer un nouveau lieu. Un
+        lieu peut avoir des zones, sans adresse (cuisine, salle de bain… pour le ménage) : elles prennent le point de leur lieu.
       </Text>
       <div className={classes.body}>
         <div className={classes.map}>
@@ -85,42 +91,113 @@ export function PlacesManager() {
         </div>
         <div className={classes.side}>
           <div className={classes.list}>
-            {(places ?? []).map((place) =>
+            {tree.map((place) =>
               deleting?.id === place.id ? (
-                <Paper key={place.id} withBorder p="xs" radius="sm">
+                <Paper key={place.id} withBorder p="xs" radius="sm" ml={`calc(${place.depth} * var(--mantine-spacing-lg))`}>
                   <Stack gap="xs">
-                    <Text size="sm">Supprimer le lieu « {place.name} » ? Les évènements gardent leur adresse ; il ne sera plus proposé.</Text>
+                    <Text size="sm">
+                      Supprimer {place.parentId ? 'la zone' : 'le lieu'} « {place.name} » ? Ses zones sont supprimées avec lui ; les évènements et routines gardent leur lieu en texte ; il ne sera plus
+                      proposé.
+                    </Text>
                     <DestructiveActions
                       loading={remove.isPending}
                       onCancel={() => setDeleting(null)}
-                      onConfirm={() => remove.mutate(place.id, { onSuccess: () => (notifySuccess('Lieu supprimé.'), setDeleting(null)), onError })}
+                      onConfirm={() => remove.mutate(place.id, { onSuccess: () => (notifySuccess(place.parentId ? 'Zone supprimée.' : 'Lieu supprimé.'), setDeleting(null)), onError })}
                     />
                   </Stack>
                 </Paper>
               ) : (
-                <Group key={place.id} gap="xs" wrap="nowrap" align="flex-start">
-                  <TextInput
-                    size="xs"
-                    w={160}
-                    aria-label="Nom du lieu"
-                    defaultValue={place.name}
-                    onBlur={(event) =>
-                      event.currentTarget.value.trim() &&
-                      event.currentTarget.value !== place.name &&
-                      save.mutate({ id: place.id, input: { name: event.currentTarget.value, address: place.address, lat: place.lat, lon: place.lon } }, { onError })
-                    }
-                  />
-                  <PlaceAddress
-                    key={`${place.lat},${place.lon},${place.address}`}
-                    place={place}
-                    onSave={(value) => save.mutate({ id: place.id, input: { name: place.name, address: value.text, ...value.point } }, { onError })}
-                  />
-                  <Tooltip label="Supprimer">
-                    <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${place.name}`} onClick={() => setDeleting(place)}>
-                      <TrashIcon aria-hidden />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
+                <Stack key={place.id} gap={4} pl={`calc(${place.depth} * var(--mantine-spacing-lg))`}>
+                  <Group gap="xs" wrap="nowrap" align="flex-start">
+                    <TextInput
+                      size="xs"
+                      w={160}
+                      aria-label={place.parentId ? 'Nom de la zone' : 'Nom du lieu'}
+                      leftSection={place.parentId ? <SquaresFourIcon aria-hidden /> : undefined}
+                      defaultValue={place.name}
+                      onBlur={(event) =>
+                        event.currentTarget.value.trim() &&
+                        event.currentTarget.value !== place.name &&
+                        save.mutate(
+                          {
+                            id: place.id,
+                            input: place.parentId
+                              ? { name: event.currentTarget.value, parentId: place.parentId }
+                              : { name: event.currentTarget.value, address: place.address, lat: place.lat, lon: place.lon },
+                          },
+                          { onError },
+                        )
+                      }
+                    />
+                    {place.parentId ? (
+                      <Text size="xs" c="dimmed" style={{ flex: 1 }} pt={6}>
+                        Zone de {place.path.split(' › ').slice(0, -1).join(' › ')}
+                      </Text>
+                    ) : (
+                      <PlaceAddress
+                        key={`${place.lat},${place.lon},${place.address}`}
+                        place={place}
+                        onSave={(value) => save.mutate({ id: place.id, input: { name: place.name, address: value.text, ...value.point } }, { onError })}
+                      />
+                    )}
+                    <Tooltip label="Ajouter une zone">
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label={`Ajouter une zone à ${place.name}`}
+                        onClick={() => {
+                          setZoneOf(place.id);
+                          setZoneName('');
+                        }}
+                      >
+                        <SquaresFourIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Supprimer">
+                      <ActionIcon variant="subtle" color="red" aria-label={`Supprimer ${place.name}`} onClick={() => setDeleting(place)}>
+                        <TrashIcon aria-hidden />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                  {zoneOf === place.id && (
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (!zoneName.trim()) return;
+                        save.mutate(
+                          { id: null, input: { name: zoneName.trim(), parentId: place.id } },
+                          {
+                            onSuccess: () => {
+                              notifySuccess('Zone ajoutée.');
+                              setZoneOf(null);
+                            },
+                            onError,
+                          },
+                        );
+                      }}
+                    >
+                      <Group gap="xs" wrap="nowrap" pl="var(--mantine-spacing-lg)">
+                        <TextInput
+                          size="xs"
+                          w={200}
+                          aria-label={`Nom de la nouvelle zone de ${place.name}`}
+                          placeholder="Cuisine, salle de bain…"
+                          leftSection={<SquaresFourIcon aria-hidden />}
+                          value={zoneName}
+                          onChange={(event) => setZoneName(event.currentTarget.value)}
+                          onKeyDown={(event) => event.key === 'Escape' && setZoneOf(null)}
+                          autoFocus
+                        />
+                        <Button type="submit" size="xs" variant="default" leftSection={<PlusIcon aria-hidden />} disabled={!zoneName.trim()} loading={save.isPending}>
+                          Ajouter
+                        </Button>
+                        <Button size="xs" variant="subtle" color="gray" onClick={() => setZoneOf(null)}>
+                          Annuler
+                        </Button>
+                      </Group>
+                    </form>
+                  )}
+                </Stack>
               ),
             )}
             {!(places ?? []).length && (

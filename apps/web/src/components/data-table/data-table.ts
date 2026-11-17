@@ -4,6 +4,13 @@ import type { ColumnLayout, TableSort } from '@ordo/shared';
 export interface ColumnChoice {
   value: string;
   label: string;
+  /** Depth in a tree (categories, projects…): the choices are offered as their tree. Optional. */
+  depth?: number;
+  /** Value of its parent in the tree. Optional. */
+  parent?: string | null;
+  color?: string | null;
+  /** A parent shown greyed out (its children offered, not it). Optional. */
+  disabled?: boolean;
 }
 
 /**

@@ -20,6 +20,7 @@ import { openRoutineForm } from './open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { BeneficiariesCell } from '../beneficiaries/BeneficiariesSelect';
+import { routineTreeOptions } from './routine-format';
 
 /** Borderless field filling the cell; a border shows on hover and focus (as the cells of the task tables). */
 const cellField = {
@@ -384,10 +385,7 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
         <BatchMultiSelect
           {...cellMulti}
           aria-label={fieldLabel('Dépendances', routine, count)}
-          data={routines
-            .filter((other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id)))
-            .map((other) => ({ value: other.id, label: other.title }))
-            .sort((a, b) => a.label.localeCompare(b.label, 'fr'))}
+          {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id))))}
           value={routine.requiredIds}
           onChange={(requiredIds) => {
             const { added, removed } = diff(routine.requiredIds, requiredIds);

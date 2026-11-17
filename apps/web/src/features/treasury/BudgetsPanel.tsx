@@ -437,7 +437,7 @@ export function BudgetsPanel() {
       locked: true,
       sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null),
       text: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : 'Sans catégorie'),
-      filter: { kind: 'choice', value: (row) => row.categoryId ?? null, options: [...paths].map(([value, label]) => ({ value, label })) },
+      filter: { kind: 'choice', value: (row) => row.categoryId ?? null, options: [...categoryOptions(categories, 'OUT'), ...categoryOptions(categories, 'IN')] },
       groupable: true,
     },
   ];

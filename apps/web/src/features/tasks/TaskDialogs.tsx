@@ -159,7 +159,6 @@ export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
   const cloneTask = useCloneTask();
   const link = useTaskLink();
   const subtasks = countSubtasks(context, task.id);
-  const [includeSubtasks, setIncludeSubtasks] = useState(false);
 
   /**
    * Clones the task.
@@ -167,7 +166,8 @@ export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
    */
   const handleConfirm = () => {
     cloneTask.mutate(
-      { id: task.id, includeSubtasks },
+      // Its sub-tasks are cloned with it, under the clone.
+      { id: task.id, includeSubtasks: true },
       {
         onSuccess: (clone) => {
           notifySuccess(`Tâche ${taskName(task)} clonée${clone.number === null ? "" : ` en #${clone.number}`}.`);
@@ -185,11 +185,9 @@ export function CloneTaskDialog({ task, context, onDone }: DialogProps) {
         Tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.
       </Text>
       {subtasks > 0 && (
-        <Checkbox
-          label={`Inclure les ${subtasks} sous-tâche${subtasks > 1 ? 's' : ''}`}
-          checked={includeSubtasks}
-          onChange={(event) => setIncludeSubtasks(event.currentTarget.checked)}
-        />
+        <Text size="sm">
+          {subtasks === 1 ? 'Sa sous-tâche est clonée' : `Ses ${subtasks} sous-tâches sont clonées`} avec elle, sous le clone.
+        </Text>
       )}
       <Group justify="flex-end" gap="sm">
         <Button variant="default" onClick={onDone}>

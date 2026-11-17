@@ -1503,6 +1503,11 @@ type Mutation {
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
+
+  """
+  Copies the sub-routines of a routine under its copy (theirs too); returns how many were copied.
+  """
+  copySubRoutines(fromId: ID!, toId: ID!): Int!
   createAccountingDocument(input: AccountingDocumentInput!, type: AccountingDocumentType!): ID!
   createAlarm(input: AlarmInput!): Alarm!
   createCalendar(input: CalendarInput!): Calendar!
@@ -2160,20 +2165,36 @@ enum NotificationSource {
   MAILS
 }
 
-"""Saved place ("Maison", "Bureau"…): an address and its point."""
+"""
+Saved place ("Maison", "Bureau"…): an address and its point; or a zone of one (a room of the house), with its point.
+"""
 type Place {
+  """Its address, or that of the place a zone is in."""
   address: String!
   id: ID!
   lat: Float!
   lon: Float!
   name: String!
+
+  """Place a zone is in; null: a place with its own address."""
+  parentId: ID
+
+  """Full name (« Maison › Cuisine »)."""
+  path: String!
 }
 
 input PlaceInput {
-  address: String!
-  lat: Float!
-  lon: Float!
+  address: String
+
+  """None for a zone."""
+  lat: Float
+
+  """None for a zone."""
+  lon: Float
   name: String!
+
+  """Place a zone is in."""
+  parentId: ID
 }
 
 type ProductStock {

@@ -134,8 +134,11 @@ interface Entry {
   render: (attrs: RowAttrs) => ReactNode;
 }
 
-/** Rows from which only those in view are rendered. */
-const VIRTUAL_FROM = 80;
+/**
+ * Rows from which only those in view (and many around) are rendered: below, every row is drawn once and scrolling does
+ * nothing (rows full of editors drawn while scrolling would make it jerky).
+ */
+const VIRTUAL_FROM = 400;
 /** Height of a row before it is measured. */
 const ROW_ESTIMATE = 37;
 
@@ -1099,7 +1102,7 @@ function TableBody({ entries, scrollRef, span }: { entries: Entry[]; scrollRef: 
     count: virtual ? entries.length : 0,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_ESTIMATE,
-    overscan: 10,
+    overscan: 40,
     getItemKey: (index) => entries[index]?.key ?? index,
   });
   if (!virtual) return entries.map((entry, index) => <EntryRow key={entry.key} entry={entry} index={index} measure={NO_MEASURE} />);

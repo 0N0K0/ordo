@@ -5,6 +5,9 @@
     max-width: 100%;
     overflow: auto;
     overscroll-behavior: contain;
+
+    /* Effets: its content painted apart from the page (scrolling repaints it only). */
+    contain: paint;
   }
 
   /* Table of fixed columns: their widths come from the layout. */

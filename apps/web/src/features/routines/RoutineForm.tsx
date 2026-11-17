@@ -4,7 +4,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifySuccess } from '../../lib/notify';
+import { notifyError, notifySuccess } from '../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from './api';
@@ -88,7 +88,7 @@ function subtreeOf(routines: Routine[], id: string): Set<string> {
 export function RoutineForm({ routine, copy = false, parent, categoryId = null, projectId = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
-  const { create, update, createCategory } = useRoutineMutations();
+  const { create, update, createCategory, copySubRoutines } = useRoutineMutations();
   const color = useDefaultColor();
   const routines = data?.routines ?? [];
   const source = routine ?? parent;
@@ -142,7 +142,11 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     const opensOn = values.opensOn && !values.cases.length && opensFits(values.opensOn, values.recurrence.frequency) ? values.opensOn : null;
     const input = { ...values, description: values.description || null, opensOn };
     const callbacks = {
-      onSuccess: () => {
+      onSuccess: (created: unknown) => {
+        // A copy takes the sub-routines of the routine with it, under itself.
+        if (copy && routine && typeof created === 'string' && routines.some((item) => item.parentId === routine.id)) {
+          copySubRoutines.mutate({ fromId: routine.id, toId: created }, { onError: (error) => notifyError(error.message) });
+        }
         notifySuccess(copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.');
         onDone();
       },

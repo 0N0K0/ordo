@@ -13,6 +13,8 @@ import { entrySeconds } from '@ordo/shared';
 import type { TimeEntry, TimeEntryValues } from './api';
 import { timeTasks } from './time-tasks';
 import { applyDiff, type BulkChange } from '../../components/data-table/bulk-edit';
+import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { routineTreeOptions } from '../routines/routine-format';
 
 type Save = (entry: TimeEntry, change: BulkChange<TimeEntry, Partial<TimeEntryValues>>) => void;
 
@@ -98,7 +100,7 @@ export function TimeRoutineCell({ entry, readOnly, save }: { entry: TimeEntry; r
       placeholder="—"
       clearable
       searchable
-      data={(data?.routines ?? []).filter((routine) => !routine.archived || routine.id === entry.routineId).map((routine) => ({ value: routine.id, label: routine.title }))}
+      {...treeSelectProps(routineTreeOptions(data?.routines ?? [], (routine) => !routine.archived || routine.id === entry.routineId))}
       value={entry.routineId ?? null}
       onChange={(routineId) => save(entry, { routineId })}
       onClick={stop}

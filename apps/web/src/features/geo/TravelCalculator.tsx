@@ -39,7 +39,8 @@ export function TravelCalculator({ eventPoint, onResult }: TravelCalculatorProps
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
 
-  const placeOptions = (places ?? []).map((place) => ({ value: place.id, label: place.name }));
+  // Places with an address (their zones share their point).
+  const placeOptions = (places ?? []).filter((place) => !place.parentId).map((place) => ({ value: place.id, label: place.name }));
   /**
    * Point of a choice.
    * @param {string | null} choice Place id, OTHER or SAME.

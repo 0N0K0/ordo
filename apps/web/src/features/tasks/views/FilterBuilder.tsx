@@ -291,7 +291,13 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         value={condition.field}
         allowDeselect={false}
         searchable
-        onChange={(field) => field && onChange({ ...newConditionFor(fields.kinds, field as F), id: condition.id })}
+        onChange={(field) => {
+          if (!field) return;
+          // The first operator the field offers (its own ones when it has some).
+          const next = newConditionFor(fields.kinds, field as F);
+          const own = fields.operators?.(field as F)[0];
+          onChange({ ...next, ...(own && own !== next.operator && { operator: own, value: defaultValueFor(fields.kinds[field as F], own) }), id: condition.id });
+        }}
         w={170}
       />
       <Select
@@ -464,7 +470,11 @@ function taskFilterFields(context: TaskContext, extra: ExtraOptions): FilterFiel
     groups: FIELD_GROUPS,
     first: 'title',
     options: (field) =>
-      field === 'project' ? treeSelectProps(context.projectOptions(context.projects)) : field === 'parent' ? treeSelectProps(context.taskOptions(context.tasks)) : { data: referenceOptions(field, context, extra) },
+      field === 'project'
+        ? treeSelectProps(context.projectOptions(context.projects))
+        : field === 'parent' || field === 'dependsOn' || field === 'blocks' || field === 'relatedTo'
+          ? treeSelectProps(context.taskOptions(context.tasks))
+          : { data: referenceOptions(field, context, extra) },
     isComplete,
     emptyText: 'Aucun filtre : toutes les tâches sont affichées.',
   };
