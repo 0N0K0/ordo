@@ -32,6 +32,8 @@ graphql(`
     id
     name
     color
+    position
+    iconUrl
   }
 `);
 
@@ -40,6 +42,7 @@ graphql(`
     id
     name
     color
+    iconUrl
     position
   }
 `);

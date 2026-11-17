@@ -101,6 +101,7 @@ const SheetCategoriesDocument = graphql(`
       id
       name
       color
+      iconUrl
       position
     }
   }

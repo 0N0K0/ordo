@@ -1,77 +1,9 @@
-import { Button, ColorInput, Group, Select, Stack, TextInput } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { routineCategorySchema } from '@ordo/shared';
-import { CategoryTreeManager } from '../../components/category-tree/CategoryTreeManager';
-import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
+import { createdId } from '../../components/settings/settings-api';
+import { SettingsList } from '../../components/settings/SettingsList';
 import { PageSettings } from '../../layouts/PageSettings';
-import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
-import { useColorSwatches } from '../workspace/use-color-swatches';
-import { useRoutineMutations, useRoutinesData, type RoutineCategory } from './api';
-import { treeSelectProps } from '../../components/tree-select/tree-select';
-
-interface CategoryFormProps {
-  categories: RoutineCategory[];
-  category?: RoutineCategory;
-  parentId?: string | null;
-  onDone: () => void;
-}
-
-/**
- * Category of routines: name, color (the one of its parent by default) and parent category.
- * @param {CategoryFormProps} props Component props.
- * @returns {JSX.Element} Form.
- */
-function CategoryForm({ categories, category, parentId = null, onDone }: CategoryFormProps) {
-  const { createCategory, updateCategory } = useRoutineMutations();
-  const swatches = useColorSwatches();
-  const parentColor = parentId ? categoryTree(categories).find((item) => item.category.id === parentId)?.color : null;
-  const form = useAppForm<{ name: string; color: string; parentId: string | null }>({
-    initialValues: {
-      name: category?.name ?? '',
-      color: category ? (category.color ?? '') : (parentColor ?? swatches[0]),
-      parentId: category ? (category.parentId ?? null) : parentId,
-    },
-    schema: routineCategorySchema,
-  });
-
-  const handleSubmit = form.onSubmit((values) => {
-    const input = { ...values, color: values.color || null };
-    const callbacks = {
-      onSuccess: () => {
-        notifySuccess(category ? 'Catégorie modifiée.' : 'Catégorie créée.');
-        onDone();
-      },
-      onError: (error: Error) => showFormError(form, error),
-    };
-    if (category) updateCategory.mutate({ id: category.id, input }, callbacks);
-    else createCategory.mutate(input, callbacks);
-  });
-
-  return (
-    <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        <TextInput label="Nom" required data-autofocus {...form.getInputProps('name')} />
-        <ColorInput label="Couleur" format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
-        <Select
-          label="Catégorie parente"
-          placeholder="Aucune (catégorie principale)"
-          clearable
-          searchable
-          {...treeSelectProps(categoryOptions(categories, category?.id))}
-          {...form.getInputProps('parentId')}
-        />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createCategory.isPending || updateCategory.isPending}>
-            {category ? 'Enregistrer' : 'Créer'}
-          </Button>
-        </Group>
-      </Stack>
-    </form>
-  );
-}
+import { useRoutineMutations, useRoutinesData } from './api';
 
 /**
  * Settings of the routines page: the categories, as a tree.
@@ -79,21 +11,33 @@ function CategoryForm({ categories, category, parentId = null, onDone }: Categor
  */
 export function RoutineSettings() {
   const { data } = useRoutinesData();
-  const { moveCategory, deleteCategory } = useRoutineMutations();
+  const { createCategory, updateCategory, moveCategory, deleteCategory } = useRoutineMutations();
   const categories = data?.routineCategories ?? [];
   const usage = new Map<string, number>();
   for (const routine of data?.routines ?? []) for (const id of routine.categoryIds) usage.set(id, (usage.get(id) ?? 0) + 1);
+  /**
+   * Input of a category from the form values.
+   * @param {{ name: string, color: string, parentId: string | null }} values Values.
+   * @returns {object} Input.
+   */
+  const input = (values: { name: string; color: string; parentId: string | null }) => ({ name: values.name, color: values.color || null, parentId: values.parentId });
   return (
     <PageSettings title="Paramètres des routines">
       <Stack gap="md">
-        <CategoryTreeManager
+        <SettingsList
+          kind="ROUTINE_CATEGORY"
+          nested
+          title="Catégories"
           description="Classent les routines, en arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente."
-          categories={categories}
+          noun="la catégorie"
+          items={categories}
           usage={usage}
-          usageNoun="routine(s)"
-          renderForm={(props) => <CategoryForm categories={categories} {...props} />}
-          onMove={(id, parentId, index) => moveCategory.mutate({ id, parentId, index }, { onError: (error) => notifyError(error.message) })}
-          onDelete={(id) => deleteCategory.mutate(id, { onSuccess: () => notifySuccess('Catégorie supprimée.'), onError: (error) => notifyError(error.message) })}
+          usageNoun="routines"
+          schema={routineCategorySchema}
+          create={async (values) => createdId(await createCategory.mutateAsync(input(values)))}
+          update={(id, values) => updateCategory.mutateAsync({ id, input: input(values) })}
+          remove={(id) => deleteCategory.mutateAsync(id)}
+          move={(id, parentId, index) => moveCategory.mutateAsync({ id, parentId, index })}
         />
       </Stack>
     </PageSettings>

@@ -15,6 +15,7 @@ const DocumentStatusesDocument = graphql(`
       scope
       name
       color
+      iconUrl
       category
       position
       documentCount

@@ -16,12 +16,15 @@ export const treeCollision: CollisionDetection = (args) => {
  * Where the dragged row would go on the row under the pointer: its top third before it, its bottom third after it,
  * the middle under it (with the keyboard: under it).
  * @param {DragMoveEvent | DragOverEvent} event Drag event.
+ * @param {boolean} [nested] Rows can be put under another (a tree). Optional. Default = true.
  * @returns {{ id: string, place: TreePlace } | null} Row and place, null outside the rows.
  */
-export function pointerPlace({ over, activatorEvent, delta }: DragMoveEvent | DragOverEvent): { id: string; place: TreePlace } | null {
+export function pointerPlace({ over, activatorEvent, delta }: DragMoveEvent | DragOverEvent, nested = true): { id: string; place: TreePlace } | null {
   if (!over) return null;
   const pointer = 'clientY' in activatorEvent ? (activatorEvent as PointerEvent).clientY + delta.y : null;
   const ratio = pointer === null ? 0.5 : (pointer - over.rect.top) / Math.max(1, over.rect.height);
+  // A flat list: before or after, by the half of the row.
+  if (!nested) return { id: String(over.id), place: ratio < 0.5 ? 'BEFORE' : 'AFTER' };
   return { id: String(over.id), place: ratio < 0.3 ? 'BEFORE' : ratio > 0.7 ? 'AFTER' : 'INSIDE' };
 }
 

@@ -82,6 +82,8 @@ La trésorerie et le calendrier pourraient reposer sur le générique avec un fi
 
 Étape 2 faite : dans tous les multi-selects (`BatchMultiSelect`), les items choisis s'empilent dans le champ, 5 au plus, sinon 4 et « X de plus » / « Réduire ».
 
+Étape 3 en cours : un seul composant de liste paramétrable, `SettingsList`, plate ou en arbre. Chaque item a un avatar (son image, sinon ses initiales sur sa couleur) et se modifie dans le panneau latéral (nom, couleur, image, parent, champs propres à la liste). Il se réordonne par glisser-déposer et, dans un arbre, se range sous un autre. `LabelManager` et `CategoryTreeManager` sont supprimés. Côté API, `setSettingsItemLook` (couleur, image) et `reorderSettingsItems` (ordre) servent toutes les listes. Restent à y passer les drapeaux, les calendriers, les créneaux, la trésorerie, les catégories d'agenda et les listes de base.
+
 Restent : un modèle unique de liste paramétrable (couleur, image, nom, glisser-déposer), et les lieux sur ce modèle.
 
 ### 7. Actions de sélection et dialogues dupliqués

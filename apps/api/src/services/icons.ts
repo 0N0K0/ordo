@@ -2,6 +2,7 @@ import { MAX_ICON_BYTES } from '@ordo/shared';
 import DOMPurify from 'isomorphic-dompurify';
 import sharp from 'sharp';
 import { prisma } from '../db';
+import { getDatamodel } from '../generated/pothos-types';
 import { clientError } from '../graphql/errors';
 
 /** Raster icons are resized to fit in this square (px). */
@@ -78,8 +79,13 @@ export async function storeIcon(file: File): Promise<string> {
   return icon.id;
 }
 
+/** Relations of the icons: everything that can have one (clients, projects, contributors, items of the settings lists…). */
+const ICON_USES = getDatamodel()
+  .datamodel.models.Icon.fields.filter((field) => field.kind === 'object' && field.isList)
+  .map((field) => field.name);
+
 /**
- * Deletes icons no longer used by any client, project or contributor.
+ * Deletes icons no longer used by anything (client, project, contributor, item of a settings list…).
  * @param {(string | null | undefined)[]} iconIds Candidate icon ids.
  * @returns {Promise<void>}
  */
@@ -87,7 +93,7 @@ export async function deleteOrphanIcons(iconIds: (string | null | undefined)[]):
   const ids = iconIds.filter((id): id is string => Boolean(id));
   if (ids.length === 0) return;
   await prisma.icon.deleteMany({
-    where: { id: { in: ids }, clients: { none: {} }, projects: { none: {} }, contributors: { none: {} } },
+    where: { id: { in: ids }, ...Object.fromEntries(ICON_USES.map((use) => [use, { none: {} }])) },
   });
 }
 

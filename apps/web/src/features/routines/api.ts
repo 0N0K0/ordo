@@ -27,6 +27,7 @@ const RoutinesDataDocument = graphql(`
       id
       name
       color
+      iconUrl
       parentId
       position
     }

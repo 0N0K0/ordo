@@ -23,6 +23,7 @@ const ShoppingDataDocument = graphql(`
       id
       name
       color
+      iconUrl
       parentId
       position
       baseListIds
@@ -31,18 +32,21 @@ const ShoppingDataDocument = graphql(`
       id
       name
       color
+      iconUrl
       position
     }
     shoppingUnits {
       id
       name
       color
+      iconUrl
       position
     }
     shoppingStores {
       id
       name
       color
+      iconUrl
       position
     }
     shoppingBaseLists {

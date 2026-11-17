@@ -1,15 +1,15 @@
-import { Select, Stack } from "@mantine/core";
-import type { TaskStatusCategory } from "@ordo/shared";
-import { notifyError } from "../../../lib/notify";
-import { LabelManager } from "../../../components/settings/LabelManager";
-import { useTaskLabelMutations, useTasksData, type Task } from "../api";
-import { ColumnDefaults } from "./ColumnDefaults";
+import { Select, Stack } from '@mantine/core';
+import { labelFormSchema, type TaskStatusCategory } from '@ordo/shared';
+import { listMutations } from '../../../components/settings/settings-api';
+import { SettingsList } from '../../../components/settings/SettingsList';
+import { useTaskLabelMutations, useTasksData, type Task } from '../api';
+import { ColumnDefaults } from './ColumnDefaults';
 
 const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
-  { value: "TODO", label: "À faire" },
-  { value: "IN_PROGRESS", label: "En cours" },
-  { value: "DONE", label: "Terminé" },
-  { value: "CANCELLED", label: "Annulé" },
+  { value: 'TODO', label: 'À faire' },
+  { value: 'IN_PROGRESS', label: 'En cours' },
+  { value: 'DONE', label: 'Terminé' },
+  { value: 'CANCELLED', label: 'Annulé' },
 ];
 
 /**
@@ -18,106 +18,76 @@ const CATEGORY_OPTIONS: { value: TaskStatusCategory; label: string }[] = [
  * @param {(task: Task) => string[]} pick Ids used by a task.
  * @returns {Map<string, number>} Count per id.
  */
-function usageOf(
-  tasks: Task[],
-  pick: (task: Task) => string[],
-): Map<string, number> {
+function usageOf(tasks: Task[], pick: (task: Task) => string[]): Map<string, number> {
   const usage = new Map<string, number>();
-  for (const task of tasks)
-    for (const id of pick(task)) usage.set(id, (usage.get(id) ?? 0) + 1);
+  for (const task of tasks) for (const id of pick(task)) usage.set(id, (usage.get(id) ?? 0) + 1);
   return usage;
 }
 
 /**
- * Settings of tasks: statuses (with their category), priorities and types.
+ * Settings of tasks: statuses (with their category), priorities, types and tags.
  * @returns {JSX.Element} Settings.
  */
 export function TaskSettings() {
   const { data } = useTasksData();
-  const statuses = useTaskLabelMutations("status");
-  const priorities = useTaskLabelMutations("priority");
-  const types = useTaskLabelMutations("type");
-  const tags = useTaskLabelMutations("tag");
+  const statuses = useTaskLabelMutations('status');
+  const priorities = useTaskLabelMutations('priority');
+  const types = useTaskLabelMutations('type');
+  const tags = useTaskLabelMutations('tag');
   const tasks = data?.tasks ?? [];
-  const byPosition = <T extends { position: number }>(items: T[] = []) =>
-    [...items].sort((a, b) => a.position - b.position);
-  const statusList = byPosition(data?.taskStatuses);
 
   // In the settings sidebar: the sections one under the other, the whole width.
   return (
     <Stack gap="md">
       <ColumnDefaults />
-      <LabelManager
+      <SettingsList<NonNullable<typeof data>['taskStatuses'][number], { category: TaskStatusCategory }>
+        kind="TASK_STATUS"
         title="Statuts de tâche"
         description="La catégorie donne son sens au statut quel que soit son nom (filtres, tâches « en cours » de l’accueil). C’est l’état ouvert / fermé de la tâche, et non son statut, qui dit si elle est terminée."
         noun="le statut"
         usageNoun="tâches"
-        labels={statusList}
+        items={data?.taskStatuses ?? []}
         usage={usageOf(tasks, (task) => (task.statusId ? [task.statusId] : []))}
-        create={statuses.create}
-        update={statuses.update}
-        remove={statuses.remove}
-        move={statuses.move}
-        renderExtra={(label) => (
-          <Select
-            aria-label={`Catégorie du statut ${label.name}`}
-            data={CATEGORY_OPTIONS}
-            value={
-              statusList.find((status) => status.id === label.id)?.category ??
-              "TODO"
-            }
-            allowDeselect={false}
-            onChange={(category) =>
-              category &&
-              statuses.update.mutate(
-                {
-                  id: label.id,
-                  input: { category: category as TaskStatusCategory },
-                },
-                { onError: (error) => notifyError(error.message) },
-              )
-            }
-            w={130}
-          />
-        )}
+        schema={labelFormSchema}
+        extra={{
+          initial: (status) => ({ category: status?.category ?? 'TODO' }),
+          render: (form) => <Select label="Catégorie" data={CATEGORY_OPTIONS} allowDeselect={false} {...form.getInputProps('category')} />,
+        }}
+        {...listMutations(statuses, (values: { name: string; color: string; category: TaskStatusCategory }) => ({ name: values.name, color: values.color, category: values.category }))}
+        renderBadges={(status) => CATEGORY_OPTIONS.find((option) => option.value === status.category)?.label}
       />
-      <LabelManager
+      <SettingsList
+        kind="TASK_PRIORITY"
         title="Priorités"
         description="L’ordre est celui des listes de sélection et du tri par priorité."
         noun="la priorité"
         usageNoun="tâches"
-        labels={byPosition(data?.taskPriorities)}
-        usage={usageOf(tasks, (task) =>
-          task.priorityId ? [task.priorityId] : [],
-        )}
-        create={priorities.create}
-        update={priorities.update}
-        remove={priorities.remove}
-        move={priorities.move}
+        items={data?.taskPriorities ?? []}
+        usage={usageOf(tasks, (task) => (task.priorityId ? [task.priorityId] : []))}
+        schema={labelFormSchema}
+        {...listMutations(priorities)}
       />
-      <LabelManager
+      <SettingsList
+        kind="TASK_TYPE"
         title="Types de tâche"
         description="Bug, fonctionnalité, amélioration…"
         noun="le type"
         usageNoun="tâches"
-        labels={byPosition(data?.taskTypes)}
+        items={data?.taskTypes ?? []}
         usage={usageOf(tasks, (task) => (task.typeId ? [task.typeId] : []))}
-        create={types.create}
-        update={types.update}
-        remove={types.remove}
-        move={types.move}
+        schema={labelFormSchema}
+        {...listMutations(types)}
       />
-      <LabelManager
+      <SettingsList
+        kind="TASK_TAG"
         title="Étiquettes"
         description="Une tâche peut en avoir plusieurs. Synchronisées avec les labels GitHub."
         noun="l’étiquette"
         usageNoun="tâches"
-        labels={byPosition(data?.taskTags)}
+        items={data?.taskTags ?? []}
         usage={usageOf(tasks, (task) => task.tagIds)}
-        create={tags.create}
-        update={tags.update}
-        remove={tags.remove}
-        move={tags.move}
+        schema={labelFormSchema}
+        {...listMutations(tags)}
       />
     </Stack>
   );

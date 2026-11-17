@@ -1,7 +1,7 @@
 import { Select, Stack } from '@mantine/core';
-import { STATUS_CATEGORIES_BY_SCOPE, type DocumentStatusCategory, type DocumentStatusScope } from '@ordo/shared';
-import { LabelManager } from '../../components/settings/LabelManager';
-import { notifyError } from '../../lib/notify';
+import { labelFormSchema, STATUS_CATEGORIES_BY_SCOPE, type DocumentStatusCategory, type DocumentStatusScope } from '@ordo/shared';
+import { listMutations } from '../../components/settings/settings-api';
+import { SettingsList } from '../../components/settings/SettingsList';
 import { useDocumentStatusMutations, useDocumentStatuses, type DocumentStatus } from './tracking-api';
 
 const DESCRIPTIONS: Record<DocumentStatusScope, string> = {
@@ -19,30 +19,21 @@ const DESCRIPTIONS: Record<DocumentStatusScope, string> = {
 function ScopeStatuses({ scope, statuses }: { scope: DocumentStatusScope; statuses: DocumentStatus[] }) {
   const mutations = useDocumentStatusMutations(scope);
   return (
-    <LabelManager
+    <SettingsList<DocumentStatus, { category: DocumentStatusCategory }>
+      kind="DOCUMENT_STATUS"
       title={scope === 'QUOTE' ? 'Statuts des devis' : 'Statuts des factures'}
       description={DESCRIPTIONS[scope]}
       noun="le statut"
       usageNoun="documents"
-      labels={statuses}
+      items={statuses}
       usage={new Map(statuses.map((status) => [status.id, status.documentCount]))}
-      create={mutations.create}
-      update={mutations.update}
-      remove={mutations.remove}
-      move={mutations.move}
-      renderExtra={(label) => (
-        <Select
-          aria-label={`Catégorie du statut ${label.name}`}
-          data={STATUS_CATEGORIES_BY_SCOPE[scope]}
-          value={statuses.find((status) => status.id === label.id)?.category ?? 'SENT'}
-          allowDeselect={false}
-          onChange={(category) =>
-            category &&
-            mutations.update.mutate({ id: label.id, input: { category: category as DocumentStatusCategory } }, { onError: (error) => notifyError(error.message) })
-          }
-          w={130}
-        />
-      )}
+      schema={labelFormSchema}
+      extra={{
+        initial: (status) => ({ category: status?.category ?? 'SENT' }),
+        render: (form) => <Select label="Catégorie" data={STATUS_CATEGORIES_BY_SCOPE[scope]} allowDeselect={false} {...form.getInputProps('category')} />,
+      }}
+      {...listMutations(mutations, (values: { name: string; color: string; category: DocumentStatusCategory }) => ({ name: values.name, color: values.color, category: values.category }))}
+      renderBadges={(status) => STATUS_CATEGORIES_BY_SCOPE[scope].find((option) => option.value === status.category)?.label}
     />
   );
 }

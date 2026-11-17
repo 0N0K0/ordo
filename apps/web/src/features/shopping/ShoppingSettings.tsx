@@ -1,5 +1,7 @@
 import { Stack } from '@mantine/core';
-import { LabelManager } from '../../components/settings/LabelManager';
+import { labelFormSchema } from '@ordo/shared';
+import { listMutations } from '../../components/settings/settings-api';
+import { SettingsList } from '../../components/settings/SettingsList';
 import { PageSettings } from '../../layouts/PageSettings';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useShoppingData, useShoppingLists, useShoppingMutations } from './api';
@@ -42,42 +44,39 @@ export function ShoppingSettings() {
     <PageSettings title="Paramètres des achats">
       <Stack gap="md">
         <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usageOf((row) => row.categoryId, categoryRows)} />
-        <LabelManager
+        <SettingsList
+          kind="SHOPPING_STORE"
           title="Magasins"
           description={perso ? 'Où vous achetez les produits.' : 'Magasins et fournisseurs des produits.'}
           noun="le magasin"
           usageNoun="produits"
-          labels={data?.shoppingStores ?? []}
+          items={data?.shoppingStores ?? []}
           usage={usageOf((row) => row.storeId, rows)}
-          create={mutations.createStore}
-          update={mutations.updateStore}
-          remove={mutations.deleteStore}
-          move={mutations.moveStore}
+          schema={labelFormSchema}
+          {...listMutations({ create: mutations.createStore, update: mutations.updateStore, remove: mutations.deleteStore, move: mutations.moveStore })}
         />
-        <LabelManager
+        <SettingsList
+          kind="SHOPPING_UNIT"
           title="Unités"
           description="Unités de quantité des produits (kg, boîte, bouteille…). Renommer une unité la renomme dans les produits et les listes."
           noun="l’unité"
           usageNoun="produits"
-          labels={data?.shoppingUnits ?? []}
+          items={data?.shoppingUnits ?? []}
           usage={new Map((data?.shoppingUnits ?? []).map((unit) => [unit.id, rows.filter((row) => row.unit === unit.name).length]))}
-          create={mutations.createUnit}
-          update={mutations.updateUnit}
-          remove={mutations.deleteUnit}
-          move={mutations.moveUnit}
           withColor={false}
+          schema={labelFormSchema.pick({ name: true })}
+          {...listMutations({ create: mutations.createUnit, update: mutations.updateUnit, remove: mutations.deleteUnit, move: mutations.moveUnit }, (values) => ({ name: values.name, color: 'gray' }))}
         />
-        <LabelManager
+        <SettingsList
+          kind="SHOPPING_STORAGE"
           title="Modes de conservation"
           description="Comment se conservent les produits périssables : frais, congélation, à l’abri de la lumière…"
           noun="le mode de conservation"
           usageNoun="produits"
-          labels={data?.shoppingStorages ?? []}
+          items={data?.shoppingStorages ?? []}
           usage={usageOf((row) => row.storageId, rows)}
-          create={mutations.createStorage}
-          update={mutations.updateStorage}
-          remove={mutations.deleteStorage}
-          move={mutations.moveStorage}
+          schema={labelFormSchema}
+          {...listMutations({ create: mutations.createStorage, update: mutations.updateStorage, remove: mutations.deleteStorage, move: mutations.moveStorage })}
         />
       </Stack>
     </PageSettings>

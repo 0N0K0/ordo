@@ -65,6 +65,7 @@ graphql(`
     id
     name
     color
+    iconUrl
     position
   }
 `);
@@ -137,18 +138,21 @@ const TasksDataDocument = graphql(`
       id
       name
       color
+      iconUrl
       position
     }
     taskTypes {
       id
       name
       color
+      iconUrl
       position
     }
     taskTags {
       id
       name
       color
+      iconUrl
       position
     }
     milestones {

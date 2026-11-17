@@ -1,5 +1,7 @@
 import { Stack } from '@mantine/core';
-import { LabelManager } from '../../components/settings/LabelManager';
+import { labelFormSchema } from '@ordo/shared';
+import { listMutations } from '../../components/settings/settings-api';
+import { SettingsList } from '../../components/settings/SettingsList';
 import { PageSettings } from '../../layouts/PageSettings';
 import { ShoppingCategories } from '../shopping/ShoppingCategories';
 import { useShoppingData, useShoppingLists } from '../shopping/api';
@@ -25,17 +27,16 @@ export function SheetsSettings() {
   return (
     <PageSettings title="Paramètres des fiches">
       <Stack gap="md">
-        <LabelManager
+        <SettingsList
+          kind="SHEET_CATEGORY"
           title="Catégories de fiches"
           description="Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs."
           noun="la catégorie"
           usageNoun="fiches"
-          labels={sheetCategories ?? []}
+          items={sheetCategories ?? []}
           usage={sheetUsage}
-          create={mutations.createCategory}
-          update={mutations.updateCategory}
-          remove={mutations.deleteCategory}
-          move={mutations.moveCategory}
+          schema={labelFormSchema}
+          {...listMutations({ create: mutations.createCategory, update: mutations.updateCategory, remove: mutations.deleteCategory, move: mutations.moveCategory })}
         />
         <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usage} />
       </Stack>

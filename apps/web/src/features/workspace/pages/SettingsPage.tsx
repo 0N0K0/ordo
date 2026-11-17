@@ -2,7 +2,9 @@ import { PageHeader } from '../../../components/actions/PageHeader';
 import { Stack } from "@mantine/core";
 import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from "@phosphor-icons/react";
 import { Navigate, useSearchParams } from "react-router";
-import { LabelManager } from "../../../components/settings/LabelManager";
+import { labelFormSchema } from "@ordo/shared";
+import { listMutations } from "../../../components/settings/settings-api";
+import { SettingsList } from "../../../components/settings/SettingsList";
 import { GithubSettings } from "../../github/GithubSettings";
 import { PlacesManager } from "../../geo/PlacesManager";
 import { useTasksData } from "../../tasks/api";
@@ -104,28 +106,27 @@ export function SettingsPage() {
         </PageTabs.List>
         <PageTabs.Panel value="projects">
           <SettingsGrid>
-            <LabelManager
+            <SettingsList
+              kind="PROJECT_STATUS"
               title="Statuts de projet"
               description="Un projet a au plus un statut. L’ordre est celui des listes de sélection."
               noun="le statut"
-              labels={[...(data?.projectStatuses ?? [])].sort(
-                (a, b) => a.position - b.position,
-              )}
+              usageNoun="projets"
+              items={data?.projectStatuses ?? []}
               usage={statusUsage}
-              create={createStatus}
-              update={updateStatus}
-              remove={deleteStatus}
-              move={moveStatus}
+              schema={labelFormSchema}
+              {...listMutations({ create: createStatus, update: updateStatus, remove: deleteStatus, move: moveStatus })}
             />
-            <LabelManager
+            <SettingsList
+              kind="PROJECT_CATEGORY"
               title="Catégories de projet"
               description="Un projet peut avoir plusieurs catégories."
               noun="la catégorie"
-              labels={data?.projectCategories ?? []}
+              usageNoun="projets"
+              items={data?.projectCategories ?? []}
               usage={categoryUsage}
-              create={createCategory}
-              update={updateCategory}
-              remove={deleteCategory}
+              schema={labelFormSchema}
+              {...listMutations({ create: createCategory, update: updateCategory, remove: deleteCategory })}
             />
           </SettingsGrid>
         </PageTabs.Panel>

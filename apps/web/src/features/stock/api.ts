@@ -18,6 +18,7 @@ const StockLocationsDocument = graphql(`
       id
       name
       color
+      iconUrl
       parentId
       position
     }

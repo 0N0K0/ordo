@@ -5,6 +5,8 @@ export interface TreeCategory {
   id: string;
   name: string;
   color?: string | null;
+  /** Image shown as its avatar. Optional. */
+  iconUrl?: string | null;
   parentId?: string | null;
   /** Manual order among its siblings (by name when equal). Optional. */
   position?: number;

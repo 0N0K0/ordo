@@ -1,9 +1,10 @@
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
-import { ActionIcon, ColorSwatch, Group, Paper, Table, Text } from '@mantine/core';
+import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
+import { EntityAvatar } from '../../features/workspace/EntityAvatar';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, type TreePlace } from './category-tree';
-import classes from './CategoryTreeManager.module.css';
+import classes from './CategoryTree.module.css';
 import { pointerPlace, treeCollision, useFolded } from './tree-dnd';
 
 interface CategoryRowProps<C extends TreeCategory> {
@@ -16,6 +17,8 @@ interface CategoryRowProps<C extends TreeCategory> {
   /** Its sub-categories are folded (undefined: it has none). */
   folded: boolean | undefined;
   onToggle: () => void;
+  /** A tree (else a flat list: no folding). */
+  nested: boolean;
 }
 
 /**
@@ -23,7 +26,7 @@ interface CategoryRowProps<C extends TreeCategory> {
  * @param {CategoryRowProps<C>} props Component props.
  * @returns {JSX.Element} Row.
  */
-function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, drop, folded, onToggle }: CategoryRowProps<C>) {
+function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, drop, folded, onToggle, nested }: CategoryRowProps<C>) {
   const { category, depth, path, color } = placed;
   const { setNodeRef: setDragRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({ id: category.id });
   const { setNodeRef: setDropRef } = useDroppable({ id: category.id });
@@ -44,15 +47,15 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
       </Table.Td>
       <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
         <Group gap="xs" wrap="nowrap">
-          {folded !== undefined ? (
+          {!nested ? null : folded !== undefined ? (
             <ActionIcon variant="subtle" color="gray" size="xs" aria-label={`${folded ? 'Déplier' : 'Replier'} ${path}`} aria-expanded={!folded} onClick={onToggle}>
               {folded ? <CaretRightIcon aria-hidden /> : <CaretDownIcon aria-hidden />}
             </ActionIcon>
           ) : (
             <span className={classes.caretSpace} />
           )}
-          {color && <ColorSwatch color={color} size={12} />}
-          <Text size="sm" fw={depth === 0 ? 600 : undefined}>
+          <EntityAvatar name={category.name} iconUrl={category.iconUrl ?? null} color={color ?? 'gray'} size={22} radius="sm" />
+          <Text size="sm" fw={depth === 0 && nested ? 600 : undefined}>
             {category.name}
           </Text>
           {badges}
@@ -81,15 +84,18 @@ export interface CategoryTreeProps<C extends TreeCategory> {
   renderActions: (placed: PlacedCategory<C>) => ReactNode;
   /** Puts a category under a parent (null: top level) at an index among its siblings. */
   onMove: (id: string, parentId: string | null, index: number) => void;
+  /** Rows can be put under another (else a flat list, reordered only). Optional. Default = true. */
+  nested?: boolean;
 }
 
 /**
- * Categories as a tree table: each one folds its sub-categories, and moves by drag and drop before or after another
- * one (top of a row: before, bottom: after, middle: under it, last; with the keyboard: under it).
+ * Items of a settings list as a table, each with its avatar (its image, or its initials on its color): in a tree, each
+ * one folds its sub-items and moves by drag and drop before or after another one (top of a row: before, bottom: after,
+ * middle: under it, last; with the keyboard: under it); in a flat list, before or after another one.
  * @param {CategoryTreeProps<C>} props Component props.
  * @returns {JSX.Element} Tree.
  */
-export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove }: CategoryTreeProps<C>) {
+export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove, nested = true }: CategoryTreeProps<C>) {
   const tree = categoryTree(categories);
   const [folded, toggle] = useFolded(storageKey);
   const [dragged, setDragged] = useState<string | null>(null);
@@ -110,7 +116,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
    * @returns {void}
    */
   const handleDragMove = (event: DragMoveEvent | DragOverEvent) => {
-    const next = pointerPlace(event);
+    const next = pointerPlace(event, nested);
     setDrop((current) => (current?.id === next?.id && current?.place === next?.place ? current : next));
   };
 
@@ -120,7 +126,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
    * @returns {void}
    */
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    const place = drop?.place ?? 'INSIDE';
+    const place = drop?.place ?? (nested ? 'INSIDE' : 'AFTER');
     setDragged(null);
     setDrop(null);
     if (!over) return;
@@ -167,6 +173,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
                 drop={dropHere}
                 folded={parents.has(id) ? folded.has(id) : undefined}
                 onToggle={() => toggle(id)}
+                nested={nested}
               />
             );
           })}
