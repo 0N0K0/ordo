@@ -1,14 +1,13 @@
-import { ActionIcon, Badge, Group, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/shared';
-import { ArrowBendUpRightIcon, PlayIcon, PlusIcon, StopIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ArrowBendUpRightIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
 import { localToday } from '../../lib/dates';
 import * as fmt from '../../lib/format';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { useTimeMutations, type TimeEntry } from '../time/api';
-import addClasses from '../tasks/views/table-extras.module.css';
+import { AddRowField } from '../../components/data-table/AddRowField';
 import { useRoutineMutations, type Routine } from './api';
 import { DAILY, moveTo, scheduleOf, stateOf, windowOf, windowText } from './routine-format';
 import classes from './Routines.module.css';
@@ -137,58 +136,26 @@ export function ChronoCell({ routine, running }: { routine: Routine; running: Ti
  */
 export function AddRoutineRow({ categoryId, projectId, groupName }: { categoryId: string | null; projectId: string | null; groupName: string }) {
   const { create } = useRoutineMutations();
-  const [title, setTitle] = useState('');
-
-  /**
-   * Creates the typed routine, then stays ready for the next one.
-   * @returns {void}
-   */
-  const submit = () => {
-    const result = routineSchema.shape.title.safeParse(title);
-    if (!result.success) {
-      if (title.trim()) notifyError(result.error.issues[0]?.message ?? 'Titre invalide.');
-      return;
-    }
-    // Cleared at once (the routine shows as typed): the next one can be typed while it is saved.
-    setTitle('');
-    create.mutate(
-      {
-        title: result.data,
-        description: null,
-        categoryIds: categoryId ? [categoryId] : [],
-        parentId: null,
-        startDate: localToday(),
-        recurrence: DAILY,
-        estimate: null,
-        projectId,
-        assigneeIds: [],
-        requiredIds: [],
-      },
-      {
-        onError: (error) => {
-          setTitle(result.data);
-          notifyError(error.message);
-        },
-      },
-    );
-  };
-
   return (
-    <TextInput
-      variant="unstyled"
-      size="xs"
-      classNames={{ input: addClasses.addInput }}
-      leftSection={<PlusIcon aria-hidden />}
-      placeholder="Ajouter une routine (tous les jours ; Entrée pour valider)"
-      aria-label={`Ajouter une routine dans ${groupName}`}
-      value={title}
-      onChange={(event) => setTitle(event.currentTarget.value)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') submit();
-        if (event.key === 'Escape') setTitle('');
-      }}
-      w={420}
-      maw="100%"
+    <AddRowField
+      label="Ajouter une routine"
+      where={`dans ${groupName}`}
+      hint="tous les jours"
+      schema={routineSchema.shape.title}
+      onCreate={(title) =>
+        create.mutateAsync({
+          title,
+          description: null,
+          categoryIds: categoryId ? [categoryId] : [],
+          parentId: null,
+          startDate: localToday(),
+          recurrence: DAILY,
+          estimate: null,
+          projectId,
+          assigneeIds: [],
+          requiredIds: [],
+        })
+      }
     />
   );
 }

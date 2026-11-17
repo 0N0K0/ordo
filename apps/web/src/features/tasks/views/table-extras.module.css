@@ -6,31 +6,6 @@
     }
   }
 
-  .addInput {
-    /* Typographie */
-    font-size: var(--mantine-font-size-sm);
-
-    &::placeholder {
-      color: var(--mantine-color-dimmed);
-    }
-  }
-
-  .addButton {
-    /* Agencement */
-    display: inline-flex;
-    align-items: center;
-
-    /* Espacement */
-    gap: calc(var(--mantine-spacing-xs) / 2);
-
-    /* Typographie */
-    color: var(--mantine-color-dimmed);
-
-    &:hover {
-      color: var(--mantine-color-text);
-    }
-  }
-
   .summaryRow {
     /* Arrière-Plan */
     background-color: var(--mantine-color-default-hover);

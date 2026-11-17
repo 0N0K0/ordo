@@ -52,11 +52,15 @@ Restent propres à leur domaine les cellules sans équivalent générique : stat
 
 `DataTable` a son en-tête TanStack ; l'ancien `DataTableHeader` ne sert plus qu'à la bibliothèque, exclue de la migration. C'est la même logique en double : déplacer, redimensionner, ajuster au contenu, menu de colonne.
 
+**Écarté** : la bibliothèque de documents doit être revue entièrement ; son en-tête suivra cette refonte.
+
 ## Doublons moyens
 
 ### 5. Trois lignes d'ajout presque identiques
 
-`AddTaskRow`, `AddRoutineRow` et `AddShoppingRow` ont le même champ « + Ajouter… (Entrée pour valider) » et la même gestion d'Échap ; seule la création change. À faire : un `AddRowField` générique qui reçoit la fonction de création.
+`AddTaskRow`, `AddRoutineRow` et `AddShoppingRow` ont le même champ « + Ajouter… (Entrée pour valider) » et la même gestion d'Échap ; seule la création change.
+
+**Fait** : un `AddRowField` générique (`components/data-table/AddRowField.tsx`) reçoit la règle du nom et la fonction de création. Le champ se vide dès Entrée et le nom revient si la création échoue ; un nom invalide est signalé. Un `AddRowButton` sert quand l'ajout ouvre autre chose : le formulaire d'une tâche sans projet, le menu des achats.
 
 ### 6. Arbres de catégories réécrits par domaine
 
