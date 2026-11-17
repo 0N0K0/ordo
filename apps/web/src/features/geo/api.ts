@@ -90,6 +90,59 @@ export function placesInTree(places: readonly Place[]): (Place & { depth: number
   return out;
 }
 
+/** Between the place and its zones, and between the levels of a zone, in the text of a location. */
+const LEVEL = ' › ';
+/** Between the zones of a place, in the text of a location. */
+const ZONE_SEPARATOR = ', ';
+
+/**
+ * Place with an address a place or a zone is in (itself for a place).
+ * @param {Place} place Place or zone.
+ * @param {ReadonlyMap<string, Place>} byId Places by id.
+ * @returns {Place} Place.
+ */
+export function rootPlace(place: Place, byId: ReadonlyMap<string, Place>): Place {
+  let root = place;
+  const seen = new Set<string>();
+  while (root.parentId && byId.has(root.parentId) && !seen.has(root.id)) {
+    seen.add(root.id);
+    root = byId.get(root.parentId)!;
+  }
+  return root;
+}
+
+/**
+ * Text of a location on zones of a place: « Maison › Cuisine, Salle de bain » (a zone in a zone: « Maison › Étage › Chambre »).
+ * @param {Place} root Place.
+ * @param {readonly Place[]} zones Its zones chosen, in their order.
+ * @returns {string} Text.
+ */
+export function zonesText(root: Place, zones: readonly Place[]): string {
+  const prefix = `${root.name}${LEVEL}`;
+  return `${prefix}${zones.map((zone) => (zone.path.startsWith(prefix) ? zone.path.slice(prefix.length) : zone.name)).join(ZONE_SEPARATOR)}`;
+}
+
+/**
+ * Zones of a place a location text names (as written by zonesText); null when it names none.
+ * @param {string} text Text of the location.
+ * @param {readonly Place[]} places Places and zones.
+ * @returns {{ root: Place, zoneIds: string[] } | null} Place and zones.
+ */
+export function zonesOfText(text: string, places: readonly Place[]): { root: Place; zoneIds: string[] } | null {
+  const byId = new Map(places.map((place) => [place.id, place]));
+  for (const root of places.filter((place) => !place.parentId)) {
+    const prefix = `${root.name}${LEVEL}`;
+    if (!text.startsWith(prefix)) continue;
+    const zones = places.filter((place) => place.parentId && rootPlace(place, byId).id === root.id);
+    const ids = text
+      .slice(prefix.length)
+      .split(ZONE_SEPARATOR)
+      .map((name) => zones.find((zone) => zone.path === `${prefix}${name}`)?.id);
+    if (ids.length && ids.every(Boolean)) return { root, zoneIds: ids as string[] };
+  }
+  return null;
+}
+
 /**
  * Saved places of the workspace ("Maison", "Bureau"…).
  * @returns {UseQueryResult} Query state.
