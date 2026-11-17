@@ -8,6 +8,7 @@ import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
+import { usePublishedHeight } from '../../../lib/published-height';
 
 interface NameFormProps {
   initial: string;
@@ -127,6 +128,8 @@ function SortableTab(props: TabsTabProps & { value: string }) {
  */
 export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const { views, current, dirty } = state;
+  // Its height, that a table next to other content leaves out of its own.
+  const ref = usePublishedHeight<HTMLDivElement>('--onoko-view-tabs-height');
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   /**
@@ -160,7 +163,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   };
 
   return (
-    <Group justify="space-between" wrap="nowrap" gap="sm">
+    <Group ref={ref} justify="space-between" wrap="nowrap" gap="sm">
       <Group gap={0} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
         <Tabs value={current?.id ?? null} onChange={(id) => id && state.select(id)} style={{ minWidth: 0 }}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

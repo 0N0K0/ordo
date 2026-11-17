@@ -1,4 +1,12 @@
 @layer app {
+  /* Scrolling area of the table: both ways, so that its header sticks to its top. */
+  .scroller {
+    /* Dimension */
+    max-width: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
   /* Table of fixed columns: their widths come from the layout. */
   .table {
     /* Dimension */

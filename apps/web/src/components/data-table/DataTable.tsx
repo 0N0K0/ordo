@@ -4,6 +4,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Fragment, useRef, useState, type ReactNode } from 'react';
 import { tableWidth } from './data-table';
+import { useTableHeight } from './table-height';
 import { DataTableHeader } from './DataTableHeader';
 import { DataViewBar, type DataViewBarProps } from './DataViewBar';
 import { GroupHeaderRow, NoMatch } from './GroupHeaderRow';
@@ -80,6 +81,7 @@ export function DataTable<R>({
   ...tableProps
 }: DataTableProps<R>) {
   const tableRef = useRef<HTMLTableElement>(null);
+  const [heightRef, maxHeight] = useTableHeight();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const { shown } = view;
   // Without sort, the rows go in the order chosen by hand (dragged, when not grouped); the others after.
@@ -171,17 +173,18 @@ export function DataTable<R>({
     });
 
   const table = (
-    <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+    // Scrolling both ways inside its own area, its header sticking to the top of it.
+    <div ref={heightRef} className={classes.scroller} style={{ maxHeight }}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={draggable ? rows.map(getKey) : []} strategy={verticalListSortingStrategy}>
           <Table
             ref={tableRef}
+            stickyHeader
             {...tableProps}
             className={[classes.table, className].filter(Boolean).join(' ')}
             data-checking={(checks && checks.keys.some((key) => checks.isChecked(key))) || undefined}
             style={{
               width: tableWidth(shown, actionsWidth + (leading?.width ?? 0) + (draggable ? DRAG_HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0)),
-              minWidth: '100%',
               ...(typeof style === 'object' ? style : {}),
             }}
           >

@@ -1,6 +1,7 @@
 import { Badge, Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, CaretDownIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
+import { usePublishedHeight } from '../../lib/published-height';
 
 /** Quick search of a toolbar. */
 export interface ToolbarSearch {
@@ -26,8 +27,10 @@ interface TableToolbarProps {
  * @returns {JSX.Element} Toolbar.
  */
 export function TableToolbar({ search, children, options }: TableToolbarProps) {
+  // Its height, that a table next to other content leaves out of its own.
+  const ref = usePublishedHeight<HTMLDivElement>('--onoko-table-toolbar-height');
   return (
-    <Group gap="sm" wrap="wrap">
+    <Group ref={ref} gap="sm" wrap="wrap">
       {search && (
         <TextInput
           placeholder={search.placeholder}
