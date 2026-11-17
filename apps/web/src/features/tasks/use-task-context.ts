@@ -1,8 +1,9 @@
+import { lineageOf, LEVEL } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../components/markdown/MarkdownEditor';
 import type { ReferenceTargets, ReferenceTask } from '../../components/markdown/remark-references';
 import { useWorkspace, type Project } from '../workspace/api';
-import { LEVEL, treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
+import { treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
 import { projectFullPath, projectNodes, projectOptions } from '../workspace/tree';
 import { useMe } from '../auth/api';
 import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
@@ -155,8 +156,9 @@ export function useTaskContext() {
      * @returns {string} "Client › Projet › #3 Parent › #12 Titre".
      */
     const taskPath = (task: Task, fromProjectId: string | null = null) => {
-      const names: string[] = [];
-      for (let current: Task | undefined = task; current; current = current.parentId ? taskIndex.get(current.parentId) : undefined) names.unshift(`${taskRef(current)}${current.title}`);
+      const names = lineageOf(new Map([...taskIndex, [task.id, task]]), task.id)
+        .reverse()
+        .map((item) => `${taskRef(item)}${item.title}`);
       return [...(task.projectId && task.projectId !== fromProjectId ? [placeOf(task.projectId)] : []), ...names].join(LEVEL);
     };
     // Tasks texts can reference, by id and by "<projectId>:<number>".

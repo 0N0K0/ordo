@@ -1,3 +1,4 @@
+import { subtreeOf } from '@ordo/shared';
 import type { Task } from './api';
 import type { TaskContext } from './use-task-context';
 
@@ -32,15 +33,7 @@ export function linkableTasks(
  * @returns {Set<string>} Ids.
  */
 export function subtreeIds(context: TaskContext, taskId: string): Set<string> {
-  const result = new Set([taskId]);
-  const queue = [taskId];
-  while (queue.length > 0) {
-    for (const child of context.childrenOf(queue.shift()!)) {
-      result.add(child.id);
-      queue.push(child.id);
-    }
-  }
-  return result;
+  return subtreeOf(context.tasks, taskId);
 }
 
 /**

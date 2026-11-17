@@ -1,3 +1,4 @@
+import { subtreeOf } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../graphql';
 import type {
@@ -303,18 +304,7 @@ function reposition<T extends { id: string; position: number }>(items: T[], sibl
  * @returns {Set<string>} Descendant ids.
  */
 export function descendantIds(projects: Project[], id: string): Set<string> {
-  const result = new Set<string>();
-  const queue = [id];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const project of projects) {
-      if (project.parentId === current && !result.has(project.id)) {
-        result.add(project.id);
-        queue.push(project.id);
-      }
-    }
-  }
-  return result;
+  return subtreeOf(projects, id, false);
 }
 
 /**

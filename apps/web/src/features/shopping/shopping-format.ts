@@ -1,3 +1,4 @@
+import { lineageOf } from '@ordo/shared';
 import { categoryOptions, categoryTree, type PlacedCategory } from '../../components/category-tree/category-tree';
 import { useTreasurySettings } from '../treasury/api';
 import { taskRef, useTaskContext, type TaskContext } from '../tasks/use-task-context';
@@ -121,19 +122,13 @@ export function categoriesForBaseList(categories: readonly ShoppingCategory[], b
    * @param {ShoppingCategory} category Category.
    * @returns {string[]} Base lists.
    */
-  const listsOf = (category: ShoppingCategory): string[] => {
-    const seen = new Set<string>();
-    for (let current: ShoppingCategory | undefined = category; current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
-      seen.add(current.id);
-      if (current.baseListIds.length) return current.baseListIds;
-    }
-    return [];
-  };
+  const listsOf = (category: ShoppingCategory): string[] => lineageOf(byId, category.id).find((current) => current.baseListIds.length)?.baseListIds ?? [];
+
   const kept = new Set<string>();
   for (const category of categories) {
     const lists = listsOf(category);
     if (lists.length && !lists.includes(baseListId)) continue;
-    for (let current: ShoppingCategory | undefined = category; current && !kept.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) kept.add(current.id);
+    for (const current of lineageOf(byId, category.id)) kept.add(current.id);
   }
   return categories.filter((category) => kept.has(category.id));
 }

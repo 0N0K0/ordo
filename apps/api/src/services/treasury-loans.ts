@@ -1,4 +1,4 @@
-import { formatDay } from '@ordo/shared';
+import { formatDay, LEVEL } from '@ordo/shared';
 import { prisma } from '../db';
 
 /** A loan line: money lent or borrowed, or repaid, with a relation. */
@@ -46,7 +46,7 @@ export async function relationLoans(): Promise<RelationLoans[]> {
       lineId: line.id,
       entryId: line.entry.id,
       date: formatDay(line.date ?? line.entry.date),
-      label: [line.entry.label, line.label].filter(Boolean).join(' › '),
+      label: [line.entry.label, line.label].filter(Boolean).join(LEVEL),
       amount: cents / 100,
     });
     byRelation.set(line.relationId!, loans);

@@ -18,8 +18,7 @@ export interface TreeNode {
   pathless?: boolean;
 }
 
-/** Separator of the levels of a path (« Maison › Cuisine »). */
-export const LEVEL = ' › ';
+import { LEVEL } from '@ordo/shared';
 
 /**
  * Option of a select of a tree: its full path as its label (shown once chosen, in pills, cells…), its own name indented

@@ -1,4 +1,5 @@
-import { LEVEL, treeOptions, type TreeOption } from '../tree-select/tree-select';
+import { subtreeOf, LEVEL } from '@ordo/shared';
+import { treeOptions, type TreeOption } from '../tree-select/tree-select';
 import { collator } from '../../lib/text';
 
 /** Category of a tree (shopping, routines…): a name, an optional color and a parent. */
@@ -96,17 +97,7 @@ export function categoryPaths(categories: readonly TreeCategory[]): Map<string, 
  * @returns {Set<string>} Ids.
  */
 export function categorySubtree(categories: readonly TreeCategory[], id: string): Set<string> {
-  const result = new Set([id]);
-  for (let added = true; added;) {
-    added = false;
-    for (const category of categories) {
-      if (category.parentId && result.has(category.parentId) && !result.has(category.id)) {
-        result.add(category.id);
-        added = true;
-      }
-    }
-  }
-  return result;
+  return subtreeOf(categories, id);
 }
 
 /** Where a dragged category is dropped on another one: before it, after it or under it (last). */

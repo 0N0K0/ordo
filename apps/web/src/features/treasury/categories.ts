@@ -1,6 +1,7 @@
+import { lineageOf, LEVEL } from '@ordo/shared';
 import type { TreasuryDirection } from '@ordo/shared';
 import { categoryOptions as treeCategoryOptions, categoryTree as treeCategoryTree, type PlacedCategory } from '../../components/category-tree/category-tree';
-import { LEVEL, type TreeOption } from '../../components/tree-select/tree-select';
+import { type TreeOption } from '../../components/tree-select/tree-select';
 import type { TreasuryCategory } from './api';
 
 export { categoryPaths } from '../../components/category-tree/category-tree';
@@ -48,11 +49,5 @@ export function categoryPathLineage(byId: ReadonlyMap<string, TreasuryCategory>,
  * @returns {string[]} Names.
  */
 export function categoryLineage(byId: ReadonlyMap<string, TreasuryCategory>, id: string | null): string[] {
-  const names: string[] = [];
-  const seen = new Set<string>();
-  for (let current = id ? byId.get(id) : undefined; current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
-    seen.add(current.id);
-    names.push(current.name);
-  }
-  return names;
+  return lineageOf(byId, id).map((category) => category.name);
 }

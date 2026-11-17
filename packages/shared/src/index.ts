@@ -28,3 +28,4 @@ export * from './weeks';
 export * from './event-busy';
 export * from './aggregates';
 export * from './text';
+export * from './tree';

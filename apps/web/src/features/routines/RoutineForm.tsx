@@ -1,5 +1,5 @@
 import { Divider, Grid, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
-import { opensFits, readOpens, readSlotCondition, type RoutineOpens, routineSchema, type SlotCondition, type Recurrence, type RoutineCase, type RoutineSlot } from '@ordo/shared';
+import { opensFits, readOpens, readSlotCondition, type RoutineOpens, routineSchema, type SlotCondition, type Recurrence, type RoutineCase, type RoutineSlot, subtreeOf } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
@@ -57,26 +57,6 @@ export interface RoutineFormProps {
   /** Project of a new routine. */
   projectId?: string | null;
   onDone: () => void;
-}
-
-/**
- * Ids of a routine and of all its sub-routines.
- * @param {Routine[]} routines All routines.
- * @param {string} id Routine id.
- * @returns {Set<string>} Ids.
- */
-function subtreeOf(routines: Routine[], id: string): Set<string> {
-  const ids = new Set([id]);
-  for (let added = true; added;) {
-    added = false;
-    for (const routine of routines) {
-      if (routine.parentId && ids.has(routine.parentId) && !ids.has(routine.id)) {
-        ids.add(routine.id);
-        added = true;
-      }
-    }
-  }
-  return ids;
 }
 
 /**

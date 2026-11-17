@@ -1,4 +1,4 @@
-import { normalize } from '@ordo/shared';
+import { normalize, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, notFound } from '../../graphql/errors';
@@ -559,9 +559,7 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
  */
 async function projectTree(projectId: string): Promise<string[]> {
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  const ids = [projectId];
-  for (let index = 0; index < ids.length; index += 1) ids.push(...projects.filter((project) => project.parentId === ids[index]).map((project) => project.id));
-  return ids;
+  return [...subtreeOf(projects, projectId)];
 }
 
 /**

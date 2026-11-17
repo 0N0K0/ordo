@@ -1,7 +1,7 @@
-import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineMove, type RoutineState } from '@ordo/shared';
+import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineMove, type RoutineState, pathOf } from '@ordo/shared';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 
-import { LEVEL, treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
+import { treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
 import type { Routine } from './api';
 import * as fmt from '../../lib/format';
 
@@ -63,13 +63,7 @@ export function routineTreeOptions(routines: readonly Routine[], offered: (routi
  * @returns {string} Path.
  */
 export function routinePath(routine: Routine, byId: ReadonlyMap<string, Routine>): string {
-  const titles: string[] = [];
-  const seen = new Set<string>();
-  for (let current: Routine | undefined = routine; current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
-    seen.add(current.id);
-    titles.unshift(current.title);
-  }
-  return titles.join(LEVEL);
+  return pathOf(new Map([...byId, [routine.id, routine]]), routine.id, (item) => item.title);
 }
 
 /**

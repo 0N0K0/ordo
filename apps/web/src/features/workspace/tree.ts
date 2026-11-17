@@ -1,5 +1,5 @@
-import { LEVEL, treeOptions, type TreeNode, type TreeOption } from '../../components/tree-select/tree-select';
-import { MAX_PROJECT_DEPTH } from '@ordo/shared';
+import { treeOptions, type TreeNode, type TreeOption } from '../../components/tree-select/tree-select';
+import { MAX_PROJECT_DEPTH, LEVEL } from '@ordo/shared';
 import type { Client, Project, Workspace } from './api';
 import { collator } from '../../lib/text';
 import { normalize } from '../../lib/text';

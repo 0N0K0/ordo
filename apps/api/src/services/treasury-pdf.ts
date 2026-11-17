@@ -1,4 +1,4 @@
-import { addDays, formatDay, formatMoney, offsetLinkedMovements, parseDay, splitAmounts, toCents } from '@ordo/shared';
+import { addDays, formatDay, formatMoney, offsetLinkedMovements, parseDay, splitAmounts, toCents, pathOf } from '@ordo/shared';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
@@ -109,15 +109,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ nam
    * @param {string | null} id Category id.
    * @returns {string} Path, empty without category.
    */
-  const categoryPath = (id: string | null) => {
-    const names: string[] = [];
-    const seen = new Set<string>();
-    for (let current = id ? categoryById.get(id) : undefined; current && !seen.has(current.id); current = current.parentId ? categoryById.get(current.parentId) : undefined) {
-      seen.add(current.id);
-      names.unshift(current.name);
-    }
-    return names.join(' › ');
-  };
+  const categoryPath = (id: string | null) => pathOf(categoryById, id, (category) => category.name);
 
   const openingDates = new Map(accounts.map((account) => [account.id, formatDay(account.openingDate)]));
   const counted = (entry: (typeof entries)[number]) => formatDay(entry.date) >= (openingDates.get(entry.accountId) ?? '');

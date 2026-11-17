@@ -1,4 +1,4 @@
-import { commentBodySchema, dateSchema, effortSchema, markdownSchema, slotRuleSchema, taskTitleSchema } from '@ordo/shared';
+import { commentBodySchema, dateSchema, effortSchema, markdownSchema, slotRuleSchema, taskTitleSchema, subtreeOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { Prisma, type Task, type TaskComment } from '../generated/prisma/client';
@@ -51,18 +51,7 @@ async function findTask(id: string): Promise<Task> {
  */
 async function descendantIds(id: string): Promise<string[]> {
   const tasks = await prisma.task.findMany({ select: { id: true, parentId: true } });
-  const result: string[] = [];
-  const queue = [id];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const task of tasks) {
-      if (task.parentId === current) {
-        result.push(task.id);
-        queue.push(task.id);
-      }
-    }
-  }
-  return result;
+  return [...subtreeOf(tasks, id, false)];
 }
 
 /**

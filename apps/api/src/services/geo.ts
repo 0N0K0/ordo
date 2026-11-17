@@ -1,4 +1,4 @@
-import { placeSchema, type GeoPoint, type PlaceInput, type TravelMode } from '@ordo/shared';
+import { placeSchema, type GeoPoint, type PlaceInput, type TravelMode, lineageOf } from '@ordo/shared';
 import { env } from '../env';
 import { prisma } from '../db';
 import { Prisma, type Place } from '../generated/prisma/client';
@@ -157,8 +157,8 @@ export async function places(): Promise<PlaceView[]> {
   const rows = await prisma.place.findMany({ orderBy: [{ position: 'asc' }, { name: 'asc' }] });
   const byId = new Map(rows.map((row) => [row.id, row]));
   return rows.flatMap((row) => {
-    const chain: Place[] = [row];
-    for (let parent = row.parentId ? byId.get(row.parentId) : undefined; parent && !chain.includes(parent); parent = parent.parentId ? byId.get(parent.parentId) : undefined) chain.unshift(parent);
+    // From the place at the top down to this one.
+    const chain = lineageOf(byId, row.id).reverse();
     const located = [...chain].reverse().find((item) => item.lat !== null && item.lon !== null);
     if (!located) return [];
     return [

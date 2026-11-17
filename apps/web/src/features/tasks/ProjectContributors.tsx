@@ -1,3 +1,4 @@
+import { ancestorsOf } from '@ordo/shared';
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
@@ -26,15 +27,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
   const subtree = descendantIds(context.projects, projectId);
   subtree.add(projectId);
 
-  const ancestors: Project[] = [];
-  for (
-    let parentId = project?.parentId;
-    parentId;
-    parentId = context.projectById.get(parentId)?.parentId
-  ) {
-    const parent = context.projectById.get(parentId);
-    if (parent) ancestors.push(parent);
-  }
+  const ancestors: Project[] = ancestorsOf(context.projectById, project?.id);
   const direct = context.contributors.filter((contributor) =>
     contributor.projectIds.includes(projectId),
   );

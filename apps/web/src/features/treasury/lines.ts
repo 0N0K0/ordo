@@ -1,4 +1,4 @@
-import { type TreasuryLineMode } from '@ordo/shared';
+import { type TreasuryLineMode, LEVEL } from '@ordo/shared';
 import * as fmt from '../../lib/format';
 
 /**
@@ -80,4 +80,4 @@ export function newLine(fields: Partial<LineValues>): LineValues {
  * @param {LineLink} link Link.
  * @returns {string} "12 mars 2026 · Courses › Glace · -4,50 €".
  */
-export const describeLink = (link: LineLink) => `${fmt.day(link.date)} · ${link.entryLabel}${link.label ? ` › ${link.label}` : ''} · ${fmt.money(link.amount)}`;
+export const describeLink = (link: LineLink) => `${fmt.day(link.date)} · ${link.entryLabel}${link.label ? `${LEVEL}${link.label}` : ''} · ${fmt.money(link.amount)}`;

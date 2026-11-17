@@ -1,3 +1,4 @@
+import { ancestorsOf } from '@ordo/shared';
 import { TaskSettings } from '../../tasks/settings/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
@@ -146,12 +147,8 @@ export function ProjectPage() {
 
   const client = data.clients.find((item) => item.id === project.clientId);
   const status = data.projectStatuses.find((item) => item.id === project.statusId);
-  const ancestors = [];
-  for (let parent = data.projects.find((item) => item.id === project.parentId); parent; ) {
-    ancestors.unshift(parent);
-    const parentId = parent.parentId;
-    parent = data.projects.find((item) => item.id === parentId);
-  }
+  // From the root project down to its parent.
+  const ancestors = ancestorsOf(new Map(data.projects.map((item) => [item.id, item])), project.id).reverse();
   const subtree = descendantIds(data.projects, project.id);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
   // Routines and shopping lists: those of the project and of its sub-projects.

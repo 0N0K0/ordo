@@ -11,6 +11,7 @@ import {
   type ShoppingCategoryInput,
   type ShoppingProductInput,
   type ShoppingStoreInput,
+  lineageOf,
 } from '@ordo/shared';
 import { prisma } from '../db';
 import { syncPurchaseStock } from './stock';
@@ -452,12 +453,9 @@ export async function moveProducts(ids: string[], baseListId: string): Promise<n
    * @returns {boolean} Offered.
    */
   const offered = (categoryId: string) => {
-    const seen = new Set<string>();
-    for (let current = byId.get(categoryId); current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
-      seen.add(current.id);
-      if (current.baseLists.length) return current.baseLists.some((list) => list.id === baseListId);
-    }
-    return true;
+    // The base lists of the category, or of its closest parent with some (none: every list).
+    const owner = lineageOf(byId, categoryId).find((current) => current.baseLists.length);
+    return owner ? owner.baseLists.some((list) => list.id === baseListId) : true;
   };
   const { _max } = await prisma.shoppingProduct.aggregate({ where: { baseListId }, _max: { position: true } });
   const start = (_max.position ?? -1) + 1;

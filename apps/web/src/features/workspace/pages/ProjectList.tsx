@@ -1,6 +1,6 @@
 import { DndContext, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
 import { ActionIcon, Badge, Group, Paper, Text, UnstyledButton } from '@mantine/core';
-import { MAX_PROJECT_DEPTH } from '@ordo/shared';
+import { MAX_PROJECT_DEPTH, lineageOf } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -150,9 +150,8 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
     const moved = byId.get(id);
     const target = byId.get(targetId);
     if (!moved || !target || target.archived) return null;
-    for (let current: Project | undefined = target; current; current = current.parentId ? byId.get(current.parentId) : undefined) {
-      if (current.id === id) return null;
-    }
+    // Not on itself nor one of its sub-projects.
+    if (lineageOf(byId, target.id).some((current) => current.id === id)) return null;
     const parentId = place === 'INSIDE' ? target.id : target.parentId;
     if ((parentId ? projectDepth(allProjects, parentId) : 0) + projectHeight(allProjects, id) > MAX_PROJECT_DEPTH) return null;
     const siblings = projects.filter((project) => !project.archived && project.parentId === parentId).sort(listOrder);

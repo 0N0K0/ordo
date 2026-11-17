@@ -1,4 +1,4 @@
-import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, type TaskColumn, type FilterGroupOf, type TaskStatusCategory } from '@ordo/shared';
+import { DEFAULT_HIDDEN_COLUMNS, formatDuration, ME, readSlotRule, TASK_COLUMNS, TASK_STATUS_CATEGORIES, type TaskColumn, type FilterGroupOf, type TaskStatusCategory, lineageOf } from '@ordo/shared';
 import type { ColumnChoice, ColumnFilter, DataColumn } from '../../components/data-table/data-table';
 import { filterRows } from '../../components/data-table/table-engine';
 import type { EventOccurrence } from '../calendar/api';
@@ -120,11 +120,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
    * @param {string | null} projectId Project.
    * @returns {string[]} Ids.
    */
-  const withParents = (projectId: string | null) => {
-    const ids: string[] = [];
-    for (let current = projectId; current; current = context.projects.find((project) => project.id === current)?.parentId ?? null) ids.push(current);
-    return ids;
-  };
+  const withParents = (projectId: string | null) => lineageOf(context.projectById, projectId).map((project) => project.id);
   const projectChoices = context.projectOptions(context.projects);
   const taskChoices = context.taskOptions(context.tasks);
   const people = [{ value: ME, label: 'Moi' }, ...context.contributors.map((contributor) => ({ value: contributor.id, label: contributor.name }))];

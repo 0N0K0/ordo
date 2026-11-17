@@ -1,4 +1,4 @@
-import { durationSchema, parseDay, timeDescriptionSchema } from '@ordo/shared';
+import { durationSchema, parseDay, timeDescriptionSchema, subtreeOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
 import type { TimeEntry } from '../generated/prisma/client';
@@ -74,16 +74,7 @@ async function assertProjectAndTasks(projectId: string | null, taskIds: string[]
   if (active && project.archivedAt) throw fieldError('projectId', 'Ce projet est archivé.');
   if (taskIds.length === 0) return;
   // The project and its sub-projects.
-  const subtree = new Set([projectId]);
-  for (let added = true; added; ) {
-    added = false;
-    for (const item of projects) {
-      if (item.parentId && subtree.has(item.parentId) && !subtree.has(item.id)) {
-        subtree.add(item.id);
-        added = true;
-      }
-    }
-  }
+  const subtree = subtreeOf(projects, projectId);
   const tasks = await prisma.task.findMany({ where: { id: { in: taskIds } }, select: { projectId: true } });
   if (tasks.length !== new Set(taskIds).size) throw fieldError('taskIds', 'Tâche introuvable.');
   // Tasks of no project go with any project.

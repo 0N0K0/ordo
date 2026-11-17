@@ -94,6 +94,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
   - côté web, `ancestors`, `lineage` et `subtree` dans `category-tree.ts`, et une contrainte facultative pour `treeDestination` ;
   - côté API, un `services/tree.ts`, ou des utilitaires d'arbre placés dans le code partagé.
 
+**Fait** : `packages/shared/src/tree.ts` (`LEVEL`, `subtreeOf`, `lineageOf`, `ancestorsOf`, `pathOf`, à l'abri des cycles), utilisé par le web et l'API. Remplacés : les sous-arbres des routines, des tâches, des projets, des catégories, des temps et des liens GitHub ; les chaînes de parents des routines, de la trésorerie, des lieux, des achats, des tâches et des projets ; les chemins des catégories du PDF de trésorerie et des lieux ; les séparateurs « › » écrits en dur. Restent à part : la `ProjectTree` de l'API (une vue en mémoire avec ses enfants, plus rapide pour ses nombreux usages), le sous-arbre de la synchronisation GitHub (chargé niveau par niveau en base), et le dépôt de la liste des projets, qui a ses règles (projets archivés, profondeur maximale) en plus de la détection de cycle, désormais partagée.
+
 ### 10. Téléchargements et exports PDF ou CSV
 
 - **Téléchargement :** `lib/download.ts` est recopié dans `dashboards/chart-image.ts`, et refait à la main dans les achats, l'archive des documents et les relevés.

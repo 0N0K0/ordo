@@ -1,3 +1,4 @@
+import { LEVEL, lineageOf } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GeoPoint, PlaceInput, TravelMode } from '@ordo/shared';
 import { graphql } from '../../graphql';
@@ -99,8 +100,6 @@ export function placesInTree(places: readonly Place[]): (Place & { depth: number
   return out;
 }
 
-/** Between the place and its zones, and between the levels of a zone, in the text of a location. */
-const LEVEL = ' › ';
 /** Between the zones of a place, in the text of a location. */
 const ZONE_SEPARATOR = ', ';
 
@@ -111,13 +110,7 @@ const ZONE_SEPARATOR = ', ';
  * @returns {Place} Place.
  */
 export function rootPlace(place: Place, byId: ReadonlyMap<string, Place>): Place {
-  let root = place;
-  const seen = new Set<string>();
-  while (root.parentId && byId.has(root.parentId) && !seen.has(root.id)) {
-    seen.add(root.id);
-    root = byId.get(root.parentId)!;
-  }
-  return root;
+  return lineageOf(byId, place.id).at(-1) ?? place;
 }
 
 /**
