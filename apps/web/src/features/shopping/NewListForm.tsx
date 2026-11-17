@@ -1,4 +1,4 @@
-import { Button, Checkbox, Group, Stack, Text, TextInput } from '@mantine/core';
+import { Checkbox, Stack, Text, TextInput } from '@mantine/core';
 import { shoppingListNameSchema } from '@ordo/shared';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
@@ -10,6 +10,7 @@ import { useActiveWorkspace } from '../workspaces/api';
 import { useShoppingData, useShoppingMutations } from './api';
 import { taskOptions } from './shopping-format';
 import * as fmt from '../../lib/format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const schema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()), baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
@@ -93,14 +94,7 @@ export function NewListForm({ baseListIds, taskIds, projectIds, onDone }: NewLis
         <Text size="xs" c="dimmed">
           D’autres produits des références pourront être ajoutés ensuite.
         </Text>
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createList.isPending}>
-            Créer
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel="Créer" loading={createList.isPending} />
       </Stack>
     </form>
   );

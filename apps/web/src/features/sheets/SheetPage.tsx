@@ -37,6 +37,7 @@ import { usePeople } from '../shopping/shopping-format';
 import { shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from './SheetUseForm';
 import { countOf, plural } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
 
@@ -66,20 +67,15 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
         data-autofocus
         comboboxProps={{ withinPortal: false }}
       />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          disabled={!ids.length}
-          loading={addProducts.isPending}
-          onClick={() =>
-            addProducts.mutate({ sheetId, productIds: ids }, { onSuccess: (count) => (notifySuccess(`${countOf(count, 'élément')} ${plural(count, 'ajouté')}.`), onDone()), onError: onMutationError })
-          }
-        >
-          Ajouter
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Ajouter"
+        disabled={!ids.length}
+        loading={addProducts.isPending}
+        onSubmit={() =>
+          addProducts.mutate({ sheetId, productIds: ids }, { onSuccess: (count) => (notifySuccess(`${countOf(count, 'élément')} ${plural(count, 'ajouté')}.`), onDone()), onError: onMutationError })
+        }
+      />
     </Stack>
   );
 }

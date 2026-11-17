@@ -1,4 +1,4 @@
-import { Button, Group, NumberInput, Select, Stack, Text, Textarea } from '@mantine/core';
+import { NumberInput, Select, Stack, Text, Textarea } from '@mantine/core';
 import { useState } from 'react';
 import { DataTable } from '../../components/data-table/DataTable';
 import type { DataColumn } from '../../components/data-table/data-table';
@@ -9,6 +9,7 @@ import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useStockItems, useStockLocations, useStockMutations, type StockItem } from './api';
 import { locationOptions, locationPaths } from './stock-format';
 import { countOf } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -81,23 +82,18 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
         })}
       />
       <Textarea label="Note" autosize minRows={1} value={note} onChange={(event) => setNote(event.currentTarget.value)} />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          disabled={counts.size === 0}
-          loading={recordCount.isPending}
-          onClick={() =>
-            recordCount.mutate(
-              { locationId, note: note || null, lines: [...counts].map(([itemId, counted]) => ({ itemId, counted })) },
-              { onSuccess: () => (notifySuccess(`Inventaire enregistré (${countOf(counts.size, 'article')}).`), onDone()), onError: onMutationError },
-            )
-          }
-        >
-          Enregistrer l’inventaire
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Enregistrer l’inventaire"
+        disabled={counts.size === 0}
+        loading={recordCount.isPending}
+        onSubmit={() =>
+          recordCount.mutate(
+            { locationId, note: note || null, lines: [...counts].map(([itemId, counted]) => ({ itemId, counted })) },
+            { onSuccess: () => (notifySuccess(`Inventaire enregistré (${countOf(counts.size, 'article')}).`), onDone()), onError: onMutationError },
+          )
+        }
+      />
     </Stack>
   );
 }

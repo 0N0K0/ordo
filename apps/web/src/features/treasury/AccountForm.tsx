@@ -1,4 +1,4 @@
-import { Button, Checkbox, Group, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Checkbox, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryAccountSchema } from '@ordo/shared';
 import { AmountInput } from '../../components/AmountInput';
@@ -6,6 +6,7 @@ import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useTreasuryMutations, type AccountValues, type TreasuryAccount } from './api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Account: name, opening balance and date, archived.
@@ -48,14 +49,7 @@ export function AccountForm({ account, onDone }: { account?: TreasuryAccount; on
           Le solde du relevé à cette date : seuls les mouvements suivants sont comptés.
         </Text>
         {account && <Checkbox label="Archivé (n’est plus compté dans le solde)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createAccount.isPending || updateAccount.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} loading={createAccount.isPending || updateAccount.isPending} />
       </Stack>
     </form>
   );

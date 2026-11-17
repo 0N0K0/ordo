@@ -1,8 +1,9 @@
-import { Button, Group, NumberInput, Stack, Text } from '@mantine/core';
+import { NumberInput, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { notifyInfo, notifySuccess, onMutationError } from '../../lib/notify';
 import { useSheetMutations } from './api';
 import { countOf, plural } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Use of a sheet (times a multiplier): its consumable items that are references followed in stock are taken from it,
@@ -30,33 +31,28 @@ export function SheetUseForm({ sheetId, name, onDone }: { sheetId: string; name:
         onChange={(value) => setMultiplier(Number(value) || 1)}
         data-autofocus
       />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={use.isPending}
-          onClick={() =>
-            use.mutate(
-              { id: sheetId, multiplier },
-              {
-                onSuccess: ({ taken, short }) => {
-                  if (taken && !short.length) notifySuccess(`${countOf(taken, 'élément')} ${plural(taken, 'retiré')} du stock.`);
-                  else
-                    notifyInfo({
-                      title: taken ? `${countOf(taken, 'élément')} ${plural(taken, 'retiré')} du stock` : 'Rien n’a été retiré du stock',
-                      lines: [short.length ? `Pas assez en stock : ${short.join(', ')}.` : 'Aucun élément consommable de cette fiche n’est suivi en stock.'],
-                    });
-                  onDone();
-                },
-                onError: onMutationError,
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Utiliser"
+        loading={use.isPending}
+        onSubmit={() =>
+          use.mutate(
+            { id: sheetId, multiplier },
+            {
+              onSuccess: ({ taken, short }) => {
+                if (taken && !short.length) notifySuccess(`${countOf(taken, 'élément')} ${plural(taken, 'retiré')} du stock.`);
+                else
+                  notifyInfo({
+                    title: taken ? `${countOf(taken, 'élément')} ${plural(taken, 'retiré')} du stock` : 'Rien n’a été retiré du stock',
+                    lines: [short.length ? `Pas assez en stock : ${short.join(', ')}.` : 'Aucun élément consommable de cette fiche n’est suivi en stock.'],
+                  });
+                onDone();
               },
-            )
-          }
-        >
-          Utiliser
-        </Button>
-      </Group>
+              onError: onMutationError,
+            },
+          )
+        }
+      />
     </Stack>
   );
 }

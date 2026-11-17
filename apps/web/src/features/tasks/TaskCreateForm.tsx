@@ -1,4 +1,4 @@
-import { Button, Group, NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { NumberInput, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { DatePickerInput } from '@mantine/dates';
 import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
@@ -12,6 +12,7 @@ import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskSelect } f
 import { taskName, type TaskContext } from './use-task-context';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -186,14 +187,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <DatePickerInput label="Date max" clearable placeholder="—" {...form.getInputProps('deadline')} />
         </SimpleGrid>
         <SlotRuleInput value={form.values.slotRule ? { inside: form.values.slotRule.inside ?? [], outside: form.values.slotRule.outside ?? [] } : null} onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)} error={form.errors['slotRule.outside'] as string | undefined} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createTask.isPending}>
-            Créer la tâche
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel="Créer la tâche" loading={createTask.isPending} />
       </Stack>
     </form>
   );

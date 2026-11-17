@@ -1,7 +1,7 @@
 import { createdId } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
-import { Badge, Button, Checkbox, ColorInput, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Badge, Checkbox, ColorInput, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess, onMutationError } from '../../lib/notify';
@@ -13,7 +13,7 @@ import { useColorSwatches } from '../workspace/use-color-swatches';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AccountsSettings } from './AccountsSettings';
 import { countOf } from '../../lib/text';
-
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Number of entries using an item.
@@ -21,24 +21,6 @@ import { countOf } from '../../lib/text';
  * @returns {string} "3 mouvements".
  */
 const entries = (count: number) => countOf(count, 'mouvement');
-
-/**
- * Form actions: cancel, then save.
- * @param {{ loading: boolean, onCancel: () => void }} props Component props.
- * @returns {JSX.Element} Buttons.
- */
-function FormActions({ loading, onCancel }: { loading: boolean; onCancel: () => void }) {
-  return (
-    <Group justify="flex-end">
-      <Button variant="default" onClick={onCancel}>
-        Annuler
-      </Button>
-      <Button type="submit" loading={loading}>
-        Enregistrer
-      </Button>
-    </Group>
-  );
-}
 
 interface CategoryFormProps {
   category?: TreasuryCategory;

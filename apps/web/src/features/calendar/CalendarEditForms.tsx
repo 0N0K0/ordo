@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { TimeField } from '../../components/TimeField';
 import { openRoutineForm } from '../routines/open-routine-form';
 import type { RoutineOccurrenceRef } from './calendar-edits';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Form changing a slot of a schedule from the calendar: its day and hours (or the whole day); or deleting it.
@@ -60,14 +61,7 @@ export function SlotEditForm({
         )}
         <Group justify="space-between" gap="sm">
           <DestructiveButton onClick={onDelete}>Supprimer…</DestructiveButton>
-          <Group gap="sm">
-            <Button variant="default" onClick={onClose}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={invalid}>
-              Enregistrer…
-            </Button>
-          </Group>
+          <FormActions onCancel={onClose} submitLabel="Enregistrer…" disabled={invalid} />
         </Group>
       </Stack>
     </form>
@@ -131,14 +125,7 @@ export function RoutineOccurrenceForm({
               Ouvrir la routine
             </Button>
           </Group>
-          <Group gap="sm">
-            <Button variant="default" onClick={onClose}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={invalid || unchanged}>
-              Enregistrer…
-            </Button>
-          </Group>
+          <FormActions onCancel={onClose} submitLabel="Enregistrer…" disabled={invalid || unchanged} />
         </Group>
       </Stack>
     </form>

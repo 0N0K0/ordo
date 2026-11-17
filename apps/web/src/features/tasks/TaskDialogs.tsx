@@ -1,4 +1,4 @@
-import { Alert, Button, Checkbox, Group, Radio, Stack, Text } from '@mantine/core';
+import { Alert, Checkbox, Radio, Stack, Text } from '@mantine/core';
 import { countSubtasks } from './task-links';
 import { useState } from 'react';
 import { useTaskLink } from './use-task-link';
@@ -9,6 +9,7 @@ import { useDeleteTask, useTransferTask, type Task } from './api';
 import { ProjectSelect } from './task-ui';
 import { taskName, taskRef, type TaskContext } from './use-task-context';
 import { countOf, plural } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface DialogProps {
   task: Task;
@@ -126,18 +127,7 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
           tâches restées dans l’arborescence actuelle seront retirés.
         </Alert>
       )}
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          onClick={handleConfirm}
-          disabled={!chosen || target === task.projectId}
-          loading={transferTask.isPending}
-        >
-          Transférer
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} submitLabel="Transférer" onSubmit={handleConfirm} disabled={!chosen || target === task.projectId} loading={transferTask.isPending} />
     </Stack>
   );
 }

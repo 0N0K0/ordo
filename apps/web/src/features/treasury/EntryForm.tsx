@@ -25,6 +25,7 @@ import { AmountInput } from '../../components/AmountInput';
 import { RuleField } from '../../components/recurrence/RuleField';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Entry linked to the edited one, as shown in the form. */
 interface LinkedSummary {
@@ -486,14 +487,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             </>
           )}
 
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={createEntry.isPending || updateEntry.isPending}>
-              Enregistrer
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} loading={createEntry.isPending || updateEntry.isPending} />
         </Stack>
         <SidePanel
           opened={creating !== null}

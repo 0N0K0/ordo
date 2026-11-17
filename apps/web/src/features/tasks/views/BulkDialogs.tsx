@@ -1,4 +1,4 @@
-import { Button, Group, Radio, Stack, Text } from '@mantine/core';
+import { Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { useBulkUndo } from './bulk-undo';
@@ -11,6 +11,7 @@ import { useTaskLink } from '../use-task-link';
 import { countSubtasks } from '../task-links';
 import { outermost } from '../../../components/data-table/selection-actions';
 import { plural } from '../../../lib/text';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 export interface DialogProps {
   tasks: Task[];
@@ -50,34 +51,29 @@ export function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
     <Stack gap="md">
       <Text size="sm">{tasksLabel(tasks.length)} et leurs sous-tâches seront déplacées. Les liens qui sortent de l’arborescence du projet choisi seront retirés.</Text>
       <ProjectSelect context={context} label="Projet de destination" value={projectId} onChange={setProjectId} data-autofocus />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={() => onDone(false)}>
-          Annuler
-        </Button>
-        <Button
-          disabled={!projectId}
-          loading={transfer.isPending}
-          onClick={() => {
-            if (!projectId) return;
-            const levels = movedLevels();
-            transfer.mutate(
-              { ids: tasks.map((task) => task.id), projectId },
-              {
-                onSuccess: ({ removedLinks }) => {
-                  const message = `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
-                  // Removed links, milestones and sprints cannot come back: no undo then.
-                  if (removedLinks > 0) notifySuccess(`${message} ${removedLinks} lien(s) retiré(s).`);
-                  else notifyWithUndo(message, undo.transfer(levels));
-                  onDone(true);
-                },
-                onError: onMutationError,
+      <FormActions
+        onCancel={() => onDone(false)}
+        submitLabel="Transférer"
+        disabled={!projectId}
+        loading={transfer.isPending}
+        onSubmit={() => {
+          if (!projectId) return;
+          const levels = movedLevels();
+          transfer.mutate(
+            { ids: tasks.map((task) => task.id), projectId },
+            {
+              onSuccess: ({ removedLinks }) => {
+                const message = `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
+                // Removed links, milestones and sprints cannot come back: no undo then.
+                if (removedLinks > 0) notifySuccess(`${message} ${removedLinks} lien(s) retiré(s).`);
+                else notifyWithUndo(message, undo.transfer(levels));
+                onDone(true);
               },
-            );
-          }}
-        >
-          Transférer
-        </Button>
-      </Group>
+              onError: onMutationError,
+            },
+          );
+        }}
+      />
     </Stack>
   );
 }
@@ -107,37 +103,32 @@ export function CloneTasksDialog({ tasks, context, onDone }: DialogProps) {
             : 'Leurs sous-tâches sont clonées avec elles, sous leur clone.'}
         </Text>
       )}
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={() => onDone(false)}>
-          Annuler
-        </Button>
-        <Button
-          loading={pending}
-          data-autofocus
-          onClick={async () => {
-            setPending(true);
-            try {
-              // A task already cloned with its parent is not cloned again.
-              const roots = outermost(
-                tasks,
-                (task) => task.id,
-                (id) => context.taskById.get(id)?.parentId,
-              );
-              let last: { id: string; number: number | null } | null = null;
-              for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
-              notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
-              onDone(true);
-              if (single && last) link.open(last.id);
-            } catch (error) {
-              notifyError((error as Error).message);
-            } finally {
-              setPending(false);
-            }
-          }}
-        >
-          Cloner
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={() => onDone(false)}
+        submitLabel="Cloner"
+        loading={pending}
+        autoFocus
+        onSubmit={async () => {
+          setPending(true);
+          try {
+            // A task already cloned with its parent is not cloned again.
+            const roots = outermost(
+              tasks,
+              (task) => task.id,
+              (id) => context.taskById.get(id)?.parentId,
+            );
+            let last: { id: string; number: number | null } | null = null;
+            for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
+            notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
+            onDone(true);
+            if (single && last) link.open(last.id);
+          } catch (error) {
+            notifyError((error as Error).message);
+          } finally {
+            setPending(false);
+          }
+        }}
+      />
     </Stack>
   );
 }

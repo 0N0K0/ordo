@@ -1,5 +1,5 @@
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
-import { Alert, Button, Divider, Grid, Group, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Alert, Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import {
   CHART_BUCKETS,
   CHART_PERIODS,
@@ -26,6 +26,7 @@ import { ChartView } from './ChartView';
 import { DatasetsEditor } from './DatasetsEditor';
 import { DocumentFilters, TreasuryFilters } from './source-filters';
 import { useActiveWorkspace } from '../workspaces/api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const TYPE_LABELS: Record<ChartConfig['type'], string> = {
   bar: 'Barres',
@@ -325,14 +326,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
               {source === 'tasks' && (config.dimension === 'assignees' || config.series === 'assignees') ? ' · une tâche à plusieurs assignés compte pour chacun' : ''}
             </Text>
           )}
-          <Group justify="flex-end" gap="sm" mt="md">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button onClick={save} loading={createChart.isPending || updateChart.isPending}>
-              {chart ? 'Enregistrer' : 'Ajouter le diagramme'}
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} submitLabel={chart ? 'Enregistrer' : 'Ajouter le diagramme'} onSubmit={save} loading={createChart.isPending || updateChart.isPending} />
         </Stack>
       </Grid.Col>
     </Grid>

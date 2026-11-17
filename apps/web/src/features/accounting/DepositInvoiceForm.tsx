@@ -1,4 +1,4 @@
-import { Button, Group, NumberInput, Paper, Select, Stack, Text } from '@mantine/core';
+import { NumberInput, Paper, Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
@@ -6,6 +6,7 @@ import { notifyError } from '../../lib/notify';
 import { useWorkspace } from '../workspace/api';
 import { useAccountingDocuments, useDocumentMutations, useImportedDocuments } from './documents-api';
 import * as fmt from '../../lib/format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Quote a deposit can be made from, of Ordo or imported. */
 interface QuoteChoice {
@@ -153,14 +154,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
       <Text size="xs" c="dimmed">
         La facture d’acompte est créée en brouillon, sans numéro, avec les conditions du devis.
       </Text>
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button onClick={() => void submit()} disabled={!selected || !(rate > 0 && rate <= 100)} loading={createDeposit.isPending}>
-          Créer
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} submitLabel="Créer" onSubmit={() => void submit()} disabled={!selected || !(rate > 0 && rate <= 100)} loading={createDeposit.isPending} />
     </Stack>
   );
 }

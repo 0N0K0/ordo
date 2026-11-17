@@ -3,13 +3,14 @@ import { openFormPanel } from '../panels/panels';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ActionIcon, Button, Group, Indicator, Menu, Stack, Tabs, Text, TextInput, type TabsTabProps } from '@mantine/core';
+import { ActionIcon, Group, Indicator, Menu, Stack, Tabs, Text, TextInput, type TabsTabProps } from '@mantine/core';
 import { taskViewNameSchema } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, PlusIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 import { usePublishedHeight } from '../../lib/published-height';
 import { useDragSensors } from '../../lib/drag';
+import { FormActions } from '../dialogs/FormActions';
 
 interface NameFormProps {
   initial: string;
@@ -61,12 +62,7 @@ function NameForm({ initial, submitLabel, onSubmit, onCancel }: NameFormProps) {
           }}
           onBlur={() => !taskViewNameSchema.safeParse(name).success && setError('Le nom est requis.')}
         />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onCancel}>
-            Annuler
-          </Button>
-          <Button type="submit">{submitLabel}</Button>
-        </Group>
+        <FormActions onCancel={onCancel} submitLabel={submitLabel} />
       </Stack>
     </form>
   );

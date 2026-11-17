@@ -1,5 +1,5 @@
 import { TimeField } from '../../components/TimeField';
-import { Button, Group, NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
+import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { localToday } from '../../lib/dates';
@@ -14,6 +14,7 @@ import { describeRecurrence } from '../../components/recurrence/describe-recurre
 import { RepetitionEditor } from '../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../components/recurrence/RepetitionField';
 import { useAlarmMutations, type Alarm, type AlarmInput } from './api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const TYPES: { value: AlarmType; label: string }[] = [
   { value: 'REMINDER', label: 'Rappel' },
@@ -192,14 +193,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
         </SimpleGrid>
         <Textarea label="Note" autosize minRows={2} maxRows={8} {...form.getInputProps('note')} />
         <Switch label="Active" {...form.getInputProps('enabled', { type: 'checkbox' })} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            {alarm && !copy ? 'Enregistrer' : 'Créer l’alarme'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={alarm && !copy ? 'Enregistrer' : 'Créer l’alarme'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

@@ -1,4 +1,4 @@
-import { Button, Group, Select, Stack, Text } from '@mantine/core';
+import { Select, Stack, Text } from '@mantine/core';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -9,6 +9,7 @@ import { fetchNewDocumentDefaults, useDocumentMutations } from './documents-api'
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { projectOptions } from '../workspace/tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * New document: its client (and project), then the draft opens with the company's default terms.
@@ -71,14 +72,7 @@ export function NewDocumentForm({ type, clientId: initialClient = null, projectI
       <Text size="xs" c="dimmed">
         Le {DOCUMENT_TYPE_LABELS[type].toLowerCase()} est créé en brouillon, sans numéro, avec vos conditions par défaut.
       </Text>
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button onClick={() => void submit()} disabled={!clientId} loading={loading}>
-          Créer
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} submitLabel="Créer" onSubmit={() => void submit()} disabled={!clientId} loading={loading} />
     </Stack>
   );
 }

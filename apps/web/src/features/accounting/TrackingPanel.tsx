@@ -16,6 +16,7 @@ import { SentForm } from './SentForm';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
 import { FileLink } from '../files/FileLink';
 import * as fmt from '../../lib/format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Acceptance of a quote: date, and its signed copy.
@@ -39,14 +40,7 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
         value={file}
         onChange={setFile}
       />
-      <Group justify="flex-end">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={accept.isPending}
-          disabled={!date}
-          onClick={() =>
+      <FormActions onCancel={onDone} loading={accept.isPending} disabled={!date} onSubmit={() =>
             date &&
             accept.mutate(
               { id: document.id, date, file },
@@ -58,11 +52,7 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
                 onError: onMutationError,
               },
             )
-          }
-        >
-          Enregistrer
-        </Button>
-      </Group>
+          } />
     </Stack>
   );
 }
@@ -78,13 +68,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
   return (
     <Stack gap="sm">
       <TextInput label="Note" placeholder="Appel, courrier…" maxLength={500} value={note} onChange={(event) => setNote(event.currentTarget.value)} data-autofocus />
-      <Group justify="flex-end">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={addReminder.isPending}
-          onClick={() =>
+      <FormActions onCancel={onDone} submitLabel="Noter" loading={addReminder.isPending} onSubmit={() =>
             addReminder.mutate(
               { id: documentId, note: note.trim() || null },
               {
@@ -95,11 +79,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
                 onError: onMutationError,
               },
             )
-          }
-        >
-          Noter
-        </Button>
-      </Group>
+          } />
     </Stack>
   );
 }

@@ -15,6 +15,7 @@ import { useStockProposal } from '../stock/use-stock-proposal';
 import { useShoppingLists, type ShoppingList } from './api';
 import { deliveryWindow } from './delivery-format';
 import { countOf } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 type Delivery = ShoppingList['deliveries'][number];
 
@@ -78,14 +79,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
           onChange={(next) => form.setValues({ address: next.text || null, lat: next.point?.lat ?? null, lon: next.point?.lon ?? null })}
         />
         <BatchMultiSelect label="Éléments de la livraison" data={list.items.map((item) => ({ value: item.id, label: item.name }))} searchable clearable {...form.getInputProps('itemIds')} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createDelivery.isPending || updateDelivery.isPending}>
-            {delivery ? 'Enregistrer' : 'Ajouter'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={delivery ? 'Enregistrer' : 'Ajouter'} loading={createDelivery.isPending || updateDelivery.isPending} />
       </Stack>
     </form>
   );

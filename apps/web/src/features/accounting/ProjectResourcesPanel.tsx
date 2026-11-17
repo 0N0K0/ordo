@@ -3,12 +3,13 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
-import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from './documents-api';
 import { FileLink } from '../files/FileLink';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Icon of a link, from its site.
@@ -52,14 +53,7 @@ function ResourceForm({ projectId, resource, onDone }: { projectId: string; reso
         <TextInput label="Titre" required data-autofocus placeholder="Maquettes Figma, dépôt GitHub…" value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
         {isLink && <TextInput label="Adresse" required placeholder="https://…" value={url} onChange={(event) => setUrl(event.currentTarget.value)} />}
         <TextInput label="Note" value={note} onChange={(event) => setNote(event.currentTarget.value)} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={addLink.isPending || update.isPending} disabled={!title.trim() || (isLink && !url.trim())}>
-            {resource ? 'Enregistrer' : 'Ajouter'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={resource ? 'Enregistrer' : 'Ajouter'} loading={addLink.isPending || update.isPending} disabled={!title.trim() || (isLink && !url.trim())} />
       </Stack>
     </form>
   );

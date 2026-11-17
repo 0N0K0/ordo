@@ -3,7 +3,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
-import { Badge, Button, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Badge, Checkbox, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, VAT_RATES, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../components/data-table/DataTable';
@@ -23,6 +23,7 @@ import { useCommentCounts } from '../comments/api';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { commentColumn } from '../comments/comment-column';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
@@ -151,14 +152,7 @@ function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => v
             )}
           </SimpleGrid>
           {item && <Checkbox label="Archivé (n’est plus proposé dans les documents)" {...form.getInputProps('archived', { type: 'checkbox' })} />}
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={create.isPending || update.isPending}>
-              Enregistrer
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
       {item && <Comments target="CATALOG_ITEM" id={item.id} />}

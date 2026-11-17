@@ -7,6 +7,7 @@ import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
 import { CreatableSelect } from '../../components/CreatableSelect';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const ROOT = '__root__';
 
@@ -81,14 +82,7 @@ export function LinkForm({ folderId, onDone }: { folderId: string | null; onDone
             {error}
           </Text>
         )}
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={addLink.isPending}>
-            Ajouter
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel="Ajouter" loading={addLink.isPending} />
       </Stack>
     </form>
   );
@@ -147,14 +141,7 @@ export function DocumentForm({ document, onDone }: { document: LibraryDocument; 
               {error}
             </Text>
           )}
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={update.isPending}>
-              Enregistrer
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} loading={update.isPending} />
         </Stack>
       </form>
       {document && <Comments target="LIBRARY_DOCUMENT" id={document.id} />}
@@ -184,14 +171,7 @@ export function FolderNameForm({ initial, onSubmit, onDone, submitLabel }: { ini
     >
       <Stack gap="sm">
         <TextInput label="Nom" required data-autofocus value={name} error={error} placeholder="Administratif, Juridique, Identité visuelle…" onChange={(event) => setName(event.currentTarget.value)} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={pending}>
-            {submitLabel}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={submitLabel} loading={pending} />
       </Stack>
     </form>
   );
@@ -226,23 +206,18 @@ export function MoveForm({
           {error}
         </Text>
       )}
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={pending}
-          onClick={() => {
-            setPending(true);
-            onSubmit(folderId)
-              .then(onDone)
-              .catch((moveError: Error) => setError(moveError.message))
-              .finally(() => setPending(false));
-          }}
-        >
-          Déplacer
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Déplacer"
+        loading={pending}
+        onSubmit={() => {
+          setPending(true);
+          onSubmit(folderId)
+            .then(onDone)
+            .catch((moveError: Error) => setError(moveError.message))
+            .finally(() => setPending(false));
+        }}
+      />
     </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { Button, Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
+import { Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
@@ -6,6 +6,7 @@ import { localToday } from '../../lib/dates';
 import { PERIOD_PRESETS, presetRange, type PeriodPreset } from '../../lib/periods';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const TYPES: AccountingDocumentType[] = ['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'];
 
@@ -89,16 +90,7 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
       <Text size="xs" c="dimmed">
         Documents validés dont la date d’émission tombe dans la période, rangés dans un dossier par type. Les brouillons ne sont pas inclus.
       </Text>
-      <Group justify="flex-end" gap="sm">
-        {onDone && (
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-        )}
-        <Button onClick={() => void download()} disabled={!valid} loading={loading}>
-          Télécharger le ZIP
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} submitLabel="Télécharger le ZIP" onSubmit={() => void download()} disabled={!valid} loading={loading} />
     </Stack>
   );
 }

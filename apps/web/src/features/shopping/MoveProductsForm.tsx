@@ -1,9 +1,10 @@
-import { Button, Group, Select, Stack } from '@mantine/core';
+import { Select, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from './api';
 import { collator, countOf, plural } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface MoveProductsFormProps {
   /** Base list the products leave. */
@@ -71,14 +72,7 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
           required
           data-autofocus
         />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={moveProducts.isPending} disabled={!target || ids.length === 0}>
-            Déplacer
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel="Déplacer" loading={moveProducts.isPending} disabled={!target || ids.length === 0} />
       </Stack>
     </form>
   );

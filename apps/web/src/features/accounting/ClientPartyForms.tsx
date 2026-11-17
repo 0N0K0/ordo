@@ -1,10 +1,11 @@
-import { Button, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { clientContactSchema, clientDetailsSchema, clientServiceSchema, type Address, type Phone } from '@ordo/shared';
 import { AddressFields } from '../../components/address/AddressFields';
 import { PhonesField } from '../../components/address/PhonesField';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from './api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Errors of the address fields, from the form errors ("address.city" → "city").
@@ -16,24 +17,6 @@ function addressErrors(errors: Record<string, unknown>): Record<string, string> 
     Object.entries(errors)
       .filter(([key]) => key.startsWith('address.'))
       .map(([key, message]) => [key.slice('address.'.length), String(message)]),
-  );
-}
-
-/**
- * Form buttons.
- * @param {{ onCancel: () => void, loading: boolean, label?: string }} props Component props.
- * @returns {JSX.Element} Buttons.
- */
-function FormActions({ onCancel, loading, label = 'Enregistrer' }: { onCancel: () => void; loading: boolean; label?: string }) {
-  return (
-    <Group justify="flex-end" gap="sm">
-      <Button variant="default" onClick={onCancel}>
-        Annuler
-      </Button>
-      <Button type="submit" loading={loading}>
-        {label}
-      </Button>
-    </Group>
   );
 }
 
@@ -169,7 +152,7 @@ export function ClientServiceForm({ clientId, service, onDone }: { clientId: str
         <AddressFields legend="Adresse" value={form.values.address} onChange={(address) => form.setFieldValue('address', address)} errors={addressErrors(form.errors)} />
         <TextInput label="Email" {...form.getInputProps('email')} />
         <PhonesField value={form.values.phones} onChange={(phones) => form.setFieldValue('phones', phones)} />
-        <FormActions onCancel={onDone} loading={createService.isPending || updateService.isPending} label={service ? 'Enregistrer' : 'Ajouter'} />
+        <FormActions onCancel={onDone} loading={createService.isPending || updateService.isPending} submitLabel={service ? 'Enregistrer' : 'Ajouter'} />
       </Stack>
     </form>
   );
@@ -247,7 +230,7 @@ export function ClientContactForm({
             Client particulier : les contacts servent surtout aux proches ou aux intermédiaires.
           </Text>
         )}
-        <FormActions onCancel={onDone} loading={createContact.isPending || updateContact.isPending} label={contact ? 'Enregistrer' : 'Ajouter'} />
+        <FormActions onCancel={onDone} loading={createContact.isPending || updateContact.isPending} submitLabel={contact ? 'Enregistrer' : 'Ajouter'} />
       </Stack>
     </form>
   );

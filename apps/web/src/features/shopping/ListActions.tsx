@@ -20,6 +20,7 @@ import { openFormPanel } from '../../components/panels/panels';
 import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from './shopping-format';
 import classes from './Shopping.module.css';
 import * as fmt from '../../lib/format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const listSchema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()) });
 
@@ -61,14 +62,7 @@ function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) 
           disabled={!context}
           {...form.getInputProps('taskIds')}
         />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={updateList.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} loading={updateList.isPending} />
       </Stack>
     </form>
   );

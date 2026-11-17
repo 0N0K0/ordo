@@ -1,6 +1,6 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
-import { Button, Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { formatDuration, VAT_RATES, type AccountingLineInput } from '@ordo/shared';
 import { useState } from 'react';
@@ -15,6 +15,7 @@ import { DataTable } from '../../components/data-table/DataTable';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { localDay } from '../../lib/dates';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * What a time was spent on: its tasks, then its description.
@@ -234,14 +235,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
         <Text size="sm" c="dimmed">
           {selected.length} temps, {formatDuration(selected.reduce((sum, entry) => sum + entry.seconds, 0))} → {lines.length} ligne{lines.length > 1 ? 's' : ''}, {fmt.moneyCents(total)} HT
         </Text>
-        <Group gap="sm">
-          <Button variant="default" onClick={onCancel}>
-            Annuler
-          </Button>
-          <Button disabled={lines.length === 0} onClick={() => onAdd(lines, selected.map((entry) => ({ id: entry.id, seconds: entry.seconds })), { start: days[0], end: days[days.length - 1] })}>
-            Ajouter les lignes
-          </Button>
-        </Group>
+        <FormActions onCancel={onCancel} submitLabel="Ajouter les lignes" disabled={lines.length === 0} onSubmit={() => onAdd(lines, selected.map((entry) => ({ id: entry.id, seconds: entry.seconds })), { start: days[0], end: days[days.length - 1] })} />
       </Group>
     </Stack>
   );

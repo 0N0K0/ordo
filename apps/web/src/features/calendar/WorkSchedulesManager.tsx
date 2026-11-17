@@ -2,7 +2,7 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import * as fmt from '../../lib/format';
 import { listSelectProps } from '../../components/settings/item-look';
 import { EmptyState } from '../../components/feedback/EmptyState';
-import { Badge, Button, ColorSwatch, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
+import { Badge, ColorSwatch, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import {
   DEFAULT_SCHEDULE_KIND_NAME,
   readScheduleCases,
@@ -36,6 +36,7 @@ import { CreatableSelect } from '../../components/CreatableSelect';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { useDefaultColor } from '../workspace/use-default-color';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface ScheduleValues extends Record<string, unknown> {
   name: string;
@@ -118,14 +119,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
             onChange={(repetition) => form.setValues({ ...repetition })}
           />
 
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={create.isPending || update.isPending}>
-              Enregistrer
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
       {schedule && <Comments target="SCHEDULE" id={schedule.id} />}

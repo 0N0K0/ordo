@@ -4,7 +4,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
-import { ActionIcon, Alert, Button, Group, Menu, Paper, SimpleGrid, Stack, Tabs, Text, TextInput, Tooltip, type TabsTabProps } from '@mantine/core';
+import { ActionIcon, Alert, Group, Menu, Paper, SimpleGrid, Stack, Tabs, Text, TextInput, Tooltip, type TabsTabProps } from '@mantine/core';
 
 import { chartConfigSchema, dashboardNameSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
@@ -50,6 +50,7 @@ import { countLabel, NEW_CHART_TITLES } from './aggregate';
 import * as fmt from '../../lib/format';
 import { countOf } from '../../lib/text';
 import { useDragSensors } from '../../lib/drag';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Image of a chart as exported. */
 interface Capture {
@@ -470,12 +471,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
       >
         <Stack gap="md">
           <TextInput label="Nom" required data-autofocus defaultValue={name} placeholder="KPI, Sprint, Mensuel…" onChange={(event) => (name = event.currentTarget.value)} />
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={close}>
-              Annuler
-            </Button>
-            <Button type="submit">{dashboard ? 'Renommer' : 'Créer'}</Button>
-          </Group>
+          <FormActions onCancel={close} submitLabel={dashboard ? 'Renommer' : 'Créer'} />
         </Stack>
       </form>
     ));

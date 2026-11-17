@@ -23,6 +23,7 @@ import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from './api';
 import { plural } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -71,14 +72,7 @@ function FolderNameForm({ initial, label, onSubmit, onDone }: { initial: string;
     >
       <Stack gap="md">
         <TextInput label="Nom" required data-autofocus value={name} error={error} onChange={(event) => setName(event.currentTarget.value)} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={loading}>
-            {label}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={label} loading={loading} />
       </Stack>
     </form>
   );

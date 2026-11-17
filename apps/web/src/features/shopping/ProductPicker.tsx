@@ -1,4 +1,5 @@
-import { Anchor, Badge, Button, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
+import { FormActions } from '../../components/dialogs/FormActions';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
@@ -125,29 +126,24 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
           </Stack>
         )}
       </ScrollArea.Autosize>
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          disabled={selected.size === 0}
-          loading={addProducts.isPending}
-          onClick={() =>
-            addProducts.mutate(
-              { listId: list.id, productIds: [...selected] },
-              {
-                onSuccess: (count) => {
-                  notifySuccess(`${count} produit(s) ajouté(s).`);
-                  onDone();
-                },
-                onError: onMutationError,
+      <FormActions
+        onCancel={onDone}
+        submitLabel={`Ajouter (${selected.size})`}
+        disabled={selected.size === 0}
+        loading={addProducts.isPending}
+        onSubmit={() =>
+          addProducts.mutate(
+            { listId: list.id, productIds: [...selected] },
+            {
+              onSuccess: (count) => {
+                notifySuccess(`${count} produit(s) ajouté(s).`);
+                onDone();
               },
-            )
-          }
-        >
-          Ajouter ({selected.size})
-        </Button>
-      </Group>
+              onError: onMutationError,
+            },
+          )
+        }
+      />
     </Stack>
   );
 }

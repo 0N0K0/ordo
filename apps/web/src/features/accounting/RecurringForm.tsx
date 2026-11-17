@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Switch, TextInput } from '@mantine/core';
+import { Stack, Switch, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, recurrenceSchema, type Recurrence } from '@ordo/shared';
 import { useState } from 'react';
@@ -6,6 +6,7 @@ import { localToday } from '../../lib/dates';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useRecurringMutations, type RecurringInvoice } from './documents-api';
 import { RuleField } from '../../components/recurrence/RuleField';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface RecurringFormProps {
   /** Invoice made recurring (new schedule). */
@@ -59,14 +60,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
         onChange={(event) => setAutoFinalize(event.currentTarget.checked)}
       />
       <Switch label="Active" checked={active} onChange={(event) => setActive(event.currentTarget.checked)} />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button onClick={submit} disabled={!rule || !name.trim()} loading={create.isPending || update.isPending}>
-          {recurring ? 'Enregistrer' : 'Créer'}
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} submitLabel={recurring ? 'Enregistrer' : 'Créer'} onSubmit={submit} disabled={!rule || !name.trim()} loading={create.isPending || update.isPending} />
     </Stack>
   );
 }

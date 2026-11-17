@@ -21,6 +21,7 @@ import * as fmt from '../../lib/format';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { countOf } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Day in words.
@@ -156,14 +157,7 @@ export function ContextForm({ context, onDone }: { context?: TreasuryContext; on
       <Stack gap="sm">
         <TextInput label="Nom" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('name')} />
         <ColorInput label="Couleur" required format="hex" swatches={swatches} swatchesPerRow={9} {...form.getInputProps('color')} />
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => onDone()}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={saveContext.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions onCancel={() => onDone()} loading={saveContext.isPending} />
       </Stack>
     </form>
   );
@@ -214,14 +208,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
           suggestions={{ projectId: null, tasks: [], contributors: [] }}
           minRows={2}
         />
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={saveContextPeriod.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} loading={saveContextPeriod.isPending} />
       </Stack>
     </form>
   );
@@ -404,14 +391,7 @@ export function RelationForm({ relation, onDone }: { relation?: TreasuryRelation
           }}
         />
         <TextInput label="Note" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => onDone()}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={saveRelation.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions onCancel={() => onDone()} loading={saveRelation.isPending} />
       </Stack>
     </form>
   );

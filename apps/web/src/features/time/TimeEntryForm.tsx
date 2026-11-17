@@ -1,5 +1,5 @@
 import { TimeField } from '../../components/TimeField';
-import { Button, Group, Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
 import { useState } from 'react';
@@ -16,6 +16,7 @@ import { Comments } from '../comments/Comments';
 import { useRoutinesData } from '../routines/api';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { routineTreeOptions } from '../routines/routine-format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Local "YYYY-MM-DD" and "HH:MM" of an instant.
@@ -152,14 +153,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
             suggestions={context.suggestionsFor(form.values.projectId || null)}
             minRows={3}
           />
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={create.isPending || update.isPending}>
-              {entry && !copy ? 'Enregistrer' : 'Ajouter'}
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} submitLabel={entry && !copy ? 'Enregistrer' : 'Ajouter'} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
       {entry && !copy && <Comments target="TIME_ENTRY" id={entry!.id} projectId={entry!.projectId ?? null} />}

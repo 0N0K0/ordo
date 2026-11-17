@@ -1,5 +1,5 @@
 import { PageHeader } from '../../components/actions/PageHeader';
-import { Alert, Button, Group, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Button, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
 import { changeEmailFormSchema, changePasswordFormSchema, changeUsernameFormSchema, type ChangeEmailFormValues, type ChangePasswordFormValues, type ChangeUsernameFormValues } from '@ordo/shared';
 import { useMemo, type ReactNode } from 'react';
 import { InfoFeedbackIcon } from '../../components/feedback-icons';
@@ -7,6 +7,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../auth/api';
 import { PasswordStrength } from '../auth/PasswordStrength';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface SectionProps {
   title: string;
@@ -82,11 +83,7 @@ function UsernameForm({ user }: { user: AccountUser }) {
           required
           {...form.getInputProps('currentPassword')}
         />
-        <Group justify="flex-end">
-          <Button type="submit" loading={changeUsername.isPending}>
-            Modifier l’identifiant
-          </Button>
-        </Group>
+        <FormActions submitLabel="Modifier l’identifiant" loading={changeUsername.isPending} />
       </Stack>
     </form>
   );
@@ -154,11 +151,7 @@ function EmailForm({ user }: { user: AccountUser }) {
             required
             {...form.getInputProps('currentPassword')}
           />
-          <Group justify="flex-end">
-            <Button type="submit" loading={requestEmailChange.isPending}>
-              Changer d’adresse
-            </Button>
-          </Group>
+          <FormActions submitLabel="Changer d’adresse" loading={requestEmailChange.isPending} />
         </Stack>
       </form>
     </Stack>
@@ -206,11 +199,7 @@ function PasswordForm({ user }: { user: AccountUser }) {
           <PasswordStrength value={form.values.password} userInputs={userInputs} />
         </Stack>
         <PasswordInput label="Confirmation" autoComplete="new-password" required {...form.getInputProps('confirmation')} />
-        <Group justify="flex-end">
-          <Button type="submit" loading={changePassword.isPending}>
-            Modifier le mot de passe
-          </Button>
-        </Group>
+        <FormActions submitLabel="Modifier le mot de passe" loading={changePassword.isPending} />
       </Stack>
     </form>
   );

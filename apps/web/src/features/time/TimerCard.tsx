@@ -1,5 +1,5 @@
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { ActionIcon, Anchor, Button, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
 import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
 import { PauseIcon, PlayIcon, StopIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -13,6 +13,7 @@ import { TimeTasksSelect } from './TimeTasksSelect';
 import { useNow } from './use-now';
 import { useStopTimer } from './use-stop-timer';
 import * as fmt from '../../lib/format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Dropdowns inside a popover stay in it (a portal would close the popover on click). */
 const inPopover = { comboboxProps: { withinPortal: false } };
@@ -82,11 +83,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
           value={description}
           onChange={(event) => setDescription(event.currentTarget.value)}
         />
-        <Group justify="flex-end">
-          <Button type="submit" leftSection={<PlayIcon aria-hidden />} disabled={!projectId} loading={start.isPending}>
-            Démarrer
-          </Button>
-        </Group>
+        <FormActions submitLabel="Démarrer" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId} loading={start.isPending} />
       </Stack>
     </form>
   );

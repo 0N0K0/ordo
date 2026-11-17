@@ -1,4 +1,4 @@
-import { Button, ColorInput, Group, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
+import { ColorInput, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { projectFormSchema, type ProjectFormValues } from '@ordo/shared';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { projectDepth, projectHeight, projectOptions } from './tree';
 import { useColorSwatches } from './use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface ProjectFormProps {
   /** Project to edit; creates a new one when absent. */
@@ -171,16 +172,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
           color={form.values.color || null}
           error={form.errors.icon as string | undefined}
         />
-        <Group justify="flex-end">
-          {onDone && (
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-          )}
-          <Button type="submit" loading={pending}>
-            {project ? 'Enregistrer' : 'Créer le projet'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={project ? 'Enregistrer' : 'Créer le projet'} loading={pending} />
       </Stack>
     </form>
   );

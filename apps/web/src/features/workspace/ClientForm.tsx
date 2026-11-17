@@ -1,4 +1,4 @@
-import { Button, ColorInput, Group, Stack, TextInput } from '@mantine/core';
+import { ColorInput, Stack, TextInput } from '@mantine/core';
 import { clientFormSchema, type ClientFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
@@ -6,6 +6,7 @@ import { notifySuccess } from '../../lib/notify';
 import { useCreateClient, useUpdateClient, type Client } from './api';
 import { IconField, type IconValue } from './IconField';
 import { useColorSwatches } from './use-color-swatches';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface ClientFormProps {
   /** Client to edit; creates a new one when absent. */
@@ -72,16 +73,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
           color={form.values.color || null}
           error={form.errors.icon as string | undefined}
         />
-        <Group justify="flex-end">
-          {onDone && (
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-          )}
-          <Button type="submit" loading={pending}>
-            {client ? 'Enregistrer' : 'Créer le client'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={client ? 'Enregistrer' : 'Créer le client'} loading={pending} />
       </Stack>
     </form>
   );

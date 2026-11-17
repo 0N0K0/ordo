@@ -1,6 +1,6 @@
 import { DatePickerInput } from '@mantine/dates';
 import { listSelectProps } from '../../components/settings/item-look';
-import { Anchor, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Checkbox, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -15,6 +15,7 @@ import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
 import { CreatableSelect } from '../../components/CreatableSelect';
 import { useDefaultColor } from '../workspace/use-default-color';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -201,14 +202,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             minRows={2}
           />
           {target.kind === 'product' && <Checkbox label="Manque" description="Il sera mis sur la prochaine liste générée." {...form.getInputProps('missing', { type: 'checkbox' })} />}
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={pending}>
-              {current ? 'Enregistrer' : 'Ajouter'}
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} submitLabel={current ? 'Enregistrer' : 'Ajouter'} loading={pending} />
         </Stack>
       </form>
       {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} />}

@@ -41,6 +41,7 @@ import * as fmt from '../../lib/format';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { AmountInput } from '../../components/AmountInput';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Amount in euros, from currency units.
@@ -143,31 +144,25 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
         <DatePickerInput label="Date réelle" required value={date} onChange={setDate} />
         <AmountInput label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'} min={0} suffix=" €" value={amount} onChange={(value) => setAmount(typeof value === 'number' ? value : 0)} />
       </SimpleGrid>
-      <Group justify="flex-end">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={realize.isPending}
-          disabled={!date || amount <= 0}
-          onClick={() =>
-            date &&
-            item.entryId &&
-            realize.mutate(
-              { id: item.entryId, occurrence: item.dueDate, date, amount: item.amount < 0 ? -amount : amount },
-              {
-                onSuccess: () => {
-                  notifySuccess('Mouvement enregistré.');
-                  onDone();
-                },
-                onError: onMutationError,
+      <FormActions
+        onCancel={onDone}
+        loading={realize.isPending}
+        disabled={!date || amount <= 0}
+        onSubmit={() =>
+          date &&
+          item.entryId &&
+          realize.mutate(
+            { id: item.entryId, occurrence: item.dueDate, date, amount: item.amount < 0 ? -amount : amount },
+            {
+              onSuccess: () => {
+                notifySuccess('Mouvement enregistré.');
+                onDone();
               },
-            )
-          }
-        >
-          Enregistrer
-        </Button>
-      </Group>
+              onError: onMutationError,
+            },
+          )
+        }
+      />
     </Stack>
   );
 }

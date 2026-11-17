@@ -1,4 +1,4 @@
-import { Button, ColorInput, Group, Select, Stack, TextInput } from '@mantine/core';
+import { ColorInput, Select, Stack, TextInput } from '@mantine/core';
 import type { UseFormReturnType } from '@mantine/form';
 import { useState, type ReactNode } from 'react';
 import { IconField, type IconValue } from '../../features/workspace/IconField';
@@ -8,6 +8,7 @@ import { notifySuccess } from '../../lib/notify';
 import { categoryOptions, categoryTree } from '../category-tree/category-tree';
 import { treeSelectProps } from '../tree-select/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
+import { FormActions } from '../dialogs/FormActions';
 
 /** Item of a settings list: a name, a color, an image and, in a tree, a parent. */
 export interface SettingsItem {
@@ -131,14 +132,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
           <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />
         )}
         {extra?.render(form)}
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={pending}>
-            {item ? 'Enregistrer' : 'Créer'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={item ? 'Enregistrer' : 'Créer'} loading={pending} />
       </Stack>
     </form>
   );

@@ -1,9 +1,10 @@
-import { Button, Group, Select, Stack } from '@mantine/core';
+import { Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { SENDING_CHANNEL_LABELS, SENDING_CHANNELS, type SendingChannel } from '@ordo/shared';
 import { useState } from 'react';
 import { localDay, localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface SentFormProps {
   /** Sending already noted (corrected), if any. */
@@ -54,14 +55,7 @@ export function SentForm({ sentAt, sentVia, onSubmit, onDone }: SentFormProps) {
         onChange={(value) => value && setVia(value as SendingChannel)}
       />
       <DatePickerInput label="Date d’envoi" description="Les relances comptent à partir de cette date." required maxDate={today} value={date} onChange={(value) => setDate(value)} data-autofocus />
-      <Group justify="flex-end">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button loading={saving} disabled={!date} onClick={() => void save()}>
-          Enregistrer
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} loading={saving} disabled={!date} onSubmit={() => void save()} />
     </Stack>
   );
 }

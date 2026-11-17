@@ -1,10 +1,11 @@
-import { Button, Group, Select, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { PERIOD_PRESETS, presetRange, type PeriodPreset } from '../../lib/periods';
 import type { TreasuryAccount } from './api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface StatementFormProps {
   accounts: TreasuryAccount[];
@@ -78,14 +79,7 @@ export function StatementForm({ accounts, accountId: initialAccount, onDone }: S
       <Text size="xs" c="dimmed">
         Mouvements réels de la période par date d’exécution, avec le solde avant, après et au fil des mouvements. Les prévisions ne sont pas incluses.
       </Text>
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button onClick={() => void download()} disabled={!valid} loading={loading}>
-          Télécharger le PDF
-        </Button>
-      </Group>
+      <FormActions onCancel={onDone} submitLabel="Télécharger le PDF" onSubmit={() => void download()} disabled={!valid} loading={loading} />
     </Stack>
   );
 }

@@ -1,9 +1,10 @@
-import { ActionIcon, Button, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useSheets } from './api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface SheetPickerProps {
   /** Adds a sheet, times a multiplier (resolves once done). */
@@ -74,28 +75,23 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
           ))}
         </Stack>
       )}
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          disabled={!sheetId}
-          loading={pending}
-          onClick={() => {
-            if (!sheetId) return;
-            setPending(true);
-            onAdd(sheetId, multiplier)
-              .then(() => {
-                notifySuccess('Fiche ajoutée.');
-                onDone();
-              })
-              .catch(onMutationError)
-              .finally(() => setPending(false));
-          }}
-        >
-          Ajouter
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Ajouter"
+        disabled={!sheetId}
+        loading={pending}
+        onSubmit={() => {
+          if (!sheetId) return;
+          setPending(true);
+          onAdd(sheetId, multiplier)
+            .then(() => {
+              notifySuccess('Fiche ajoutée.');
+              onDone();
+            })
+            .catch(onMutationError)
+            .finally(() => setPending(false));
+        }}
+      />
     </Stack>
   );
 }

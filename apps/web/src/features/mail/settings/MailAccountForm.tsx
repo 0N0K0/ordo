@@ -6,6 +6,7 @@ import { showFormError, useAppForm } from '../../../lib/form';
 import { GraphQLRequestError } from '../../../lib/graphql-client';
 import { notifySuccess } from '../../../lib/notify';
 import { useMailAccountMutations, type MailAccount } from '../api';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 /** Usual settings of common providers. */
 const PRESETS: Record<string, { label: string; imap: [string, number, boolean]; smtp: [string, number, boolean]; saveSent: boolean }> = {
@@ -219,14 +220,7 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
           >
             Tester la connexion
           </Button>
-          <Group gap="sm">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={create.isPending || update.isPending}>
-              {account ? 'Enregistrer' : 'Ajouter'}
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} submitLabel={account ? 'Enregistrer' : 'Ajouter'} loading={create.isPending || update.isPending} />
         </Group>
       </Stack>
     </form>

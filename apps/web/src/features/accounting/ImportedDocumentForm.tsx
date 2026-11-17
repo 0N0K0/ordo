@@ -1,35 +1,19 @@
-import {
-  Button,
-  Checkbox,
-  FileInput,
-  Group,
-  Select,
-  SimpleGrid,
-  Stack,
-  Text,
-  TextInput,
-} from '@mantine/core';
+import { Checkbox, FileInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import {
-  ACCOUNTING_DOCUMENT_TYPES,
-  importedDocumentSchema,
-  type AccountingDocumentType,
-} from '@ordo/shared';
+import { ACCOUNTING_DOCUMENT_TYPES, importedDocumentSchema, type AccountingDocumentType } from '@ordo/shared';
 import { FilePdfIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useWorkspace } from '../workspace/api';
-import {
-  useImportedDocumentMutations,
-  type ImportedDocument,
-} from './documents-api';
+import { useImportedDocumentMutations, type ImportedDocument } from './documents-api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { projectOptions } from '../workspace/tree';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AmountInput } from '../../components/AmountInput';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface FormValues extends Record<string, unknown> {
   type: AccountingDocumentType;
@@ -236,14 +220,7 @@ export function ImportedDocumentForm({
             {...form.getInputProps('settled', { type: 'checkbox' })}
           />
         )}
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            {document ? 'Enregistrer' : 'Importer'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={document ? 'Enregistrer' : 'Importer'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

@@ -11,6 +11,7 @@ import * as fmt from '../../lib/format';
 import { DataTable } from '../../components/data-table/DataTable';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { useDataView } from '../../components/data-table/use-data-view';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Days between a bank operation and an entry or forecast of the same amount for them to match. */
 const DUPLICATE_DAYS = 3;
@@ -245,14 +246,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           Les colonnes sont devinées, ou reprises du dernier import de ce compte. Une carte à débit différé n’apparaît qu’en une ligne par mois : importez-la, puis répartissez-la en achats, chacun à
           sa date.
         </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button disabled={!accountId || !file || !mapping} onClick={() => setStep('columns')}>
-            Suivant
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel="Suivant" disabled={!accountId || !file || !mapping} onSubmit={() => setStep('columns')} />
       </Stack>
     );
   }

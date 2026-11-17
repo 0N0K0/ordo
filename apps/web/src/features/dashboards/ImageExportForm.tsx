@@ -1,8 +1,9 @@
-import { Button, Group, SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { useState } from 'react';
 import type { ExportScheme } from './chart-image';
 import * as fmt from '../../lib/format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Settings of an image export. */
 interface ImageExportSettings {
@@ -80,22 +81,17 @@ export function ImageExportForm({ onExport, onDone }: { onExport: (settings: Ima
       <Text size="sm" c="dimmed">
         Image PNG de {fmt.number(width, 0)} × {fmt.number(height, 0)} px.
       </Text>
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={loading}
-          onClick={() => {
-            setLoading(true);
-            onExport({ scheme: stored.scheme, width, height })
-              .then(onDone)
-              .finally(() => setLoading(false));
-          }}
-        >
-          Exporter
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Exporter"
+        loading={loading}
+        onSubmit={() => {
+          setLoading(true);
+          onExport({ scheme: stored.scheme, width, height })
+            .then(onDone)
+            .finally(() => setLoading(false));
+        }}
+      />
     </Stack>
   );
 }

@@ -1,6 +1,6 @@
 import { FormSkeleton } from '../../components/feedback/Skeletons';
 import { listSelectProps } from '../../components/settings/item-look';
-import { Alert, Anchor, Button, Group, Select, Stack } from '@mantine/core';
+import { Alert, Anchor, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { documentPaymentSchema } from '@ordo/shared';
 import { Link } from 'react-router';
@@ -10,6 +10,7 @@ import { notifySuccess } from '../../lib/notify';
 import { useTreasuryAccounts, useTreasurySettings, type TreasuryAccount, type TreasuryPaymentMethod } from '../treasury/api';
 import { useTrackingMutations } from './tracking-api';
 import { AmountInput } from '../../components/AmountInput';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Document a payment (or refund) is recorded on: what the form needs of it. */
 export interface PayableDocument {
@@ -107,14 +108,7 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
           {...listSelectProps(methods)}
           {...form.getInputProps('methodId')}
         />
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={recordPayment.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} loading={recordPayment.isPending} />
       </Stack>
     </form>
   );

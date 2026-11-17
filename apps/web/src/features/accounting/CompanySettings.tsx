@@ -8,6 +8,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from './api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 type FormValues = CompanyProfileInput & Record<string, unknown>;
 
@@ -291,11 +292,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
           </Stack>
         </Fieldset>
 
-        <Group justify="flex-end">
-          <Button type="submit" loading={update.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions loading={update.isPending} />
       </Stack>
     </form>
   );

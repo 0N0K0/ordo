@@ -1,9 +1,10 @@
-import { Button, Group, NumberInput, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { NumberInput, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import * as fmt from '../../lib/format';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useStockMutations, type StockItem } from './api';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 type Kind = 'PURCHASE' | 'CONSUMPTION' | 'LOSS' | 'CORRECTION';
 
@@ -59,23 +60,17 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
         <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable value={expiresAt} onChange={(value) => setExpiresAt(value ? String(value) : null)} />
       )}
       <TextInput label="Note" value={note} onChange={(event) => setNote(event.currentTarget.value)} />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          disabled={quantity <= 0}
-          loading={move.isPending}
-          onClick={() =>
-            move.mutate(
-              { itemId: item.id, kind, quantity, lotId, expiresAt: adding ? expiresAt : null, note: note || null },
-              { onSuccess: () => (notifySuccess(adding ? 'Ajouté au stock.' : 'Retiré du stock.'), onDone()), onError: onMutationError },
-            )
-          }
-        >
-          Enregistrer
-        </Button>
-      </Group>
+      <FormActions
+        onCancel={onDone}
+        disabled={quantity <= 0}
+        loading={move.isPending}
+        onSubmit={() =>
+          move.mutate(
+            { itemId: item.id, kind, quantity, lotId, expiresAt: adding ? expiresAt : null, note: note || null },
+            { onSuccess: () => (notifySuccess(adding ? 'Ajouté au stock.' : 'Retiré du stock.'), onDone()), onError: onMutationError },
+          )
+        }
+      />
     </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { Button, Divider, Group, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Divider, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { listSelectProps } from '../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
@@ -6,6 +6,7 @@ import { showFormError, useAppForm } from '../../lib/form';
 import { notifySuccess } from '../../lib/notify';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, type MailSearch } from './api';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /**
  * Search folder: name, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
@@ -111,14 +112,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           <DatePickerInput label="Jusqu’au" clearable placeholder="—" minDate={values.since ?? undefined} {...form.getInputProps('until')} />
         </SimpleGrid>
         <Switch label="Avec pièce jointe" {...form.getInputProps('attachments', { type: 'checkbox' })} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={() => onDone()}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            Enregistrer
-          </Button>
-        </Group>
+        <FormActions onCancel={() => onDone()} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

@@ -4,7 +4,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { SidePanel } from '../../components/panels/SidePanel';
-import { Badge, Button, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Title, Tooltip, NumberInput } from '@mantine/core';
+import { Badge, Group, Paper, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Title, Tooltip, NumberInput } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react';
@@ -30,6 +30,7 @@ import { CreatableSelect } from '../../components/CreatableSelect';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { useDefaultColor } from '../workspace/use-default-color';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -260,14 +261,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               />
             )}
           </SimpleGrid>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={save.isPending}>
-              Enregistrer
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} loading={save.isPending} />
         </Stack>
       </form>
       {budget && <Comments target="BUDGET" id={budget.id} />}

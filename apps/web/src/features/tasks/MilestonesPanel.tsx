@@ -2,7 +2,7 @@ import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../components/panels/panels';
-import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
+import { ActionIcon, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -21,6 +21,7 @@ import { useTaskContext, type TaskContext } from './use-task-context';
 import * as fmt from '../../lib/format';
 import { countOf } from '../../lib/text';
 import { useDragSensors } from '../../lib/drag';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface MilestoneFormProps {
   projectId: string;
@@ -71,14 +72,7 @@ function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormP
           minRows={4}
           onSubmitShortcut={() => handleSubmit()}
         />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            {milestone ? 'Enregistrer' : 'Créer le jalon'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={milestone ? 'Enregistrer' : 'Créer le jalon'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

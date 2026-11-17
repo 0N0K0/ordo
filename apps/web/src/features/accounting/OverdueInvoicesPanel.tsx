@@ -18,6 +18,7 @@ import { DOCUMENT_TYPE_LABELS } from './labels';
 import { useOverdueInvoices, useTrackingMutations, type OverdueInvoice } from './tracking-api';
 import * as fmt from '../../lib/format';
 import { countOf } from '../../lib/text';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
 const REMIND_AFTER_DAYS = 7;
@@ -123,32 +124,27 @@ export function OverdueInvoicesPanel() {
             </Text>
           ))}
         </Stack>
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={close}>
-            Annuler
-          </Button>
-          <Button
-            leftSection={<PaperPlaneTiltIcon aria-hidden />}
-            onClick={() => {
-              close();
-              sendReminders.mutate(
-                { accountId: account, documentIds: chosen.map((invoice) => invoice.id) },
-                {
-                  onSuccess: (results) => {
-                    const sent = results.filter((result) => !result.error);
-                    const failed = results.filter((result) => result.error);
-                    if (sent.length) notifySuccess(`${sent.length} relance${sent.length > 1 ? 's envoyées' : ' envoyée'}.`);
-                    if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
-                    setSelected(new Set(failed.map((result) => result.documentId)));
-                  },
-                  onError: onMutationError,
+        <FormActions
+          onCancel={close}
+          submitLabel="Envoyer"
+          submitIcon={<PaperPlaneTiltIcon aria-hidden />}
+          onSubmit={() => {
+            close();
+            sendReminders.mutate(
+              { accountId: account, documentIds: chosen.map((invoice) => invoice.id) },
+              {
+                onSuccess: (results) => {
+                  const sent = results.filter((result) => !result.error);
+                  const failed = results.filter((result) => result.error);
+                  if (sent.length) notifySuccess(`${sent.length} relance${sent.length > 1 ? 's envoyées' : ' envoyée'}.`);
+                  if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
+                  setSelected(new Set(failed.map((result) => result.documentId)));
                 },
-              );
-            }}
-          >
-            Envoyer
-          </Button>
-        </Group>
+                onError: onMutationError,
+              },
+            );
+          }}
+        />
       </Stack>
     ));
   };

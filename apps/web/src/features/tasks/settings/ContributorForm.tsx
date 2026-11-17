@@ -1,4 +1,4 @@
-import { Button, Group, Stack, TextInput } from '@mantine/core';
+import { Stack, TextInput } from '@mantine/core';
 import { contributorFormSchema, suggestHandle, type ContributorFormValues } from '@ordo/shared';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../../lib/form';
@@ -9,6 +9,7 @@ import { treeSelectProps } from '../../../components/tree-select/tree-select';
 import { projectOptions } from '../../workspace/tree';
 import { useContributorMutations, type Contributor } from '../api';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 interface ContributorFormProps {
   contributor?: Contributor;
@@ -97,14 +98,7 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
             nothingFoundMessage="Aucun projet"
           />
         )}
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            {contributor ? 'Enregistrer' : 'Ajouter'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={contributor ? 'Enregistrer' : 'Ajouter'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

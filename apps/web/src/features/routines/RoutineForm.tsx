@@ -1,4 +1,4 @@
-import { Button, Divider, Grid, Group, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Divider, Grid, NumberInput, Select, Stack, Text, TextInput } from '@mantine/core';
 import { opensFits, readOpens, readSlotCondition, type RoutineOpens, routineSchema, type SlotCondition, type Recurrence, type RoutineCase, type RoutineSlot } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
@@ -16,6 +16,7 @@ import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
 import { SheetsSection } from '../sheets/SheetsSection';
 import { useDefaultColor } from '../workspace/use-default-color';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 interface RoutineFormValues extends Record<string, unknown> {
   title: string;
@@ -248,14 +249,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
             </Stack>
           </Grid.Col>
         </Grid>
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={create.isPending || update.isPending}>
-            {routine && !copy ? 'Enregistrer' : 'Créer'}
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel={routine && !copy ? 'Enregistrer' : 'Créer'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

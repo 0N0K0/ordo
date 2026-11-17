@@ -1,4 +1,4 @@
-import { Autocomplete, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Textarea } from '@mantine/core';
+import { Autocomplete, Checkbox, NumberInput, Select, SimpleGrid, Stack, Textarea } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -9,6 +9,7 @@ import { useShoppingData } from '../shopping/api';
 import { shoppingCategoryOptions, usePeople } from '../shopping/shopping-format';
 import { useStockLocations, useStockMutations } from './api';
 import { locationOptions } from './stock-format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 type Values = NewStockItemInput & Record<string, unknown>;
 
@@ -89,14 +90,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           }
         />
         <Textarea label="Description" autosize minRows={2} maxRows={6} value={values.note ?? ''} onChange={(event) => form.setFieldValue('note', event.currentTarget.value || null)} />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={onDone}>
-            Annuler
-          </Button>
-          <Button type="submit" loading={createItem.isPending}>
-            Ajouter
-          </Button>
-        </Group>
+        <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createItem.isPending} />
       </Stack>
     </form>
   );

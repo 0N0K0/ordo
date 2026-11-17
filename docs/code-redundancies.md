@@ -69,6 +69,8 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Le constat :** « Annuler » et le bouton d'envoi, alignés à droite, sont écrits à la main dans environ 45 formulaires, avec des écarts qui varient.
 - **Cible :** un `FormActions` à côté de `DestructiveActions`, qui prend le texte du bouton, l'état d'envoi et l'annulation.
 
+**Fait** : `FormActions` (`components/dialogs/FormActions.tsx`), à côté de `DestructiveActions`, dans 78 formulaires et dialogues : « Annuler » (facultatif) puis l'action, avec son texte, son icône, son attente, sa désactivation, et un envoi par clic quand il n'y a pas de formulaire. Deux copies locales de `FormActions` (facturation, trésorerie) sont supprimées. Restent à part : les boutons collés à un champ (ajouter un membre, un élément, un espace…), la validation d'une facture (l'action d'abord, comme une action irréversible), et les dialogues qui n'ont qu'« Annuler ».
+
 ### 8. Cartes de section des paramètres
 
 - **Le constat :** le même bloc (cadre, titre, description et actions) est recopié une quinzaine de fois, en deux tailles de titre : utilisateurs, calendriers, comptes mail, espaces, GitHub, compte, entreprise, équipe de la trésorerie, colonnes par défaut…

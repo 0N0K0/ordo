@@ -34,6 +34,7 @@ import { EventRepetition } from './EventRepetition';
 import { Comments } from '../comments/Comments';
 import { SheetsSection } from '../sheets/SheetsSection';
 import { useDefaultColor } from '../workspace/use-default-color';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -80,18 +81,7 @@ function PostponeForm({ fields, title, loading, onCancel, onConfirm }: PostponeF
         {!fields.allDay && <TimeField label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
       </SimpleGrid>
       <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onCancel}>
-          Annuler
-        </Button>
-        <Button
-          loading={loading}
-          disabled={!valid}
-          onClick={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })}
-        >
-          Reporter
-        </Button>
-      </Group>
+      <FormActions onCancel={onCancel} submitLabel="Reporter" loading={loading} disabled={!valid} onSubmit={() => onConfirm({ ...fields, title: values.title.trim(), startDate: values.startDate, endDate, startTime: values.startTime, endTime: values.endTime, recurrence: null })} />
     </Stack>
   );
 }
@@ -629,14 +619,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           ) : (
             <span />
           )}
-          <Group gap="sm">
-            <Button variant="default" onClick={onDone}>
-              Annuler
-            </Button>
-            <Button type="submit" loading={create.isPending || update.isPending}>
-              {occurrence ? 'Enregistrer' : 'Créer l’évènement'}
-            </Button>
-          </Group>
+          <FormActions onCancel={onDone} submitLabel={occurrence ? 'Enregistrer' : 'Créer l’évènement'} loading={create.isPending || update.isPending} />
         </Group>
       </Stack>
     </form>

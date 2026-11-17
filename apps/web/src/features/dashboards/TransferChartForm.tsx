@@ -1,9 +1,10 @@
-import { Button, Group, Select, Stack, Text } from '@mantine/core';
+import { Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useDashboardMutations, useDashboards, type DashboardChart } from './api';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 const GENERAL = 'general';
 
@@ -63,29 +64,24 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
       <Text size="xs" c="dimmed">
         Le diagramme quitte son tableau de bord actuel.{targetProject ? ' Il ne comptera plus que le projet et ses sous-projets.' : ' Il comptera tous les projets.'}
       </Text>
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={transferChart.isPending}
-          disabled={!dashboards}
-          onClick={() =>
-            transferChart.mutate(
-              { id: chart.id, dashboardId: chosen, projectId: targetProject },
-              {
-                onSuccess: () => {
-                  notifySuccess('Diagramme déplacé.');
-                  onDone();
-                },
-                onError: onMutationError,
+      <FormActions
+        onCancel={onDone}
+        submitLabel="Déplacer"
+        loading={transferChart.isPending}
+        disabled={!dashboards}
+        onSubmit={() =>
+          transferChart.mutate(
+            { id: chart.id, dashboardId: chosen, projectId: targetProject },
+            {
+              onSuccess: () => {
+                notifySuccess('Diagramme déplacé.');
+                onDone();
               },
-            )
-          }
-        >
-          Déplacer
-        </Button>
-      </Group>
+              onError: onMutationError,
+            },
+          )
+        }
+      />
     </Stack>
   );
 }

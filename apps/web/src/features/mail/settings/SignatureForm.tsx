@@ -1,8 +1,9 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { RichEditor } from '../../../components/rich-text/RichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccountMutations, type MailAccount } from '../api';
+import { FormActions } from '../../../components/dialogs/FormActions';
 
 /**
  * HTML signature of an account: rich editor, with the raw HTML editable through the code control.
@@ -19,13 +20,7 @@ export function SignatureForm({ account, onDone }: { account: MailAccount; onDon
         modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées aux mails.
       </Text>
       <RichEditor value={html} onChange={setHtml} sourceCode minHeight={160} />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={setSignature.isPending}
-          onClick={() =>
+      <FormActions onCancel={onDone} loading={setSignature.isPending} onSubmit={() =>
             setSignature.mutate(
               { id: account.id, signature: html === '<p></p>' ? '' : html },
               {
@@ -36,11 +31,7 @@ export function SignatureForm({ account, onDone }: { account: MailAccount; onDon
                 onError: onMutationError,
               },
             )
-          }
-        >
-          Enregistrer
-        </Button>
-      </Group>
+          } />
     </Stack>
   );
 }

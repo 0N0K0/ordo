@@ -10,6 +10,7 @@ import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from './api';
 import * as fmt from '../../lib/format';
+import { FormActions } from '../../components/dialogs/FormActions';
 
 /** Usual English names of the GitHub board options, for the first guess. */
 const SYNONYMS: Record<string, string[]> = {
@@ -257,13 +258,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         checked={values.enabled}
         onChange={(event) => change({ enabled: event.currentTarget.checked })}
       />
-      <Group justify="flex-end" gap="sm">
-        <Button variant="default" onClick={onDone}>
-          Annuler
-        </Button>
-        <Button
-          loading={saveLink.isPending}
-          onClick={() =>
+      <FormActions onCancel={onDone} loading={saveLink.isPending} onSubmit={() =>
             saveLink.mutate(
               { projectId, input: values },
               {
@@ -274,11 +269,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
                 onError: onMutationError,
               },
             )
-          }
-        >
-          Enregistrer
-        </Button>
-      </Group>
+          } />
     </Stack>
   );
 }
