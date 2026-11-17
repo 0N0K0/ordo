@@ -1,9 +1,9 @@
 import { Alert, Anchor, Center, Loader } from '@mantine/core';
 import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ErrorIcon, SuccessIcon } from '../../../components/feedback-icons';
+import { ErrorIcon, SuccessIcon } from '../../../components/feedback/feedback-icons';
 import { useConfirmEmailChange } from '../api';
-import { AuthHeader } from '../AuthLayout';
+import { AuthHeader } from './AuthLayout';
 
 /**
  * Confirms a new email address from the link it received.

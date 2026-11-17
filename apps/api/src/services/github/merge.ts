@@ -1,5 +1,5 @@
 /** Fields synchronized between a task and an item of a GitHub board. */
-export const SYNC_FIELDS = [
+const SYNC_FIELDS = [
   'title',
   'body',
   'closed',
@@ -18,8 +18,8 @@ export const SYNC_FIELDS = [
   'blockedBy',
   'relatesTo',
 ] as const;
-export type SyncField = (typeof SYNC_FIELDS)[number];
-export type SyncValue = string | number | boolean | string[] | null;
+type SyncField = (typeof SYNC_FIELDS)[number];
+type SyncValue = string | number | boolean | string[] | null;
 /** Values of the synchronized fields, in a shape common to both sides (absent: not synchronized). */
 export type SyncFields = Partial<Record<SyncField, SyncValue>>;
 
@@ -40,12 +40,12 @@ export function isUnmapped(value: SyncValue | undefined, side: 'ordo' | 'gh'): b
  * @param {SyncValue | undefined} b Value.
  * @returns {boolean} Same value.
  */
-export function sameValue(a: SyncValue | undefined, b: SyncValue | undefined): boolean {
+function sameValue(a: SyncValue | undefined, b: SyncValue | undefined): boolean {
   if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && [...a].sort().every((item, index) => item === [...b].sort()[index]);
   return (a ?? null) === (b ?? null);
 }
 
-export interface MergeResult {
+interface MergeResult {
   /** Values to write on the task. */
   pull: SyncFields;
   /** Values to write on the item. */

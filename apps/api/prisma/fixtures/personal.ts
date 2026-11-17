@@ -1,14 +1,14 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyFilter, occurrenceDates, type Recurrence } from '@ordo/shared';
+import { addDays, chartConfigSchema, DEFAULT_RECURRENCE, emptyTableFilter, occurrenceDates, type Recurrence } from '@ordo/shared';
 import type { z } from 'zod';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
-import { createAlarm } from '../../src/services/alarms';
-import { createCalendarEvent } from '../../src/services/calendar-events';
-import { subscribe } from '../../src/services/calendars';
-import { addFiles, addLink, createFolder } from '../../src/services/library';
-import { savePlace } from '../../src/services/geo';
-import { createCategory as createRoutineCategory, createRoutine } from '../../src/services/routines';
+import { createAlarm } from '../../src/services/tasks/alarms';
+import { createCalendarEvent } from '../../src/services/calendar/calendar-events';
+import { subscribe } from '../../src/services/calendar/calendars';
+import { addFiles, addLink, createFolder } from '../../src/services/library/library';
+import { savePlace } from '../../src/services/core/geo';
+import { createCategory as createRoutineCategory, createRoutine } from '../../src/services/routines/routines';
 import {
   addItem,
   attachListEntry,
@@ -20,16 +20,16 @@ import {
   createStore,
   setItemPurchased,
   setListClosed,
-} from '../../src/services/shopping';
-import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/task-recurrence';
-import { createView } from '../../src/services/task-views';
-import { createTimeEntry } from '../../src/services/time-entries';
-import { createAccount, createEntry as saveEntry, realizeForecast } from '../../src/services/treasury';
-import { saveBudget } from '../../src/services/treasury-budgets';
-import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury-settings';
-import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury-team';
-import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/work-schedules';
-import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces';
+} from '../../src/services/shopping/shopping';
+import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/tasks/task-recurrence';
+import { createView } from '../../src/services/tasks/task-views';
+import { createTimeEntry } from '../../src/services/tasks/time-entries';
+import { createAccount, createEntry as saveEntry, realizeForecast } from '../../src/services/treasury/treasury';
+import { saveBudget } from '../../src/services/treasury/treasury-budgets';
+import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
+import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
+import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
+import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspace/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
 import { projectFactory, taskFactory, TIME_ZONE } from './factories';
 import { initialsIcon } from './images';
@@ -57,7 +57,7 @@ const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRE
  * @param {Partial<z.input<typeof chartConfigSchema>>} config Changes.
  * @returns {Prisma.InputJsonValue} Stored configuration.
  */
-const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyFilter(), ...config }) as unknown as Prisma.InputJsonValue;
+const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }) as unknown as Prisma.InputJsonValue;
 
 /**
  * PDF of the fixtures.
@@ -68,7 +68,7 @@ const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfi
 const pdf = (name: string, text: string) => new File([tinyPdf(text)], name, { type: 'application/pdf' });
 
 /** What the personal workspace offers to the professional one. */
-export interface SeededPersonal {
+interface SeededPersonal {
   /** Kind of the childcare schedules (the professional workspace subscribes to it). */
   childcareTypeId: string;
   /** Family calendar (the professional workspace subscribes to it). */
@@ -182,10 +182,12 @@ export async function seedPersonal({
   await rebuildStatusHistory(todo.id, doing.id);
   if (meId)
     await createView({
+      kind: 'TABLE',
+      tableKey: 'tasks',
       name: 'Mes tâches',
-      config: { filter: { ...emptyFilter(), children: [{ type: 'condition', id: 'mine', field: 'assignees', operator: 'anyOf', value: [meId] }] }, groupBy: 'project' },
+      config: { filter: { ...emptyTableFilter(), children: [{ type: 'condition', id: 'mine', field: 'assignees', operator: 'anyOf', value: [meId] }] }, groupBy: 'project' },
     });
-  await createView({ name: 'Par étiquette', config: { filter: emptyFilter(), groupBy: 'tags' } });
+  await createView({ kind: 'TABLE', tableKey: 'tasks', name: 'Par étiquette', config: { filter: emptyTableFilter(), groupBy: 'tags' } });
 
   // --- Places --------------------------------------------------------------------------------------------
   const home = await savePlace(null, { name: 'Maison', address: '8 rue Paul Bert, 69003 Lyon', lat: 45.7578, lon: 4.8511 });

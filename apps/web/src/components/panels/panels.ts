@@ -4,7 +4,7 @@ import { useSyncExternalStore, type ReactNode } from 'react';
 export type PanelSize = 'md' | 'lg';
 
 /** Side panel opened on the right of the page. */
-export interface OpenPanel {
+interface OpenPanel {
   panelId: string;
   title: ReactNode;
   size: PanelSize;
@@ -64,16 +64,27 @@ export function closePanel(panelId: string): void {
   panel.onClose?.();
 }
 
+/** Options of a form panel: its width, whether only its content closes it, what follows its closing, its id. */
+export interface FormPanelOptions {
+  size?: PanelSize;
+  /** Id of the panel: opened again, it replaces itself (the panel of a chart). Optional. Default = a new one. */
+  panelId?: string;
+  locked?: boolean;
+  onClose?: () => void;
+}
+
 /**
- * Opens a form in the side panel, given a function closing it.
- * @param {string} title Title of the panel.
+ * Opens a form in the side panel, given a function closing it: how every form of the app opens.
+ * @param {ReactNode} title Title of the panel.
  * @param {(close: () => void) => ReactNode} render Content, given its closing.
- * @param {PanelSize} [size] Width. Optional. Default = 'md'.
- * @returns {void}
+ * @param {PanelSize | FormPanelOptions} [options] Width, or the options of the panel. Optional. Default = 'md'.
+ * @returns {() => void} Closes the panel.
  */
-export function openFormPanel(title: string, render: (close: () => void) => ReactNode, size: PanelSize = 'md'): void {
-  const panelId = `panel-${++count}`;
-  openPanel({ panelId, title, size, children: render(() => closePanel(panelId)) });
+export function openFormPanel(title: ReactNode, render: (close: () => void) => ReactNode, options: PanelSize | FormPanelOptions = {}): () => void {
+  const { size = 'md', locked = false, onClose, panelId = `panel-${++count}` } = typeof options === 'string' ? { size: options } : options;
+  const close = () => closePanel(panelId);
+  openPanel({ panelId, title, size, locked, onClose, children: render(close) });
+  return close;
 }
 
 /**

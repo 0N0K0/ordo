@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { storeIcon } from '../../src/services/icons';
+import { storeIcon } from '../../src/services/core/icons';
 
 /**
  * Initials of a name (two letters at most).

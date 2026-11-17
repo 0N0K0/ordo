@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getSession } from '../auth/session';
 import { prisma } from '../db';
-import { fileSecurityPolicy, INLINE_TYPES, isPdf } from '../services/attachments';
+import { fileSecurityPolicy, INLINE_TYPES, isPdf } from '../services/core/attachments';
 
 export const attachmentsRouter: Router = Router();
 

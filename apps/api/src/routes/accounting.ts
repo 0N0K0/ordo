@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
-import { documentPdf } from '../services/accounting-pdf';
-import { documentsZip } from '../services/accounting-zip';
+import { documentPdf } from '../services/accounting/accounting-pdf';
+import { documentsZip } from '../services/accounting/accounting-zip';
 
 export const accountingRouter: Router = Router();
 

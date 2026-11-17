@@ -1,8 +1,8 @@
 import type { SheetSource } from '@ordo/shared';
 import { readSheetSources } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as sheets from '../../services/sheets';
-import * as stock from '../../services/stock';
+import * as sheets from '../../services/shopping/sheets';
+import * as stock from '../../services/shopping/stock';
 import { builder } from '../builder';
 
 const float = (value: { toNumber(): number } | null) => (value === null ? null : value.toNumber());

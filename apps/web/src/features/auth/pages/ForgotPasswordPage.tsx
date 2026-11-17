@@ -1,10 +1,10 @@
 import { Alert, Anchor, Button, Stack, TextInput } from '@mantine/core';
 import { forgotPasswordFormSchema, type ForgotPasswordFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
-import { SuccessIcon } from '../../../components/feedback-icons';
+import { SuccessIcon } from '../../../components/feedback/feedback-icons';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { useRequestPasswordReset } from '../api';
-import { AuthHeader } from '../AuthLayout';
+import { AuthHeader } from './AuthLayout';
 
 /**
  * Asks for a password reset link by email.

@@ -224,7 +224,7 @@ export async function unreadInboxes(): Promise<number> {
 }
 
 /** Order of the mails of a folder. */
-export interface MailSort {
+interface MailSort {
   by: 'date' | 'correspondent' | 'subject' | 'size';
   ascending: boolean;
 }

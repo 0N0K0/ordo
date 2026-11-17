@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { moveInOrder } from '../ordering';
+import { moveInOrder } from '../core/ordering';
 import { closeImap, createImapClient, rethrowImapError } from './imap';
 import { sanitizeMailHtml } from './sanitize';
 import { decryptSecret, encryptSecret } from './secret';

@@ -1,33 +1,35 @@
-import { TaskSettings } from '../../tasks/settings/TaskSettings';
+import { ancestorsOf } from '@ordo/shared';
+import { ItemBadge } from '../../../components/settings/ItemBadge';
+import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { Anchor, Badge, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
-import { SheetsTable } from '../../sheets/SheetsTable';
-import { PageTabs } from '../../../components/PageTabs';
+import { Anchor, Breadcrumbs, Group, Paper, SimpleGrid, Stack, Tabs, Text, Title } from '@mantine/core';
+import { SheetsTable } from '../../sheets/components/SheetsTable';
+import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ArrowsClockwiseIcon, BasketIcon, CheckSquareOffsetIcon, ClipboardTextIcon, GithubLogoIcon, ClockIcon, EnvelopeSimpleIcon, FlagIcon, FolderPlusIcon, InfoIcon, PaperclipIcon, PencilSimpleIcon, ReceiptIcon, TimerIcon, UsersIcon, ListChecksIcon } from '@phosphor-icons/react';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { DashboardBoard } from '../../dashboards/DashboardBoard';
-import { ProjectGithubPanel } from '../../github/ProjectGithubPanel';
-import { MilestonesPanel } from '../../tasks/MilestonesPanel';
-import { SprintsPanel } from '../../tasks/SprintsPanel';
-import { ProjectContributors } from '../../tasks/ProjectContributors';
-import { ProjectBillingPanel } from '../../accounting/ProjectBillingPanel';
-import { ProjectResourcesPanel } from '../../accounting/ProjectResourcesPanel';
-import { ProjectMailsPanel } from '../../mail/ProjectMailsPanel';
-import { ProjectTimePanel } from '../../time/ProjectTimePanel';
-import { RoutinesPanel } from '../../routines/RoutinesPage';
-import { ListsPanel } from '../../shopping/ShoppingPage';
-import { TaskBoard } from '../../tasks/TaskBoard';
+import { DashboardBoard } from '../../dashboards/components/DashboardBoard';
+import { ProjectGithubPanel } from '../../github/components/ProjectGithubPanel';
+import { MilestonesPanel } from '../../tasks/components/MilestonesPanel';
+import { SprintsPanel } from '../../tasks/components/SprintsPanel';
+import { ProjectContributors } from '../../tasks/components/ProjectContributors';
+import { ProjectBillingPanel } from '../../accounting/components/ProjectBillingPanel';
+import { ProjectResourcesPanel } from '../../accounting/components/ProjectResourcesPanel';
+import { ProjectMailsPanel } from '../../mail/components/ProjectMailsPanel';
+import { ProjectTimePanel } from '../../time/components/ProjectTimePanel';
+import { RoutinesPanel } from '../../routines/pages/RoutinesPage';
+import { ListsPanel } from '../../shopping/pages/ShoppingPage';
+import { TaskBoard } from '../../tasks/components/TaskBoard';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { descendantIds, useWorkspace, type Project } from '../api';
-import { ProjectForm } from '../ProjectForm';
-import { canHaveChildren } from '../tree';
-import { useEntityActions } from '../use-entity-actions';
-import { EntityHeader } from './EntityHeader';
-import { EntityNotFound, EntitySkeleton } from './EntityState';
-import { ProjectList } from './ProjectList';
-import { PageSettings } from '../../../layouts/PageSettings';
-import { SETTINGS_PARAM } from '../../../layouts/page-settings';
+import { ProjectForm } from '../components/ProjectForm';
+import { canHaveChildren } from '../lib/tree';
+import { useEntityActions } from '../hooks/use-entity-actions';
+import { EntityHeader } from '../components/EntityHeader';
+import { EntityNotFound, EntitySkeleton } from '../components/EntityState';
+import { ProjectList } from '../components/ProjectList';
+import { PageSettings } from '../../../app/layout/PageSettings';
+import { SETTINGS_PARAM } from '../../../app/layout/page-settings';
 import * as fmt from '../../../lib/format';
 
 /**
@@ -139,19 +141,6 @@ export function ProjectPage() {
     if (!legacy && requested !== 'settings') return;
     setParams({ [SETTINGS_PARAM]: '1', section }, { replace: true });
   }, [legacy, requested, section, setParams]);
-  // Tasks of the project and of its sub-projects.
-  const baseFilter = useMemo(
-    () =>
-      id
-        ? {
-            type: 'group' as const,
-            id: 'project',
-            combinator: 'and' as const,
-            children: [{ type: 'condition' as const, id: 'project', field: 'project' as const, operator: 'inTree', value: [id] }],
-          }
-        : null,
-    [id],
-  );
 
   if (isPending) return <EntitySkeleton />;
   const project = data?.projects.find((item) => item.id === id);
@@ -159,12 +148,8 @@ export function ProjectPage() {
 
   const client = data.clients.find((item) => item.id === project.clientId);
   const status = data.projectStatuses.find((item) => item.id === project.statusId);
-  const ancestors = [];
-  for (let parent = data.projects.find((item) => item.id === project.parentId); parent; ) {
-    ancestors.unshift(parent);
-    const parentId = parent.parentId;
-    parent = data.projects.find((item) => item.id === parentId);
-  }
+  // From the root project down to its parent.
+  const ancestors = ancestorsOf(new Map(data.projects.map((item) => [item.id, item])), project.id).reverse();
   const subtree = descendantIds(data.projects, project.id);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
   // Routines and shopping lists: those of the project and of its sub-projects.
@@ -256,21 +241,13 @@ export function ProjectPage() {
               <Paper withBorder p="lg" radius="md">
                 <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="lg">
                   <Detail label="Statut">
-                    {status ? (
-                      <Badge variant="light" color={status.color}>
-                        {status.name}
-                      </Badge>
-                    ) : (
-                      <Text size="sm">—</Text>
-                    )}
+                    <ItemBadge item={status} empty={<Text size="sm">—</Text>} />
                   </Detail>
                   <Detail label="Catégories">
                     {project.categories.length > 0 ? (
                       <Group gap={4}>
                         {project.categories.map((category) => (
-                          <Badge key={category.id} variant="light" color={category.color}>
-                            {category.name}
-                          </Badge>
+                          <ItemBadge key={category.id} item={category} />
                         ))}
                       </Group>
                     ) : (
@@ -304,7 +281,7 @@ export function ProjectPage() {
                 </Text>
               </Stack>
 
-              <DashboardBoard key={project.id} projectId={project.id} baseFilter={baseFilter} title={project.title} />
+              <DashboardBoard key={project.id} projectId={project.id} title={project.title} />
           </Stack>
         </PageTabs.Panel>
         <PageTabs.Panel value="tasks">

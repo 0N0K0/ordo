@@ -1,23 +1,18 @@
 import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, REMINDER_DELAY_DAYS, fromCents, parseDay, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as reminders from '../../services/reminders';
-import * as statuses from '../../services/document-statuses';
-import * as tracking from '../../services/document-tracking';
-import * as treasury from '../../services/treasury';
-import * as settings from '../../services/treasury-settings';
-import * as budgets from '../../services/treasury-budgets';
-import * as statements from '../../services/treasury-import';
-import * as loans from '../../services/treasury-loans';
-import * as team from '../../services/treasury-team';
-import { meContributorId } from '../../services/workspaces';
+import * as reminders from '../../services/accounting/reminders';
+import * as statuses from '../../services/accounting/document-statuses';
+import * as tracking from '../../services/accounting/document-tracking';
+import * as treasury from '../../services/treasury/treasury';
+import * as settings from '../../services/treasury/treasury-settings';
+import * as budgets from '../../services/treasury/treasury-budgets';
+import * as statements from '../../services/treasury/treasury-import';
+import * as loans from '../../services/treasury/treasury-loans';
+import * as team from '../../services/treasury/treasury-team';
+import { meContributorId } from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { builder } from '../builder';
-
-/**
- * Today, on the server.
- * @returns {string} YYYY-MM-DD.
- */
-const today = () => formatDay(new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())));
+import { parisToday } from '../../today';
 
 // Balances are computed once per request for all documents (lists show many of them).
 const documentCache = new WeakMap<object, Promise<Map<string, tracking.DocumentBalance>>>();
@@ -465,7 +460,7 @@ builder.prismaObject('TreasuryAccount', {
     archived: t.exposeBoolean('archived'),
     csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
     entryCount: t.relationCount('entries'),
-    balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, today())) }),
+    balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, parisToday())) }),
   }),
 });
 
@@ -508,7 +503,7 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
     description: 'Final invoice still due after its due date, or quote waiting after its validity.',
     select: { trackingStatus: { select: { category: true } } },
     resolve: async (document, _args, ctx) => {
-      if (document.status !== 'FINAL' || !document.dueDate || formatDay(document.dueDate) >= today()) return false;
+      if (document.status !== 'FINAL' || !document.dueDate || formatDay(document.dueDate) >= parisToday()) return false;
       const category = document.trackingStatus?.category;
       if (document.type === 'QUOTE') return category === 'TO_SEND' || category === 'SENT';
       if (document.type === 'CREDIT_NOTE') return false;
@@ -842,11 +837,11 @@ builder.queryFields((t) => ({
   }),
   treasuryPaymentMethods: t.prismaField({
     type: ['TreasuryPaymentMethod'],
-    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
   }),
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
-    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archived: 'asc' }, { position: 'asc' }, { name: 'asc' }] }),
   }),
   treasuryDocumentOptions: t.field({
     type: [EntryDocumentRef],
@@ -899,7 +894,7 @@ builder.queryFields((t) => ({
     resolve: (query) =>
       prisma.treasuryEntry.findMany({
         ...query,
-        where: { OR: [{ status: 'FORECAST' }, { status: 'ACTUAL', date: { gt: parseDay(today()) } }] },
+        where: { OR: [{ status: 'FORECAST' }, { status: 'ACTUAL', date: { gt: parseDay(parisToday()) } }] },
         orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
       }),
   }),

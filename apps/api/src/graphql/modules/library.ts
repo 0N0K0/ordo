@@ -1,5 +1,5 @@
 import { prisma } from '../../db';
-import * as library from '../../services/library';
+import * as library from '../../services/library/library';
 import { builder } from '../builder';
 
 builder.prismaObject('DocumentFolder', {

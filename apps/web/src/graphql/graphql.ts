@@ -723,6 +723,42 @@ export type SendMailInput = {
   to: Array<string>;
 };
 
+export type SettingsItemLookInput = {
+  /** New color; null: none (where the list allows it). */
+  color?: string | null | undefined;
+  /** Replaces the current image. */
+  icon?: File | null | undefined;
+  removeIcon?: boolean | null | undefined;
+};
+
+/** Settings list sharing the same look (color, image, name) and manual order. */
+export type SettingsListKind =
+  | 'CALENDAR'
+  | 'CALENDAR_CATEGORY'
+  | 'DOCUMENT_STATUS'
+  | 'MAIL_LABEL'
+  | 'PLACE'
+  | 'PROJECT_CATEGORY'
+  | 'PROJECT_STATUS'
+  | 'ROUTINE_CATEGORY'
+  | 'SCHEDULE_TYPE'
+  | 'SHEET_CATEGORY'
+  | 'SHOPPING_BASE_LIST'
+  | 'SHOPPING_CATEGORY'
+  | 'SHOPPING_STORAGE'
+  | 'SHOPPING_STORE'
+  | 'SHOPPING_UNIT'
+  | 'STOCK_LOCATION'
+  | 'TASK_PRIORITY'
+  | 'TASK_STATUS'
+  | 'TASK_TAG'
+  | 'TASK_TYPE'
+  | 'TREASURY_ACCOUNT'
+  | 'TREASURY_CATEGORY'
+  | 'TREASURY_CONTEXT'
+  | 'TREASURY_COUNTERPARTY'
+  | 'TREASURY_PAYMENT_METHOD';
+
 export type SheetCategoryInput = {
   color: string;
   name: string;
@@ -939,18 +975,6 @@ export type TaskLabelUpdateInput = {
   name?: string | null | undefined;
 };
 
-export type TaskQueryInput = {
-  /** Filter tree (and / or groups of conditions). */
-  filter: unknown;
-  includeArchived?: boolean | null | undefined;
-  /** Quick search: number, title or description. */
-  search?: string | null | undefined;
-  /** User's current day, for relative dates. */
-  today: string;
-  /** User's offset from UTC, in minutes. */
-  utcOffset: number;
-};
-
 /** Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED). */
 export type TaskStatusCategory =
   | 'CANCELLED'
@@ -958,7 +982,7 @@ export type TaskStatusCategory =
   | 'IN_PROGRESS'
   | 'TODO';
 
-/** Omitted fields are left unchanged; null clears a field. Use transferTask to change the project. */
+/** Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project. */
 export type TaskUpdateInput = {
   assigneeIds?: Array<string | number> | null | undefined;
   beneficiaryIds?: Array<string | number> | null | undefined;
@@ -1205,103 +1229,22 @@ export type WorkspaceKind =
   | 'PERSO'
   | 'PRO';
 
-export type CompanyProfileFieldsFragment = { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
-
-export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type CompanyProfileQuery = { companyProfile: { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number } };
-
-export type DocumentSequencesQueryVariables = Exact<{
-  year: number;
-}>;
-
-
-export type DocumentSequencesQuery = { documentSequences: Array<{ type: AccountingDocumentType, year: number, nextNumber: number, minimum: number }> };
-
-export type ClientBillingQueryVariables = Exact<{
+export type SetSettingsItemLookMutationVariables = Exact<{
+  kind: SettingsListKind;
   id: string | number;
+  input: SettingsItemLookInput;
 }>;
 
 
-export type ClientBillingQuery = { client: { id: string, name: string, kind: ClientKind, firstName: string | null, lastName: string | null, address: unknown, email: string | null, phones: unknown, website: string | null, vatNumber: string | null, siren: string | null, siret: string | null, activityCode: string | null, services: Array<{ id: string, name: string, address: unknown, email: string | null, phones: unknown }>, contacts: Array<{ id: string, serviceId: string | null, firstName: string, lastName: string, email: string | null, jobTitle: string | null, phones: unknown }> } | null };
+export type SetSettingsItemLookMutation = { setSettingsItemLook: string | null };
 
-export type UpdateCompanyProfileMutationVariables = Exact<{
-  input: CompanyProfileInput;
+export type ReorderSettingsItemsMutationVariables = Exact<{
+  kind: SettingsListKind;
+  ids: Array<string | number> | string | number;
 }>;
 
 
-export type UpdateCompanyProfileMutation = { updateCompanyProfile: { name: string } };
-
-export type SetCompanyLogoMutationVariables = Exact<{
-  file?: File | null | undefined;
-}>;
-
-
-export type SetCompanyLogoMutation = { setCompanyLogo: { logoUrl: string | null } };
-
-export type SetDocumentSequenceMutationVariables = Exact<{
-  type: AccountingDocumentType;
-  year: number;
-  nextNumber: number;
-}>;
-
-
-export type SetDocumentSequenceMutation = { setDocumentSequence: boolean };
-
-export type UpdateClientDetailsMutationVariables = Exact<{
-  id: string | number;
-  input: ClientDetailsInput;
-}>;
-
-
-export type UpdateClientDetailsMutation = { updateClientDetails: { id: string } };
-
-export type CreateClientServiceMutationVariables = Exact<{
-  clientId: string | number;
-  input: ClientServiceInput;
-}>;
-
-
-export type CreateClientServiceMutation = { createClientService: { id: string } };
-
-export type UpdateClientServiceMutationVariables = Exact<{
-  id: string | number;
-  input: ClientServiceInput;
-}>;
-
-
-export type UpdateClientServiceMutation = { updateClientService: { id: string } };
-
-export type DeleteClientServiceMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteClientServiceMutation = { deleteClientService: boolean };
-
-export type CreateClientContactMutationVariables = Exact<{
-  clientId: string | number;
-  input: ClientContactInput;
-}>;
-
-
-export type CreateClientContactMutation = { createClientContact: { id: string } };
-
-export type UpdateClientContactMutationVariables = Exact<{
-  id: string | number;
-  input: ClientContactInput;
-}>;
-
-
-export type UpdateClientContactMutation = { updateClientContact: { id: string } };
-
-export type DeleteClientContactMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteClientContactMutation = { deleteClientContact: boolean };
+export type ReorderSettingsItemsMutation = { reorderSettingsItems: boolean };
 
 export type CatalogItemsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1600,10 +1543,108 @@ export type DeleteImportedDocumentMutationVariables = Exact<{
 
 export type DeleteImportedDocumentMutation = { deleteImportedDocument: boolean };
 
+export type CompanyProfileFieldsFragment = { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number };
+
+export type CompanyProfileQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CompanyProfileQuery = { companyProfile: { name: string, contact: string | null, legalForm: string | null, capital: string | null, registration: string | null, siren: string | null, siret: string | null, activityCode: string | null, vatNumber: string | null, vatApplicable: boolean, vatExemptionText: string, address: unknown, email: string | null, phone: string | null, website: string | null, logoUrl: string | null, bankName: string | null, accountHolder: string | null, iban: string | null, bic: string | null, paymentTerms: string, paymentDays: number, paymentMethods: string, lateInterest: string, otherMentions: string, referenceLabel: string, quoteValidityDays: number } };
+
+export type DocumentSequencesQueryVariables = Exact<{
+  year: number;
+}>;
+
+
+export type DocumentSequencesQuery = { documentSequences: Array<{ type: AccountingDocumentType, year: number, nextNumber: number, minimum: number }> };
+
+export type ClientBillingQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type ClientBillingQuery = { client: { id: string, name: string, kind: ClientKind, firstName: string | null, lastName: string | null, address: unknown, email: string | null, phones: unknown, website: string | null, vatNumber: string | null, siren: string | null, siret: string | null, activityCode: string | null, services: Array<{ id: string, name: string, address: unknown, email: string | null, phones: unknown }>, contacts: Array<{ id: string, serviceId: string | null, firstName: string, lastName: string, email: string | null, jobTitle: string | null, phones: unknown }> } | null };
+
+export type UpdateCompanyProfileMutationVariables = Exact<{
+  input: CompanyProfileInput;
+}>;
+
+
+export type UpdateCompanyProfileMutation = { updateCompanyProfile: { name: string } };
+
+export type SetCompanyLogoMutationVariables = Exact<{
+  file?: File | null | undefined;
+}>;
+
+
+export type SetCompanyLogoMutation = { setCompanyLogo: { logoUrl: string | null } };
+
+export type SetDocumentSequenceMutationVariables = Exact<{
+  type: AccountingDocumentType;
+  year: number;
+  nextNumber: number;
+}>;
+
+
+export type SetDocumentSequenceMutation = { setDocumentSequence: boolean };
+
+export type UpdateClientDetailsMutationVariables = Exact<{
+  id: string | number;
+  input: ClientDetailsInput;
+}>;
+
+
+export type UpdateClientDetailsMutation = { updateClientDetails: { id: string } };
+
+export type CreateClientServiceMutationVariables = Exact<{
+  clientId: string | number;
+  input: ClientServiceInput;
+}>;
+
+
+export type CreateClientServiceMutation = { createClientService: { id: string } };
+
+export type UpdateClientServiceMutationVariables = Exact<{
+  id: string | number;
+  input: ClientServiceInput;
+}>;
+
+
+export type UpdateClientServiceMutation = { updateClientService: { id: string } };
+
+export type DeleteClientServiceMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteClientServiceMutation = { deleteClientService: boolean };
+
+export type CreateClientContactMutationVariables = Exact<{
+  clientId: string | number;
+  input: ClientContactInput;
+}>;
+
+
+export type CreateClientContactMutation = { createClientContact: { id: string } };
+
+export type UpdateClientContactMutationVariables = Exact<{
+  id: string | number;
+  input: ClientContactInput;
+}>;
+
+
+export type UpdateClientContactMutation = { updateClientContact: { id: string } };
+
+export type DeleteClientContactMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteClientContactMutation = { deleteClientContact: boolean };
+
 export type DocumentStatusesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type DocumentStatusesQuery = { documentStatuses: Array<{ id: string, scope: DocumentStatusScope, name: string, color: string, category: DocumentStatusCategory, position: number, documentCount: number }> };
+export type DocumentStatusesQuery = { documentStatuses: Array<{ id: string, scope: DocumentStatusScope, name: string, color: string, iconUrl: string | null, category: DocumentStatusCategory, position: number, documentCount: number }> };
 
 export type OverdueInvoicesQueryVariables = Exact<{
   today: string;
@@ -1825,7 +1866,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { name: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, name: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, name: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { name: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1928,7 +1969,7 @@ export type PostponeCalendarEventMutation = { postponeCalendarEvent: string };
 export type CalendarCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CalendarCategoriesQuery = { calendarCategories: Array<{ id: string, name: string, color: string, parentId: string | null, position: number }> };
+export type CalendarCategoriesQuery = { calendarCategories: Array<{ id: string, name: string, color: string, iconUrl: string | null, parentId: string | null, position: number }> };
 
 export type CalendarEventsQueryVariables = Exact<{
   from: string;
@@ -1941,7 +1982,7 @@ export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId
 export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CalendarsQuery = { calendars: Array<{ id: string, name: string, color: string, position: number }>, calendarSubscriptions: Array<{ id: string, calendarId: string, name: string, color: string, workspace: { id: string, name: string, kind: string } }> };
+export type CalendarsQuery = { calendars: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, calendarSubscriptions: Array<{ id: string, calendarId: string, name: string, color: string, workspace: { id: string, name: string, kind: string } }> };
 
 export type SubscribableCalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2200,7 +2241,7 @@ export type MoveDashboardChartMutation = { moveDashboardChart: boolean };
 export type PlacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, parentId: string | null, lat: number, lon: number, path: string }> };
+export type PlacesQuery = { places: Array<{ id: string, name: string, address: string, parentId: string | null, lat: number, lon: number, path: string, color: string | null, iconUrl: string | null, position: number }> };
 
 export type SearchAddressesQueryVariables = Exact<{
   text: string;
@@ -2233,6 +2274,15 @@ export type SavePlaceMutationVariables = Exact<{
 
 
 export type SavePlaceMutation = { savePlace: string };
+
+export type MovePlaceMutationVariables = Exact<{
+  id: string | number;
+  parentId?: string | number | null | undefined;
+  index: number;
+}>;
+
+
+export type MovePlaceMutation = { movePlace: boolean };
 
 export type DeletePlaceMutationVariables = Exact<{
   id: string | number;
@@ -2404,18 +2454,6 @@ export type DeleteLibraryDocumentsMutationVariables = Exact<{
 
 
 export type DeleteLibraryDocumentsMutation = { deleteLibraryDocuments: boolean };
-
-export type WatchedMailAccountsQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type WatchedMailAccountsQuery = { mailAccounts: Array<{ id: string }> };
-
-export type WatchedUnreadMailsQueryVariables = Exact<{
-  accountId: string | number;
-}>;
-
-
-export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
 
 export type MailAccountFieldsFragment = { id: string, name: string, email: string, displayName: string | null, imapHost: string, imapPort: number, imapSecure: boolean, imapUser: string, smtpHost: string, smtpPort: number, smtpSecure: boolean, smtpUser: string, saveSent: boolean, signature: string | null };
 
@@ -2590,7 +2628,7 @@ export type SendMailMutation = { sendMail: Array<string> };
 export type MailLabelsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MailLabelsQuery = { mailLabels: Array<{ id: string, name: string, color: string, position: number }> };
+export type MailLabelsQuery = { mailLabels: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }> };
 
 export type ScheduledMailsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2755,10 +2793,22 @@ export type DeleteMailSearchMutationVariables = Exact<{
 
 export type DeleteMailSearchMutation = { deleteMailSearch: boolean };
 
+export type WatchedMailAccountsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type WatchedMailAccountsQuery = { mailAccounts: Array<{ id: string }> };
+
+export type WatchedUnreadMailsQueryVariables = Exact<{
+  accountId: string | number;
+}>;
+
+
+export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
+
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, title: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -2914,21 +2964,6 @@ export type RemoveRoutineMoveMutationVariables = Exact<{
 
 export type RemoveRoutineMoveMutation = { removeRoutineMove: boolean };
 
-export type SetRoutineArchivedMutationVariables = Exact<{
-  id: string | number;
-  archived: boolean;
-}>;
-
-
-export type SetRoutineArchivedMutation = { setRoutineArchived: boolean };
-
-export type DeleteRoutineMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteRoutineMutation = { deleteRoutine: boolean };
-
 export type RoutineChecksQueryVariables = Exact<{
   from: string;
   to: string;
@@ -2962,7 +2997,7 @@ export type SheetQuery = { sheet: { id: string, name: string, note: string | nul
 export type SheetCategoriesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type SheetCategoriesQuery = { sheetCategories: Array<{ id: string, name: string, color: string, position: number }> };
+export type SheetCategoriesQuery = { sheetCategories: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }> };
 
 export type SheetLinksQueryVariables = Exact<{
   routineId?: string | number | null | undefined;
@@ -3158,7 +3193,7 @@ export type DeleteChecklistItemMutation = { deleteChecklistItem: boolean };
 export type ShoppingDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number, baseListIds: Array<string> }>, shoppingStorages: Array<{ id: string, name: string, color: string, position: number }>, shoppingUnits: Array<{ id: string, name: string, color: string, position: number }>, shoppingStores: Array<{ id: string, name: string, color: string, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string>, stockTracked: boolean, consumable: boolean, autoStock: boolean, stockLocationId: string | null }> };
+export type ShoppingDataQuery = { shoppingCategories: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number, baseListIds: Array<string> }>, shoppingStorages: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingUnits: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingStores: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, shoppingBaseLists: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number }>, shoppingProducts: Array<{ id: string, baseListId: string, name: string, categoryId: string | null, storeId: string | null, url: string | null, note: string | null, quantity: number | null, unit: string | null, unitPrice: number | null, perishable: boolean, storageId: string | null, expiresAt: string | null, missing: boolean, lastPurchasedAt: string | null, lastPrice: number | null, memberIds: Array<string>, relationIds: Array<string>, stockTracked: boolean, consumable: boolean, autoStock: boolean, stockLocationId: string | null }> };
 
 export type ShoppingListsQueryVariables = Exact<{
   taskId?: string | number | null | undefined;
@@ -3461,7 +3496,7 @@ export type DeleteShoppingItemMutation = { deleteShoppingItem: boolean };
 export type StockLocationsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type StockLocationsQuery = { stockLocations: Array<{ id: string, name: string, color: string | null, parentId: string | null, position: number }> };
+export type StockLocationsQuery = { stockLocations: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }> };
 
 export type StockItemsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -3620,7 +3655,7 @@ export type SprintFieldsFragment = { id: string, projectId: string, name: string
 
 export type MilestoneFieldsFragment = { id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number };
 
-export type TaskLabelFieldsFragment = { id: string, name: string, color: string, position: number };
+export type TaskLabelFieldsFragment = { id: string, name: string, color: string, iconUrl: string | null, position: number };
 
 export type TaskFieldsFragment = { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown };
 
@@ -3629,7 +3664,7 @@ export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: s
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, position: number }>, taskTags: Array<{ id: string, name: string, color: string, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown }>, contributors: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, name: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, projectId: string, title: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, projectId: string, name: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   id: string | number;
@@ -3652,30 +3687,6 @@ export type UpdateTaskMutationVariables = Exact<{
 
 
 export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, title: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
-
-export type SetTaskArchivedMutationVariables = Exact<{
-  id: string | number;
-  archived: boolean;
-}>;
-
-
-export type SetTaskArchivedMutation = { setTaskArchived: { id: string } };
-
-export type DeleteTaskMutationVariables = Exact<{
-  id: string | number;
-  deleteSubtasks: boolean;
-}>;
-
-
-export type DeleteTaskMutation = { deleteTask: boolean };
-
-export type TransferTaskMutationVariables = Exact<{
-  id: string | number;
-  projectId?: string | number | null | undefined;
-}>;
-
-
-export type TransferTaskMutation = { transferTask: { removedLinks: number } };
 
 export type CloneTaskMutationVariables = Exact<{
   id: string | number;
@@ -3937,13 +3948,6 @@ export type TaskViewsQueryVariables = Exact<{
 
 export type TaskViewsQuery = { taskViews: Array<{ id: string, name: string, config: unknown, isDefault: boolean, position: number }> };
 
-export type MatchingTaskIdsQueryVariables = Exact<{
-  query: TaskQueryInput;
-}>;
-
-
-export type MatchingTaskIdsQuery = { matchingTaskIds: Array<string> };
-
 export type CreateTaskViewMutationVariables = Exact<{
   input: TaskViewInput;
 }>;
@@ -4021,12 +4025,12 @@ export type BulkDeleteTasksMutationVariables = Exact<{
 
 export type BulkDeleteTasksMutation = { bulkDeleteTasks: boolean };
 
-export type MatchingTaskIdsBySprintQueryVariables = Exact<{
-  query: TaskQueryInput;
+export type DoableTaskIdsQueryVariables = Exact<{
+  utcOffset: number;
 }>;
 
 
-export type MatchingTaskIdsBySprintQuery = { matchingTaskIdsBySprint: Array<{ sprintId: string, taskIds: Array<string> }> };
+export type DoableTaskIdsQuery = { doableTaskIds: Array<string> };
 
 export type CreateMilestoneMutationVariables = Exact<{
   input: MilestoneInput;
@@ -4149,7 +4153,7 @@ export type TreasuryDocumentOptionsQuery = { treasuryDocumentOptions: Array<{ id
 export type TreasuryAccountsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasuryAccountsQuery = { treasuryAccounts: Array<{ id: string, name: string, openingBalance: number, openingDate: string, archived: boolean, csvMapping: unknown, entryCount: number, balance: number }> };
+export type TreasuryAccountsQuery = { treasuryAccounts: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, openingBalance: number, openingDate: string, archived: boolean, csvMapping: unknown, entryCount: number, balance: number }> };
 
 export type TreasuryEntriesQueryVariables = Exact<{
   from: string;
@@ -4177,7 +4181,7 @@ export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, s
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, color: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
+export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }>, treasuryRelations: Array<{ id: string, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
 
 export type TreasuryEntrySearchQueryVariables = Exact<{
   text: string;
@@ -4427,16 +4431,16 @@ export type ImportTreasuryStatementMutation = { importTreasuryStatement: unknown
 
 export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
 
-export type LabelFieldsFragment = { id: string, name: string, color: string };
+export type LabelFieldsFragment = { id: string, name: string, color: string, position: number, iconUrl: string | null };
 
-export type ProjectStatusFieldsFragment = { id: string, name: string, color: string, position: number };
+export type ProjectStatusFieldsFragment = { id: string, name: string, color: string, iconUrl: string | null, position: number };
 
-export type ProjectFieldsFragment = { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string }> };
+export type ProjectFieldsFragment = { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string, position: number, iconUrl: string | null }> };
 
 export type WorkspaceQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkspaceQuery = { clients: Array<{ id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean }>, projects: Array<{ id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string }> }>, projectCategories: Array<{ id: string, name: string, color: string }>, projectStatuses: Array<{ id: string, name: string, color: string, position: number }> };
+export type WorkspaceQuery = { clients: Array<{ id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean }>, projects: Array<{ id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string, position: number, iconUrl: string | null }> }>, projectCategories: Array<{ id: string, name: string, color: string, position: number, iconUrl: string | null }>, projectStatuses: Array<{ id: string, name: string, color: string, iconUrl: string | null, position: number }> };
 
 export type CreateClientMutationVariables = Exact<{
   input: ClientInput;
@@ -4490,7 +4494,7 @@ export type CreateProjectMutationVariables = Exact<{
 }>;
 
 
-export type CreateProjectMutation = { createProject: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string }> } };
+export type CreateProjectMutation = { createProject: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string, position: number, iconUrl: string | null }> } };
 
 export type UpdateProjectMutationVariables = Exact<{
   id: string | number;
@@ -4498,7 +4502,7 @@ export type UpdateProjectMutationVariables = Exact<{
 }>;
 
 
-export type UpdateProjectMutation = { updateProject: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string }> } };
+export type UpdateProjectMutation = { updateProject: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string, position: number, iconUrl: string | null }> } };
 
 export type SetProjectFavoriteMutationVariables = Exact<{
   id: string | number;
@@ -4506,7 +4510,7 @@ export type SetProjectFavoriteMutationVariables = Exact<{
 }>;
 
 
-export type SetProjectFavoriteMutation = { setProjectFavorite: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string }> } };
+export type SetProjectFavoriteMutation = { setProjectFavorite: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string, position: number, iconUrl: string | null }> } };
 
 export type SetProjectArchivedMutationVariables = Exact<{
   id: string | number;
@@ -4514,7 +4518,7 @@ export type SetProjectArchivedMutationVariables = Exact<{
 }>;
 
 
-export type SetProjectArchivedMutation = { setProjectArchived: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string }> } };
+export type SetProjectArchivedMutation = { setProjectArchived: { id: string, title: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, name: string, color: string, position: number, iconUrl: string | null }> } };
 
 export type DeleteProjectMutationVariables = Exact<{
   id: string | number;
@@ -4538,7 +4542,7 @@ export type CreateProjectCategoryMutationVariables = Exact<{
 }>;
 
 
-export type CreateProjectCategoryMutation = { createProjectCategory: { id: string, name: string, color: string } };
+export type CreateProjectCategoryMutation = { createProjectCategory: { id: string, name: string, color: string, position: number, iconUrl: string | null } };
 
 export type UpdateProjectCategoryMutationVariables = Exact<{
   id: string | number;
@@ -4546,7 +4550,7 @@ export type UpdateProjectCategoryMutationVariables = Exact<{
 }>;
 
 
-export type UpdateProjectCategoryMutation = { updateProjectCategory: { id: string, name: string, color: string } };
+export type UpdateProjectCategoryMutation = { updateProjectCategory: { id: string, name: string, color: string, position: number, iconUrl: string | null } };
 
 export type DeleteProjectCategoryMutationVariables = Exact<{
   id: string | number;
@@ -4560,7 +4564,7 @@ export type CreateProjectStatusMutationVariables = Exact<{
 }>;
 
 
-export type CreateProjectStatusMutation = { createProjectStatus: { id: string, name: string, color: string, position: number } };
+export type CreateProjectStatusMutation = { createProjectStatus: { id: string, name: string, color: string, iconUrl: string | null, position: number } };
 
 export type UpdateProjectStatusMutationVariables = Exact<{
   id: string | number;
@@ -4568,7 +4572,7 @@ export type UpdateProjectStatusMutationVariables = Exact<{
 }>;
 
 
-export type UpdateProjectStatusMutation = { updateProjectStatus: { id: string, name: string, color: string, position: number } };
+export type UpdateProjectStatusMutation = { updateProjectStatus: { id: string, name: string, color: string, iconUrl: string | null, position: number } };
 
 export type DeleteProjectStatusMutationVariables = Exact<{
   id: string | number;
@@ -4584,19 +4588,6 @@ export type MoveProjectStatusMutationVariables = Exact<{
 
 
 export type MoveProjectStatusMutation = { moveProjectStatus: boolean };
-
-export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, title: string, projectId: string | null } | null, project: { id: string, title: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
-
-export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
-  id: string | number;
-  at: string;
-}>;
-
-
-export type ElsewhereMarkAlarmFiredMutation = { markAlarmFired: boolean };
 
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4650,6 +4641,19 @@ export type DeleteWorkspaceMutationVariables = Exact<{
 
 export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 
+export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, title: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, title: string, projectId: string | null } | null, project: { id: string, title: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
+
+export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
+  id: string | number;
+  at: string;
+}>;
+
+
+export type ElsewhereMarkAlarmFiredMutation = { markAlarmFired: boolean };
+
 export type UploadAttachmentMutationVariables = Exact<{
   file: File;
 }>;
@@ -4675,37 +4679,6 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
-export const CompanyProfileFieldsFragmentDoc = new TypedDocumentString(`
-    fragment CompanyProfileFields on CompanyProfile {
-  name
-  contact
-  legalForm
-  capital
-  registration
-  siren
-  siret
-  activityCode
-  vatNumber
-  vatApplicable
-  vatExemptionText
-  address
-  email
-  phone
-  website
-  logoUrl
-  bankName
-  accountHolder
-  iban
-  bic
-  paymentTerms
-  paymentDays
-  paymentMethods
-  lateInterest
-  otherMentions
-  referenceLabel
-  quoteValidityDays
-}
-    `, {"fragmentName":"CompanyProfileFields"}) as unknown as TypedDocumentString<CompanyProfileFieldsFragment, unknown>;
 export const AccountingDocumentListFieldsFragmentDoc = new TypedDocumentString(`
     fragment AccountingDocumentListFields on AccountingDocument {
   id
@@ -4903,6 +4876,37 @@ export const ImportedDocumentFieldsFragmentDoc = new TypedDocumentString(`
   sentVia
 }
     `, {"fragmentName":"ImportedDocumentFields"}) as unknown as TypedDocumentString<ImportedDocumentFieldsFragment, unknown>;
+export const CompanyProfileFieldsFragmentDoc = new TypedDocumentString(`
+    fragment CompanyProfileFields on CompanyProfile {
+  name
+  contact
+  legalForm
+  capital
+  registration
+  siren
+  siret
+  activityCode
+  vatNumber
+  vatApplicable
+  vatExemptionText
+  address
+  email
+  phone
+  website
+  logoUrl
+  bankName
+  accountHolder
+  iban
+  bic
+  paymentTerms
+  paymentDays
+  paymentMethods
+  lateInterest
+  otherMentions
+  referenceLabel
+  quoteValidityDays
+}
+    `, {"fragmentName":"CompanyProfileFields"}) as unknown as TypedDocumentString<CompanyProfileFieldsFragment, unknown>;
 export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
     fragment AlarmFields on Alarm {
   id
@@ -5113,6 +5117,7 @@ export const TaskLabelFieldsFragmentDoc = new TypedDocumentString(`
   id
   name
   color
+  iconUrl
   position
 }
     `, {"fragmentName":"TaskLabelFields"}) as unknown as TypedDocumentString<TaskLabelFieldsFragment, unknown>;
@@ -5301,6 +5306,7 @@ export const ProjectStatusFieldsFragmentDoc = new TypedDocumentString(`
   id
   name
   color
+  iconUrl
   position
 }
     `, {"fragmentName":"ProjectStatusFields"}) as unknown as TypedDocumentString<ProjectStatusFieldsFragment, unknown>;
@@ -5309,6 +5315,8 @@ export const LabelFieldsFragmentDoc = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }
     `, {"fragmentName":"LabelFields"}) as unknown as TypedDocumentString<LabelFieldsFragment, unknown>;
 export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
@@ -5334,151 +5342,19 @@ export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
-export const CompanyProfileDocument = new TypedDocumentString(`
-    query CompanyProfile {
-  companyProfile {
-    ...CompanyProfileFields
-  }
+export const SetSettingsItemLookDocument = new TypedDocumentString(`
+    mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {
+  setSettingsItemLook(kind: $kind, id: $id, input: $input)
 }
-    fragment CompanyProfileFields on CompanyProfile {
-  name
-  contact
-  legalForm
-  capital
-  registration
-  siren
-  siret
-  activityCode
-  vatNumber
-  vatApplicable
-  vatExemptionText
-  address
-  email
-  phone
-  website
-  logoUrl
-  bankName
-  accountHolder
-  iban
-  bic
-  paymentTerms
-  paymentDays
-  paymentMethods
-  lateInterest
-  otherMentions
-  referenceLabel
-  quoteValidityDays
-}`) as unknown as TypedDocumentString<CompanyProfileQuery, CompanyProfileQueryVariables>;
-export const DocumentSequencesDocument = new TypedDocumentString(`
-    query DocumentSequences($year: Int!) {
-  documentSequences(year: $year) {
-    type
-    year
-    nextNumber
-    minimum
-  }
+    `) as unknown as TypedDocumentString<SetSettingsItemLookMutation, SetSettingsItemLookMutationVariables>;
+export const ReorderSettingsItemsDocument = new TypedDocumentString(`
+    mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {
+  reorderSettingsItems(kind: $kind, ids: $ids)
 }
-    `) as unknown as TypedDocumentString<DocumentSequencesQuery, DocumentSequencesQueryVariables>;
-export const ClientBillingDocument = new TypedDocumentString(`
-    query ClientBilling($id: ID!) {
-  client(id: $id) {
-    id
-    name
-    kind
-    firstName
-    lastName
-    address
-    email
-    phones
-    website
-    vatNumber
-    siren
-    siret
-    activityCode
-    services {
-      id
-      name
-      address
-      email
-      phones
-    }
-    contacts {
-      id
-      serviceId
-      firstName
-      lastName
-      email
-      jobTitle
-      phones
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<ClientBillingQuery, ClientBillingQueryVariables>;
-export const UpdateCompanyProfileDocument = new TypedDocumentString(`
-    mutation UpdateCompanyProfile($input: CompanyProfileInput!) {
-  updateCompanyProfile(input: $input) {
-    name
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateCompanyProfileMutation, UpdateCompanyProfileMutationVariables>;
-export const SetCompanyLogoDocument = new TypedDocumentString(`
-    mutation SetCompanyLogo($file: File) {
-  setCompanyLogo(file: $file) {
-    logoUrl
-  }
-}
-    `) as unknown as TypedDocumentString<SetCompanyLogoMutation, SetCompanyLogoMutationVariables>;
-export const SetDocumentSequenceDocument = new TypedDocumentString(`
-    mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {
-  setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)
-}
-    `) as unknown as TypedDocumentString<SetDocumentSequenceMutation, SetDocumentSequenceMutationVariables>;
-export const UpdateClientDetailsDocument = new TypedDocumentString(`
-    mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {
-  updateClientDetails(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateClientDetailsMutation, UpdateClientDetailsMutationVariables>;
-export const CreateClientServiceDocument = new TypedDocumentString(`
-    mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {
-  createClientService(clientId: $clientId, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<CreateClientServiceMutation, CreateClientServiceMutationVariables>;
-export const UpdateClientServiceDocument = new TypedDocumentString(`
-    mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {
-  updateClientService(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateClientServiceMutation, UpdateClientServiceMutationVariables>;
-export const DeleteClientServiceDocument = new TypedDocumentString(`
-    mutation DeleteClientService($id: ID!) {
-  deleteClientService(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteClientServiceMutation, DeleteClientServiceMutationVariables>;
-export const CreateClientContactDocument = new TypedDocumentString(`
-    mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {
-  createClientContact(clientId: $clientId, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<CreateClientContactMutation, CreateClientContactMutationVariables>;
-export const UpdateClientContactDocument = new TypedDocumentString(`
-    mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {
-  updateClientContact(id: $id, input: $input) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateClientContactMutation, UpdateClientContactMutationVariables>;
-export const DeleteClientContactDocument = new TypedDocumentString(`
-    mutation DeleteClientContact($id: ID!) {
-  deleteClientContact(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteClientContactMutation, DeleteClientContactMutationVariables>;
+    `) as unknown as TypedDocumentString<ReorderSettingsItemsMutation, ReorderSettingsItemsMutationVariables>;
 export const CatalogItemsDocument = new TypedDocumentString(`
     query CatalogItems {
   catalogItems {
@@ -5941,6 +5817,150 @@ export const DeleteImportedDocumentDocument = new TypedDocumentString(`
   deleteImportedDocument(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteImportedDocumentMutation, DeleteImportedDocumentMutationVariables>;
+export const CompanyProfileDocument = new TypedDocumentString(`
+    query CompanyProfile {
+  companyProfile {
+    ...CompanyProfileFields
+  }
+}
+    fragment CompanyProfileFields on CompanyProfile {
+  name
+  contact
+  legalForm
+  capital
+  registration
+  siren
+  siret
+  activityCode
+  vatNumber
+  vatApplicable
+  vatExemptionText
+  address
+  email
+  phone
+  website
+  logoUrl
+  bankName
+  accountHolder
+  iban
+  bic
+  paymentTerms
+  paymentDays
+  paymentMethods
+  lateInterest
+  otherMentions
+  referenceLabel
+  quoteValidityDays
+}`) as unknown as TypedDocumentString<CompanyProfileQuery, CompanyProfileQueryVariables>;
+export const DocumentSequencesDocument = new TypedDocumentString(`
+    query DocumentSequences($year: Int!) {
+  documentSequences(year: $year) {
+    type
+    year
+    nextNumber
+    minimum
+  }
+}
+    `) as unknown as TypedDocumentString<DocumentSequencesQuery, DocumentSequencesQueryVariables>;
+export const ClientBillingDocument = new TypedDocumentString(`
+    query ClientBilling($id: ID!) {
+  client(id: $id) {
+    id
+    name
+    kind
+    firstName
+    lastName
+    address
+    email
+    phones
+    website
+    vatNumber
+    siren
+    siret
+    activityCode
+    services {
+      id
+      name
+      address
+      email
+      phones
+    }
+    contacts {
+      id
+      serviceId
+      firstName
+      lastName
+      email
+      jobTitle
+      phones
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ClientBillingQuery, ClientBillingQueryVariables>;
+export const UpdateCompanyProfileDocument = new TypedDocumentString(`
+    mutation UpdateCompanyProfile($input: CompanyProfileInput!) {
+  updateCompanyProfile(input: $input) {
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateCompanyProfileMutation, UpdateCompanyProfileMutationVariables>;
+export const SetCompanyLogoDocument = new TypedDocumentString(`
+    mutation SetCompanyLogo($file: File) {
+  setCompanyLogo(file: $file) {
+    logoUrl
+  }
+}
+    `) as unknown as TypedDocumentString<SetCompanyLogoMutation, SetCompanyLogoMutationVariables>;
+export const SetDocumentSequenceDocument = new TypedDocumentString(`
+    mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {
+  setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)
+}
+    `) as unknown as TypedDocumentString<SetDocumentSequenceMutation, SetDocumentSequenceMutationVariables>;
+export const UpdateClientDetailsDocument = new TypedDocumentString(`
+    mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {
+  updateClientDetails(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientDetailsMutation, UpdateClientDetailsMutationVariables>;
+export const CreateClientServiceDocument = new TypedDocumentString(`
+    mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {
+  createClientService(clientId: $clientId, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateClientServiceMutation, CreateClientServiceMutationVariables>;
+export const UpdateClientServiceDocument = new TypedDocumentString(`
+    mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {
+  updateClientService(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientServiceMutation, UpdateClientServiceMutationVariables>;
+export const DeleteClientServiceDocument = new TypedDocumentString(`
+    mutation DeleteClientService($id: ID!) {
+  deleteClientService(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteClientServiceMutation, DeleteClientServiceMutationVariables>;
+export const CreateClientContactDocument = new TypedDocumentString(`
+    mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {
+  createClientContact(clientId: $clientId, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateClientContactMutation, CreateClientContactMutationVariables>;
+export const UpdateClientContactDocument = new TypedDocumentString(`
+    mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {
+  updateClientContact(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateClientContactMutation, UpdateClientContactMutationVariables>;
+export const DeleteClientContactDocument = new TypedDocumentString(`
+    mutation DeleteClientContact($id: ID!) {
+  deleteClientContact(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteClientContactMutation, DeleteClientContactMutationVariables>;
 export const DocumentStatusesDocument = new TypedDocumentString(`
     query DocumentStatuses {
   documentStatuses {
@@ -5948,6 +5968,7 @@ export const DocumentStatusesDocument = new TypedDocumentString(`
     scope
     name
     color
+    iconUrl
     category
     position
     documentCount
@@ -6201,6 +6222,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     dayDisplay
     dayBar
     monthDisplay
@@ -6325,6 +6347,7 @@ export const CalendarCategoriesDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     parentId
     position
   }
@@ -6393,6 +6416,7 @@ export const CalendarsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
   calendarSubscriptions {
@@ -6691,6 +6715,9 @@ export const PlacesDocument = new TypedDocumentString(`
     lat
     lon
     path
+    color
+    iconUrl
+    position
   }
 }
     `) as unknown as TypedDocumentString<PlacesQuery, PlacesQueryVariables>;
@@ -6727,6 +6754,11 @@ export const SavePlaceDocument = new TypedDocumentString(`
   savePlace(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<SavePlaceMutation, SavePlaceMutationVariables>;
+export const MovePlaceDocument = new TypedDocumentString(`
+    mutation MovePlace($id: ID!, $parentId: ID, $index: Int!) {
+  movePlace(id: $id, parentId: $parentId, index: $index)
+}
+    `) as unknown as TypedDocumentString<MovePlaceMutation, MovePlaceMutationVariables>;
 export const DeletePlaceDocument = new TypedDocumentString(`
     mutation DeletePlace($id: ID!) {
   deletePlace(id: $id)
@@ -6924,27 +6956,6 @@ export const DeleteLibraryDocumentsDocument = new TypedDocumentString(`
   deleteLibraryDocuments(ids: $ids)
 }
     `) as unknown as TypedDocumentString<DeleteLibraryDocumentsMutation, DeleteLibraryDocumentsMutationVariables>;
-export const WatchedMailAccountsDocument = new TypedDocumentString(`
-    query WatchedMailAccounts {
-  mailAccounts {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<WatchedMailAccountsQuery, WatchedMailAccountsQueryVariables>;
-export const WatchedUnreadMailsDocument = new TypedDocumentString(`
-    query WatchedUnreadMails($accountId: ID!) {
-  mailMessages(accountId: $accountId, folder: "INBOX", page: 0, unread: true) {
-    messages {
-      uid
-      subject
-      from {
-        name
-        address
-      }
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
 export const MailAccountsDocument = new TypedDocumentString(`
     query MailAccounts {
   mailAccounts {
@@ -7231,6 +7242,7 @@ export const MailLabelsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
 }
@@ -7408,12 +7420,34 @@ export const DeleteMailSearchDocument = new TypedDocumentString(`
   deleteMailSearch(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteMailSearchMutation, DeleteMailSearchMutationVariables>;
+export const WatchedMailAccountsDocument = new TypedDocumentString(`
+    query WatchedMailAccounts {
+  mailAccounts {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<WatchedMailAccountsQuery, WatchedMailAccountsQueryVariables>;
+export const WatchedUnreadMailsDocument = new TypedDocumentString(`
+    query WatchedUnreadMails($accountId: ID!) {
+  mailMessages(accountId: $accountId, folder: "INBOX", page: 0, unread: true) {
+    messages {
+      uid
+      subject
+      from {
+        name
+        address
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
 export const RoutinesDataDocument = new TypedDocumentString(`
     query RoutinesData {
   routineCategories {
     id
     name
     color
+    iconUrl
     parentId
     position
   }
@@ -7569,16 +7603,6 @@ export const RemoveRoutineMoveDocument = new TypedDocumentString(`
   removeRoutineMove(id: $id, from: $from)
 }
     `) as unknown as TypedDocumentString<RemoveRoutineMoveMutation, RemoveRoutineMoveMutationVariables>;
-export const SetRoutineArchivedDocument = new TypedDocumentString(`
-    mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {
-  setRoutineArchived(id: $id, archived: $archived)
-}
-    `) as unknown as TypedDocumentString<SetRoutineArchivedMutation, SetRoutineArchivedMutationVariables>;
-export const DeleteRoutineDocument = new TypedDocumentString(`
-    mutation DeleteRoutine($id: ID!) {
-  deleteRoutine(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteRoutineMutation, DeleteRoutineMutationVariables>;
 export const RoutineChecksDocument = new TypedDocumentString(`
     query RoutineChecks($from: Date!, $to: Date!) {
   routineChecks(from: $from, to: $to) {
@@ -7680,6 +7704,7 @@ export const SheetCategoriesDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
 }
@@ -7854,6 +7879,7 @@ export const ShoppingDataDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     parentId
     position
     baseListIds
@@ -7862,23 +7888,28 @@ export const ShoppingDataDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
   shoppingUnits {
     id
     name
     color
+    iconUrl
     position
   }
   shoppingStores {
     id
     name
     color
+    iconUrl
     position
   }
   shoppingBaseLists {
     id
     name
+    color
+    iconUrl
     position
   }
   shoppingProducts {
@@ -8166,6 +8197,7 @@ export const StockLocationsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     parentId
     position
   }
@@ -8336,18 +8368,21 @@ export const TasksDataDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
   taskTypes {
     id
     name
     color
+    iconUrl
     position
   }
   taskTags {
     id
     name
     color
+    iconUrl
     position
   }
   milestones {
@@ -8385,6 +8420,7 @@ fragment TaskLabelFields on TaskStatus {
   id
   name
   color
+  iconUrl
   position
 }
 fragment TaskFields on Task {
@@ -8534,25 +8570,6 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   githubNumber
   slotRule
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
-export const SetTaskArchivedDocument = new TypedDocumentString(`
-    mutation SetTaskArchived($id: ID!, $archived: Boolean!) {
-  setTaskArchived(id: $id, archived: $archived) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<SetTaskArchivedMutation, SetTaskArchivedMutationVariables>;
-export const DeleteTaskDocument = new TypedDocumentString(`
-    mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {
-  deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)
-}
-    `) as unknown as TypedDocumentString<DeleteTaskMutation, DeleteTaskMutationVariables>;
-export const TransferTaskDocument = new TypedDocumentString(`
-    mutation TransferTask($id: ID!, $projectId: ID) {
-  transferTask(id: $id, projectId: $projectId) {
-    removedLinks
-  }
-}
-    `) as unknown as TypedDocumentString<TransferTaskMutation, TransferTaskMutationVariables>;
 export const CloneTaskDocument = new TypedDocumentString(`
     mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
   cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
@@ -8788,11 +8805,6 @@ export const TaskViewsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<TaskViewsQuery, TaskViewsQueryVariables>;
-export const MatchingTaskIdsDocument = new TypedDocumentString(`
-    query MatchingTaskIds($query: TaskQueryInput!) {
-  matchingTaskIds(query: $query)
-}
-    `) as unknown as TypedDocumentString<MatchingTaskIdsQuery, MatchingTaskIdsQueryVariables>;
 export const CreateTaskViewDocument = new TypedDocumentString(`
     mutation CreateTaskView($input: TaskViewInput!) {
   createTaskView(input: $input) {
@@ -8851,14 +8863,11 @@ export const BulkDeleteTasksDocument = new TypedDocumentString(`
   bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)
 }
     `) as unknown as TypedDocumentString<BulkDeleteTasksMutation, BulkDeleteTasksMutationVariables>;
-export const MatchingTaskIdsBySprintDocument = new TypedDocumentString(`
-    query MatchingTaskIdsBySprint($query: TaskQueryInput!) {
-  matchingTaskIdsBySprint(query: $query) {
-    sprintId
-    taskIds
-  }
+export const DoableTaskIdsDocument = new TypedDocumentString(`
+    query DoableTaskIds($utcOffset: Int!) {
+  doableTaskIds(utcOffset: $utcOffset)
 }
-    `) as unknown as TypedDocumentString<MatchingTaskIdsBySprintQuery, MatchingTaskIdsBySprintQueryVariables>;
+    `) as unknown as TypedDocumentString<DoableTaskIdsQuery, DoableTaskIdsQueryVariables>;
 export const CreateMilestoneDocument = new TypedDocumentString(`
     mutation CreateMilestone($input: MilestoneInput!) {
   createMilestone(input: $input) {
@@ -9006,6 +9015,8 @@ export const TreasuryAccountsDocument = new TypedDocumentString(`
   treasuryAccounts {
     id
     name
+    color
+    iconUrl
     openingBalance
     openingDate
     archived
@@ -9233,6 +9244,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     direction
     parentId
     position
@@ -9241,6 +9253,9 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
   treasuryPaymentMethods {
     id
     name
+    color
+    iconUrl
+    position
     incoming
     outgoing
     entryCount
@@ -9248,6 +9263,9 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
   treasuryCounterparties {
     id
     name
+    color
+    iconUrl
+    position
     note
     archived
     entryCount
@@ -9263,6 +9281,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     id
     name
     color
+    iconUrl
     position
   }
   treasuryRelations {
@@ -9532,11 +9551,14 @@ fragment LabelFields on ProjectCategory {
   id
   name
   color
+  position
+  iconUrl
 }
 fragment ProjectStatusFields on ProjectStatus {
   id
   name
   color
+  iconUrl
   position
 }
 fragment ProjectFields on Project {
@@ -9637,6 +9659,8 @@ export const CreateProjectDocument = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }
 fragment ProjectFields on Project {
   id
@@ -9666,6 +9690,8 @@ export const UpdateProjectDocument = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }
 fragment ProjectFields on Project {
   id
@@ -9695,6 +9721,8 @@ export const SetProjectFavoriteDocument = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }
 fragment ProjectFields on Project {
   id
@@ -9724,6 +9752,8 @@ export const SetProjectArchivedDocument = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }
 fragment ProjectFields on Project {
   id
@@ -9763,6 +9793,8 @@ export const CreateProjectCategoryDocument = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }`) as unknown as TypedDocumentString<CreateProjectCategoryMutation, CreateProjectCategoryMutationVariables>;
 export const UpdateProjectCategoryDocument = new TypedDocumentString(`
     mutation UpdateProjectCategory($id: ID!, $input: ProjectCategoryUpdateInput!) {
@@ -9774,6 +9806,8 @@ export const UpdateProjectCategoryDocument = new TypedDocumentString(`
   id
   name
   color
+  position
+  iconUrl
 }`) as unknown as TypedDocumentString<UpdateProjectCategoryMutation, UpdateProjectCategoryMutationVariables>;
 export const DeleteProjectCategoryDocument = new TypedDocumentString(`
     mutation DeleteProjectCategory($id: ID!) {
@@ -9790,6 +9824,7 @@ export const CreateProjectStatusDocument = new TypedDocumentString(`
   id
   name
   color
+  iconUrl
   position
 }`) as unknown as TypedDocumentString<CreateProjectStatusMutation, CreateProjectStatusMutationVariables>;
 export const UpdateProjectStatusDocument = new TypedDocumentString(`
@@ -9802,6 +9837,7 @@ export const UpdateProjectStatusDocument = new TypedDocumentString(`
   id
   name
   color
+  iconUrl
   position
 }`) as unknown as TypedDocumentString<UpdateProjectStatusMutation, UpdateProjectStatusMutationVariables>;
 export const DeleteProjectStatusDocument = new TypedDocumentString(`
@@ -9814,54 +9850,6 @@ export const MoveProjectStatusDocument = new TypedDocumentString(`
   moveProjectStatus(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveProjectStatusMutation, MoveProjectStatusMutationVariables>;
-export const ElsewhereAlarmsDocument = new TypedDocumentString(`
-    query ElsewhereAlarms {
-  alarms {
-    ...AlarmFields
-    task {
-      id
-      number
-      title
-      projectId
-    }
-    project {
-      id
-      title
-    }
-  }
-  runningTimeEntry {
-    id
-    startedAt
-    endedAt
-    pausedAt
-    pausedSeconds
-    duration
-  }
-}
-    fragment AlarmFields on Alarm {
-  id
-  title
-  note
-  type
-  startDate
-  time
-  frequency
-  interval
-  weekdays
-  endDate
-  recurrence
-  minutes
-  projectId
-  taskId
-  enabled
-  lastFiredAt
-  createdAt
-}`) as unknown as TypedDocumentString<ElsewhereAlarmsQuery, ElsewhereAlarmsQueryVariables>;
-export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
-    mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {
-  markAlarmFired(id: $id, at: $at)
-}
-    `) as unknown as TypedDocumentString<ElsewhereMarkAlarmFiredMutation, ElsewhereMarkAlarmFiredMutationVariables>;
 export const WorkspacesDocument = new TypedDocumentString(`
     query Workspaces {
   workspaces {
@@ -9914,6 +9902,54 @@ export const DeleteWorkspaceDocument = new TypedDocumentString(`
   deleteWorkspace(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteWorkspaceMutation, DeleteWorkspaceMutationVariables>;
+export const ElsewhereAlarmsDocument = new TypedDocumentString(`
+    query ElsewhereAlarms {
+  alarms {
+    ...AlarmFields
+    task {
+      id
+      number
+      title
+      projectId
+    }
+    project {
+      id
+      title
+    }
+  }
+  runningTimeEntry {
+    id
+    startedAt
+    endedAt
+    pausedAt
+    pausedSeconds
+    duration
+  }
+}
+    fragment AlarmFields on Alarm {
+  id
+  title
+  note
+  type
+  startDate
+  time
+  frequency
+  interval
+  weekdays
+  endDate
+  recurrence
+  minutes
+  projectId
+  taskId
+  enabled
+  lastFiredAt
+  createdAt
+}`) as unknown as TypedDocumentString<ElsewhereAlarmsQuery, ElsewhereAlarmsQueryVariables>;
+export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
+    mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {
+  markAlarmFired(id: $id, at: $at)
+}
+    `) as unknown as TypedDocumentString<ElsewhereMarkAlarmFiredMutation, ElsewhereMarkAlarmFiredMutationVariables>;
 export const UploadAttachmentDocument = new TypedDocumentString(`
     mutation UploadAttachment($file: File!) {
   uploadAttachment(file: $file) {

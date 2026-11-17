@@ -1,0 +1,48 @@
+@layer app {
+  /* The values chosen, one under the other (5 at most, the others folded behind « X de plus »), the search field last. */
+  .pillsList {
+    /* Agencement */
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+
+    /* Dimension */
+    min-width: 0;
+
+    & > * {
+      /* Dimension */
+      max-width: 100%;
+    }
+  }
+
+  .pill {
+    /* Dimension */
+    max-width: 100%;
+  }
+
+  .swatch {
+    /* Agencement */
+    display: inline-block;
+    flex-shrink: 0;
+
+    /* Espacement */
+    margin-inline-end: 4px;
+    vertical-align: middle;
+  }
+
+  /* « X de plus » / « Réduire »: in the field, it does not open the list. */
+  .toggle {
+    /* Espacement */
+    padding-inline: 4px;
+  }
+
+  /* A line between the groups of options: the selected ones, then the others. */
+  .group + .group {
+    /* Espacement */
+    margin-top: 4px;
+    padding-top: 4px;
+
+    /* Bordures */
+    border-top: 1px solid var(--mantine-color-default-border);
+  }
+}

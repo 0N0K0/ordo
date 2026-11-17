@@ -11,7 +11,7 @@ const JUNK = '$Junk';
 const NOT_JUNK = '$NotJunk';
 
 /** Change of the marks of mails: a flag added or removed, or the done state. */
-export type MarkChange = { labelId: string; on: boolean } | { done: boolean };
+type MarkChange = { labelId: string; on: boolean } | { done: boolean };
 
 /**
  * Sets a flag or the done state on mails: IMAP keywords when the folder takes them, else marks kept in Ordo

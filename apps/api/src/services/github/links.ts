@@ -8,7 +8,7 @@ import { githubToken } from './client';
  * @param {string} projectId Project.
  * @returns {Promise<GithubProjectLink | null>} Link.
  */
-export async function linkOfProject(projectId: string): Promise<GithubProjectLink | null> {
+async function linkOfProject(projectId: string): Promise<GithubProjectLink | null> {
   for (let current: string | null = projectId; current; ) {
     const link = await prisma.githubProjectLink.findUnique({ where: { projectId: current } });
     if (link) return link;

@@ -1,21 +1,21 @@
+import { doableTaskIds } from '../../services/calendar/slot-rules';
 import { prisma } from '../../db';
-import { storeAttachment } from '../../services/attachments';
-import * as contributors from '../../services/contributors';
-import * as milestones from '../../services/milestones';
-import * as sprints from '../../services/sprints';
-import { iconUrl } from '../../services/icons';
-import type { Label } from '../../services/labels';
-import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/task-labels';
-import * as taskFilters from '../../services/task-filters';
-import * as taskViews from '../../services/task-views';
-import * as taskRecurrence from '../../services/task-recurrence';
-import * as tasks from '../../services/tasks';
-import { TASK_STATUS_CATEGORIES, readSlotRule, taskFilterSchema } from '@ordo/shared';
+import { storeAttachment } from '../../services/core/attachments';
+import * as contributors from '../../services/workspace/contributors';
+import * as milestones from '../../services/tasks/milestones';
+import * as sprints from '../../services/tasks/sprints';
+import { iconUrl } from '../../services/core/icons';
+import type { Label } from '../../services/tasks/labels';
+import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
+import * as taskViews from '../../services/tasks/task-views';
+import * as taskRecurrence from '../../services/tasks/task-recurrence';
+import * as tasks from '../../services/tasks/tasks';
+import { TASK_STATUS_CATEGORIES, readSlotRule } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../errors';
-import * as workspaces from '../../services/workspaces';
+import * as workspaces from '../../services/workspace/workspaces';
 import { builder } from '../builder';
-import { isMember } from '../../services/treasury-team';
+import { isMember } from '../../services/treasury/treasury-team';
 
 const byManualOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
 
@@ -85,11 +85,6 @@ const MilestoneUpdateInput = builder.inputType('MilestoneUpdateInput', {
     description: t.string(),
     dueDate: t.field({ type: 'Date' }),
   }),
-});
-
-const SprintMatchesRef = builder.objectRef<{ sprintId: string; taskIds: string[] }>('SprintMatches').implement({
-  description: 'Tasks of a sprint matching a filter at the end of the sprint.',
-  fields: (t) => ({ sprintId: t.exposeID('sprintId'), taskIds: t.exposeIDList('taskIds') }),
 });
 
 const SprintTaskStatusRef = builder.objectRef<sprints.SprintTaskStatus>('SprintTaskStatus').implement({
@@ -284,7 +279,7 @@ const TaskInput = builder.inputType('TaskInput', {
 });
 
 const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
-  description: 'Omitted fields are left unchanged; null clears a field. Use transferTask to change the project.',
+  description: 'Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.',
   fields: (t) => ({
     title: t.string(),
     description: t.string(),
@@ -339,16 +334,6 @@ const LabelUpdateInput = builder.inputType('TaskLabelUpdateInput', {
     name: t.string(),
     color: t.string(),
     category: t.field({ type: TaskStatusCategory, description: 'Statuses only.' }),
-  }),
-});
-
-const TaskQueryInput = builder.inputType('TaskQueryInput', {
-  fields: (t) => ({
-    filter: t.field({ type: 'JSON', required: true, description: 'Filter tree (and / or groups of conditions).' }),
-    search: t.string({ description: 'Quick search: number, title or description.' }),
-    includeArchived: t.boolean(),
-    today: t.field({ type: 'Date', required: true, description: 'User\'s current day, for relative dates.' }),
-    utcOffset: t.int({ required: true, description: 'User\'s offset from UTC, in minutes.' }),
   }),
 });
 
@@ -445,55 +430,10 @@ builder.queryFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: (query, _root, { id }) => prisma.task.findUnique({ ...query, where: { id } }),
   }),
-  matchingTaskIdsBySprint: t.field({
-    type: [SprintMatchesRef],
-    description:
-      'For each sprint ended before the query day: ids of its tasks matching a filter whose status conditions (status, category, closed) use the status the tasks had at the end of the sprint.',
-    args: { query: t.arg({ type: TaskQueryInput, required: true }) },
-    resolve: async (_root, { query }, ctx) => {
-      const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
-      const meId = ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null;
-      const statuses = await sprints.sprintTaskStatuses(query.today);
-      const categoryOf = new Map((await prisma.taskStatus.findMany({ select: { id: true, category: true } })).map((status) => [status.id, status.category]));
-      const bySprint = new Map<string, Map<string, { statusId: string | null; closed: boolean }>>();
-      for (const item of statuses) {
-        const map = bySprint.get(item.sprintId) ?? new Map();
-        map.set(item.taskId, { statusId: item.statusId, closed: item.closed });
-        bySprint.set(item.sprintId, map);
-      }
-      const ended = await prisma.sprint.findMany({ where: { endDate: { lt: new Date(`${query.today}T00:00:00Z`) } }, select: { id: true } });
-      return Promise.all(
-        ended.map(async ({ id }) => {
-          const where = await taskFilters.buildTaskWhere({
-            filter,
-            search: query.search ?? '',
-            includeArchived: query.includeArchived ?? false,
-            clock: { today: query.today, utcOffset: query.utcOffset },
-            user: { contributorId: meId },
-            statusAt: { statuses: bySprint.get(id) ?? new Map(), categoryOf },
-          });
-          const tasks = await prisma.task.findMany({ where: { AND: [where, { sprints: { some: { id } } }] }, select: { id: true } });
-          return { sprintId: id, taskIds: tasks.map((task) => task.id) };
-        }),
-      );
-    },
-  }),
-  matchingTaskIds: t.idList({
-    description: 'Ids of the tasks matching a filter, in manual order.',
-    args: { query: t.arg({ type: TaskQueryInput, required: true }) },
-    resolve: async (_root, { query }, ctx) => {
-      const { filter } = parseInput(z.object({ filter: taskFilterSchema }), { filter: query.filter });
-      const meId = ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null;
-      const where = await taskFilters.buildTaskWhere({
-        filter,
-        search: query.search ?? '',
-        includeArchived: query.includeArchived ?? false,
-        clock: { today: query.today, utcOffset: query.utcOffset },
-        user: { contributorId: meId },
-      });
-      const matches = await prisma.task.findMany({ where, orderBy: [...byManualOrder], select: { id: true } });
-      return matches.map((task) => task.id);
-    },
+  doableTaskIds: t.idList({
+    description: 'Ids of the open tasks that can be done now: allowed by their slot rule (else the default of the workspace) and kept by no event of their people.',
+    args: { utcOffset: t.arg.int({ required: true }) },
+    resolve: async (_root, { utcOffset }, ctx) => doableTaskIds(utcOffset, ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],
@@ -550,29 +490,6 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskUpdateInput, required: true }) },
     resolve: async (query, _root, { id, input }) => reloadTask(query, (await tasks.updateTask(id, input)).id),
   }),
-  setTaskArchived: t.prismaField({
-    type: 'Task',
-    description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',
-    args: { id: t.arg.id({ required: true }), archived: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { id, archived }) =>
-      reloadTask(query, (await tasks.setTaskArchived(id, archived)).id),
-  }),
-  deleteTask: t.boolean({
-    args: {
-      id: t.arg.id({ required: true }),
-      deleteSubtasks: t.arg.boolean({ required: true, description: 'false moves the sub-tasks up to the parent.' }),
-    },
-    resolve: async (_root, { id, deleteSubtasks }) => {
-      await tasks.deleteTask(id, deleteSubtasks);
-      return true;
-    },
-  }),
-  transferTask: t.field({
-    type: TransferResult,
-    description: 'Moves the task and its sub-tasks to another project, or out of any (projectId null).',
-    args: { id: t.arg.id({ required: true }), projectId: t.arg.id() },
-    resolve: async (_root, { id, projectId }) => ({ removedLinks: (await tasks.transferTask(id, projectId ?? null)).removedLinks }),
-  }),
   cloneTask: t.prismaField({
     type: 'Task',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
@@ -622,6 +539,7 @@ builder.mutationFields((t) => ({
     resolve: async (_root, { ids, projectId }) => ({ removedLinks: await tasks.bulkTransferTasks(ids, projectId ?? null) }),
   }),
   bulkSetTasksArchived: t.boolean({
+    description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',
     args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
     resolve: async (_root, { ids, archived }) => {
       await tasks.bulkSetTasksArchived(ids, archived);

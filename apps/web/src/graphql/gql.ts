@@ -15,20 +15,8 @@ import * as types from './graphql';
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": typeof types.CompanyProfileFieldsFragmentDoc,
-    "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": typeof types.CompanyProfileDocument,
-    "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": typeof types.DocumentSequencesDocument,
-    "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": typeof types.ClientBillingDocument,
-    "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": typeof types.UpdateCompanyProfileDocument,
-    "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": typeof types.SetCompanyLogoDocument,
-    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": typeof types.SetDocumentSequenceDocument,
-    "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientDetailsDocument,
-    "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": typeof types.CreateClientServiceDocument,
-    "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientServiceDocument,
-    "\n  mutation DeleteClientService($id: ID!) {\n    deleteClientService(id: $id)\n  }\n": typeof types.DeleteClientServiceDocument,
-    "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": typeof types.CreateClientContactDocument,
-    "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientContactDocument,
-    "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n": typeof types.DeleteClientContactDocument,
+    "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": typeof types.SetSettingsItemLookDocument,
+    "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": typeof types.ReorderSettingsItemsDocument,
     "\n  query CatalogItems {\n    catalogItems {\n      id\n      kind\n      title\n      description\n      unit\n      unitPrice\n      vatRate\n      archived\n    }\n  }\n": typeof types.CatalogItemsDocument,
     "\n  mutation CreateCatalogItem($input: CatalogItemInput!) {\n    createCatalogItem(input: $input)\n  }\n": typeof types.CreateCatalogItemDocument,
     "\n  mutation UpdateCatalogItem($id: ID!, $input: CatalogItemInput!) {\n    updateCatalogItem(id: $id, input: $input)\n  }\n": typeof types.UpdateCatalogItemDocument,
@@ -69,7 +57,21 @@ type Documents = {
     "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": typeof types.ImportDocumentDocument,
     "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": typeof types.UpdateImportedDocumentDocument,
     "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": typeof types.DeleteImportedDocumentDocument,
-    "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      category\n      position\n      documentCount\n    }\n  }\n": typeof types.DocumentStatusesDocument,
+    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": typeof types.CompanyProfileFieldsFragmentDoc,
+    "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": typeof types.CompanyProfileDocument,
+    "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": typeof types.DocumentSequencesDocument,
+    "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": typeof types.ClientBillingDocument,
+    "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": typeof types.UpdateCompanyProfileDocument,
+    "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": typeof types.SetCompanyLogoDocument,
+    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": typeof types.SetDocumentSequenceDocument,
+    "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientDetailsDocument,
+    "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": typeof types.CreateClientServiceDocument,
+    "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientServiceDocument,
+    "\n  mutation DeleteClientService($id: ID!) {\n    deleteClientService(id: $id)\n  }\n": typeof types.DeleteClientServiceDocument,
+    "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": typeof types.CreateClientContactDocument,
+    "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateClientContactDocument,
+    "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n": typeof types.DeleteClientContactDocument,
+    "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      iconUrl\n      category\n      position\n      documentCount\n    }\n  }\n": typeof types.DocumentStatusesDocument,
     "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      sentAt\n      sentVia\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n": typeof types.OverdueInvoicesDocument,
     "\n  mutation SendDocumentReminders($accountId: ID!, $documentIds: [ID!]!) {\n    sendDocumentReminders(accountId: $accountId, documentIds: $documentIds) {\n      documentId\n      number\n      error\n    }\n  }\n": typeof types.SendDocumentRemindersDocument,
     "\n  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {\n    createDocumentStatus(scope: $scope, name: $name, color: $color, category: $category)\n  }\n": typeof types.CreateDocumentStatusDocument,
@@ -101,7 +103,7 @@ type Documents = {
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": typeof types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": typeof types.CancelEmailChangeDocument,
     "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
-    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": typeof types.WorkSchedulesDocument,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": typeof types.WorkSchedulesDocument,
     "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceName\n      typeId\n      name\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": typeof types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      name\n      startDate\n      endDate\n      cases\n      exceptions\n      typeName\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceName\n    }\n  }\n": typeof types.SubscribedWorkSchedulesDocument,
     "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": typeof types.SaveScheduleTypeDocument,
@@ -115,9 +117,9 @@ type Documents = {
     "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": typeof types.DeleteWorkScheduleDocument,
     "\n  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {\n    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)\n  }\n": typeof types.SetCalendarEventCalledOffDocument,
     "\n  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {\n    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)\n  }\n": typeof types.PostponeCalendarEventDocument,
-    "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n": typeof types.CalendarCategoriesDocument,
+    "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n": typeof types.CalendarCategoriesDocument,
     "\n  query CalendarEvents($from: Date!, $to: Date!) {\n    calendarEvents(from: $from, to: $to) {\n      ...CalendarEventOccurrenceFields\n    }\n  }\n": typeof types.CalendarEventsDocument,
-    "\n  query Calendars {\n    calendars {\n      id\n      name\n      color\n      position\n    }\n    calendarSubscriptions {\n      id\n      calendarId\n      name\n      color\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n": typeof types.CalendarsDocument,
+    "\n  query Calendars {\n    calendars {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    calendarSubscriptions {\n      id\n      calendarId\n      name\n      color\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n": typeof types.CalendarsDocument,
     "\n  query SubscribableCalendars {\n    subscribableCalendars {\n      id\n      name\n      color\n      subscribed\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n": typeof types.SubscribableCalendarsDocument,
     "\n  query SubscribedCalendarEvents($from: Date!, $to: Date!) {\n    subscribedCalendarEvents(from: $from, to: $to) {\n      ...CalendarEventOccurrenceFields\n    }\n  }\n": typeof types.SubscribedCalendarEventsDocument,
     "\n  mutation CreateCalendar($input: CalendarInput!) {\n    createCalendar(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateCalendarDocument,
@@ -151,11 +153,12 @@ type Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": typeof types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": typeof types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": typeof types.MoveDashboardChartDocument,
-    "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n    }\n  }\n": typeof types.PlacesDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n      color\n      iconUrl\n      position\n    }\n  }\n": typeof types.PlacesDocument,
     "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.SearchAddressesDocument,
     "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": typeof types.ReverseAddressDocument,
     "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": typeof types.TravelTimeDocument,
     "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n": typeof types.SavePlaceDocument,
+    "\n  mutation MovePlace($id: ID!, $parentId: ID, $index: Int!) {\n    movePlace(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.MovePlaceDocument,
     "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": typeof types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": typeof types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": typeof types.GithubContributorsDocument,
@@ -179,8 +182,6 @@ type Documents = {
     "\n  mutation ReorderDocumentFolder($id: ID!, $parentId: ID, $index: Int!) {\n    reorderDocumentFolder(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.ReorderDocumentFolderDocument,
     "\n  mutation ReorderLibraryDocument($id: ID!, $folderId: ID, $index: Int!) {\n    reorderLibraryDocument(id: $id, folderId: $folderId, index: $index)\n  }\n": typeof types.ReorderLibraryDocumentDocument,
     "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": typeof types.DeleteLibraryDocumentsDocument,
-    "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": typeof types.WatchedMailAccountsDocument,
-    "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": typeof types.WatchedUnreadMailsDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": typeof types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    labelIds\n    done\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": typeof types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": typeof types.LinkedMailFieldsFragmentDoc,
@@ -205,7 +206,7 @@ type Documents = {
     "\n  mutation SaveMailDraft($input: SaveMailDraftInput!) {\n    saveMailDraft(input: $input) {\n      accountId\n      folder\n      uid\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n": typeof types.SaveMailDraftDocument,
     "\n  mutation DeleteMailDraft($location: MailLocationInput!) {\n    deleteMailDraft(location: $location)\n  }\n": typeof types.DeleteMailDraftDocument,
     "\n  mutation SendMail($input: SendMailInput!) {\n    sendMail(input: $input)\n  }\n": typeof types.SendMailDocument,
-    "\n  query MailLabels {\n    mailLabels {\n      id\n      name\n      color\n      position\n    }\n  }\n": typeof types.MailLabelsDocument,
+    "\n  query MailLabels {\n    mailLabels {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n  }\n": typeof types.MailLabelsDocument,
     "\n  query ScheduledMails {\n    scheduledMails {\n      id\n      accountId\n      sendAt\n      subject\n      to\n      status\n      error\n    }\n  }\n": typeof types.ScheduledMailsDocument,
     "\n  mutation MarkMails($accountId: ID!, $folder: String!, $uids: [Int!]!, $labelId: ID, $on: Boolean, $done: Boolean) {\n    markMails(accountId: $accountId, folder: $folder, uids: $uids, labelId: $labelId, on: $on, done: $done)\n  }\n": typeof types.MarkMailsDocument,
     "\n  mutation ReportMailSpam($accountId: ID!, $folder: String!, $uids: [Int!]!, $spam: Boolean!) {\n    reportMailSpam(accountId: $accountId, folder: $folder, uids: $uids, spam: $spam)\n  }\n": typeof types.ReportMailSpamDocument,
@@ -226,7 +227,9 @@ type Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": typeof types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": typeof types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": typeof types.DeleteMailSearchDocument,
-    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": typeof types.RoutinesDataDocument,
+    "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": typeof types.WatchedMailAccountsDocument,
+    "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": typeof types.WatchedUnreadMailsDocument,
+    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": typeof types.RoutinesDataDocument,
     "\n  mutation CreateRoutineCategory($input: RoutineCategoryInput!) {\n    createRoutineCategory(input: $input)\n  }\n": typeof types.CreateRoutineCategoryDocument,
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.MoveRoutineCategoryDocument,
@@ -245,13 +248,11 @@ type Documents = {
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": typeof types.RemoveRoutineMoveDocument,
-    "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": typeof types.SetRoutineArchivedDocument,
-    "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": typeof types.DeleteRoutineDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": typeof types.RoutineChecksDocument,
     "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": typeof types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      name\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": typeof types.SheetsDocument,
     "\n  query Sheet($id: ID!) {\n    sheet(id: $id) {\n      id\n      name\n      note\n      projectId\n      categoryIds\n      usedBy\n      updatedAt\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": typeof types.SheetDocument,
-    "\n  query SheetCategories {\n    sheetCategories {\n      id\n      name\n      color\n      position\n    }\n  }\n": typeof types.SheetCategoriesDocument,
+    "\n  query SheetCategories {\n    sheetCategories {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n  }\n": typeof types.SheetCategoriesDocument,
     "\n  query SheetLinks($routineId: ID, $eventId: ID, $taskId: ID) {\n    sheetLinks(routineId: $routineId, eventId: $eventId, taskId: $taskId) {\n      id\n      sheetId\n      multiplier\n    }\n  }\n": typeof types.SheetLinksDocument,
     "\n  query Checklist($routineId: ID, $eventId: ID, $taskId: ID, $occurrenceDate: Date) {\n    checklist(routineId: $routineId, eventId: $eventId, taskId: $taskId, occurrenceDate: $occurrenceDate) {\n      id\n      routineId\n      eventId\n      taskId\n      occurrenceDate\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        checkedAt\n        position\n        sources {\n          sheetId\n          name\n          quantity\n        }\n      }\n    }\n  }\n": typeof types.ChecklistDocument,
     "\n  mutation CreateSheet($input: SheetInput!) {\n    createSheet(input: $input)\n  }\n": typeof types.CreateSheetDocument,
@@ -276,7 +277,7 @@ type Documents = {
     "\n  mutation UpdateChecklistItem($id: ID!, $input: SheetItemInput!) {\n    updateChecklistItem(id: $id, input: $input)\n  }\n": typeof types.UpdateChecklistItemDocument,
     "\n  mutation SetChecklistItemsChecked($ids: [ID!]!, $checked: Boolean!) {\n    setChecklistItemsChecked(ids: $ids, checked: $checked)\n  }\n": typeof types.SetChecklistItemsCheckedDocument,
     "\n  mutation DeleteChecklistItem($id: ID!) {\n    deleteChecklistItem(id: $id)\n  }\n": typeof types.DeleteChecklistItemDocument,
-    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      position\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingUnits {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n      stockTracked\n      consumable\n      autoStock\n      stockLocationId\n    }\n  }\n": typeof types.ShoppingDataDocument,
+    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingUnits {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n      stockTracked\n      consumable\n      autoStock\n      stockLocationId\n    }\n  }\n": typeof types.ShoppingDataDocument,
     "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskIds\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      remote\n      deliveryAddress\n      deliveryLat\n      deliveryLon\n      deliveries {\n        id\n        label\n        trackingUrl\n        pickup\n        windowFrom\n        windowTo\n        address\n        lat\n        lon\n        receivedAt\n        position\n      }\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        optional\n        deliveryId\n        sheetSources {\n          sheetId\n          name\n          quantity\n        }\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": typeof types.ShoppingListsDocument,
     "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": typeof types.CreateShoppingCategoryDocument,
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingCategoryDocument,
@@ -316,7 +317,7 @@ type Documents = {
     "\n  mutation SetShoppingItemPurchased($id: ID!, $purchased: Boolean!) {\n    setShoppingItemPurchased(id: $id, purchased: $purchased)\n  }\n": typeof types.SetShoppingItemPurchasedDocument,
     "\n  mutation SaveShoppingItemToBase($id: ID!, $baseListId: ID!) {\n    saveShoppingItemToBase(id: $id, baseListId: $baseListId)\n  }\n": typeof types.SaveShoppingItemToBaseDocument,
     "\n  mutation DeleteShoppingItem($id: ID!) {\n    deleteShoppingItem(id: $id)\n  }\n": typeof types.DeleteShoppingItemDocument,
-    "\n  query StockLocations {\n    stockLocations {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n": typeof types.StockLocationsDocument,
+    "\n  query StockLocations {\n    stockLocations {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n": typeof types.StockLocationsDocument,
     "\n  query StockItems {\n    stockItems {\n      id\n      productId\n      label\n      categoryId\n      unit\n      locationId\n      note\n      perishable\n      position\n      createdAt\n      updatedAt\n      quantity\n      consumable\n      memberIds\n      relationIds\n      lots {\n        id\n        quantity\n        expiresAt\n        createdAt\n      }\n    }\n  }\n": typeof types.StockItemsDocument,
     "\n  query StockMovements($itemId: ID) {\n    stockMovements(itemId: $itemId) {\n      id\n      itemId\n      itemLabel\n      lotId\n      kind\n      quantity\n      date\n      note\n      source\n      shoppingListId\n      sheetId\n      countId\n    }\n  }\n": typeof types.StockMovementsDocument,
     "\n  query StockCounts {\n    stockCounts {\n      id\n      date\n      locationId\n      note\n      lines\n    }\n  }\n": typeof types.StockCountsDocument,
@@ -341,16 +342,13 @@ type Documents = {
     "\n  fragment ContributorFields on Contributor {\n    id\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n  }\n": typeof types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
-    "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
+    "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    iconUrl\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
     "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n": typeof types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": typeof types.TaskCommentFieldsFragmentDoc,
-    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
+    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
-    "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n": typeof types.SetTaskArchivedDocument,
-    "\n  mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {\n    deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)\n  }\n": typeof types.DeleteTaskDocument,
-    "\n  mutation TransferTask($id: ID!, $projectId: ID) {\n    transferTask(id: $id, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": typeof types.TransferTaskDocument,
     "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": typeof types.CloneTaskDocument,
     "\n  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {\n    setTaskRecurrence(id: $id, recurrence: $recurrence) {\n      id\n    }\n  }\n": typeof types.SetTaskRecurrenceDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": typeof types.MoveTaskDocument,
@@ -385,7 +383,6 @@ type Documents = {
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": typeof types.SetTasksClosedDocument,
     "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": typeof types.TaskViewsDocument,
-    "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": typeof types.MatchingTaskIdsDocument,
     "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTaskViewDocument,
     "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTaskViewDocument,
     "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n": typeof types.DuplicateTaskViewDocument,
@@ -396,7 +393,7 @@ type Documents = {
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": typeof types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": typeof types.BulkDeleteTasksDocument,
-    "\n  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {\n    matchingTaskIdsBySprint(query: $query) {\n      sprintId\n      taskIds\n    }\n  }\n": typeof types.MatchingTaskIdsBySprintDocument,
+    "\n  query DoableTaskIds($utcOffset: Int!) {\n    doableTaskIds(utcOffset: $utcOffset)\n  }\n": typeof types.DoableTaskIdsDocument,
     "\n  mutation CreateMilestone($input: MilestoneInput!) {\n    createMilestone(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateMilestoneDocument,
     "\n  mutation UpdateMilestone($id: ID!, $input: MilestoneUpdateInput!) {\n    updateMilestone(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateMilestoneDocument,
     "\n  mutation DeleteMilestone($id: ID!) {\n    deleteMilestone(id: $id)\n  }\n": typeof types.DeleteMilestoneDocument,
@@ -416,11 +413,11 @@ type Documents = {
     "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    url\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      relationId\n      loan\n      date\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": typeof types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    title\n    url\n    projectId\n    place\n  }\n": typeof types.TreasuryEntryDocumentFieldsFragmentDoc,
     "\n  query TreasuryDocumentOptions {\n    treasuryDocumentOptions {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": typeof types.TreasuryDocumentOptionsDocument,
-    "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      openingBalance\n      openingDate\n      archived\n      csvMapping\n      entryCount\n      balance\n    }\n  }\n": typeof types.TreasuryAccountsDocument,
+    "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      color\n      iconUrl\n      openingBalance\n      openingDate\n      archived\n      csvMapping\n      entryCount\n      balance\n    }\n  }\n": typeof types.TreasuryAccountsDocument,
     "\n  query TreasuryEntries($from: Date!, $to: Date!, $accountId: ID) {\n    treasuryEntries(from: $from, to: $to, accountId: $accountId) {\n      ...TreasuryEntryFields\n    }\n  }\n": typeof types.TreasuryEntriesDocument,
     "\n  query ForecastEntries {\n    forecastEntries {\n      ...TreasuryEntryFields\n    }\n  }\n": typeof types.ForecastEntriesDocument,
     "\n  query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {\n    treasuryProjection(today: $today, from: $from, until: $until) {\n      balance\n      series {\n        date\n        balance\n        forecast\n      }\n      items {\n        date\n        dueDate\n        label\n        payerName\n        amount\n        kind\n        overdue\n        entryId\n        documentId\n        importedDocumentId\n        recurringInvoiceId\n        accountId\n      }\n    }\n  }\n": typeof types.TreasuryProjectionDocument,
-    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      direction\n      parentId\n      position\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": typeof types.TreasurySettingsDocument,
+    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      iconUrl\n      direction\n      parentId\n      position\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      color\n      iconUrl\n      position\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      color\n      iconUrl\n      position\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": typeof types.TreasurySettingsDocument,
     "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n      lines {\n        id\n        label\n        mode\n        value\n      }\n    }\n  }\n": typeof types.TreasuryEntrySearchDocument,
     "\n  mutation CreateTreasuryCategory($input: TreasuryCategoryInput!) {\n    createTreasuryCategory(input: $input)\n  }\n": typeof types.CreateTreasuryCategoryDocument,
     "\n  mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {\n    updateTreasuryCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateTreasuryCategoryDocument,
@@ -455,8 +452,8 @@ type Documents = {
     "\n  query TreasuryLoans {\n    treasuryLoans {\n      relationId\n      balance\n      out\n      in\n      items {\n        lineId\n        entryId\n        date\n        label\n        amount\n      }\n    }\n  }\n": typeof types.TreasuryLoansDocument,
     "\n  mutation ImportTreasuryStatement($accountId: ID!, $mapping: JSON, $rows: [TreasuryStatementRowInput!]!) {\n    importTreasuryStatement(accountId: $accountId, mapping: $mapping, rows: $rows)\n  }\n": typeof types.ImportTreasuryStatementDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": typeof types.ClientFieldsFragmentDoc,
-    "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n  }\n": typeof types.LabelFieldsFragmentDoc,
-    "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    position\n  }\n": typeof types.ProjectStatusFieldsFragmentDoc,
+    "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n    position\n    iconUrl\n  }\n": typeof types.LabelFieldsFragmentDoc,
+    "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    iconUrl\n    position\n  }\n": typeof types.ProjectStatusFieldsFragmentDoc,
     "\n  fragment ProjectFields on Project {\n    id\n    title\n    clientId\n    parentId\n    iconUrl\n    description\n    statusId\n    startDate\n    endDate\n    color\n    position\n    favorite\n    archived\n    categories {\n      ...LabelFields\n    }\n  }\n": typeof types.ProjectFieldsFragmentDoc,
     "\n  query Workspace {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.WorkspaceDocument,
     "\n  mutation CreateClient($input: ClientInput!) {\n    createClient(input: $input) {\n      ...ClientFields\n    }\n  }\n": typeof types.CreateClientDocument,
@@ -478,8 +475,6 @@ type Documents = {
     "\n  mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": typeof types.DeleteProjectStatusDocument,
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": typeof types.MoveProjectStatusDocument,
-    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
-    "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n      weekStart\n      weekEnd\n    }\n    currentWorkspaceId\n  }\n": typeof types.WorkspacesDocument,
     "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateWorkspaceDocument,
     "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
@@ -487,23 +482,13 @@ type Documents = {
     "\n  mutation SetWorkspaceWeek($id: ID!, $start: Int!, $end: Int!) {\n    setWorkspaceWeek(id: $id, start: $start, end: $end) {\n      id\n    }\n  }\n": typeof types.SetWorkspaceWeekDocument,
     "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": typeof types.MoveWorkspaceDocument,
     "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": typeof types.DeleteWorkspaceDocument,
+    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
+    "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
 };
 const documents: Documents = {
-    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": types.CompanyProfileFieldsFragmentDoc,
-    "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": types.CompanyProfileDocument,
-    "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": types.DocumentSequencesDocument,
-    "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": types.ClientBillingDocument,
-    "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": types.UpdateCompanyProfileDocument,
-    "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": types.SetCompanyLogoDocument,
-    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": types.SetDocumentSequenceDocument,
-    "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientDetailsDocument,
-    "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": types.CreateClientServiceDocument,
-    "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientServiceDocument,
-    "\n  mutation DeleteClientService($id: ID!) {\n    deleteClientService(id: $id)\n  }\n": types.DeleteClientServiceDocument,
-    "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": types.CreateClientContactDocument,
-    "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientContactDocument,
-    "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n": types.DeleteClientContactDocument,
+    "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": types.SetSettingsItemLookDocument,
+    "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": types.ReorderSettingsItemsDocument,
     "\n  query CatalogItems {\n    catalogItems {\n      id\n      kind\n      title\n      description\n      unit\n      unitPrice\n      vatRate\n      archived\n    }\n  }\n": types.CatalogItemsDocument,
     "\n  mutation CreateCatalogItem($input: CatalogItemInput!) {\n    createCatalogItem(input: $input)\n  }\n": types.CreateCatalogItemDocument,
     "\n  mutation UpdateCatalogItem($id: ID!, $input: CatalogItemInput!) {\n    updateCatalogItem(id: $id, input: $input)\n  }\n": types.UpdateCatalogItemDocument,
@@ -544,7 +529,21 @@ const documents: Documents = {
     "\n  mutation ImportDocument($input: ImportedDocumentInput!, $file: File) {\n    importDocument(input: $input, file: $file)\n  }\n": types.ImportDocumentDocument,
     "\n  mutation UpdateImportedDocument($id: ID!, $input: ImportedDocumentInput!, $file: File) {\n    updateImportedDocument(id: $id, input: $input, file: $file)\n  }\n": types.UpdateImportedDocumentDocument,
     "\n  mutation DeleteImportedDocument($id: ID!) {\n    deleteImportedDocument(id: $id)\n  }\n": types.DeleteImportedDocumentDocument,
-    "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      category\n      position\n      documentCount\n    }\n  }\n": types.DocumentStatusesDocument,
+    "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n": types.CompanyProfileFieldsFragmentDoc,
+    "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": types.CompanyProfileDocument,
+    "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": types.DocumentSequencesDocument,
+    "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": types.ClientBillingDocument,
+    "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": types.UpdateCompanyProfileDocument,
+    "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": types.SetCompanyLogoDocument,
+    "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": types.SetDocumentSequenceDocument,
+    "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientDetailsDocument,
+    "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": types.CreateClientServiceDocument,
+    "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientServiceDocument,
+    "\n  mutation DeleteClientService($id: ID!) {\n    deleteClientService(id: $id)\n  }\n": types.DeleteClientServiceDocument,
+    "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n": types.CreateClientContactDocument,
+    "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateClientContactDocument,
+    "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n": types.DeleteClientContactDocument,
+    "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      iconUrl\n      category\n      position\n      documentCount\n    }\n  }\n": types.DocumentStatusesDocument,
     "\n  query OverdueInvoices($today: Date!) {\n    overdueInvoices(today: $today) {\n      id\n      type\n      number\n      clientId\n      clientName\n      projectId\n      contactId\n      serviceId\n      issueDate\n      dueDate\n      sentAt\n      sentVia\n      totalGross\n      currency\n      balance\n      billingEmail\n      reminderCount\n      lastReminderAt\n    }\n  }\n": types.OverdueInvoicesDocument,
     "\n  mutation SendDocumentReminders($accountId: ID!, $documentIds: [ID!]!) {\n    sendDocumentReminders(accountId: $accountId, documentIds: $documentIds) {\n      documentId\n      number\n      error\n    }\n  }\n": types.SendDocumentRemindersDocument,
     "\n  mutation CreateDocumentStatus($scope: DocumentStatusScope!, $name: String!, $color: String!, $category: DocumentStatusCategory!) {\n    createDocumentStatus(scope: $scope, name: $name, color: $color, category: $category)\n  }\n": types.CreateDocumentStatusDocument,
@@ -576,7 +575,7 @@ const documents: Documents = {
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": types.CancelEmailChangeDocument,
     "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    title\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      title\n    }\n    postponedTo {\n      eventId\n      title\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
-    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": types.WorkSchedulesDocument,
+    "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": types.WorkSchedulesDocument,
     "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceName\n      typeId\n      name\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      name\n      startDate\n      endDate\n      cases\n      exceptions\n      typeName\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceName\n    }\n  }\n": types.SubscribedWorkSchedulesDocument,
     "\n  mutation SaveScheduleType($id: ID, $input: ScheduleTypeInput!) {\n    saveScheduleType(id: $id, input: $input)\n  }\n": types.SaveScheduleTypeDocument,
@@ -590,9 +589,9 @@ const documents: Documents = {
     "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": types.DeleteWorkScheduleDocument,
     "\n  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {\n    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)\n  }\n": types.SetCalendarEventCalledOffDocument,
     "\n  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {\n    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)\n  }\n": types.PostponeCalendarEventDocument,
-    "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n": types.CalendarCategoriesDocument,
+    "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n": types.CalendarCategoriesDocument,
     "\n  query CalendarEvents($from: Date!, $to: Date!) {\n    calendarEvents(from: $from, to: $to) {\n      ...CalendarEventOccurrenceFields\n    }\n  }\n": types.CalendarEventsDocument,
-    "\n  query Calendars {\n    calendars {\n      id\n      name\n      color\n      position\n    }\n    calendarSubscriptions {\n      id\n      calendarId\n      name\n      color\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n": types.CalendarsDocument,
+    "\n  query Calendars {\n    calendars {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    calendarSubscriptions {\n      id\n      calendarId\n      name\n      color\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n": types.CalendarsDocument,
     "\n  query SubscribableCalendars {\n    subscribableCalendars {\n      id\n      name\n      color\n      subscribed\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n": types.SubscribableCalendarsDocument,
     "\n  query SubscribedCalendarEvents($from: Date!, $to: Date!) {\n    subscribedCalendarEvents(from: $from, to: $to) {\n      ...CalendarEventOccurrenceFields\n    }\n  }\n": types.SubscribedCalendarEventsDocument,
     "\n  mutation CreateCalendar($input: CalendarInput!) {\n    createCalendar(input: $input) {\n      id\n    }\n  }\n": types.CreateCalendarDocument,
@@ -626,11 +625,12 @@ const documents: Documents = {
     "\n  mutation TransferDashboardChart($id: ID!, $dashboardId: ID, $projectId: ID) {\n    transferDashboardChart(id: $id, dashboardId: $dashboardId, projectId: $projectId)\n  }\n": types.TransferDashboardChartDocument,
     "\n  mutation DeleteDashboardChart($id: ID!) {\n    deleteDashboardChart(id: $id)\n  }\n": types.DeleteDashboardChartDocument,
     "\n  mutation MoveDashboardChart($id: ID!, $index: Int!) {\n    moveDashboardChart(id: $id, index: $index)\n  }\n": types.MoveDashboardChartDocument,
-    "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n    }\n  }\n": types.PlacesDocument,
+    "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n      color\n      iconUrl\n      position\n    }\n  }\n": types.PlacesDocument,
     "\n  query SearchAddresses($text: String!, $near: GeoPointInput) {\n    searchAddresses(text: $text, near: $near) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.SearchAddressesDocument,
     "\n  query ReverseAddress($point: GeoPointInput!) {\n    reverseAddress(point: $point) {\n      label\n      name\n      lat\n      lon\n    }\n  }\n": types.ReverseAddressDocument,
     "\n  query TravelTime($from: GeoPointInput!, $to: GeoPointInput!, $mode: TravelMode!) {\n    travelTime(from: $from, to: $to, mode: $mode) {\n      seconds\n      meters\n    }\n  }\n": types.TravelTimeDocument,
     "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n": types.SavePlaceDocument,
+    "\n  mutation MovePlace($id: ID!, $parentId: ID, $index: Int!) {\n    movePlace(id: $id, parentId: $parentId, index: $index)\n  }\n": types.MovePlaceDocument,
     "\n  mutation DeletePlace($id: ID!) {\n    deletePlace(id: $id)\n  }\n": types.DeletePlaceDocument,
     "\n  query GithubLogin {\n    githubLogin\n  }\n": types.GithubLoginDocument,
     "\n  query GithubContributors {\n    githubContributors {\n      id\n      name\n      githubLogin\n    }\n  }\n": types.GithubContributorsDocument,
@@ -654,8 +654,6 @@ const documents: Documents = {
     "\n  mutation ReorderDocumentFolder($id: ID!, $parentId: ID, $index: Int!) {\n    reorderDocumentFolder(id: $id, parentId: $parentId, index: $index)\n  }\n": types.ReorderDocumentFolderDocument,
     "\n  mutation ReorderLibraryDocument($id: ID!, $folderId: ID, $index: Int!) {\n    reorderLibraryDocument(id: $id, folderId: $folderId, index: $index)\n  }\n": types.ReorderLibraryDocumentDocument,
     "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n": types.DeleteLibraryDocumentsDocument,
-    "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": types.WatchedMailAccountsDocument,
-    "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": types.WatchedUnreadMailsDocument,
     "\n  fragment MailAccountFields on MailAccount {\n    id\n    name\n    email\n    displayName\n    imapHost\n    imapPort\n    imapSecure\n    imapUser\n    smtpHost\n    smtpPort\n    smtpSecure\n    smtpUser\n    saveSent\n    signature\n  }\n": types.MailAccountFieldsFragmentDoc,
     "\n  fragment MailViewFields on MailView {\n    accountId\n    folder\n    uid\n    labelIds\n    done\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    replyTo {\n      name\n      address\n    }\n    date\n    html\n    text\n    attachments {\n      index\n      filename\n      contentType\n      size\n      inline\n    }\n    linkedProjectIds\n  }\n": types.MailViewFieldsFragmentDoc,
     "\n  fragment LinkedMailFields on LinkedMail {\n    id\n    projectId\n    accountId\n    messageId\n    inReplyTo\n    references\n    subject\n    from {\n      name\n      address\n    }\n    to {\n      name\n      address\n    }\n    cc {\n      name\n      address\n    }\n    date\n    html\n    text\n    sent\n    attachments {\n      id\n      name\n      size\n      inline\n      url\n    }\n  }\n": types.LinkedMailFieldsFragmentDoc,
@@ -680,7 +678,7 @@ const documents: Documents = {
     "\n  mutation SaveMailDraft($input: SaveMailDraftInput!) {\n    saveMailDraft(input: $input) {\n      accountId\n      folder\n      uid\n      attachments {\n        index\n        filename\n        size\n        inline\n      }\n    }\n  }\n": types.SaveMailDraftDocument,
     "\n  mutation DeleteMailDraft($location: MailLocationInput!) {\n    deleteMailDraft(location: $location)\n  }\n": types.DeleteMailDraftDocument,
     "\n  mutation SendMail($input: SendMailInput!) {\n    sendMail(input: $input)\n  }\n": types.SendMailDocument,
-    "\n  query MailLabels {\n    mailLabels {\n      id\n      name\n      color\n      position\n    }\n  }\n": types.MailLabelsDocument,
+    "\n  query MailLabels {\n    mailLabels {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n  }\n": types.MailLabelsDocument,
     "\n  query ScheduledMails {\n    scheduledMails {\n      id\n      accountId\n      sendAt\n      subject\n      to\n      status\n      error\n    }\n  }\n": types.ScheduledMailsDocument,
     "\n  mutation MarkMails($accountId: ID!, $folder: String!, $uids: [Int!]!, $labelId: ID, $on: Boolean, $done: Boolean) {\n    markMails(accountId: $accountId, folder: $folder, uids: $uids, labelId: $labelId, on: $on, done: $done)\n  }\n": types.MarkMailsDocument,
     "\n  mutation ReportMailSpam($accountId: ID!, $folder: String!, $uids: [Int!]!, $spam: Boolean!) {\n    reportMailSpam(accountId: $accountId, folder: $folder, uids: $uids, spam: $spam)\n  }\n": types.ReportMailSpamDocument,
@@ -701,7 +699,9 @@ const documents: Documents = {
     "\n  mutation CreateMailSearch($input: MailSearchInput!) {\n    createMailSearch(input: $input)\n  }\n": types.CreateMailSearchDocument,
     "\n  mutation UpdateMailSearch($id: ID!, $input: MailSearchInput!) {\n    updateMailSearch(id: $id, input: $input)\n  }\n": types.UpdateMailSearchDocument,
     "\n  mutation DeleteMailSearch($id: ID!) {\n    deleteMailSearch(id: $id)\n  }\n": types.DeleteMailSearchDocument,
-    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": types.RoutinesDataDocument,
+    "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n": types.WatchedMailAccountsDocument,
+    "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n": types.WatchedUnreadMailsDocument,
+    "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": types.RoutinesDataDocument,
     "\n  mutation CreateRoutineCategory($input: RoutineCategoryInput!) {\n    createRoutineCategory(input: $input)\n  }\n": types.CreateRoutineCategoryDocument,
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": types.MoveRoutineCategoryDocument,
@@ -720,13 +720,11 @@ const documents: Documents = {
     "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": types.ChangeRoutineOccurrenceDocument,
     "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": types.DeleteRoutineOccurrenceDocument,
     "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": types.RemoveRoutineMoveDocument,
-    "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n": types.SetRoutineArchivedDocument,
-    "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n": types.DeleteRoutineDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": types.RoutineChecksDocument,
     "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      name\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": types.SheetsDocument,
     "\n  query Sheet($id: ID!) {\n    sheet(id: $id) {\n      id\n      name\n      note\n      projectId\n      categoryIds\n      usedBy\n      updatedAt\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": types.SheetDocument,
-    "\n  query SheetCategories {\n    sheetCategories {\n      id\n      name\n      color\n      position\n    }\n  }\n": types.SheetCategoriesDocument,
+    "\n  query SheetCategories {\n    sheetCategories {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n  }\n": types.SheetCategoriesDocument,
     "\n  query SheetLinks($routineId: ID, $eventId: ID, $taskId: ID) {\n    sheetLinks(routineId: $routineId, eventId: $eventId, taskId: $taskId) {\n      id\n      sheetId\n      multiplier\n    }\n  }\n": types.SheetLinksDocument,
     "\n  query Checklist($routineId: ID, $eventId: ID, $taskId: ID, $occurrenceDate: Date) {\n    checklist(routineId: $routineId, eventId: $eventId, taskId: $taskId, occurrenceDate: $occurrenceDate) {\n      id\n      routineId\n      eventId\n      taskId\n      occurrenceDate\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        checkedAt\n        position\n        sources {\n          sheetId\n          name\n          quantity\n        }\n      }\n    }\n  }\n": types.ChecklistDocument,
     "\n  mutation CreateSheet($input: SheetInput!) {\n    createSheet(input: $input)\n  }\n": types.CreateSheetDocument,
@@ -751,7 +749,7 @@ const documents: Documents = {
     "\n  mutation UpdateChecklistItem($id: ID!, $input: SheetItemInput!) {\n    updateChecklistItem(id: $id, input: $input)\n  }\n": types.UpdateChecklistItemDocument,
     "\n  mutation SetChecklistItemsChecked($ids: [ID!]!, $checked: Boolean!) {\n    setChecklistItemsChecked(ids: $ids, checked: $checked)\n  }\n": types.SetChecklistItemsCheckedDocument,
     "\n  mutation DeleteChecklistItem($id: ID!) {\n    deleteChecklistItem(id: $id)\n  }\n": types.DeleteChecklistItemDocument,
-    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      position\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingUnits {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n      stockTracked\n      consumable\n      autoStock\n      stockLocationId\n    }\n  }\n": types.ShoppingDataDocument,
+    "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingUnits {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n      stockTracked\n      consumable\n      autoStock\n      stockLocationId\n    }\n  }\n": types.ShoppingDataDocument,
     "\n  query ShoppingLists($taskId: ID) {\n    shoppingLists(taskId: $taskId) {\n      id\n      name\n      taskIds\n      entryId\n      entry {\n        id\n        date\n        label\n        amount\n      }\n      closed\n      closedAt\n      remote\n      deliveryAddress\n      deliveryLat\n      deliveryLon\n      deliveries {\n        id\n        label\n        trackingUrl\n        pickup\n        windowFrom\n        windowTo\n        address\n        lat\n        lon\n        receivedAt\n        position\n      }\n      createdAt\n      items {\n        id\n        listId\n        productId\n        name\n        categoryId\n        storeId\n        url\n        note\n        quantity\n        unit\n        unitPrice\n        perishable\n        storageId\n        expiresAt\n        purchasedAt\n        optional\n        deliveryId\n        sheetSources {\n          sheetId\n          name\n          quantity\n        }\n        position\n        memberIds\n        relationIds\n      }\n    }\n  }\n": types.ShoppingListsDocument,
     "\n  mutation CreateShoppingCategory($input: ShoppingCategoryInput!) {\n    createShoppingCategory(input: $input)\n  }\n": types.CreateShoppingCategoryDocument,
     "\n  mutation UpdateShoppingCategory($id: ID!, $input: ShoppingCategoryInput!) {\n    updateShoppingCategory(id: $id, input: $input)\n  }\n": types.UpdateShoppingCategoryDocument,
@@ -791,7 +789,7 @@ const documents: Documents = {
     "\n  mutation SetShoppingItemPurchased($id: ID!, $purchased: Boolean!) {\n    setShoppingItemPurchased(id: $id, purchased: $purchased)\n  }\n": types.SetShoppingItemPurchasedDocument,
     "\n  mutation SaveShoppingItemToBase($id: ID!, $baseListId: ID!) {\n    saveShoppingItemToBase(id: $id, baseListId: $baseListId)\n  }\n": types.SaveShoppingItemToBaseDocument,
     "\n  mutation DeleteShoppingItem($id: ID!) {\n    deleteShoppingItem(id: $id)\n  }\n": types.DeleteShoppingItemDocument,
-    "\n  query StockLocations {\n    stockLocations {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n": types.StockLocationsDocument,
+    "\n  query StockLocations {\n    stockLocations {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n": types.StockLocationsDocument,
     "\n  query StockItems {\n    stockItems {\n      id\n      productId\n      label\n      categoryId\n      unit\n      locationId\n      note\n      perishable\n      position\n      createdAt\n      updatedAt\n      quantity\n      consumable\n      memberIds\n      relationIds\n      lots {\n        id\n        quantity\n        expiresAt\n        createdAt\n      }\n    }\n  }\n": types.StockItemsDocument,
     "\n  query StockMovements($itemId: ID) {\n    stockMovements(itemId: $itemId) {\n      id\n      itemId\n      itemLabel\n      lotId\n      kind\n      quantity\n      date\n      note\n      source\n      shoppingListId\n      sheetId\n      countId\n    }\n  }\n": types.StockMovementsDocument,
     "\n  query StockCounts {\n    stockCounts {\n      id\n      date\n      locationId\n      note\n      lines\n    }\n  }\n": types.StockCountsDocument,
@@ -816,16 +814,13 @@ const documents: Documents = {
     "\n  fragment ContributorFields on Contributor {\n    id\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n  }\n": types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    projectId\n    name\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    projectId\n    title\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
-    "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
+    "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    iconUrl\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
     "\n  fragment TaskFields on Task {\n    id\n    number\n    title\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n": types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": types.TaskCommentFieldsFragmentDoc,
-    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
+    "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
-    "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n": types.SetTaskArchivedDocument,
-    "\n  mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {\n    deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)\n  }\n": types.DeleteTaskDocument,
-    "\n  mutation TransferTask($id: ID!, $projectId: ID) {\n    transferTask(id: $id, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": types.TransferTaskDocument,
     "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": types.CloneTaskDocument,
     "\n  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {\n    setTaskRecurrence(id: $id, recurrence: $recurrence) {\n      id\n    }\n  }\n": types.SetTaskRecurrenceDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": types.MoveTaskDocument,
@@ -860,7 +855,6 @@ const documents: Documents = {
     "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {\n    setTasksClosed(ids: $ids, closed: $closed)\n  }\n": types.SetTasksClosedDocument,
     "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      name\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
-    "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n": types.MatchingTaskIdsDocument,
     "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n": types.CreateTaskViewDocument,
     "\n  mutation UpdateTaskView($id: ID!, $input: TaskViewUpdateInput!) {\n    updateTaskView(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTaskViewDocument,
     "\n  mutation DuplicateTaskView($id: ID!, $name: String!) {\n    duplicateTaskView(id: $id, name: $name) {\n      id\n    }\n  }\n": types.DuplicateTaskViewDocument,
@@ -871,7 +865,7 @@ const documents: Documents = {
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": types.BulkTransferTasksDocument,
     "\n  mutation BulkSetTasksArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetTasksArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetTasksArchivedDocument,
     "\n  mutation BulkDeleteTasks($ids: [ID!]!, $deleteSubtasks: Boolean!) {\n    bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)\n  }\n": types.BulkDeleteTasksDocument,
-    "\n  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {\n    matchingTaskIdsBySprint(query: $query) {\n      sprintId\n      taskIds\n    }\n  }\n": types.MatchingTaskIdsBySprintDocument,
+    "\n  query DoableTaskIds($utcOffset: Int!) {\n    doableTaskIds(utcOffset: $utcOffset)\n  }\n": types.DoableTaskIdsDocument,
     "\n  mutation CreateMilestone($input: MilestoneInput!) {\n    createMilestone(input: $input) {\n      id\n    }\n  }\n": types.CreateMilestoneDocument,
     "\n  mutation UpdateMilestone($id: ID!, $input: MilestoneUpdateInput!) {\n    updateMilestone(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateMilestoneDocument,
     "\n  mutation DeleteMilestone($id: ID!) {\n    deleteMilestone(id: $id)\n  }\n": types.DeleteMilestoneDocument,
@@ -891,11 +885,11 @@ const documents: Documents = {
     "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    accountId\n    accountName\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodName\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    url\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      relationId\n      loan\n      date\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    title\n    url\n    projectId\n    place\n  }\n": types.TreasuryEntryDocumentFieldsFragmentDoc,
     "\n  query TreasuryDocumentOptions {\n    treasuryDocumentOptions {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": types.TreasuryDocumentOptionsDocument,
-    "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      openingBalance\n      openingDate\n      archived\n      csvMapping\n      entryCount\n      balance\n    }\n  }\n": types.TreasuryAccountsDocument,
+    "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      color\n      iconUrl\n      openingBalance\n      openingDate\n      archived\n      csvMapping\n      entryCount\n      balance\n    }\n  }\n": types.TreasuryAccountsDocument,
     "\n  query TreasuryEntries($from: Date!, $to: Date!, $accountId: ID) {\n    treasuryEntries(from: $from, to: $to, accountId: $accountId) {\n      ...TreasuryEntryFields\n    }\n  }\n": types.TreasuryEntriesDocument,
     "\n  query ForecastEntries {\n    forecastEntries {\n      ...TreasuryEntryFields\n    }\n  }\n": types.ForecastEntriesDocument,
     "\n  query TreasuryProjection($today: Date!, $from: Date!, $until: Date!) {\n    treasuryProjection(today: $today, from: $from, until: $until) {\n      balance\n      series {\n        date\n        balance\n        forecast\n      }\n      items {\n        date\n        dueDate\n        label\n        payerName\n        amount\n        kind\n        overdue\n        entryId\n        documentId\n        importedDocumentId\n        recurringInvoiceId\n        accountId\n      }\n    }\n  }\n": types.TreasuryProjectionDocument,
-    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      direction\n      parentId\n      position\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": types.TreasurySettingsDocument,
+    "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      iconUrl\n      direction\n      parentId\n      position\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      color\n      iconUrl\n      position\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      color\n      iconUrl\n      position\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n": types.TreasurySettingsDocument,
     "\n  query TreasuryEntrySearch($text: String!) {\n    treasuryEntrySearch(text: $text, limit: 20) {\n      id\n      date\n      label\n      amount\n      status\n      accountName\n      lines {\n        id\n        label\n        mode\n        value\n      }\n    }\n  }\n": types.TreasuryEntrySearchDocument,
     "\n  mutation CreateTreasuryCategory($input: TreasuryCategoryInput!) {\n    createTreasuryCategory(input: $input)\n  }\n": types.CreateTreasuryCategoryDocument,
     "\n  mutation UpdateTreasuryCategory($id: ID!, $input: TreasuryCategoryInput!) {\n    updateTreasuryCategory(id: $id, input: $input)\n  }\n": types.UpdateTreasuryCategoryDocument,
@@ -930,8 +924,8 @@ const documents: Documents = {
     "\n  query TreasuryLoans {\n    treasuryLoans {\n      relationId\n      balance\n      out\n      in\n      items {\n        lineId\n        entryId\n        date\n        label\n        amount\n      }\n    }\n  }\n": types.TreasuryLoansDocument,
     "\n  mutation ImportTreasuryStatement($accountId: ID!, $mapping: JSON, $rows: [TreasuryStatementRowInput!]!) {\n    importTreasuryStatement(accountId: $accountId, mapping: $mapping, rows: $rows)\n  }\n": types.ImportTreasuryStatementDocument,
     "\n  fragment ClientFields on Client {\n    id\n    name\n    iconUrl\n    color\n    position\n    favorite\n    archived\n  }\n": types.ClientFieldsFragmentDoc,
-    "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n  }\n": types.LabelFieldsFragmentDoc,
-    "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    position\n  }\n": types.ProjectStatusFieldsFragmentDoc,
+    "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n    position\n    iconUrl\n  }\n": types.LabelFieldsFragmentDoc,
+    "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    iconUrl\n    position\n  }\n": types.ProjectStatusFieldsFragmentDoc,
     "\n  fragment ProjectFields on Project {\n    id\n    title\n    clientId\n    parentId\n    iconUrl\n    description\n    statusId\n    startDate\n    endDate\n    color\n    position\n    favorite\n    archived\n    categories {\n      ...LabelFields\n    }\n  }\n": types.ProjectFieldsFragmentDoc,
     "\n  query Workspace {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n": types.WorkspaceDocument,
     "\n  mutation CreateClient($input: ClientInput!) {\n    createClient(input: $input) {\n      ...ClientFields\n    }\n  }\n": types.CreateClientDocument,
@@ -953,8 +947,6 @@ const documents: Documents = {
     "\n  mutation UpdateProjectStatus($id: ID!, $input: ProjectStatusUpdateInput!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": types.DeleteProjectStatusDocument,
     "\n  mutation MoveProjectStatus($id: ID!, $index: Int!) {\n    moveProjectStatus(id: $id, index: $index)\n  }\n": types.MoveProjectStatusDocument,
-    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
-    "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n      weekStart\n      weekEnd\n    }\n    currentWorkspaceId\n  }\n": types.WorkspacesDocument,
     "\n  mutation CreateWorkspace($input: WorkspaceInput!) {\n    createWorkspace(input: $input) {\n      id\n    }\n  }\n": types.CreateWorkspaceDocument,
     "\n  mutation UpdateWorkspace($id: ID!, $input: WorkspaceInput!) {\n    updateWorkspace(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateWorkspaceDocument,
@@ -962,65 +954,19 @@ const documents: Documents = {
     "\n  mutation SetWorkspaceWeek($id: ID!, $start: Int!, $end: Int!) {\n    setWorkspaceWeek(id: $id, start: $start, end: $end) {\n      id\n    }\n  }\n": types.SetWorkspaceWeekDocument,
     "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": types.MoveWorkspaceDocument,
     "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": types.DeleteWorkspaceDocument,
+    "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
+    "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      name\n      url\n      isImage\n    }\n  }\n": types.UploadAttachmentDocument,
 };
 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n"): typeof import('./graphql').CompanyProfileFieldsFragmentDoc;
+export function graphql(source: "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n"): typeof import('./graphql').SetSettingsItemLookDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n"): typeof import('./graphql').CompanyProfileDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n"): typeof import('./graphql').DocumentSequencesDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n"): typeof import('./graphql').ClientBillingDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n"): typeof import('./graphql').UpdateCompanyProfileDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n"): typeof import('./graphql').SetCompanyLogoDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n"): typeof import('./graphql').SetDocumentSequenceDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateClientDetailsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateClientServiceDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateClientServiceDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteClientService($id: ID!) {\n    deleteClientService(id: $id)\n  }\n"): typeof import('./graphql').DeleteClientServiceDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateClientContactDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateClientContactDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n"): typeof import('./graphql').DeleteClientContactDocument;
+export function graphql(source: "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n"): typeof import('./graphql').ReorderSettingsItemsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1184,7 +1130,63 @@ export function graphql(source: "\n  mutation DeleteImportedDocument($id: ID!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      category\n      position\n      documentCount\n    }\n  }\n"): typeof import('./graphql').DocumentStatusesDocument;
+export function graphql(source: "\n  fragment CompanyProfileFields on CompanyProfile {\n    name\n    contact\n    legalForm\n    capital\n    registration\n    siren\n    siret\n    activityCode\n    vatNumber\n    vatApplicable\n    vatExemptionText\n    address\n    email\n    phone\n    website\n    logoUrl\n    bankName\n    accountHolder\n    iban\n    bic\n    paymentTerms\n    paymentDays\n    paymentMethods\n    lateInterest\n    otherMentions\n    referenceLabel\n    quoteValidityDays\n  }\n"): typeof import('./graphql').CompanyProfileFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n"): typeof import('./graphql').CompanyProfileDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n"): typeof import('./graphql').DocumentSequencesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        name\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n"): typeof import('./graphql').ClientBillingDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n"): typeof import('./graphql').UpdateCompanyProfileDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n"): typeof import('./graphql').SetCompanyLogoDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetDocumentSequence(\n    $type: AccountingDocumentType!\n    $year: Int!\n    $nextNumber: Int!\n  ) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n"): typeof import('./graphql').SetDocumentSequenceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateClientDetails($id: ID!, $input: ClientDetailsInput!) {\n    updateClientDetails(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateClientDetailsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateClientService($clientId: ID!, $input: ClientServiceInput!) {\n    createClientService(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateClientServiceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateClientService($id: ID!, $input: ClientServiceInput!) {\n    updateClientService(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateClientServiceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteClientService($id: ID!) {\n    deleteClientService(id: $id)\n  }\n"): typeof import('./graphql').DeleteClientServiceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateClientContact($clientId: ID!, $input: ClientContactInput!) {\n    createClientContact(clientId: $clientId, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateClientContactDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateClientContact($id: ID!, $input: ClientContactInput!) {\n    updateClientContact(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateClientContactDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteClientContact($id: ID!) {\n    deleteClientContact(id: $id)\n  }\n"): typeof import('./graphql').DeleteClientContactDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DocumentStatuses {\n    documentStatuses {\n      id\n      scope\n      name\n      color\n      iconUrl\n      category\n      position\n      documentCount\n    }\n  }\n"): typeof import('./graphql').DocumentStatusesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1312,7 +1314,7 @@ export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on C
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n"): typeof import('./graphql').WorkSchedulesDocument;
+export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\n      id\n      name\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      name\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      name\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n"): typeof import('./graphql').WorkSchedulesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1368,7 +1370,7 @@ export function graphql(source: "\n  mutation PostponeCalendarEvent($id: ID!, $o
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n"): typeof import('./graphql').CalendarCategoriesDocument;
+export function graphql(source: "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n"): typeof import('./graphql').CalendarCategoriesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1376,7 +1378,7 @@ export function graphql(source: "\n  query CalendarEvents($from: Date!, $to: Dat
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Calendars {\n    calendars {\n      id\n      name\n      color\n      position\n    }\n    calendarSubscriptions {\n      id\n      calendarId\n      name\n      color\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n"): typeof import('./graphql').CalendarsDocument;
+export function graphql(source: "\n  query Calendars {\n    calendars {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    calendarSubscriptions {\n      id\n      calendarId\n      name\n      color\n      workspace {\n        id\n        name\n        kind\n      }\n    }\n  }\n"): typeof import('./graphql').CalendarsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1512,7 +1514,7 @@ export function graphql(source: "\n  mutation MoveDashboardChart($id: ID!, $inde
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n    }\n  }\n"): typeof import('./graphql').PlacesDocument;
+export function graphql(source: "\n  query Places {\n    places {\n      id\n      name\n      address\n      parentId\n      lat\n      lon\n      path\n      color\n      iconUrl\n      position\n    }\n  }\n"): typeof import('./graphql').PlacesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1529,6 +1531,10 @@ export function graphql(source: "\n  query TravelTime($from: GeoPointInput!, $to
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SavePlace($id: ID, $input: PlaceInput!) {\n    savePlace(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SavePlaceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MovePlace($id: ID!, $parentId: ID, $index: Int!) {\n    movePlace(id: $id, parentId: $parentId, index: $index)\n  }\n"): typeof import('./graphql').MovePlaceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1621,14 +1627,6 @@ export function graphql(source: "\n  mutation ReorderLibraryDocument($id: ID!, $
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteLibraryDocuments($ids: [ID!]!) {\n    deleteLibraryDocuments(ids: $ids)\n  }\n"): typeof import('./graphql').DeleteLibraryDocumentsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n"): typeof import('./graphql').WatchedMailAccountsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n"): typeof import('./graphql').WatchedUnreadMailsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1728,7 +1726,7 @@ export function graphql(source: "\n  mutation SendMail($input: SendMailInput!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query MailLabels {\n    mailLabels {\n      id\n      name\n      color\n      position\n    }\n  }\n"): typeof import('./graphql').MailLabelsDocument;
+export function graphql(source: "\n  query MailLabels {\n    mailLabels {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n  }\n"): typeof import('./graphql').MailLabelsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1812,7 +1810,15 @@ export function graphql(source: "\n  mutation DeleteMailSearch($id: ID!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      parentId\n      position\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n"): typeof import('./graphql').RoutinesDataDocument;
+export function graphql(source: "\n  query WatchedMailAccounts {\n    mailAccounts {\n      id\n    }\n  }\n"): typeof import('./graphql').WatchedMailAccountsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query WatchedUnreadMails($accountId: ID!) {\n    mailMessages(accountId: $accountId, folder: \"INBOX\", page: 0, unread: true) {\n      messages {\n        uid\n        subject\n        from {\n          name\n          address\n        }\n      }\n    }\n  }\n"): typeof import('./graphql').WatchedUnreadMailsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query RoutinesData {\n    routineCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      title\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n"): typeof import('./graphql').RoutinesDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1888,14 +1894,6 @@ export function graphql(source: "\n  mutation RemoveRoutineMove($id: ID!, $from:
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetRoutineArchived($id: ID!, $archived: Boolean!) {\n    setRoutineArchived(id: $id, archived: $archived)\n  }\n"): typeof import('./graphql').SetRoutineArchivedDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteRoutine($id: ID!) {\n    deleteRoutine(id: $id)\n  }\n"): typeof import('./graphql').DeleteRoutineDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n"): typeof import('./graphql').RoutineChecksDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -1912,7 +1910,7 @@ export function graphql(source: "\n  query Sheet($id: ID!) {\n    sheet(id: $id)
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query SheetCategories {\n    sheetCategories {\n      id\n      name\n      color\n      position\n    }\n  }\n"): typeof import('./graphql').SheetCategoriesDocument;
+export function graphql(source: "\n  query SheetCategories {\n    sheetCategories {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n  }\n"): typeof import('./graphql').SheetCategoriesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2012,7 +2010,7 @@ export function graphql(source: "\n  mutation DeleteChecklistItem($id: ID!) {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      parentId\n      position\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      position\n    }\n    shoppingUnits {\n      id\n      name\n      color\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n      stockTracked\n      consumable\n      autoStock\n      stockLocationId\n    }\n  }\n"): typeof import('./graphql').ShoppingDataDocument;
+export function graphql(source: "\n  query ShoppingData {\n    shoppingCategories {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n      baseListIds\n    }\n    shoppingStorages {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingUnits {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingStores {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingBaseLists {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    shoppingProducts {\n      id\n      baseListId\n      name\n      categoryId\n      storeId\n      url\n      note\n      quantity\n      unit\n      unitPrice\n      perishable\n      storageId\n      expiresAt\n      missing\n      lastPurchasedAt\n      lastPrice\n      memberIds\n      relationIds\n      stockTracked\n      consumable\n      autoStock\n      stockLocationId\n    }\n  }\n"): typeof import('./graphql').ShoppingDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2172,7 +2170,7 @@ export function graphql(source: "\n  mutation DeleteShoppingItem($id: ID!) {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query StockLocations {\n    stockLocations {\n      id\n      name\n      color\n      parentId\n      position\n    }\n  }\n"): typeof import('./graphql').StockLocationsDocument;
+export function graphql(source: "\n  query StockLocations {\n    stockLocations {\n      id\n      name\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n"): typeof import('./graphql').StockLocationsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2272,7 +2270,7 @@ export function graphql(source: "\n  fragment MilestoneFields on Milestone {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    position\n  }\n"): typeof import('./graphql').TaskLabelFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    name\n    color\n    iconUrl\n    position\n  }\n"): typeof import('./graphql').TaskLabelFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2284,7 +2282,7 @@ export function graphql(source: "\n  fragment TaskCommentFields on TaskComment {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n"): typeof import('./graphql').TasksDataDocument;
+export function graphql(source: "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n"): typeof import('./graphql').TasksDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2297,18 +2295,6 @@ export function graphql(source: "\n  mutation CreateTask($input: TaskInput!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n"): typeof import('./graphql').UpdateTaskDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SetTaskArchived($id: ID!, $archived: Boolean!) {\n    setTaskArchived(id: $id, archived: $archived) {\n      id\n    }\n  }\n"): typeof import('./graphql').SetTaskArchivedDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteTask($id: ID!, $deleteSubtasks: Boolean!) {\n    deleteTask(id: $id, deleteSubtasks: $deleteSubtasks)\n  }\n"): typeof import('./graphql').DeleteTaskDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation TransferTask($id: ID!, $projectId: ID) {\n    transferTask(id: $id, projectId: $projectId) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').TransferTaskDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2448,10 +2434,6 @@ export function graphql(source: "\n  query TaskViews($projectId: ID, $kind: View
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query MatchingTaskIds($query: TaskQueryInput!) {\n    matchingTaskIds(query: $query)\n  }\n"): typeof import('./graphql').MatchingTaskIdsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  mutation CreateTaskView($input: TaskViewInput!) {\n    createTaskView(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateTaskViewDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -2492,7 +2474,7 @@ export function graphql(source: "\n  mutation BulkDeleteTasks($ids: [ID!]!, $del
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query MatchingTaskIdsBySprint($query: TaskQueryInput!) {\n    matchingTaskIdsBySprint(query: $query) {\n      sprintId\n      taskIds\n    }\n  }\n"): typeof import('./graphql').MatchingTaskIdsBySprintDocument;
+export function graphql(source: "\n  query DoableTaskIds($utcOffset: Int!) {\n    doableTaskIds(utcOffset: $utcOffset)\n  }\n"): typeof import('./graphql').DoableTaskIdsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2572,7 +2554,7 @@ export function graphql(source: "\n  query TreasuryDocumentOptions {\n    treasu
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      openingBalance\n      openingDate\n      archived\n      csvMapping\n      entryCount\n      balance\n    }\n  }\n"): typeof import('./graphql').TreasuryAccountsDocument;
+export function graphql(source: "\n  query TreasuryAccounts {\n    treasuryAccounts {\n      id\n      name\n      color\n      iconUrl\n      openingBalance\n      openingDate\n      archived\n      csvMapping\n      entryCount\n      balance\n    }\n  }\n"): typeof import('./graphql').TreasuryAccountsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2588,7 +2570,7 @@ export function graphql(source: "\n  query TreasuryProjection($today: Date!, $fr
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      direction\n      parentId\n      position\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n"): typeof import('./graphql').TreasurySettingsDocument;
+export function graphql(source: "\n  query TreasurySettings {\n    treasuryCategories {\n      id\n      name\n      color\n      iconUrl\n      direction\n      parentId\n      position\n      entryCount\n    }\n    treasuryPaymentMethods {\n      id\n      name\n      color\n      iconUrl\n      position\n      incoming\n      outgoing\n      entryCount\n    }\n    treasuryCounterparties {\n      id\n      name\n      color\n      iconUrl\n      position\n      note\n      archived\n      entryCount\n    }\n    treasuryMembers {\n      id\n      name\n      handle\n      avatarUrl\n      isMe\n    }\n    treasuryContexts {\n      id\n      name\n      color\n      iconUrl\n      position\n    }\n    treasuryRelations {\n      id\n      name\n      note\n      contributorId\n      lineCount\n      budgetCount\n    }\n    treasuryContextPeriods {\n      id\n      contextId\n      startDate\n      endDate\n      note\n    }\n  }\n"): typeof import('./graphql').TreasurySettingsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2728,11 +2710,11 @@ export function graphql(source: "\n  fragment ClientFields on Client {\n    id\n
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n  }\n"): typeof import('./graphql').LabelFieldsFragmentDoc;
+export function graphql(source: "\n  fragment LabelFields on ProjectCategory {\n    id\n    name\n    color\n    position\n    iconUrl\n  }\n"): typeof import('./graphql').LabelFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    position\n  }\n"): typeof import('./graphql').ProjectStatusFieldsFragmentDoc;
+export function graphql(source: "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    name\n    color\n    iconUrl\n    position\n  }\n"): typeof import('./graphql').ProjectStatusFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2820,14 +2802,6 @@ export function graphql(source: "\n  mutation MoveProjectStatus($id: ID!, $index
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n"): typeof import('./graphql').ElsewhereAlarmsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n"): typeof import('./graphql').ElsewhereMarkAlarmFiredDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      kind\n      position\n      notifyElsewhere\n      weekStart\n      weekEnd\n    }\n    currentWorkspaceId\n  }\n"): typeof import('./graphql').WorkspacesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -2853,6 +2827,14 @@ export function graphql(source: "\n  mutation MoveWorkspace($id: ID!, $index: In
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n"): typeof import('./graphql').DeleteWorkspaceDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        title\n        projectId\n      }\n      project {\n        id\n        title\n      }\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n"): typeof import('./graphql').ElsewhereAlarmsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n"): typeof import('./graphql').ElsewhereMarkAlarmFiredDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

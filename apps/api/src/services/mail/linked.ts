@@ -4,10 +4,10 @@ import { simpleParser } from 'mailparser';
 import { prisma } from '../../db';
 import type { MailMessage } from '../../generated/prisma/client';
 import { notFound } from '../../graphql/errors';
-import { attachmentData } from '../attachments';
+import { attachmentData } from '../core/attachments';
 import { withImap } from './imap';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
-import { forEachWorkspace } from '../workspaces';
+import { forEachWorkspace } from '../workspace/workspaces';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -136,7 +136,7 @@ const FIRST_RUN_MESSAGES = 200;
  * where the previous run stopped.
  * @returns {Promise<void>}
  */
-export async function followConversations(): Promise<void> {
+async function followConversations(): Promise<void> {
   if (following) return;
   following = true;
   try {

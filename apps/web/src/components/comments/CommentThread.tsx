@@ -32,7 +32,7 @@ function fromNow(date: string): string {
 }
 
 /** Comment as the thread shows it. */
-export interface ThreadComment {
+interface ThreadComment {
   id: string;
   /** Markdown. */
   body: string;
@@ -42,7 +42,7 @@ export interface ThreadComment {
 }
 
 /** Saves of a thread: each calls `done` once saved (errors are told by the caller). */
-export interface ThreadActions {
+interface ThreadActions {
   add: (body: string, done: () => void) => void;
   update: (id: string, body: string, done?: () => void) => void;
   remove: (id: string) => void;

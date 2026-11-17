@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql';
 import type { z } from 'zod';
 
-export type ErrorCode =
+type ErrorCode =
   | 'UNAUTHENTICATED'
   | 'BAD_USER_INPUT'
   | 'INVALID_CREDENTIALS'

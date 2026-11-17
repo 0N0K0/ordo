@@ -1,5 +1,5 @@
 import { prisma } from '../../db';
-import * as shopping from '../../services/shopping';
+import * as shopping from '../../services/shopping/shopping';
 import { readSheetSources } from '@ordo/shared';
 import { builder } from '../builder';
 import { SheetSourceRef } from './sheets';

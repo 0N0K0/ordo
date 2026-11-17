@@ -3,7 +3,7 @@ import { loginFormSchema, type LoginFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { useLogin } from '../api';
-import { AuthHeader } from '../AuthLayout';
+import { AuthHeader } from './AuthLayout';
 
 /**
  * Login with a username or an email address.

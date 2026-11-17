@@ -1,7 +1,8 @@
+import { normalize, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, notFound } from '../../graphql/errors';
-import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks';
+import { addTaskBlock, addTaskRelation, createTask, removeTaskBlock, removeTaskRelation } from '../tasks/tasks';
 import {
   addIssueComment,
   boardById,
@@ -28,9 +29,9 @@ import {
 import { githubToken } from './client';
 import { isUnmapped, mergeFields, type SyncFields } from './merge';
 import { currentWorkspaceId } from '../../workspace-context';
-import { forEachWorkspace } from '../workspaces';
+import { forEachWorkspace } from '../workspace/workspaces';
 
-export interface SyncSummary {
+interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
   pulledNew: number;
   pushedNew: number;
@@ -98,7 +99,7 @@ interface Maps {
 }
 
 /** Content type of a task whose item was removed from the board: not sent again. */
-export const REMOVED = 'REMOVED';
+const REMOVED = 'REMOVED';
 
 /**
  * Field value of an item as a synchronized value.
@@ -558,9 +559,7 @@ async function syncComments(token: string, taskId: string, item: RemoteItem, log
  */
 async function projectTree(projectId: string): Promise<string[]> {
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true } });
-  const ids = [projectId];
-  for (let index = 0; index < ids.length; index += 1) ids.push(...projects.filter((project) => project.parentId === ids[index]).map((project) => project.id));
-  return ids;
+  return [...subtreeOf(projects, projectId)];
 }
 
 /**
@@ -568,7 +567,7 @@ async function projectTree(projectId: string): Promise<string[]> {
  * @param {string} name Name.
  * @returns {string} Folded name.
  */
-const foldName = (name: string) => name.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+const foldName = (name: string) => normalize(name).trim();
 
 /**
  * Pairs the iterations of the board with the sprints of the project tree, without losing anything. An iteration

@@ -10,7 +10,7 @@ import { fetchParsed, messageAttachment } from './reader';
 import { sanitizeMailHtml } from './sanitize';
 
 /** Files of another message to attach again (forward, or files kept from a draft). */
-export interface AttachmentsFrom {
+interface AttachmentsFrom {
   accountId: string;
   folder: string;
   uid: number;

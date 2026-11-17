@@ -1,9 +1,9 @@
 import { prisma } from '../../db';
-import * as categories from '../../services/project-categories';
-import * as clients from '../../services/clients';
-import { iconUrl } from '../../services/icons';
-import * as projects from '../../services/projects';
-import * as statuses from '../../services/statuses';
+import * as categories from '../../services/workspace/project-categories';
+import * as clients from '../../services/workspace/clients';
+import { iconUrl } from '../../services/core/icons';
+import * as projects from '../../services/workspace/projects';
+import * as statuses from '../../services/tasks/statuses';
 import { builder } from '../builder';
 
 const byManualOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
@@ -145,7 +145,7 @@ builder.queryFields((t) => ({
   }),
   projectCategories: t.prismaField({
     type: ['ProjectCategory'],
-    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: { name: 'asc' } }),
+    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { name: 'asc' }] }),
   }),
   projectStatuses: t.prismaField({
     type: ['ProjectStatus'],

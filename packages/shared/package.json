@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./password-strength": "./src/password-strength.ts"
+    "./password-strength": "./src/core/password-strength.ts"
   },
   "scripts": {
     "typecheck": "tsc"

@@ -1,7 +1,7 @@
 import { prisma } from '../../src/db';
 import type { Project } from '../../src/generated/prisma/client';
-import { addFiles, addLink, createFolder } from '../../src/services/library';
-import { addProjectFiles, addProjectLink } from '../../src/services/project-resources';
+import { addFiles, addLink, createFolder } from '../../src/services/library/library';
+import { addProjectFiles, addProjectLink } from '../../src/services/workspace/project-resources';
 import { tinyPdf } from './mail';
 
 /**

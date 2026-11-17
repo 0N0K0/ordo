@@ -1,10 +1,10 @@
 import express, { Router } from 'express';
 import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
-import { calendarIcs } from '../services/calendar-ics';
-import { calendarPdf } from '../services/calendar-pdf';
-import { chartsPdf } from '../services/charts-pdf';
-import { tablePdf } from '../services/table-pdf';
+import { calendarIcs } from '../services/calendar/calendar-ics';
+import { calendarPdf } from '../services/calendar/calendar-pdf';
+import { chartsPdf } from '../services/dashboards/charts-pdf';
+import { tablePdf } from '../services/core/table-pdf';
 
 export const exportsRouter: Router = Router();
 

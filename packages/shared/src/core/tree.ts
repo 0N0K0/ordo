@@ -1,0 +1,67 @@
+/** Separator of the levels of a path (« Maison › Cuisine »). */
+export const LEVEL = ' › ';
+
+/** Item of a tree: its id and its parent (none, or unknown: the top level). */
+export interface TreeItem {
+  id: string;
+  parentId?: string | null;
+}
+
+/**
+ * An item and everything under it, at any depth (cycles stop).
+ * @param {readonly TreeItem[]} items Every item of the tree.
+ * @param {string} id Item.
+ * @param {boolean} [withSelf] The item itself among them. Optional. Default = true.
+ * @returns {Set<string>} Ids.
+ */
+export function subtreeOf(items: readonly TreeItem[], id: string, withSelf = true): Set<string> {
+  const children = new Map<string, string[]>();
+  for (const item of items) if (item.parentId) children.set(item.parentId, [...(children.get(item.parentId) ?? []), item.id]);
+  const result = new Set<string>([id]);
+  for (const queue = [id]; queue.length;) {
+    for (const child of children.get(queue.shift()!) ?? []) {
+      if (result.has(child)) continue;
+      result.add(child);
+      queue.push(child);
+    }
+  }
+  if (!withSelf) result.delete(id);
+  return result;
+}
+
+/**
+ * An item, then its parent, its grand-parent… up to the top (cycles stop).
+ * @param {ReadonlyMap<string, T>} byId Items by id.
+ * @param {string | null | undefined} id Item.
+ * @returns {T[]} The item and its ancestors, closest first.
+ */
+export function lineageOf<T extends TreeItem>(byId: ReadonlyMap<string, T>, id: string | null | undefined): T[] {
+  const result: T[] = [];
+  const seen = new Set<string>();
+  for (let current = id ? byId.get(id) : undefined; current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
+    seen.add(current.id);
+    result.push(current);
+  }
+  return result;
+}
+
+/**
+ * Parents of an item, closest first.
+ * @param {ReadonlyMap<string, T>} byId Items by id.
+ * @param {string | null | undefined} id Item.
+ * @returns {T[]} Ancestors.
+ */
+export function ancestorsOf<T extends TreeItem>(byId: ReadonlyMap<string, T>, id: string | null | undefined): T[] {
+  return lineageOf(byId, id).slice(1);
+}
+
+/**
+ * Full path of an item, from the top down to it: « Maison › Étage › Chambre ».
+ * @param {ReadonlyMap<string, T>} byId Items by id.
+ * @param {string | null | undefined} id Item.
+ * @param {(item: T) => string} label Name of an item.
+ * @returns {string} Path, empty for no item.
+ */
+export function pathOf<T extends TreeItem>(byId: ReadonlyMap<string, T>, id: string | null | undefined, label: (item: T) => string): string {
+  return lineageOf(byId, id).reverse().map(label).join(LEVEL);
+}

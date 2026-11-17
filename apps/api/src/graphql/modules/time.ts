@@ -1,7 +1,7 @@
 import { ALARM_FREQUENCIES, ALARM_TYPES, type AlarmInput } from '@ordo/shared';
 import { prisma } from '../../db';
-import * as alarms from '../../services/alarms';
-import * as timeEntries from '../../services/time-entries';
+import * as alarms from '../../services/tasks/alarms';
+import * as timeEntries from '../../services/tasks/time-entries';
 import { builder } from '../builder';
 
 builder.prismaObject('TimeEntry', {
@@ -68,7 +68,7 @@ const TimeEventInput = builder.inputType('TimeEventInput', {
 /**
  * Event link of an input: null clears it, undefined leaves it unchanged.
  * @param {{ eventId: string, occurrenceDate?: string | null } | null | undefined} event GraphQL input.
- * @returns {import('../../services/time-entries').TimeEventLink | null | undefined} Service input.
+ * @returns {import('../../services/tasks/time-entries').TimeEventLink | null | undefined} Service input.
  */
 const eventLink = (event: { eventId: string | number; occurrenceDate?: string | null } | null | undefined) =>
   event === undefined ? undefined : event === null ? null : { eventId: String(event.eventId), occurrenceDate: event.occurrenceDate ?? null };

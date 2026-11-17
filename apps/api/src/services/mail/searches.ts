@@ -14,7 +14,7 @@ const SKIPPED_FOR_PROJECT = new Set(['\\Trash', '\\Junk', '\\Drafts']);
 const IDS_PER_SEARCH = 25;
 
 /** Order of the mails found: latest first by default. */
-export interface SearchSort {
+interface SearchSort {
   by: 'date' | 'correspondent' | 'subject';
   ascending: boolean;
 }
