@@ -8,7 +8,7 @@ import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { AccountingDocument } from './documents-api';
 import { Section } from './EditorSection';
 import { PaymentForm } from './PaymentForm';
@@ -16,13 +16,6 @@ import { SentForm } from './SentForm';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
 import { FileLink } from '../files/FileLink';
 import * as fmt from '../../lib/format';
-
-/**
- * Printed calendar date.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Date.
- */
-const printedDate = (date: string) => fmt.day(date);
 
 /**
  * Acceptance of a quote: date, and its signed copy.
@@ -62,7 +55,7 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
                   notifySuccess('Devis accepté.');
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }
@@ -99,7 +92,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
                   notifySuccess('Relance notée.');
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }
@@ -130,7 +123,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
   const scoped = (statuses ?? []).filter((status) => status.scope === (isQuote ? 'QUOTE' : 'INVOICE'));
   const money = (amount: number) => fmt.money(amount, document.currency);
   const balance = document.balance ?? 0;
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   return (
     <Section title="Suivi">
@@ -167,7 +160,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
 
       {isQuote && (
         <Stack gap={6}>
-          {document.acceptedAt && <Text size="sm">Accepté le {printedDate(String(document.acceptedAt))}</Text>}
+          {document.acceptedAt && <Text size="sm">Accepté le {fmt.day(String(document.acceptedAt))}</Text>}
           {document.signedFileUrl && (
             <Group justify="space-between" wrap="nowrap">
               <FileLink url={document.signedFileUrl} name={document.signedFileName ?? 'Devis signé'} size="sm" truncate>
@@ -217,7 +210,7 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           {document.payments.map((payment) => (
             <Group key={payment.id} justify="space-between" wrap="nowrap">
               <Text size="xs" c="dimmed" truncate>
-                {printedDate(String(payment.entry.date))} · {payment.entry.accountName}
+                {fmt.day(String(payment.entry.date))} · {payment.entry.accountName}
                 {payment.entry.methodName ? ` · ${payment.entry.methodName}` : ''}
               </Text>
               <Text size="xs" ff="monospace">

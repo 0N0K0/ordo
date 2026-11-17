@@ -1,25 +1,11 @@
 import { PageHeader } from '../../components/actions/PageHeader';
 import { Alert, Button, Group, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
-import {
-  changeEmailFormSchema,
-  changePasswordFormSchema,
-  changeUsernameFormSchema,
-  type ChangeEmailFormValues,
-  type ChangePasswordFormValues,
-  type ChangeUsernameFormValues,
-} from '@ordo/shared';
+import { changeEmailFormSchema, changePasswordFormSchema, changeUsernameFormSchema, type ChangeEmailFormValues, type ChangePasswordFormValues, type ChangeUsernameFormValues } from '@ordo/shared';
 import { useMemo, type ReactNode } from 'react';
 import { InfoFeedbackIcon } from '../../components/feedback-icons';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
-import {
-  useCancelEmailChange,
-  useChangePassword,
-  useChangeUsername,
-  useMe,
-  useRequestEmailChange,
-  type AccountUser,
-} from '../auth/api';
+import { notifySuccess, onMutationError } from '../../lib/notify';
+import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useRequestEmailChange, type AccountUser } from '../auth/api';
 import { PasswordStrength } from '../auth/PasswordStrength';
 
 interface SectionProps {
@@ -137,7 +123,7 @@ function EmailForm({ user }: { user: AccountUser }) {
   const handleCancel = () => {
     cancelEmailChange.mutate(undefined, {
       onSuccess: () => notifySuccess('Changement d’adresse annulé.'),
-      onError: (error) => notifyError(error.message),
+      onError: onMutationError,
     });
   };
 

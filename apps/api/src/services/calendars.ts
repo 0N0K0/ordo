@@ -29,14 +29,6 @@ export interface SubscribableCalendar {
 }
 
 /**
- * Calendars of the workspace, in their order.
- * @returns {Promise<Calendar[]>} Calendars.
- */
-export function listCalendars(): Promise<Calendar[]> {
-  return prisma.calendar.findMany({ orderBy: [...byOrder] });
-}
-
-/**
  * Loads a calendar of the workspace or throws NOT_FOUND.
  * @param {string} id Calendar.
  * @returns {Promise<Calendar>} Calendar.

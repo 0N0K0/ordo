@@ -1,4 +1,5 @@
 import { ActionButton } from '../../components/actions/ActionButton';
+import * as fmt from '../../lib/format';
 import { listSelectProps } from '../../components/settings/item-look';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { Badge, Button, ColorSwatch, Group, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
@@ -22,12 +23,12 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifyError, notifySuccess, onMutationError } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useActiveWorkspace } from '../workspaces/api';
 import { useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from './api';
 import { ScheduleRepetition } from './ScheduleRepetition';
-import { describeScheduleCase, exceptionPeriod, newScheduleCase, printedDate } from './schedule-text';
+import { describeScheduleCase, exceptionPeriod, newScheduleCase } from './schedule-text';
 import { Comments } from '../comments/Comments';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
@@ -188,7 +189,7 @@ export function WorkSchedulesManager() {
       notifyError(`${result.error.issues[0]?.message ?? 'Valeur invalide.'} Rien n’a été modifié.`);
       return;
     }
-    update.mutate({ id: schedule.id, input }, { onError: (error) => notifyError(error.message) });
+    update.mutate({ id: schedule.id, input }, { onError: onMutationError });
   };
   const { perso } = useActiveWorkspace();
   const [editing, setEditing] = useState<WorkSchedule | 'new' | { copyOf: WorkSchedule } | null>(null);
@@ -223,7 +224,7 @@ export function WorkSchedulesManager() {
       label: 'Début',
       size: 120,
       sortValue: ({ schedule }) => String(schedule.startDate),
-      text: ({ schedule }) => printedDate(String(schedule.startDate)),
+      text: ({ schedule }) => fmt.day(String(schedule.startDate)),
       filter: { kind: 'date', value: ({ schedule }) => String(schedule.startDate).slice(0, 10) },
     },
     {
@@ -232,7 +233,7 @@ export function WorkSchedulesManager() {
       label: 'Fin',
       size: 120,
       sortValue: ({ schedule }) => (schedule.endDate ? String(schedule.endDate) : '9999-12-31'),
-      text: ({ schedule }) => (schedule.endDate ? printedDate(String(schedule.endDate)) : 'Sans fin'),
+      text: ({ schedule }) => (schedule.endDate ? fmt.day(String(schedule.endDate)) : 'Sans fin'),
       filter: { kind: 'date', value: ({ schedule }) => (schedule.endDate ? String(schedule.endDate).slice(0, 10) : null) },
     },
     {
@@ -294,7 +295,7 @@ export function WorkSchedulesManager() {
                 notifySuccess('Plages supprimées.');
                 setDeleting(null);
               },
-              onError: (error) => notifyError(error.message),
+              onError: onMutationError,
             })
           }
         />

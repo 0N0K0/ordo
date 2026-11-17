@@ -15,7 +15,7 @@ import { openFormPanel } from '../../components/panels/panels';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData } from '../shopping/api';
 import { shoppingCategoryOptions } from '../shopping/shopping-format';
 import { useChecklist, useSheetMutations, type ChecklistItem, type SheetOwner } from './api';
@@ -98,7 +98,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
     },
   ];
   const view = useDataView({ tableKey: 'checklist', getKey: (item) => item.id, columns, rows: list?.items ?? [], title: 'Liste à cocher' });
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
 
   /**
    * Saves a change of an item (its other fields kept).

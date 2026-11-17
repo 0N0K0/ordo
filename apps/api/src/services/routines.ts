@@ -119,15 +119,6 @@ export async function loadScheduleContext(): Promise<ScheduleContext> {
 export type RoutineMode = 'RULE' | 'CASES';
 
 /**
- * How a routine repeats.
- * @param {RoutineTiming} routine Routine.
- * @returns {RoutineMode} Mode.
- */
-export function modeOf(routine: Pick<RoutineTiming, 'cases'>): RoutineMode {
-  return storedCases(routine.cases).length ? 'CASES' : 'RULE';
-}
-
-/**
  * Condition on calendar schedules of a routine following its rule: its own, else the one of its former form (on one
  * of the schedules it followed, and out of those it was done out of); null: any time.
  * @param {Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds'>} routine Routine.
@@ -196,12 +187,12 @@ function remember<T>(routine: object, schedules: ScheduleContext, key: string, r
 }
 
 /** Time of the day of an occurrence, with the windows it can be done in (one, or several where slots cut it). */
-export interface RoutineDaySlot extends RoutineSlot {
+interface RoutineDaySlot extends RoutineSlot {
   windows: TimeWindow[];
 }
 
 /** Occurrence of a routine: from its first day to its due (last) day. */
-export interface RoutineSpan {
+interface RoutineSpan {
   start: string;
   end: string;
 }
@@ -211,7 +202,7 @@ export interface RoutineSpan {
  * @param {unknown} value Stored JSON.
  * @returns {RoutineCase[]} Cases.
  */
-export function storedCases(value: unknown): RoutineCase[] {
+function storedCases(value: unknown): RoutineCase[] {
   const parsed = z.array(routineCaseSchema).safeParse(value);
   return parsed.success ? parsed.data : [];
 }
@@ -1053,7 +1044,7 @@ export async function removeRoutineMove(id: string, from: string): Promise<void>
 }
 
 /** Which occurrences a change applies to: this one (an exception), it and the following ones, or all. */
-export type RoutineScope = 'THIS' | 'FOLLOWING' | 'ALL';
+type RoutineScope = 'THIS' | 'FOLLOWING' | 'ALL';
 
 /**
  * Rule ending before a date: as many occurrences as before it, or up to the day before.

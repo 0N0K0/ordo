@@ -13,7 +13,7 @@ import { createSearch } from '../../src/services/mail/searches';
 import { encryptSecret } from '../../src/services/mail/secret';
 
 /** Mailbox of the fixtures: IMAP on GreenMail, sending through Mailpit (see docker-compose.yml). */
-export const DEMO_MAILBOX = {
+const DEMO_MAILBOX = {
   email: 'moi@atelier-demo.fr',
   password: 'ordo-dev',
   imap: { host: 'localhost', port: 3143 },

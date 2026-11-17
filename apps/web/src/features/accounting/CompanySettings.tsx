@@ -1,45 +1,12 @@
 import { FormSkeleton } from '../../components/feedback/Skeletons';
-import {
-  Alert,
-  Autocomplete,
-  Avatar,
-  Button,
-  Fieldset,
-  FileButton,
-  Group,
-  NumberInput,
-  Paper,
-  Select,
-  SimpleGrid,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  Textarea,
-  TextInput,
-  Title,
-} from '@mantine/core';
-import {
-  companyProfileSchema,
-  DOCUMENT_PREFIXES,
-  documentNumber,
-  LATE_INTEREST_PRESETS,
-  PAYMENT_METHOD_PRESETS,
-  PAYMENT_TERMS_PRESETS,
-  type CompanyProfileInput,
-} from '@ordo/shared';
+import { Alert, Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
 import { InfoIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { AddressFields } from '../../components/address/AddressFields';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
-import {
-  useCompanyMutations,
-  useCompanyProfile,
-  useDocumentSequences,
-  type AccountingDocumentType,
-  type CompanyProfile,
-} from './api';
+import { notifySuccess, onMutationError } from '../../lib/notify';
+import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from './api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 
 type FormValues = CompanyProfileInput & Record<string, unknown>;
@@ -128,7 +95,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                       file &&
                       setLogo.mutate(file, {
                         onSuccess: () => notifySuccess('Logo enregistré.'),
-                        onError: (error) => notifyError(error.message),
+                        onError: onMutationError,
                       })
                     }
                   >
@@ -153,7 +120,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                       color="red"
                       onClick={() =>
                         setLogo.mutate(null, {
-                          onError: (error) => notifyError(error.message),
+                          onError: onMutationError,
                         })
                       }
                     >
@@ -422,7 +389,7 @@ function NumberingSettings() {
                             {
                               onSuccess: () =>
                                 notifySuccess('Numérotation enregistrée.'),
-                              onError: (error) => notifyError(error.message),
+                              onError: onMutationError,
                             },
                           )
                         }

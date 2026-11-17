@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Point on the map (WGS 84). */
-export const geoPointSchema = z.object({
+const geoPointSchema = z.object({
   lat: z.number().min(-90).max(90),
   lon: z.number().min(-180).max(180),
 });

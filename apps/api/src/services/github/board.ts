@@ -34,7 +34,7 @@ export interface FieldValue {
   number?: number;
 }
 
-export interface RemoteComment {
+interface RemoteComment {
   id: string;
   body: string;
   author: string | null;
@@ -335,7 +335,7 @@ const userIds = new Map<string, string>();
  * @param {string[]} logins Logins.
  * @returns {Promise<string[]>} Ids of the logins found.
  */
-export async function userNodeIds(token: string, logins: string[]): Promise<string[]> {
+async function userNodeIds(token: string, logins: string[]): Promise<string[]> {
   const ids: string[] = [];
   for (const login of logins) {
     if (!userIds.has(login)) {

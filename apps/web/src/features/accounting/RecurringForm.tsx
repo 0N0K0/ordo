@@ -3,7 +3,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, recurrenceSchema, type Recurrence } from '@ordo/shared';
 import { useState } from 'react';
 import { localToday } from '../../lib/dates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useRecurringMutations, type RecurringInvoice } from './documents-api';
 import { RuleField } from '../../components/recurrence/RuleField';
 
@@ -41,7 +41,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
         notifySuccess(recurring ? 'Facture récurrente modifiée.' : 'Facture récurrente créée : la facture a été copiée comme modèle.');
         onDone();
       },
-      onError: (error: Error) => notifyError(error.message),
+      onError: onMutationError,
     };
     if (recurring) update.mutate({ id: recurring.id, input }, callbacks);
     else if (documentId) create.mutate({ documentId, input }, callbacks);

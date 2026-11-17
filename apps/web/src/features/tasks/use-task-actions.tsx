@@ -2,7 +2,7 @@ import { modals } from '@mantine/modals';
 import { openFormPanel } from '../../components/panels/panels';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { RowMenuEntry } from '../../components/data-table/RowActions';
-import { notifyError, notifyWithUndo } from '../../lib/notify';
+import { notifyWithUndo, onMutationError } from '../../lib/notify';
 import { useSetTaskArchived, type Task } from './api';
 import { TaskCreateForm } from './TaskCreateForm';
 import { DeleteTaskDialog, TransferTaskDialog } from './TaskDialogs';
@@ -46,7 +46,7 @@ export function useTaskActions(context: TaskContext | null) {
           const message = `Tâche ${taskName(task)} ${archived ? 'archivée' : 'désarchivée'}.`;
           notifyWithUndo(message, () => archive(task, !archived, false));
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };

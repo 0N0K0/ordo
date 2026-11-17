@@ -1,9 +1,10 @@
 import { bulkSaver, bulkTargets, useBulkTable, type BulkTable } from '../../components/data-table/bulk-edit';
-import { notifyError, notifyWithUndo } from '../../lib/notify';
+import { notifyWithUndo, onMutationError } from '../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from './api';
+import { countOf } from '../../lib/text';
 
 /** Columns of the routine table edited together on a cell selection. */
-export type RoutineColumn =
+type RoutineColumn =
   | 'title'
   | 'categories'
   | 'repetition'
@@ -38,13 +39,13 @@ const TABLE_COLUMNS: Partial<Record<RoutineColumn, readonly string[]>> = {
  * @param {number} count Count.
  * @returns {string} Label.
  */
-export const routinesLabel = (count: number) => `${count} routine${count > 1 ? 's' : ''}`;
+export const routinesLabel = (count: number) => countOf(count, 'routine');
 
 /**
  * Bulk changes of the selection, with a toast offering to undo them (the routines are put back as they were).
  * @returns {(ids: string[], changes: RoutineBulkChanges, message: string) => void} Applier.
  */
-export function useBulkRoutineChanges() {
+function useBulkRoutineChanges() {
   const { data } = useRoutinesData();
   const { bulkUpdate, restore } = useRoutineMutations();
   return (ids: string[], changes: RoutineBulkChanges, message: string) => {
@@ -53,8 +54,8 @@ export function useBulkRoutineChanges() {
     bulkUpdate.mutate(
       { ids, changes },
       {
-        onSuccess: () => notifyWithUndo(message, () => restore.mutate(before, { onError: (error) => notifyError(error.message) })),
-        onError: (error) => notifyError(error.message),
+        onSuccess: () => notifyWithUndo(message, () => restore.mutate(before, { onError: onMutationError })),
+        onError: onMutationError,
       },
     );
   };
@@ -78,7 +79,7 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
   const view: BulkTable<Routine> = { selection: table?.selection ?? null, keyOf: (item) => item.id, rows: data?.routines ?? [] };
   const columns = TABLE_COLUMNS[column] ?? column;
   const targets = bulkTargets(view, columns, routine).map((item) => item.id);
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   return {
     count: targets.length,
     /** Routines the edit applies to. */

@@ -9,7 +9,7 @@ import {
 
 /** Name of the embedded invoice, imposed by Factur-X. */
 export const FACTUR_X_FILENAME = 'factur-x.xml';
-export const FACTUR_X_LEVEL = 'EN 16931';
+const FACTUR_X_LEVEL = 'EN 16931';
 
 /** UNTDID 1001 document type codes. */
 const TYPE_CODES: Partial<Record<AccountingDocumentType, string>> = {

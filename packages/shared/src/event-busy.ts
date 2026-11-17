@@ -20,7 +20,7 @@ export interface BusyEvent {
 }
 
 /** What is done by someone: its assignees (none: « Moi »), and the task it is, if any. */
-export interface BusyItem {
+interface BusyItem {
   assigneeIds: readonly string[];
   /** Task (an event about it does not block it). Optional. */
   taskId?: string | null;

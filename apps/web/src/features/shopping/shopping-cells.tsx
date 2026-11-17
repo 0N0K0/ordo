@@ -1,4 +1,5 @@
 import { ActionIcon, Select, Tooltip } from '@mantine/core';
+import { localToday } from '../../lib/dates';
 import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { listSelectProps } from '../../components/settings/item-look';
 import { DatePickerInput } from '@mantine/dates';
@@ -7,7 +8,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { StackedMultiCell } from '../../components/data-table/StackedMultiCell';
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from './api';
 import { EditableSelect } from '../../components/data-table/EditableCells';
-import { shoppingCategoryOptions, shoppingCategoryTree, todayIso, unitOptions, usePeople } from './shopping-format';
+import { shoppingCategoryOptions, shoppingCategoryTree, unitOptions, usePeople } from './shopping-format';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { cellCombobox, cellField, cellMulti } from '../../components/data-table/cell-field';
 
@@ -162,7 +163,7 @@ interface ExpiryCellProps {
  */
 export function ExpiryCell({ value, label, disabled = false, readOnly = false, onSave }: ExpiryCellProps) {
   if (disabled) return null;
-  const expired = Boolean(value) && (value ?? '') < todayIso();
+  const expired = Boolean(value) && (value ?? '') < localToday();
   return (
     <DatePickerInput
       {...cellField}

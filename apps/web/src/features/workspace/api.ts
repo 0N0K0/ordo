@@ -420,7 +420,7 @@ export function useMoveClient() {
   });
 }
 
-export interface ProjectInputValues {
+interface ProjectInputValues {
   title: string;
   clientId?: string | null;
   parentId?: string | null;

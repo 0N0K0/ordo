@@ -91,17 +91,6 @@ export function bulkSaver<R, C>(
 }
 
 /**
- * Number of rows a change in a cell would change (to tell it in its label).
- * @param {BulkTable<R>} view View of the table.
- * @param {string | readonly string[]} column Columns of the cell.
- * @param {R} row Row.
- * @returns {number} Rows.
- */
-export function bulkCount<R>(view: BulkTable<R>, column: Columns, row: R): number {
-  return bulkTargets(view, column, row).length;
-}
-
-/**
  * Values of a multiple field once changed as in a cell: those added there added, those removed there removed, the
  * others of the row kept (several rows keep their own values).
  * @param {readonly string[]} current Values of the row.

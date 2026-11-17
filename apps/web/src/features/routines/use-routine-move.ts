@@ -1,5 +1,5 @@
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
-import { notifyError, notifyWithUndo } from '../../lib/notify';
+import { notifyWithUndo, onMutationError } from '../../lib/notify';
 import { useRoutineMutations, type Routine } from './api';
 import { movableOccurrence } from './routine-format';
 import * as fmt from '../../lib/format';
@@ -12,7 +12,7 @@ import * as fmt from '../../lib/format';
 export const longDay = (date: string) => fmt.dayLong(date);
 
 /** Times of the day of an occurrence moved: those chosen, and those it had (to undo). */
-export interface MovedTimes {
+interface MovedTimes {
   times: RoutineMoveTimes;
   previous: RoutineMoveTimes;
 }
@@ -25,7 +25,7 @@ export interface MovedTimes {
  */
 export function useRoutineMove() {
   const { moveOccurrence } = useRoutineMutations();
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   return (routine: Routine, to: string, date: string | null = movableOccurrence(routine), onDone?: () => void, times?: MovedTimes) => {
     if (!date) return;
     const what = to === date ? 'à d’autres horaires' : `${to > date ? 'reportée' : 'avancée'} au ${longDay(to)}${times ? ', à d’autres horaires' : ''}`;

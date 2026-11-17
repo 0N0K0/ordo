@@ -32,7 +32,7 @@ export interface ShoppingToggle<T> {
   onChange: (rows: T[], on: boolean) => void;
 }
 
-export interface ShoppingTableProps<T extends ShoppingFields> {
+interface ShoppingTableProps<T extends ShoppingFields> {
   /** Every product or item, in their order (to move them). */
   items: T[];
   grouping: ShoppingGrouping;

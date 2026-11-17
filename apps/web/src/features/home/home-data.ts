@@ -12,14 +12,6 @@ import * as fmt from '../../lib/format';
 import { currentWeek } from '../../lib/week';
 
 /**
- * Days from a day to another (negative when the second is earlier).
- * @param {string} from YYYY-MM-DD.
- * @param {string} to YYYY-MM-DD.
- * @returns {number} Days.
- */
-export const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
-
-/**
  * A day relative to today: « Aujourd’hui », « Demain », « Hier » or « lun. 9 nov. ».
  * @param {string} date YYYY-MM-DD.
  * @param {string} today Today.
@@ -37,7 +29,7 @@ export function dayLabel(date: string, today: string): string {
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Date-time.
  */
-export const localMidnight = (date: string) => new Date(`${date}T00:00:00`).toISOString();
+const localMidnight = (date: string) => new Date(`${date}T00:00:00`).toISOString();
 
 /**
  * Local day of a moment.

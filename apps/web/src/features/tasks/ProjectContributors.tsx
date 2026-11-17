@@ -1,25 +1,15 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../components/feedback/Skeletons';
-import {
-  ActionIcon,
-  Anchor,
-  Avatar,
-  Badge,
-  Group,
-  Paper,
-  Select,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Anchor, Avatar, Badge, Group, Paper, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { PlusIcon, UsersIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { descendantIds, type Project } from '../workspace/api';
 import { useContributorMutations, type Contributor } from './api';
 import { useContributorForm } from './settings/use-contributor-form';
 import { useTaskContext } from './use-task-context';
+import { countOf } from '../../lib/text';
 
 /**
  * Contributors of a project: those attached to it, those inherited from a parent project, and "Moi".
@@ -79,7 +69,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
       { projectId, contributorIds },
       {
         onSuccess: () => notifySuccess(message),
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
 
@@ -158,7 +148,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                     </Group>
                     <Text size="xs" c="dimmed">
                       @{contributor.handle}
-                      {count > 0 && ` · ${count} tâche${count > 1 ? 's' : ''}`}
+                      {count > 0 && ` · ${countOf(count, 'tâche')}`}
                     </Text>
                   </Stack>
                   {/* Inherited contributors are detached from their own project; tasks keep their assignees. */}

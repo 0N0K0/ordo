@@ -1,3 +1,4 @@
+import { daysBetween } from '@ordo/shared';
 import { ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, BasketIcon, CheckCircleIcon, HourglassMediumIcon } from '@phosphor-icons/react';
@@ -10,7 +11,6 @@ import { useShoppingData, useShoppingLists } from '../shopping/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
 import { leftToBuy } from '../shopping/shopping-format';
-import { daysBetween } from './home-data';
 
 const MAX_ROWS = 7;
 

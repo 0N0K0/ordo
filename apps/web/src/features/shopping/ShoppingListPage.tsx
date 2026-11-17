@@ -27,7 +27,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { DataViewBar } from '../../components/data-table/DataViewBar';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { TaskRef } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from './api';
@@ -215,7 +215,7 @@ export function ShoppingListPage() {
   const spent = shoppingTotal(list.items.filter((item) => item.purchasedAt));
   // Its required items (the optional ones apart).
   const { bought, total: required } = shoppingProgress(list.items);
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   return (
     <Stack gap="lg">

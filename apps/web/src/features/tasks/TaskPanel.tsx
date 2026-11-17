@@ -1,43 +1,17 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { SidePanel } from '../../components/panels/SidePanel';
-import {
-  ActionIcon,
-  Alert,
-  Anchor,
-  Badge,
-  Button,
-  CloseButton,
-  Divider,
-  Grid,
-  Group,
-  NumberInput,
-  Progress,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Badge, Button, CloseButton, Divider, Grid, Group, NumberInput, Progress, Select, Stack, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskTitleSchema } from '@ordo/shared';
-import {
-  ArchiveIcon,
-  ArrowCounterClockwiseIcon,
-  CheckCircleIcon,
-  DotsThreeIcon,
-  GithubLogoIcon,
-  PencilSimpleIcon,
-  PlusIcon,
-} from '@phosphor-icons/react';
+import { ArchiveIcon, ArrowCounterClockwiseIcon, CheckCircleIcon, DotsThreeIcon, GithubLogoIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ErrorIcon } from '../../components/feedback-icons';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { useSetTasksClosed, useTaskBlock, useTaskRelation, useTransferTask, useUpdateTask, type Task, type TaskInputValues } from './api';
 import { TaskAlarms } from '../alarms/TaskAlarms';
@@ -55,6 +29,7 @@ import { TASK_PARAM, useTaskLink } from './use-task-link';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { SlotRuleInput } from '../slot-rules/SlotRuleInput';
 import { BeneficiariesSelect } from '../beneficiaries/BeneficiariesSelect';
+import { countOf, plural } from '../../lib/text';
 
 /**
  * Property block of the side column.
@@ -162,7 +137,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {void}
    */
   const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) =>
-    updateTask.mutate({ id: task.id, input }, { onSuccess, onError: (error) => notifyError(error.message) });
+    updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
 
   /**
    * Validates and saves the edited title.
@@ -178,7 +153,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     else save({ title: result.data }, () => setTitleDraft(null));
   };
 
-  const onLinkError = { onError: (error: Error) => notifyError(error.message) };
+  const onLinkError = { onError: onMutationError };
   const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
   const subtasks = context.childrenOf(task.id);
   const doneSubtasks = subtasks.filter((subtask) => context.isClosed(subtask)).length;
@@ -201,9 +176,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           onSuccess: ({ removedLinks }) =>
             notifySuccess(
               `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.` +
-                (removedLinks > 0 ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''),
+                (removedLinks > 0 ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''),
             ),
-          onError: (error) => notifyError(error.message),
+          onError: onMutationError,
         },
       );
     const linked = task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
@@ -255,7 +230,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 onClick={() =>
                   setClosed.mutate(
                     { ids: [task.id], closed: !task.closed },
-                    { onError: (error) => notifyError(error.message) },
+                    { onError: onMutationError },
                   )
                 }
               >

@@ -2,7 +2,7 @@ import { Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { DataColumnsPanel } from '../../../components/data-table/ColumnsPanel';
 import { localToday } from '../../../lib/dates';
-import { notifyError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { useSetTaskColumnDefaults, useTaskColumnDefaults } from '../api';
 import { useTaskColumns } from '../use-task-columns';
 import { useTaskContext } from '../use-task-context';
@@ -17,7 +17,7 @@ export function ColumnDefaults() {
   const save = useSetTaskColumnDefaults();
   const { context } = useTaskContext();
   const columns = useTaskColumns(context, localToday(), { doable: false });
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="xs">

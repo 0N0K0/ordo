@@ -363,7 +363,7 @@ const MaterializeTaskOccurrencesDocument = graphql(`
   }
 `);
 
-export const calendarQueryKey = ['calendar'] as const;
+const calendarQueryKey = ['calendar'] as const;
 
 export type CalendarCategory = Awaited<ReturnType<typeof fetchCategories>>[number];
 

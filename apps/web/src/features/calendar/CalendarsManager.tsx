@@ -5,7 +5,7 @@ import { calendarFormSchema } from '@ordo/shared';
 import { listMutations } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
 import { CalendarBlankIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { WorkspaceKindIcon } from '../workspaces/WorkspaceKindIcon';
 import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars, type SubscribableCalendar } from './api';
 
@@ -60,7 +60,7 @@ function OwnCalendars() {
 function OtherCalendars() {
   const { data: calendars, isPending } = useSubscribableCalendars(true);
   const { subscribe, unsubscribe } = useCalendarMutations();
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   const byWorkspace = new Map<string, SubscribableCalendar[]>();
   for (const calendar of calendars ?? []) byWorkspace.set(calendar.workspace.id, [...(byWorkspace.get(calendar.workspace.id) ?? []), calendar]);
 

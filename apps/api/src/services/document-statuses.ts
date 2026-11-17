@@ -17,7 +17,7 @@ export function scopeOf(type: AccountingDocumentType): DocumentStatusScope {
 }
 
 /** Tracking statuses of the documents a professional workspace starts with: one per category of each scope. */
-export const DEFAULT_DOCUMENT_STATUSES = [
+const DEFAULT_DOCUMENT_STATUSES = [
   { scope: 'QUOTE', name: 'À envoyer', color: '#868e96', category: 'TO_SEND' },
   { scope: 'QUOTE', name: 'Envoyé', color: '#228be6', category: 'SENT' },
   { scope: 'QUOTE', name: 'Accepté', color: '#40c057', category: 'ACCEPTED' },

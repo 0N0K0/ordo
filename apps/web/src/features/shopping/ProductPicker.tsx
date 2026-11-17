@@ -1,7 +1,7 @@
 import { Anchor, Badge, Button, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from './api';
 import { shoppingCategoryTree } from './shopping-format';
 import { collator } from '../../lib/text';
@@ -140,7 +140,7 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
                   notifySuccess(`${count} produit(s) ajouté(s).`);
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }

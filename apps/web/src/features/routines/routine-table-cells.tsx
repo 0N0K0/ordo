@@ -3,7 +3,7 @@ import { entrySeconds, formatClock, formatDuration, routineSchema } from '@ordo/
 import { ArrowBendUpRightIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
 import { localToday } from '../../lib/dates';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useNow } from '../time/use-now';
 import { useStopTimer } from '../time/use-stop-timer';
 import { useTimeMutations, type TimeEntry } from '../time/api';
@@ -107,7 +107,7 @@ export function ChronoCell({ routine, running }: { routine: Routine; running: Ti
             loading={start.isPending}
             disabled={routine.archived}
             aria-label={`Démarrer le chrono de ${routine.title}`}
-            onClick={() => start.mutate({ routineId: routine.id, taskIds: [] }, { onSuccess: () => notifySuccess('Chrono démarré.'), onError: (error) => notifyError(error.message) })}
+            onClick={() => start.mutate({ routineId: routine.id, taskIds: [] }, { onSuccess: () => notifySuccess('Chrono démarré.'), onError: onMutationError })}
           >
             <PlayIcon weight="fill" aria-hidden />
           </ActionIcon>

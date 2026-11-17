@@ -11,7 +11,7 @@ import { useAlarmMutations, useAlarms, type Alarm } from './api';
 import { unlockAudioOnGesture } from './alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from './ring-routines';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
 import { taskPath } from '../tasks/task-links';
 import { taskRef } from '../tasks/use-task-context';
@@ -100,7 +100,7 @@ export function AlarmCenter() {
         latest.current.routinesData?.routines ?? [],
         now,
         [link('Voir les routines', '/routines')],
-        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: (error) => notifyError(error.message) }),
+        (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, { onError: onMutationError }),
         (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );
       if (!list) return;

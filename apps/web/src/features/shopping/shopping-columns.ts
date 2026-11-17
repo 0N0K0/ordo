@@ -9,7 +9,7 @@ const NOT_PERISHABLE = 'no';
 const PERISHABLE = 'yes';
 
 /** Names the columns of the products or items show. */
-export interface ItemNames {
+interface ItemNames {
   categories: readonly ShoppingCategory[];
   stores: readonly ShoppingStore[];
   /** Ways of keeping. Optional. */
@@ -143,7 +143,7 @@ export function optionalColumn<T extends { optional?: boolean | null }>(): DataC
 }
 
 /** Columns of the shopping items a sheet item has too (store, conservation, whom it is for, link). */
-export const SHEET_SHOPPING_COLUMNS = ['store', 'conservation', 'people', 'url'];
+const SHEET_SHOPPING_COLUMNS = ['store', 'conservation', 'people', 'url'];
 
 /**
  * Columns of the shopping items a sheet item has too, as those of the shopping lists (same labels, filters, sorts).

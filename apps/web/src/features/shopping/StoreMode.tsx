@@ -1,7 +1,7 @@
 import { Alert, Anchor, Badge, Button, Checkbox, CloseButton, ColorSwatch, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { ArrowSquareOutIcon, CaretDownIcon, CaretRightIcon, PackageIcon, ShoppingCartIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useStockMutations } from '../stock/api';
 import { useStockProposal } from '../stock/use-stock-proposal';
 import { deliveryWindow } from './delivery-format';
@@ -104,7 +104,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       checked={Boolean(item.purchasedAt)}
       onClick={() => {
         const purchased = !item.purchasedAt;
-        setPurchased.mutate({ id: item.id, purchased }, { onSuccess: () => purchased && propose([item]), onError: (error) => notifyError(error.message) });
+        setPurchased.mutate({ id: item.id, purchased }, { onSuccess: () => purchased && propose([item]), onError: onMutationError });
       }}
       style={{ marginLeft: `calc(${depth} * var(--mantine-spacing-md))` }}
     >
@@ -193,7 +193,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                 onClick={() =>
                   setDeliveryReceived.mutate(
                     { id: delivery.id, received: true },
-                    { onSuccess: (ids) => (notifySuccess('Livraison réceptionnée.'), propose(list.items.filter((item) => ids.includes(item.id)))), onError: (error) => notifyError(error.message) },
+                    { onSuccess: (ids) => (notifySuccess('Livraison réceptionnée.'), propose(list.items.filter((item) => ids.includes(item.id)))), onError: onMutationError },
                   )
                 }
               >

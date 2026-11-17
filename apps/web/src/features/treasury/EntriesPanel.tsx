@@ -15,7 +15,7 @@ import { ROW_ACTIONS_WIDTH, RowActions } from '../../components/data-table/RowAc
 import type { DataColumn } from '../../components/data-table/data-table';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTreasuryEntries, useTreasuryMutations, type TreasuryAccount, type TreasuryEntry } from './api';
 import { DetailsToggle, SettledCell } from './entry-cells';
 import { useEntryEnv, type EntryEnv } from './entry-env';
@@ -27,13 +27,6 @@ import { StatementImport } from './StatementImport';
 import * as fmt from '../../lib/format';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
-
-/**
- * Printed calendar date.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Date.
- */
-const printedDate = (date: string) => fmt.day(date);
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -95,7 +88,7 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
       label: 'Date d’exécution',
       size: 130,
       sortValue: (entry) => String(entry.date),
-      text: (entry) => printedDate(String(entry.date)),
+      text: (entry) => fmt.day(String(entry.date)),
       filter: { kind: 'date', value: (entry) => String(entry.date).slice(0, 10) },
     },
     { id: 'label', label: 'Libellé', size: 300, locked: true, bulk: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
@@ -279,7 +272,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                     ]
                       .filter(Boolean)
                       .join(' '),
-                    onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError: (error) => notifyError(error.message) }),
+                    onConfirm: () => deleteEntry.mutate(entry.id, { onSuccess: () => notifySuccess('Mouvement supprimé.'), onError: onMutationError }),
                   }),
               },
             ]}

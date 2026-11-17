@@ -5,7 +5,7 @@ import { startReport } from './pdf-report';
 const PNG_DATA_URL = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/;
 
 /** Charts drawn by the app (PNG images) to print. */
-export const chartsPdfSchema = z.object({
+const chartsPdfSchema = z.object({
   title: z.string().trim().min(1).max(200),
   subtitle: z.string().max(500).default(''),
   charts: z
@@ -19,7 +19,7 @@ export const chartsPdfSchema = z.object({
     .min(1)
     .max(40),
 });
-export type ChartsPdfInput = z.input<typeof chartsPdfSchema>;
+type ChartsPdfInput = z.input<typeof chartsPdfSchema>;
 
 const COLORS = { text: '#1d232b', muted: '#66707c' };
 const MARGIN = 36;

@@ -9,7 +9,7 @@ import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay } from '../../lib/dates';
-import { notifyError, notifyWithUndo } from '../../lib/notify';
+import { notifyWithUndo, onMutationError } from '../../lib/notify';
 import { scheduleRules, useCalendarEvents, useCalendars, useDefaultScheduleKind, useScheduleTypes, useSubscribedCalendarEvents, useSubscribedSchedules, useWorkSchedules } from '../calendar/api';
 import { useNow } from '../time/use-now';
 import calendarClasses from '../calendar/CalendarPage.module.css';
@@ -92,7 +92,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   const now = useNow(false);
   const future = at.getTime() > now;
   const window = windowText(item);
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   /**
    * Ticks it (done at the chosen hour) or unticks it, with an undo.
    * @param {boolean} done Target state.

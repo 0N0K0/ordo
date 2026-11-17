@@ -11,11 +11,12 @@ import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localDay, localToday } from '../../lib/dates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifyError, notifySuccess, onMutationError } from '../../lib/notify';
 import { useMailAccounts } from '../mail/api';
 import { DOCUMENT_TYPE_LABELS } from './labels';
 import { useOverdueInvoices, useTrackingMutations, type OverdueInvoice } from './tracking-api';
 import * as fmt from '../../lib/format';
+import { countOf } from '../../lib/text';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
 const REMIND_AFTER_DAYS = 7;
@@ -112,7 +113,7 @@ export function OverdueInvoicesPanel() {
     const modalId = 'send-reminders';
     modals.open({
       modalId,
-      title: `Relancer ${chosen.length} facture${chosen.length > 1 ? 's' : ''}`,
+      title: `Relancer ${countOf(chosen.length, 'facture')}`,
       children: (
         <Stack gap="md">
           <Text size="sm">
@@ -143,7 +144,7 @@ export function OverdueInvoicesPanel() {
                       if (failed.length) notifyError(failed.map((result) => `${result.number} : ${result.error}`).join(' — '));
                       setSelected(new Set(failed.map((result) => result.documentId)));
                     },
-                    onError: (error) => notifyError(error.message),
+                    onError: onMutationError,
                   },
                 );
               }}

@@ -6,7 +6,7 @@ import { execute } from '../../lib/graphql-client';
 
 export type { CommentTarget };
 
-export const commentsKey = ['comments'] as const;
+const commentsKey = ['comments'] as const;
 
 const CommentsDocument = graphql(`
   query Comments($target: CommentTarget!, $id: String!) {

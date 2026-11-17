@@ -4,7 +4,7 @@ import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from './api';
@@ -145,7 +145,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       onSuccess: (created: unknown) => {
         // A copy takes the sub-routines of the routine with it, under itself.
         if (copy && routine && typeof created === 'string' && routines.some((item) => item.parentId === routine.id)) {
-          copySubRoutines.mutate({ fromId: routine.id, toId: created }, { onError: (error) => notifyError(error.message) });
+          copySubRoutines.mutate({ fromId: routine.id, toId: created }, { onError: onMutationError });
         }
         notifySuccess(copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.');
         onDone();

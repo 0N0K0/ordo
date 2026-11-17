@@ -8,12 +8,13 @@ import { confirmDestructive } from '../../components/dialogs/confirm-destructive
 import { openFormPanel } from '../../components/panels/panels';
 import { showFormError, useAppForm } from '../../lib/form';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { AddressInput, type AddressValue } from '../geo/AddressInput';
 import { useStockMutations } from '../stock/api';
 import { useStockProposal } from '../stock/use-stock-proposal';
 import { useShoppingLists, type ShoppingList } from './api';
 import { deliveryWindow } from './delivery-format';
+import { countOf } from '../../lib/text';
 
 type Delivery = ShoppingList['deliveries'][number];
 
@@ -114,7 +115,7 @@ function OrderFields({ list }: { list: ShoppingList }) {
     text: list.deliveryAddress ?? '',
     point: list.deliveryLat !== null && list.deliveryLat !== undefined && list.deliveryLon !== null && list.deliveryLon !== undefined ? { lat: list.deliveryLat, lon: list.deliveryLon } : null,
   });
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const save = (remote: boolean, next: AddressValue) =>
     setOrder.mutate({ listId: list.id, input: { remote, deliveryAddress: next.text || null, deliveryLat: next.point?.lat ?? null, deliveryLon: next.point?.lon ?? null } }, onError);
   return (
@@ -168,7 +169,7 @@ function OrderFields({ list }: { list: ShoppingList }) {
                       )}
                     </Group>
                     <Text size="xs" c="dimmed">
-                      {[deliveryWindow(delivery), delivery.address, `${items.length} élément${items.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
+                      {[deliveryWindow(delivery), delivery.address, countOf(items.length, 'élément')].filter(Boolean).join(' · ')}
                     </Text>
                     {delivery.trackingUrl && /^https?:\/\//i.test(delivery.trackingUrl) && (
                       <Anchor href={delivery.trackingUrl} target="_blank" rel="noopener noreferrer" size="xs">

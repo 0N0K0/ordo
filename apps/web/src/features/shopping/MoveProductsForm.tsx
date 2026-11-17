@@ -1,9 +1,9 @@
 import { Button, Group, Select, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from './api';
-import { collator } from '../../lib/text';
+import { collator, countOf, plural } from '../../lib/text';
 
 interface MoveProductsFormProps {
   /** Base list the products leave. */
@@ -40,10 +40,10 @@ export function MoveProductsForm({ baseList, productIds, onDone }: MoveProductsF
       { ids, baseListId: target },
       {
         onSuccess: (count) => {
-          notifySuccess(`${count} produit${count > 1 ? 's' : ''} déplacé${count > 1 ? 's' : ''} vers « ${targetName} ».`);
+          notifySuccess(`${countOf(count, 'produit')} ${plural(count, 'déplacé')} vers « ${targetName} ».`);
           onDone();
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };

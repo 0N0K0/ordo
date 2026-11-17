@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { DestructiveActions, DestructiveButton } from '../../components/dialogs/DestructiveActions';
@@ -140,7 +140,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         description: values.title,
         event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
       },
-      { onSuccess: () => notifySuccess('Chrono lancé sur l’évènement.'), onError: (error) => notifyError(error.message) },
+      { onSuccess: () => notifySuccess('Chrono lancé sur l’évènement.'), onError: onMutationError },
     );
   };
   const { data: categories } = useCalendarCategories();
@@ -248,7 +248,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             notifySuccess('Évènement supprimé.');
             onDone();
           },
-          onError: (error) => notifyError(error.message),
+          onError: onMutationError,
         },
       );
     if (recurring) {
@@ -279,7 +279,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
           notifySuccess(calledOff ? 'Évènement annulé.' : 'Évènement rétabli.');
           onDone();
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -302,7 +302,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                     notifySuccess('Évènement supprimé.');
                     onDone();
                   },
-                  onError: (error) => notifyError(error.message),
+                  onError: onMutationError,
                 },
               );
             }}
@@ -325,7 +325,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                     setPostponing(false);
                     onDone();
                   },
-                  onError: (error) => notifyError(error.message),
+                  onError: onMutationError,
                 },
               )
             }

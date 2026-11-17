@@ -22,6 +22,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { notifyError, notifySuccess } from '../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from './api';
+import { plural } from '../../lib/text';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -39,7 +40,7 @@ export interface DraggedMails {
   uids: number[];
 }
 
-export interface SelectedFolder {
+interface SelectedFolder {
   accountId: string;
   folder: string;
 }
@@ -353,8 +354,8 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
                   </Tooltip>
                 )}
                 {folder.unseen > 0 && (
-                  <Tooltip label={`${folder.unseen} non lu${folder.unseen > 1 ? 's' : ''}`}>
-                    <Badge size="xs" variant="filled" circle={folder.unseen < 10} aria-label={`${folder.unseen} non lu${folder.unseen > 1 ? 's' : ''}`}>
+                  <Tooltip label={`${folder.unseen} non ${plural(folder.unseen, 'lu')}`}>
+                    <Badge size="xs" variant="filled" circle={folder.unseen < 10} aria-label={`${folder.unseen} non ${plural(folder.unseen, 'lu')}`}>
                       {folder.unseen}
                     </Badge>
                   </Tooltip>

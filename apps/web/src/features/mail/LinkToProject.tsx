@@ -2,7 +2,7 @@ import { Button, Popover, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { FolderSimplePlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useMailActions } from './api';
@@ -50,7 +50,7 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
                     setProjectId(null);
                     close();
                   },
-                  onError: (error) => notifyError(error.message),
+                  onError: onMutationError,
                 },
               )
             }

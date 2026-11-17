@@ -2,7 +2,7 @@ import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { ActionIcon, Anchor, Badge, Button, Grid, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { ArrowLeftIcon, DownloadSimpleIcon, FileXIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { Link, useParams } from 'react-router';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { FilePreview } from '../files/FilePreview';
 import { downloadUrl, viewableKind } from '../files/viewable';
 import { NotFoundPage } from '../../pages/NotFoundPage';
@@ -15,13 +15,6 @@ import { openSentDialog } from './sent-dialog';
 import * as fmt from '../../lib/format';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { Comments } from '../comments/Comments';
-
-/**
- * Printed calendar date.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Date.
- */
-const printed = (date: string) => fmt.day(date);
 
 /**
  * Page of a document issued before Ordo: its file shown in place (a PDF or an image, like the documents made in
@@ -42,8 +35,8 @@ export function ImportedDocumentPage() {
   const money = (amount: number) => fmt.money(amount, document.currency);
   const facts: [string, string | null][] = [
     ['Client', document.clientName || null],
-    ['Date', printed(String(document.issueDate))],
-    [document.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance', document.dueDate ? printed(String(document.dueDate)) : null],
+    ['Date', fmt.day(String(document.issueDate))],
+    [document.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance', document.dueDate ? fmt.day(String(document.dueDate)) : null],
     ['Total HT', money(document.totalNet)],
     ['TVA', money(document.totalVat)],
     ['Total TTC', money(document.totalGross)],
@@ -125,7 +118,7 @@ export function ImportedDocumentPage() {
                           sentVia: document.sentVia,
                           onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
                         })
-                      : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+                      : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: onMutationError })
                   }
                 />
                 {document.type !== 'QUOTE' && (

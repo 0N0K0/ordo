@@ -1,5 +1,5 @@
 /** Dates of a task that place it in the calendar (YYYY-MM-DD). */
-export interface TaskDates {
+interface TaskDates {
   startDate: string | null;
   endDate: string | null;
   deadline: string | null;
@@ -12,7 +12,7 @@ export interface TaskDates {
 export type TaskSpanKind = 'dates' | 'open';
 
 /** Span of a task in the calendar, days included. */
-export interface TaskSpan {
+interface TaskSpan {
   start: string;
   end: string;
   kind: TaskSpanKind;
@@ -22,7 +22,7 @@ export interface TaskSpan {
  * Where a task shows in the calendar: its span, its latest acceptable date on its own when apart from it, and
  * whether it is late (latest acceptable date past, no end, not closed).
  */
-export interface TaskPlacement {
+interface TaskPlacement {
   span: TaskSpan | null;
   deadline: string | null;
   overdue: boolean;

@@ -3,7 +3,7 @@ import type { MouseEvent } from 'react';
 import { MAX_STACKED, stackedCount } from './data-table/stacked';
 import { ItemAvatar } from './settings/ItemAvatar';
 import { hasAvatar } from './settings/item-look';
-import { notifyError } from '../lib/notify';
+import { onMutationError } from '../lib/notify';
 import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 import { useRef, useState } from 'react';
 import classes from './BatchMultiSelect.module.css';
@@ -173,7 +173,7 @@ export function BatchMultiSelect({
                 setDraft(draftRef.current);
               } else commit([...base, id]);
             })
-            .catch((error: Error) => notifyError(error.message));
+            .catch(onMutationError);
         }
         if (draftRef.current) {
           draftRef.current = next;

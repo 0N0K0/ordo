@@ -9,7 +9,7 @@ const optionalText = (max: number) =>
     .nullable();
 
 /** Postal address, in the order of international postal conventions (ISO 19160 / UPU). */
-export const addressSchema = z.object({
+const addressSchema = z.object({
   /** Street lines: number and street, building, floor, PO box… */
   lines: z.array(z.string().trim().max(120, '120 caractères maximum.')).max(4),
   postalCode: z.string().trim().max(20),
@@ -61,7 +61,7 @@ export function addressLines(
   ].filter((line) => line.trim());
 }
 
-export const phoneSchema = z.object({
+const phoneSchema = z.object({
   label: z.string().trim().max(40),
   number: z
     .string()
@@ -69,7 +69,7 @@ export const phoneSchema = z.object({
     .min(3, 'Numéro invalide.')
     .max(30, 'Numéro invalide.'),
 });
-export const phonesSchema = z.array(phoneSchema).max(10);
+const phonesSchema = z.array(phoneSchema).max(10);
 export type Phone = z.infer<typeof phoneSchema>;
 
 const emailSchema = z
@@ -127,7 +127,7 @@ const siretSchema = z
  * @param {string} iban IBAN without spaces.
  * @returns {boolean} True when valid.
  */
-export function isValidIban(iban: string): boolean {
+function isValidIban(iban: string): boolean {
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(iban)) return false;
   const rearranged = `${iban.slice(4)}${iban.slice(0, 4)}`.replace(
     /[A-Z]/g,

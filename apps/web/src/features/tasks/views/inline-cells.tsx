@@ -6,7 +6,7 @@ import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
 import { taskTitleSchema, type TaskColumn } from '@ordo/shared';
 import { type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { notifyError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useTransferTask, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { notifySuccess } from '../../../lib/notify';
@@ -26,6 +26,7 @@ import { cellCombobox as sharedCombobox, cellMulti as sharedMulti } from '../../
 import { EditableNumber } from '../../../components/data-table/EditableCells';
 import { EditableTitle } from '../../../components/data-table/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
+import { countOf, plural } from '../../../lib/text';
 
 /**
  * Stops the click from reaching the row.
@@ -276,7 +277,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
     .filter((id) => !candidates.some((candidate) => candidate.id === id))
     .map((id) => context.taskById.get(id))
     .filter((item) => item !== undefined);
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const label = count > 1 ? `Tâches dont dépendent les ${count} tâches sélectionnées` : `Tâches dont dépend la tâche ${taskName(task)}`;
   return (
     <StackedMultiCell
@@ -406,7 +407,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
   const ids = kind === 'blocking' ? task.blockingIds : task.relatedIds;
   const candidates = linkableTasks(context, task.projectId, task.id);
   const extra = ids.filter((id) => !candidates.some((candidate) => candidate.id === id)).flatMap((id) => (context.taskById.get(id) ? [context.taskById.get(id)!] : []));
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const label =
     count > 1
       ? `${kind === 'blocking' ? 'Tâches que bloquent' : 'Tâches relatives aux'} ${count} tâches sélectionnées`
@@ -501,15 +502,15 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
         ? bulkTransfer.mutate(
             { ids: targets, projectId },
             {
-              onSuccess: ({ removedLinks }) => notifySuccess(`${count} tâches déplacées.${removedLinks ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''}`),
-              onError: (error) => notifyError(error.message),
+              onSuccess: ({ removedLinks }) => notifySuccess(`${count} tâches déplacées.${removedLinks ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''}`),
+              onError: onMutationError,
             },
           )
         : transferTask.mutate(
         { id: task.id, projectId },
         {
-          onSuccess: ({ removedLinks }) => notifySuccess(`Tâche déplacée.${removedLinks ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''}`),
-          onError: (error) => notifyError(error.message),
+          onSuccess: ({ removedLinks }) => notifySuccess(`Tâche déplacée.${removedLinks ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''}`),
+          onError: onMutationError,
         },
       );
     const linked = (item: Task) =>

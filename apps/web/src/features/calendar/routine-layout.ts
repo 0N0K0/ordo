@@ -23,7 +23,7 @@ export interface RoutineBlock {
 }
 
 /** Place of a block: when it is done, and its travel there and back (HH:MM). */
-export interface BlockPlace {
+interface BlockPlace {
   start: string;
   end: string;
   /** Start of the way there (its start without any). */

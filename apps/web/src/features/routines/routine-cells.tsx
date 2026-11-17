@@ -1,6 +1,5 @@
-import { TimeField } from '../../components/TimeField';
 import { ItemAvatar } from '../../components/settings/ItemAvatar';
-import { Group, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { Text, UnstyledButton } from '@mantine/core';
 import { readSlotCondition, routineSchema, type RoutineCase } from '@ordo/shared';
 import { describeSlotCondition } from './slot-condition-text';
 import { CheckIcon, HourglassMediumIcon } from '@phosphor-icons/react';
@@ -8,21 +7,20 @@ import { useState, type ReactNode } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { categoryOptions, categoryTree } from '../../components/category-tree/category-tree';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
-import { notifyError } from '../../lib/notify';
+
 import { useWorkSchedules } from '../calendar/api';
 import type { TaskContext } from '../tasks/use-task-context';
-import classes from '../../components/data-table/EditableCells.module.css';
 import { StackedMultiCell } from '../../components/data-table/StackedMultiCell';
 import type { Routine, RoutineCategory } from './api';
 import { routinesLabel, useRoutineCellEdit } from './routine-cell-edit';
 import { applyDiff } from '../../components/data-table/bulk-edit';
-import { describeRoutineCase, routinePath, ruleOf, scheduleOf, waitingFor, windowOf, windowText } from './routine-format';
+import { describeRoutineCase, routinePath, ruleOf, waitingFor } from './routine-format';
 import { openRoutineForm } from './open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { BeneficiariesCell } from '../beneficiaries/BeneficiariesSelect';
 import { routineTreeOptions } from './routine-format';
-import { cellField, cellMulti } from '../../components/data-table/cell-field';
+import { cellMulti } from '../../components/data-table/cell-field';
 import { EditableNumber } from '../../components/data-table/EditableCells';
 import { EditableTitle } from '../../components/data-table/EditableTitle';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from '../tasks/views/context-cells';
@@ -90,118 +88,6 @@ export function EstimateCell({ routine, readOnly = false }: CellProps) {
       readOnly={readOnly}
       onSave={(estimate) => apply({ estimate }, { estimate })}
     />
-  );
-}
-
-/**
- * Time window cell: from when and by when to do it, typed in place (each one optional); under them, when to leave and
- * when back (from its travel times and time to spend on it). On a column selection, the time changed applies to every
- * selected routine.
- * @param {CellProps} props Component props.
- * @returns {JSX.Element} Cell.
- */
-export function TimeWindowCell({ routine, readOnly = false }: CellProps) {
-  const { apply, count } = useRoutineCellEdit(routine, 'time');
-  const [drafts, setDrafts] = useState<{ fromTime?: string; dueTime?: string }>({});
-  const { data: schedules } = useWorkSchedules();
-  const { leaveAt, backAt } = scheduleOf(routine);
-  // Names of the schedules it follows.
-  const followed = describeSlotCondition(readSlotCondition(routine.slotCondition), new Map((schedules ?? []).map((item) => [item.id, item.name])));
-  const severalMoments = ((routine.moments as unknown[] | null) ?? []).length > 1;
-
-  /**
-   * Saves one of the times when valid and changed.
-   * @param {'fromTime' | 'dueTime'} field Time edited.
-   * @returns {void}
-   */
-  const save = (field: 'fromTime' | 'dueTime') => {
-    const draft = drafts[field];
-    if (draft === undefined) return;
-    setDrafts((current) => ({ ...current, [field]: undefined }));
-    const result = routineSchema.shape[field].safeParse(draft || null);
-    if (!result.success) {
-      notifyError(`${result.error.issues[0]?.message ?? 'Heure invalide.'} Rien n’a été modifié.`);
-      return;
-    }
-    const window = { fromTime: routine.fromTime, dueTime: routine.dueTime, [field]: result.data };
-    if (count === 1 && window.fromTime && window.dueTime && window.fromTime >= window.dueTime) {
-      notifyError('L’heure maximale doit suivre l’heure de début. Rien n’a été modifié.');
-      return;
-    }
-    if (result.data !== routine[field] || count > 1) apply({ [field]: result.data }, { [field]: result.data });
-  };
-
-  /**
-   * One of the times.
-   * @param {'fromTime' | 'dueTime'} field Time.
-   * @param {string} name Its name.
-   * @returns {JSX.Element} Field.
-   */
-  const input = (field: 'fromTime' | 'dueTime', name: string) => (
-    <TimeField
-      {...cellField}
-      aria-label={fieldLabel(name, routine, count)}
-      readOnly={readOnly}
-      value={drafts[field] ?? routine[field] ?? ''}
-      onChange={(value) => setDrafts((current) => ({ ...current, [field]: value }))}
-      onBlur={() => save(field)}
-      onKeyDown={(event) => {
-        // Enter saves (by leaving the field), Escape gives up the draft.
-        if (event.key === 'Enter') (document.activeElement as HTMLElement | null)?.blur();
-        if (event.key === 'Escape') {
-          setDrafts((current) => ({ ...current, [field]: undefined }));
-          (document.activeElement as HTMLElement | null)?.blur();
-        }
-      }}
-      style={{ flex: 1, minWidth: 0 }}
-    />
-  );
-
-  return (
-    <Stack gap={0}>
-      {(routine.cases as RoutineCase[]).length || (severalMoments && !routine.slotCondition) ? (
-        <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : selon ses moments`}>
-          <Text size="xs">{(routine.cases as RoutineCase[]).length ? 'Selon le cas' : 'Plusieurs moments'}</Text>
-          <Text size="xs" c="dimmed">
-            {routine.slots.map((slot) => windowText(slot) || 'dans la journée').join(' · ') || 'pas ce jour-là'}
-          </Text>
-        </UnstyledButton>
-      ) : routine.slotCondition ? (
-        <UnstyledButton className={classes.root} onClick={() => openRoutineForm({ routine })} disabled={readOnly} aria-label={`Horaire de ${routine.title} : plages ${followed}`}>
-          <Text size="xs" truncate>
-            {followed || 'Plages'}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {windowText(windowOf(routine)) || 'pas de créneau'}
-          </Text>
-        </UnstyledButton>
-      ) : (
-        <Group gap={2} wrap="nowrap">
-          {input('fromTime', 'À partir de')}
-          <Text size="xs" c="dimmed" aria-hidden>
-            –
-          </Text>
-          {input('dueTime', 'Avant')}
-        </Group>
-      )}
-      {(leaveAt || backAt) && (
-        <Tooltip
-          label={[
-            leaveAt && `Partir à ${leaveAt} (trajet ${routine.travelBefore} min${routine.estimate && routine.windowTo ? `, ${routine.estimate} min sur place` : ''})`,
-            backAt && `Retour vers ${backAt}`,
-            routine.location,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        >
-          <Text size="xs" c="dimmed" className={classes.input} style={{ whiteSpace: 'nowrap' }}>
-            {leaveAt && `Départ ${leaveAt}`}
-            {leaveAt && backAt && ' · '}
-            {backAt && `retour ${backAt}`}
-          </Text>
-        </Tooltip>
-      )}
-    </Stack>
   );
 }
 

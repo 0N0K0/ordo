@@ -1,6 +1,6 @@
 import { DatePickerInput } from '@mantine/dates';
 import { listSelectProps } from '../../components/settings/item-look';
-import { Anchor, Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
@@ -15,26 +15,6 @@ import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { Comments } from '../comments/Comments';
 import { CreatableSelect } from '../../components/CreatableSelect';
 import { useDefaultColor } from '../workspace/use-default-color';
-
-/**
- * Names of the people a product or an item is for, as small badges.
- * @param {{ memberIds: string[], relationIds: string[] }} props Component props.
- * @returns {JSX.Element | null} Badges.
- */
-export function PeopleBadges({ memberIds, relationIds }: { memberIds: string[]; relationIds: string[] }) {
-  const { members, relations } = usePeople();
-  const names = [...memberIds.map((id) => members.get(id)), ...relationIds.map((id) => relations.get(id))].filter((name): name is string => Boolean(name));
-  if (!names.length) return null;
-  return (
-    <Group gap={4}>
-      {names.map((name) => (
-        <Badge key={name} size="xs" variant="light" color="gray" tt="none">
-          {name}
-        </Badge>
-      ))}
-    </Group>
-  );
-}
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;

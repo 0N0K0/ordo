@@ -33,7 +33,7 @@ export const slotRuleSchema = z
 export type SlotRule = z.infer<typeof slotRuleSchema>;
 
 /** Anywhere. */
-export const ANY_SLOT_RULE: SlotRule = { inside: [], outside: [] };
+const ANY_SLOT_RULE: SlotRule = { inside: [], outside: [] };
 
 /**
  * Rule stored or received (JSON), validated: null when none or invalid. The former form ({ mode, kinds }) is read too.
@@ -71,7 +71,7 @@ export function effectiveSlotRule(rule: SlotRule | null, perso: boolean): SlotRu
  * @param {SlotRule} rule Rule.
  * @returns {boolean} Anywhere.
  */
-export const isAnySlotRule = (rule: SlotRule) => rule.inside.length === 0 && rule.outside.length === 0;
+const isAnySlotRule = (rule: SlotRule) => rule.inside.length === 0 && rule.outside.length === 0;
 
 /** Planned slot with the kind of its schedule. */
 export interface KindedSlot extends PlannedSlot {

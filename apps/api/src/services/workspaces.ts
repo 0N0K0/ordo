@@ -1,6 +1,6 @@
 import { parseCookie } from 'cookie';
 import type { NextFunction, Request, Response } from 'express';
-import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, readWeek, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan } from '@ordo/shared';
+import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../db';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../generated/prisma/client';
@@ -10,7 +10,7 @@ import { resolveCalendarId } from './calendars';
 import { ensureDocumentStatuses } from './document-statuses';
 
 /** Cookie (and header) naming the workspace the app shows. */
-export const WORKSPACE_COOKIE = 'ordo_workspace';
+const WORKSPACE_COOKIE = 'ordo_workspace';
 const WORKSPACE_HEADER = 'x-ordo-workspace';
 
 const byOrder = [{ position: 'asc' }, { createdAt: 'asc' }] as const;
@@ -173,14 +173,6 @@ export async function setWorkspaceWeek(id: string, week: WeekSpan): Promise<Work
   const { start, end } = parseInput(weekSpanSchema, week);
   if (!(await unscopedPrisma.workspace.findUnique({ where: { id }, select: { id: true } }))) throw notFound('Espace');
   return unscopedPrisma.workspace.update({ where: { id }, data: { weekStart: start, weekEnd: end } });
-}
-
-/**
- * Week of the current workspace.
- * @returns {Promise<WeekSpan>} Week.
- */
-export async function currentWeek(): Promise<WeekSpan> {
-  return readWeek((await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspace().id }, select: { weekStart: true, weekEnd: true } })) ?? {});
 }
 
 /**

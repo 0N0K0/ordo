@@ -2,7 +2,7 @@ import { isTimeDimension, MAIN_DATASET, type ChartComparison, type ChartConfig }
 import { MEASURE_LABELS, PALETTE, round, type ChartData, type ChartSeries } from './aggregate';
 
 /** A data set of a chart, as a configuration of its own. */
-export interface DatasetPart {
+interface DatasetPart {
   id: string;
   name: string;
   config: ChartConfig;

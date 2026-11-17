@@ -9,8 +9,6 @@ export const SLOT_CONDITION_FIELDS = { schedules: 'reference', freeTime: 'refere
 export type SlotConditionField = keyof typeof SLOT_CONDITION_FIELDS;
 /** Schedules: on the slots of one of them, or out of all of them. Free time: out of every schedule (but some of them). */
 export const SLOT_CONDITION_FIELD_OPERATORS: Record<SlotConditionField, readonly string[]> = { schedules: ['in', 'notIn'], freeTime: ['isEmpty', 'notIn'] };
-/** Operators of the conditions on calendar schedules. */
-export const SLOT_CONDITION_OPERATORS = ['in', 'notIn', 'isEmpty'] as const;
 /** Every schedule, in the schedules asked for the slots of a day. */
 export const ALL_SCHEDULES = '*';
 
@@ -104,26 +102,12 @@ function merged(slots: readonly PlannedSlot[]): Interval[] {
 }
 
 /**
- * Parts of a window within slots: where it meets them (several when they are apart).
- * @param {TimeWindow} window Window.
- * @param {readonly PlannedSlot[]} slots Slots of the day.
- * @returns {TimeWindow[]} Windows, in order (none: it meets none).
- */
-export function windowsWithin(window: TimeWindow, slots: readonly PlannedSlot[]): TimeWindow[] {
-  const own = intervalOf(window);
-  return merged(slots)
-    .map((slot) => ({ start: slot.start > own.start ? slot.start : own.start, end: slot.end < own.end ? slot.end : own.end }))
-    .filter((part) => part.start < part.end)
-    .map(windowOf);
-}
-
-/**
  * Parts of a window out of slots: its free time (several when slots cut it; a whole-day slot leaves none).
  * @param {TimeWindow} window Window.
  * @param {readonly PlannedSlot[]} slots Slots of the day.
  * @returns {TimeWindow[]} Windows, in order (none: no free time).
  */
-export function windowsOutside(window: TimeWindow, slots: readonly PlannedSlot[]): TimeWindow[] {
+function windowsOutside(window: TimeWindow, slots: readonly PlannedSlot[]): TimeWindow[] {
   let parts = [intervalOf(window)];
   for (const block of merged(slots)) {
     parts = parts.flatMap((part) =>
@@ -134,14 +118,6 @@ export function windowsOutside(window: TimeWindow, slots: readonly PlannedSlot[]
   }
   return parts.map(windowOf);
 }
-
-/**
- * Windows of the slots of a day, merged where they meet: the moments of a routine following schedules without
- * moments of its own.
- * @param {readonly PlannedSlot[]} slots Slots of the day.
- * @returns {TimeWindow[]} Windows, in order.
- */
-export const slotWindows = (slots: readonly PlannedSlot[]): TimeWindow[] => merged(slots).map(windowOf);
 
 /**
  * Hours of the day a condition on calendar schedules allows: on the slots of some schedules (`in`), out of them

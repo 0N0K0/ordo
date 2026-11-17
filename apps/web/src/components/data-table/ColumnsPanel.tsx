@@ -1,13 +1,14 @@
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Button, Checkbox, Group, Stack, Text } from '@mantine/core';
 import type { ColumnLayout } from '@ordo/shared';
 import { DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { columnOrder, isHidden, withOrder, withVisibility, type DataColumn } from './data-table';
+import { useDragSensors } from '../../lib/drag';
 
 /** Column of the panel. */
-export interface ColumnsListItem {
+interface ColumnsListItem {
   id: string;
   label: string;
   /** Always shown. Optional. */
@@ -48,8 +49,8 @@ interface ColumnsListProps {
  * @param {ColumnsListProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
-export function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true }: ColumnsListProps) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true }: ColumnsListProps) {
+  const sensors = useDragSensors();
   const ids = items.map((item) => item.id);
 
   /**

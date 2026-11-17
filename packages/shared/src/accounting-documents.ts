@@ -3,9 +3,9 @@ import { addDays, formatDay, parseDay } from './recurrence';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
 export type AccountingUnit = (typeof ACCOUNTING_UNITS)[number];
-export const LINE_KINDS = ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const;
+const LINE_KINDS = ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const;
 export type LineKind = (typeof LINE_KINDS)[number];
-export const DISCOUNT_TYPES = ['PERCENT', 'AMOUNT'] as const;
+const DISCOUNT_TYPES = ['PERCENT', 'AMOUNT'] as const;
 export type DiscountType = (typeof DISCOUNT_TYPES)[number];
 
 /** Usual French VAT rates. */
@@ -13,7 +13,7 @@ export const VAT_RATES = [20, 10, 5.5, 2.1, 0];
 
 const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant trop grand.').max(99_999_999, 'Montant trop grand.');
 
-export const accountingLineSchema = z.object({
+const accountingLineSchema = z.object({
   kind: z.enum(LINE_KINDS),
   title: z.string().trim().max(300, '300 caractères maximum.'),
   description: z
@@ -133,7 +133,7 @@ export interface LineTotal {
   net: number;
 }
 
-export interface VatBreakdown {
+interface VatBreakdown {
   rate: number;
   /** Taxable base after discounts and deductions, in cents. */
   base: number;

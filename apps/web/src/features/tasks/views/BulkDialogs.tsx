@@ -1,6 +1,6 @@
 import { Button, Group, Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { notifyError, notifySuccess, notifyWithUndo } from '../../../lib/notify';
+import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { useBulkUndo } from './bulk-undo';
 import { tasksLabel } from './bulk-label';
 import { DestructiveActions } from '../../../components/dialogs/DestructiveActions';
@@ -10,6 +10,7 @@ import { taskName, type TaskContext } from '../use-task-context';
 import { useTaskLink } from '../use-task-link';
 import { countSubtasks } from '../task-links';
 import { outermost } from '../../../components/data-table/selection-actions';
+import { plural } from '../../../lib/text';
 
 export interface DialogProps {
   tasks: Task[];
@@ -63,13 +64,13 @@ export function BulkTransferDialog({ tasks, context, onDone }: DialogProps) {
               { ids: tasks.map((task) => task.id), projectId },
               {
                 onSuccess: ({ removedLinks }) => {
-                  const message = `${tasksLabel(tasks.length)} transférée${tasks.length > 1 ? 's' : ''}.`;
+                  const message = `${tasksLabel(tasks.length)} ${plural(tasks.length, 'transférée')}.`;
                   // Removed links, milestones and sprints cannot come back: no undo then.
                   if (removedLinks > 0) notifySuccess(`${message} ${removedLinks} lien(s) retiré(s).`);
                   else notifyWithUndo(message, undo.transfer(levels));
                   onDone(true);
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             );
           }}
@@ -124,7 +125,7 @@ export function CloneTasksDialog({ tasks, context, onDone }: DialogProps) {
               );
               let last: { id: string; number: number | null } | null = null;
               for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
-              notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} clonée${tasks.length > 1 ? 's' : ''}.`);
+              notifySuccess(single ? `Tâche ${taskName(single)} clonée${last?.number == null ? '' : ` en #${last.number}`}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
               onDone(true);
               if (single && last) link.open(last.id);
             } catch (error) {
@@ -172,10 +173,10 @@ export function BulkDeleteDialog({ tasks, context, onDone }: DialogProps) {
             { ids: tasks.map((task) => task.id), deleteSubtasks: mode === 'delete' },
             {
               onSuccess: () => {
-                notifySuccess(`${tasksLabel(tasks.length)} supprimée${tasks.length > 1 ? 's' : ''}.`);
+                notifySuccess(`${tasksLabel(tasks.length)} ${plural(tasks.length, 'supprimée')}.`);
                 onDone(true);
               },
-              onError: (error) => notifyError(error.message),
+              onError: onMutationError,
             },
           )
         }

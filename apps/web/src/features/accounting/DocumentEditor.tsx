@@ -2,52 +2,17 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import {
-  ActionIcon,
-  Alert,
-  Anchor,
-  Autocomplete,
-  Badge,
-  Button,
-  Divider,
-  FileButton,
-  Grid,
-  Group,
-  Paper,
-  SegmentedControl,
-  Select,
-  SimpleGrid,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  Textarea,
-  TextInput,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Alert, Anchor, Autocomplete, Badge, Button, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput, Title, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { modals } from '@mantine/modals';
-import {
-  accountingDocumentInputSchema,
-  BILLING_SCHEDULE_PRESETS,
-  computeTotals,
-  depositAmount,
-  dueDateForTerms,
-  formatDuration,
-  LATE_INTEREST_PRESETS,
-  PAYMENT_METHOD_PRESETS,
-  PAYMENT_TERMS_PRESETS,
-  type AccountingDocumentInput,
-  type AccountingLineInput,
-} from '@ordo/shared';
+import { accountingDocumentInputSchema, BILLING_SCHEDULE_PRESETS, computeTotals, depositAmount, dueDateForTerms, formatDuration, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type AccountingDocumentInput, type AccountingLineInput } from '@ordo/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, CopyIcon, DownloadSimpleIcon, EyeIcon, FileArrowDownIcon, PaperPlaneTiltIcon, PaperclipIcon, ReceiptIcon, SealCheckIcon, TrashIcon, UploadSimpleIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useMailComposer } from '../mail/use-mail-composer';
 import { timeQueryKey } from '../time/api';
 import { useWorkspace } from '../workspace/api';
@@ -70,6 +35,7 @@ import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
 import { AmountInput } from '../../components/AmountInput';
 import { Comments } from '../comments/Comments';
+import { countOf, plural } from '../../lib/text';
 
 type FormValues = AccountingDocumentInput & Record<string, unknown>;
 
@@ -210,7 +176,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   void mutations.finalize
                     .mutateAsync(document.id)
                     .then((number) => notifySuccess(`Document validé : ${number}.`))
-                    .catch((error: Error) => notifyError(error.message)),
+                    .catch(onMutationError),
                 );
               }}
             >
@@ -235,7 +201,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   notifySuccess('Brouillon supprimé.');
                   void navigate('/accounting');
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               }); } });
   };
 
@@ -275,11 +241,11 @@ function Editor({ document }: { document: AccountingDocument }) {
       reminder: reminder ? { balance: Math.round((document.balance ?? 0) * 100) } : null,
       onSent: () =>
         reminder
-          ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, { onError: (error) => notifyError(error.message) })
-          : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, { onError: (error) => notifyError(error.message) }),
+          ? tracking.addReminder.mutate({ id: document.id, note: 'Relance par mail' }, { onError: onMutationError })
+          : tracking.markSent.mutate({ id: document.id, via: 'MAIL' }, { onError: onMutationError }),
     })
       .then(openComposer)
-      .catch((error: Error) => notifyError(error.message))
+      .catch(onMutationError)
       .finally(() => setPreparingMail(false));
   };
 
@@ -292,7 +258,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   const createFrom = (type: 'INVOICE' | 'CREDIT_NOTE') =>
     mutations.createFrom.mutate(
       { sourceId: document.id, type, issueDate: localToday() },
-      { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: (error) => notifyError(error.message) },
+      { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError },
     );
 
   const canBillTime = document.type === 'INVOICE' && document.status === 'DRAFT';
@@ -328,7 +294,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               serviceStart: values.serviceStart ?? period.start,
               serviceEnd: values.serviceEnd ?? period.end,
             });
-            notifySuccess(`${lines.length} ligne${lines.length > 1 ? 's' : ''} ajoutée${lines.length > 1 ? 's' : ''} : enregistrez le brouillon.`);
+            notifySuccess(`${countOf(lines.length, 'ligne')} ${plural(lines.length, 'ajoutée')} : enregistrez le brouillon.`);
           }}
         />
       ),
@@ -439,7 +405,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 onClick={() =>
                   mutations.duplicate.mutate(
                     { id: document.id, issueDate: localToday() },
-                    { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: (error) => notifyError(error.message) },
+                    { onSuccess: (id) => void navigate(`/accounting/${id}`), onError: onMutationError },
                   )
                 }
               >
@@ -789,7 +755,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
           multiple
           onChange={(files) =>
             files.length &&
-            addAttachments.mutate({ id: document.id, files }, { onSuccess: () => notifySuccess('Fichiers joints.'), onError: (error) => notifyError(error.message) })
+            addAttachments.mutate({ id: document.id, files }, { onSuccess: () => notifySuccess('Fichiers joints.'), onError: onMutationError })
           }
         >
           {(props) => (
@@ -815,7 +781,7 @@ function AttachmentsSection({ document }: { document: AccountingDocument }) {
                 variant="subtle"
                 color="gray"
                 aria-label={`Retirer ${attachment.name}`}
-                onClick={() => removeAttachment.mutate(attachment.id, { onError: (error) => notifyError(error.message) })}
+                onClick={() => removeAttachment.mutate(attachment.id, { onError: onMutationError })}
               >
                 <XIcon aria-hidden />
               </ActionIcon>

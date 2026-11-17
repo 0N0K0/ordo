@@ -26,7 +26,7 @@ const count = (delta: number) => {
 };
 
 /** Height a table takes at most next to other content: the content area of the page (the window without its top bar) without the tabs of the views, the bar of search and filters, and a margin. */
-export const SHARED_TABLE_HEIGHT = 'calc(100dvh - var(--app-shell-header-height, 0px) - var(--onoko-view-tabs-height, 0px) - var(--onoko-table-toolbar-height, 0px) - 2rem)';
+const SHARED_TABLE_HEIGHT = 'calc(100dvh - var(--app-shell-header-height, 0px) - var(--onoko-view-tabs-height, 0px) - var(--onoko-table-toolbar-height, 0px) - 2rem)';
 
 /** Content below a table from which it shares the page (a few pixels: paddings, borders). */
 const BELOW_TOLERANCE = 48;

@@ -1,5 +1,6 @@
 import { Badge, Group, Tooltip } from '@mantine/core';
 import { useMailAccounts, useTodoMailCount, useUnreadMailCount } from './api';
+import { plural } from '../../lib/text';
 
 /**
  * Counts on the "Mails" entry of the sidebar: mails to do (every folder but drafts, sent, archive, junk and
@@ -22,7 +23,7 @@ export function MailNavBadge() {
         </Tooltip>
       )}
       {!!unread && (
-        <Tooltip label={`${unread} non lu${unread > 1 ? 's' : ''}`}>
+        <Tooltip label={`${unread} non ${plural(unread, 'lu')}`}>
           <Badge size="sm" variant="filled" aria-label={`${unread} non lus`}>
             {unread}
           </Badge>

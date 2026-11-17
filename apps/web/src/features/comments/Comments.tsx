@@ -1,6 +1,6 @@
 import { Stack, Text } from '@mantine/core';
 import { CommentThread } from '../../components/comments/CommentThread';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useCommentMutations, useComments, type CommentTarget } from './api';
 
@@ -23,7 +23,7 @@ export function Comments({ target, id, projectId = null, title = 'Commentaires' 
   const { context } = useTaskContext();
   const comments = useComments(target, id);
   const { add, update, remove } = useCommentMutations();
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const empty = { projectId, tasks: [], contributors: [] };
   return (
     <Stack gap="xs">

@@ -7,7 +7,7 @@ import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowSquareInIcon, BasketIcon, 
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { taskRef, useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { EditableText } from '../../components/data-table/EditableCells';
 import { applyDiff, bulkSaver } from '../../components/data-table/bulk-edit';
@@ -240,7 +240,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
     for (const list of targets) {
       if (closedOf(list)) continue;
       const change = changeFor(list);
-      updateList.mutate({ id: list.id, name: change.name ?? list.name, taskIds: change.taskIds ?? list.taskIds }, { onError: (error) => notifyError(error.message) });
+      updateList.mutate({ id: list.id, name: change.name ?? list.name, taskIds: change.taskIds ?? list.taskIds }, { onError: onMutationError });
     }
   };
   const bulk = bulkSaver<ShoppingList, { name?: string; taskIds?: string[] }>(view, (list, change) => saveLists([list], () => change), saveLists);

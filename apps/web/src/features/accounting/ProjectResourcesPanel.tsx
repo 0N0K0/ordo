@@ -6,7 +6,7 @@ import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Anchor, Button, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArrowDownIcon, ArrowUpIcon, FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from './documents-api';
 import { FileLink } from '../files/FileLink';
 
@@ -40,7 +40,7 @@ function ResourceForm({ projectId, resource, onDone }: { projectId: string; reso
       notifySuccess(resource ? 'Ressource modifiée.' : 'Lien ajouté.');
       onDone();
     },
-    onError: (error: Error) => notifyError(error.message),
+    onError: onMutationError,
   };
   return (
     <form
@@ -99,7 +99,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
             irréversible.
           </Text>
 </>
-), onConfirm: () => { remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: (error) => notifyError(error.message) }); } });
+), onConfirm: () => { remove.mutate(resource.id, { onSuccess: () => notifySuccess('Ressource supprimée.'), onError: onMutationError }); } });
   };
 
   return (
@@ -112,7 +112,7 @@ export function ProjectResourcesPanel({ projectId }: { projectId: string }) {
           <FileButton
             multiple
             onChange={(files) =>
-              files.length && addFiles.mutate({ projectId, files }, { onSuccess: () => notifySuccess('Fichiers ajoutés.'), onError: (error) => notifyError(error.message) })
+              files.length && addFiles.mutate({ projectId, files }, { onSuccess: () => notifySuccess('Fichiers ajoutés.'), onError: onMutationError })
             }
           >
             {(props) => (

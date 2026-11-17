@@ -2,17 +2,17 @@ import { z } from 'zod';
 import { emptyTaskTableFilter, taskTableFilterSchema } from './task-filter-translation';
 
 /** What a chart is drawn from: tasks, accounting documents (quotes, invoices…), treasury movements. */
-export const CHART_SOURCES = ['tasks', 'documents', 'treasury'] as const;
+const CHART_SOURCES = ['tasks', 'documents', 'treasury'] as const;
 export type ChartSource = (typeof CHART_SOURCES)[number];
 
 /** Kinds of chart: bars side by side or stacked, lines, areas, donut, and the burndown of a sprint (tasks). */
-export const CHART_TYPES = ['bar', 'stackedBar', 'line', 'area', 'donut', 'burndown'] as const;
+const CHART_TYPES = ['bar', 'stackedBar', 'line', 'area', 'donut', 'burndown'] as const;
 export type ChartType = (typeof CHART_TYPES)[number];
 
 /** Dates the records can be spread over. */
-export const CHART_TIME_DIMENSIONS = ['createdAt', 'closedAt', 'startDate', 'endDate', 'issueDate', 'dueDate', 'sentAt', 'acceptedAt', 'date'] as const;
+const CHART_TIME_DIMENSIONS = ['createdAt', 'closedAt', 'startDate', 'endDate', 'issueDate', 'dueDate', 'sentAt', 'acceptedAt', 'date'] as const;
 /** Fields the records can be grouped by, on the axis or as series. */
-export const CHART_GROUP_DIMENSIONS = [
+const CHART_GROUP_DIMENSIONS = [
   'sprint',
   'milestone',
   'project',
@@ -36,12 +36,12 @@ export const CHART_GROUP_DIMENSIONS = [
   'member',
   'context',
 ] as const;
-export const CHART_DIMENSIONS = [...CHART_TIME_DIMENSIONS, ...CHART_GROUP_DIMENSIONS] as const;
+const CHART_DIMENSIONS = [...CHART_TIME_DIMENSIONS, ...CHART_GROUP_DIMENSIONS] as const;
 export type ChartDimension = (typeof CHART_DIMENSIONS)[number];
 export type ChartGroupDimension = (typeof CHART_GROUP_DIMENSIONS)[number];
 
 /** What is measured: tasks (number, effort, tracked hours), documents (number, amounts), movements (amounts, balance). */
-export const CHART_MEASURES = ['count', 'effort', 'trackedTime', 'totalNet', 'totalGross', 'paid', 'balance', 'amount', 'income', 'expense'] as const;
+const CHART_MEASURES = ['count', 'effort', 'trackedTime', 'totalNet', 'totalGross', 'paid', 'balance', 'amount', 'income', 'expense'] as const;
 export type ChartMeasure = (typeof CHART_MEASURES)[number];
 
 /** Dates, fields and measures of each source. */
@@ -69,7 +69,7 @@ export const CHART_PERIODS = ['past:28', 'past:91', 'past:182', 'past:365', 'pas
 
 /** Calendar period: a month, quarter or year — the current one (0), the previous one (-1), or a chosen one (its first day). */
 export const CALENDAR_PERIOD = /^(month|quarter|year):(0|-1|\d{4}-\d{2}-\d{2})$/;
-export const CALENDAR_SCALES = ['month', 'quarter', 'year'] as const;
+const CALENDAR_SCALES = ['month', 'quarter', 'year'] as const;
 export type CalendarScale = (typeof CALENDAR_SCALES)[number];
 export type ChartPeriod = (typeof CHART_PERIODS)[number] | `${CalendarScale}:${string}`;
 
@@ -92,7 +92,7 @@ export function calendarStart(scale: CalendarScale, day: string): string {
  * @param {number} delta Periods to move.
  * @returns {string} First day.
  */
-export function shiftCalendar(scale: CalendarScale, start: string, delta: number): string {
+function shiftCalendar(scale: CalendarScale, start: string, delta: number): string {
   const months = (scale === 'month' ? 1 : scale === 'quarter' ? 3 : 12) * delta;
   return new Date(Date.UTC(Number(start.slice(0, 4)), Number(start.slice(5, 7)) - 1 + months, 1)).toISOString().slice(0, 10);
 }
@@ -136,7 +136,7 @@ export const documentChartFilterSchema = z.object({
 export type DocumentChartFilter = z.infer<typeof documentChartFilterSchema>;
 
 /** Movements counted by a chart. */
-export const treasuryChartFilterSchema = z.object({
+const treasuryChartFilterSchema = z.object({
   accountIds: z.array(z.string()).default([]),
   categories: z.array(z.string()).default([]),
   direction: z.enum(['all', 'in', 'out']).default('all'),
@@ -149,7 +149,7 @@ export type TreasuryChartFilter = z.infer<typeof treasuryChartFilterSchema>;
 export const MAIN_DATASET = 'main';
 
 /** Additional data set of a chart: its own source, measure and filters, on the axis of the chart. */
-export const chartDatasetSchema = z.object({
+const chartDatasetSchema = z.object({
   id: z.string().min(1).max(40),
   name: z.string().trim().min(1, 'Nommez le jeu de données.').max(60, '60 caractères maximum.'),
   source: z.enum(CHART_SOURCES),
@@ -170,7 +170,7 @@ export type ChartDataset = z.infer<typeof chartDatasetSchema>;
 
 /** Comparison of two data sets (their totals, whatever their series): the share of one in another (percent), or their difference. */
 export const CHART_COMPARISON_KINDS = ['ratio', 'difference'] as const;
-export const chartComparisonSchema = z.object({
+const chartComparisonSchema = z.object({
   id: z.string().min(1).max(40),
   name: z.string().trim().min(1, 'Nommez la comparaison.').max(60, '60 caractères maximum.'),
   kind: z.enum(CHART_COMPARISON_KINDS),

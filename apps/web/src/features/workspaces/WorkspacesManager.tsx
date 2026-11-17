@@ -2,7 +2,7 @@ import { ActionIcon, Badge, Button, Chip, Group, Paper, SegmentedControl, Select
 import { readWeek, WEEKDAY_LABELS, weekLength } from '@ordo/shared';
 import { ArrowDownIcon, ArrowSquareOutIcon, ArrowUpIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Workspace, type WorkspaceKind } from './api';
 import { switchWorkspace } from './switch';
@@ -41,7 +41,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
   const week = readWeek(workspace);
   const [name, setName] = useState(workspace.name);
   const [confirming, setConfirming] = useState(false);
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   /**
    * Saves the name or the kind when they changed.
@@ -205,7 +205,7 @@ export function WorkspacesManager() {
           notifySuccess('Espace créé.');
           setName('');
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };

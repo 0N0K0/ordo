@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 
 const DEFAULT_WIDTH = 280;
 /** Below this width the sidebar is hidden entirely. */
-export const MIN_SIDEBAR_WIDTH = 200;
+const MIN_SIDEBAR_WIDTH = 200;
 
 /**
  * Maximum sidebar width: 480px, and never more than 40% of the viewport (never under the minimum).

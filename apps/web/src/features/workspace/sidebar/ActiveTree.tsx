@@ -1,27 +1,15 @@
-import {
-  closestCenter,
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type CollisionDetection,
-  type DragEndEvent,
-  type DragMoveEvent,
-  type DragOverEvent,
-  type DragStartEvent,
-} from '@dnd-kit/core';
+import { closestCenter, DndContext, DragOverlay, type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragOverEvent, type DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { useMemo, useState } from 'react';
-import { notifyError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { useMoveClient, useMoveProject, type Client, type Project } from '../api';
 import { NO_CLIENT, type ProjectNode, type TreeSection } from '../tree';
 import { NoClientRow } from './NoClientRow';
 import { TreeRow } from './TreeRow';
 import classes from './Tree.module.css';
-import { suppressClickAfterDrop } from '../../../lib/drag';
+import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
 
 /** Horizontal offset of one tree level, in px (matches the row indentation). */
 const INDENT = 20;
@@ -258,7 +246,7 @@ interface ActiveTreeProps {
 export function ActiveTree({ section, dndEnabled, isExpanded, onToggle }: ActiveTreeProps) {
   const moveClient = useMoveClient();
   const moveProject = useMoveProject();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useDragSensors();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [offsetX, setOffsetX] = useState(0);
@@ -315,7 +303,7 @@ export function ActiveTree({ section, dndEnabled, isExpanded, onToggle }: Active
       items.findIndex((item) => item.id === dragId),
       items.findIndex((item) => item.id === over.id),
     );
-    const onError = (error: Error) => notifyError(error.message);
+    const onError = onMutationError;
 
     if (kind === 'client') {
       const index = moved.filter((item) => item.kind === 'client').findIndex((item) => item.id === dragId);

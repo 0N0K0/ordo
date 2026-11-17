@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from '../../features/tasks/api';
 
 /** Saved view with its configuration parsed. */
@@ -66,7 +66,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
     created.current = scope;
     void (async () => {
       for (const view of first()) await createAsync({ name: view.name, config: view.config, projectId, kind, tableKey });
-    })().catch((error: Error) => notifyError(error.message));
+    })().catch(onMutationError);
   }, [viewsQuery.isSuccess, ready, views.length, createAsync, projectId, kind, tableKey, first]);
 
   /**
@@ -112,7 +112,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      */
     save: () => {
       if (!current || !config) return;
-      mutations.update.mutate({ id: current.id, input: { config } }, { onSuccess: () => discard(current.id), onError: (error) => notifyError(error.message) });
+      mutations.update.mutate({ id: current.id, input: { config } }, { onSuccess: () => discard(current.id), onError: onMutationError });
     },
 
     /**
@@ -135,7 +135,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
             if (fromCurrent && current) discard(current.id);
             select(view.id);
           },
-          onError: (error) => notifyError(error.message),
+          onError: onMutationError,
         },
       ),
 
@@ -145,15 +145,14 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {string} name New name.
      * @returns {void}
      */
-    rename: (id: string, name: string) => mutations.update.mutate({ id, input: { name } }, { onError: (error) => notifyError(error.message) }),
+    rename: (id: string, name: string) => mutations.update.mutate({ id, input: { name } }, { onError: onMutationError }),
 
     /**
      * Duplicates a view (saved configuration) and opens the copy.
      * @param {SavedView<C>} view View.
      * @returns {void}
      */
-    duplicate: (view: SavedView<C>) =>
-      mutations.duplicate.mutate({ id: view.id, name: `${view.name} (copie)`.slice(0, 60) }, { onSuccess: (copy) => select(copy.id), onError: (error) => notifyError(error.message) }),
+    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, name: `${view.name} (copie)`.slice(0, 60) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
 
     /**
      * Deletes a view.
@@ -172,7 +171,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
               setParams(next, { replace: true });
             }
           },
-          onError: (error) => notifyError(error.message),
+          onError: onMutationError,
         },
       ),
 
@@ -181,7 +180,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {SavedView<C>} view View.
      * @returns {void}
      */
-    setDefault: (view: SavedView<C>) => mutations.setDefault.mutate({ id: view.id }, { onError: (error) => notifyError(error.message) }),
+    setDefault: (view: SavedView<C>) => mutations.setDefault.mutate({ id: view.id }, { onError: onMutationError }),
 
     /**
      * Moves a view tab.
@@ -189,7 +188,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      * @param {number} index Target index.
      * @returns {void}
      */
-    move: (id: string, index: number) => mutations.move.mutate({ id, index }, { onError: (error) => notifyError(error.message) }),
+    move: (id: string, index: number) => mutations.move.mutate({ id, index }, { onError: onMutationError }),
   };
 }
 

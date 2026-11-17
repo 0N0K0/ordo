@@ -1,5 +1,5 @@
 import { entrySeconds, formatDuration } from '@ordo/shared';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTimeMutations, type TimeEntry } from './api';
 
 /**
@@ -13,7 +13,7 @@ export function useStopTimer() {
       const seconds = entrySeconds(entry);
       stop.mutate(undefined, {
         onSuccess: () => notifySuccess(`Temps enregistré : ${formatDuration(seconds)}.`),
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       });
     },
     isPending: stop.isPending,

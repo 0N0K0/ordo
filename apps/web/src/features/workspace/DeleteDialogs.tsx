@@ -1,8 +1,9 @@
-import {  Radio, Stack, Text } from '@mantine/core';
+import { Radio, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useDeleteClient, useDeleteProject, type Client, type Project } from './api';
+import { countOf } from '../../lib/text';
 
 interface DeleteClientDialogProps {
   client: Client;
@@ -34,7 +35,7 @@ export function DeleteClientDialog({ client, projectCount, onDone }: DeleteClien
           notifySuccess(`Client « ${client.name} » supprimé.`);
           onDone(true);
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -47,7 +48,7 @@ export function DeleteClientDialog({ client, projectCount, onDone }: DeleteClien
       </Text>
       {projectCount > 0 && (
         <Radio.Group
-          label={`Que faire de ses ${projectCount} projet${projectCount > 1 ? 's' : ''} ?`}
+          label={`Que faire de ses ${countOf(projectCount, 'projet')} ?`}
           value={mode}
           onChange={(value) => setMode(value as 'detach' | 'delete')}
         >
@@ -92,7 +93,7 @@ export function DeleteProjectDialog({ project, subProjectCount, onDone }: Delete
           notifySuccess(`Projet « ${project.title} » supprimé.`);
           onDone(true);
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -102,7 +103,7 @@ export function DeleteProjectDialog({ project, subProjectCount, onDone }: Delete
       <Text size="sm">
         Le projet <strong>{project.title}</strong>
         {subProjectCount > 0 &&
-          ` et ses ${subProjectCount} sous-projet${subProjectCount > 1 ? 's' : ''}`}{' '}
+          ` et ses ${countOf(subProjectCount, 'sous-projet')}`}{' '}
         {subProjectCount > 0 ? 'seront supprimés' : 'sera supprimé'} définitivement. Cette action est irréversible ;
         pour {subProjectCount > 0 ? 'les' : 'le'} retirer de la liste sans perdre de données, archivez plutôt.
       </Text>

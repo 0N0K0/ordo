@@ -10,7 +10,7 @@ import { ItemAvatar } from './ItemAvatar';
 export const hasAvatar = (option: { color?: string | null; iconUrl?: string | null }) => Boolean(option.color || option.iconUrl);
 
 /** Option of an item of a settings list: its name, with its color and image for its avatar. */
-export interface ItemOption extends ComboboxItem {
+interface ItemOption extends ComboboxItem {
   color?: string | null;
   iconUrl?: string | null;
 }

@@ -1,6 +1,6 @@
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useDashboardMutations, useDashboards, type DashboardChart } from './api';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
@@ -78,7 +78,7 @@ export function TransferChartForm({ chart, projectId, context, onDone }: Transfe
                   notifySuccess('Diagramme déplacé.');
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }

@@ -57,7 +57,7 @@ export interface ComposeOptions {
 }
 
 /** Parts of the HTML of a mail written in Ordo, marked so a draft can be resumed. */
-export const PART = { body: 'body', signature: 'signature', quote: 'quote' } as const;
+const PART = { body: 'body', signature: 'signature', quote: 'quote' } as const;
 
 /**
  * HTML of a mail written in Ordo: body, signature and quote, each marked.

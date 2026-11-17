@@ -6,7 +6,7 @@ import { ActionIcon, Anchor, Badge, Group, Paper, SimpleGrid, Stack, Text, Title
 import { addressLines, hasAddress, type Address, type Phone } from '@ordo/shared';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../../components/address/countries';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from './api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
 
@@ -81,7 +81,7 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
             aria-label={`Supprimer ${name}`}
             onClick={() =>
               confirmDestructive({ title: 'Supprimer le contact', risks: `${name} sera supprimé définitivement. Cette action est irréversible.`, onConfirm: () =>
-                deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: (error) => notifyError(error.message) }) })
+                deleteContact.mutate(contact.id, { onSuccess: () => notifySuccess('Contact supprimé.'), onError: onMutationError }) })
             }
           >
             <TrashIcon aria-hidden />
@@ -125,7 +125,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
                 color="red"
                 aria-label={`Supprimer ${service.name}`}
                 onClick={() =>
-                  confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`, onConfirm: () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: (error) => notifyError(error.message) }) })
+                  confirmDestructive({ title: 'Supprimer le service', risks: `Le service « ${service.name} » sera supprimé définitivement ; ses contacts restent rattachés au client. Cette action est irréversible.`, onConfirm: () => deleteService.mutate(service.id, { onSuccess: () => notifySuccess('Service supprimé.'), onError: onMutationError }) })
                 }
               >
                 <TrashIcon aria-hidden />

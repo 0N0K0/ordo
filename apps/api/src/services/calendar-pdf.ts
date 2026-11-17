@@ -12,7 +12,7 @@ const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
 /** A view of the calendar, as displayed (filters applied), to print. */
-export const calendarPdfSchema = z
+const calendarPdfSchema = z
   .object({
     title: z.string().trim().min(1).max(200),
     subtitle: z.string().max(500).default(''),
@@ -39,7 +39,7 @@ export const calendarPdfSchema = z
       .max(5000),
   })
   .refine((view) => view.from <= view.to && daysBetween(view.from, view.to) <= 45, 'Période invalide.');
-export type CalendarPdfInput = z.input<typeof calendarPdfSchema>;
+type CalendarPdfInput = z.input<typeof calendarPdfSchema>;
 type Item = z.infer<typeof calendarPdfSchema>['items'][number];
 
 const COLORS = { text: '#1d232b', muted: '#66707c', border: '#d5dae0', light: '#f2f4f6', work: '#e6f4ea', today: '#fff8db' };

@@ -2,7 +2,7 @@ import { ActionIcon, Button, Group, NumberInput, Select, Stack, Text, Tooltip } 
 import { XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useSheets } from './api';
 
 interface SheetPickerProps {
@@ -63,7 +63,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
                       onConfirm: () =>
                         onRemove(sheet.sheetId)
                           .then(() => notifySuccess('Fiche retirée.'))
-                          .catch((error: Error) => notifyError(error.message)),
+                          .catch(onMutationError),
                     })
                   }
                 >
@@ -89,7 +89,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
                 notifySuccess('Fiche ajoutée.');
                 onDone();
               })
-              .catch((error: Error) => notifyError(error.message))
+              .catch(onMutationError)
               .finally(() => setPending(false));
           }}
         >

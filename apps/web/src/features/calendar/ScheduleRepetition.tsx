@@ -11,7 +11,7 @@ import { localToday } from '../../lib/dates';
 import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exceptionPeriod, newScheduleCase } from './schedule-text';
 
 /** Period, cases and exceptions of a schedule: everything about how it repeats. */
-export interface ScheduleRepetitionValue {
+interface ScheduleRepetitionValue {
   startDate: string;
   endDate: string | null;
   cases: ScheduleCase[];

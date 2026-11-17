@@ -1,7 +1,7 @@
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { CategoryTree } from '../category-tree/CategoryTree';
 import { categoryTree } from '../category-tree/category-tree';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
@@ -13,7 +13,7 @@ import { SettingsItemForm, type SettingsItem, type SettingsItemExtra, type Setti
 
 let panelCount = 0;
 
-export interface SettingsListProps<C extends SettingsItem, E extends object> {
+interface SettingsListProps<C extends SettingsItem, E extends object> {
   kind: SettingsListKind;
   title: string;
   description: ReactNode;
@@ -148,7 +148,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
    * @returns {void}
    */
   const handleMove = (id: string, parentId: string | null, index: number) => {
-    const onError = (error: Error) => notifyError(error.message);
+    const onError = onMutationError;
     if (move) {
       move(id, parentId, index).catch(onError);
       return;
@@ -181,10 +181,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         </Text>
       ),
       onConfirm: () => {
-        remove(item.id).then(
-          () => notifySuccess(`« ${path} » supprimé.`),
-          (error: Error) => notifyError(error.message),
-        );
+        remove(item.id).then(() => notifySuccess(`« ${path} » supprimé.`), onMutationError);
       },
     });
   };

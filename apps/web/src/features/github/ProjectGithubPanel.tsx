@@ -1,3 +1,4 @@
+import { normalize } from '@ordo/shared';
 import { FormSkeleton } from '../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
@@ -5,7 +6,7 @@ import { Alert, Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from './api';
 import * as fmt from '../../lib/format';
@@ -28,7 +29,7 @@ const SYNONYMS: Record<string, string[]> = {
  * @param {string} name Name.
  * @returns {string} Folded name.
  */
-const fold = (name: string) => name.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+const fold = (name: string) => normalize(name).trim();
 
 /**
  * Option of the board guessed for an Ordo label (same name, or a usual English name).
@@ -270,7 +271,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
                   notifySuccess('Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.');
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }
@@ -356,7 +357,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const confirmUnlink = () => {
-    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: (error) => notifyError(error.message) }); } });
+    confirmDestructive({ title: 'Délier le tableau GitHub', risks: 'La synchronisation s’arrête : les tâches et sprints restent dans Ordo, les items restent sur GitHub, mais ils ne sont plus liés. Une nouvelle liaison les dupliquerait.', confirmLabel: 'Délier', onConfirm: () => { unlink.mutate(projectId, { onSuccess: () => notifySuccess('Tableau GitHub délié.'), onError: onMutationError }); } });
   };
 
   if (!link) {
@@ -438,7 +439,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                       notifySuccess(
                         `Synchronisé : ${result.pulledNew} tâche(s) et ${result.pushedNew} item(s) créés, ${result.pulled} tâche(s) et ${result.pushed} item(s) mis à jour, ${result.renumbered} tâche(s) renumérotée(s),${result.sprintsSkipped ? ` ${result.sprintsSkipped} sprint(s) sans itération (à créer dans GitHub),` : ''} ${result.comments} commentaire(s) échangé(s).`,
                       ),
-                    onError: (error) => notifyError(error.message),
+                    onError: onMutationError,
                   })
                 }
               >

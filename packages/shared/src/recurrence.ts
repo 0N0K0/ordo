@@ -10,10 +10,10 @@ export type RecurrenceFrequency = (typeof RECURRENCE_FREQUENCIES)[number];
  * (to the end of the last one), or up to a day of the month (and of a month of the year), a week of the year or a month
  * of the year (the next one when it comes before).
  */
-export const DURATION_UNITS = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'] as const;
+const DURATION_UNITS = ['DAYS', 'WEEKS', 'MONTHS', 'TO_DAY', 'TO_WEEK', 'TO_MONTH'] as const;
 export type DurationUnit = (typeof DURATION_UNITS)[number];
 
-export const occurrenceDurationSchema = z.object({
+const occurrenceDurationSchema = z.object({
   unit: z.enum(DURATION_UNITS).default('DAYS'),
   /** DAYS, WEEKS, MONTHS: how many. */
   count: z.number().int().min(1, 'Au moins 1.').max(366, '366 au plus.').default(1),
@@ -42,7 +42,7 @@ export interface Span {
  * @param {number} day Day number.
  * @returns {string} YYYY-MM-DD.
  */
-export function dayInMonth(year: number, month: number, day: number): string {
+function dayInMonth(year: number, month: number, day: number): string {
   const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
 }
@@ -393,18 +393,8 @@ export function zonedInstant(date: string, time: string, timeZone: string): Date
   return new Date(guess - zoneOffset(first, timeZone) * 60_000);
 }
 
-/**
- * Local calendar date of an instant in a time zone.
- * @param {Date} instant Instant.
- * @param {string} timeZone IANA time zone.
- * @returns {string} Calendar date.
- */
-export function zonedDate(instant: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(instant);
-}
-
 /** Values of the monthly and yearly modes of a rule, chosen or those of its first date. */
-export interface RuleValues {
+interface RuleValues {
   monthDay: number;
   position: -1 | 1 | 2 | 3 | 4;
   weekday: number;

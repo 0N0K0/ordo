@@ -13,7 +13,7 @@ import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCompanyProfile } from './api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from './catalog-api';
 import * as fmt from '../../lib/format';
@@ -198,7 +198,7 @@ export function CatalogPanel() {
           ...change,
         },
       },
-      { onError: (error) => notifyError(error.message) },
+      { onError: onMutationError },
     );
   const itemComments = useCommentCounts(
     'CATALOG_ITEM',
@@ -238,7 +238,7 @@ export function CatalogPanel() {
         </>
       ),
       onConfirm: () => {
-        remove.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), onError: (error) => notifyError(error.message) });
+        remove.mutate(item.id, { onSuccess: () => notifySuccess('Article supprimé.'), onError: onMutationError });
       },
     });
   };

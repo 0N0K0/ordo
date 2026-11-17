@@ -16,7 +16,7 @@ import { openFormPanel } from '../../components/panels/panels';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { localDay } from '../../lib/dates';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTaskContext, type TaskContext } from '../tasks/use-task-context';
 import { useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from './api';
 import { quantityText, sheetInput } from './sheet-format';
@@ -114,7 +114,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
     rows: sheets ?? [],
     title: 'Fiches',
   });
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const bulk = bulkSaver<Sheet, { projectId?: string | null; categoryIds?: string[] }>(view, (sheet, change) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, onError));
 
   /**

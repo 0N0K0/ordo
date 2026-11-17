@@ -4,7 +4,7 @@ import { useSyncExternalStore, type ReactNode } from 'react';
 export type PanelSize = 'md' | 'lg';
 
 /** Side panel opened on the right of the page. */
-export interface OpenPanel {
+interface OpenPanel {
   panelId: string;
   title: ReactNode;
   size: PanelSize;

@@ -5,7 +5,7 @@ import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, PaperclipIcon, PaperPlaneTiltIcon, XIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RichEditor } from '../../components/rich-text/RichEditor';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useMailActions, useMailAccounts } from './api';
 import { mailHtml, type ComposeOptions, type MailLocation, type SourceFiles } from './compose-options';
 import { MailBody } from './MailBody';
@@ -197,7 +197,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           options.onSent?.();
           onDone();
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -218,7 +218,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           notifySuccess(`Envoi programmé le ${fmt.dateTimeShort(sendAt)}.`);
           onDone();
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -304,7 +304,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                     notifySuccess('Brouillon supprimé.');
                     onDone();
                   })
-                  .catch((error: Error) => notifyError(error.message))
+                  .catch(onMutationError)
                   .finally(() => {
                     closing.current = false;
                   });
@@ -320,7 +320,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                     notifySuccess('Brouillon enregistré.');
                     onDone();
                   })
-                  .catch((error: Error) => notifyError(error.message))
+                  .catch(onMutationError)
                   .finally(() => {
                     closing.current = false;
                   });

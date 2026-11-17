@@ -78,7 +78,7 @@ export interface TaskContext {
 }
 
 /** Label of the tasks of no project. */
-export const NO_PROJECT_LABEL = 'Sans projet';
+const NO_PROJECT_LABEL = 'Sans projet';
 /** Heading of the tasks of no project in a select of tasks. */
 const NO_PROJECT_NODE = 'project:none';
 

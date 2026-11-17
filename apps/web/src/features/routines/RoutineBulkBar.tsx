@@ -6,6 +6,7 @@ import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } fr
 import { routinesLabel } from './routine-cell-edit';
 import { isDone, movableOccurrence } from './routine-format';
 import { usePostponeRoutine } from './use-routine-move';
+import { plural } from '../../lib/text';
 
 /**
  * Actions on the checked routines that their columns cannot do, for the bar of the table: ticked or unticked,
@@ -54,7 +55,7 @@ export function useRoutineSelectionActions() {
             const copyId = await create.mutateAsync({ ...routineInputOf(routine), title: `${routine.title} (copie)` });
             if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
           },
-          done: `${label} dupliquée${ids.length > 1 ? 's' : ''}.`,
+          done: `${label} ${plural(ids.length, 'dupliquée')}.`,
           loading: create.isPending || copySubRoutines.isPending,
         },
       ),
@@ -71,7 +72,7 @@ export function useRoutineSelectionActions() {
         title: 'Supprimer les routines',
         risks: `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible ; pour les retirer sans perdre leurs données, archivez-les plutôt.`,
         removeAll: () => bulkRemove.mutateAsync(ids),
-        done: `${label} supprimée${ids.length > 1 ? 's' : ''}.`,
+        done: `${label} ${plural(ids.length, 'supprimée')}.`,
         clear: onClear,
         loading: bulkRemove.isPending,
       }),

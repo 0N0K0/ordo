@@ -3,7 +3,7 @@ import { EditableMultiSelect } from '../../components/data-table/EditableCells';
 import { beneficiariesOf, beneficiaryKeys, useBeneficiaries, type Beneficiaries } from './use-beneficiaries';
 
 /** Label of the field, everywhere. */
-export const BENEFICIARIES_LABEL = 'Bénéficiaires';
+const BENEFICIARIES_LABEL = 'Bénéficiaires';
 
 interface BeneficiariesSelectProps {
   value: Beneficiaries;

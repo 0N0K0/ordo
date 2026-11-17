@@ -2,7 +2,7 @@ import { confirmDestructive } from '../../components/dialogs/confirm-destructive
 import { ItemAvatar } from '../../components/settings/ItemAvatar';
 import { ActionIcon, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrashIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from './api';
 import type { MailGroup } from './mail-groups';
 
@@ -38,7 +38,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
   const junkPath = folders?.find((item) => item.specialUse === '\\Junk')?.path;
   const junk = oneAccount !== null && junkPath !== undefined && groups.every((group) => group.folder === junkPath);
   const count = groups.reduce((sum, group) => sum + group.uids.length, 0);
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   /**
    * Runs an action on every group.
@@ -163,7 +163,7 @@ interface MailSelectionBarProps {
 export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onManageLabels, noMove }: MailSelectionBarProps) {
   const { setSeen, remove } = useMailActions();
   const count = groups.reduce((sum, group) => sum + group.uids.length, 0);
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   /**
    * Asks for confirmation before deleting the mails.

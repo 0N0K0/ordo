@@ -3,11 +3,12 @@ import { countSubtasks } from './task-links';
 import { useState } from 'react';
 import { useTaskLink } from './use-task-link';
 import { ErrorIcon } from '../../components/feedback-icons';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { DestructiveActions } from '../../components/dialogs/DestructiveActions';
 import { useDeleteTask, useTransferTask, type Task } from './api';
 import { ProjectSelect } from './task-ui';
 import { taskName, taskRef, type TaskContext } from './use-task-context';
+import { countOf, plural } from '../../lib/text';
 
 interface DialogProps {
   task: Task;
@@ -39,7 +40,7 @@ export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
           onDone();
           link.close();
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -52,7 +53,7 @@ export function DeleteTaskDialog({ task, context, onDone }: DialogProps) {
       </Text>
       {subtasks > 0 && (
         <Radio.Group
-          label={`Que faire de ses ${subtasks} sous-tâche${subtasks > 1 ? 's' : ''} ?`}
+          label={`Que faire de ses ${countOf(subtasks, 'sous-tâche')} ?`}
           value={mode}
           onChange={(value) => setMode(value as 'detach' | 'delete')}
         >
@@ -95,11 +96,11 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
         onSuccess: ({ removedLinks }) => {
           notifySuccess(
             `Tâche ${taskName(task)} transférée.` +
-              (removedLinks > 0 ? ` ${removedLinks} lien${removedLinks > 1 ? 's' : ''} retiré${removedLinks > 1 ? 's' : ''}.` : ''),
+              (removedLinks > 0 ? ` ${countOf(removedLinks, 'lien')} ${plural(removedLinks, 'retiré')}.` : ''),
           );
           onDone();
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -108,7 +109,7 @@ export function TransferTaskDialog({ task, context, onDone }: DialogProps) {
     <Stack gap="md">
       <Text size="sm">
         {subtasks > 0
-          ? `La tâche et ses ${subtasks} sous-tâche${subtasks > 1 ? 's' : ''} seront déplacées.`
+          ? `La tâche et ses ${countOf(subtasks, 'sous-tâche')} seront déplacées.`
           : 'La tâche sera déplacée dans le projet choisi.'}
       </Text>
       <ProjectSelect context={context} label="Projet de destination" value={projectId} onChange={setProjectId} disabled={none} data-autofocus />

@@ -18,7 +18,7 @@ import { useDataView } from '../../components/data-table/use-data-view';
 import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useForecastEntries, useTreasuryAccounts, useTreasuryMutations, useTreasuryProjection, type ForecastEntry, type ProjectionItem, type TreasuryAccount, type TreasuryEntry } from './api';
 import { CHART_SCALES, periodEnd, periodLabel, periodStart, shiftPeriod, type ChartScale } from './chart-period';
 import { EntriesPanel } from './EntriesPanel';
@@ -41,13 +41,6 @@ import * as fmt from '../../lib/format';
 import { deleteRowsAction } from '../../components/data-table/selection-actions';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { AmountInput } from '../../components/AmountInput';
-
-/**
- * Printed calendar date.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} Date.
- */
-const printedDate = (date: string) => fmt.day(date);
 
 /**
  * Amount in euros, from currency units.
@@ -94,7 +87,7 @@ function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefine
       size: 140,
       bulk: true,
       sortValue: ({ item }) => item.date,
-      text: ({ item }) => printedDate(item.date),
+      text: ({ item }) => fmt.day(item.date),
       filter: { kind: 'date', value: ({ item }) => item.date },
     },
     { id: 'label', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
@@ -144,7 +137,7 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
   return (
     <Stack gap="sm">
       <Text size="sm">
-        « {item.label} », prévu le {printedDate(item.dueDate)}, devient un mouvement réel.
+        « {item.label} », prévu le {fmt.day(item.dueDate)}, devient un mouvement réel.
       </Text>
       <SimpleGrid cols={2} spacing="sm">
         <DatePickerInput label="Date réelle" required value={date} onChange={setDate} />
@@ -167,7 +160,7 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
                   notifySuccess('Mouvement enregistré.');
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }
@@ -286,7 +279,7 @@ export function TreasuryPage() {
         return entry ? changeOf(change, entry) : {};
       });
   const close = () => setDialog(null);
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   if (accountsPending) return <DetailSkeleton />;
 
@@ -370,9 +363,9 @@ export function TreasuryPage() {
         <Figure label="À encaisser" value={receivable} hint="Factures validées non réglées" color="blue" />
         <Figure label="En retard" value={late.reduce((sum, item) => sum + item.amount, 0)} hint={`${late.length} échéance(s) dépassée(s)`} color={late.length ? 'red' : undefined} />
         <Figure
-          label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? printedDate(end.date) : '—'}`}
+          label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? fmt.day(end.date) : '—'}`}
           value={end?.balance ?? 0}
-          hint={lowest ? `Point bas ${fmt.money(lowest.balance)} le ${printedDate(lowest.date)}` : undefined}
+          hint={lowest ? `Point bas ${fmt.money(lowest.balance)} le ${fmt.day(lowest.date)}` : undefined}
         />
       </SimpleGrid>
 
@@ -512,7 +505,7 @@ export function TreasuryPage() {
             empty={
               <EmptyState
                 compact
-                message={`Rien d’attendu d’ici le ${printedDate(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.`}
+                message={`Rien d’attendu d’ici le ${fmt.day(until)}. Ajoutez des prévisions (loyer, charges…) : les factures validées non réglées et les factures récurrentes y figurent d’elles-mêmes.`}
               />
             }
             verticalSpacing="xs"
@@ -538,11 +531,11 @@ export function TreasuryPage() {
                         onSave={(date) => date && forecastSave(row)('date')(entry, (target) => (target.recurrence == null ? { date } : {}))}
                       />
                     ) : (
-                      <Text size="sm">{printedDate(item.date)}</Text>
+                      <Text size="sm">{fmt.day(item.date)}</Text>
                     )}
                     {item.overdue && (
                       <Badge size="xs" color="red" variant="light">
-                        Prévu le {printedDate(item.dueDate)}
+                        Prévu le {fmt.day(item.dueDate)}
                       </Badge>
                     )}
                   </>

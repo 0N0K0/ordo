@@ -124,7 +124,7 @@ function useDashboardMutation<TVariables, TResult>(mutationFn: (variables: TVari
   return useMutation<TResult, Error, TVariables>({ mutationFn, onSettled: () => queryClient.invalidateQueries({ queryKey: dashboardsKey }) });
 }
 
-export interface ChartValues {
+interface ChartValues {
   title: string;
   config: unknown;
   wide: boolean;

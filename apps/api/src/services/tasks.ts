@@ -726,7 +726,7 @@ export async function setTasksClosed(ids: string[], closed: boolean): Promise<vo
   });
 }
 
-export interface BulkTaskChanges {
+interface BulkTaskChanges {
   statusId?: string | null;
   priorityId?: string | null;
   typeId?: string | null;

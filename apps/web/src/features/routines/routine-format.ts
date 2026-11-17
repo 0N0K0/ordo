@@ -1,8 +1,8 @@
 import { DEFAULT_RECURRENCE, recurrenceSchema, routineSchedule, routineState, type Recurrence, type RoutineCase, type RoutineMove, type RoutineState } from '@ordo/shared';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
-import { categoryTree } from '../../components/category-tree/category-tree';
+
 import { LEVEL, treeOptions, type TreeOption } from '../../components/tree-select/tree-select';
-import type { Routine, RoutineCategory } from './api';
+import type { Routine } from './api';
 import * as fmt from '../../lib/format';
 
 /** Rule of a new routine: every day. */
@@ -93,19 +93,6 @@ export interface RoutineGrouping {
   of: (routine: Routine) => string[];
   /** Heading of the routines without group ("Sans catégorie"). */
   noneName: string;
-}
-
-/**
- * Grouping of the routines by category, the categories as their tree.
- * @param {RoutineCategory[]} categories Categories.
- * @returns {RoutineGrouping} Grouping.
- */
-export function categoryGrouping(categories: RoutineCategory[]): RoutineGrouping {
-  return {
-    groups: categoryTree(categories).map(({ category, color }) => ({ id: category.id, name: category.name, color, parentId: category.parentId ?? null })),
-    of: (routine) => routine.categoryIds,
-    noneName: 'Sans catégorie',
-  };
 }
 
 /**

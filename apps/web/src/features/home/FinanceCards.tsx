@@ -1,6 +1,6 @@
 import { Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { Sparkline } from '@mantine/charts';
-import { addDays } from '@ordo/shared';
+import { addDays, daysBetween } from '@ordo/shared';
 import { BankIcon, CheckCircleIcon, FileTextIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
@@ -8,8 +8,9 @@ import { useOverdueInvoices } from '../accounting/tracking-api';
 import type { TreasuryProjection } from '../treasury/api';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
-import { dayLabel, daysBetween, localDayOf, type BillingSummary } from './home-data';
+import { dayLabel, localDayOf, type BillingSummary } from './home-data';
 import * as fmt from '../../lib/format';
+import { countOf } from '../../lib/text';
 
 const MAX_ROWS = 5;
 
@@ -45,7 +46,7 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
                       </Text>
                       <Text size="xs" c="dimmed" truncate>
                         {invoice.number} · {daysBetween(invoice.dueDate ?? today, today)} j de retard
-                        {invoice.reminderCount > 0 && ` · ${invoice.reminderCount} relance${invoice.reminderCount > 1 ? 's' : ''}`}
+                        {invoice.reminderCount > 0 && ` · ${countOf(invoice.reminderCount, 'relance')}`}
                       </Text>
                     </Stack>
                     <Text size="sm" fw={600} c="red" style={{ flexShrink: 0 }}>

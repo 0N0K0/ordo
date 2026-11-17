@@ -1,4 +1,4 @@
-import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
 import { ActionIcon, Badge, Group, Paper, Text, UnstyledButton } from '@mantine/core';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
@@ -6,11 +6,12 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import type { TreePlace } from '../../../components/category-tree/category-tree';
 import { pointerPlace, treeCollision, useFolded } from '../../../components/category-tree/tree-dnd';
-import { notifyError } from '../../../lib/notify';
+import { onMutationError } from '../../../lib/notify';
 import { useMoveProject, type Project, type ProjectStatus } from '../api';
 import { EntityAvatar } from '../EntityAvatar';
 import { projectDepth, projectHeight } from '../tree';
 import classes from './ProjectList.module.css';
+import { useDragSensors } from '../../../lib/drag';
 
 interface ProjectListProps {
   projects: Project[];
@@ -114,7 +115,7 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
   const [folded, toggle] = useFolded(`projects-${rootParentId ?? clientId ?? 'none'}`);
   const [dragged, setDragged] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; place: TreePlace } | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+  const sensors = useDragSensors('plain');
 
   const byId = new Map(projects.map((project) => [project.id, project]));
   const rows: { project: Project; depth: number; parent: boolean }[] = [];
@@ -184,7 +185,7 @@ export function ProjectList({ projects, allProjects, rootParentId, clientId, sta
     if (!over) return;
     const target = destination(String(active.id), String(over.id), place);
     if (!target) return;
-    moveProject.mutate({ id: String(active.id), parentId: target.parentId, clientId: target.parentId ? null : clientId, index: target.index }, { onError: (error) => notifyError(error.message) });
+    moveProject.mutate({ id: String(active.id), parentId: target.parentId, clientId: target.parentId ? null : clientId, index: target.index }, { onError: onMutationError });
   };
 
   return (

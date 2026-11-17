@@ -9,7 +9,7 @@ import { RepetitionEditor } from '../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../components/recurrence/RepetitionField';
 
 /** When an event takes place, and how it repeats. */
-export interface EventTiming {
+interface EventTiming {
   allDay: boolean;
   startDate: string;
   startTime: string | null;

@@ -5,7 +5,7 @@ import type { ExportScheme } from './chart-image';
 import * as fmt from '../../lib/format';
 
 /** Settings of an image export. */
-export interface ImageExportSettings {
+interface ImageExportSettings {
   scheme: Exclude<ExportScheme, 'current'>;
   /** Final size, in pixels. */
   width: number;

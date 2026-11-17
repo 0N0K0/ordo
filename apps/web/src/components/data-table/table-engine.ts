@@ -211,7 +211,7 @@ function isoWeek(date: string): { year: number; week: number; monday: string } {
  * @param {GroupPeriod} period Period.
  * @returns {{ key: string, label: string }} Group.
  */
-export function periodGroup(date: string, period: GroupPeriod): { key: string; label: string } {
+function periodGroup(date: string, period: GroupPeriod): { key: string; label: string } {
   const year = Number(date.slice(0, 4));
   const month = Number(date.slice(5, 7));
   switch (period) {

@@ -13,7 +13,7 @@ import { MailWatcher } from '../features/mail/MailWatcher';
 import { ElsewhereNotifier } from '../features/workspaces/ElsewhereNotifier';
 import { WorkspaceGate } from '../features/workspaces/WorkspaceGate';
 import { WorkspaceSwitcher } from '../features/workspaces/WorkspaceSwitcher';
-import { notifyError } from '../lib/notify';
+import { onMutationError } from '../lib/notify';
 import classes from './AppLayout.module.css';
 import { HeaderClock } from './HeaderClock';
 import { HeaderTitle } from './HeaderTitle';
@@ -49,7 +49,7 @@ export function AppLayout() {
    * @returns {void}
    */
   const handleLogout = () => {
-    logout.mutate(undefined, { onError: (error) => notifyError(error.message) });
+    logout.mutate(undefined, { onError: onMutationError });
   };
 
   const sidebarOpened = mobile ? mobileOpened : sidebar.opened;

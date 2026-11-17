@@ -8,7 +8,7 @@ import { clientError, notFound, parseInput } from '../graphql/errors';
  * @param {unknown} value JSON value.
  * @returns {TaskRepetition | null} Repetition.
  */
-export function storedTaskRepetition(value: unknown): TaskRepetition | null {
+function storedTaskRepetition(value: unknown): TaskRepetition | null {
   const parsed = taskRepetitionSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }

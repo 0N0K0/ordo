@@ -64,12 +64,3 @@ export const sheetItemInput = (
   optional: item.optional ?? false,
   ...change,
 });
-
-/** Item as edited (its id kept while it is saved already). */
-export type SheetItemValues = SheetItemInput & { id?: string | null };
-
-/**
- * New blank item.
- * @returns {SheetItemValues} Item.
- */
-export const blankSheetItem = (): SheetItemValues => ({ id: null, productId: null, label: '', categoryId: null, quantity: null, unit: null, note: null, consumable: true });

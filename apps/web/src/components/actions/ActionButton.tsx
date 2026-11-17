@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import { ActionsMenu, type RowMenuEntry } from '../data-table/RowActions';
 
 /** Weight of an action: the main ones of a page or a view (filled), the others (outlined). */
-export type ActionPriority = 'primary' | 'secondary';
+type ActionPriority = 'primary' | 'secondary';
 
 interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'leftSection' | 'rightSection'>, Omit<ComponentPropsWithoutRef<'button'>, 'color' | 'children' | 'style'> {
   children: ReactNode;

@@ -3,6 +3,7 @@ import { categorySubtree } from '../../components/category-tree/category-tree';
 import { listMutations } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
 import { useCalendarCategories, useCalendarCategoryMutations } from './api';
+import { countOf } from '../../lib/text';
 
 /**
  * Settings of the calendar categories, as every settings list, in a tree: added (also as a sub-category), edited
@@ -40,8 +41,8 @@ export function CalendarCategoriesManager() {
         const subCount = categorySubtree(items, category.id).size - 1;
         return (
           <>
-            La catégorie « {path} »{subCount > 0 ? ` et ses ${subCount} sous-catégorie${subCount > 1 ? 's' : ''}` : ''} seront supprimées définitivement et retirées des évènements (qui sont
-            conservés). Cette action est irréversible.
+            La catégorie « {path} »{subCount > 0 ? ` et ses ${countOf(subCount, 'sous-catégorie')}` : ''} seront supprimées définitivement et retirées des évènements (qui sont conservés). Cette action
+            est irréversible.
           </>
         );
       }}

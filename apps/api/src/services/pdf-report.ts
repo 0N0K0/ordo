@@ -6,7 +6,7 @@ import { FONTS } from './accounting-pdf';
 type Doc = InstanceType<typeof PDFDocument>;
 
 /** Side margins of the reports. */
-export const REPORT_MARGIN = 36;
+const REPORT_MARGIN = 36;
 /** Band of the header (logo or name, title), above the content of every page. */
 const HEADER_HEIGHT = 30;
 /** Band of the footer (export date, issuer, page number). */

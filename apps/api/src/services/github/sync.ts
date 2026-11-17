@@ -1,3 +1,4 @@
+import { normalize } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type GithubProjectLink, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, notFound } from '../../graphql/errors';
@@ -30,7 +31,7 @@ import { isUnmapped, mergeFields, type SyncFields } from './merge';
 import { currentWorkspaceId } from '../../workspace-context';
 import { forEachWorkspace } from '../workspaces';
 
-export interface SyncSummary {
+interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
   pulledNew: number;
   pushedNew: number;
@@ -98,7 +99,7 @@ interface Maps {
 }
 
 /** Content type of a task whose item was removed from the board: not sent again. */
-export const REMOVED = 'REMOVED';
+const REMOVED = 'REMOVED';
 
 /**
  * Field value of an item as a synchronized value.
@@ -568,7 +569,7 @@ async function projectTree(projectId: string): Promise<string[]> {
  * @param {string} name Name.
  * @returns {string} Folded name.
  */
-const foldName = (name: string) => name.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+const foldName = (name: string) => normalize(name).trim();
 
 /**
  * Pairs the iterations of the board with the sprints of the project tree, without losing anything. An iteration

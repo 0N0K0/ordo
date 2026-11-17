@@ -1,7 +1,7 @@
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import type { Task } from '../tasks/api';
 import { useRunningTimer, useTimeMutations } from './api';
 
@@ -36,7 +36,7 @@ export function TaskTime({ task }: { task: Task }) {
             disabled={task.archived}
             title={running.data ? 'Arrête le chrono en cours et en démarre un sur cette tâche' : undefined}
             onClick={() =>
-              start.mutate({ projectId: task.projectId, taskIds: [task.id] }, { onError: (error) => notifyError(error.message) })
+              start.mutate({ projectId: task.projectId, taskIds: [task.id] }, { onError: onMutationError })
             }
           >
             Chrono

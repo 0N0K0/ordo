@@ -4,7 +4,7 @@ import { entrySeconds, formatClock, formatDuration } from '@ordo/shared';
 import { PauseIcon, PlayIcon, StopIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { ProjectSelect } from '../tasks/task-ui';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useTimeMutations, type TimeEntry } from './api';
@@ -53,7 +53,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
               setDescription('');
               onStarted?.();
             },
-            onError: (error) => notifyError(error.message),
+            onError: onMutationError,
           },
         );
       }}
@@ -117,7 +117,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
    * @returns {void}
    */
   const save = (input: { projectId?: string; taskIds?: string[]; description?: string | null }) =>
-    update.mutate({ id: entry.id, input }, { onError: (error) => notifyError(error.message) });
+    update.mutate({ id: entry.id, input }, { onError: onMutationError });
 
   /**
    * Asks for confirmation before discarding the running timer.
@@ -130,7 +130,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
 </>
 ), confirmLabel: 'Abandonner', onConfirm: () => { remove.mutate(entry.id, {
                 onSuccess: () => notifySuccess('Chrono abandonné.'),
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               }); } });
   };
 
@@ -162,7 +162,7 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
               variant="light"
               aria-label={paused ? 'Reprendre' : 'Pause'}
               loading={setPaused.isPending}
-              onClick={() => setPaused.mutate(!paused, { onError: (error) => notifyError(error.message) })}
+              onClick={() => setPaused.mutate(!paused, { onError: onMutationError })}
             >
               {paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
             </ActionIcon>

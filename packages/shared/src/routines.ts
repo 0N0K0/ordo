@@ -2,6 +2,7 @@ import { slotRuleSchema } from './slot-rules';
 import { z } from 'zod';
 import { addDays, daysBetween, occurrenceDates, recurrenceSchema, type Recurrence, type Span } from './recurrence';
 import { caseSpans } from './repetition';
+import { weekdayOfDate } from './weeks';
 import { slotConditionSchema } from './routine-times';
 import { optionalColorSchema } from './workspace';
 
@@ -14,7 +15,7 @@ export const routineCategorySchema = z.object({
 export type RoutineCategoryInput = z.input<typeof routineCategorySchema>;
 
 /** Part of a calendar schedule a routine was tied to (former form, read but no longer used). */
-export const ROUTINE_ANCHORS = ['START', 'WHOLE', 'END'] as const;
+const ROUTINE_ANCHORS = ['START', 'WHOLE', 'END'] as const;
 export type RoutineAnchor = (typeof ROUTINE_ANCHORS)[number];
 
 const timeOfDay = z
@@ -45,7 +46,7 @@ const weekdayNumber = z.number().int().min(1).max(7);
  * of the month, of the ISO week 12 of the year), all in its period (its month, its year: the one before when that day
  * comes after its due day); or some days before its due day.
  */
-export const routineOpensSchema = z.discriminatedUnion('mode', [
+const routineOpensSchema = z.discriminatedUnion('mode', [
   /** Monthly: month null; yearly: its month. */
   z.object({ mode: z.literal('DAY'), day: dayNumber, month: monthNumber.nullable().default(null) }),
   /** The nth (1 to 4, -1 the last) weekday; monthly: month null; yearly: its month. */
@@ -216,13 +217,6 @@ const monthDate = (year: number, month: number, day: number) => {
 };
 
 /**
- * Weekday of a date, 1 (Monday) to 7 (Sunday).
- * @param {string} date YYYY-MM-DD.
- * @returns {number} Weekday.
- */
-const weekdayOf = (date: string) => ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
-
-/**
  * Day of a month an « à partir du » points to (its month for a yearly one).
  * @param {Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>} opens « À partir du ».
  * @param {number} year Year.
@@ -233,13 +227,13 @@ function opensInMonth(opens: Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | '
   const first = monthDate(year, month, 1);
   if (opens.mode === 'DAY') return monthDate(year, month, opens.day);
   if (opens.mode === 'WEEKDAY') {
-    const firstOne = 1 + ((opens.weekday - weekdayOf(first) + 7) % 7);
+    const firstOne = 1 + ((opens.weekday - weekdayOfDate(first) + 7) % 7);
     if (opens.position > 0) return monthDate(year, month, firstOne + 7 * (opens.position - 1));
     const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    return monthDate(year, month, last - ((weekdayOf(monthDate(year, month, last)) - opens.weekday + 7) % 7));
+    return monthDate(year, month, last - ((weekdayOfDate(monthDate(year, month, last)) - opens.weekday + 7) % 7));
   }
   // Weeks from Monday, the first one that of the 1st; kept within the month.
-  return monthDate(year, month, 2 - weekdayOf(first) + 7 * (opens.week - 1) + opens.weekday - 1);
+  return monthDate(year, month, 2 - weekdayOfDate(first) + 7 * (opens.week - 1) + opens.weekday - 1);
 }
 
 /**
@@ -251,7 +245,7 @@ function opensInMonth(opens: Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | '
  */
 function isoWeekDate(year: number, week: number, weekday: number): string {
   const january4 = `${year}-01-04`;
-  return addDays(january4, 1 - weekdayOf(january4) + 7 * (week - 1) + weekday - 1);
+  return addDays(january4, 1 - weekdayOfDate(january4) + 7 * (week - 1) + weekday - 1);
 }
 
 /**
@@ -419,24 +413,6 @@ export function caseStart(item: { from?: string | null }, start: string): string
   return item.from && item.from > start ? item.from : start;
 }
 
-/**
- * Current and next occurrences of a routine with cases: the latest and the next of the days of their repetitions.
- * @param {readonly RoutineCase[]} cases Cases.
- * @param {string} start First date of the routine.
- * @param {string} today Today.
- * @returns {{ current: string | null, next: string | null }} Dates.
- */
-export function casesOccurrences(cases: readonly RoutineCase[], start: string, today: string): { current: string | null; next: string | null } {
-  let current: string | null = null;
-  let next: string | null = null;
-  for (const item of cases) {
-    const found = routineOccurrences(item.recurrence, caseStart(item, start), today, item.opens);
-    if (found.current && (!current || found.current > current)) current = found.current;
-    if (found.next && (!next || found.next < next)) next = found.next;
-  }
-  return { current, next };
-}
-
 /** Times of the day of an occurrence changed by an exception (by index; null: those of its rule). */
 export const routineMoveTimesSchema = z
   .array(z.object({ fromTime: timeOfDay, dueTime: timeOfDay }).nullable())
@@ -459,7 +435,7 @@ export type RoutineMove = z.infer<typeof routineMoveSchema>;
  * @param {RoutineMove} move Exception.
  * @returns {boolean} Away.
  */
-export const movesAway = (move: RoutineMove) => move.to !== move.from;
+const movesAway = (move: RoutineMove) => move.to !== move.from;
 
 /**
  * Times of the day of an occurrence, with those its exception changes.

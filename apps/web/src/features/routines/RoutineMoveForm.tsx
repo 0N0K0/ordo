@@ -5,7 +5,7 @@ import { addDays, type RoutineMoveTimes } from '@ordo/shared';
 import { ArrowRightIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { TimeField } from '../../components/TimeField';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { DestructiveButton } from '../../components/dialogs/DestructiveActions';
 import { localToday } from '../../lib/dates';
@@ -185,7 +185,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                     size="sm"
                     aria-label={`Remettre l’occurrence du ${longDay(item.from)} à son jour`}
                     loading={removeMove.isPending && removeMove.variables?.from === item.from}
-                    onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, { onError: (error) => notifyError(error.message) })}
+                    onClick={() => removeMove.mutate({ id: routine.id, from: item.from }, { onError: onMutationError })}
                   >
                     <XIcon aria-hidden />
                   </ActionIcon>
@@ -214,7 +214,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                           notifySuccess(`Occurrence du ${longDay(date)} annulée.`);
                           onDone();
                         },
-                        onError: (error) => notifyError(error.message),
+                        onError: onMutationError,
                       },
                     ),
                 })

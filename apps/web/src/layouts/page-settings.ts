@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 import { useSearchParams } from 'react-router';
 
 /** Settings of the page shown, in the sidebar on the right: their title, and where they are drawn. */
-export interface PageSettingsState {
+interface PageSettingsState {
   /** Title of the settings of the page, or null on a page without any. */
   title: string | null;
   setTitle: (title: string | null) => void;

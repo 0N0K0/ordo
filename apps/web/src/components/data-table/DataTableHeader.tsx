@@ -1,4 +1,4 @@
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Group, Table } from '@mantine/core';
@@ -8,6 +8,7 @@ import { contentWidth } from './column-fit';
 import { ColumnHeaderMenu, type ColumnMenuExtras, type ColumnMove } from './ColumnHeaderMenu';
 import { clampWidth, columnOrder, toggleSort, withOrder, withVisibility, type DataColumn, type ShownColumn } from './data-table';
 import classes from './DataTable.module.css';
+import { useDragSensors } from '../../lib/drag';
 
 interface HeaderCellProps<R> {
   column: ShownColumn<R>;
@@ -130,7 +131,7 @@ interface DataTableHeaderProps<R> {
  * @returns {JSX.Element} Header.
  */
 export function DataTableHeader<R>({ columns, shown, layout, onLayoutChange, sorting, onSortingChange, tableRef, leading, leadingCount, trailing, columnExtras }: DataTableHeaderProps<R>) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useDragSensors();
   const order = columnOrder(columns, layout);
   // Width each column was fitted to: a second double click, the column unchanged, gives back its default width.
   const fitted = useRef(new Map<string, number>());

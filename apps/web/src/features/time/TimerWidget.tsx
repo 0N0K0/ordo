@@ -2,7 +2,7 @@ import { ActionIcon, Group, Popover, Text, Tooltip, UnstyledButton } from '@mant
 import { useDisclosure } from '@mantine/hooks';
 import { entrySeconds, formatClock } from '@ordo/shared';
 import { PauseIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useRunningTimer, useTimeMutations, type TimeEntry } from './api';
 import { RunningTimer } from './TimerCard';
@@ -45,7 +45,7 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
           variant="subtle"
           aria-label={paused ? 'Reprendre le chrono' : 'Mettre le chrono en pause'}
           loading={setPaused.isPending}
-          onClick={() => setPaused.mutate(!paused, { onError: (error) => notifyError(error.message) })}
+          onClick={() => setPaused.mutate(!paused, { onError: onMutationError })}
         >
           {paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
         </ActionIcon>

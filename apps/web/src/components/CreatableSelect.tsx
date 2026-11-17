@@ -1,6 +1,6 @@
 import { Select, type SelectProps } from '@mantine/core';
 import { useState } from 'react';
-import { notifyError } from '../lib/notify';
+import { onMutationError } from '../lib/notify';
 import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 
 interface CreatableSelectProps extends SelectProps {
@@ -30,7 +30,7 @@ export function CreatableSelect({ onCreate, data, onChange, filter, searchable, 
         const name = search.trim();
         onCreate(name)
           .then((id) => id && onChange?.(id, { value: id, label: name }))
-          .catch((error: Error) => notifyError(error.message));
+          .catch(onMutationError);
       }}
     />
   );

@@ -35,7 +35,7 @@ export const VALUELESS_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNot
  * or a period for `within`: `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisYear`, `lastYear`, `nextYear`,
  * `past:7` / `next:7` (the last / next N days, today included).
  */
-export const DATE_PERIODS = ['thisWeek', 'lastWeek', 'nextWeek', 'thisMonth', 'lastMonth', 'nextMonth', 'thisYear', 'lastYear', 'nextYear'] as const;
+const DATE_PERIODS = ['thisWeek', 'lastWeek', 'nextWeek', 'thisMonth', 'lastMonth', 'nextMonth', 'thisYear', 'lastYear', 'nextYear'] as const;
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const relativeDay = /^today([+-]\d{1,4})?$/;

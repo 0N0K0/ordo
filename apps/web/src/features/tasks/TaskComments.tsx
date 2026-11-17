@@ -1,5 +1,5 @@
 import { CommentThread } from '../../components/comments/CommentThread';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useTaskCommentMutations, useTaskComments, type Task } from './api';
 import type { TaskContext } from './use-task-context';
 
@@ -16,7 +16,7 @@ interface TaskCommentsProps {
 export function TaskComments({ task, context }: TaskCommentsProps) {
   const comments = useTaskComments(task.id);
   const { add, update, remove } = useTaskCommentMutations();
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   return (
     <CommentThread
       comments={comments.data}

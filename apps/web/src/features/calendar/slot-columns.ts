@@ -1,5 +1,5 @@
 /** Hours of a slot shown in the background of a day. */
-export interface DaySlot<L> {
+interface DaySlot<L> {
   /** Slot (schedule and start), stable from a day to another. */
   key: string;
   /** Order it comes in (its column among those at the same time). */
@@ -12,7 +12,7 @@ export interface DaySlot<L> {
 }
 
 /** Part of a slot, with its column among the slots there are then. */
-export interface SlotPart<L> extends DaySlot<L> {
+interface SlotPart<L> extends DaySlot<L> {
   column: number;
   columns: number;
 }

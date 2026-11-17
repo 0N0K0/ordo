@@ -4,7 +4,7 @@ import { EditableDate, EditableNumber } from '../../components/data-table/Editab
 import { useDataView } from '../../components/data-table/use-data-view';
 import { bulkSaver } from '../../components/data-table/bulk-edit';
 import * as fmt from '../../lib/format';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useStockMutations, type StockItem, type StockLot } from './api';
 
 /**
@@ -46,7 +46,7 @@ export function LotsTable({ item }: { item: StockItem }) {
     },
   ];
   const view = useDataView({ tableKey: 'stock-lots', getKey: (lot) => lot.id, columns, rows: item.lots, title: `Lots de ${item.label}` });
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   // A change saves its lot, or every lot of the bulk selection of its column.
   const bulk = bulkSaver<StockLot, { quantity?: number; expiresAt?: string | null }>(view, (lot, change) => {
     // A quantity changed by hand is a correction.

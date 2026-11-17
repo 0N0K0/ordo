@@ -46,6 +46,7 @@ import {
 import { groupDefaults } from './views/new-task-defaults';
 import { AddTaskRow } from './views/table-extras';
 import classes from './TaskTable.module.css';
+import { countOf, plural } from '../../lib/text';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
@@ -380,7 +381,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
               )
             : undefined
         }
-        selectionLabel={(count) => `${count} tâche${count > 1 ? 's' : ''} sélectionnée${count > 1 ? 's' : ''}`}
+        selectionLabel={(count) => `${countOf(count, 'tâche')} ${plural(count, 'sélectionnée')}`}
         selectionActions={(checked, clear) =>
           selectionActions(
             checked.flatMap((row): Task[] => (row.kind === 'task' ? [row.task] : [])),

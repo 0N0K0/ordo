@@ -4,7 +4,6 @@ import { taskRef, useTaskContext, type TaskContext } from '../tasks/use-task-con
 import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from './api';
 import * as fmt from '../../lib/format';
-import { localToday } from '../../lib/dates';
 
 /**
  * Quantity and unit of a product or an item ("2 kg", "3 boîte"), empty without quantity nor unit.
@@ -44,19 +43,6 @@ export interface ShoppingFields {
   /** "Best before" date, YYYY-MM-DD. */
   expiresAt?: string | null;
 }
-
-/**
- * Today, as the dates of the products are written (YYYY-MM-DD, local time).
- * @returns {string} Date.
- */
-export const todayIso = () => localToday();
-
-/**
- * Whether a perishable product or item is past its date.
- * @param {{ perishable: boolean, expiresAt?: string | null }} row Product or item.
- * @returns {boolean} Expired.
- */
-export const isExpired = ({ perishable, expiresAt }: { perishable: boolean; expiresAt?: string | null }) => perishable && Boolean(expiresAt) && (expiresAt ?? '') < todayIso();
 
 /**
  * Input of a product or an item, from its current fields (to change some of them).
@@ -233,7 +219,7 @@ export function placeInGroup(grouping: ShoppingGrouping, groupId: string | null)
 }
 
 /** What the groups of a shopping table are named from. */
-export interface ShoppingGroupLabels {
+interface ShoppingGroupLabels {
   categories: ShoppingCategory[];
   stores: ShoppingStore[];
   /** Ways of keeping. Optional (needed to group by them). */
@@ -243,7 +229,7 @@ export interface ShoppingGroupLabels {
 }
 
 /** Category placed in its tree. */
-export type PlacedShoppingCategory = PlacedCategory<ShoppingCategory>;
+type PlacedShoppingCategory = PlacedCategory<ShoppingCategory>;
 
 /**
  * Categories in tree order: each one followed by its sub-categories, by name (as the treasury categories).

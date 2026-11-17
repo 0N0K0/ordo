@@ -2,7 +2,7 @@ import { Button, Group, NumberInput, Paper, Select, SimpleGrid, Stack, Text } fr
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData, type ShoppingItem } from '../shopping/api';
 import { useStockLocations, useStockMutations } from './api';
 import { locationOptions } from './stock-format';
@@ -81,7 +81,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
                 .map((line) => addPurchase.mutateAsync({ shoppingItemId: line.item.id, quantity: line.quantity, locationId: line.locationId, expiresAt: line.expiresAt })),
             )
               .then(() => (notifySuccess('Ajouté au stock.'), onDone()))
-              .catch((error: Error) => notifyError(error.message))
+              .catch(onMutationError)
               .finally(() => setPending(false));
           }}
         >

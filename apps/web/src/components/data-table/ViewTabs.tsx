@@ -1,6 +1,6 @@
 import { confirmDestructive } from '../dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../panels/panels';
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Button, Group, Indicator, Menu, Stack, Tabs, Text, TextInput, type TabsTabProps } from '@mantine/core';
@@ -9,6 +9,7 @@ import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, CaretDownIcon
 import { useState } from 'react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 import { usePublishedHeight } from '../../lib/published-height';
+import { useDragSensors } from '../../lib/drag';
 
 interface NameFormProps {
   initial: string;
@@ -130,7 +131,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const { views, current, dirty } = state;
   // Its height, that a table next to other content leaves out of its own.
   const ref = usePublishedHeight<HTMLDivElement>('--onoko-view-tabs-height');
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useDragSensors();
 
   /**
    * Moves the dropped view to its new place.

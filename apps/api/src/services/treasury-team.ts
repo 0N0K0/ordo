@@ -6,6 +6,7 @@ import {
   type TreasuryContextInput,
   type TreasuryContextPeriodInput,
   type TreasuryRelationInput,
+  normalize,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../db';
@@ -41,10 +42,7 @@ export async function listMembers(): Promise<Contributor[]> {
  */
 async function freeHandle(name: string): Promise<string> {
   const base =
-    name
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .toLowerCase()
+    normalize(name)
       .replace(/[^a-z0-9_-]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .slice(0, 30) || 'membre';

@@ -21,7 +21,7 @@ import { DAILY, ROUTINE_REMINDERS, ruleOf, windowText } from './routine-format';
 import type { Routine } from './api';
 
 /** Time and place fields of a routine. */
-export interface RoutineScheduleValues {
+interface RoutineScheduleValues {
   startDate: string;
   recurrence: Recurrence;
   cases: RoutineCase[];
@@ -232,7 +232,7 @@ function describeRepetition(value: RoutineRepetitionValue, names: Map<string, st
 }
 
 /** Whole repetition of a routine, as saved. */
-export type RoutineRepetition = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'>;
+type RoutineRepetition = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'>;
 
 /**
  * Repetition of a routine, to edit.

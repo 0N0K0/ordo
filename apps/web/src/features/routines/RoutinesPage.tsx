@@ -25,7 +25,7 @@ import { RowActions } from '../../components/data-table/RowActions';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
@@ -48,6 +48,7 @@ import { isDone, movableOccurrence, waitingFor } from './routine-format';
 import { usePostponeRoutine } from './use-routine-move';
 import { useRoutineSelectionActions } from './RoutineBulkBar';
 import classes from './Routines.module.css';
+import { plural } from '../../lib/text';
 
 /** Views made the first time: those to do, all, the archived ones; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
@@ -151,7 +152,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
     const moved = byId.get(key);
     if (!moved || isDraftRoutine(moved)) return;
-    const onError = (error: Error) => notifyError(error.message);
+    const onError = onMutationError;
     const categoryIds = groupedByCategory && groupKey !== undefined ? movedCategories(moved.categoryIds, fromGroupKey || null, groupKey || null) : null;
     const parent = parentKey !== undefined ? parentKey : (moved.parentId ?? null);
     const before = beforeKey ? byId.get(beforeKey) : undefined;
@@ -260,7 +261,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             onClick: () =>
               setArchived.mutate(
                 { id: routine.id, archived: !routine.archived },
-                { onSuccess: () => notifySuccess(routine.archived ? 'Routine restaurée.' : 'Routine archivée.'), onError: (error) => notifyError(error.message) },
+                { onSuccess: () => notifySuccess(routine.archived ? 'Routine restaurée.' : 'Routine archivée.'), onError: onMutationError },
               ),
           },
           {
@@ -271,7 +272,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
               confirmDestructive({
                 title: 'Supprimer la routine',
                 risks: `« ${routine.title} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Cette action est irréversible.`,
-                onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: (error) => notifyError(error.message) }),
+                onConfirm: () => remove.mutate(routine.id, { onSuccess: () => notifySuccess('Routine supprimée.'), onError: onMutationError }),
               }),
           },
         ]}
@@ -307,7 +308,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           ? (group) => <AddRoutineRow categoryId={groupedByCategory && group?.key ? group.key : null} projectId={projectId ?? null} groupName={group?.label ?? 'les routines'} />
           : undefined
       }
-      selectionLabel={(count) => `${routinesLabel(count)} sélectionnée${count > 1 ? 's' : ''}`}
+      selectionLabel={(count) => `${routinesLabel(count)} ${plural(count, 'sélectionnée')}`}
       selectionActions={selectionActions}
     />
   );

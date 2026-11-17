@@ -1183,7 +1183,7 @@ function writeFooters(
   }
 }
 
-export interface DocumentPdf {
+interface DocumentPdf {
   content: Buffer;
   filename: string;
 }

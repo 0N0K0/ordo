@@ -29,8 +29,8 @@ import {
   TableIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { horizontalListSortingStrategy, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { horizontalListSortingStrategy, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -48,6 +48,8 @@ import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
 import { countLabel, NEW_CHART_TITLES } from './aggregate';
 import * as fmt from '../../lib/format';
+import { countOf } from '../../lib/text';
+import { useDragSensors } from '../../lib/drag';
 
 /** Image of a chart as exported. */
 interface Capture {
@@ -400,8 +402,8 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
   const captures: Captures = useRef(new Map());
   const [exporting, setExporting] = useState(false);
   const current: Dashboard | undefined = dashboards?.find((item) => item.id === params.get('dashboard')) ?? dashboards?.[0];
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-  const tabSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useDragSensors('sortable');
+  const tabSensors = useDragSensors();
 
   /**
    * Moves the dropped dashboard tab to its new place.
@@ -564,7 +566,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
       .then((charts) =>
         downloadChartsPdf({
           title: `${title} — ${current.name}`,
-          subtitle: `${charts.length} diagramme${charts.length > 1 ? 's' : ''} · exporté le ${fmt.exportDateTime(new Date())}`,
+          subtitle: `${countOf(charts.length, 'diagramme')} · exporté le ${fmt.exportDateTime(new Date())}`,
           charts,
         }),
       )

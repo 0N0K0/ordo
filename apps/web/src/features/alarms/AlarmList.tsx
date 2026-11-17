@@ -3,7 +3,7 @@ import { ActionIcon, Anchor, Badge, Group, Paper, Stack, Switch, Text, Tooltip }
 import { nextOccurrence } from '@ordo/shared';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { describeAlarm } from './alarm-labels';
 import { useAlarmMutations, type Alarm } from './api';
@@ -57,7 +57,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
         </>
       ),
       onConfirm: () => {
-        remove.mutate(alarm.id, { onSuccess: () => notifySuccess('Alarme supprimée.'), onError: (error) => notifyError(error.message) });
+        remove.mutate(alarm.id, { onSuccess: () => notifySuccess('Alarme supprimée.'), onError: onMutationError });
       },
     });
   };
@@ -101,7 +101,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                 <Switch
                   aria-label={alarm.enabled ? `Désactiver ${alarm.title}` : `Activer ${alarm.title}`}
                   checked={alarm.enabled}
-                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, { onError: (error) => notifyError(error.message) })}
+                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, { onError: onMutationError })}
                 />
                 <Tooltip label="Modifier">
                   <ActionIcon variant="subtle" color="gray" aria-label={`Modifier ${alarm.title}`} onClick={() => openForm(alarm)}>

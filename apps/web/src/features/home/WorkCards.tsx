@@ -1,5 +1,5 @@
 import { Badge, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
-import { addDays, formatDuration, nextOccurrence } from '@ordo/shared';
+import { addDays, formatDuration, nextOccurrence, daysBetween } from '@ordo/shared';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
@@ -10,7 +10,7 @@ import type { TaskContext } from '../tasks/use-task-context';
 import { useTaskLink } from '../tasks/use-task-link';
 import classes from './Home.module.css';
 import { Figure, HomeCard, HomeEmpty } from './HomeCard';
-import { dayLabel, daysBetween, localDayOf, type WeekTime } from './home-data';
+import { dayLabel, localDayOf, type WeekTime } from './home-data';
 import * as fmt from '../../lib/format';
 
 const MAX_ROWS = 7;

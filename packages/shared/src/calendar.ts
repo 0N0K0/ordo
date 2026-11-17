@@ -4,7 +4,7 @@ import { colorSchema } from './workspace';
 
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).');
 
-export const calendarLinkSchema = z.object({
+const calendarLinkSchema = z.object({
   url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
   label: z.string().trim().max(200, '200 caractères maximum.'),
 });

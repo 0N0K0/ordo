@@ -26,7 +26,7 @@ import { setCompanyLogo } from '../../src/services/company';
 import { currentWorkspaceId } from '../../src/workspace-context';
 
 /** Seller of the fixture documents: the seed only reloads a database whose final documents are its own. */
-export const DEMO_COMPANY = 'Atelier Ordo (démo)';
+const DEMO_COMPANY = 'Atelier Ordo (démo)';
 
 const SERVICES = ['Comptabilité', 'Direction marketing', 'Achats', 'Direction générale', 'Service informatique'];
 const JOB_TITLES = ['Responsable comptable', 'Directrice marketing', 'Chef de projet', 'Gérant', 'Assistante de direction', 'Responsable achats', 'DSI'];

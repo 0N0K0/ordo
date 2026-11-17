@@ -3,13 +3,14 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ActionIcon, Avatar, Badge, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useWorkspace } from '../../workspace/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from './use-contributor-form';
 import { useTreasurySettings } from '../../treasury/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { accountingQueryKey } from '../../accounting/api';
+import { countOf } from '../../../lib/text';
 
 interface ContributorsManagerProps {
   contributors: Contributor[];
@@ -56,7 +57,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
 <>
 <Text size="sm">
             {contributor.name} sera supprimé définitivement
-            {used > 0 ? ` et retiré des ${used} tâche${used > 1 ? 's' : ''} qui lui sont assignées` : ''}. Ses mentions
+            {used > 0 ? ` et retiré des ${countOf(used, 'tâche')} qui lui sont assignées` : ''}. Ses mentions
             @{contributor.handle} resteront dans le texte, sans lien. Cette action est irréversible.
           </Text>
 </>
@@ -68,7 +69,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                     // Members and relations (treasury) follow: a relation loses its contributor.
                     void queryClient.invalidateQueries({ queryKey: accountingQueryKey });
                   },
-                  onError: (error) => notifyError(error.message),
+                  onError: onMutationError,
                 },
               ); } });
   };

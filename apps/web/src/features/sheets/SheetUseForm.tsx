@@ -1,7 +1,8 @@
 import { Button, Group, NumberInput, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
-import { notifyError, notifyInfo, notifySuccess } from '../../lib/notify';
+import { notifyInfo, notifySuccess, onMutationError } from '../../lib/notify';
 import { useSheetMutations } from './api';
+import { countOf, plural } from '../../lib/text';
 
 /**
  * Use of a sheet (times a multiplier): its consumable items that are references followed in stock are taken from it,
@@ -40,15 +41,15 @@ export function SheetUseForm({ sheetId, name, onDone }: { sheetId: string; name:
               { id: sheetId, multiplier },
               {
                 onSuccess: ({ taken, short }) => {
-                  if (taken && !short.length) notifySuccess(`${taken} élément${taken > 1 ? 's' : ''} retiré${taken > 1 ? 's' : ''} du stock.`);
+                  if (taken && !short.length) notifySuccess(`${countOf(taken, 'élément')} ${plural(taken, 'retiré')} du stock.`);
                   else
                     notifyInfo({
-                      title: taken ? `${taken} élément${taken > 1 ? 's' : ''} retiré${taken > 1 ? 's' : ''} du stock` : 'Rien n’a été retiré du stock',
+                      title: taken ? `${countOf(taken, 'élément')} ${plural(taken, 'retiré')} du stock` : 'Rien n’a été retiré du stock',
                       lines: [short.length ? `Pas assez en stock : ${short.join(', ')}.` : 'Aucun élément consommable de cette fiche n’est suivi en stock.'],
                     });
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }

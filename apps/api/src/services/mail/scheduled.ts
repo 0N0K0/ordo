@@ -79,7 +79,7 @@ export async function cancelScheduled(id: string): Promise<void> {
  * Sends the scheduled mails whose time has come.
  * @returns {Promise<void>}
  */
-export async function sendDueMails(): Promise<void> {
+async function sendDueMails(): Promise<void> {
   const due = await prisma.scheduledMail.findMany({ where: { status: 'PENDING', sendAt: { lte: new Date() } }, select: { id: true }, orderBy: { sendAt: 'asc' } });
   for (const { id } of due) await sendScheduled(id).catch((error: unknown) => console.warn('Envoi programmé en échec.', error));
 }

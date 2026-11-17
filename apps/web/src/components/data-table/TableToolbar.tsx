@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { usePublishedHeight } from '../../lib/published-height';
 
 /** Quick search of a toolbar. */
-export interface ToolbarSearch {
+interface ToolbarSearch {
   value: string;
   onChange: (value: string) => void;
   /** Placeholder (and label) of the field. */

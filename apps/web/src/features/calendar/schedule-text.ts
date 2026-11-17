@@ -3,13 +3,6 @@ import { describeCase } from '../../components/recurrence/describe-recurrence';
 import * as fmt from '../../lib/format';
 
 /**
- * Printed calendar date.
- * @param {string} date YYYY-MM-DD.
- * @returns {string} "12 nov. 2026".
- */
-export const printedDate = (date: string) => fmt.day(date);
-
-/**
  * Hours of a case in words: "toute la journée", "09:00–12:30, 14:00–18:00".
  * @param {ScheduleTimes} times Hours.
  * @returns {string} Text.
@@ -42,4 +35,4 @@ export const describeScheduleCase = (item: ScheduleCase, start: string) =>
  * @param {ScheduleException} exception Exception.
  * @returns {string} "le 12 nov. 2026" or "du 1 août 2026 au 15 août 2026".
  */
-export const exceptionPeriod = (exception: ScheduleException) => (exception.from === exception.to ? `le ${printedDate(exception.from)}` : `du ${printedDate(exception.from)} au ${printedDate(exception.to)}`);
+export const exceptionPeriod = (exception: ScheduleException) => (exception.from === exception.to ? `le ${fmt.day(exception.from)}` : `du ${fmt.day(exception.from)} au ${fmt.day(exception.to)}`);

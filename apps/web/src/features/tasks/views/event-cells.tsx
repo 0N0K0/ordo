@@ -4,7 +4,7 @@ import { formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type MouseEvent } from 'react';
 import { BatchMultiSelect } from '../../../components/BatchMultiSelect';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { applyDiff } from '../../../components/data-table/bulk-edit';
 import { bulkTargets, useBulkTable } from '../../../components/data-table/bulk-edit';
 import { eventKey, type TaskTableRow } from '../task-columns';
@@ -97,7 +97,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
       if (!Object.keys(change).length) continue;
       update.mutate(
         { id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } },
-        { onError: (error) => notifyError(error.message) },
+        { onError: onMutationError },
       );
     }
     if (targets.length > 1) notifySuccess(`Modification appliquée à ${targets.length} évènements.`);

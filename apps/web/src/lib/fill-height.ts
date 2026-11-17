@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 /** Room an element has down to the bottom of the window. */
-export interface RoomBelow {
+interface RoomBelow {
   /** Height it can take so that the page fits the window (what the page has below it and its bottom padding left out). */
   height: number;
   /** Height of what the page has below it. */
@@ -14,7 +14,7 @@ export interface RoomBelow {
  * @param {HTMLElement} element Element.
  * @returns {RoomBelow} Room.
  */
-export function roomBelow(element: HTMLElement): RoomBelow {
+function roomBelow(element: HTMLElement): RoomBelow {
   const box = element.getBoundingClientRect();
   const main = element.closest('main');
   const padding = main ? parseFloat(getComputedStyle(main).paddingBottom) : 16;

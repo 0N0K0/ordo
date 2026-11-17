@@ -7,7 +7,7 @@ import { zipFiles } from './zip';
 import { moveInOrder } from './ordering';
 
 /** Largest file of the library. */
-export const MAX_LIBRARY_BYTES = 25 * 1024 * 1024;
+const MAX_LIBRARY_BYTES = 25 * 1024 * 1024;
 
 const folderNameSchema = z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.');
 const noteSchema = z

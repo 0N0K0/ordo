@@ -4,7 +4,7 @@ import { confirmDestructive } from '../../components/dialogs/confirm-destructive
 import { StackedValues } from '../../components/data-table/StackedValues';
 import { EditableSelect } from '../../components/data-table/EditableCells';
 import { treeSelectProps, type TreeOption } from '../../components/tree-select/tree-select';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { openFile } from '../files/open-file';
 import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
 
@@ -77,7 +77,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
                   confirmDestructive({
                     title: 'Retirer la pièce jointe',
                     risks: `« ${attachment.name} » sera supprimée définitivement de ${name}.`,
-                    onConfirm: () => removeAttachment.mutate(attachment.id, { onSuccess: () => notifySuccess('Pièce jointe retirée.'), onError: (error) => notifyError(error.message) }),
+                    onConfirm: () => removeAttachment.mutate(attachment.id, { onSuccess: () => notifySuccess('Pièce jointe retirée.'), onError: onMutationError }),
                   });
                 }}
               >

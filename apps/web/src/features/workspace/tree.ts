@@ -14,7 +14,7 @@ export interface ProjectNode {
   children: ProjectNode[];
 }
 
-export interface ClientNode {
+interface ClientNode {
   client: Client;
   projects: ProjectNode[];
 }
@@ -110,7 +110,7 @@ function filterSection(section: TreeSection, search: string): TreeSection {
  * @param {Project} project Project.
  * @returns {string} Path such as "Acme › Site › V2" (without client: its parents alone, empty for a root project).
  */
-export function projectPath(workspace: Workspace, project: Project): string {
+function projectPath(workspace: Workspace, project: Project): string {
   const names: string[] = [];
   let parentId = project.parentId;
   while (parentId) {

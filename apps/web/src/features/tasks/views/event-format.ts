@@ -18,7 +18,7 @@ export function eventWhen(event: EventOccurrence, side: 'start' | 'end', numeric
 }
 
 /** Where an event stands: to come, ongoing, over, cancelled or postponed. */
-export type EventState = 'upcoming' | 'ongoing' | 'over' | 'cancelled' | 'postponed';
+type EventState = 'upcoming' | 'ongoing' | 'over' | 'cancelled' | 'postponed';
 
 export const EVENT_STATES: Record<EventState, { label: string; color: string }> = {
   upcoming: { label: 'À venir', color: 'blue' },

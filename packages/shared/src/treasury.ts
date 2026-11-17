@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { recurrenceSchema } from './recurrence';
 import { colorSchema, optionalColorSchema } from './workspace';
 
-export const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
+const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
 export type DocumentStatusScope = (typeof DOCUMENT_STATUS_SCOPES)[number];
 export const DOCUMENT_STATUS_CATEGORIES = ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID', 'CREDIT_DUE'] as const;
 export type DocumentStatusCategory = (typeof DOCUMENT_STATUS_CATEGORIES)[number];
@@ -40,7 +40,7 @@ export const treasuryAccountSchema = z.object({
 });
 export type TreasuryAccountInput = z.input<typeof treasuryAccountSchema>;
 
-export const treasuryAllocationSchema = z
+const treasuryAllocationSchema = z
   .object({
     documentId: z.string().nullable(),
     importedDocumentId: z.string().nullable(),
@@ -49,7 +49,7 @@ export const treasuryAllocationSchema = z
   .refine((allocation) => Boolean(allocation.documentId) !== Boolean(allocation.importedDocumentId), 'Choisissez un document.');
 export type TreasuryAllocationInput = z.input<typeof treasuryAllocationSchema>;
 
-export const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
+const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
 export type TreasuryDirection = (typeof TREASURY_DIRECTIONS)[number];
 
 const name = z.string().trim().min(1, 'Le nom est requis.').max(100, '100 caractères maximum.');
@@ -73,7 +73,7 @@ export type TreasuryPaymentMethodInput = z.input<typeof treasuryPaymentMethodSch
 export const treasuryCounterpartySchema = z.object({ name, note: optionalText(2000), archived: z.boolean() });
 export type TreasuryCounterpartyInput = z.input<typeof treasuryCounterpartySchema>;
 
-export const TREASURY_LINE_MODES = ['AMOUNT', 'PERCENT'] as const;
+const TREASURY_LINE_MODES = ['AMOUNT', 'PERCENT'] as const;
 export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
 
 /**
@@ -81,7 +81,7 @@ export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
  * context, for a project, with its supporting documents and its links (lines of other entries, or whole entries
  * without lines).
  */
-export const treasuryEntryLineSchema = z
+const treasuryEntryLineSchema = z
   .object({
     /** Line kept (its links from other entries stay); none for a new line. */
     id: z.string().nullish(),
@@ -286,7 +286,7 @@ function escapeText(text: string): string {
 }
 
 /** What the reminder of an unpaid invoice says. */
-export interface ReminderMailInput {
+interface ReminderMailInput {
   /** Invoice or deposit invoice. */
   deposit: boolean;
   number: string;
@@ -328,7 +328,7 @@ export const sendRemindersSchema = z.object({
 });
 
 /** Movement of a chart of money in and out, with the movements it is linked to. */
-export interface LinkedMovement {
+interface LinkedMovement {
   id: string;
   /** Signed amount. */
   amount: number;
@@ -456,7 +456,7 @@ export function parseCsv(text: string, separator: string): string[][] {
  * @param {string | undefined} value Cell.
  * @returns {number | null} Amount.
  */
-export function statementAmount(value: string | undefined): number | null {
+function statementAmount(value: string | undefined): number | null {
   const cleaned = (value ?? '').replace(/[\s\u00a0\u202f€]/g, '').replace(/^\+/, '');
   if (!cleaned) return null;
   // The last "," or "." is the decimal mark; the others group thousands.
@@ -472,7 +472,7 @@ export function statementAmount(value: string | undefined): number | null {
  * @param {StatementMapping['dateFormat']} format Format.
  * @returns {string | null} YYYY-MM-DD.
  */
-export function statementDate(value: string | undefined, format: StatementMapping['dateFormat']): string | null {
+function statementDate(value: string | undefined, format: StatementMapping['dateFormat']): string | null {
   const parts = (value ?? '').trim().split(/[/.-]/);
   if (parts.length !== 3) return null;
   let [year, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];

@@ -168,7 +168,7 @@ export function withOrder<R>(columns: readonly DataColumn<R>[], layout: ColumnLa
  * @param {ColumnLayout} layout Layout.
  * @returns {string[]} Hidden ids.
  */
-export function hiddenIds<R>(columns: readonly DataColumn<R>[], layout: ColumnLayout): string[] {
+function hiddenIds<R>(columns: readonly DataColumn<R>[], layout: ColumnLayout): string[] {
   return columns.filter((column) => isHidden(column, layout)).map((column) => column.id);
 }
 

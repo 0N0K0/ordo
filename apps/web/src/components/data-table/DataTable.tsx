@@ -1,21 +1,7 @@
 import { TableSkeleton } from '../feedback/Skeletons';
 import { ActionIcon, Group, Paper, Stack, Table, type TableProps, type TableTrProps } from '@mantine/core';
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  pointerWithin,
-  useSensor,
-  useSensors,
-  type CollisionDetection,
-  type DragEndEvent,
-  type DragMoveEvent,
-  type DragOverEvent,
-  type DragStartEvent,
-  useDroppable,
-} from '@dnd-kit/core';
-import { arrayMove, horizontalListSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { closestCenter, DndContext, pointerWithin, type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragOverEvent, type DragStartEvent, useDroppable } from '@dnd-kit/core';
+import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
 import {
@@ -48,10 +34,10 @@ import { useTableHeight } from './table-height';
 import { BulkTableContext } from './bulk-edit';
 import type { RowGroup } from './table-engine';
 import type { DataView } from './use-data-view';
-import { suppressClickAfterDrop } from '../../lib/drag';
+import { suppressClickAfterDrop, useDragSensors } from '../../lib/drag';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
-export interface LeadingCell<R> {
+interface LeadingCell<R> {
   header: ReactNode;
   cell: (row: R) => ReactNode;
   width: number;
@@ -406,7 +392,7 @@ export function DataTable<R>({
   const hasLead = leadWidth > 0;
   const before = (hasLead ? 1 : 0) + (leading ? 1 : 0);
   const span = shown.length + 1 + before;
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useDragSensors('sortable');
 
   // The empty groups show while a row is dragged (to drop it there).
   const dragging = drag !== null && !drag.activeId.startsWith(COLUMN_PREFIX);

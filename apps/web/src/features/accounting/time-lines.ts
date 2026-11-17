@@ -14,7 +14,7 @@ export interface BillableTime {
   tasks: string[];
 }
 
-export interface TimeLineOptions {
+interface TimeLineOptions {
   grouping: TimeGrouping;
   unit: 'HOUR' | 'DAY';
   /** Hours in a billed day. */

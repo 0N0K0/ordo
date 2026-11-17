@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { addDays, DEFAULT_RECURRENCE, maxSpanDays, occurrenceDates, ONE_DAY, recurrenceSchema, spanEnd, type Recurrence, type Span } from './recurrence';
+import { addDays, maxSpanDays, occurrenceDates, ONE_DAY, recurrenceSchema, spanEnd, type Recurrence, type Span } from './recurrence';
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
 
 /** Fields common to the cases of every repetition: its period and its rule (with how long each occurrence lasts). */
-export const repetitionCaseFields = {
+const repetitionCaseFields = {
   /** First and last days it applies (none: those of what repeats), dates included. */
   since: isoDate.nullable().default(null),
   until: isoDate.nullable().default(null),
@@ -33,16 +33,6 @@ export interface RepetitionCase<T = unknown> {
   /** None: a single occurrence, on its first day. */
   rule: Recurrence | null;
   times: T;
-}
-
-/**
- * New case: every week on the weekday of a date, a day long.
- * @template T
- * @param {T} times Its times.
- * @returns {RepetitionCase<T>} Case.
- */
-export function newRepetitionCase<T>(times: T): RepetitionCase<T> {
-  return { since: null, until: null, anchor: null, rule: DEFAULT_RECURRENCE, times };
 }
 
 /**
@@ -91,21 +81,21 @@ export function caseSpanOn(item: RepetitionCase, start: string, date: string): S
  * @param {string} to Last day.
  * @returns {string[]} Days, in order.
  */
-export function casesStartDates(cases: readonly RepetitionCase[], start: string, from: string, to: string): string[] {
+function casesStartDates(cases: readonly RepetitionCase[], start: string, from: string, to: string): string[] {
   const days = new Set<string>();
   for (const item of cases) for (const span of caseSpans(item, start, from, to)) if (span.start >= from && span.start <= to) days.add(span.start);
   return [...days].sort();
 }
 
 /** Cases of a task series: each with its period and its rule, without times; and the occurrences deleted one by one. */
-export const taskCasesSchema = z.object({
+const taskCasesSchema = z.object({
   cases: z
     .array(repetitionCaseSchema(z.null().default(null)))
     .min(1, 'Ajoutez au moins un cas.')
     .max(20, '20 cas au plus.'),
   exceptions: z.array(isoDate).max(5000).default([]),
 });
-export type TaskCases = z.infer<typeof taskCasesSchema>;
+type TaskCases = z.infer<typeof taskCasesSchema>;
 
 /** Repetition of a task series: a single rule (as saved before cases), or cases. */
 export const taskRepetitionSchema = z.union([taskCasesSchema, recurrenceSchema]);

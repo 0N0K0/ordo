@@ -3,8 +3,8 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { ActionIcon, Button, Group, Menu, Paper, Progress, SegmentedControl, Stack, Text, TextInput, Title } from '@mantine/core';
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { DatePickerInput } from '@mantine/dates';
 import type { ReactNode } from 'react';
@@ -14,11 +14,13 @@ import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useMilestoneMutations, type Milestone } from './api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from './milestone-order';
 import { useTaskContext, type TaskContext } from './use-task-context';
 import * as fmt from '../../lib/format';
+import { countOf } from '../../lib/text';
+import { useDragSensors } from '../../lib/drag';
 
 interface MilestoneFormProps {
   projectId: string;
@@ -137,7 +139,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const { context } = useTaskContext();
   const { remove, move, update } = useMilestoneMutations();
   const [order, setOrder] = useMilestoneOrder();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useDragSensors('sortable');
   const today = localToday();
   if (!context) return null;
   const project = context.projectById.get(projectId);
@@ -153,7 +155,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     const index = milestones.findIndex((milestone) => milestone.id === over.id);
-    if (index >= 0) move.mutate({ id: String(active.id), index }, { onError: (error) => notifyError(error.message) });
+    if (index >= 0) move.mutate({ id: String(active.id), index }, { onError: onMutationError });
   };
 
   /**
@@ -181,10 +183,10 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
 <>
 <Text size="sm">
             Le jalon « {milestone.title} » sera supprimé définitivement
-            {count > 0 ? ` et retiré des ${count} tâche${count > 1 ? 's' : ''} qui l’utilisent` : ''}. Les tâches ne sont pas supprimées. Cette action est irréversible.
+            {count > 0 ? ` et retiré des ${countOf(count, 'tâche')} qui l’utilisent` : ''}. Les tâches ne sont pas supprimées. Cette action est irréversible.
           </Text>
 </>
-), onConfirm: () => { remove.mutate({ id: milestone.id }, { onSuccess: () => notifySuccess('Jalon supprimé.'), onError: (error) => notifyError(error.message) }); } });
+), onConfirm: () => { remove.mutate({ id: milestone.id }, { onSuccess: () => notifySuccess('Jalon supprimé.'), onError: onMutationError }); } });
   };
 
   return (
@@ -247,7 +249,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
                       </Text>
                     </Group>
                     {milestone.description && (
-                  <MarkdownView targets={context.targetsFor(milestone.projectId)} onChange={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: (error) => notifyError(error.message) })}>
+                  <MarkdownView targets={context.targetsFor(milestone.projectId)} onChange={(description) => update.mutate({ id: milestone.id, input: { description } }, { onError: onMutationError })}>
                     {milestone.description}
                   </MarkdownView>
                 )}

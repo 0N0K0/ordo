@@ -1,7 +1,7 @@
 import { closestCenter, pointerWithin, type CollisionDetection } from '@dnd-kit/core';
 
 /** Ids of the drag and drop: a folder or a document of the list, a folder of the tree (root: "tree:root"). */
-export type DndKind = 'folder' | 'doc' | 'tree';
+type DndKind = 'folder' | 'doc' | 'tree';
 
 /**
  * Kind and id of a drag and drop id ("doc:abc").

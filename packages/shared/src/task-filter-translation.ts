@@ -32,7 +32,7 @@ function translateCondition(condition: FilterConditionOf<string>): FilterConditi
  * @param {FilterGroupOf<string>} group Filter.
  * @returns {TableFilterGroup} Filter.
  */
-export function translateTaskFilter(group: FilterGroupOf<string>): TableFilterGroup {
+function translateTaskFilter(group: FilterGroupOf<string>): TableFilterGroup {
   return {
     ...group,
     children: group.children.map((child) => (child.type === 'group' ? translateTaskFilter(child) : translateCondition(child))),

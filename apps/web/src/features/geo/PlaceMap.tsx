@@ -6,7 +6,7 @@ import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap, useMapEvents } 
 import classes from './PlaceMap.module.css';
 
 /** Point shown on the map. */
-export interface MapPoint extends GeoPoint {
+interface MapPoint extends GeoPoint {
   id: string;
   label: string;
   /** The point being edited: highlighted. */

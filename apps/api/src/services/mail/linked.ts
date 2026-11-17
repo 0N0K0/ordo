@@ -136,7 +136,7 @@ const FIRST_RUN_MESSAGES = 200;
  * where the previous run stopped.
  * @returns {Promise<void>}
  */
-export async function followConversations(): Promise<void> {
+async function followConversations(): Promise<void> {
   if (following) return;
   following = true;
   try {

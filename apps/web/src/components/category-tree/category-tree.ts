@@ -30,7 +30,7 @@ export interface PlacedCategory<C extends TreeCategory> {
  * @param {TreeCategory} b Category.
  * @returns {number} Comparison.
  */
-export const bySiblingOrder = (a: TreeCategory, b: TreeCategory) => (a.position ?? 0) - (b.position ?? 0) || collator.compare(a.name, b.name);
+const bySiblingOrder = (a: TreeCategory, b: TreeCategory) => (a.position ?? 0) - (b.position ?? 0) || collator.compare(a.name, b.name);
 
 /**
  * Categories in tree order: each one followed by its sub-categories, in their manual order (then by name).

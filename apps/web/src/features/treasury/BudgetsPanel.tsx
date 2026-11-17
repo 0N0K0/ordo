@@ -17,7 +17,7 @@ import { RowActions } from '../../components/data-table/RowActions';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { localToday } from '../../lib/dates';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget, useTreasuryMutations } from './api';
 import { categoryOptions, categoryPaths } from './categories';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
@@ -315,7 +315,7 @@ export function BudgetsPanel() {
           ...(change.repeatEvery === null ? { repeatUntil: null } : {}),
         },
       },
-      { onError: (error) => notifyError(error.message) },
+      { onError: onMutationError },
     );
   const [dialog, setDialog] = useState<Dialog>(null);
   const categories = settings?.treasuryCategories ?? [];
@@ -802,7 +802,7 @@ export function BudgetsPanel() {
                       confirmDestructive({
                         title: 'Supprimer le budget',
                         risks: `Ce budget${budget.repeatEvery ? ' et toutes ses répétitions' : ''} sera supprimé définitivement. Ses mouvements seront hors budget s’il n’y en a pas d’autre.`,
-                        onConfirm: () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: (error) => notifyError(error.message) }),
+                        onConfirm: () => remove.mutate(budget.id, { onSuccess: () => notifySuccess('Budget supprimé.'), onError: onMutationError }),
                       }),
                   },
                 ]}

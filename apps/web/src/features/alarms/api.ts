@@ -65,7 +65,7 @@ const MarkAlarmFiredDocument = graphql(`
   }
 `);
 
-export const alarmsQueryKey = ['alarms'] as const;
+const alarmsQueryKey = ['alarms'] as const;
 
 /**
  * Every alarm.

@@ -141,7 +141,7 @@ export interface ChartRecord {
   value: (measure: ChartMeasure) => number;
 }
 
-export const NONE_ORDER = '￿';
+const NONE_ORDER = '￿';
 /**
  * "None" value of a field.
  * @param {string} label Label.

@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 /** Action of a row. */
-export interface RowAction {
+interface RowAction {
   label: string;
   icon: ReactNode;
   onClick?: () => void;

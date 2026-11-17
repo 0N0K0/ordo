@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { ActionsMenu, type RowMenuEntry } from '../../components/data-table/RowActions';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifyError, notifySuccess, onMutationError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useTreasuryEntrySearch } from '../treasury/api';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from './api';
@@ -108,7 +108,7 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
                     notifySuccess('Liste rattachée : la répartition a été ajoutée au mouvement.');
                     onDone();
                   },
-                  onError: (error) => notifyError(error.message),
+                  onError: onMutationError,
                 },
               )
             }
@@ -152,7 +152,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
   const closed = listClosed(list, context);
   // Closed along with its tasks (not by hand): reopened with one of them.
   const byTasks = closed && !list.closedAt;
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   /**
    * Rows of the list as shown, for the exports.
    * @returns {ReturnType<typeof shoppingRows>} Rows.

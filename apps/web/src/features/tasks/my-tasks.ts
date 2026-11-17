@@ -1,6 +1,6 @@
 import { ME, type TableFilterGroup } from '@ordo/shared';
 
-export type MyTasksPeriod = 'today' | 'tomorrow' | 'week';
+type MyTasksPeriod = 'today' | 'tomorrow' | 'week';
 
 type Condition = Extract<TableFilterGroup['children'][number], { type: 'condition' }>;
 

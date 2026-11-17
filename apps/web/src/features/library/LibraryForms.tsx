@@ -24,7 +24,7 @@ interface FolderSelectProps {
  * @param {FolderSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */
-export function FolderSelect({ folders, value, onChange, excluded, label = 'Dossier' }: FolderSelectProps) {
+function FolderSelect({ folders, value, onChange, excluded, label = 'Dossier' }: FolderSelectProps) {
   const { createFolder } = useLibraryMutations();
   const options = treeOptions(
     [{ id: ROOT, parentId: null, label: 'Documents (racine)' }, ...folders.map((folder) => ({ id: folder.id, parentId: folder.parentId ?? ROOT, label: folder.name }))],

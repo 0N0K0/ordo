@@ -14,7 +14,7 @@ import * as fmt from '../../lib/format';
 const schema = z.object({ name: shoppingListNameSchema, taskIds: z.array(z.string()), baseListIds: z.array(z.string()) });
 type Values = z.input<typeof schema>;
 
-export interface NewListFormProps {
+interface NewListFormProps {
   /** Base lists whose missing products it takes, checked at first. */
   baseListIds: string[];
   /** Tasks it is attached to at first. */

@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { BlockSkeleton } from '../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../components/dialogs/confirm-destructive';
 import { closePanel, openPanel } from '../../components/panels/panels';
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ActionIcon, Badge, Group, Menu, Stack, Tabs, Text, Tooltip, type TabsTabProps } from '@mantine/core';
@@ -15,9 +15,10 @@ import { shoppingBaseListNameSchema } from '@ordo/shared';
 import { ArrowLeftIcon, ArrowRightIcon, CaretDownIcon, ListBulletsIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList } from './api';
 import { BaseList } from './BaseList';
+import { useDragSensors } from '../../lib/drag';
 const schema = z.object({ name: shoppingBaseListNameSchema });
 
 /**
@@ -50,7 +51,7 @@ export function BaseLists() {
   const [params, setParams] = useSearchParams();
   const baseLists = data?.shoppingBaseLists ?? [];
   const current = baseLists.find((baseList) => baseList.id === params.get('base')) ?? baseLists[0];
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useDragSensors();
 
   /**
    * Moves a base list among the others.
@@ -58,7 +59,7 @@ export function BaseLists() {
    * @param {number} target Target index.
    * @returns {void}
    */
-  const move = (id: string, target: number) => mutations.moveBaseList.mutate({ id, index: target }, { onError: (error) => notifyError(error.message) });
+  const move = (id: string, target: number) => mutations.moveBaseList.mutate({ id, index: target }, { onError: onMutationError });
 
   /**
    * Shows a base list.
@@ -133,7 +134,7 @@ export function BaseLists() {
               notifySuccess('Référence supprimée.');
               select(null);
             },
-            onError: (error) => notifyError(error.message),
+            onError: onMutationError,
           },
         );
       },

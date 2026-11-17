@@ -10,7 +10,7 @@ import { scheduleRule, subscribedSchedules } from './work-schedules';
  * @param {string} to Last date (YYYY-MM-DD).
  * @returns {Promise<{ slots: KindedSlot[], known: Set<string> }>} Slots, in order, and the kinds that have schedules.
  */
-export async function workspaceSlots(from: string, to: string): Promise<{ slots: KindedSlot[]; known: Set<string> }> {
+async function workspaceSlots(from: string, to: string): Promise<{ slots: KindedSlot[]; known: Set<string> }> {
   const [own, foreign] = await Promise.all([prisma.workSchedule.findMany(), subscribedSchedules()]);
   const rules = own.map(scheduleRule);
   const shown = foreign.map((item) => ({ workspaceId: item.workspace.id, rule: item.rule }));
@@ -28,7 +28,7 @@ export async function workspaceSlots(from: string, to: string): Promise<{ slots:
  * @param {number} utcOffset User's offset from UTC in minutes.
  * @returns {{ date: string, time: string }} YYYY-MM-DD and HH:MM.
  */
-export function userNow(utcOffset: number): { date: string; time: string } {
+function userNow(utcOffset: number): { date: string; time: string } {
   const iso = new Date(Date.now() + utcOffset * 60_000).toISOString();
   return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
 }

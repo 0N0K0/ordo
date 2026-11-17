@@ -30,7 +30,7 @@ export interface SettingsItemExtra<C extends SettingsItem, E extends object> {
   render: (form: UseFormReturnType<SettingsItemValues<E>>) => ReactNode;
 }
 
-export interface SettingsItemFormProps<C extends SettingsItem, E extends object> {
+interface SettingsItemFormProps<C extends SettingsItem, E extends object> {
   kind: SettingsListKind;
   /** Item edited; none: a new one. */
   item?: C;

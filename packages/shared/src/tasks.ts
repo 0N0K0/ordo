@@ -1,3 +1,4 @@
+import { normalize } from './text';
 import { z } from 'zod';
 import { dateSchema } from './workspace';
 import { slotRuleSchema } from './slot-rules';
@@ -43,10 +44,7 @@ export const contributorNameSchema = z.string().trim().min(1, 'Le nom est requis
  * @returns {string} Handle candidate.
  */
 export function suggestHandle(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
+  return normalize(name)
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 39);

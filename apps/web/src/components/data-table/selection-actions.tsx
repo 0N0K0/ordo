@@ -1,6 +1,6 @@
 import { CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
+import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../lib/notify';
 import type { SelectionAction } from './SelectionBar';
 
 /**
@@ -110,7 +110,7 @@ export function switchRowsAction({
   clear?: () => void;
   loading?: boolean;
 }): SelectionAction {
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   return {
     label: on ? labels[1] : labels[0],
     icon: on ? icons[1] : icons[0],

@@ -3,7 +3,7 @@ import { GROUP_PERIODS, type GroupPeriod } from '@ordo/shared';
 import { FileCsvIcon, FilePdfIcon } from '@phosphor-icons/react';
 import { BulkHint } from './BulkHint';
 import { useState, type ReactNode } from 'react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { FieldsFilterBuilder } from '../filters/FilterBuilder';
 import { countConditions } from '../filters/filter-meta';
 import { ViewTabs } from './ViewTabs';
@@ -22,7 +22,7 @@ const PERIOD_LABELS: Record<GroupPeriod, string> = { DAY: 'Jour', WEEK: 'Semaine
  * @param {{ table: () => TableExport<R>, disabled?: boolean }} props Component props: what is exported (built on a click), nothing to export.
  * @returns {JSX.Element} Buttons.
  */
-export function ExportButtons<R>({ table, disabled = false }: { table: () => TableExport<R>; disabled?: boolean }) {
+function ExportButtons<R>({ table, disabled = false }: { table: () => TableExport<R>; disabled?: boolean }) {
   const [exporting, setExporting] = useState(false);
   return (
     <Group gap="xs" grow>
@@ -37,7 +37,7 @@ export function ExportButtons<R>({ table, disabled = false }: { table: () => Tab
         onClick={() => {
           setExporting(true);
           downloadTablePdf(table())
-            .catch((error: Error) => notifyError(error.message))
+            .catch(onMutationError)
             .finally(() => setExporting(false));
         }}
       >
@@ -52,7 +52,7 @@ export function ExportButtons<R>({ table, disabled = false }: { table: () => Tab
  * @param {{ view: DataView<R>, subtitle?: string }} props Component props: view, what is exported (else the name of the view).
  * @returns {JSX.Element} Buttons.
  */
-export function TableExportButtons<R>({ view, subtitle }: { view: DataView<R>; subtitle?: string }) {
+function TableExportButtons<R>({ view, subtitle }: { view: DataView<R>; subtitle?: string }) {
   return (
     <ExportButtons
       disabled={view.rows.length === 0}

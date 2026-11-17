@@ -4,7 +4,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon, Title, Tooltip } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { EnvelopeSimpleIcon, PencilSimpleIcon, PlusIcon, SignatureIcon, TrashIcon } from '@phosphor-icons/react';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccountMutations, useMailAccounts, type MailAccount } from '../api';
 import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
@@ -45,7 +45,7 @@ export function MailAccountsManager() {
 </>
 ), confirmLabel: 'Retirer', onConfirm: () => { remove.mutate(account.id, {
                 onSuccess: () => notifySuccess('Boîte mail retirée.'),
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               }); } });
   };
 

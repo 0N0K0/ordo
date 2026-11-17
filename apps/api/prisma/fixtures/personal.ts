@@ -68,7 +68,7 @@ const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfi
 const pdf = (name: string, text: string) => new File([tinyPdf(text)], name, { type: 'application/pdf' });
 
 /** What the personal workspace offers to the professional one. */
-export interface SeededPersonal {
+interface SeededPersonal {
   /** Kind of the childcare schedules (the professional workspace subscribes to it). */
   childcareTypeId: string;
   /** Family calendar (the professional workspace subscribes to it). */

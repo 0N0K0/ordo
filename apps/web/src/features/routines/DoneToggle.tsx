@@ -1,6 +1,6 @@
 import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { CheckCircleIcon, CircleDashedIcon, CircleIcon } from '@phosphor-icons/react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useRoutineMutations, type Routine } from './api';
 import { windowText } from './routine-format';
 import classes from './Routines.module.css';
@@ -61,7 +61,7 @@ interface RoutineDoneTogglesProps {
 export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: RoutineDoneTogglesProps) {
   const { setDone } = useRoutineMutations();
   const started = routine.currentDate !== null;
-  const save = (slot: number, done: boolean) => setDone.mutate({ id: routine.id, done, slot }, { onError: (error) => notifyError(error.message) });
+  const save = (slot: number, done: boolean) => setDone.mutate({ id: routine.id, done, slot }, { onError: onMutationError });
   if (routine.slots.length <= 1) {
     return (
       <DoneToggle

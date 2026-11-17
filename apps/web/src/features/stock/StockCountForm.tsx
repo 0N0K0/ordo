@@ -5,9 +5,10 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import { useDataView } from '../../components/data-table/use-data-view';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useStockItems, useStockLocations, useStockMutations, type StockItem } from './api';
 import { locationOptions, locationPaths } from './stock-format';
+import { countOf } from '../../lib/text';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -90,7 +91,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
           onClick={() =>
             recordCount.mutate(
               { locationId, note: note || null, lines: [...counts].map(([itemId, counted]) => ({ itemId, counted })) },
-              { onSuccess: () => (notifySuccess(`Inventaire enregistré (${counts.size} article${counts.size > 1 ? 's' : ''}).`), onDone()), onError: (error) => notifyError(error.message) },
+              { onSuccess: () => (notifySuccess(`Inventaire enregistré (${countOf(counts.size, 'article')}).`), onDone()), onError: onMutationError },
             )
           }
         >

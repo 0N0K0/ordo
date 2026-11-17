@@ -40,7 +40,7 @@ import {
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
 import { referenceLabel, taskReferenceUrl, type ReferenceTargets, type ReferenceTask } from './remark-references';
-import { normalize } from '../../lib/text';
+import { countOf, normalize } from '../../lib/text';
 
 export interface MarkdownSuggestions {
   /** Project of the text: its tasks come first and show without their project. */
@@ -508,7 +508,7 @@ export function MarkdownEditor({
           {uploading > 0 ? <Loader size={12} /> : <MarkdownLogoIcon aria-hidden />}
           <Text size="xs" c="dimmed">
             {uploading > 0
-              ? `Envoi de ${uploading} fichier${uploading > 1 ? 's' : ''}…`
+              ? `Envoi de ${countOf(uploading, 'fichier')}…`
               : 'Markdown pris en charge — « # » pour une tâche, « @ » pour un contributeur. Glissez, collez ou joignez des fichiers.'}
           </Text>
         </Group>

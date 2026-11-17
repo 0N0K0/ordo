@@ -13,7 +13,7 @@ import { localDay } from '../../lib/dates';
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
 
 /** What some task filters need that the tasks do not hold. */
-export interface TaskColumnExtras {
+interface TaskColumnExtras {
   /** Tasks that can be done now (their slot rule, the events of their people). */
   doableIds?: ReadonlySet<string>;
   /** Tasks with a shopping list. */

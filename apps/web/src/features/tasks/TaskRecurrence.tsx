@@ -6,7 +6,7 @@ import { describeCase, formatLongDate } from '../../components/recurrence/descri
 import { RepetitionEditor, type RepetitionModeValue } from '../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../components/recurrence/RepetitionField';
 import { DeletedDates } from '../../components/recurrence/DeletedDates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useSetTaskRecurrence, type Task } from './api';
 import { taskRef, type TaskContext } from './use-task-context';
 import { useTaskLink } from './use-task-link';
@@ -67,7 +67,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
             { id: first.id, recurrence: repetitionOf(draft) },
             {
               onSuccess: () => notifySuccess(repetitionOf(draft) ? 'Répétition enregistrée.' : 'La tâche ne se répète plus.'),
-              onError: (error) => notifyError(error.message),
+              onError: onMutationError,
             },
           )
         }

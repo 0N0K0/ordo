@@ -2,7 +2,7 @@ import { confirmDestructive } from '../../components/dialogs/confirm-destructive
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { Text } from '@mantine/core';
 import { entrySeconds, formatDuration } from '@ordo/shared';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { useTimeMutations, type TimeEntry } from './api';
 import { TimeEntryForm } from './TimeEntryForm';
@@ -57,7 +57,7 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
       onConfirm: () => {
         remove.mutate(entry.id, {
           onSuccess: () => notifySuccess('Temps supprimé.'),
-          onError: (error) => notifyError(error.message),
+          onError: onMutationError,
         });
       },
     });

@@ -2,7 +2,7 @@ import { NumberInput, type NumberInputProps } from '@mantine/core';
 import { useState, type FocusEvent } from 'react';
 
 /** Decimals an amount is typed and kept with (shown rounded to 2). */
-export const AMOUNT_DECIMALS = 4;
+const AMOUNT_DECIMALS = 4;
 
 /**
  * Amount as shown out of the field: rounded to the cent.

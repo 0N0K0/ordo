@@ -10,7 +10,7 @@ import { startReport } from './pdf-report';
 type Doc = InstanceType<typeof PDFDocument>;
 
 /** Period (and account) of a statement. */
-export const statementSchema = z
+const statementSchema = z
   .object({
     from: z.iso.date({ error: 'Date de début invalide.' }),
     to: z.iso.date({ error: 'Date de fin invalide.' }),
@@ -19,7 +19,7 @@ export const statementSchema = z
   })
   .refine((period) => period.from <= period.to, { path: ['to'], message: 'La fin de la période précède son début.' })
   .refine((period) => period.to <= addDays(period.from, 366 * 10), { path: ['to'], message: 'Dix ans au plus.' });
-export type StatementInput = z.input<typeof statementSchema>;
+type StatementInput = z.input<typeof statementSchema>;
 
 const COLORS = { text: '#1d232b', muted: '#66707c', border: '#dfe3e8', fill: '#f2f4f6', month: '#e7ebf0', in: '#2b8a3e', out: '#c92a2a' };
 const MARGIN = 36;

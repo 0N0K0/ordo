@@ -18,7 +18,7 @@ export interface BulkCellProps {
 }
 
 /** Bulk selection of a table. */
-export interface BulkSelectionState {
+interface BulkSelectionState {
   /** Cells selected (among the rows shown), null for none. */
   selection: BulkSelection | null;
   setSelection: (selection: BulkSelection | null) => void;

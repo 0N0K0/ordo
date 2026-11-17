@@ -2,7 +2,7 @@ import { ActionIcon, Anchor, Badge, Group, Menu, Popover, Progress, Text, Toolti
 import { formatDuration, readSlotRule } from '@ordo/shared';
 import { AlarmIcon, BasketIcon, PlayIcon, PlusIcon, StopIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useAlarmForm } from '../../alarms/use-alarm-form';
 import { useShoppingMutations, type ShoppingList } from '../../shopping/api';
 import { openNewList } from '../../shopping/open-new-list';
@@ -51,7 +51,7 @@ export function TimerCell({ task }: { task: Task }) {
   const running = useRunningTimer();
   const { start, stop: stopTimer } = useTimeMutations();
   const on = running.data?.taskIds.includes(task.id) ?? false;
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   return (
     <Tooltip label={on ? 'Arrêter le chrono' : 'Lancer un chrono'}>
       <ActionIcon
@@ -198,7 +198,7 @@ export function ShoppingCell({ task, lists }: { task: Task; lists: ShoppingList[
                   { id: list.id, name: list.name, taskIds: [...new Set([...list.taskIds, ...targets])] },
                   {
                     onSuccess: () => notifySuccess(targets.length > 1 ? `Liste rattachée aux ${targets.length} tâches.` : 'Liste rattachée à la tâche.'),
-                    onError: (error) => notifyError(error.message),
+                    onError: onMutationError,
                   },
                 )
               }

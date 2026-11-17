@@ -1,4 +1,4 @@
-import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
+import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent, type DragMoveEvent, type DragOverEvent } from '@dnd-kit/core';
 import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
 import { EntityAvatar } from '../../features/workspace/EntityAvatar';
 import { CaretDownIcon, CaretRightIcon, DotsSixVerticalIcon } from '@phosphor-icons/react';
@@ -6,6 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, type TreePlace } from './category-tree';
 import classes from './CategoryTree.module.css';
 import { pointerPlace, treeCollision, useFolded } from './tree-dnd';
+import { useDragSensors } from '../../lib/drag';
 
 interface CategoryRowProps<C extends TreeCategory> {
   placed: PlacedCategory<C>;
@@ -71,7 +72,7 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
   );
 }
 
-export interface CategoryTreeProps<C extends TreeCategory> {
+interface CategoryTreeProps<C extends TreeCategory> {
   /** Categories of the tree. */
   categories: readonly C[];
   /** Key remembering the folded categories in this browser. Optional. */
@@ -102,7 +103,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
   const [folded, toggle] = useFolded(storageKey);
   const [dragged, setDragged] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; place: TreePlace } | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+  const sensors = useDragSensors('plain');
 
   const parents = new Set(tree.map(({ category }) => category.parentId).filter(Boolean));
   // A folded category hides all its sub-categories.

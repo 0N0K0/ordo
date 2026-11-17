@@ -18,7 +18,7 @@ const ReorderSettingsItemsDocument = graphql(`
 `);
 
 /** Look of an item of a settings list: its color and its image (replaced or removed). */
-export interface SettingsItemLook {
+interface SettingsItemLook {
   color?: string | null;
   icon?: File | null;
   removeIcon?: boolean;

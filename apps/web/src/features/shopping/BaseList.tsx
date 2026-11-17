@@ -10,7 +10,7 @@ import { DataViewBar } from '../../components/data-table/DataViewBar';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localDay } from '../../lib/dates';
 import { RowActions } from '../../components/data-table/RowActions';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from './api';
 import { openNewList } from './open-new-list';
 import { openShoppingForm } from './open-shopping-form';
@@ -181,7 +181,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
     first: BASE_LIST_VIEWS,
     bulkColumns: [{ id: 'missing', label: 'Manque' }],
   });
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   // Stock settings of the references, changed in place (and in bulk).
   const stockBulk = bulkSaver<ShoppingProduct, Partial<ProductStockInput>>(view, (product, change) =>
     stockMutations.setProductStock.mutate(

@@ -28,7 +28,7 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import { useSearchParams } from 'react-router';
 import { describeRecurrence } from '../../components/recurrence/describe-recurrence';
 import { localToday } from '../../lib/dates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { CatalogPanel } from './CatalogPanel';
 import { OverdueInvoicesPanel } from './OverdueInvoicesPanel';
 import { useOverdueInvoices } from './tracking-api';
@@ -128,7 +128,7 @@ function RecurringList() {
   const saveRecurring = (item: RecurringInvoice, change: Partial<RecurringSettings>) =>
     update.mutate(
       { id: item.id, input: { name: item.name, recurrence: item.recurrence, startDate: String(item.startDate).slice(0, 10), autoFinalize: item.autoFinalize, active: item.active, ...change } },
-      { onError: (error) => notifyError(error.message) },
+      { onError: onMutationError },
     );
   const view = useDataView({ tableKey: 'recurring-invoices', getKey: (item) => item.id, columns: RECURRING_COLUMNS, rows: recurring ?? [], title: 'Factures récurrentes' });
   const bulk = bulkSaver(view, saveRecurring);
@@ -148,7 +148,7 @@ function RecurringList() {
         </>
       ),
       onConfirm: () => {
-        remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: (error) => notifyError(error.message) });
+        remove.mutate(item.id, { onSuccess: () => notifySuccess('Facture récurrente supprimée.'), onError: onMutationError });
       },
     });
   };

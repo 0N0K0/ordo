@@ -25,7 +25,7 @@ import { useTaskContext } from '../tasks/use-task-context';
 const LOOKAHEAD_DAYS = 14;
 
 /** Kind of slots a rule can name: of this workspace, or shown from another one. */
-export interface SlotKindOption {
+interface SlotKindOption {
   value: string;
   label: string;
   group: string;

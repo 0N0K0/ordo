@@ -12,7 +12,7 @@ import { EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, t
 import { CalendarBlankIcon, PlusIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useTaskContext } from '../tasks/use-task-context';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useActiveWorkspace } from '../workspaces/api';
@@ -20,6 +20,7 @@ import { useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, ty
 import * as fmt from '../../lib/format';
 import { MarkdownEditor } from '../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../components/markdown/MarkdownView';
+import { countOf } from '../../lib/text';
 
 /**
  * Day in words.
@@ -48,7 +49,7 @@ export function TeamMembers() {
   // A relation is not a member too.
   const relationContributors = new Set((settings?.treasuryRelations ?? []).map((relation) => relation.contributorId));
   const others = (context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id) && !relationContributors.has(contributor.id));
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   const team = perso ? 'Foyer' : 'Équipe';
 
   return (
@@ -240,7 +241,7 @@ function Contexts() {
   const contexts = settings?.treasuryContexts ?? [];
   const periods = settings?.treasuryContextPeriods ?? [];
   const contextById = new Map(contexts.map((item) => [item.id, item]));
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   const close = () => setDialog(null);
 
   return (
@@ -429,9 +430,7 @@ export function TeamRelations() {
   const contributorName = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.name]));
   const relations = settings?.treasuryRelations ?? [];
   const uses = (relation: TreasuryRelation) =>
-    [relation.lineCount ? `${relation.lineCount} ligne${relation.lineCount > 1 ? 's' : ''}` : '', relation.budgetCount ? `${relation.budgetCount} budget${relation.budgetCount > 1 ? 's' : ''}` : '']
-      .filter(Boolean)
-      .join(', ');
+    [relation.lineCount ? countOf(relation.lineCount, 'ligne') : '', relation.budgetCount ? countOf(relation.budgetCount, 'budget') : ''].filter(Boolean).join(', ');
 
   return (
     <Paper withBorder radius="md" p="md">
@@ -483,7 +482,7 @@ export function TeamRelations() {
                         confirmDestructive({
                           title: 'Supprimer la relation',
                           risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
-                          onConfirm: () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: (error) => notifyError(error.message) }),
+                          onConfirm: () => deleteRelation.mutate(relation.id, { onSuccess: () => notifySuccess('Relation supprimée.'), onError: onMutationError }),
                         })
                       }
                     >

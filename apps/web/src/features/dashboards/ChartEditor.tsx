@@ -15,7 +15,7 @@ import {
   type ChartSource,
 } from '@ordo/shared';
 import { useState } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { TaskContext } from '../tasks/use-task-context';
 import { TaskFilterBuilder } from '../tasks/TaskFilterBuilder';
 import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES, periodLabel } from './aggregate';
@@ -95,7 +95,7 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
         notifySuccess(chart ? 'Diagramme modifié.' : 'Diagramme ajouté.');
         onDone();
       },
-      onError: (error: Error) => notifyError(error.message),
+      onError: onMutationError,
     };
     if (chart) updateChart.mutate({ id: chart.id, input }, callbacks);
     else createChart.mutate({ dashboardId, input }, callbacks);

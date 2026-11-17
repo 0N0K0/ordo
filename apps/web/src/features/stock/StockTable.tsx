@@ -17,7 +17,7 @@ import { categoryTree } from '../../components/category-tree/category-tree';
 import { localToday } from '../../lib/dates';
 import { addDays } from '@ordo/shared';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 import { useShoppingData } from '../shopping/api';
@@ -183,7 +183,7 @@ export function StockTable() {
     ),
   ];
   const view = useDataView({ tableKey: 'stock', getKey: (item) => item.id, columns, rows: items ?? [], title: 'Inventaire' });
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const bulk = bulkSaver<StockItem, Change>(view, (item, change) => Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: stockItemInput(item, change) }, onError));
   const toggle = (id: string) =>
     setUnfolded((current) => {

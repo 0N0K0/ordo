@@ -4,7 +4,7 @@ import { ListSkeleton } from '../../components/feedback/Skeletons';
 import { Badge, Button, Checkbox, ColorInput, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
 import { showFormError, useAppForm } from '../../lib/form';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useInvoiceTreasuryCategories, useTreasuryMutations, useTreasurySettings, type TreasuryCategory, type TreasuryCounterparty, type TreasuryPaymentMethod } from './api';
 import { categoryOptions } from './categories';
 import { TeamPanel } from './TeamPanel';
@@ -12,6 +12,7 @@ import { useActiveWorkspace } from '../workspaces/api';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { AccountsSettings } from './AccountsSettings';
+import { countOf } from '../../lib/text';
 
 
 /**
@@ -19,7 +20,7 @@ import { AccountsSettings } from './AccountsSettings';
  * @param {number} count Count.
  * @returns {string} "3 mouvements".
  */
-const entries = (count: number) => `${count} mouvement${count > 1 ? 's' : ''}`;
+const entries = (count: number) => countOf(count, 'mouvement');
 
 /**
  * Form actions: cancel, then save.
@@ -406,7 +407,7 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
    * @returns {void}
    */
   const save = (changes: Partial<typeof current>) =>
-    setInvoiceCategories.mutate({ ...current, ...changes }, { onSuccess: () => notifySuccess('Catégorie enregistrée.'), onError: (error) => notifyError(error.message) });
+    setInvoiceCategories.mutate({ ...current, ...changes }, { onSuccess: () => notifySuccess('Catégorie enregistrée.'), onError: onMutationError });
   return (
     <Paper withBorder radius="md" p="md">
       <Title order={3} size="h5" mb={4}>

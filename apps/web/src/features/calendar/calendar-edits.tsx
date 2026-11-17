@@ -1,6 +1,6 @@
 import { closePanel, openPanel } from '../../components/panels/panels';
 import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
-import { notifyError, notifySuccess, notifyWithUndo } from '../../lib/notify';
+import { notifyError, notifySuccess, notifyWithUndo, onMutationError } from '../../lib/notify';
 import { useRoutineMutations, type Routine } from '../routines/api';
 import { longDay } from '../routines/use-routine-move';
 import { useWorkScheduleMutations } from './api';
@@ -10,7 +10,7 @@ import { RoutineOccurrenceForm, SlotEditForm } from './CalendarEditForms';
 let modalCount = 0;
 
 /** Time of the day of a routine occurrence shown in the calendar. */
-export interface RoutineSlotTimes {
+interface RoutineSlotTimes {
   index: number;
   fromTime: string | null;
   dueTime: string | null;
@@ -97,7 +97,7 @@ export function useCalendarEdits() {
     const { routine, date } = occurrence;
     const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: true, allowAll: false });
     if (!scope) return;
-    const onError = (error: Error) => notifyError(error.message);
+    const onError = onMutationError;
     deleteOccurrence.mutate(
       { id: routine.id, date, scope },
       {

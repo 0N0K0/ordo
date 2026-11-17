@@ -57,7 +57,7 @@ async function fetchFile(url: string, name: string): Promise<File> {
 }
 
 /** What the mail of a document needs. */
-export interface DocumentMail {
+interface DocumentMail {
   id: string;
   type: AccountingDocumentType;
   number: string;

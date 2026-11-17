@@ -1,5 +1,5 @@
 import { localToday } from '../../lib/dates';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import type { Recurrence, TreasuryAllocationInput } from '@ordo/shared';
 import { useTreasuryMutations, type ForecastEntry, type TreasuryEntry } from './api';
 import { newLine, type LineValues } from './lines';
@@ -128,6 +128,6 @@ export function useEntryCellSave() {
   return (entry: TreasuryEntry | ForecastEntry, change: Partial<EntryValues>) =>
     updateEntry.mutate(
       { id: entry.id, input: entryPayload({ ...entryValues(entry, { status: entry.status, copy: false, accountId: entry.accountId }), ...change }) as never },
-      { onError: (error) => notifyError(error.message) },
+      { onError: onMutationError },
     );
 }

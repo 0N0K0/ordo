@@ -18,7 +18,7 @@ import { openFormPanel } from '../../components/panels/panels';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
 import { categoryTree } from '../../components/category-tree/category-tree';
 import * as fmt from '../../lib/format';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useCommentCounts } from '../comments/api';
 import { commentColumn } from '../comments/comment-column';
 import { Comments } from '../comments/Comments';
@@ -36,6 +36,7 @@ import { ConservationCell, PeopleCell, StoreCell } from '../shopping/shopping-ce
 import { usePeople } from '../shopping/shopping-format';
 import { shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from './SheetUseForm';
+import { countOf, plural } from '../../lib/text';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
 
@@ -73,10 +74,7 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
           disabled={!ids.length}
           loading={addProducts.isPending}
           onClick={() =>
-            addProducts.mutate(
-              { sheetId, productIds: ids },
-              { onSuccess: (count) => (notifySuccess(`${count} élément${count > 1 ? 's' : ''} ajouté${count > 1 ? 's' : ''}.`), onDone()), onError: (error) => notifyError(error.message) },
-            )
+            addProducts.mutate({ sheetId, productIds: ids }, { onSuccess: (count) => (notifySuccess(`${countOf(count, 'élément')} ${plural(count, 'ajouté')}.`), onDone()), onError: onMutationError })
           }
         >
           Ajouter
@@ -97,7 +95,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
   const { context } = useTaskContext();
   const [name, setName] = useState(sheet.name);
   const [note, setNote] = useState(sheet.note ?? '');
-  const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, { onError: (error) => notifyError(error.message) });
+  const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, { onError: onMutationError });
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="sm">
@@ -224,7 +222,7 @@ export function SheetPage() {
     ),
   ];
   const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.name ?? 'Fiche' });
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const bulk = bulkSaver<SheetDetailItem, ItemChange>(
     view,
     (item, change) => Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: sheetItemInput(item, change) }, onError),
@@ -251,7 +249,7 @@ export function SheetPage() {
       </Anchor>
       <PageHeader
         title={sheet.name}
-        description={`${sheet.items.length} élément${sheet.items.length > 1 ? 's' : ''}${sheet.usedBy ? ` · rattachée à ${sheet.usedBy} routine(s), évènement(s) ou tâche(s)` : ''}`}
+        description={`${countOf(sheet.items.length, 'élément')}${sheet.usedBy ? ` · rattachée à ${sheet.usedBy} routine(s), évènement(s) ou tâche(s)` : ''}`}
         actions={
           <ActionButton
             priority="secondary"

@@ -9,7 +9,7 @@ import { bulkSaver } from '../../components/data-table/bulk-edit';
 import { StackedValues } from '../../components/data-table/StackedValues';
 import { EditableSelect } from '../../components/data-table/EditableCells';
 import { treeSelectProps } from '../../components/tree-select/tree-select';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import type { DataColumn } from '../../components/data-table/data-table';
 import { RowActions } from '../../components/data-table/RowActions';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
@@ -233,7 +233,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
    */
   const saveOne = (entry: TimeEntry, change: Partial<TimeEntryValues>) =>
     // A time on a final invoice, or running, is left as it is.
-    editable(entry) && update.mutate({ id: entry.id, input: change }, { onError: (error) => notifyError(error.message) });
+    editable(entry) && update.mutate({ id: entry.id, input: change }, { onError: onMutationError });
   const { data: routinesData } = useRoutinesData();
   const routineOptions = (routinesData?.routines ?? []).map((routine) => ({ value: routine.id, label: routine.title }));
   const entryComments = useCommentCounts(

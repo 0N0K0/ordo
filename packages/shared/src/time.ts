@@ -140,7 +140,7 @@ export const alarmInputSchema = z
 export type AlarmInput = z.input<typeof alarmInputSchema>;
 
 /** Schedule of an alarm (REMINDER and NOT_TRACKING), in the user's local time. */
-export interface AlarmSchedule {
+interface AlarmSchedule {
   startDate: string | null;
   time: string | null;
   frequency: AlarmFrequency;

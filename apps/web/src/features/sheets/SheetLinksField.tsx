@@ -1,6 +1,6 @@
 import { ActionIcon, Button, Group, NumberInput, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { PlusIcon, XIcon } from '@phosphor-icons/react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useSheetLinks, useSheetMutations, useSheets, type SheetOwner } from './api';
 
 /**
@@ -14,7 +14,7 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
   const { data: links } = useSheetLinks(owner);
   const { setLinks } = useSheetMutations();
   const current = (links ?? []).map((link) => ({ sheetId: link.sheetId, multiplier: link.multiplier }));
-  const save = (next: { sheetId: string; multiplier: number }[]) => setLinks.mutate({ owner, links: next }, { onError: (error) => notifyError(error.message) });
+  const save = (next: { sheetId: string; multiplier: number }[]) => setLinks.mutate({ owner, links: next }, { onError: onMutationError });
   const options = (sheets ?? []).map((sheet) => ({ value: sheet.id, label: sheet.name }));
   const free = options.filter((option) => !current.some((link) => link.sheetId === option.value));
   return (

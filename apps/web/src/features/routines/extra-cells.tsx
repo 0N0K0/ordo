@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import { TimeField } from '../../components/TimeField';
 import { treeOptions, treeSelectProps } from '../../components/tree-select/tree-select';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { AddressInput, type AddressValue } from '../geo/AddressInput';
 import { useRoutineMutations, type Routine } from './api';
 import { useRoutineCellEdit } from './routine-cell-edit';
@@ -296,7 +296,7 @@ export function BlocksCell({ routine, routines }: { routine: Routine; routines: 
           if (added.includes(other.id)) required = [...new Set([...required, ...targets.filter((id) => id !== other.id)])];
           if (removed.includes(other.id)) required = required.filter((id) => !targets.includes(id));
           if (required.length !== other.requiredIds.length || required.some((id) => !other.requiredIds.includes(id))) {
-            patch.mutate({ id: other.id, input: { requiredIds: required } }, { onError: (error) => notifyError(error.message) });
+            patch.mutate({ id: other.id, input: { requiredIds: required } }, { onError: onMutationError });
           }
         }
       }}

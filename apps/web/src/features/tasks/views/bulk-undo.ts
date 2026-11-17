@@ -9,7 +9,7 @@ const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'effor
  * @param {BulkChanges} changes Applied change.
  * @returns {{ ids: string[], changes: BulkChanges }[]} Restoring changes.
  */
-export function revertChanges(tasks: Task[], changes: BulkChanges): { ids: string[]; changes: BulkChanges }[] {
+function revertChanges(tasks: Task[], changes: BulkChanges): { ids: string[]; changes: BulkChanges }[] {
   const groups = new Map<string, { ids: string[]; changes: BulkChanges }>();
   for (const task of tasks) {
     const previous: BulkChanges = {};

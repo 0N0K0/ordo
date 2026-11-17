@@ -25,7 +25,7 @@ export type TaskStatus = TasksDataQuery['taskStatuses'][number];
 export type Milestone = MilestoneFieldsFragment;
 export type Sprint = SprintFieldsFragment;
 export type { TaskStatusCategory };
-export type TasksData = TasksDataQuery;
+type TasksData = TasksDataQuery;
 
 graphql(`
   fragment ContributorFields on Contributor {
@@ -857,7 +857,7 @@ export interface TaskViewRecord {
   position: number;
 }
 
-export const taskViewsQueryKey = ['taskViews'] as const;
+const taskViewsQueryKey = ['taskViews'] as const;
 
 /**
  * Saved views of the tasks (or of the routines) of a project's tab (or of their page), in tab order.
@@ -1017,7 +1017,7 @@ const MoveMilestoneDocument = graphql(`
   }
 `);
 
-export interface MilestoneInputValues {
+interface MilestoneInputValues {
   title: string;
   description: string | null;
   dueDate: string | null;
@@ -1092,7 +1092,7 @@ const DeleteSprintDocument = graphql(`
   }
 `);
 
-export interface SprintInputValues {
+interface SprintInputValues {
   name: string;
   goal: string | null;
   startDate: string;

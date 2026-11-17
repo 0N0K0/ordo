@@ -1,7 +1,7 @@
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { ActionIcon, Badge, Group, Paper, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClockCountdownIcon, PaperPlaneRightIcon } from '@phosphor-icons/react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useMailAccounts, useMailActions, useScheduledMails } from './api';
 import * as fmt from '../../lib/format';
 
@@ -14,7 +14,7 @@ export function ScheduledMailsList() {
   const { data: scheduled } = useScheduledMails();
   const { data: accounts } = useMailAccounts();
   const { sendScheduled, cancelScheduled } = useMailActions();
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   if (!scheduled?.length) {
     return (

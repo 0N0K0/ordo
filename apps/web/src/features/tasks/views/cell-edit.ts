@@ -1,6 +1,6 @@
 import type { TaskColumn } from '@ordo/shared';
 import { bulkSaver, bulkTargets, useBulkTable, type BulkTable } from '../../../components/data-table/bulk-edit';
-import { notifyError, notifyWithUndo } from '../../../lib/notify';
+import { notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { useBulkTaskMutations, useTasksData, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
 import { useBulkUndo } from './bulk-undo';
 import { tasksLabel } from './bulk-label';
@@ -26,7 +26,7 @@ export function useCellEdit(task: Task, column: TaskColumn) {
   // The tasks of the table, by the keys of its rows (a task's row key is its id; the events have their own).
   const view: BulkTable<Task> = { selection: table?.selection ?? null, keyOf: (item) => item.id, rows: data?.tasks ?? [] };
   const targets = bulkTargets(view, column, task).map((item) => item.id);
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
 
   return {
     count: targets.length,

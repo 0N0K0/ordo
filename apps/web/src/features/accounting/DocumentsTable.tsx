@@ -12,7 +12,7 @@ import type { DataColumn } from '../../components/data-table/data-table';
 import { RowActions } from '../../components/data-table/RowActions';
 import { useDataView, type FirstTableView } from '../../components/data-table/use-data-view';
 import { localToday } from '../../lib/dates';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from './documents-api';
 import { openImportForm } from './imported-form';
 import { DOCUMENT_TYPE_LABELS } from './labels';
@@ -287,7 +287,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
                   notifySuccess('Document dupliqué en brouillon.');
                   onDuplicated(id);
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             ),
         },
@@ -328,7 +328,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   const { remove } = importedMutations;
   const documentMutations = useDocumentMutations();
   const tracking = useTrackingMutations();
-  const onError = { onError: (error: Error) => notifyError(error.message) };
+  const onError = { onError: onMutationError };
   const ordoComments = useCommentCounts(
     'DOCUMENT',
     documents.map((document) => document.id),
@@ -416,7 +416,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       onConfirm: () => {
         remove.mutate(document.id, {
           onSuccess: () => notifySuccess('Document importé supprimé.'),
-          onError: (error) => notifyError(error.message),
+          onError: onMutationError,
         });
       },
     });

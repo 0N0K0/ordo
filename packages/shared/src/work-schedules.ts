@@ -1,25 +1,26 @@
 import { z } from 'zod';
-import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, parseDay, type Duration, type Recurrence } from './recurrence';
+import { addDays, daysBetween, DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from './recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from './repetition';
 import { colorSchema } from './workspace';
+import { weekdayOfDate } from './weeks';
 
 const isoDate = z.iso.date({ error: 'Date invalide.' });
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure attendue (HH:MM).');
 
 /** Hours of a day of a case, in local time. */
-export const timeRangeSchema = z.object({ start: timeSchema, end: timeSchema }).refine((range) => range.end > range.start, { path: ['end'], message: 'La fin doit suivre le début.' });
-export type TimeRange = z.infer<typeof timeRangeSchema>;
+const timeRangeSchema = z.object({ start: timeSchema, end: timeSchema }).refine((range) => range.end > range.start, { path: ['end'], message: 'La fin doit suivre le début.' });
+type TimeRange = z.infer<typeof timeRangeSchema>;
 
 /** Which days a case is on: every day of its period, weekdays (every n weeks), every n days, a day of the month
  * (every n months) or of a month of the year (every n years). */
-export const SCHEDULE_PATTERNS = ['DAILY', 'WEEKLY', 'EVERY_N_DAYS', 'MONTHLY', 'YEARLY'] as const;
+const SCHEDULE_PATTERNS = ['DAILY', 'WEEKLY', 'EVERY_N_DAYS', 'MONTHLY', 'YEARLY'] as const;
 export type SchedulePattern = (typeof SCHEDULE_PATTERNS)[number];
 
 /**
  * A case of a schedule: on which days (every day, weekdays every n weeks, every n days) and with which hours (time
  * ranges, or the whole day). The same hours on all its days.
  */
-export const scheduleCaseSchema = z
+const scheduleCaseSchema = z
   .object({
     pattern: z.enum(SCHEDULE_PATTERNS),
     /** WEEKLY: 1 (Monday) to 7 (Sunday). */
@@ -67,17 +68,17 @@ export const scheduleCaseSchema = z
     });
   });
 /** Case of a schedule in its former form (pattern, every…), read and converted (see `scheduleCaseRepetition`). */
-export type LegacyScheduleCase = z.infer<typeof scheduleCaseSchema>;
+type LegacyScheduleCase = z.infer<typeof scheduleCaseSchema>;
 
 /** Hours of the days of a schedule case: time ranges, or the whole day. */
-export const scheduleTimesSchema = z.object({
+const scheduleTimesSchema = z.object({
   allDay: z.boolean().default(false),
   ranges: z.array(timeRangeSchema).max(12, '12 tranches au plus.').default([]),
 });
 export type ScheduleTimes = z.infer<typeof scheduleTimesSchema>;
 
 /** A case of a schedule: its period, its rule (with how long each occurrence lasts) and its hours. */
-export const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).superRefine((item, context) => {
+const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).superRefine((item, context) => {
   if (item.rule?.frequency === 'WEEKLY' && !item.rule.weekdays.length) context.addIssue({ code: 'custom', path: ['rule', 'weekdays'], message: 'Choisissez au moins un jour.' });
   if (!item.times.allDay && !item.times.ranges.length) context.addIssue({ code: 'custom', path: ['times', 'ranges'], message: 'Ajoutez des horaires, ou « toute la journée ».' });
   // Ranges of a case must not overlap.
@@ -95,7 +96,7 @@ const exceptionFields = {
 };
 
 /** Period with its own cases instead of the general ones (none: a pause, holidays…), dates included. */
-export const scheduleExceptionSchema = z
+const scheduleExceptionSchema = z
   .object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) })
   .refine((exception) => exception.to >= exception.from, { path: ['to'], message: 'La fin doit suivre le début.' });
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
@@ -139,7 +140,7 @@ export interface PlannedSlot {
 }
 
 /** Paused period of a schedule (an exception without cases) overlapping a period. */
-export interface PlannedPause {
+interface PlannedPause {
   from: string;
   to: string;
   label: string;
@@ -153,7 +154,7 @@ export interface PlannedPause {
  * @returns {number} 1 (Monday) to 7 (Sunday).
  */
 export function weekdayOf(date: string): number {
-  return ((parseDay(date).getUTCDay() + 6) % 7) + 1;
+  return weekdayOfDate(date);
 }
 
 /**
@@ -161,7 +162,7 @@ export function weekdayOf(date: string): number {
  * @param {string} date YYYY-MM-DD.
  * @returns {string} Monday.
  */
-export function mondayOf(date: string): string {
+function mondayOf(date: string): string {
   return addDays(date, 1 - weekdayOf(date));
 }
 
@@ -176,24 +177,11 @@ export function isoWeek(date: string): number {
 }
 
 /**
- * Rhythms a period allows: one day, hours only; a week at most, weekdays without "every n weeks"; longer (or no
- * end), weekdays every n weeks or every n days.
- * @param {string} from First day.
- * @param {string | null} to Last day (none: no end).
- * @returns {'DAY' | 'WEEK' | 'ANY'} Rhythms allowed.
- */
-export function periodRhythm(from: string, to: string | null): 'DAY' | 'WEEK' | 'ANY' {
-  if (to === null) return 'ANY';
-  const days = daysBetween(from, to) + 1;
-  return days <= 1 ? 'DAY' : days <= 7 ? 'WEEK' : 'ANY';
-}
-
-/**
  * Year an ISO week belongs to (that of its Thursday).
  * @param {string} date YYYY-MM-DD.
  * @returns {number} Year.
  */
-export function isoWeekYear(date: string): number {
+function isoWeekYear(date: string): number {
   return Number(addDays(date, 4 - weekdayOf(date)).slice(0, 4));
 }
 
@@ -229,7 +217,7 @@ function caseAnchor(item: LegacyScheduleCase, periodStart: string): string {
  * @param {string} periodStart First day of its period (rhythm start without `from`).
  * @returns {ScheduleCase} Case.
  */
-export function scheduleCaseRepetition(item: LegacyScheduleCase, periodStart: string): ScheduleCase {
+function scheduleCaseRepetition(item: LegacyScheduleCase, periodStart: string): ScheduleCase {
   const base = { ...DEFAULT_RECURRENCE, interval: item.every };
   const days: Duration = { ...ONE_DAY, count: item.days };
   const toDay = (month: number | null): Duration => ({ ...ONE_DAY, unit: 'TO_DAY', day: item.toDay, month });
@@ -283,7 +271,7 @@ function caseOn(item: ScheduleCase, periodStart: string, date: string): boolean 
  * @param {string} date YYYY-MM-DD.
  * @returns {{ cases: readonly ScheduleCase[], from: string, exception: ScheduleException | null }} Cases.
  */
-export function casesOn(schedule: WorkScheduleRule, date: string): { cases: readonly ScheduleCase[]; from: string; exception: ScheduleException | null } {
+function casesOn(schedule: WorkScheduleRule, date: string): { cases: readonly ScheduleCase[]; from: string; exception: ScheduleException | null } {
   // The one started last; on the same day, the shorter one (a day changed within a longer exception).
   const exception = schedule.exceptions.filter((item) => item.from <= date && date <= item.to).sort((a, b) => b.from.localeCompare(a.from) || a.to.localeCompare(b.to))[0];
   return exception ? { cases: exception.cases, from: exception.from, exception } : { cases: schedule.cases, from: schedule.startDate, exception: null };
@@ -454,10 +442,10 @@ export function fromLegacySchedule(legacy: { startDate: string; intervalWeeks: n
  * How slots show in the week and the day: their hours in the background, the whole day in the background, a thin
  * line on the left of their hours, or nothing (the bar at the top aside).
  */
-export const SCHEDULE_DAY_DISPLAYS = ['SLOT_BACKGROUND', 'DAY_BACKGROUND', 'SLOT_BORDER', 'NONE'] as const;
+const SCHEDULE_DAY_DISPLAYS = ['SLOT_BACKGROUND', 'DAY_BACKGROUND', 'SLOT_BORDER', 'NONE'] as const;
 export type ScheduleDayDisplay = (typeof SCHEDULE_DAY_DISPLAYS)[number];
 /** How a day with slots shows in the month: in the background, a thin line at the bottom, or nothing. */
-export const SCHEDULE_MONTH_DISPLAYS = ['BACKGROUND', 'BORDER', 'NONE'] as const;
+const SCHEDULE_MONTH_DISPLAYS = ['BACKGROUND', 'BORDER', 'NONE'] as const;
 export type ScheduleMonthDisplay = (typeof SCHEDULE_MONTH_DISPLAYS)[number];
 
 /** Display of slots in the calendar. */
@@ -525,7 +513,7 @@ export interface ScheduleSlotTime {
 }
 
 /** Which slots a change of a slot applies to: that day only (an exception), it and the following ones, or all. */
-export type ScheduleSlotScope = 'THIS' | 'FOLLOWING' | 'ALL';
+type ScheduleSlotScope = 'THIS' | 'FOLLOWING' | 'ALL';
 
 /**
  * Case holding a single slot on every day of its period (an exception of one day lists its slots so).

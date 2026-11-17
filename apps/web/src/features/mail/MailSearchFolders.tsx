@@ -5,7 +5,7 @@ import type { MailSearchCriteria } from '@ordo/shared';
 import { CheckCircleIcon, DotsThreeIcon, FlagIcon, FunnelIcon, MagnifyingGlassPlusIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ErrorIcon } from '../../components/feedback-icons';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useMailAccounts, useMailLabels, useMailSearchMutations, useMailSearchResults, useMailSearches, type MailSearch } from './api';
 import { correspondent, listDate } from './mail-format';
 import { groupMails } from './mail-groups';
@@ -41,7 +41,7 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
             notifySuccess('Dossier de recherche supprimé.');
             if (selectedId === search.id) onSelect(null);
           },
-          onError: (error) => notifyError(error.message),
+          onError: onMutationError,
         });
       },
     });

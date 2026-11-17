@@ -113,6 +113,13 @@ export function notifyError(message: string): void {
 }
 
 /**
+ * Error of a mutation (or of any action), told in an error toast: the handler every `onError` takes.
+ * @param {Error} error Error.
+ * @returns {void}
+ */
+export const onMutationError = (error: Error): void => notifyError(error.message);
+
+/**
  * Shows a success toast with an "Annuler" button, for a few seconds.
  * @param {string} message Message to display.
  * @param {() => void} onUndo Reverts the action.

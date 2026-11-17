@@ -4,7 +4,7 @@ import { exportFileName, saveFile } from './chart-image';
 import * as fmt from '../../lib/format';
 
 /** Data of a chart as a table: one row per value of the axis, one column per series. */
-export interface ChartTable {
+interface ChartTable {
   columns: string[];
   /** Raw values: the axis label, then numbers (null: none). */
   rows: (string | number | null)[][];

@@ -30,14 +30,6 @@ export function runInWorkspace<T>(workspace: WorkspaceScope, fn: () => T): T {
 }
 
 /**
- * Workspace of the current request or job, if any.
- * @returns {WorkspaceScope | undefined} Workspace.
- */
-export function maybeWorkspace(): WorkspaceScope | undefined {
-  return storage.getStore();
-}
-
-/**
  * Workspace of the current request or job.
  * @returns {WorkspaceScope} Workspace.
  * @throws {Error} Outside a workspace: no query on the workspace data may run there.

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { AddRowButton, AddRowField } from '../../components/data-table/AddRowField';
 
 /** Fields of a row added in a group (its category, store, way of keeping or person). */
-export type ShoppingPlace = Partial<Omit<ShoppingItemInput, 'name'>>;
+type ShoppingPlace = Partial<Omit<ShoppingItemInput, 'name'>>;
 
 export interface ShoppingAdd {
   /** Placeholder of the name field ("Ajouter un produit"). */

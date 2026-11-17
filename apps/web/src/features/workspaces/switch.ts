@@ -58,7 +58,7 @@ const KEPT_PARAMS = ['tab'];
  * one of its items (home for a project), without what names items or views of this workspace.
  * @returns {string} Path.
  */
-export function samePageElsewhere(): string {
+function samePageElsewhere(): string {
   const { pathname, search } = window.location;
   const list = ITEM_PAGES.find(([pattern]) => pattern.test(pathname));
   if (list) return list[1];

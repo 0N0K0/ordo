@@ -2,20 +2,8 @@ import { openFormPanel } from '../../components/panels/panels';
 import { modals } from '@mantine/modals';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
-import { notifyError, notifyWithUndo } from '../../lib/notify';
-import {
-  descendantIds,
-  useSetClientArchived,
-  useSetClientFavorite,
-  useSetProjectArchived,
-  useSetProjectFavorite,
-  useUpdateClient,
-  useUpdateProject,
-  workspaceQueryKey,
-  type Client,
-  type Project,
-  type Workspace,
-} from './api';
+import { notifyWithUndo, onMutationError } from '../../lib/notify';
+import { descendantIds, useSetClientArchived, useSetClientFavorite, useSetProjectArchived, useSetProjectFavorite, useUpdateClient, useUpdateProject, workspaceQueryKey, type Client, type Project, type Workspace } from './api';
 import { ClientForm } from './ClientForm';
 import { DeleteClientDialog, DeleteProjectDialog } from './DeleteDialogs';
 import { ProjectForm } from './ProjectForm';
@@ -87,7 +75,7 @@ export function useEntityActions() {
           const message = `« ${entityLabel(entity)} » ${favorite ? 'ajouté aux' : 'retiré des'} favoris.`;
           notifyWithUndo(message, () => setFavorite(entity, !favorite, false));
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -110,7 +98,7 @@ export function useEntityActions() {
           const message = `« ${entityLabel(entity)} » ${archived ? 'archivé' : 'désarchivé'}${cascade}.`;
           notifyWithUndo(message, () => setArchived(entity, !archived, false));
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -123,7 +111,7 @@ export function useEntityActions() {
    */
   const rename = (entity: EntityRef, label: string): void => {
     if (label === entityLabel(entity)) return;
-    const onError = (error: Error) => notifyError(error.message);
+    const onError = onMutationError;
     if (entity.type === 'client') updateClient.mutate({ id: entity.item.id, input: { name: label } }, { onError });
     else updateProject.mutate({ id: entity.item.id, input: { title: label } }, { onError });
   };

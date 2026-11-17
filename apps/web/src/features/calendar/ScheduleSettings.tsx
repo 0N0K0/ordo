@@ -4,7 +4,7 @@ import { createdId } from '../../components/settings/settings-api';
 import { SettingsList } from '../../components/settings/SettingsList';
 import { ArrowCounterClockwiseIcon, SlidersHorizontalIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import { useColorSwatches } from '../workspace/use-color-swatches';
 import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations } from './api';
 import { ScheduleLookEditor } from './ScheduleLookEditor';
@@ -20,7 +20,7 @@ function DefaultScheduleKind() {
   const swatches = useColorSwatches();
   const [opened, setOpened] = useState(false);
   if (!defaultKind) return null;
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="xs">
@@ -116,7 +116,7 @@ function ForeignSchedules() {
   const swatches = useColorSwatches();
   const [opened, setOpened] = useState<string | null>(null);
   if (!kinds?.length) return null;
-  const onError = (error: Error) => notifyError(error.message);
+  const onError = onMutationError;
   const byWorkspace = new Map<string, typeof kinds>();
   for (const kind of kinds) byWorkspace.set(kind.workspaceId, [...(byWorkspace.get(kind.workspaceId) ?? []), kind]);
   return (

@@ -6,7 +6,7 @@ import { startReport } from './pdf-report';
 type Doc = InstanceType<typeof PDFDocument>;
 
 /** Table printed as a PDF: the rows and columns the user sees, already formatted. */
-export const tablePdfSchema = z.object({
+const tablePdfSchema = z.object({
   title: z.string().trim().min(1).max(200),
   subtitle: z.string().max(500).default(''),
   columns: z.array(z.string().max(80)).min(1).max(30),
@@ -23,7 +23,7 @@ export const tablePdfSchema = z.object({
   /** Alignment of each column (numbers to the right); left when omitted. */
   align: z.array(z.enum(['left', 'right'])).max(30).default([]),
 });
-export type TablePdfInput = z.input<typeof tablePdfSchema>;
+type TablePdfInput = z.input<typeof tablePdfSchema>;
 
 const COLORS = { text: '#1d232b', muted: '#66707c', border: '#dfe3e8', fill: '#f2f4f6', group: '#e7ebf0', task: '#2f9e44', event: '#1c7ed6' };
 const MARGIN = 36;

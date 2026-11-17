@@ -3,7 +3,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { Anchor, Badge, Group, Select, Stack, Text } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import type { Task } from '../tasks/api';
 import { useShoppingLists, useShoppingMutations } from './api';
 import { shoppingTotal } from './export';
@@ -69,10 +69,7 @@ export function TaskShopping({ task }: { task: Task }) {
           onChange={(id) => {
             const list = free.find((item) => item.id === id);
             if (list)
-              updateList.mutate(
-                { id: list.id, name: list.name, taskIds: [...list.taskIds, task.id] },
-                { onSuccess: () => notifySuccess('Liste rattachée à la tâche.'), onError: (error) => notifyError(error.message) },
-              );
+              updateList.mutate({ id: list.id, name: list.name, taskIds: [...list.taskIds, task.id] }, { onSuccess: () => notifySuccess('Liste rattachée à la tâche.'), onError: onMutationError });
           }}
           aria-label="Rattacher une liste d’achats existante"
         />

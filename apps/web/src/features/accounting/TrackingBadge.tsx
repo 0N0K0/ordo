@@ -1,7 +1,7 @@
 import { Badge, ColorSwatch, Group, Menu, UnstyledButton } from '@mantine/core';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react';
-import { notifyError } from '../../lib/notify';
+import { onMutationError } from '../../lib/notify';
 import type { AccountingDocumentSummary } from './documents-api';
 import { openSentDialog } from './sent-dialog';
 import { useDocumentStatuses, useTrackingMutations } from './tracking-api';
@@ -75,7 +75,7 @@ function DocumentStatusMenu({ document, onSelect }: { document: TrackedDocument;
                 sentVia: document.sentVia,
                 onSubmit: ({ date, via }) => markSent.mutateAsync({ id: document.id, date, via, statusId: status.id }),
               })
-            : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: (error) => notifyError(error.message) })
+            : setStatus.mutate({ id: document.id, statusId: status.id }, { onError: onMutationError })
       }
     />
   );

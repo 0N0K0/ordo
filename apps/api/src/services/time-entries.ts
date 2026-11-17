@@ -118,7 +118,7 @@ function assertNotInvoiced(entry: { document: { number: string | null; status: s
  * The running timer, if any.
  * @returns {Promise<TimeEntry | null>} Running entry.
  */
-export function runningEntry(): Promise<TimeEntry | null> {
+function runningEntry(): Promise<TimeEntry | null> {
   return prisma.timeEntry.findFirst({ where: { endedAt: null } });
 }
 

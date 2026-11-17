@@ -1,7 +1,7 @@
 import { Button, Group, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { RichEditor } from '../../../components/rich-text/RichEditor';
-import { notifyError, notifySuccess } from '../../../lib/notify';
+import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccountMutations, type MailAccount } from '../api';
 
 /**
@@ -33,7 +33,7 @@ export function SignatureForm({ account, onDone }: { account: MailAccount; onDon
                   notifySuccess('Signature enregistrée.');
                   onDone();
                 },
-                onError: (error) => notifyError(error.message),
+                onError: onMutationError,
               },
             )
           }

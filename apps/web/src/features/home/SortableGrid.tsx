@@ -1,9 +1,10 @@
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, rectSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SimpleGrid } from '@mantine/core';
 import { useMemo, type ReactNode } from 'react';
 import { DragHandleContext } from './drag-handle';
+import { useDragSensors } from '../../lib/drag';
 
 interface SortableItemProps {
   id: string;
@@ -46,7 +47,7 @@ interface SortableGridProps {
  * @returns {JSX.Element} Grid.
  */
 export function SortableGrid({ items, onReorder }: SortableGridProps) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useDragSensors('sortable');
   const ids = items.map((item) => item.id);
 
   /**

@@ -39,7 +39,7 @@ import {
 } from '@phosphor-icons/react';
 import { useRef, useState, type DragEvent } from 'react';
 import { useSearchParams } from 'react-router';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifyError, notifySuccess, onMutationError } from '../../lib/notify';
 import { useLibrary, useLibraryMutations, useLibraryOptimism, zipUrl, type DocumentFolder, type LibraryDocument } from './api';
 import { folderPaths, folderSubtree } from './folders';
 import { DocumentForm, FolderNameForm, LinkForm, MoveForm } from './LibraryForms';
@@ -66,6 +66,7 @@ import { commentColumn } from '../comments/comment-column';
 import { SelectionBar } from '../../components/data-table/SelectionBar';
 import { selectedLabel } from '../../components/data-table/selection-label';
 import { GroupFooter, TableFooter } from '../../components/data-table/TableFooter';
+import { countOf } from '../../lib/text';
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
@@ -239,7 +240,7 @@ export function LibraryPage() {
   const saveDocument = (document: LibraryDocument, change: { title?: string; note?: string | null }) =>
     mutations.update.mutate(
       { id: document.id, title: document.title, url: document.kind === 'LINK' ? document.url : null, note: document.note ?? null, file: null, ...change },
-      { onError: (error) => notifyError(error.message) },
+      { onError: onMutationError },
     );
   const [params, setParams] = useSearchParams();
   const tableRef = useRef<HTMLTableElement>(null);
@@ -363,7 +364,7 @@ export function LibraryPage() {
               onClick: () =>
                 confirmDestructive({
                   title: 'Supprimer le dossier',
-                  risks: `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${inside} document${inside > 1 ? 's' : ''}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
+                  risks: `« ${folder.name} » sera supprimé définitivement${inside ? `, avec ses sous-dossiers et ses ${countOf(inside, 'document')}` : ' avec ses sous-dossiers'}. Cette action est irréversible.`,
                   onConfirm: () =>
                     mutations.deleteFolder.mutate(folder.id, {
                       onSuccess: () => {

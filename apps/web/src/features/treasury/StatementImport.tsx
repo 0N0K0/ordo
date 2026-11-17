@@ -1,10 +1,10 @@
 import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
-import { normalize } from '../../lib/text';
+import { countOf, normalize, plural } from '../../lib/text';
 import { listSelectProps } from '../../components/settings/item-look';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
 import { FileCsvIcon, InfoIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
-import { notifyError, notifySuccess } from '../../lib/notify';
+import { notifySuccess, onMutationError } from '../../lib/notify';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from './api';
 import { BatchMultiSelect } from '../../components/BatchMultiSelect';
 import * as fmt from '../../lib/format';
@@ -220,12 +220,10 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
       },
       {
         onSuccess: ({ created, realized }) => {
-          notifySuccess(
-            `${created} opération${created > 1 ? 's' : ''} importée${created > 1 ? 's' : ''}${realized ? `, ${realized} prévision${realized > 1 ? 's' : ''} réalisée${realized > 1 ? 's' : ''}` : ''}.`,
-          );
+          notifySuccess(`${countOf(created, 'opération')} ${plural(created, 'importée')}${realized ? `, ${countOf(realized, 'prévision')} ${plural(realized, 'réalisée')}` : ''}.`);
           onDone();
         },
-        onError: (error) => notifyError(error.message),
+        onError: onMutationError,
       },
     );
   };
@@ -353,7 +351,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
           )}
         </SimpleGrid>
         <Text size="sm" c={rows.length ? 'dimmed' : 'red'}>
-          {rows.length ? `${rows.length} opération${rows.length > 1 ? 's' : ''} lue${rows.length > 1 ? 's' : ''}.` : 'Aucune opération lue : vérifiez les colonnes et le format de date.'}
+          {rows.length ? `${countOf(rows.length, 'opération')} ${plural(rows.length, 'lue')}.` : 'Aucune opération lue : vérifiez les colonnes et le format de date.'}
         </Text>
         <Group justify="flex-end">
           <Button variant="default" onClick={() => setStep('file')}>
