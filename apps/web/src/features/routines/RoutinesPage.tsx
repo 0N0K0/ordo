@@ -5,7 +5,7 @@ import { TableSkeleton } from '../../components/feedback/Skeletons';
 import { Group, Stack } from '@mantine/core';
 import { ArrowsClockwiseIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react';
 import { ROUTINE_FILTER_FIELDS, type RoutineFilterField, type RoutineGroupBy, type RoutineViewConfig } from '@ordo/shared';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ColumnMenuExtras } from '../../components/data-table/ColumnHeaderMenu';
 import { DataColumnsPanel } from '../../components/data-table/ColumnsPanel';
 import { shownColumns } from '../../components/data-table/data-table';
@@ -16,7 +16,7 @@ import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../components/PageTabs';
 import { localToday } from '../../lib/dates';
 import { useTaskContext } from '../tasks/use-task-context';
-import { useRoutinesData, type Routine } from './api';
+import { isDraftRoutine, useRoutinesData, type Routine } from './api';
 import { openRoutineForm } from './open-routine-form';
 import { useWorkSchedules } from '../calendar/api';
 import { useSlotRules, routineDoable } from '../slot-rules/use-slot-rules';
@@ -76,9 +76,10 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
   const { data: schedules } = useWorkSchedules();
+  // Without those being created (no comment yet): no count asked again for them.
   const comments = useCommentCounts(
     'ROUTINE',
-    routines.map((routine) => routine.id),
+    useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => routine.id), [routines]),
   );
   const { options: beneficiaryGroups } = useBeneficiaries();
   const env = useMemo(
@@ -99,19 +100,26 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   );
 
   /**
-   * Whether a routine is shown: of the project (on a project page) and kept by the view.
+   * Whether a routine is shown: of the project (on a project page) and kept by the view. One being created is shown
+   * at once (its occurrences, computed once saved, may then take it out of the view).
    * @param {Routine} routine Routine.
    * @returns {boolean} Shown.
    */
-  const keep = (routine: Routine) => {
-    if (projectIds && !(routine.projectId && projectIds.has(routine.projectId))) return false;
-    return Boolean(config && env && keptByView(config, routine, env));
-  };
-  const count = routines.filter(keep).length;
-  const ordered = config && env ? sortRoutines(routines, config.sorting, env) : routines;
-  // Flat: each routine a row of its own.
-  const layout = config?.flat ? ordered.map((routine) => ({ ...routine, parentId: null })) : ordered;
+  const keep = useCallback(
+    (routine: Routine) => {
+      if (projectIds && !(routine.projectId && projectIds.has(routine.projectId))) return false;
+      return isDraftRoutine(routine) || Boolean(config && env && keptByView(config, routine, env));
+    },
+    [projectIds, config, env],
+  );
+  const count = useMemo(() => routines.filter(keep).length, [routines, keep]);
+  // Flat: each routine a row of its own. Kept from a render to the next: the rows are drawn again only when they change.
+  const layout = useMemo(() => {
+    const ordered = config && env ? sortRoutines(routines, config.sorting, env) : routines;
+    return config?.flat ? ordered.map((routine) => ({ ...routine, parentId: null })) : ordered;
+  }, [routines, config, env]);
   const groupBy = config?.groupBy ?? null;
+  const grouping = useMemo(() => (env ? routineGrouping(groupBy, env) : null), [groupBy, env]);
 
   return (
     <Stack gap="md">
@@ -167,7 +175,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             categories={categories}
             context={context}
             keep={keep}
-            grouping={routineGrouping(groupBy, env)}
+            grouping={grouping}
             reorderable={config.sorting.length === 0 && !config.flat}
             groupDrop={groupBy === 'category'}
             addable={groupBy === 'category' || groupBy === null}

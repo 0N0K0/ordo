@@ -281,11 +281,24 @@ function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (dat
       return { previous };
     },
     onError: (_error, _variables, context) => context?.previous && queryClient.setQueryData(routinesKey, context.previous),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: routinesKey }),
+    // Refreshed in the background: the change (shown at once) is not held up by the reload of every routine.
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: routinesKey });
+    },
   });
 }
 
 let draftCount = 0;
+
+/** Start of the id of a routine being created (not saved yet). */
+const DRAFT = 'draft-';
+
+/**
+ * Tells whether a routine is being created (shown as typed, not saved yet).
+ * @param {{ id: string }} routine Routine.
+ * @returns {boolean} Whether it is a draft.
+ */
+export const isDraftRoutine = (routine: { id: string }) => routine.id.startsWith(DRAFT);
 
 /**
  * Routine being created, as typed (shown until the saved one replaces it): last of its siblings, nothing computed yet.
@@ -296,7 +309,7 @@ let draftCount = 0;
 function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routine {
   const siblings = routines.filter((routine) => (routine.parentId ?? null) === (input.parentId ?? null));
   return {
-    id: `draft-${(draftCount += 1)}`,
+    id: `${DRAFT}${(draftCount += 1)}`,
     title: input.title,
     description: input.description ?? null,
     categoryIds: input.categoryIds ?? [],
