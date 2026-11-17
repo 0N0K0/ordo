@@ -2276,7 +2276,8 @@ model Place {
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, name])
+  /// A name is unique among the zones of a place (those at the top are checked by the app: a null parent is never equal).
+  @@unique([workspaceId, parentId, name])
 }
 
 /// Category of the shopping products, in a tree (as the treasury categories).

@@ -178,11 +178,16 @@ export async function savePlace(id: string | null, input: PlaceInput): Promise<P
     // A zone has no address of its own.
     Object.assign(data, { address: '', lat: null, lon: null });
   }
+  // A name is unique among the places at the top, and among the zones of a place (the database checks the zones).
+  const taken = data.parentId ? 'Une zone de ce lieu porte déjà ce nom.' : 'Un lieu porte déjà ce nom.';
+  if (!data.parentId && (await prisma.place.count({ where: { parentId: null, name: data.name, ...(id && { id: { not: id } }) } }))) {
+    throw clientError('BAD_USER_INPUT', taken, { fields: { name: taken } });
+  }
   try {
     return id ? await prisma.place.update({ where: { id }, data }) : await prisma.place.create({ data });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw clientError('BAD_USER_INPUT', 'Un lieu porte déjà ce nom.', { fields: { name: 'Un lieu porte déjà ce nom.' } });
+      throw clientError('BAD_USER_INPUT', taken, { fields: { name: taken } });
     }
     throw error;
   }
